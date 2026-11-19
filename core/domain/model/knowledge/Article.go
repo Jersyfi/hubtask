@@ -19,6 +19,10 @@ const MaxArticleSuggestions = 10
 type Article struct {
 	PageID       shared.ID
 	CollectionID shared.ID
+	// WithSubpages shares the page as a space (PO-4): every live page under it reaches the same
+	// requesters, except one behind a restriction and what lies under that. Their openings and
+	// ratings count on this publication.
+	WithSubpages bool
 	PublishedBy  shared.ID
 	PublishedAt  time.Time
 	Views        int64

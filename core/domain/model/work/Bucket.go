@@ -48,9 +48,9 @@ type Bucket struct {
 	// would make a board a form, and the requirement is that the column turns red rather than
 	// that the work becomes impossible.
 	WipLimit *int
-	// IsDoneBucket marks the column that means "finished". Stored and reported; what reacts to it
-	// is the client that renders the board and, later, an automation rule - the server completes
-	// nothing on its own account here (domain-model.md §3.5).
+	// IsDoneBucket marks the column that means "finished". Without a workflow a board has exactly
+	// one, and the server keeps it and completion together through every door (Board.Coupled);
+	// under a workflow the statuses decide (domain-model.md §3.5a).
 	IsDoneBucket bool
 	// ColorToken is optional, and the empty string is "not set" rather than a value - which is
 	// what lets the adapter store NULL without a second flag per field.

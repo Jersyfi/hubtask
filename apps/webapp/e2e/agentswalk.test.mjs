@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, ITEMS, OTHER } from './fixture.mjs';
@@ -93,8 +93,7 @@ function agentsBackend({ empty = false } = {}) {
 }
 
 test('chromium: agents - a model registered, an agent added from a role, a draft put live, its held act approved from its card, its run read - without an error', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const walk = await productWalk(browser, { modules: ['AGENTS'], answer: agentsBackend(), manifest: { token_scopes: ['items:read', 'items:write', 'admin:tenants'] } });
   t.after(walk.close);
   const { page } = walk;
@@ -111,8 +110,9 @@ test('chromium: agents - a model registered, an agent added from a role, a draft
 
   await page.getByRole('main').getByRole('link', { name: 'Agents', exact: true }).click();
   await page.waitForURL(/\/agents$/);
-  await page.getByText('0 live · 1 draft · 1 waiting for a person').waitFor({ timeout: 5_000 });
-  await page.getByRole('button', { name: 'Start from a role' }).click();
+  // The band's figures, one span each (H-3).
+  for (const figure of ['0 live', '1 draft', '1 waiting for a person']) await page.locator('.figure').getByText(figure, { exact: true }).waitFor({ timeout: 5_000 });
+  await page.getByRole('button', { name: 'More ways: Add an agent' }).click();
   await page.getByRole('menuitem', { name: 'Knowledge draft' }).click();
   const agentDialog = page.getByRole('dialog');
   assert.equal(await agentDialog.getByLabel('Name').inputValue(), 'Knowledge draft');
@@ -128,7 +128,7 @@ test('chromium: agents - a model registered, an agent added from a role, a draft
   await agentDialog.waitFor({ state: 'detached', timeout: 5_000 });
   await page.locator('[data-agent-row]').filter({ hasText: 'Knowledge draft' }).waitFor({ timeout: 5_000 });
 
-  const triage = page.getByRole('row').filter({ hasText: 'Triage helper' });
+  const triage = page.locator('[data-agent-card]').filter({ hasText: 'Triage helper' });
   await chooseInRow(triage, 'Approve');
   await chooseInRow(triage, 'Put live');
   await triage.getByText('Live', { exact: true }).waitFor({ timeout: 5_000 });
@@ -169,18 +169,25 @@ test('chromium: agents - a model registered, an agent added from a role, a draft
 });
 
 test('chromium: agents - an empty workspace offers the shipped roles, on a phone too', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const walk = await productWalk(browser, { modules: ['AGENTS'], answer: agentsBackend({ empty: true }), width: 375, height: 812 });
   t.after(walk.close);
   const { page } = walk;
 
   await page.goto(`${served.origin}/agents`);
-  await page.getByText('No agent works here yet').waitFor({ timeout: 5_000 });
+  await page.locator('.empty[data-kind="unused"]').filter({ hasText: 'Agents' }).waitFor({ timeout: 5_000 });
+  // The product's own empty state (scene homeagents): its tile, one sentence, the roles as cards.
+  await page.locator('[data-empty-templates]').getByRole('button', { name: /^Ticket triage/u }).waitFor({ timeout: 10_000 });
+  assert.equal(await page.locator('.empty[data-kind="unused"] > .tile').count(), 1, 'the agents\' tile');
+  // The agents' mockup draws its template cards as rows, with no Use mark (UC-WRK-36 check 22).
+  assert.equal(await page.locator('[data-empty-templates] .card[data-shape="row"]').count(), 3, 'three role rows');
+  assert.equal(await page.locator('[data-empty-templates] .use').count(), 0, 'no Use mark');
   await page.getByRole('button', { name: 'Ticket triage' }).click();
   const dialog = page.getByRole('dialog');
   assert.equal(await dialog.getByLabel('Name').inputValue(), 'Ticket triage');
-  await dialog.getByRole('button', { name: 'Cancel' }).last().click();
+  // On a phone the dialog is a sheet whose X is named Close (D-5); either dismisses it.
+  await dialog.getByRole('button', { name: /^(Cancel|Close)$/u }).first().click();
+  await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
   // On a phone the home's views are a chip that opens them as a sheet (the navigation concept, §6).
   await page.getByRole('main').getByRole('button', { name: 'Agents', exact: true }).click();
   await page.getByRole('link', { name: 'Runs' }).click();
@@ -189,4 +196,37 @@ test('chromium: agents - an empty workspace offers the shipped roles, on a phone
   assert.equal(scrolls, false, 'the page scrolls sideways on a phone');
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
+});
+
+// An agent's page opens on the head every object has (WB-1): its standing drawn in the status
+// button's shape and height with its glyph - read only, since presses change it.
+test('chromium: an approved agent\'s head draws its standing as the status button does', async (t) => {
+  const browser = await sharedChromium(t);
+  const backend = agentsBackend();
+  let shown;
+  const walk = await productWalk(browser, {
+    modules: ['AGENTS'],
+    answer: (method, path, ...rest) => {
+      const listed = backend(method, path, ...rest);
+      if (path === '/agents' && method === 'GET') shown ??= listed.json.data[0];
+      const one = /^\/agents\/([^/:]+)$/.exec(path);
+      if (one && method === 'GET' && shown) return { json: { ...shown, status: 'APPROVED', approved_by: ACCOUNT.id, approved_at: now() } };
+      return listed;
+    },
+  });
+  t.after(walk.close);
+  const { page } = walk;
+  await page.goto(`${served.origin}/agents`);
+  await page.locator('[data-agent-card]').filter({ hasText: 'Triage helper' }).waitFor({ timeout: 10_000 });
+  await page.goto(`${served.origin}/agents/${shown.id}`);
+  const head = page.locator('header.object-head');
+  // The standing is the status button with its ⌄ (H-2): its lifecycle steps out of it.
+  const standing = head.locator('[data-agent-status] button.status');
+  await standing.waitFor({ timeout: 10_000 });
+  assert.equal((await standing.innerText()).trim(), 'Approved');
+  assert.equal(await standing.getAttribute('data-tone'), 'success', 'approved is drawn as a warning');
+  assert.equal(await standing.locator('.icon').count(), 2, 'the standing carries no glyph beside its ⌄');
+  const next = head.locator('.action-bar .step').first();
+  const [own, step] = [await standing.boundingBox(), await next.boundingBox()];
+  assert.ok(own.height >= step.height - 1, `the standing is ${own.height} px high beside a ${step.height} px step`);
 });

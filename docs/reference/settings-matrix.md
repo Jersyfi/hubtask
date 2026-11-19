@@ -213,6 +213,9 @@ one workspace, by person and place.
 | `knowledge.public_links` | INSTANCE | `admin:instance` | the installation's operators |
 | `knowledge.public_links` | PLAN | `admin:instance` | the installation's operators |
 | `knowledge.public_links` | WORKSPACE | `MANAGE_MEMBERS` | OWNER, ADMIN |
+| `knowledge.cover_images` | INSTANCE | `admin:instance` | the installation's operators |
+| `knowledge.cover_images` | PLAN | `admin:instance` | the installation's operators |
+| `knowledge.cover_images` | WORKSPACE | `MANAGE_MEMBERS` | OWNER, ADMIN |
 | `knowledge.drafts` | HUB | `STRUCTURE` | OWNER, ADMIN |
 | `servicedesk.public_forms` | INSTANCE | `admin:instance` | the installation's operators |
 | `servicedesk.public_forms` | PLAN | `admin:instance` | the installation's operators |
@@ -237,3 +240,5 @@ one workspace, by person and place.
 | `notifications.retention` | PERSON | `SELF` | the person |
 | `notifications.request_reply` | PERSON | `SELF` | the person |
 | `notifications.sla` | PERSON | `SELF` | the person |
+| `notifications.post` | PERSON | `SELF` | the person |
+| `notifications.attestation` | PERSON | `SELF` | the person |

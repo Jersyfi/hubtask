@@ -105,10 +105,14 @@ type Steward struct {
 	Store      goalrepo.Store
 	References workrepo.References
 	Containers workrepo.Containers
+	// Workflows names a linked entry's status as the workflow in force does; nil names none.
+	Workflows workrepo.Workflows
 	// Summaries is POST /items:aggregate's use case and ViewSummaries a saved view's: every number
 	// of the module is one of theirs, run as the reader.
 	Summaries     usecase.Handler
 	ViewSummaries usecase.Handler
+	// Items is POST /items:query's use case: a LIST widget's first entries, run as the reader.
+	Items usecase.Handler
 	// Budgets is the time module's ReadBudget, run as the reader for a portfolio's budget roll-up
 	// (UC-GOL-03); nil rolls up none.
 	Budgets usecase.Handler

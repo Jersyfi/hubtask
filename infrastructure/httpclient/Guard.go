@@ -49,6 +49,9 @@ type Guard struct {
 	// lookupIP resolves a host. Injected so that the SSRF suite can serve a rebinding
 	// resolver without a DNS server.
 	lookupIP func(ctx context.Context, host string) ([]netip.Addr, error)
+	// enteredHost is the document server a workspace's administration entered: the one host a
+	// private address is allowed for when private networks are otherwise closed (ForEnteredServer).
+	enteredHost string
 }
 
 // NewGuard builds the guard from the outbound configuration.
@@ -90,6 +93,31 @@ func (g *Guard) ForOperatorService(host string) *Guard {
 		copied.allowed[host] = struct{}{}
 	}
 	return &copied
+}
+
+// ForEnteredServer returns a copy that allows a private address for exactly one host - the document
+// server the administration entered (security.md §10, ADR-0104) - and for no other: a redirect, a
+// rebind or another name still meets the closed rule, and the metadata addresses stay blocked.
+func (g *Guard) ForEnteredServer(host string) *Guard {
+	copied := *g
+	copied.enteredHost = strings.ToLower(host)
+	return &copied
+}
+
+// forHost is the guard that judges an address reached by this host name.
+func (g *Guard) forHost(host string) *Guard {
+	if g.enteredHost == "" || g.allowPrivate || !strings.EqualFold(host, g.enteredHost) {
+		return g
+	}
+	copied := *g
+	copied.allowPrivate = true
+	return &copied
+}
+
+// ControlFor is CheckControl for a dial to this host name: the dial hook of a client that may
+// reach an entered server.
+func (g *Guard) ControlFor(host string) func(network, address string) error {
+	return g.forHost(host).CheckControl
 }
 
 func defaultLookup(ctx context.Context, host string) ([]netip.Addr, error) {
@@ -134,7 +162,7 @@ func (g *Guard) CheckURL(rawURL string) (*url.URL, error) {
 	// A literal IP needs no resolution, and checking it here means the caller learns about
 	// http://127.0.0.1/ without a DNS round trip that was never going to happen.
 	if addr, err := netip.ParseAddr(host); err == nil {
-		if err := g.CheckAddr(addr); err != nil {
+		if err := g.forHost(host).CheckAddr(addr); err != nil {
 			return nil, err
 		}
 	}
@@ -149,6 +177,7 @@ func (g *Guard) CheckURL(rawURL string) (*url.URL, error) {
 // leaves a window in which DNS can change its mind, which is why CheckAddr runs again at dial
 // time - this pass is for the error message and for failing before a connection is attempted.
 func (g *Guard) Resolve(ctx context.Context, host string) ([]netip.Addr, error) {
+	g = g.forHost(host)
 	if addr, err := netip.ParseAddr(host); err == nil {
 		if err := g.CheckAddr(addr); err != nil {
 			return nil, err
@@ -323,6 +352,14 @@ var refusals = map[string]bool{
 	codeTargetCredentials: true,
 	codeTargetNotAllowed:  true,
 	codeTargetBlocked:     true,
+}
+
+// IsPrivateTarget reports whether err is the guard refusing an address inside a private or
+// reserved network - the one refusal an operator can lift (HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS),
+// so a caller can say so.
+func IsPrivateTarget(err error) bool {
+	var typed *shared.Error
+	return errors.As(err, &typed) && typed.DetailCode == codeTargetBlocked
 }
 
 // IsBlocked reports whether err is the guard refusing a target. The webhook dispatcher needs it

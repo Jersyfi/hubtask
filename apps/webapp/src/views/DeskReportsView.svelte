@@ -6,7 +6,7 @@
   // figures are read again whenever it changes - there is nothing to press. The workspace's, read
   // by a holder of STRUCTURE there (P-05); the server decides (rule 2).
   import { untrack } from 'svelte';
-  import { EmptyState, FilterBar, Grid, Input, Radio, Skeleton, Stack, SummaryCard, WorkPage, type Filter } from '@hubtask/design-system/components';
+  import { EmptyState, FilterBar, Grid, Input, ProductBand, Radio, Skeleton, Stack, SummaryCard, WorkPage, type Filter } from '@hubtask/design-system/components';
   import type { SlaPolicyList, SlaReport } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
@@ -20,7 +20,6 @@
   import { addDays, instantOf, todayIn } from '../lib/i18n/zone.ts';
   import { matchesSearch } from '../lib/page/list.ts';
   import ProductTabs from '../lib/product/ProductTabs.svelte';
-  import { productHead } from '../lib/product/frame.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { reportRows } from '../lib/servicedesk/desk.ts';
 
@@ -70,7 +69,7 @@
 
 {#snippet tabs()}<ProductTabs module="SERVICE_DESK" current="reports" {onnavigate} />{/snippet}
 
-<WorkPage head={productHead('SERVICE_DESK')} {tabs} refused={mayRead ? undefined : notYours}>
+<WorkPage {top} {tabs} refused={mayRead ? undefined : notYours}>
   <Stack gap="200">
     <FilterBar
       searchLabel={t('app.desk.reports_search')}
@@ -119,5 +118,11 @@
     {/if}
   </Stack>
 </WorkPage>
+
+<!-- The desk's band, as its home draws it (scene deskhome): the reports are one of its tabs. -->
+{#snippet top()}
+  <ProductBand product="desk" icon="inbox" name={t('app.nav.desk')}
+    breadcrumb={{ trail: [{ id: 'products', label: t('app.nav.products') }, { id: 'product', label: t('app.nav.desk') }], label: t('app.product_home.trail'), expandLabel: t('app.admin.expand_trail') }} />
+{/snippet}
 
 {#snippet notYours()}<EmptyState kind="filtered" title={t('app.settings.not_yours')} />{/snippet}

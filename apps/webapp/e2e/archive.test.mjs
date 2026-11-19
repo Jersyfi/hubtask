@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ARCHIVED, COLLECTION, HUB, signedIn, stub } from './fixture.mjs';
@@ -20,8 +20,7 @@ const served = await serve(DIST);
 test.after(() => served.close());
 
 test('chromium: 1280 px — the archive holds what the tree does not, and brings it back', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const written = [];
   const { page, failures, context, close, unstubbed } = await signedIn(browser, 1280, 1000);
   t.after(close);
@@ -62,8 +61,7 @@ test('chromium: 1280 px — the archive holds what the tree does not, and brings
 });
 
 test('chromium: 375 px — the archive is reached from Browse, at its foot', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close, unstubbed } = await signedIn(browser, 375, 812);
   t.after(close);
   await page.goto(`${served.origin}/`);

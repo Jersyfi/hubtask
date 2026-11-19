@@ -1,10 +1,11 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // A configuration item's asset record on its screen (UC-AST-12 check 5): its tag, cost, purchase,
-  // supplier, warranty, contract, stockroom, holder and the request it came from, the state it is
-  // in, and the disposal with its certificate once it is disposed of. A writer registers the record,
-  // changes it and moves it on.
+  // An object's register record on its page (UC-AST-12 check 5, scene `ci`): its number, cost,
+  // purchase, supplier, warranty, contract, stockroom and holder beside the device's life from
+  // requested to disposed (`AssetLife`), the request and the disposal with its certificate on their
+  // steps. Without one it is a dashed line saying what a record is for. A writer registers the
+  // record, changes it and moves it on, in dialogs of the ladder (L, and M to dispose).
   //
   // **Only the moves the domain allows are offered** (`assetMoves`), and deploying is offered only
   // once a holder or a stockroom is named; disposing asks for the method and the certificate's
@@ -23,9 +24,10 @@
   import { people } from '../data/people.svelte.ts';
   import { resourceWhen } from '../data/resource.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
-  import { formatDateTime } from '../i18n/datetime.ts';
+  import { formatPlainDay } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import AssetLife from './AssetLife.svelte';
 
   interface Props {
     ci: ConfigurationItem;
@@ -128,55 +130,59 @@
   }
 </script>
 
-<section class="part" aria-labelledby="ci-asset" data-ci-asset>
+<section class="part" id="ci-register" tabindex="-1" aria-labelledby="ci-asset" data-ci-asset>
   <div class="part-head">
     <h2 id="ci-asset" class="heading">{t('app.register.asset')}</h2>
-    {#if mayWrite && !ci.merged_into && (none || (asset && asset.state !== 'DISPOSED'))}
-      <Button size="sm" tone="secondary" icon={asset ? 'pencil' : 'plus'} data-register-asset onclick={openEdit}>
-        {asset ? t('app.assets.edit') : t('app.register.register')}
-      </Button>
+    {#if mayWrite && !ci.merged_into && asset && asset.state !== 'DISPOSED'}
+      <Button size="sm" tone="subtle" icon="pencil" data-register-asset onclick={openEdit}>{t('app.assets.edit')}</Button>
     {/if}
   </div>
   {#if failure}
     <p class="refusal" role="alert">{failure}</p>
   {:else if none}
-    <p class="meta">{t('app.register.no_record')}</p>
+    <!-- Nothing registered is one dashed line with its "+" (WB-3), saying what a record is for. -->
+    <div class="empty" data-register-empty>
+      <p class="meta">{t('app.object.register_empty')}</p>
+      {#if mayWrite && !ci.merged_into}
+        <Button size="sm" tone="subtle" icon="plus" data-register-asset onclick={openEdit}>{t('app.register.register')}</Button>
+      {/if}
+    </div>
   {:else if !asset}
     <Spinner label={t('app.assets.loading')} />
   {:else}
-    <div><Badge tone={assetTone(asset)}>{stateWord(asset.state as AssetState)}</Badge></div>
-    <dl class="pairs">
-      <dt>{t('app.register.tag')}</dt><dd>{asset.asset_tag || '—'}</dd>
-      <dt>{t('app.register.cost')}</dt><dd>{costText(asset.cost_minor, asset.currency, messages.locale)}</dd>
-      <dt>{t('app.register.purchased')}</dt><dd>{asset.purchased_on ?? '—'}</dd>
-      <dt>{t('app.register.supplier')}</dt><dd>{asset.supplier || '—'}</dd>
-      <dt>{t('app.register.warranty')}</dt>
-      <dd>{asset.warranty_until ?? '—'}{#if asset.warranty_ended}<Badge size="sm" tone="warning">{t('app.register.warranty_ended')}</Badge>{/if}</dd>
-      <dt>{t('app.register.contract')}</dt><dd>{#if asset.contract_id}<a href={`/cis/${asset.contract_id}`}>{nameOf(asset.contract_id)}</a>{:else}—{/if}</dd>
-      <dt>{t('app.register.stockroom')}</dt><dd>{#if asset.stockroom_id}<a href={`/cis/${asset.stockroom_id}`}>{nameOf(asset.stockroom_id)}</a>{:else}—{/if}</dd>
-      <dt>{t('app.register.holder')}</dt><dd>{asset.assigned_to ? (accounts.nameOf(asset.assigned_to) ?? '—') : '—'}</dd>
-      <dt>{t('app.register.request')}</dt><dd>{#if asset.request_id}<a href={`/items/${asset.request_id}`}>{t('app.register.request_open')}</a>{:else}—{/if}</dd>
-      {#if asset.disposal}
-        <dt>{t('app.register.disposal')}</dt>
-        <dd data-disposal>
-          {t(`app.register.method.${asset.disposal.method}`)} · {t('app.register.certificate_value', { reference: asset.disposal.certificate })}
-          · {formatDateTime(asset.disposal.at, messages.locale)}{#if asset.disposal.by} · {accounts.nameOf(asset.disposal.by) ?? '—'}{/if}
-        </dd>
-      {/if}
-    </dl>
-    {#if mayWrite && moveOptions.length > 0}
-      <div class="move">
-        <Select label={t('app.register.move_to')} size="sm" options={moveOptions} placeholder={t('app.register.move_pick')} bind:value={moveTo} />
-        <Button
-          size="sm"
-          tone="primary"
-          data-move-asset
-          isBusy={isMoving}
-          disabledReason={!moveTo ? t('app.register.move_pick') : moveNeedsHolder(asset, moveTo as AssetState) ? t('cmdb.asset_deploy_unassigned') : undefined}
-          onclick={startMove}
-        >{t('app.register.move')}</Button>
+    <div class="record">
+      <div class="facts">
+        <div><Badge tone={assetTone(asset)}>{stateWord(asset.state as AssetState)}</Badge></div>
+        <dl class="pairs">
+          <dt>{t('app.register.tag')}</dt><dd>{asset.asset_tag || '—'}</dd>
+          <dt>{t('app.register.cost')}</dt><dd>{costText(asset.cost_minor, asset.currency, messages.locale)}</dd>
+          <dt>{t('app.register.purchased')}</dt><dd>{asset.purchased_on ? formatPlainDay(asset.purchased_on, messages.locale) : '—'}</dd>
+          <dt>{t('app.register.supplier')}</dt><dd>{asset.supplier || '—'}</dd>
+          <dt>{t('app.register.warranty')}</dt>
+          <dd>{asset.warranty_until ? formatPlainDay(asset.warranty_until, messages.locale) : '—'}{#if asset.warranty_ended}<Badge size="sm" tone="warning">{t('app.register.warranty_ended')}</Badge>{/if}</dd>
+          <dt>{t('app.register.contract')}</dt><dd>{#if asset.contract_id}<a href={`/cis/${asset.contract_id}`}>{nameOf(asset.contract_id)}</a>{:else}—{/if}</dd>
+          <dt>{t('app.register.stockroom')}</dt><dd>{#if asset.stockroom_id}<a href={`/cis/${asset.stockroom_id}`}>{nameOf(asset.stockroom_id)}</a>{:else}—{/if}</dd>
+          <dt>{t('app.register.holder')}</dt><dd>{asset.assigned_to ? (accounts.nameOf(asset.assigned_to) ?? '—') : '—'}</dd>
+        </dl>
+        {#if mayWrite && moveOptions.length > 0}
+          <div class="move">
+            <Select label={t('app.register.move_to')} size="sm" options={moveOptions} placeholder={t('app.register.move_pick')} bind:value={moveTo} />
+            <Button
+              size="sm"
+              tone="secondary"
+              data-move-asset
+              isBusy={isMoving}
+              disabledReason={!moveTo ? t('app.register.move_pick') : moveNeedsHolder(asset, moveTo as AssetState) ? t('cmdb.asset_deploy_unassigned') : undefined}
+              onclick={startMove}
+            >{t('app.register.move')}</Button>
+          </div>
+        {/if}
       </div>
-    {/if}
+      <div class="life">
+        <h3 class="subheading">{t('app.object.life')}</h3>
+        <AssetLife {asset} nameOf={(id) => nameOf(id)} />
+      </div>
+    </div>
   {/if}
 </section>
 
@@ -230,9 +236,20 @@
 {/if}
 
 <style>
-  .part { display: grid; gap: var(--sp-100); }
-  .part-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: var(--sp-100); }
+  .part { container-type: inline-size; display: flex; flex-direction: column; gap: var(--sp-150); padding-block: var(--sp-300); border-block-start: var(--bw-hairline) solid var(--border-subtle); scroll-margin-block-start: var(--sp-600); }
+  .part:focus { outline: none; }
+  .part-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); }
   .heading { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }
+  .subheading { margin: 0 0 var(--sp-100); font-size: var(--fs-075); font-weight: var(--fw-semibold); color: var(--text-secondary); }
+  .empty {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100) var(--sp-200);
+    padding: var(--sp-150) var(--sp-200); border: var(--bw-hairline) dashed var(--border-default); border-radius: var(--r-md);
+  }
+  .empty .meta { flex: 1 1 20ch; font-size: var(--fs-090); color: var(--text-secondary); }
+  .record { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-300); }
+  .facts { display: flex; flex-direction: column; gap: var(--sp-150); min-inline-size: 0; }
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a container query cannot read a custom property. */
+  @container (inline-size >= 600px) { .record { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); } }
   .pairs { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); gap: var(--sp-050) var(--sp-150); margin: 0; }
   .pairs dt { color: var(--text-secondary); }
   .pairs dd { margin: 0; display: flex; flex-wrap: wrap; gap: var(--sp-050); align-items: baseline; overflow-wrap: anywhere; }

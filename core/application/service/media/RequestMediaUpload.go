@@ -156,7 +156,7 @@ func (h RequestMediaUpload) Execute(
 	// After the commit, deliberately. Minting the target is signing rather than I/O, but it is the
 	// answer to a record that now exists - and issuing it first would hand out a capability for an
 	// object the transaction might still roll back.
-	transfer, err := h.Transfers.IssueUpload(object, now.Add(UploadWindow))
+	transfer, err := h.Transfers.IssueUpload(ctx, object, now.Add(UploadWindow))
 	if err != nil {
 		return StagedUpload{}, err
 	}
@@ -277,6 +277,9 @@ func mediaOutput(object media.Object) usecase.Output {
 		"ref_count":    object.RefCount,
 		"created_by":   object.CreatedBy.String(),
 		"created_at":   object.CreatedAt,
+		// What the file viewer may hand the browser by URL; only a sealed object's type is judged.
+		"inline": object.Status == media.StatusReady && media.DeliveryFor(object.ContentType) == media.DispositionInline,
+		"office": media.IsOfficeFile(object.ContentType, object.FileName),
 	}
 }
 

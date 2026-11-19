@@ -151,6 +151,29 @@ func (q *Queries) BlankPageCommentsOf(ctx context.Context, arg BlankPageComments
 	return result.RowsAffected(), nil
 }
 
+const blankPostRepliesOf = `-- name: BlankPostRepliesOf :execrows
+UPDATE post_reply
+SET body = '', author_id = NULL, edited_at = NULL,
+    deleted_at = COALESCE(deleted_at, $1), version = version + 1
+WHERE tenant_id = current_tenant_id() AND author_id = $2
+  AND id = ANY($3::uuid[])
+`
+
+type BlankPostRepliesOfParams struct {
+	At       pgtype.Timestamptz
+	AuthorID pgtype.UUID
+	Ids      []pgtype.UUID
+}
+
+// As BlankPageCommentsOf, for the replies under a post.
+func (q *Queries) BlankPostRepliesOf(ctx context.Context, arg BlankPostRepliesOfParams) (int64, error) {
+	result, err := q.db.Exec(ctx, blankPostRepliesOf, arg.At, arg.AuthorID, arg.Ids)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const blankWhiteboardCommentsOf = `-- name: BlankWhiteboardCommentsOf :execrows
 UPDATE whiteboard_comment
 SET body = '', author_id = NULL, edited_at = NULL,
@@ -687,6 +710,94 @@ func (q *Queries) DeletePortfolioUpdatesOf(ctx context.Context, arg DeletePortfo
 	return items, nil
 }
 
+const deletePostConfirmationsOfAccount = `-- name: DeletePostConfirmationsOfAccount :execrows
+DELETE FROM post_confirmation WHERE tenant_id = current_tenant_id() AND account_id = $1
+`
+
+// The read confirmations the person gave (UC-DOC-18 check 6).
+func (q *Queries) DeletePostConfirmationsOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePostConfirmationsOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deletePostFollowsOfAccount = `-- name: DeletePostFollowsOfAccount :execrows
+DELETE FROM post_follow WHERE tenant_id = current_tenant_id() AND account_id = $1
+`
+
+// The hubs whose posts the person follows (B-5): erased with the person.
+func (q *Queries) DeletePostFollowsOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePostFollowsOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deletePostReactionsOfAccount = `-- name: DeletePostReactionsOfAccount :execrows
+DELETE FROM post_reaction WHERE tenant_id = current_tenant_id() AND account_id = $1
+`
+
+// The reactions the person gave in a post's discussion (UC-DOC-18 check 6).
+func (q *Queries) DeletePostReactionsOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePostReactionsOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deletePostReadsOfAccount = `-- name: DeletePostReadsOfAccount :execrows
+DELETE FROM post_read WHERE tenant_id = current_tenant_id() AND account_id = $1
+`
+
+// Which posts the person has seen (UC-DOC-18 check 6): personal data kept with the post, erased with
+// the person.
+func (q *Queries) DeletePostReadsOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePostReadsOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deletePostRepliesOf = `-- name: DeletePostRepliesOf :many
+DELETE FROM post_reply pr
+WHERE pr.tenant_id = current_tenant_id() AND pr.author_id = $1
+  AND pr.id = ANY($2::uuid[])
+  AND NOT EXISTS (
+    SELECT 1 FROM post_reply r WHERE r.tenant_id = pr.tenant_id AND r.parent_id = pr.id)
+RETURNING pr.id
+`
+
+type DeletePostRepliesOfParams struct {
+	AuthorID pgtype.UUID
+	Ids      []pgtype.UUID
+}
+
+// As DeletePageCommentsOf, for the replies under a post: one answered is blanked instead.
+func (q *Queries) DeletePostRepliesOf(ctx context.Context, arg DeletePostRepliesOfParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, deletePostRepliesOf, arg.AuthorID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deletePrivateDashboardsOfAccount = `-- name: DeletePrivateDashboardsOfAccount :execrows
 DELETE FROM dashboard
 WHERE tenant_id = current_tenant_id() AND owner_id = $1 AND sharing = 'PRIVATE'
@@ -853,6 +964,11 @@ SELECT 'PAGE_DRAFT'::text, d.page_id, NULL::uuid, ''::text, NULL::uuid, p.hub_id
 FROM page_draft d
 JOIN page p ON p.tenant_id = d.tenant_id AND p.id = d.page_id
 WHERE d.tenant_id = current_tenant_id() AND d.updated_by = $1
+UNION ALL
+SELECT 'POST_REPLY'::text, r.id, NULL::uuid, ''::text, NULL::uuid, po.hub_id, NULL::uuid
+FROM post_reply r
+JOIN post po ON po.tenant_id = r.tenant_id AND po.page_id = r.page_id
+WHERE r.tenant_id = current_tenant_id() AND r.author_id = $1
 `
 
 type ErasureContributionsRow struct {
@@ -869,7 +985,7 @@ type ErasureContributionsRow struct {
 // hub, a collection, an entry or another person is judged against. Their comments, the entries
 // assigned to them, the entries they created - and what they wrote outside entries: page and board
 // comments (with the hub), goal check-ins and portfolio updates (in no hub), the drafts of pages
-// they edited last (the page's identifier, with the hub).
+// they edited last (the page's identifier, with the hub), their replies under a post (with the hub).
 func (q *Queries) ErasureContributions(ctx context.Context, accountID pgtype.UUID) ([]ErasureContributionsRow, error) {
 	rows, err := q.db.Query(ctx, erasureContributions, accountID)
 	if err != nil {

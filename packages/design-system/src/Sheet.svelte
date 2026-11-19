@@ -12,13 +12,14 @@
   // **One height for every sheet**: as tall as what it holds, at most 85 % of the screen; beyond
   // that its body scrolls under a head that stays. Every sheet has its grabber, and pulling it down
   // closes the sheet; with `grabLabel` the grabber is also a button that closes it.
-  import type { Snippet } from 'svelte';
+  import { untrack, type Snippet } from 'svelte';
 
   import Icon from './Icon.svelte';
   import IconButton from './IconButton.svelte';
   import type { IconName } from './icons/index.ts';
   import { escapeHandler, focusReturn } from './focus.ts';
   import { layers } from './layers.ts';
+  import { closeName } from './media.ts';
   import type { MenuItem } from './overlay.ts';
 
   interface Props {
@@ -102,6 +103,12 @@
     }
     opener = document.activeElement;
     if (!sheet.open) sheet.showModal();
+    // A list of actions is a menu: focus starts on its first row, not on the grabber or the close
+    // button, so the arrows move among the rows at once - never on a destructive one.
+    if (untrack(() => (items?.length ?? 0) > 0)) {
+      const rows = [...sheet.querySelectorAll<HTMLElement>('[role="menuitem"]')];
+      (rows.find((row) => !row.hasAttribute('data-destructive') && row.getAttribute('aria-disabled') !== 'true') ?? rows[0])?.focus();
+    }
     const handle = layers.open('overlay', close);
     const onKeydown = escapeHandler();
     document.addEventListener('keydown', onKeydown);
@@ -113,6 +120,19 @@
       onClose?.();
     };
   });
+
+  /** Up, Down, Home and End move among the action rows, the ends wrapping round. */
+  function moveAmongItems(event: KeyboardEvent): void {
+    const rows = [...(event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('[role="menuitem"]')];
+    const at = rows.indexOf(document.activeElement as HTMLElement);
+    const to = event.key === 'ArrowDown' ? (at + 1) % rows.length
+      : event.key === 'ArrowUp' ? (at - 1 + rows.length) % rows.length
+        : event.key === 'Home' ? 0
+          : event.key === 'End' ? rows.length - 1 : -1;
+    if (to < 0 || rows.length === 0) return;
+    event.preventDefault();
+    rows[to]?.focus();
+  }
 </script>
 
 <dialog
@@ -150,15 +170,18 @@
     <header class="head">
       <h2 class="title" id={titleId}>{#if icon}<Icon name={icon} size="sm" />{/if}{title}</h2>
       <!-- A thumb's target (§9: 44 px): the regular size, not the small one. -->
-      <IconButton icon="x" label={closeLabel} tone="subtle" onclick={() => close()} />
+      <IconButton icon="x" label={closeName() ?? closeLabel} tone="subtle" onclick={() => close()} />
     </header>
     <div class="body">
       {#if items}
-        <ul class="items">
+        <!-- A list of actions is the menu it stands for on a phone: its rows are menu items, the
+             arrows move between them as in the anchored menu (WAI-ARIA menu pattern). -->
+        <ul class="items" role="menu" aria-labelledby={titleId} onkeydown={moveAmongItems}>
           {#each items as item (item.id)}
-            <li>
+            <li role="none">
               <button
                 type="button"
+                role="menuitem"
                 class="item"
                 data-destructive={item.isDestructive ? '' : undefined}
                 data-separated={item.hasSeparatorBefore ? '' : undefined}
@@ -169,6 +192,7 @@
                 {#if item.icon}<Icon name={item.icon} size="sm" />{/if}
                 <span class="item-text">
                   <span>{item.label}</span>
+                  {#if item.description}<span class="reason">{item.description}</span>{/if}
                   {#if item.disabledReason !== undefined}
                     <span class="reason" id={`${titleId}-${item.id}`}>{item.disabledReason}</span>
                   {/if}
@@ -198,6 +222,8 @@
     background: var(--bg-raised);
     box-shadow: var(--shadow-overlay);
     color: var(--text-primary);
+    /* A dialog inherits from where it is mounted: a row's nowrap would widen the sheet past the screen. */
+    white-space: normal;
     overflow: hidden;
     animation: rise var(--motion-entrance-duration) var(--motion-entrance-easing) both;
   }
@@ -208,9 +234,14 @@
   }
 
   /* The head and the foot stay; only the body scrolls once the sheet is at its most. */
-  .sheet[open] { display: flex; flex-direction: column; }
+  /* The margin again where it is open: a page's flow spacing (`.page > * + *`) reaches a sheet that
+     stands among its children and pushed it to the top. */
+  .sheet[open] { display: flex; flex-direction: column; margin: auto 0 0; }
   .panel { flex: 1 1 auto; min-block-size: 0; box-sizing: border-box; }
   .body { flex: 1 1 auto; min-block-size: 0; overflow: auto; }
+  /* A list of actions is the scroller itself, so the menu stands inside the screen, not only its body. */
+  .body:has(> .items) { display: flex; flex-direction: column; }
+  .body > .items { flex: 0 1 auto; min-block-size: 0; overflow: auto; }
 
   .sheet::backdrop { background: var(--bg-scrim); }
 
@@ -232,6 +263,12 @@
     background: none;
     cursor: grab;
     touch-action: none;
+  }
+
+  /* A thumb's target (§7): the grabber that closes is layout.target tall where the pointer is coarse. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    button.grabber { min-block-size: var(--layout-target); padding-block: 0; }
   }
 
   .grabber .grip {

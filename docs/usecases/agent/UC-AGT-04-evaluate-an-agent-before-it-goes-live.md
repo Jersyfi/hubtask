@@ -37,8 +37,8 @@ model changes, it must pass again.
 5. Cases and runs stay in their workspace and join its archive.
 6. The web app shows an agent's set and runs and lets an administrator add and remove cases.
 7. An administrator has a shipped agent answer its own set (`RunAgentEvaluation`) from each case's
-   title and notes: a knowledge draft answers `title` and `body`, a CI suggestion and a triage `cis`,
-   the names of the chosen hub's CIs the text names (`agents.evaluation_hub_required` without a
+   title and notes: a knowledge draft answers `title` and `body`, an object suggestion and a triage `cis`,
+   the names of the chosen hub's objects the text names (`agents.evaluation_hub_required` without a
    hub); a duplicate review is evaluated by answers somebody sends (`agents.evaluation_by_answers`).
    REST, MCP, hubctl and the web app start it alike.
 8. Given a collection, a ticket triage answers `labels` for each case expecting them: the names of
@@ -49,6 +49,6 @@ model changes, it must pass again.
 
 ## Where it ends
 
-* A triage's own run answers labels and CIs; anything else a case expects is recorded from answers
+* A triage's own run answers labels and objects; anything else a case expects is recorded from answers
   somebody sends.
 * No accuracy, escalation or override rates measured in production.

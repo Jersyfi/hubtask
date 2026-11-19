@@ -1084,6 +1084,21 @@ CREATE UNIQUE INDEX bucket_name_uq ON bucket (tenant_id, collection_id, lower(im
   WHERE deleted_at IS NULL;
 CREATE INDEX bucket_order_idx ON bucket (tenant_id, collection_id, order_key);
 
+-- Which statuses a column shows under a workflow (migration 0395): a status in at most one column
+-- of the board; one no column shows stands in *Ohne Spalte* (domain-model.md §3.5a).
+CREATE TABLE bucket_status (
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  collection_id uuid NOT NULL,
+  bucket_id     uuid NOT NULL,
+  status        text NOT NULL CHECK (status ~ '^[a-z][a-z0-9_]{0,49}$'),
+  PRIMARY KEY (tenant_id, collection_id, status),
+  CONSTRAINT bucket_status_collection_fkey
+    FOREIGN KEY (tenant_id, collection_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT bucket_status_bucket_fkey
+    FOREIGN KEY (tenant_id, bucket_id) REFERENCES bucket (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX bucket_status_bucket_idx ON bucket_status (tenant_id, bucket_id);
+
 CREATE TABLE label (
   id             uuid PRIMARY KEY,
   tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -1576,7 +1591,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON work_item_announcement, work_item_flow, 
 CREATE TABLE durable_timer (
   id               uuid PRIMARY KEY,
   tenant_id        uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  purpose          text NOT NULL CHECK (purpose IN ('SLA', 'APPROVAL', 'EFFECTIVENESS_CHECK', 'PAGE_REVIEW', 'OLA')),
+  purpose          text NOT NULL CHECK (purpose IN ('SLA', 'APPROVAL', 'EFFECTIVENESS_CHECK', 'PAGE_REVIEW', 'OLA', 'POST_PUBLISH')),
   subject_id       uuid NOT NULL,
   name             text NOT NULL CHECK (name ~ '^[a-z][a-z0-9_]{0,49}$'),
   calendar         jsonb NOT NULL,   -- the calendar it was armed on
@@ -1857,6 +1872,8 @@ CREATE TABLE page_article (
   published_by  uuid,
   published_at  timestamptz NOT NULL,
   views         bigint NOT NULL DEFAULT 0 CHECK (views >= 0),
+  -- Shared as a space: every page under it reaches the portal too (migration 0420).
+  with_subpages boolean NOT NULL DEFAULT false,
   PRIMARY KEY (tenant_id, page_id, collection_id),
   CONSTRAINT page_article_page_fkey FOREIGN KEY (tenant_id, page_id)
     REFERENCES page (tenant_id, id) ON DELETE CASCADE,
@@ -2291,6 +2308,54 @@ ALTER TABLE whiteboard_media FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON whiteboard_media
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, DELETE ON whiteboard_media TO hubtask_app;
+
+-- The WOPI host (migration 0410, UC-MED-06): a workspace's document server, a document server's
+-- lock on a file, and a file's earlier versions - each an object of its own.
+CREATE TABLE document_server (
+  tenant_id  uuid PRIMARY KEY REFERENCES tenant(id) ON DELETE CASCADE,
+  kind       text NOT NULL CHECK (kind IN ('COLLABORA_ONLINE','ONLYOFFICE','EURO_OFFICE','MICROSOFT_365')),
+  url        text NOT NULL CHECK (url LIKE 'https://%'),
+  set_by     uuid,
+  updated_at timestamptz NOT NULL
+);
+ALTER TABLE document_server ENABLE ROW LEVEL SECURITY;
+ALTER TABLE document_server FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON document_server
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON document_server TO hubtask_app;
+CREATE TABLE media_lock (
+  tenant_id  uuid NOT NULL,
+  media_id   uuid NOT NULL,
+  lock_id    text NOT NULL CHECK (length(lock_id) BETWEEN 1 AND 1024),
+  expires_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, media_id),
+  CONSTRAINT media_lock_object_fkey FOREIGN KEY (tenant_id, media_id)
+    REFERENCES media_object (tenant_id, id) ON DELETE CASCADE
+);
+ALTER TABLE media_lock ENABLE ROW LEVEL SECURITY;
+ALTER TABLE media_lock FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON media_lock
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON media_lock TO hubtask_app;
+CREATE TABLE media_version (
+  tenant_id        uuid NOT NULL,
+  media_id         uuid NOT NULL,
+  number           integer NOT NULL CHECK (number >= 1),
+  earlier_media_id uuid NOT NULL,
+  saved_by         uuid,
+  saved_at         timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, media_id, number),
+  CONSTRAINT media_version_object_fkey FOREIGN KEY (tenant_id, media_id)
+    REFERENCES media_object (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT media_version_earlier_fkey FOREIGN KEY (tenant_id, earlier_media_id)
+    REFERENCES media_object (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX media_version_earlier_idx ON media_version (tenant_id, earlier_media_id);
+ALTER TABLE media_version ENABLE ROW LEVEL SECURITY;
+ALTER TABLE media_version FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON media_version
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON media_version TO hubtask_app;
 -- A page's pictures and files (migration 0272, UC-DOC-14).
 CREATE TABLE page_media (
   tenant_id uuid NOT NULL,
@@ -2979,7 +3044,7 @@ CREATE TABLE notification (
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   recipient_id uuid NOT NULL,
   -- RETENTION since migration 0062: the advance warning of data-retention.md §6 (R-1).
-  category     text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY','SLA')),
+  category     text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY','SLA','POST','ATTESTATION')),
   channel      text NOT NULL CHECK (channel IN ('EMAIL')),
   state        text NOT NULL CHECK (state IN ('PENDING','SENT','SUPPRESSED','FAILED')),
   reason       text,                             -- a detail code, never a sentence (rule 8)
@@ -3046,7 +3111,7 @@ CREATE INDEX notification_membership_idx
 CREATE TABLE notification_preference (
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   account_id    uuid NOT NULL,
-  category      text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY','SLA')),
+  category      text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY','SLA','POST','ATTESTATION')),
   channel       text NOT NULL CHECK (channel IN ('EMAIL')),
   enabled       boolean NOT NULL DEFAULT true,
   include_title boolean NOT NULL DEFAULT true,   -- data-protection.md §9: the minimum is switchable
@@ -4033,7 +4098,7 @@ BEGIN
     'oauth_client','oauth_grant','oauth_code',
     'account_identity','tenant_host','oidc_flow','ai_source','ai_suggestion','ai_request',
     'item_embedding',
-    'container','bucket','label','work_item','item_label','item_member',
+    'container','bucket','bucket_status','label','work_item','item_label','item_member',
     'custom_field_definition','comment','container_milestone','kudos','structure_preset',
     'activity_entry',
     'media_object','item_attachment',
@@ -6577,6 +6642,24 @@ CREATE POLICY tenant_isolation ON goal_period
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON goal_period TO hubtask_app;
 
+-- A template's goal sets (migration 0440, configuration.md §6): the mark that a period was brought
+-- by the workspace's document under its key.
+CREATE TABLE config_goal_set (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key        text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  period_id  uuid NOT NULL,
+  created_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, key),
+  CONSTRAINT config_goal_set_period_fkey FOREIGN KEY (tenant_id, period_id)
+    REFERENCES goal_period (tenant_id, id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+);
+CREATE INDEX config_goal_set_period_idx ON config_goal_set (tenant_id, period_id);
+ALTER TABLE config_goal_set ENABLE ROW LEVEL SECURITY;
+ALTER TABLE config_goal_set FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON config_goal_set
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON config_goal_set TO hubtask_app;
+
 CREATE TABLE goal (
   id          uuid PRIMARY KEY,
   tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -8102,6 +8185,11 @@ ALTER TABLE account ADD COLUMN nav_products text[] NOT NULL DEFAULT '{}',
 ALTER TABLE account ADD COLUMN nav_hubs_hidden uuid[] NOT NULL DEFAULT '{}',
   ADD CONSTRAINT account_nav_hubs_hidden_bound CHECK (cardinality(nav_hubs_hidden) <= 1000);
 
+-- Migrations 0396, 0397: Today's cards and tiles as the person arranged them.
+ALTER TABLE account ADD COLUMN today_sections text[] NOT NULL DEFAULT '{}',
+  ADD COLUMN today_sections_hidden text[] NOT NULL DEFAULT '{}',
+  ADD CONSTRAINT account_today_sections_bound CHECK (cardinality(today_sections) <= 16 AND cardinality(today_sections_hidden) <= 16);
+
 -- Migration 0384: the workspace's sample content (user-experience.md §3.6), one act removes it.
 CREATE TABLE sample_object (
   tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -8148,5 +8236,228 @@ ALTER TABLE saved_view ADD COLUMN queue_position integer,
     queue_position IS NULL OR (queue_position BETWEEN 1 AND 1000 AND scope_type = 'HUB'));
 CREATE INDEX saved_view_queue_idx ON saved_view (tenant_id, scope_id, queue_position)
   WHERE queue_position IS NOT NULL;
+
+-- Migration 0398: a dashboard's filter every QUERY widget inherits.
+ALTER TABLE dashboard ADD COLUMN filter text NOT NULL DEFAULT '';
+
+-- Migration 0399: an automation's *for which entries*, a query line; empty is every entry.
+ALTER TABLE automation_rule ADD COLUMN entries text NOT NULL DEFAULT '';
+
+-- Migration 0400: a page's cover (UC-DOC-16).
+ALTER TABLE page ADD COLUMN cover jsonb;
+
+-- Migration 0401: posts, a page with a date (UC-DOC-17, UC-DOC-18). Seen and confirmed are personal
+-- data: gone with the person, never in the trail (rule 10).
+CREATE TABLE post (
+  tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id        uuid NOT NULL,
+  hub_id         uuid NOT NULL,
+  template       text CHECK (template IN ('ANNOUNCEMENT', 'RELEASE_NOTE', 'MONTHLY_REVIEW', 'WELCOME')),
+  publish_at     timestamptz,
+  published_at   timestamptz,
+  featured_until timestamptz,
+  audience       text NOT NULL DEFAULT 'HUB' CHECK (audience IN ('HUB', 'GROUPS')),
+  group_ids      uuid[] NOT NULL DEFAULT '{}' CHECK (cardinality(group_ids) <= 20),
+  discussion     boolean NOT NULL DEFAULT true,
+  notify         boolean NOT NULL DEFAULT true,
+  confirm_by     timestamptz,
+  PRIMARY KEY (tenant_id, page_id),
+  CONSTRAINT post_audience_groups CHECK ((audience = 'GROUPS') = (cardinality(group_ids) > 0)),
+  CONSTRAINT post_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+);
+CREATE INDEX post_hub_idx ON post (tenant_id, hub_id, publish_at DESC);
+CREATE INDEX post_due_idx ON post (publish_at) WHERE published_at IS NULL AND publish_at IS NOT NULL;
+
+CREATE TABLE post_read (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id    uuid NOT NULL,
+  account_id uuid NOT NULL,
+  read_at    timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, page_id, account_id),
+  CONSTRAINT post_read_post_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES post (tenant_id, page_id) ON DELETE CASCADE,
+  CONSTRAINT post_read_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX post_read_account_idx ON post_read (tenant_id, account_id);
+
+CREATE TABLE post_confirmation (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id      uuid NOT NULL,
+  account_id   uuid NOT NULL,
+  confirmed_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, page_id, account_id),
+  CONSTRAINT post_confirmation_post_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES post (tenant_id, page_id) ON DELETE CASCADE,
+  CONSTRAINT post_confirmation_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX post_confirmation_account_idx ON post_confirmation (tenant_id, account_id);
+
+CREATE TABLE post_reply (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id    uuid NOT NULL,
+  parent_id  uuid,
+  author_id  uuid,
+  body       text NOT NULL CHECK (octet_length(body) <= 65536),
+  created_at timestamptz NOT NULL,
+  edited_at  timestamptz,
+  deleted_at timestamptz,
+  version    integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT post_reply_post_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES post (tenant_id, page_id) ON DELETE CASCADE,
+  CONSTRAINT post_reply_parent_fkey FOREIGN KEY (tenant_id, parent_id)
+    REFERENCES post_reply (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT post_reply_author_fkey FOREIGN KEY (tenant_id, author_id)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (author_id)
+);
+CREATE INDEX post_reply_page_idx ON post_reply (tenant_id, page_id, created_at);
+CREATE INDEX post_reply_author_idx ON post_reply (tenant_id, author_id);
+CREATE INDEX post_reply_parent_idx ON post_reply (tenant_id, parent_id) WHERE parent_id IS NOT NULL;
+
+CREATE TABLE post_reaction (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  reply_id   uuid NOT NULL,
+  account_id uuid NOT NULL,
+  reaction   text NOT NULL CHECK (reaction IN ('THANKS', 'AGREE', 'CELEBRATE', 'IDEA')),
+  PRIMARY KEY (tenant_id, reply_id, account_id, reaction),
+  CONSTRAINT post_reaction_reply_fkey FOREIGN KEY (tenant_id, reply_id)
+    REFERENCES post_reply (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT post_reaction_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX post_reaction_account_idx ON post_reaction (tenant_id, account_id);
+
+ALTER TABLE post ENABLE ROW LEVEL SECURITY;
+ALTER TABLE post FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON post
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+ALTER TABLE post_read ENABLE ROW LEVEL SECURITY;
+ALTER TABLE post_read FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON post_read
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+ALTER TABLE post_confirmation ENABLE ROW LEVEL SECURITY;
+ALTER TABLE post_confirmation FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON post_confirmation
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+ALTER TABLE post_reply ENABLE ROW LEVEL SECURITY;
+ALTER TABLE post_reply FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON post_reply
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+ALTER TABLE post_reaction ENABLE ROW LEVEL SECURITY;
+ALTER TABLE post_reaction FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON post_reaction
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON post, post_reply TO hubtask_app;
+GRANT SELECT, INSERT, DELETE ON post_read, post_confirmation, post_reaction TO hubtask_app;
+
+-- Migration 0404: who follows a hub's posts (UC-DOC-17/5).
+CREATE TABLE post_follow (
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  hub_id      uuid NOT NULL,
+  account_id  uuid NOT NULL,
+  followed_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, hub_id, account_id),
+  CONSTRAINT post_follow_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT post_follow_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX post_follow_account_idx ON post_follow (tenant_id, account_id);
+
+ALTER TABLE post_follow ENABLE ROW LEVEL SECURITY;
+ALTER TABLE post_follow FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON post_follow
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON post_follow TO hubtask_app;
+
+-- Each step of an asset's life with its moment (migration 0430, UC-AST-12).
+CREATE TABLE cmdb_asset_move (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  hub_id       uuid NOT NULL,
+  ci_id        uuid NOT NULL,
+  state        text NOT NULL CHECK (state IN ('REQUESTED', 'ORDERED', 'IN_STOCK', 'DEPLOYED', 'RETIRED', 'DISPOSED')),
+  moved_at     timestamptz NOT NULL,
+  moved_by     uuid NOT NULL,
+  assigned_to  uuid,
+  stockroom_id uuid,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT cmdb_asset_move_asset_fkey FOREIGN KEY (tenant_id, ci_id)
+    REFERENCES cmdb_asset (tenant_id, ci_id) ON DELETE CASCADE,
+  CONSTRAINT cmdb_asset_move_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT cmdb_asset_move_assigned_fkey FOREIGN KEY (tenant_id, assigned_to)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (assigned_to),
+  CONSTRAINT cmdb_asset_move_stockroom_fkey FOREIGN KEY (tenant_id, stockroom_id)
+    REFERENCES cmdb_ci (tenant_id, id) ON DELETE SET NULL (stockroom_id)
+);
+CREATE INDEX cmdb_asset_move_ci_idx ON cmdb_asset_move (tenant_id, ci_id, moved_at, id);
+CREATE INDEX cmdb_asset_move_hub_idx ON cmdb_asset_move (tenant_id, hub_id);
+CREATE INDEX cmdb_asset_move_assigned_to_ref_idx ON cmdb_asset_move (tenant_id, assigned_to) WHERE assigned_to IS NOT NULL;
+CREATE INDEX cmdb_asset_move_stockroom_idx ON cmdb_asset_move (tenant_id, stockroom_id) WHERE stockroom_id IS NOT NULL;
+
+ALTER TABLE cmdb_asset_move ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_asset_move FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_asset_move
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON cmdb_asset_move TO hubtask_app;
+
+-- Migrations 0431-0433: who last confirmed an object and when; a notification about an
+-- attestation round.
+ALTER TABLE cmdb_ci ADD COLUMN confirmed_at timestamptz,
+  ADD COLUMN confirmed_by uuid;
+ALTER TABLE notification ADD COLUMN cmdb_campaign_id uuid,
+  ADD CONSTRAINT notification_cmdb_campaign_id_fkey
+    FOREIGN KEY (tenant_id, cmdb_campaign_id) REFERENCES cmdb_campaign (tenant_id, id) ON DELETE CASCADE,
+  DROP CONSTRAINT notification_one_subject_check,
+  ADD CONSTRAINT notification_one_subject_check
+    CHECK (num_nonnulls(item_id, rule_id, subscription_id, private_hub_access_id, membership_id, page_id, agent_id,
+      whiteboard_id, approval_id, baseline_id, mailbox_id, identity_provider_id, calendar_push_id,
+      cmdb_connector_id, code_hook_id, cmdb_campaign_id) <= 1);
+CREATE INDEX notification_cmdb_campaign_idx ON notification (tenant_id, cmdb_campaign_id) WHERE cmdb_campaign_id IS NOT NULL;
+
+-- An inventory object's files (migration 0434, UC-AST-01): which media objects it holds.
+CREATE TABLE cmdb_ci_media (
+  tenant_id uuid NOT NULL,
+  ci_id     uuid NOT NULL,
+  media_id  uuid NOT NULL,
+  PRIMARY KEY (tenant_id, ci_id, media_id),
+  CONSTRAINT cmdb_ci_media_ci_fkey FOREIGN KEY (tenant_id, ci_id)
+    REFERENCES cmdb_ci (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT cmdb_ci_media_object_fkey FOREIGN KEY (tenant_id, media_id)
+    REFERENCES media_object (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX cmdb_ci_media_object_idx ON cmdb_ci_media (tenant_id, media_id);
+ALTER TABLE cmdb_ci_media ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_ci_media FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_ci_media
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON cmdb_ci_media TO hubtask_app;
+
+-- An inventory object's own history (migration 0435, UC-AST-01): the product's record, not the trail.
+CREATE TABLE cmdb_ci_history (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  ci_id       uuid NOT NULL,
+  actor_type  text NOT NULL CHECK (actor_type IN ('USER', 'SERVICE_ACCOUNT', 'AUTOMATION', 'AI_AGENT', 'SYSTEM')),
+  actor_id    uuid,
+  verb        text NOT NULL CHECK (char_length(verb) BETWEEN 1 AND 64),
+  change_set  jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(change_set) = 'object'),
+  occurred_at timestamptz NOT NULL,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT cmdb_ci_history_ci_fkey FOREIGN KEY (tenant_id, ci_id)
+    REFERENCES cmdb_ci (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX cmdb_ci_history_page_idx ON cmdb_ci_history (tenant_id, ci_id, occurred_at DESC, id DESC);
+CREATE INDEX cmdb_ci_history_actor_idx ON cmdb_ci_history (tenant_id, actor_id) WHERE actor_id IS NOT NULL;
+ALTER TABLE cmdb_ci_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_ci_history FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_ci_history
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON cmdb_ci_history TO hubtask_app;
 
 COMMIT;

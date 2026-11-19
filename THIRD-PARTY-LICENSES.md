@@ -58,6 +58,7 @@ library a step accepts; each notice is under `third-party/licenses/_bundled/`.
 | [lowlight](https://github.com/wooorm/lowlight/blob/main/license) 3.3.0 | MIT | The colours of a page's code blocks (`packages/editor`) |
 | [highlight.js](https://github.com/highlightjs/highlight.js/blob/main/LICENSE) 11.11.2 | BSD-3-Clause | The grammars lowlight colours with |
 | [emojibase-data](https://github.com/milesj/emojibase/blob/master/LICENSE) 18.0.0 | MIT | The page editor's emoji picker, in the reader's language (`apps/webapp`) |
+| [pdf.js](https://github.com/mozilla/pdf.js/blob/master/LICENSE) (pdfjs-dist 4.10.38) | Apache-2.0 | The file viewer's PDF pages, drawn without eval (`apps/webapp`) |
 | [TipTap](https://github.com/ueberdosis/tiptap/blob/main/LICENSE.md) 3.32.0, with @tiptap/y-tiptap 3.0.10 | MIT | The page editor: its core, starter kit, lists, tables and collaboration extensions (`packages/editor`) |
 | [ProseMirror](https://github.com/ProseMirror/prosemirror/blob/master/LICENSE) (its modules, re-exported by @tiptap/pm 3.32.0) | MIT | TipTap's document model, state and view |
 | [Yjs](https://github.com/yjs/yjs/blob/main/LICENSE) 13.6.33 | MIT | The shared document of a page and a whiteboard, edited together and offline (`packages/editor`, `packages/whiteboard`) |

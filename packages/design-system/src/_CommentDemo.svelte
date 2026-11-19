@@ -90,6 +90,7 @@
         removedLabel="This comment was removed."
         editLabel="Edit"
         deleteLabel="Remove"
+        moreLabel="More for this comment"
         replyLabel="Reply"
         onEdit={() => {}}
         onDelete={() => {}}
@@ -104,6 +105,7 @@
   removedLabel="This comment was removed."
   editLabel="Edit"
   deleteLabel="Remove"
+  moreLabel="More for this comment"
   replyLabel="Reply"
   hasMore={mode === 'paged'}
   loadMoreLabel="Older comments"

@@ -74,6 +74,11 @@ type UpdateWorkItem struct {
 	// Structure resolves the collection's structure in force, which decides whether it offers an
 	// amount (ensureAmountOffered).
 	Structure StructureResolver
+	// Boards and Completion keep column and completion together (domain-model.md §3.5a): a move
+	// into the done column completes, out of it reopens; under a workflow the column is the
+	// status's and is not set by hand.
+	Boards     Boards
+	Completion CompletionWriter
 }
 
 // UpdateCommand is the input, typed.
@@ -164,8 +169,15 @@ func (h UpdateWorkItem) Execute(
 		if err != nil {
 			return err
 		}
+		coupled := wanted
 		if wanted.BucketID != item.BucketID {
+			if err := refuseColumnUnderWorkflow(item, wanted.BucketID); err != nil {
+				return err
+			}
 			if err := h.Flow.ensureMayEnter(ctx, h.Gate.Structure, collection, wanted, wanted.BucketID); err != nil {
+				return err
+			}
+			if coupled, err = h.Boards.couple(ctx, item, wanted, actor.AccountID, now); err != nil {
 				return err
 			}
 		}
@@ -214,6 +226,12 @@ func (h UpdateWorkItem) Execute(
 			// matched the state the caller read, and the patch is one request spending what it
 			// spends in sequence.
 			current, expected = updated, updated.Version
+			if coupled.Completion.IsCompleted != updated.Completion.IsCompleted && h.Completion.Items != nil {
+				if updated, err = h.Completion.follow(ctx, actor, collection, updated, coupled.Completion.IsCompleted, now); err != nil {
+					return err
+				}
+				current, expected = updated, updated.Version
+			}
 		}
 		if dueTouched && !targetDue.Equal(current.Due) {
 			wantedDue, dueChanges, err := current.WithDueDate(targetDue, profile, now)

@@ -156,6 +156,7 @@ func (s *store) List(_ context.Context, hubID shared.ID, archived, templates boo
 	var out []domain.Page
 	for _, page := range s.pages {
 		if page.HubID == hubID && !page.IsTrashed() && (archived || !page.IsArchived()) && (!templates || page.Template) {
+			page.Head, page.Body = page.Body, ""
 			out = append(out, page)
 		}
 	}

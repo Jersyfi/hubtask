@@ -85,6 +85,8 @@ INSERT INTO account (
   nav_hubs_order,
   nav_contents_mode,
   nav_hubs_hidden,
+  today_sections,
+  today_sections_hidden,
   redemption_token_hash,
   redemption_expires_at,
   password_set_at,
@@ -123,6 +125,9 @@ SELECT
   r.nav_contents_mode,
   -- An archive from before migration 0393 carries none: every hub shown.
   coalesce(r.nav_hubs_hidden, '{}'),
+  -- An archive from before migration 0396 carries none: Today in the product's own arrangement.
+  coalesce(r.today_sections, '{}'),
+  coalesce(r.today_sections_hidden, '{}'),
   r.redemption_token_hash,
   r.redemption_expires_at,
   r.password_set_at,
@@ -160,6 +165,8 @@ ON CONFLICT (id) DO UPDATE SET
   nav_hubs_order = EXCLUDED.nav_hubs_order,
   nav_contents_mode = EXCLUDED.nav_contents_mode,
   nav_hubs_hidden = EXCLUDED.nav_hubs_hidden,
+  today_sections = EXCLUDED.today_sections,
+  today_sections_hidden = EXCLUDED.today_sections_hidden,
   redemption_token_hash = EXCLUDED.redemption_token_hash,
   redemption_expires_at = EXCLUDED.redemption_expires_at,
   password_set_at = EXCLUDED.password_set_at,
@@ -1345,7 +1352,8 @@ INSERT INTO automation_rule (
   -- nothing by itself: a restore seeds no poller, because nothing enumerates tenants, and
   -- backup-restore.md §8.4 is unambiguous that no rule acts because of a restore.
   next_run_at,
-  key
+  key,
+  entries
 )
 SELECT
   r.id,
@@ -1373,7 +1381,9 @@ SELECT
   r.version,
   r.next_run_at,
   -- The key travels with the row (migration 0293); an archive written before carries none.
-  r.key
+  r.key,
+  -- *For which entries* (migration 0399); an archive written before means every entry.
+  coalesce(r.entries, '')
 FROM jsonb_populate_record(
   NULL::automation_rule,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -1402,7 +1412,8 @@ ON CONFLICT (id) DO UPDATE SET
   deleted_at = EXCLUDED.deleted_at,
   version = EXCLUDED.version,
   next_run_at = EXCLUDED.next_run_at,
-  key = coalesce(EXCLUDED.key, automation_rule.key)
+  key = coalesce(EXCLUDED.key, automation_rule.key),
+  entries = EXCLUDED.entries
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsAutomationRule :one
@@ -2226,20 +2237,41 @@ SELECT EXISTS (
 -- name: ClearWorkflowScheme :execrows
 DELETE FROM workflow_scheme;
 
+-- name: ImportBucketStatus :execrows
+INSERT INTO bucket_status (tenant_id, collection_id, bucket_id, status)
+SELECT r.tenant_id, r.collection_id, r.bucket_id, r.status
+FROM jsonb_populate_record(
+  NULL::bucket_status,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, collection_id, status) DO UPDATE SET
+  bucket_id = EXCLUDED.bucket_id
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsBucketStatus :one
+SELECT EXISTS (
+  SELECT 1 FROM bucket_status
+  WHERE collection_id = (sqlc.arg('payload')::jsonb->>'collection_id')::uuid
+    AND status = sqlc.arg('payload')::jsonb->>'status'
+) AS held;
+
+-- name: ClearBucketStatus :execrows
+DELETE FROM bucket_status;
+
 -- name: ImportPage :execrows
 -- The search document and the references are the triggers' to build.
 INSERT INTO page (
   id, tenant_id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
   owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
   created_by, created_at, updated_by, updated_at, version, restricted, daily_for,
-  language_source_id, language_variant, deleted_by_type, deleted_by_id
+  language_source_id, language_variant, deleted_by_type, deleted_by_id, cover
 )
 SELECT
   r.id, r.tenant_id, r.hub_id, r.parent_id, r.title, r.body, r.icon, r.order_key, r.template,
   r.content_language, r.owner_id, r.verified_until, r.verified_at, r.verified_by, r.archived_at,
   r.deleted_at, r.created_by, r.created_at, r.updated_by, r.updated_at, r.version,
   coalesce(r.restricted, false), r.daily_for, r.language_source_id, r.language_variant,
-  r.deleted_by_type, r.deleted_by_id
+  r.deleted_by_type, r.deleted_by_id, r.cover
 FROM jsonb_populate_record(
   NULL::page,
   (sqlc.arg('payload')::jsonb - 'search_document') || jsonb_build_object('tenant_id', current_tenant_id())
@@ -2249,6 +2281,7 @@ ON CONFLICT (id) DO UPDATE SET
   title = EXCLUDED.title,
   body = EXCLUDED.body,
   icon = EXCLUDED.icon,
+  cover = EXCLUDED.cover,
   order_key = EXCLUDED.order_key,
   template = EXCLUDED.template,
   content_language = EXCLUDED.content_language,
@@ -2449,14 +2482,16 @@ SELECT EXISTS (
 DELETE FROM public_form;
 
 -- name: ImportPageArticle :execrows
-INSERT INTO page_article (tenant_id, page_id, collection_id, published_by, published_at, views)
-SELECT r.tenant_id, r.page_id, r.collection_id, r.published_by, r.published_at, coalesce(r.views, 0)
+INSERT INTO page_article (tenant_id, page_id, collection_id, published_by, published_at, views, with_subpages)
+SELECT r.tenant_id, r.page_id, r.collection_id, r.published_by, r.published_at, coalesce(r.views, 0),
+       coalesce(r.with_subpages, false)
 FROM jsonb_populate_record(
   NULL::page_article,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
 ) r
 ON CONFLICT (tenant_id, page_id, collection_id) DO UPDATE SET
-  published_by = EXCLUDED.published_by, published_at = EXCLUDED.published_at, views = EXCLUDED.views
+  published_by = EXCLUDED.published_by, published_at = EXCLUDED.published_at, views = EXCLUDED.views,
+  with_subpages = EXCLUDED.with_subpages
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsPageArticle :one
@@ -2708,8 +2743,8 @@ SELECT EXISTS (SELECT 1 FROM cmdb_source WHERE id = (sqlc.arg('payload')::jsonb-
 DELETE FROM cmdb_source;
 
 -- name: ImportCmdbCi :execrows
-INSERT INTO cmdb_ci (id, tenant_id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id, location_ci_id, protection, review_due, quantity, last_seen_at, merged_into, created_by, created_at, updated_by, updated_at, version)
-SELECT r.id, r.tenant_id, r.hub_id, r.class_key, r.name, r.stage, r.status, r.attributes, r.provenance, r.owner_account_id, r.owner_group_id, r.location_ci_id, r.protection, r.review_due, r.quantity, r.last_seen_at, r.merged_into, r.created_by, r.created_at, r.updated_by, r.updated_at, r.version
+INSERT INTO cmdb_ci (id, tenant_id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id, location_ci_id, protection, review_due, quantity, last_seen_at, merged_into, created_by, created_at, updated_by, updated_at, confirmed_at, confirmed_by, version)
+SELECT r.id, r.tenant_id, r.hub_id, r.class_key, r.name, r.stage, r.status, r.attributes, r.provenance, r.owner_account_id, r.owner_group_id, r.location_ci_id, r.protection, r.review_due, r.quantity, r.last_seen_at, r.merged_into, r.created_by, r.created_at, r.updated_by, r.updated_at, r.confirmed_at, r.confirmed_by, r.version
 FROM jsonb_populate_record(
   NULL::cmdb_ci,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -2731,6 +2766,8 @@ ON CONFLICT (id) DO UPDATE SET
   merged_into = EXCLUDED.merged_into,
   updated_by = EXCLUDED.updated_by,
   updated_at = EXCLUDED.updated_at,
+  confirmed_at = EXCLUDED.confirmed_at,
+  confirmed_by = EXCLUDED.confirmed_by,
   version = EXCLUDED.version
 WHERE sqlc.arg('overwrite')::boolean;
 
@@ -3434,14 +3471,14 @@ SELECT EXISTS (SELECT 1 FROM portfolio_update WHERE id = (sqlc.arg('payload')::j
 DELETE FROM portfolio_update;
 
 -- name: ImportDashboard :execrows
-INSERT INTO dashboard (id, tenant_id, hub_id, owner_id, name, sharing, group_ids, widgets, created_at, updated_at, updated_by, version)
-SELECT r.id, r.tenant_id, r.hub_id, r.owner_id, r.name, r.sharing, coalesce(r.group_ids, '{}'), r.widgets, r.created_at, r.updated_at, r.updated_by, r.version
+INSERT INTO dashboard (id, tenant_id, hub_id, owner_id, name, sharing, group_ids, widgets, filter, created_at, updated_at, updated_by, version)
+SELECT r.id, r.tenant_id, r.hub_id, r.owner_id, r.name, r.sharing, coalesce(r.group_ids, '{}'), r.widgets, coalesce(r.filter, ''), r.created_at, r.updated_at, r.updated_by, r.version
 FROM jsonb_populate_record(
   NULL::dashboard,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
 ) r
 ON CONFLICT (id) DO UPDATE SET
-  hub_id = EXCLUDED.hub_id, owner_id = EXCLUDED.owner_id, name = EXCLUDED.name, sharing = EXCLUDED.sharing, group_ids = EXCLUDED.group_ids, widgets = EXCLUDED.widgets, created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by, version = EXCLUDED.version
+  hub_id = EXCLUDED.hub_id, owner_id = EXCLUDED.owner_id, name = EXCLUDED.name, sharing = EXCLUDED.sharing, group_ids = EXCLUDED.group_ids, widgets = EXCLUDED.widgets, filter = EXCLUDED.filter, created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by, version = EXCLUDED.version
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsDashboard :one
@@ -3787,6 +3824,63 @@ SELECT EXISTS (SELECT 1 FROM cmdb_asset WHERE ci_id = (sqlc.arg('payload')::json
 -- name: ClearCmdbAsset :execrows
 DELETE FROM cmdb_asset;
 
+-- name: ImportCmdbAssetMove :execrows
+INSERT INTO cmdb_asset_move (id, tenant_id, hub_id, ci_id, state, moved_at, moved_by, assigned_to, stockroom_id)
+SELECT r.id, r.tenant_id, r.hub_id, r.ci_id, r.state, r.moved_at, r.moved_by, r.assigned_to, r.stockroom_id
+FROM jsonb_populate_record(
+  NULL::cmdb_asset_move,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  hub_id = EXCLUDED.hub_id,
+  ci_id = EXCLUDED.ci_id,
+  state = EXCLUDED.state,
+  moved_at = EXCLUDED.moved_at,
+  moved_by = EXCLUDED.moved_by,
+  assigned_to = EXCLUDED.assigned_to,
+  stockroom_id = EXCLUDED.stockroom_id
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsCmdbAssetMove :one
+SELECT EXISTS (SELECT 1 FROM cmdb_asset_move WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearCmdbAssetMove :execrows
+DELETE FROM cmdb_asset_move;
+
+-- name: ImportCmdbCiMedia :execrows
+INSERT INTO cmdb_ci_media (tenant_id, ci_id, media_id)
+SELECT r.tenant_id, r.ci_id, r.media_id
+FROM jsonb_populate_record(
+  NULL::cmdb_ci_media,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, ci_id, media_id) DO NOTHING;
+
+-- name: HoldsCmdbCiMedia :one
+SELECT EXISTS (
+  SELECT 1 FROM cmdb_ci_media
+  WHERE ci_id = (sqlc.arg('payload')::jsonb->>'ci_id')::uuid
+    AND media_id = (sqlc.arg('payload')::jsonb->>'media_id')::uuid
+) AS held;
+
+-- name: ClearCmdbCiMedia :execrows
+DELETE FROM cmdb_ci_media;
+
+-- name: ImportCmdbCiHistory :execrows
+INSERT INTO cmdb_ci_history (id, tenant_id, ci_id, actor_type, actor_id, verb, change_set, occurred_at)
+SELECT r.id, r.tenant_id, r.ci_id, r.actor_type, r.actor_id, r.verb, r.change_set, r.occurred_at
+FROM jsonb_populate_record(
+  NULL::cmdb_ci_history,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO NOTHING;
+
+-- name: HoldsCmdbCiHistory :one
+SELECT EXISTS (SELECT 1 FROM cmdb_ci_history WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearCmdbCiHistory :execrows
+DELETE FROM cmdb_ci_history;
+
 -- name: ImportCmdbSoftwareAlias :execrows
 INSERT INTO cmdb_software_alias (id, tenant_id, match_publisher, match_product, publisher, product, updated_by, updated_at, version)
 SELECT r.id, r.tenant_id, r.match_publisher, r.match_product, r.publisher, r.product, r.updated_by, r.updated_at, r.version
@@ -4108,6 +4202,25 @@ SELECT EXISTS (
 -- name: ClearConfigDraft :execrows
 DELETE FROM config_draft;
 
+-- name: ImportConfigGoalSet :execrows
+INSERT INTO config_goal_set (tenant_id, key, period_id, created_at)
+SELECT r.tenant_id, r.key, r.period_id, r.created_at
+FROM jsonb_populate_record(
+  NULL::config_goal_set,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, key) DO UPDATE SET
+  period_id = EXCLUDED.period_id, created_at = EXCLUDED.created_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsConfigGoalSet :one
+SELECT EXISTS (
+  SELECT 1 FROM config_goal_set WHERE key = sqlc.arg('payload')::jsonb->>'key'
+) AS held;
+
+-- name: ClearConfigGoalSet :execrows
+DELETE FROM config_goal_set;
+
 -- name: ImportTemplatePage :execrows
 INSERT INTO template_page (tenant_id, page_id, hub_id, key, created_at)
 SELECT r.tenant_id, r.page_id, r.hub_id, r.key, r.created_at
@@ -4179,3 +4292,137 @@ SELECT EXISTS (
 
 -- name: ClearAccountStar :execrows
 DELETE FROM account_star;
+
+-- name: ImportPost :execrows
+INSERT INTO post (tenant_id, page_id, hub_id, template, publish_at, published_at, featured_until, audience,
+  group_ids, discussion, notify, confirm_by)
+SELECT r.tenant_id, r.page_id, r.hub_id, r.template, r.publish_at, r.published_at, r.featured_until, r.audience,
+  r.group_ids, r.discussion, r.notify, r.confirm_by
+FROM jsonb_populate_record(
+  NULL::post,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id) DO UPDATE SET
+  template = EXCLUDED.template, publish_at = EXCLUDED.publish_at, published_at = EXCLUDED.published_at,
+  featured_until = EXCLUDED.featured_until, audience = EXCLUDED.audience, group_ids = EXCLUDED.group_ids,
+  discussion = EXCLUDED.discussion, notify = EXCLUDED.notify, confirm_by = EXCLUDED.confirm_by
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsPost :one
+SELECT EXISTS (SELECT 1 FROM post WHERE page_id = (sqlc.arg('payload')::jsonb->>'page_id')::uuid) AS held;
+
+-- name: ClearPost :execrows
+DELETE FROM post;
+
+-- name: ImportPostRead :execrows
+INSERT INTO post_read (tenant_id, page_id, account_id, read_at)
+SELECT r.tenant_id, r.page_id, r.account_id, r.read_at
+FROM jsonb_populate_record(
+  NULL::post_read,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id, account_id) DO NOTHING;
+
+-- name: HoldsPostRead :one
+SELECT EXISTS (
+  SELECT 1 FROM post_read
+  WHERE page_id = (sqlc.arg('payload')::jsonb->>'page_id')::uuid
+    AND account_id = (sqlc.arg('payload')::jsonb->>'account_id')::uuid
+) AS held;
+
+-- name: ClearPostRead :execrows
+DELETE FROM post_read;
+
+-- name: ImportPostConfirmation :execrows
+INSERT INTO post_confirmation (tenant_id, page_id, account_id, confirmed_at)
+SELECT r.tenant_id, r.page_id, r.account_id, r.confirmed_at
+FROM jsonb_populate_record(
+  NULL::post_confirmation,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id, account_id) DO NOTHING;
+
+-- name: HoldsPostConfirmation :one
+SELECT EXISTS (
+  SELECT 1 FROM post_confirmation
+  WHERE page_id = (sqlc.arg('payload')::jsonb->>'page_id')::uuid
+    AND account_id = (sqlc.arg('payload')::jsonb->>'account_id')::uuid
+) AS held;
+
+-- name: ClearPostConfirmation :execrows
+DELETE FROM post_confirmation;
+
+-- name: ImportPostReply :execrows
+INSERT INTO post_reply (id, tenant_id, page_id, parent_id, author_id, body, created_at, edited_at, deleted_at, version)
+SELECT r.id, r.tenant_id, r.page_id, r.parent_id, r.author_id, r.body, r.created_at, r.edited_at, r.deleted_at, r.version
+FROM jsonb_populate_record(
+  NULL::post_reply,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  body = EXCLUDED.body, edited_at = EXCLUDED.edited_at, deleted_at = EXCLUDED.deleted_at, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsPostReply :one
+SELECT EXISTS (SELECT 1 FROM post_reply WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearPostReply :execrows
+DELETE FROM post_reply;
+
+-- name: ImportPostReaction :execrows
+INSERT INTO post_reaction (tenant_id, reply_id, account_id, reaction)
+SELECT r.tenant_id, r.reply_id, r.account_id, r.reaction
+FROM jsonb_populate_record(
+  NULL::post_reaction,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, reply_id, account_id, reaction) DO NOTHING;
+
+-- name: HoldsPostReaction :one
+SELECT EXISTS (
+  SELECT 1 FROM post_reaction
+  WHERE reply_id = (sqlc.arg('payload')::jsonb->>'reply_id')::uuid
+    AND account_id = (sqlc.arg('payload')::jsonb->>'account_id')::uuid
+    AND reaction = sqlc.arg('payload')::jsonb->>'reaction'
+) AS held;
+
+-- name: ClearPostReaction :execrows
+DELETE FROM post_reaction;
+
+-- name: ImportPostFollow :execrows
+INSERT INTO post_follow (tenant_id, hub_id, account_id, followed_at)
+SELECT r.tenant_id, r.hub_id, r.account_id, r.followed_at
+FROM jsonb_populate_record(
+  NULL::post_follow,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, hub_id, account_id) DO NOTHING;
+
+-- name: HoldsPostFollow :one
+SELECT EXISTS (
+  SELECT 1 FROM post_follow
+  WHERE hub_id = (sqlc.arg('payload')::jsonb->>'hub_id')::uuid
+    AND account_id = (sqlc.arg('payload')::jsonb->>'account_id')::uuid
+) AS held;
+
+-- name: ClearPostFollow :execrows
+DELETE FROM post_follow;
+
+-- name: ImportMediaVersion :execrows
+INSERT INTO media_version (tenant_id, media_id, number, earlier_media_id, saved_by, saved_at)
+SELECT r.tenant_id, r.media_id, r.number, r.earlier_media_id, r.saved_by, r.saved_at
+FROM jsonb_populate_record(
+  NULL::media_version,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, media_id, number) DO NOTHING;
+
+-- name: HoldsMediaVersion :one
+SELECT EXISTS (
+  SELECT 1 FROM media_version
+  WHERE media_id = (sqlc.arg('payload')::jsonb->>'media_id')::uuid
+    AND earlier_media_id = (sqlc.arg('payload')::jsonb->>'earlier_media_id')::uuid
+) AS held;
+
+-- name: ClearMediaVersions :execrows
+DELETE FROM media_version;

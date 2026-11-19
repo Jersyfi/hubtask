@@ -153,6 +153,12 @@ type CalendarFeedReader interface {
 	Execute(ctx context.Context, token integration.FeedToken) (work.ExportedView, error)
 }
 
+// DataFeedReader is a data feed's read, which an OData `$filter` narrows with a Hubtask query.
+type DataFeedReader interface {
+	CalendarFeedReader
+	ExecuteFiltered(ctx context.Context, token integration.FeedToken, line string) (work.ExportedView, error)
+}
+
 // GetCalendarFeedDocument answers GET /calendar/{token}.ics - the one route in this API that
 // carries no bearer credential.
 //

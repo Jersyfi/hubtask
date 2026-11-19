@@ -137,6 +137,33 @@ const (
 	// asker's own queue may be asked - a value other than the actor is refused at Resolve, because
 	// the answer would say which groups somebody else is in.
 	FieldGroupQueueOf = "group_queue_of"
+	// FieldHub is the hub the entry's collection stands in - `hub:`.
+	FieldHub = "hub_id"
+	// FieldUnder is whether the entry stands below one of the given entries, at any depth -
+	// `under: TAMA-1`. Virtual: a question about the entry's path, not a column.
+	FieldUnder = "under"
+	// FieldBlocks is whether the entry holds one of the given entries up over a link whose type
+	// waits (work.LinkWaits) - `blocks:`, blocking's question about particular entries.
+	FieldBlocks = "blocks"
+	// FieldAffects is whether the entry names one of the given configuration items as affected
+	// (UC-AST) - `affects:`.
+	FieldAffects = "affects"
+	// FieldSprint is the sprint the entry is planned into and not yet out of, absent in the
+	// backlog - `plan.sprint`.
+	FieldSprint = "sprint_id"
+	// FieldRelease is the release the entry ships with, absent when none - `plan.release`.
+	FieldRelease = "release_id"
+	// FieldSlip is how many days the entry's due date lies after the one its latest baseline
+	// kept, negative when earlier, absent without a baseline or a due date - `plan.slip`.
+	FieldSlip = "slip_days"
+	// FieldTimeLogged is the minutes of time recorded on the entry that the asker may see: their
+	// own, and other people's only where the time module shows them (UC-TIM-04) - `time.logged`.
+	// The use case decides whose time that is (Node.Asked); the statement only binds it.
+	FieldTimeLogged = "time_logged"
+	// FieldCritical is whether the entry lies on the critical path of the plan the query reaches,
+	// as the scheduler computes it for the asker (PLN-03) - `plan.critical`. Computed by the use
+	// case, never stored.
+	FieldCritical = "critical"
 
 	// CustomFieldPrefix names the family (api-guidelines.md §3). The one field name in the
 	// grammar that carries a value: everything after the dot is a key, which is why it is a
@@ -353,6 +380,45 @@ var catalogue = []Field{
 		Name: FieldSatisfaction, Kind: KindInt,
 		Operators: []Operator{OpEq, OpNeq, OpIn, OpLt, OpLte, OpGt, OpGte, OpBetween, OpIsNull},
 		Nullable:  true,
+	},
+	{
+		Name: FieldHub, Kind: KindID,
+		Operators: []Operator{OpEq, OpNeq, OpIn, OpNotIn},
+	},
+	{
+		Name: FieldUnder, Kind: KindID,
+		Operators: []Operator{OpEq, OpIn},
+	},
+	{
+		Name: FieldBlocks, Kind: KindID,
+		Operators: []Operator{OpEq, OpIn},
+	},
+	{
+		Name: FieldAffects, Kind: KindID,
+		Operators: []Operator{OpEq, OpIn},
+	},
+	{
+		Name: FieldSprint, Kind: KindID,
+		Operators: []Operator{OpEq, OpNeq, OpIn, OpNotIn, OpIsNull},
+		Nullable:  true,
+	},
+	{
+		Name: FieldRelease, Kind: KindID,
+		Operators: []Operator{OpEq, OpNeq, OpIn, OpNotIn, OpIsNull},
+		Nullable:  true,
+	},
+	{
+		Name: FieldSlip, Kind: KindInt,
+		Operators: []Operator{OpEq, OpNeq, OpLt, OpLte, OpGt, OpGte, OpBetween, OpIsNull},
+		Nullable:  true,
+	},
+	{
+		Name: FieldTimeLogged, Kind: KindInt,
+		Operators: []Operator{OpEq, OpNeq, OpLt, OpLte, OpGt, OpGte, OpBetween},
+	},
+	{
+		Name: FieldCritical, Kind: KindBool,
+		Operators: []Operator{OpEq, OpNeq},
 	},
 }
 

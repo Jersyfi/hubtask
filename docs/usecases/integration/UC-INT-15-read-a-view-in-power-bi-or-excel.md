@@ -41,10 +41,14 @@ with her and the chart shows what she may still read; when she revokes the feed,
    owner-less token answers the calendar feed's one `404`.
 5. The feed reads as its owner at every fetch: a lost membership narrows it, a disabled account
    silences it, and revoking it stops it at once.
+6. `$filter` takes a Hubtask query in either spelling - `is: open who: me` - which narrows the
+   view's rows and never widens them, carried on in `@odata.nextLink`; a sort or another kind than
+   entries in it is refused (work surface P-08).
 
 ## Where it ends
 
 * Read-only: nothing is written through the feed.
-* One entity set of the view's entries; no `$filter`, `$select`, `$orderby` or `$expand` - the
-  view's own query is the filter - and no custom fields, labels or time records yet.
+* One entity set of the view's entries; `$filter` is the Hubtask query, not OData's own
+  expression grammar; no `$select`, `$orderby` or `$expand`, and no custom fields, labels or time
+  records yet.
 * No SQL access to the database and no read-only tenant views; no Power BI connector of its own.

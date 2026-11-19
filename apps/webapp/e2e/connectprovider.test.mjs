@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, MANIFEST, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -89,8 +89,7 @@ async function open(browser, account) {
 }
 
 test('chromium: a signed-in person connects another provider and finds it among their ways in', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser, ACCOUNT);
   t.after(close);
 
@@ -123,8 +122,7 @@ test('chromium: a signed-in person connects another provider and finds it among 
 
 // identity.md §4.1: an account without an address is one no provider reaches - nothing is offered.
 test('chromium: an account without an address is offered no provider', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, { ...ACCOUNT, email: null, sign_in_name: 'jerome' });
   t.after(close);
 

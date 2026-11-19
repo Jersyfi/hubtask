@@ -485,6 +485,17 @@ type ReportRow struct {
 	Entries   int
 }
 
+// KeptRow is how many deadlines of one kind on a person's own entries ended in a window - met or
+// breached - and how many of them were kept (UC-SVC-02 check 15): the requester's goal, or a
+// team's OLA goal by its group.
+type KeptRow struct {
+	OLA   bool
+	Group shared.ID
+	Goal  GoalKind
+	Ended int
+	Kept  int
+}
+
 // hubRank orders a hub's own policy before the workspace's.
 func hubRank(p SLAPolicy) int {
 	if p.HubID.IsZero() {

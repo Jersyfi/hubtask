@@ -35,7 +35,9 @@ same on their phone in the groceries list; an agent does it through MCP; a scrip
 3. On the entry, the title and the notes are edited in place, with no separate edit mode or form:
    the title saves on Enter or on leaving the field, the notes on leaving the field, and Escape in
    either restores the text as it was.
-4. Notes are plain text and are shown exactly as typed.
+4. Notes are read as formatted text and written in the pages' editor — paragraphs, bold, italic,
+   strike, code, links, lists, checklists, quotes and `@` for people and entries — and are stored
+   as Markdown; a long description folds from twelve lines with *Show more*.
 5. Renaming writes `item.updated` in the history with the old and the new title; changing the
    notes records *that* they changed and none of their text.
 6. An entry in an archived collection, or an archived entry, shows its title and notes read-only
@@ -45,8 +47,8 @@ same on their phone in the groceries list; an agent does it through MCP; a scrip
 
 ## Where it ends
 
-* No Markdown rendering of notes — deliberately (`apps/webapp/src/lib/people/CommentPanel.svelte`
-  says why); a later decision may add it.
+* The notes take the pages' marks and no page blocks: no live views, whiteboards or embeds in a
+  description (E-3).
 * Capturing something that does not yet belong anywhere is the jumble's use case, not this one;
   the capture field says such an entry goes into the workspace's shared inbox, which everyone who
   can read the workspace sees.

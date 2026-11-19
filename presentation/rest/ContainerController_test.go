@@ -219,3 +219,19 @@ func TestAContainerAnswersItsKeyPrefix(t *testing.T) {
 		t.Fatalf("a hub answers key_prefix %v, want none", *hub.KeyPrefix)
 	}
 }
+
+func TestACollectionAnswersItsLevels(t *testing.T) {
+	answered := containerResponse(usecase.Output{
+		"id": "0190a000-0000-7000-8000-000000000001", "type": "COLLECTION", "name": "Shopping",
+		"state_mode": "COLUMNS", "state_modes": map[string]any{"task": "COLUMNS", "activity": "NONE"},
+	})
+	if answered.StateMode == nil || *answered.StateMode != "COLUMNS" {
+		t.Fatalf("state_mode = %v", answered.StateMode)
+	}
+	if answered.StateModes == nil || (*answered.StateModes)["activity"] != "NONE" {
+		t.Fatalf("state_modes = %v", answered.StateModes)
+	}
+	if hub := containerResponse(usecase.Output{"id": "0190a000-0000-7000-8000-000000000002", "type": "HUB", "name": "Hub"}); hub.StateMode != nil || hub.StateModes != nil {
+		t.Fatal("a hub answers a level")
+	}
+}

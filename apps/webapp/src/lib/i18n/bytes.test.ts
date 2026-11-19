@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { formatBytes } from './bytes.ts';
+import { formatBytes, formatFileSize } from './bytes.ts';
 
 test('a size climbs the units at a thousand, not at a kibibyte', () => {
   // The unit name is Intl's and means a power of ten. A client that divided by 1024 under the
@@ -29,4 +29,11 @@ test('the separator is the reader’s', () => {
 test('a size that is not one is shown as it arrived rather than as NaN', () => {
   assert.equal(formatBytes(Number.NaN, 'en'), 'NaN');
   assert.equal(formatBytes(-1, 'en'), '-1');
+});
+
+test('a file under a kilobyte is the short unit, the larger as every size', () => {
+  const t = (code: string, params: Record<string, string>) => `${params.size} <${code}>`;
+  assert.equal(formatFileSize(600, 'de', t), '600 <app.media.size_bytes>');
+  assert.equal(formatFileSize(1_200_000, 'de', t), formatBytes(1_200_000, 'de'));
+  assert.equal(formatFileSize(1_000, 'en', t), '1 kB');
 });

@@ -81,6 +81,19 @@ func (q *Queries) BucketOrderKeyNeighbours(ctx context.Context, arg BucketOrderK
 	return i, err
 }
 
+const clearBucketStatuses = `-- name: ClearBucketStatuses :execrows
+DELETE FROM bucket_status WHERE collection_id = $1::uuid
+`
+
+// A board's whole mapping, before it is written again or when the board leaves its workflow.
+func (q *Queries) ClearBucketStatuses(ctx context.Context, collectionID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, clearBucketStatuses, collectionID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearForeignSubtreeBuckets = `-- name: ClearForeignSubtreeBuckets :many
 UPDATE work_item wi SET
   bucket_id = NULL
@@ -174,6 +187,102 @@ func (q *Queries) ClearForeignSubtreeLabels(ctx context.Context, arg ClearForeig
 	for rows.Next() {
 		var i ClearForeignSubtreeLabelsRow
 		if err := rows.Scan(&i.ItemID, &i.LabelID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const completeWorkItemsInColumn = `-- name: CompleteWorkItemsInColumn :many
+UPDATE work_item wi SET
+  completion_count = wi.completion_count + 1,
+  is_completed = true,
+  completed_at = $1,
+  completed_by = $2::uuid,
+  updated_at   = $1,
+  version      = wi.version + 1
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = $3::uuid
+  AND wi.bucket_id = $4::uuid
+  AND wi.type = 'TASK' AND wi.parent_id IS NULL AND wi.status IS NULL AND NOT wi.is_completed
+RETURNING wi.id, wi.version
+`
+
+type CompleteWorkItemsInColumnParams struct {
+	At           pgtype.Timestamptz
+	CompletedBy  pgtype.UUID
+	CollectionID pgtype.UUID
+	BucketID     pgtype.UUID
+}
+
+type CompleteWorkItemsInColumnRow struct {
+	ID      pgtype.UUID
+	Version int32
+}
+
+// Open top-level tasks without a status standing in a board's done column are completed - the
+// done mark moved onto their column (domain-model.md §3.5a).
+func (q *Queries) CompleteWorkItemsInColumn(ctx context.Context, arg CompleteWorkItemsInColumnParams) ([]CompleteWorkItemsInColumnRow, error) {
+	rows, err := q.db.Query(ctx, completeWorkItemsInColumn,
+		arg.At,
+		arg.CompletedBy,
+		arg.CollectionID,
+		arg.BucketID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CompleteWorkItemsInColumnRow{}
+	for rows.Next() {
+		var i CompleteWorkItemsInColumnRow
+		if err := rows.Scan(&i.ID, &i.Version); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const countBoardCells = `-- name: CountBoardCells :many
+SELECT coalesce(wi.status, '')::text AS status, wi.bucket_id, wi.is_completed, count(*)::int AS count
+FROM work_item wi
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = $1::uuid
+  AND wi.type = 'TASK' AND wi.parent_id IS NULL
+GROUP BY 1, 2, 3
+ORDER BY 1, 2, 3
+`
+
+type CountBoardCellsRow struct {
+	Status      string
+	BucketID    pgtype.UUID
+	IsCompleted bool
+	Count       int32
+}
+
+// A board's top-level tasks counted by status, column and completion: what a change of its
+// workflow moves (work.PlanBoardChange). Trashed entries count, as they move.
+func (q *Queries) CountBoardCells(ctx context.Context, collectionID pgtype.UUID) ([]CountBoardCellsRow, error) {
+	rows, err := q.db.Query(ctx, countBoardCells, collectionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CountBoardCellsRow{}
+	for rows.Next() {
+		var i CountBoardCellsRow
+		if err := rows.Scan(
+			&i.Status,
+			&i.BucketID,
+			&i.IsCompleted,
+			&i.Count,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -325,6 +434,30 @@ func (q *Queries) InsertBucket(ctx context.Context, arg InsertBucketParams) erro
 	return err
 }
 
+const insertBucketStatus = `-- name: InsertBucketStatus :execrows
+INSERT INTO bucket_status (tenant_id, collection_id, bucket_id, status)
+SELECT b.tenant_id, b.collection_id, b.id, $1::text
+FROM bucket b
+WHERE b.id = $2::uuid AND b.collection_id = $3::uuid
+  AND b.deleted_at IS NULL
+`
+
+type InsertBucketStatusParams struct {
+	Status       string
+	BucketID     pgtype.UUID
+	CollectionID pgtype.UUID
+}
+
+// One row of a mapping. The column must be of the same board, which the join refuses otherwise:
+// nothing is written, and the caller's count tells.
+func (q *Queries) InsertBucketStatus(ctx context.Context, arg InsertBucketStatusParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertBucketStatus, arg.Status, arg.BucketID, arg.CollectionID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const insertLabel = `-- name: InsertLabel :exec
 INSERT INTO label (
   id, tenant_id, collection_id, name, color_token, description, version
@@ -370,6 +503,41 @@ func (q *Queries) LastBucketOrderKey(ctx context.Context, collectionID pgtype.UU
 	var order_key string
 	err := row.Scan(&order_key)
 	return order_key, err
+}
+
+const listBucketStatuses = `-- name: ListBucketStatuses :many
+SELECT s.bucket_id, s.status
+FROM bucket_status s
+JOIN bucket b ON b.id = s.bucket_id AND b.deleted_at IS NULL
+WHERE s.collection_id = $1::uuid
+ORDER BY b.order_key COLLATE "C", b.id, s.status
+`
+
+type ListBucketStatusesRow struct {
+	BucketID pgtype.UUID
+	Status   string
+}
+
+// A board's mapping of columns to statuses, left to right and in each column by status; a
+// deleted column's rows are gone with it or are left out here.
+func (q *Queries) ListBucketStatuses(ctx context.Context, collectionID pgtype.UUID) ([]ListBucketStatusesRow, error) {
+	rows, err := q.db.Query(ctx, listBucketStatuses, collectionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListBucketStatusesRow{}
+	for rows.Next() {
+		var i ListBucketStatusesRow
+		if err := rows.Scan(&i.BucketID, &i.Status); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listBuckets = `-- name: ListBuckets :many
@@ -650,6 +818,163 @@ func (q *Queries) MoveItemsBetweenBuckets(ctx context.Context, arg MoveItemsBetw
 	return result.RowsAffected(), nil
 }
 
+const placeUnplacedWorkItems = `-- name: PlaceUnplacedWorkItems :many
+UPDATE work_item wi SET
+  bucket_id  = $1::uuid,
+  updated_at = $2,
+  version    = wi.version + 1
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = $3::uuid
+  AND wi.type = 'TASK' AND wi.parent_id IS NULL AND wi.status IS NULL AND wi.bucket_id IS NULL
+  AND wi.is_completed = $4::boolean
+RETURNING wi.id, wi.version
+`
+
+type PlaceUnplacedWorkItemsParams struct {
+	BucketID     pgtype.UUID
+	UpdatedAt    pgtype.Timestamptz
+	CollectionID pgtype.UUID
+	IsCompleted  bool
+}
+
+type PlaceUnplacedWorkItemsRow struct {
+	ID      pgtype.UUID
+	Version int32
+}
+
+// A board's tasks without a status and without a column, of one completion, go into a column:
+// open ones into the first when a workflow leaves or a list becomes a board (domain-model.md §3.5a).
+func (q *Queries) PlaceUnplacedWorkItems(ctx context.Context, arg PlaceUnplacedWorkItemsParams) ([]PlaceUnplacedWorkItemsRow, error) {
+	rows, err := q.db.Query(ctx, placeUnplacedWorkItems,
+		arg.BucketID,
+		arg.UpdatedAt,
+		arg.CollectionID,
+		arg.IsCompleted,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PlaceUnplacedWorkItemsRow{}
+	for rows.Next() {
+		var i PlaceUnplacedWorkItemsRow
+		if err := rows.Scan(&i.ID, &i.Version); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const placeWorkItemsByCompletion = `-- name: PlaceWorkItemsByCompletion :many
+UPDATE work_item wi SET
+  bucket_id  = $1::uuid,
+  updated_at = $2,
+  version    = wi.version + 1
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = $3::uuid
+  AND wi.type = 'TASK' AND wi.parent_id IS NULL AND wi.status IS NULL
+  AND wi.is_completed = $4::boolean
+  AND ($5::uuid IS NULL OR wi.bucket_id = $5::uuid)
+  AND wi.bucket_id IS DISTINCT FROM $1::uuid
+RETURNING wi.id, wi.version
+`
+
+type PlaceWorkItemsByCompletionParams struct {
+	BucketID     pgtype.UUID
+	UpdatedAt    pgtype.Timestamptz
+	CollectionID pgtype.UUID
+	IsCompleted  bool
+	FromBucket   pgtype.UUID
+}
+
+type PlaceWorkItemsByCompletionRow struct {
+	ID      pgtype.UUID
+	Version int32
+}
+
+// Without a workflow the column follows completion (domain-model.md §3.5a): the top-level tasks of
+// a collection that carry no status, of one completion and - where from_bucket is given - in that
+// column, go into a column. Only rows whose column changes are written.
+func (q *Queries) PlaceWorkItemsByCompletion(ctx context.Context, arg PlaceWorkItemsByCompletionParams) ([]PlaceWorkItemsByCompletionRow, error) {
+	rows, err := q.db.Query(ctx, placeWorkItemsByCompletion,
+		arg.BucketID,
+		arg.UpdatedAt,
+		arg.CollectionID,
+		arg.IsCompleted,
+		arg.FromBucket,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PlaceWorkItemsByCompletionRow{}
+	for rows.Next() {
+		var i PlaceWorkItemsByCompletionRow
+		if err := rows.Scan(&i.ID, &i.Version); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const placeWorkItemsByStatus = `-- name: PlaceWorkItemsByStatus :many
+UPDATE work_item wi SET
+  bucket_id  = $1::uuid,
+  updated_at = $2,
+  version    = wi.version + 1
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = $3::uuid
+  AND wi.type = 'TASK' AND wi.parent_id IS NULL
+  AND wi.status = $4::text
+  AND wi.bucket_id IS DISTINCT FROM $1::uuid
+RETURNING wi.id, wi.version
+`
+
+type PlaceWorkItemsByStatusParams struct {
+	BucketID     pgtype.UUID
+	UpdatedAt    pgtype.Timestamptz
+	CollectionID pgtype.UUID
+	Status       string
+}
+
+type PlaceWorkItemsByStatusRow struct {
+	ID      pgtype.UUID
+	Version int32
+}
+
+// The column follows the status under a workflow (domain-model.md §3.5a): the top-level tasks of a
+// collection in one status go into the column showing it - null for *Ohne Spalte*. Only rows whose
+// column changes are written, so a second pass spends no version.
+func (q *Queries) PlaceWorkItemsByStatus(ctx context.Context, arg PlaceWorkItemsByStatusParams) ([]PlaceWorkItemsByStatusRow, error) {
+	rows, err := q.db.Query(ctx, placeWorkItemsByStatus,
+		arg.BucketID,
+		arg.UpdatedAt,
+		arg.CollectionID,
+		arg.Status,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PlaceWorkItemsByStatusRow{}
+	for rows.Next() {
+		var i PlaceWorkItemsByStatusRow
+		if err := rows.Scan(&i.ID, &i.Version); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const recordSetElementAdded = `-- name: RecordSetElementAdded :exec
 INSERT INTO set_element (tenant_id, item_id, set_name, element_id, add_tag, remove_tag)
 VALUES (current_tenant_id(), $1, $2, $3,
@@ -892,6 +1217,60 @@ func (q *Queries) SetLabelRestored(ctx context.Context, arg SetLabelRestoredPara
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const setWorkItemStatusInColumn = `-- name: SetWorkItemStatusInColumn :many
+UPDATE work_item wi SET
+  status     = $1::text,
+  updated_at = $2,
+  version    = wi.version + 1
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = $3::uuid
+  AND wi.type = 'TASK' AND wi.parent_id IS NULL AND wi.status IS NULL
+  AND (($4::uuid IS NOT NULL AND wi.bucket_id = $4::uuid)
+    OR ($4::uuid IS NULL AND wi.bucket_id IS NULL
+        AND wi.is_completed = $5::boolean))
+RETURNING wi.id, wi.version
+`
+
+type SetWorkItemStatusInColumnParams struct {
+	Status       string
+	UpdatedAt    pgtype.Timestamptz
+	CollectionID pgtype.UUID
+	BucketID     pgtype.UUID
+	IsCompleted  bool
+}
+
+type SetWorkItemStatusInColumnRow struct {
+	ID      pgtype.UUID
+	Version int32
+}
+
+// A workflow made from a board's columns: the top-level tasks without a status standing in a
+// column - or, with no column given, of one completion standing in none - take a status.
+func (q *Queries) SetWorkItemStatusInColumn(ctx context.Context, arg SetWorkItemStatusInColumnParams) ([]SetWorkItemStatusInColumnRow, error) {
+	rows, err := q.db.Query(ctx, setWorkItemStatusInColumn,
+		arg.Status,
+		arg.UpdatedAt,
+		arg.CollectionID,
+		arg.BucketID,
+		arg.IsCompleted,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SetWorkItemStatusInColumnRow{}
+	for rows.Next() {
+		var i SetWorkItemStatusInColumnRow
+		if err := rows.Scan(&i.ID, &i.Version); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const tallyItems = `-- name: TallyItems :many

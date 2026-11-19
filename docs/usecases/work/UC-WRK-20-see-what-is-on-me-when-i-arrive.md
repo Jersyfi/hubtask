@@ -40,6 +40,8 @@ the page holds a single sentence and *Create hub*.
 6. A workspace with no hub shows one sentence and *Create hub* — to a person who may create one; a
    person whose role reaches no hub is told that nothing has been shared with them yet.
 7. Every entry shown is one the reader may read; a child with one hub sees only that hub's work.
+8. On a phone, Today shows its cards as one row the person swipes, and switches between *Your day*
+   and the overview.
 
 ## Where it ends
 

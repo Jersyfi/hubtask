@@ -6,7 +6,7 @@ import test from 'node:test';
 
 import * as Y from 'yjs';
 
-import { Board, MAX_ELEMENTS, type Element } from '../src/index.ts';
+import { Board, DEFAULT_SIZE, MAX_ELEMENTS, type Element } from '../src/index.ts';
 
 const sticky = (id: string, x = 0): Element => ({ id, kind: 'STICKY', x, y: 0, width: 160, height: 160, text: id, color_token: 'amber' });
 
@@ -156,4 +156,29 @@ test('a connector attached, offline or at the same moment, to an object someone 
     assert.deepEqual(board.scene().map((e) => e.id), ['b']);
     assert.equal(board.get('l'), undefined);
   }
+});
+
+test('an object knows who put it on the board on every device, outside the saved scene, and keeps it across a version brought back', () => {
+  const [a, b] = pair();
+  a.add(sticky('mine'), 'account-a');
+  b.addAll([sticky('theirs', 300), sticky('also', 600)], 'account-b');
+  a.add(sticky('nobody', 900));
+  assert.equal(b.makerOf('mine'), 'account-a');
+  assert.equal(a.makerOf('theirs'), 'account-b');
+  assert.equal(a.makerOf('also'), 'account-b');
+  assert.equal(a.makerOf('nobody'), undefined);
+  assert.equal(a.scene().some((e) => 'by' in e), false);
+  a.replace([sticky('mine'), sticky('old', 1200)]);
+  assert.equal(b.makerOf('mine'), 'account-a');
+  assert.equal(b.makerOf('old'), undefined);
+  const seeded = new Board(new Y.Doc());
+  seeded.seed([sticky('s')]);
+  assert.equal(seeded.makerOf('s'), undefined);
+});
+
+// F-4 (scene `wbfiles`): a file put on a board is a card with room for its first page above its
+// name and its pages and size, as tall as it is wide or nearly.
+test('a file is put on the board as a card with room for its first page', () => {
+  const { width, height } = DEFAULT_SIZE.FILE;
+  assert.ok(height >= 160 && height <= width, `${width} × ${height}`);
 });

@@ -13,14 +13,16 @@ export async function reveal(control) {
 }
 
 /**
- * Unfolds the details' fields with nothing set (concept round 2, §4): they wait behind *More
+ * Unfolds the fields with nothing set (concept round 2, §4): they wait in the rail's folded *More
  * fields* until somebody asks, so a walk that fills one asks first, as a person does.
  */
 export async function unfoldFields(page) {
-  // The toggle is drawn with the rows, once the entry's type is read; looked for before that, it
-  // is not there and every row stays folded. A page without details waits the bound and goes on.
-  await page.locator('[data-detail], .more-fields').first().waitFor({ state: 'attached', timeout: 15_000 }).catch(() => undefined);
-  const toggle = page.locator('.more-fields[aria-expanded="false"]');
+  // The section is registered with the rows, once the entry's type is read; looked for before
+  // that, it is not there. A page without empty fields waits the bound and goes on.
+  const more = 'button[aria-controls$="-more-fields"]';
+  await page.locator(`[data-detail], ${more}`).first().waitFor({ state: 'attached', timeout: 15_000 }).catch(() => undefined);
+  // Only the drawn ones: on a phone the rail's sections are also in the sheet, drawn when it is open.
+  const toggle = page.locator(`${more}[aria-expanded="false"]`).filter({ visible: true });
   await page.waitForTimeout(100);
   for (const each of await toggle.all()) await each.click();
 }

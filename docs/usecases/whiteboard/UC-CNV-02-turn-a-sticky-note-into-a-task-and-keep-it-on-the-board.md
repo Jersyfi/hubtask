@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-18, P-19]
 state: built
 tasks: []
-checked_by: [packages/whiteboard/test/scene.test.ts, apps/webapp/src/lib/data/whiteboards.test.ts, core/application/service/work/LinksWhiteboard_test.go, test/integration/whiteboard_repository_test.go, core/domain/model/whiteboard/Scene_test.go]
+checked_by: [packages/whiteboard/test/scene.test.ts, apps/webapp/src/lib/data/whiteboards.test.ts, core/application/service/work/LinksWhiteboard_test.go, test/integration/whiteboard_repository_test.go, core/domain/model/whiteboard/Scene_test.go, core/application/service/work/Links_test.go, test/integration/entry_link_test.go, apps/webapp/e2e/whiteboardwork.test.mjs]
 ---
 
 # Turn a sticky note into a task and keep it on the board
@@ -30,6 +30,7 @@ At the end of the retro, Anna turns the note "Book the room earlier" into a task
 6. Turning a note, the writer chooses the entry type among those the collection offers at the task level (where the workflows module is on); the entry is created of that type, held to its form.
 7. A frame's sticky notes with words are turned into entries at once, each becoming its entry's card in its place; a refusal stops the turning and is shown in words.
 8. A shape with words is turned into an entry as a sticky note is, and becomes its entry's card in its place.
+9. A card shows the person its entry is on beside its key, and its status in the words of the workflow in force (`ReferenceTarget.assignee_id`).
 
 ## Where it ends
 

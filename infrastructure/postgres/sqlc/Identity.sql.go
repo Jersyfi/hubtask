@@ -570,7 +570,8 @@ const findAccount = `-- name: FindAccount :one
 
 SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at, avatar_media_id, products_seen,
-  nav_products, nav_products_hidden, nav_hubs_order, nav_contents_mode, nav_hubs_hidden
+  nav_products, nav_products_hidden, nav_hubs_order, nav_contents_mode, nav_hubs_hidden,
+  today_sections, today_sections_hidden
 FROM account
 WHERE id = $1 AND deleted_at IS NULL
 `
@@ -595,6 +596,8 @@ type FindAccountRow struct {
 	NavHubsOrder          *string
 	NavContentsMode       *string
 	NavHubsHidden         []pgtype.UUID
+	TodaySections         []string
+	TodaySectionsHidden   []string
 }
 
 // ============================== Accounts ==============================
@@ -624,6 +627,8 @@ func (q *Queries) FindAccount(ctx context.Context, id pgtype.UUID) (FindAccountR
 		&i.NavHubsOrder,
 		&i.NavContentsMode,
 		&i.NavHubsHidden,
+		&i.TodaySections,
+		&i.TodaySectionsHidden,
 	)
 	return i, err
 }
@@ -924,6 +929,19 @@ func (q *Queries) GroupMembers(ctx context.Context, groupID pgtype.UUID) ([]pgty
 		return nil, err
 	}
 	return items, nil
+}
+
+const groupNamed = `-- name: GroupNamed :one
+SELECT id FROM account_group WHERE tenant_id = current_tenant_id() AND lower(name) = lower($1::text)
+`
+
+// The group a query names by its name, case-insensitive (`members("Support")`); the name is a
+// bound value, compared with the unique index's own expression.
+func (q *Queries) GroupNamed(ctx context.Context, name string) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, groupNamed, name)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const hasManagedAccounts = `-- name: HasManagedAccounts :one
@@ -1562,6 +1580,41 @@ func (q *Queries) PageDirectoryGroups(ctx context.Context, arg PageDirectoryGrou
 	return items, nil
 }
 
+const peopleOfGroupsOf = `-- name: PeopleOfGroupsOf :many
+SELECT DISTINCT other.account_id
+FROM account_group_member mine
+JOIN account_group_member other ON other.tenant_id = mine.tenant_id AND other.group_id = mine.group_id
+WHERE mine.tenant_id = current_tenant_id() AND mine.account_id = $1
+ORDER BY other.account_id
+LIMIT $2
+`
+
+type PeopleOfGroupsOfParams struct {
+	AccountID pgtype.UUID
+	MaxRows   int32
+}
+
+// Everybody in a group the account is in, the account among them: the query's `my-groups`.
+func (q *Queries) PeopleOfGroupsOf(ctx context.Context, arg PeopleOfGroupsOfParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, peopleOfGroupsOf, arg.AccountID, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var account_id pgtype.UUID
+		if err := rows.Scan(&account_id); err != nil {
+			return nil, err
+		}
+		items = append(items, account_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const removeGroupMember = `-- name: RemoveGroupMember :exec
 DELETE FROM account_group_member
 WHERE group_id = $1 AND account_id = $2
@@ -2031,8 +2084,10 @@ UPDATE account SET
   nav_hubs_order = $9,
   nav_contents_mode = $10,
   nav_hubs_hidden = $11::uuid[],
-  updated_at = $12
-WHERE id = $13 AND deleted_at IS NULL
+  today_sections = $12::text[],
+  today_sections_hidden = $13::text[],
+  updated_at = $14
+WHERE id = $15 AND deleted_at IS NULL
 `
 
 type UpdateAccountPreferencesParams struct {
@@ -2047,6 +2102,8 @@ type UpdateAccountPreferencesParams struct {
 	NavHubsOrder          *string
 	NavContentsMode       *string
 	NavHubsHidden         []pgtype.UUID
+	TodaySections         []string
+	TodaySectionsHidden   []string
 	UpdatedAt             pgtype.Timestamptz
 	ID                    pgtype.UUID
 }
@@ -2066,6 +2123,8 @@ func (q *Queries) UpdateAccountPreferences(ctx context.Context, arg UpdateAccoun
 		arg.NavHubsOrder,
 		arg.NavContentsMode,
 		arg.NavHubsHidden,
+		arg.TodaySections,
+		arg.TodaySectionsHidden,
 		arg.UpdatedAt,
 		arg.ID,
 	)

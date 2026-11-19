@@ -212,3 +212,31 @@ export function commentParts(body: string): ({ text: string } | { person: string
   if (last < body.length) out.push({ text: body.slice(last) });
   return out;
 }
+
+/** A comment as the whiteboards' home lists it: the words that name the reader, plain. */
+export interface ToYou<C> {
+  readonly thread: C;
+  /** The comment of the thread that names the reader last. */
+  readonly said: C;
+  /** Its words with every mention drawn as `@Name`. */
+  readonly words: string;
+}
+
+/**
+ * The open threads in which someone else names the reader (scene whome 4): unresolved, not taken
+ * back, the latest naming comment of each, the newest first.
+ */
+export function openToYou<C extends Pinned & { readonly author_id: string | null; readonly body: string; readonly created_at: string }>(
+  comments: readonly C[],
+  me: string,
+): ToYou<C>[] {
+  const mine = me.toLowerCase();
+  const names = (comment: C) =>
+    !comment.deleted && (comment.author_id ?? '').toLowerCase() !== mine && commentParts(comment.body).some((part) => 'person' in part && part.person === mine);
+  return threadsOf(comments, false)
+    .flatMap(({ thread, replies }) => {
+      const said = [thread, ...replies].filter(names).at(-1);
+      return said ? [{ thread, said, words: commentParts(said.body).map((part) => ('person' in part ? `@${part.name}` : part.text)).join('').trim() }] : [];
+    })
+    .sort((a, b) => (a.said.created_at < b.said.created_at ? 1 : a.said.created_at > b.said.created_at ? -1 : 0));
+}

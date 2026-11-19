@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ARCHIVED, CHILDREN, COLLECTION, GROCERIES, ITEMS, signedIn, stub, viewLink, chooseView } from './fixture.mjs';
@@ -37,7 +37,7 @@ const COMMON = [
 /** The items' own labels, the reason under an unavailable one left out. */
 const labelsOf = (menu) =>
   menu.getByRole('menuitem').evaluateAll((items) =>
-    items.map((item) => (item.querySelector('.label')?.textContent ?? '').trim().replace(/…$/, '').replace(/^(Move inside).*$/, '$1')));
+    items.map((item) => (item.querySelector('.label')?.textContent ?? item.innerText.split('\n')[0] ?? '').trim().replace(/…$/, '').replace(/^(Move inside).*$/, '$1')));
 
 /** A signed-in tab with every write recorded, at a width and maybe with a touch screen. */
 async function open(browser, path, { width = 1280, height = 900, hasTouch = false } = {}) {
@@ -105,8 +105,7 @@ async function everyWayIn(page, row, title) {
 }
 
 test('chromium: 1280 px — the list, the board, the timeline, the subtree and search offer one menu', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   // The list.
   const list = await open(browser, `/collections/${COLLECTION.id}`);
@@ -161,7 +160,9 @@ test('chromium: 1280 px — the list, the board, the timeline, the subtree and s
   // Search: the same menu on a hit, once the role along its collection has been read.
   const search = await open(browser, '/search');
   t.after(() => search.context.close());
-  await search.page.getByRole('searchbox', { name: 'Search everything you can see' }).fill('electrician');
+  await search.page.getByRole('combobox', { name: 'Search everything you can see' }).fill('electrician');
+  // Words show every kind; the *Entries* facet is the entry list, where a hit is a row.
+  await search.page.locator('main nav [data-facet="ENTRY"]').click();
   const hit = search.page.locator(`[data-hit="${DATED.id}"] a`).first();
   await hit.waitFor({ timeout: 10_000 });
   await search.page.waitForTimeout(600);
@@ -173,8 +174,7 @@ test('chromium: 1280 px — the list, the board, the timeline, the subtree and s
 });
 
 test('chromium: 1280 px — the entry\'s own page carries the same menu in its head, without Open (UC-WRK-28 check 2)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const entry = await open(browser, `/items/${DATED.id}`);
   t.after(() => entry.context.close());
   await entry.page.getByRole('heading', { name: DATED.title }).first().waitFor({ timeout: 15_000 });
@@ -207,8 +207,7 @@ test('chromium: 1280 px — the entry\'s own page carries the same menu in its h
 });
 
 test('chromium: 1280 px — a row\'s tools show where the pointer or the keyboard is, its chips always', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const list = await open(browser, `/collections/${COLLECTION.id}`);
   t.after(() => list.context.close());
   const row = list.page.locator(`[data-row="${ITEMS[0].id}"]`);
@@ -229,7 +228,7 @@ test('chromium: 1280 px — a row\'s tools show where the pointer or the keyboar
     return grip && drawn === (value === 1);
   }, [ITEMS[0].id, wanted], { timeout: 5_000 });
   await waitFor(0);
-  assert.equal(await row.locator('.tools .on-hover').count(), 3, 'labels, ＋ and ⋯');
+  assert.equal(await row.locator('.tools .on-hover').count(), 4, 'Open, labels, ＋ and ⋯ (WB-4)');
   // The label chip stays: it is what the row says.
   assert.equal(await row.locator('[data-token]').first().evaluate((chip) => Number(getComputedStyle(chip).opacity)), 1);
   // The pointer over the row.
@@ -244,8 +243,7 @@ test('chromium: 1280 px — a row\'s tools show where the pointer or the keyboar
 });
 
 test('chromium: 390 px with a touch screen — a still long press opens the menu, Select first, and Select picks', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, `/collections/${COLLECTION.id}`, { width: 390, hasTouch: true });
   t.after(() => context.close());
   const row = page.locator(`[data-row="${DATED.id}"] .title`).first();
@@ -274,44 +272,47 @@ test('chromium: 390 px with a touch screen — a still long press opens the menu
   assert.deepEqual(failures, []);
 });
 
-test('chromium: 375 × 812 — the menu of the last row on screen stays on screen, every item reachable', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+test('chromium: 375 × 812 — the menu of the last row on screen opens as a sheet on screen, every item reachable', async (t) => {
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, `/collections/${COLLECTION.id}`, { width: 375, height: 812 });
   t.after(() => context.close());
   await page.locator('[data-row] a').first().waitFor({ timeout: 15_000 });
   await page.waitForTimeout(600);
 
-  // The last ⋯ wholly on screen: the row nearest the foot, where the room below is the least.
-  const triggers = page.getByRole('button', { name: /^Actions for / });
-  const boxes = await triggers.evaluateAll((all) => all.map((each) => each.getBoundingClientRect().toJSON()));
-  // On screen means above the bottom bar, which stands over the page's foot.
+  // The row nearest the foot, where the room below is the least. A phone's row draws no ⋯ (§7):
+  // a long press or a swipe opens its menu, and the keyboard reaches the menu's own opener.
+  const rows = page.locator('[data-row]');
+  const boxes = await rows.evaluateAll((all) => all.map((each) => each.getBoundingClientRect().toJSON()));
   const foot = await page.evaluate(() => document.querySelector('nav[aria-label="Sections"]')?.getBoundingClientRect().top ?? innerHeight);
   const last = boxes.findLastIndex((box) => box.height > 0 && box.bottom <= foot);
-  assert.ok(last >= 0, 'no row with a ⋯ on screen');
+  assert.ok(last >= 0, 'no row on screen');
   assert.ok(boxes[last].top > foot / 2, `the last row on screen is in the upper half (${boxes[last].top})`);
   const scrolled = await page.evaluate(() => scrollY);
-  // Below `medium` a row's tools are always drawn, so the ⋯ is pressed where it stands.
-  await triggers.nth(last).click();
+  await rows.nth(last).getByRole('button', { name: /^Actions for / }).focus();
+  await page.keyboard.press('Enter');
   const menu = page.getByRole('menu');
   await menu.waitFor({ timeout: 5_000 });
   await page.waitForTimeout(300);
 
-  const surface = await menu.evaluate((list) => list.parentElement.getBoundingClientRect().toJSON());
-  assert.ok(surface.top >= 0 && surface.bottom <= 812, `the menu runs past the viewport: ${surface.top}–${surface.bottom}`);
-  assert.ok(surface.bottom <= boxes[last].top, 'the menu did not open above its ⋯, where the room is larger');
-  // Every item comes into view inside the menu, and the page does not move for it.
+  // On a phone every menu is a sheet from the foot (D-1), whole on screen.
+  const surface = await menu.evaluate((list) => list.closest('dialog')?.getBoundingClientRect().toJSON());
+  assert.ok(surface, 'the menu is not a sheet on a phone');
+  assert.ok(surface.top >= 0 && surface.bottom <= 812, `the sheet runs past the viewport: ${surface.top}–${surface.bottom}`);
+  // The sheet sets its own text flow: a row's nowrap must not reach it and push it sideways.
+  const flow = await menu.evaluate((list) => { const sheet = list.closest('dialog'); return { space: getComputedStyle(sheet).whiteSpace, left: sheet.scrollLeft, wide: sheet.scrollWidth - sheet.clientWidth }; });
+  assert.deepEqual(flow, { space: 'normal', left: 0, wide: 0 }, 'the sheet is wider than the screen or scrolled sideways');
+  // Every item comes into view inside the sheet, and the page does not move for it.
   const items = menu.getByRole('menuitem');
   const count = await items.count();
   assert.ok(count >= COMMON.length, `the menu has ${count} items`);
   for (let index = 0; index < count; index += 1) {
-    // The surface measured with the item: the engine may settle the scrolled surface anew.
     const { box, around } = await items.nth(index).evaluate((item) => {
       item.scrollIntoView({ block: 'nearest' });
-      return { box: item.getBoundingClientRect().toJSON(), around: item.closest('[role="menu"]').parentElement.getBoundingClientRect().toJSON() };
+      return { box: item.getBoundingClientRect().toJSON(), around: item.closest('dialog').getBoundingClientRect().toJSON() };
     });
-    assert.ok(around.top >= 0 && around.bottom <= 812, `the menu runs past the viewport: ${around.top}–${around.bottom}`);
-    assert.ok(box.top >= around.top - 1 && box.bottom <= around.bottom + 1, `item ${index} is outside the menu: ${box.top}–${box.bottom}`);
+    assert.ok(around.top >= 0 && around.bottom <= 812, `the sheet runs past the viewport: ${around.top}–${around.bottom}`);
+    assert.ok(box.top >= around.top - 1 && box.bottom <= around.bottom + 1, `item ${index} is outside the sheet: ${box.top}–${box.bottom}`);
+    assert.ok(box.left >= around.left - 1 && box.right <= around.right + 1, `item ${index} runs past the sheet's sides: ${box.left}–${box.right}`);
   }
   assert.equal(await page.evaluate(() => scrollY), scrolled, 'reaching the items scrolled the page');
   assert.deepEqual(failures, []);
@@ -320,8 +321,7 @@ test('chromium: 375 × 812 — the menu of the last row on screen stays on scree
 // UC-WRK-28 check 4: Ctrl or ⌘-click selects in the list and on the board; on touch, the still
 // hold's Select does (the 390 px test above).
 test('chromium: 1280 px — Ctrl or ⌘-click picks a card on the board, as it picks a row in the list', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, `/collections/${COLLECTION.id}`);
   t.after(() => context.close());
   const row = page.locator(`[data-row="${DATED.id}"] .title`).first();
@@ -348,8 +348,7 @@ test('chromium: 1280 px — Ctrl or ⌘-click picks a card on the board, as it p
 });
 
 test('chromium: the pane opens from a card and a timeline row at 1280 px, and the page below large', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   for (const [width, beside] of [[1280, true], [1024, false]]) {
     const { page, context, failures } = await open(browser, `/collections/${COLLECTION.id}`, { width });
     t.after(() => context.close());
@@ -374,8 +373,7 @@ test('chromium: the pane opens from a card and a timeline row at 1280 px, and th
 });
 
 test('chromium: 1280 px — Move to another collection and Duplicate ask first and write nothing until confirmed', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures, written } = await open(browser, `/collections/${COLLECTION.id}`);
   t.after(() => context.close());
   const trigger = page.getByRole('button', { name: `Actions for ${ITEMS[2].title}`, exact: true }).first();
@@ -395,8 +393,7 @@ test('chromium: 1280 px — Move to another collection and Duplicate ask first a
 // see that are neither archived nor the current one, and what the destination could not keep is
 // listed by kind once the move is answered.
 test('chromium: 1280 px — a move elsewhere offers the other open collections and lists what it left behind by kind', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, `/collections/${COLLECTION.id}`);
   t.after(() => context.close());
   const entry = ITEMS[2];
@@ -441,8 +438,7 @@ test('chromium: 1280 px — a move elsewhere offers the other open collections a
 // UC-WRK-07 checks 2 and 5: *Duplicate* offers a title (the original's when left empty), the
 // subtree, and the collections of the same hub; what the destination cannot hold is listed by kind.
 test('chromium: 1280 px — Duplicate offers a title, the subtree and the hub\'s collections, and lists what it left behind by kind', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, `/collections/${COLLECTION.id}`);
   t.after(() => context.close());
   const entry = ITEMS[2];

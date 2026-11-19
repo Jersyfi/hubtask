@@ -219,6 +219,17 @@ test('a stored value reads the way the reader reads it, people and entries by na
   assert.equal(valueText({ kind: 'TEXT' }, '', reading), undefined);
 });
 
+test('a shipped option reads in the reader\'s words, by the code the server gives a template\'s word', () => {
+  // The server's TemplateWordCode for "Impact" is templates.text.64852cb7 (locales/en.json).
+  assert.equal(templateWordCode('Impact'), 'templates.text.64852cb7');
+  const words = { has: (code: string) => code === templateWordCode('High'), t: () => 'Hoch' };
+  assert.equal(optionWord('High', words), 'Hoch');
+  assert.equal(optionWord('Eigenes', words), 'Eigenes', 'an option of the workspace\'s own stays as stored');
+  const reading = { number: String, amount: String, duration: String, nameOf: () => undefined, titleOf: () => undefined, unknown: '?', option: (value: string) => optionWord(value, words) };
+  assert.equal(valueText({ kind: 'SELECT' }, 'High', reading), 'Hoch');
+  assert.equal(valueText({ kind: 'MULTI_SELECT' }, ['High', 'Eigenes'], reading), 'Hoch, Eigenes');
+});
+
 test('a calculated field reads, sorts and filters as a number, and is nobody to fill in', () => {
   assert.equal(isCalculated('CALCULATED'), true);
   assert.equal(isCalculated('NUMBER'), false);
@@ -228,7 +239,7 @@ test('a calculated field reads, sorts and filters as a number, and is nobody to 
 
 // A calculated field for an entry whose writes wait to be sent: computed in the browser over the
 // scope's number, money, duration and boolean fields.
-import { calculatedOf } from './customfields.ts';
+import { calculatedOf, optionWord, templateWordCode } from './customfields.ts';
 
 test('a calculated field is computed in the browser from the scope\'s number fields', () => {
   const inScope = [{ key: 'hours', kind: 'NUMBER' }, { key: 'rate', kind: 'MONEY' }, { key: 'note', kind: 'TEXT' }] as never;

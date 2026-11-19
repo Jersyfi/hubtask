@@ -321,3 +321,33 @@ func TestAPagesSummaryCountsTheReadableSpaces(t *testing.T) {
 	refused(view.Spec{Scope: view.Scope{ContainerID: list}}, "query.aggregate_pages_hub_scope")
 	refused(view.Spec{Scope: view.Scope{Workspace: true}, Filter: &view.Node{Op: view.OpAnd}}, "query.aggregate_pages_unfiltered")
 }
+
+// UC-WRK-43 check 5 (Q-4, Q-5): the count a query line shows while typing is the workspace
+// summary of the query, narrowed to the collections the reader may read; grouped by a field, it
+// is the values the line suggests with their counts. A sort has nothing to order here.
+func TestAQueryLineIsCountedAsTheReaderMaySeeIt(t *testing.T) {
+	_, open, closed := destinationsFixture()
+	h, adapter, _ := aggregateFixture(&reader{permit: map[shared.ID]bool{open: true}})
+	registry, err := usecase.NewRegistry(nil, h.Descriptor())
+	if err != nil {
+		t.Fatalf("registry: %v", err)
+	}
+	if _, err := registry.Invoke(t.Context(), AggregateItemsName, summaryActor(), usecase.Input{
+		"scope_workspace": true, "q": "who: me, none is: open",
+		"aggregate": map[string]any{"function": "COUNT", "group_by": "assignee_id"},
+	}); err != nil {
+		t.Fatalf("counting: %v", err)
+	}
+	asked := adapter.asked
+	if asked.Spec.Filter == nil || asked.Spec.Filter.Op != "AND" || slices.Contains(asked.Anchor.CollectionIDs, closed) {
+		t.Errorf("the count read %+v over %v", asked.Spec.Filter, asked.Anchor.CollectionIDs)
+	}
+
+	_, err = registry.Invoke(t.Context(), AggregateItemsName, summaryActor(), usecase.Input{
+		"scope_workspace": true, "q": "is: open sort: due", "aggregate": map[string]any{"function": "COUNT"},
+	})
+	var domainErr *shared.Error
+	if !errors.As(err, &domainErr) || domainErr.Fields[0].Code != "query.sort_not_here" {
+		t.Fatalf("a sort in a count answered %v", err)
+	}
+}

@@ -41,10 +41,11 @@ const (
 )
 
 // Affecting is what an entry's affected CIs need beside the inventory: the entries and who may
-// see them.
+// see them, and the workflows that name their statuses (nil names none).
 type Affecting struct {
 	Inventory Inventory
 	Pointers  Pointers
+	Workflows workrepo.Workflows
 }
 
 func entryPath(s workrepo.EntrySummary) []identity.Scope {
@@ -113,9 +114,9 @@ type ListEntryCis struct{ Affecting Affecting }
 func (h ListEntryCis) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListEntryCisName, Permission: service.PermissionRead,
-		Summary: "Answers the configuration items an entry - an incident, a change - names as affected, those the " +
+		Summary: "Answers the objects an entry - an incident, a change - names as affected, those the " +
 			"reader may read; the active services and offerings their failure reaches; the other open entries naming " +
-			"them or a CI they reach; and the collisions - entries planned on the same CI or one it reaches in a " +
+			"them or an object they reach; and the collisions - entries planned on the same object or one it reaches in a " +
 			"window overlapping the entry's start and due.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Input: []usecase.Field{{Name: "item_id", Kind: usecase.KindID, Required: true, Description: "The entry."}},
@@ -291,8 +292,8 @@ type AffectEntryCi struct{ Affecting Affecting }
 func (h AffectEntryCi) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: AffectEntryCiName, Permission: service.PermissionWriteItems,
-		Summary: "Names a configuration item as affected by an entry: changing the entry needs WRITE_ITEMS on it, " +
-			"and the CI must be one the writer may read. At most fifty per entry; naming one again changes nothing.",
+		Summary: "Names an object as affected by an entry: changing the entry needs WRITE_ITEMS on it, " +
+			"and the object must be one the writer may read. At most fifty per entry; naming one again changes nothing.",
 		SideEffects: "Writes the affected CI, an audit entry and the change log.", TokenScope: cisWrite,
 		Input: []usecase.Field{
 			{Name: "item_id", Kind: usecase.KindID, Required: true, Description: "The entry."},
@@ -312,7 +313,7 @@ type UnaffectEntryCi struct{ Affecting Affecting }
 func (h UnaffectEntryCi) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: UnaffectEntryCiName, Permission: service.PermissionWriteItems,
-		Summary:     "Removes a configuration item from those an entry names as affected; needs WRITE_ITEMS on the entry.",
+		Summary:     "Removes an object from those an entry names as affected; needs WRITE_ITEMS on the entry.",
 		SideEffects: "Removes the affected CI, writes an audit entry and the change log.", TokenScope: cisWrite,
 		Input: []usecase.Field{
 			{Name: "item_id", Kind: usecase.KindID, Required: true, Description: "The entry."},

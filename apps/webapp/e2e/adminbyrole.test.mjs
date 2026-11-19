@@ -18,7 +18,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { MANIFEST, PERMISSIONS, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -130,8 +130,7 @@ const reachable = (page, { role, name }) =>
 
 for (const screen of SCREENS) {
   test(`chromium: ${screen.path} — an auditor reads it and is offered no write; an owner is offered each`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
 
     const owner = await as(browser, PERMISSIONS.OWNER);
     t.after(() => owner.context.close());
@@ -167,8 +166,7 @@ for (const screen of SCREENS) {
 
 for (const screen of OWNERS_ONLY) {
   test(`chromium: ${screen.path} — an administrator is not offered what only the owner may set`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const admin = await as(browser, PERMISSIONS.ADMIN);
     t.after(() => admin.context.close());
     await admin.page.goto(`${served.origin}${screen.path}`);

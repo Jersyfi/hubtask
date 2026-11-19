@@ -283,6 +283,9 @@ type Account struct {
 	// Nav holds the sidebar's personal preferences (user-experience.md §2.3); the account's so they
 	// follow the person to another device, while the width and the rail stay the device's.
 	Nav NavPreferences
+	// Today is how the person arranged *Today*'s cards and tiles (work-surface concept E-17); the
+	// account's for the same reason.
+	Today TodaySections
 	// AvatarMediaID is the picture the person shows beside their name, zero for the initials. Every
 	// member may read it, as they may read the name (data-protection.md §9).
 	AvatarMediaID shared.ID

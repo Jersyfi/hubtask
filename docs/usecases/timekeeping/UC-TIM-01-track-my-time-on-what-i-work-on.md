@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-07, P-18]
 state: verified
 tasks: []
-checked_by: [core/domain/model/timekeeping/Timekeeping_test.go, core/application/service/timekeeping/Keeper_test.go, core/application/service/timekeeping/KeeperDoors_test.go, core/application/service/timekeeping/Timers_test.go, core/application/service/sync/Entity_test.go, apps/webapp/src/lib/data/replica.test.ts, test/integration/time_repository_test.go, apps/webapp/src/lib/data/time.test.ts, test/architecture/doorsalike_test.go, apps/webapp/e2e/timewalk.test.mjs]
+checked_by: [core/domain/model/timekeeping/Timekeeping_test.go, core/application/service/timekeeping/Keeper_test.go, core/application/service/timekeeping/KeeperDoors_test.go, core/application/service/timekeeping/Timers_test.go, core/application/service/sync/Entity_test.go, apps/webapp/src/lib/data/replica.test.ts, test/integration/time_repository_test.go, apps/webapp/src/lib/data/time.test.ts, test/architecture/doorsalike_test.go, apps/webapp/e2e/timewalk.test.mjs, core/application/service/config/GoalSets_test.go, apps/webapp/e2e/workspacetemplates.test.mjs]
 ---
 
 # Track my time on what I work on
@@ -46,6 +46,12 @@ meeting on no entry.
    once the server is back, the record a stop wrote holds the minutes the timer ran on the device,
    a start more than a day old is refused with `timers.ran_too_long`, and every device shows the
    one timer.
+10. Time's home opens with a band: *My week*, the week's time of its capacity, its dates and its
+    state as a word with a glyph, and the timer beside *Record time*.
+11. An empty week offers whoever holds `STRUCTURE` at the workspace Hubtask's sets of kinds of work
+    as cards - a team's usual kinds, a consultancy's billable and internal ones - until the
+    workspace took one; the workspace takes it, never a hub, each kind by its key, so taking it
+    again makes nothing new.
 
 ## Where it ends
 

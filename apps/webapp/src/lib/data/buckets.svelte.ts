@@ -15,7 +15,7 @@
  * inventing rules the workspace does not have.
  */
 
-import type { Bucket, ResourceState } from '@hubtask/sync-engine';
+import type { BoardSwitch, BoardWorkflow, Bucket, ResourceState } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { ENTRY_LISTS } from './touches.ts';
@@ -74,8 +74,11 @@ class Buckets {
    * that a deleted column's items fall into the leftmost live one — so `/items` is invalidated as
    * well and the board re-reads rather than this guessing where the cards went.
    */
-  async remove(collectionId: string, bucketId: string, version: number): Promise<void> {
-    await engine.mutate<void>('DELETE', `${bucketsPath(collectionId)}/${bucketId}`, undefined, {
+  async remove(collectionId: string, bucketId: string, version: number, newDoneBucketId?: string): Promise<void> {
+    // Deleting the done column names the column that means done from then on (build-plan §5): the
+    // server refuses it without one, `buckets.done_successor_required`, and suggests one.
+    const query = newDoneBucketId ? `?new_done_bucket_id=${encodeURIComponent(newDoneBucketId)}` : '';
+    await engine.mutate<void>('DELETE', `${bucketsPath(collectionId)}/${bucketId}${query}`, undefined, {
       ifMatch: `"${version}"`,
       invalidates: TOUCHES,
     });
@@ -96,5 +99,25 @@ class Buckets {
     );
   }
 }
+
+/**
+ * The level switches of a collection's tasks (build-plan §5): a list shown as a board and back
+ * (`board:switch`), and a board's columns made a workflow (`board:workflow`). Each is asked first
+ * with `dry_run`, which counts and writes nothing - that is the preview the person confirms.
+ */
+export const boardLevels = {
+  async switchTo(collectionId: string, to: 'NONE' | 'COLUMNS', dryRun: boolean): Promise<BoardSwitch> {
+    return engine.mutate<BoardSwitch>('POST', `/containers/${collectionId}/board:switch`, { to, dry_run: dryRun }, {
+      ...(dryRun ? {} : { idempotencyKey: crypto.randomUUID() }),
+      invalidates: TOUCHES,
+    });
+  },
+  async makeWorkflow(collectionId: string, dryRun: boolean): Promise<BoardWorkflow> {
+    return engine.mutate<BoardWorkflow>('POST', `/containers/${collectionId}/board:workflow`, { dry_run: dryRun }, {
+      ...(dryRun ? {} : { idempotencyKey: crypto.randomUUID() }),
+      invalidates: [...TOUCHES, '/workflows', '/items'],
+    });
+  },
+};
 
 export const buckets = new Buckets();

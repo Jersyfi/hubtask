@@ -94,6 +94,8 @@
   import { roleLabel, SHIPPED_ROLES } from '../people/rolewords.ts';
   import { labels } from '../data/labels.svelte.ts';
   import { people } from '../data/people.svelte.ts';
+  import { lineOf, personNamed, readQuery, type Names as LineNames } from '../data/viewquery.ts';
+  import { formatQuery, parseQuery, type QueryKey } from '@hubtask/query';
   import { rules, type InboundToken } from '../data/rules.svelte.ts';
   import { inboundAddressOf } from '../data/rules.ts';
   import { runs, type Run } from '../data/runs.svelte.ts';
@@ -445,6 +447,38 @@
     account: everyone,
   });
 
+  /* ---------- For which entries (UC-AUT-01/12) ---------- */
+
+  // The line is typed with names and stored with identifiers, read with the writer's names at
+  // save (ADR-0102): a person among the workspace's, a place by its name. The run reads it again
+  // as the rule's runner (automation.md §1.2.1).
+  $effect(() => untrack(() => people.open({})));
+  const lineNames: LineNames = {
+    person: (name) => personNamed(name, people.candidates({}), (id) => accounts.nameOf(id)),
+    label: () => undefined,
+    collection: (name) => [...containers.hubs, ...containers.loadedCollections].find((each) => each.name.toLowerCase() === name.toLowerCase())?.id,
+    nameOf: (field, value) => (field === 'hub_id' || field === 'collection_id' ? containers.find(value)?.name : accounts.nameOf(value)),
+  };
+  /** What the person typed, until it reads; undefined shows the stored line in names. */
+  let entriesTyped = $state<string | undefined>(undefined);
+  let entriesError = $state<string | undefined>(undefined);
+  const entriesLine = $derived.by(() => {
+    if (entriesTyped !== undefined) return entriesTyped;
+    const parsed = parseQuery(draft.entries);
+    return parsed.ok && parsed.query.filter ? (lineOf({ filter: parsed.query.filter as never }, lineNames) ?? draft.entries) : draft.entries;
+  });
+  /** The keys of every list's line over entries, as the manifest serves them. */
+  const entriesKeys = $derived<readonly QueryKey[]>(((manifest.value as { query_keys?: readonly QueryKey[] } | undefined)?.query_keys ?? []).filter((key) => !['asset', 'page', 'goal'].includes(key.product ?? '')));
+  function typeEntries(line: string): void {
+    entriesTyped = line;
+    const read = readQuery(line, lineNames);
+    if (!read.ok) { entriesError = t(read.error.code); return; }
+    if (read.unknown.length > 0) { entriesError = t('app.rules.entries_unknown', { names: read.unknown.join(', ') }); return; }
+    entriesError = undefined;
+    const stored = read.query.filter ? formatQuery({ filter: read.query.filter as never }) : '';
+    if (stored !== draft.entries) update((current) => ({ ...current, entries: stored ?? '' }));
+  }
+
   /* ---------- Words ---------- */
 
   const words = { t, has: (code: string) => messages.has(code) };
@@ -642,6 +676,10 @@
   async function save(): Promise<void> {
     if (!draft.runAs) {
       selection = { kind: 'runas' };
+      return;
+    }
+    if (entriesError) {
+      selection = { kind: 'trigger' };
       return;
     }
     const body = toRuleDraft(draft, shownName);
@@ -1048,6 +1086,10 @@
             onremovestep={remove}
             onremovecondition={removeCondition}
             onaddcondition={addCondition}
+            {entriesLine}
+            entriesError={entriesError ?? errors.get('/entries')}
+            onentries={typeEntries}
+            {entriesKeys}
           />
         {:else if tab === 'blocks'}
           <div class="panel">
@@ -1083,6 +1125,10 @@
             onremovestep={remove}
             onremovecondition={removeCondition}
             onaddcondition={addCondition}
+            {entriesLine}
+            entriesError={entriesError ?? errors.get('/entries')}
+            onentries={typeEntries}
+            {entriesKeys}
             inbound={stored?.trigger.kind === 'INBOUND_WEBHOOK' ? { rotatedAt: stored.inbound_rotated_at ?? undefined, onmint: mint, isWorking } : undefined}
           />
         {:else if tab === 'probe' && resting}

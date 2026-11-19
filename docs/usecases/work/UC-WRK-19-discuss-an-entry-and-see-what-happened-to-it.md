@@ -48,7 +48,10 @@ to 5 May", "Notes changed".
 
 ## Where it ends
 
-* No rich text or Markdown in comments, no mentions, no reactions.
+* Comments are written and read in the pages' editor (E-3): its marks, `@` for people and entries,
+  `/` to insert; they are still stored as Markdown. Files are attached to the entry, not to a
+  comment. *All* shows the newest three posts with what happened
+  between them as quiet rows. No reactions.
 * No thread deeper than one reply level.
 * A hub or a collection has no history of its own here; what changed about the workspace's shape
   is in the audit trail.

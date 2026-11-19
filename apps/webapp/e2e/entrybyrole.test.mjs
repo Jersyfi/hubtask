@@ -19,9 +19,11 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, CHILDREN, COLLECTION, HUB, ITEMS, OWNER_GRANTS, PAGE, stub, chooseView, newInHead } from './fixture.mjs';
+
+const createOf = (page) => page.getByRole('group', { name: 'Create' });
 import { serve } from './serve.mjs';
 import { reveal, unfoldFields } from './reveal.mjs';
 
@@ -75,7 +77,8 @@ async function offered(page) {
   await unfoldFields(page);
   const count = (locator) => locator.count();
   return {
-    complete: (await count(page.getByRole('checkbox', { name: `Mark ${ENTRY.title} as done` }))) === 1,
+    // The status is the way to done (E-23): a button where the role may move it, a word where not.
+    complete: (await count(page.getByRole('button', { name: /^Status: .*Change status$/ }))) === 1,
     comment: (await count(page.getByLabel('Say something'))) === 1,
     addInside: (await count(page.getByRole('button', { name: `Add an activity inside ${CHILD.title}`, exact: true }))) === 1,
     childMenu: (await count(page.getByRole('button', { name: `Actions for ${CHILD.title}` }))) === 1,
@@ -94,8 +97,7 @@ const EXPECTED = {
 
 for (const [role, expected] of Object.entries(EXPECTED)) {
   test(`chromium: ${role} is offered on an entry exactly what the role lets them do`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await as(browser, role);
     t.after(() => context.close());
 
@@ -106,8 +108,7 @@ for (const [role, expected] of Object.entries(EXPECTED)) {
 }
 
 test('chromium: a contributor changes and comments on the entry assigned to them', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, 'CONTRIBUTOR', { assigned: true });
   t.after(() => context.close());
 
@@ -122,8 +123,7 @@ test('chromium: a contributor changes and comments on the entry assigned to them
 // A search result is ticked off by the same rule as a row of its list: a role that only reads does
 // not complete it from the results either.
 test('chromium: a viewer cannot tick off a search result', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, 'VIEWER');
   t.after(() => context.close());
   const sent = [];
@@ -132,7 +132,9 @@ test('chromium: a viewer cannot tick off a search result', async (t) => {
   });
 
   await page.goto(`${served.origin}/search`);
-  await page.getByRole('searchbox', { name: 'Search everything you can see' }).fill('electrician');
+  await page.getByRole('combobox', { name: 'Search everything you can see' }).fill('electrician');
+  // Words show every kind; the *Entries* facet is the entry list, where a hit is a row.
+  await page.locator('main nav [data-facet="ENTRY"]').click();
   const box = page.getByRole('checkbox', { name: `Mark ${ITEMS[1].title} as done` });
   await box.waitFor({ timeout: 10_000 });
   await page.waitForTimeout(600);
@@ -156,8 +158,7 @@ async function pageMenu(page, name) {
 // for a role that may shape it. A member works in the collection and is offered none of it.
 for (const [role, shapes] of [['OWNER', true], ['MEMBER', false]]) {
   test(`chromium: ${role} is ${shapes ? '' : 'not '}offered what changes the shape of a hub and a collection`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await as(browser, role);
     t.after(() => context.close());
 
@@ -172,12 +173,13 @@ for (const [role, shapes] of [['OWNER', true], ['MEMBER', false]]) {
     }
     assert.equal(await page.locator('[data-opener="structure"]').count(), 0, 'no ⚙ beside the menu: the settings are its first item');
     for (const moved of ['Labels', 'Custom fields', 'Templates', 'Policies', 'People']) assert.ok(!rows.includes(moved), `${moved} is still a row of ${rows}`);
-    // Used by everybody: the views in the toolbar, the templates among capture's modes, who is
+    // Used by everybody: the panel *View* over the list, the templates among capture's modes, who is
     // here in the faces.
     assert.ok(!rows.includes('Saved views'), `Saved views is still a row of ${rows}`);
-    assert.equal(await page.locator('[data-opener="views"]').count(), 1, 'no Views menu in the toolbar');
+    assert.equal(await page.locator('[data-opener="view"]').count(), 1, 'no View panel over the list');
     assert.equal(await page.locator('[data-opener="members"]').count(), 1, 'no way to the people in the head');
-    await page.getByRole('main').getByRole('button', { name: 'Add an entry', exact: true }).first().click();
+    // The add line names its kind and where (L-6): *Entry in “…”*.
+    await page.getByRole('main').locator('[data-opener="add-entry"]').first().click();
     const modes = page.getByRole('dialog', { name: 'Capture' }).getByRole('tablist', { name: 'How to add' });
     await modes.waitFor({ timeout: 5_000 });
     assert.equal(await modes.getByRole('tab', { name: 'From a template' }).count(), 1, 'no way to the templates');
@@ -197,11 +199,14 @@ for (const [role, shapes] of [['OWNER', true], ['MEMBER', false]]) {
     await page.goto(`${served.origin}/hubs/${HUB.id}`);
     await page.getByRole('heading', { name: HUB.name, level: 1 }).waitFor();
     await page.waitForTimeout(600);
-    // A collection is made from the head's *New ▾*, offered only to whoever shapes the hub (P-05).
+    // A collection is made from the head's *New*, which opens *Create* in the hub; offered only to
+    // whoever shapes the hub (P-05).
     let offersCollection = false;
     if (await newInHead(page).count() > 0) {
       await newInHead(page).first().click();
-      offersCollection = await page.getByRole('menuitem', { name: 'Collection', exact: true }).count() > 0;
+      await createOf(page).locator('[data-kind]').first().waitFor({ timeout: 5_000 });
+      await page.waitForTimeout(300);
+      offersCollection = await createOf(page).locator('[data-kind="collection"]').count() > 0;
       await page.keyboard.press('Escape');
     }
     assert.equal(offersCollection, shapes, 'Create collection');
@@ -212,8 +217,7 @@ for (const [role, shapes] of [['OWNER', true], ['MEMBER', false]]) {
 }
 
 test('chromium: a viewer reads the collection with no control that changes an entry, and nothing to add', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, 'VIEWER');
   t.after(() => context.close());
 
@@ -229,44 +233,41 @@ test('chromium: a viewer reads the collection with no control that changes an en
 // An entry's details card is drawn only when it holds a row (P-05, P-11): a value that is set, or a
 // row the reader may fill in. An empty frame would read as something that failed to load.
 test('chromium: a viewer sees no details card on an entry with nothing set, and the card where something is', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, 'VIEWER');
   t.after(() => context.close());
 
   await page.goto(`${served.origin}/items/${ITEMS[2].id}`);
   await page.locator('main [role="note"]', { hasText: 'Your role can read entries here but not change them.' }).first().waitFor();
   await page.waitForTimeout(600);
-  assert.equal(await page.locator('aside.details').count(), 0, 'an empty details card is drawn');
+  assert.equal(await page.locator('[data-details]').count(), 0, 'an empty details card is drawn');
 
   // The first entry carries a label: the card is there, with that one row and nothing to add.
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
   await page.locator('[data-detail="labels"]').waitFor();
-  assert.equal(await page.locator('aside.details').count(), 1);
-  assert.equal(await page.locator('aside.details button.detail-row').count(), 0, 'a row the viewer may not fill in is offered');
+  assert.equal(await page.locator('[data-details]').count(), 1);
+  assert.equal(await page.locator('[data-details] button.detail-row').count(), 0, 'a row the viewer may not fill in is offered');
   assert.deepEqual(failures, []);
 });
 
 test('chromium: a member sees the details card on an entry with nothing set, because every row can be filled in', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, 'MEMBER');
   t.after(() => context.close());
 
   await page.goto(`${served.origin}/items/${ITEMS[2].id}`);
-  // Nothing is set, so the fields wait behind *Add a field*; it is drawn once the type is read.
-  await page.locator('.more-fields').first().waitFor({ timeout: 15_000 });
+  // Nothing is set, so the fields wait under *More fields*; it is drawn once the type is read.
+  await page.locator('aside.rail button[aria-controls$="-more-fields"]').first().waitFor({ timeout: 15_000 });
   await unfoldFields(page);
-  await page.locator('aside.details [data-detail="language"]').waitFor();
-  assert.equal(await page.locator('aside.details').count(), 1);
-  assert.ok(await page.locator('aside.details button.detail-row').count() > 0, 'no row to fill in');
+  await page.locator('[data-details] [data-detail="language"]').waitFor();
+  assert.equal(await page.locator('[data-details]').count(), 1);
+  assert.ok(await page.locator('[data-details] button.detail-row').count() > 0, 'no row to fill in');
   assert.deepEqual(failures, []);
 });
 
 // An entry with nothing under it says so of the entry: the collection it sits in is not empty.
 test('chromium: an entry with nothing under it says that of the entry, not of the collection', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, 'MEMBER');
   t.after(() => context.close());
 
@@ -279,15 +280,14 @@ test('chromium: an entry with nothing under it says that of the entry, not of th
 // A row the reader may only read is a plain element rather than a button, and stays inside the card
 // as the button does: its padding is within its width, not added to it.
 test('chromium: a read-only details row stays inside its card', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, 'VIEWER');
   t.after(() => context.close());
 
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
   const row = page.locator('div.detail-row[data-detail="labels"]');
   await row.waitFor();
-  const [rowBox, cardBox] = await Promise.all([row.boundingBox(), page.locator('aside.details .details-fold').boundingBox()]);
+  const [rowBox, cardBox] = await Promise.all([row.boundingBox(), page.locator('[data-details]').boundingBox()]);
   assert.ok(rowBox.x + rowBox.width <= cardBox.x + cardBox.width, `the row ends at ${rowBox.x + rowBox.width}, past the card's ${cardBox.x + cardBox.width}`);
   assert.deepEqual(failures, []);
 });

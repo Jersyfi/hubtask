@@ -25,6 +25,7 @@ import { QUEUE } from '../src/queue.ts';
 import { MemoryStorage } from '../src/storage/MemoryStorage.ts';
 import { systemClock } from '../src/ports.ts';
 import type {
+  ByteReceive,
   ByteTransfer,
   Clock,
   RequestOptions,
@@ -141,6 +142,11 @@ class Line implements Transport {
   async transfer(transfer: ByteTransfer): Promise<void> {
     this.#cut();
     return this.#inner.transfer(transfer);
+  }
+
+  async receive(request: ByteReceive): Promise<Blob> {
+    this.#cut();
+    return this.#inner.receive(request);
   }
 
   async document(path: string, body: unknown, options: RequestOptions): Promise<TransportDocument> {

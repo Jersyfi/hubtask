@@ -21,12 +21,14 @@
   import { dateIn, instantOf, timeIn } from '../i18n/zone.ts';
   import { renderProblem } from '../problem.ts';
   import { holdsHere } from '../data/capability.svelte.ts';
-  import { DEFAULT_KINDS, owesDefaultKinds } from './kinds.ts';
+  import { owesDefaultKinds, writeDefaultKinds } from './kinds.ts';
 
   interface Props {
     onnavigate: (path: string) => void;
+    /** A phone's card above the week (scene time): the time large, the act beside it, the entry under it. */
+    isCard?: boolean;
   }
-  const { onnavigate }: Props = $props();
+  const { onnavigate, isCard = false }: Props = $props();
 
   let timer = $state<TimeTimer | undefined>(undefined);
   let kinds = $state<WorkTypeList['data'] | undefined>(undefined);
@@ -61,9 +63,7 @@
     isSeeding = true;
     void untrack(async () => {
       try {
-        for (const [at, kind] of DEFAULT_KINDS.entries()) {
-          await time.defineWorkType(kind.key, { name: t(kind.code), billable: kind.billable, position: at + 1 });
-        }
+        await writeDefaultKinds((key, fields) => time.defineWorkType(key, fields), t);
       } catch {
         // Kept quiet: the button says why it cannot start, and Time's settings add them by hand.
       }
@@ -121,7 +121,30 @@
   }
 </script>
 
-{#if timer}
+{#if timer && isCard}
+  <section class="card" aria-labelledby="timer-card" data-timer={timer.running ? (isTooLong ? 'too-long' : 'running') : 'idle'}>
+    <h2 id="timer-card" class="card-head"><Icon name="clock" size="sm" />{t('app.time.timer')}</h2>
+    <div class="card-line">
+      <span class="elapsed" role={timer.running ? 'status' : undefined}>{minutesText(elapsed)}</span>
+      {#if !timer.running}
+        <Button tone="secondary" icon="play" {isBusy} busyLabel={t('app.time.start')}
+          disabledReason={offline ?? (firstKind ? undefined : t('app.time.no_work_types'))} onclick={start}>{t('app.time.start')}</Button>
+      {:else if isTooLong}
+        <Button tone="primary" disabledReason={offline} onclick={openUntil}>{t('app.time.record_until')}</Button>
+      {:else}
+        <Button tone="primary" icon="square" {isBusy} busyLabel={t('app.time.stop')} disabledReason={offline} onclick={stop}>{t('app.time.stop')}</Button>
+      {/if}
+    </div>
+    {#if timer.running && isTooLong}
+      <p class="card-on warn">{t('app.time.timer_too_long', { day: formatPlainDay(startDay ?? '', messages.locale), start: startClock ?? '' })}</p>
+    {:else if timer.running && timer.entry_id}
+      <Button size="sm" tone="subtle" onclick={() => onnavigate(`/items/${timer?.entry_id}`)}>
+        {timer.entry_title ? t('app.time.timer_on', { title: timer.entry_title }) : t('app.time.timer_open')}</Button>
+    {/if}
+    {#if timer.running}<span><IconButton size="sm" icon="x" label={t('app.time.discard')} disabledReason={offline} onclick={() => void discard()} /></span>{/if}
+    {#if failure && !isRecordingUntil}<span class="failure" role="alert">{failure}</span>{/if}
+  </section>
+{:else if timer}
   <span class="timer" data-timer={timer.running ? (isTooLong ? 'too-long' : 'running') : 'idle'}>
     {#if !timer.running}
       <Button size="sm" tone="secondary" icon="play" {isBusy} busyLabel={t('app.time.start')}
@@ -158,9 +181,20 @@
 {/if}
 
 <style>
+  /* The timer in the time colour (work-surface scene time): the start and the running time. */
+  .timer[data-timer='idle'] :global(button) { border-color: transparent; background: var(--product-time-surface); color: var(--product-time-ink); }
+  /* The same start at every width (scene time): on the card, which is itself in the time colour,
+     its edge in the time's ink keeps it a button. */
+  .card[data-timer='idle'] .card-line :global(button) { border-color: var(--product-time-ink); background: var(--product-time-surface); color: var(--product-time-ink); }
+  .running { color: var(--product-time-ink); }
   .timer { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
   .running { display: inline-flex; align-items: center; gap: var(--sp-050); font-size: var(--fs-075); font-variant-numeric: tabular-nums; font-weight: var(--fw-medium); }
   .warn { color: var(--text-warning); }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .failure { color: var(--text-danger); font-size: var(--fs-075); }
+  .card { display: grid; gap: var(--sp-100); min-inline-size: 0; padding: var(--sp-200); border-radius: var(--r-lg); background: var(--product-time-surface); color: var(--product-time-ink); overflow-wrap: anywhere; }
+  .card-head { display: inline-flex; align-items: center; gap: var(--sp-050); margin: 0; font-size: var(--fs-090); font-weight: var(--fw-semibold); }
+  .card-line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); }
+  .elapsed { font-size: var(--fs-600); font-weight: var(--fw-bold); font-variant-numeric: tabular-nums; }
+  .card-on { margin: 0; font-size: var(--fs-075); }
 </style>

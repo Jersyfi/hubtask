@@ -66,9 +66,26 @@
     currentHubId?: string;
     /** Where a mode that is a screen of its own - a template, an import - takes the person. */
     onnavigate?: (path: string) => void;
+    /**
+     * Drawn in place instead of as a dialog (C-4): the line at the foot of an entry's parts, open
+     * for good, pointed at its door. The same parser and chips; Enter adds and the line stays for
+     * the next one, Escape empties it.
+     */
+    inPlace?: Door;
+    /** The line's placeholder in place, which names what it adds. */
+    inPlaceLabel?: string;
+    /** In place: what was added, for a screen whose own read no entry list's write refreshes. */
+    oncreated?: (itemIds: readonly string[]) => void;
   }
 
-  const { currentCollectionId, currentItemId, currentHubId, onnavigate }: Props = $props();
+  const { currentCollectionId, currentItemId, currentHubId, onnavigate, inPlace, inPlaceLabel, oncreated }: Props = $props();
+
+  const isOpen = $derived(inPlace !== undefined || capture.isOpen);
+  /** Puts the field away; in place there is nothing to put away, so it only empties. */
+  function close() {
+    if (inPlace) finish('');
+    else capture.close();
+  }
 
   /** The place chosen in the dialog's own chip, over the door's and the route's: a collection, or the jumble. */
   let chosen = $state<string | undefined>(undefined);
@@ -89,6 +106,11 @@
   let dismissed = $state<string | undefined>(undefined);
 
   let text = $state('');
+  // A line typed before the dialog opened is where the person goes on (C-1).
+  $effect(() => {
+    const given = capture.door?.text;
+    if (capture.isOpen && given) untrack(() => (text = given));
+  });
   /** The chips taken back in this text: their words stay in the title. */
   let literal = $state<ReadonlySet<string>>(new Set());
   /** The clock the line is read against, taken at each keystroke. */
@@ -110,7 +132,7 @@
   const itemCollectionId = $derived(pageItem?.collection_id);
   $effect(() => {
     const id = currentItemId;
-    if (!capture.isOpen || !id) {
+    if (!isOpen || !id) {
       pageItem = undefined;
       return;
     }
@@ -133,12 +155,12 @@
     return { collectionId: pageItem.collection_id, parentId: pageItem.id, parentTitle: pageItem.title, types };
   });
 
-  const door = $derived(capture.door ?? pageDoor);
+  const door = $derived(inPlace ?? capture.door ?? pageDoor);
   const current = $derived(chosen === 'jumble' ? undefined : (chosen ?? door?.collectionId ?? currentCollectionId ?? itemCollectionId));
   const hubHere = $derived(current ? (containers.find(current)?.parent_id ?? undefined) : currentHubId);
 
   // Every hub's collections while open, so `@` finds a collection wherever it is.
-  const hubIds = $derived(capture.isOpen ? containers.hubs.map((hub) => hub.id).join(',') : '');
+  const hubIds = $derived(isOpen ? containers.hubs.map((hub) => hub.id).join(',') : '');
   $effect(() => {
     if (hubIds === '') return;
     return openLevels();
@@ -189,7 +211,7 @@
   // The roles that decide the target: the collection named, the named hub's collections, the
   // collection the reader stands in. Read once each, kept for the session.
   $effect(() => {
-    if (!capture.isOpen) return;
+    if (!isOpen) return;
     const candidates = [
       targets.collection?.id ? containers.find(targets.collection.id) : undefined,
       ...(targets.hub?.id && !targets.collection ? (levelOf(targets.hub.id) ?? []) : []),
@@ -351,7 +373,7 @@
   $effect(() => {
     const list = [...(amount ? [amount] : []), ...reading.chips.map((chip) => chipLabel(chip))].join(', ');
     const said = list === '' ? where : t('app.capture.summary', { list, where });
-    if (!capture.isOpen || text.trim() === '') return;
+    if (!isOpen || text.trim() === '') return;
     const timer = setTimeout(() => untrack(() => announcer.say(said)), 700);
     return () => clearTimeout(timer);
   });
@@ -380,13 +402,15 @@
     attempt = undefined;
     if (rest !== '') return;
     // *Keep capturing*: the field empties and keeps the focus for the next line.
-    if (keepsOpen) void Promise.resolve().then(() => field?.querySelector('textarea')?.focus());
+    if (keepsOpen || inPlace) void Promise.resolve().then(() => field?.querySelector('textarea')?.focus());
     else capture.close();
   }
 
   async function submit() {
     error = undefined;
     now = Date.now();
+    // Kept before the field closes: closing forgets the door, and with it what it asked to be told.
+    const told = capture.door?.oncreated;
     if (isBusy || text.trim() === '') return;
     if (target.kind === 'pending') {
       isWaiting = true;
@@ -455,6 +479,8 @@
         formRefusals = new Map();
       }
       if (outcome.created.length === 0) return;
+      oncreated?.(outcome.created.map((item) => item.id));
+      told?.(outcome.created.map((item) => item.id));
       const only = outcome.created.length === 1 ? outcome.created[0] : undefined;
       offerUndo(
         { kind: 'captured', itemIds: outcome.created.map((item) => item.id), place: place.name, title: only?.title },
@@ -487,7 +513,7 @@
   // Suggestions while a token is typed (design-system.md §11.8)
   // ------------------------------------------------------------------------------------------
 
-  const token = $derived(capture.isOpen ? tokenAt(text, caret) : undefined);
+  const token = $derived(isOpen ? tokenAt(text, caret) : undefined);
 
   const candidatesOf = (sigil: Sigil): readonly Offer[] => {
     if (sigil === '@') return context.collections.map((each) => ({ id: each.id, name: each.name, hint: hubName(each.hubId) }));
@@ -601,6 +627,11 @@
         return;
       }
     }
+    if (inPlace && event.key === 'Escape' && text !== '') {
+      event.preventDefault();
+      finish('');
+      return;
+    }
     // Enter captures; Shift+Enter starts a new line, which becomes an entry of its own where the
     // collection splits lines and is joined where it does not.
     if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
@@ -700,7 +731,7 @@
 
   // A door sets what it knows when the field opens; the person's own choices start fresh.
   $effect(() => {
-    if (!capture.isOpen) return;
+    if (!isOpen) return;
     const opened = door;
     untrack(() => {
       chosen = undefined;
@@ -715,7 +746,7 @@
 
   // A fresh field each time it opens.
   $effect(() => {
-    if (capture.isOpen) return;
+    if (isOpen) return;
     untrack(() => {
       text = '';
       literal = new Set();
@@ -727,7 +758,15 @@
   });
 </script>
 
+{#if inPlace}
+  <div class="in-place">{@render field_()}</div>
+{:else}
 <Dialog size="l" title={t('app.capture.title')} dismissLabel={t('app.capture.close')} isOpen={capture.isOpen} onClose={() => capture.close()}>
+  {@render field_()}
+</Dialog>
+{/if}
+
+{#snippet field_()}
   <form
     class="capture"
     bind:this={field}
@@ -739,6 +778,7 @@
     <!-- The ways of adding first, as one segmented switch under the title (concept round 2, §5):
          the way is chosen before anything is written - several lines change the field, a
          template and a file replace it. *One entry* is chosen, so a quick capture costs nothing. -->
+    {#if !inPlace}
     <div class="modes" role="tablist" aria-label={t('app.capture.modes')} tabindex="-1" onkeydown={modeKey}>
       {#each modes as each (each)}
         <button
@@ -759,10 +799,12 @@
         >{t(`app.capture.mode_${each}`)}{#if modeReason(each)}<span class="why" id={`${listId}-why-${each}`}>{modeReason(each)}</span>{/if}</button>
       {/each}
     </div>
+    {/if}
 
     <!-- Where it goes, as pills at the top rather than a sentence under the field: the place, the
          entry it goes under, the level - each one press to change. -->
     <div class="where" role="group" aria-label={t('app.capture.where_group')}>
+      {#if !inPlace}
       <Menu
         label={t('app.capture.place_choose')}
         items={places.map((each) => ({ id: each.id, label: each.label }))}
@@ -778,7 +820,8 @@
           </button>
         {/snippet}
       </Menu>
-      {#if parentId && door?.parentTitle}
+      {/if}
+      {#if parentId && door?.parentTitle && !inPlace}
         <span class="pill" data-chip="parent">
           <span class="pill-key">{t('app.capture.parent_key')}</span><span class="pill-value">{door.parentTitle}</span>
           <button type="button" class="pill-x" aria-label={t('app.capture.parent_remove', { title: door.parentTitle })} onclick={() => (isUnderParent = false)}>×</button>
@@ -820,7 +863,7 @@
       rows={mode === 'lines' ? 4 : 1}
       bind:value={text}
       {marks}
-      placeholder={mode === 'lines' ? t('app.capture.placeholder_lines') : t('app.capture.placeholder')}
+      placeholder={inPlace && inPlaceLabel ? inPlaceLabel : mode === 'lines' ? t('app.capture.placeholder_lines') : t('app.capture.placeholder')}
       hint={isWaiting ? t('app.capture.resolving') : target.kind === 'nowhere' || target.kind === 'jumble' ? where : undefined}
       {error}
       autocomplete="off"
@@ -937,7 +980,7 @@
         path={pathOf(collection)}
         role={roleIn(collection) ?? undefined}
         onopened={(itemId) => {
-          capture.close();
+          close();
           onnavigate?.(`/items/${itemId}`);
         }}
       />
@@ -948,7 +991,7 @@
         hubId={importHub.id}
         from={door?.importFrom}
         onnavigate={(path) => {
-          capture.close();
+          close();
           onnavigate?.(path);
         }}
       />
@@ -960,7 +1003,7 @@
         collection={{ id: collection.id, name: collection.name }}
         from={door?.importFrom}
         onnavigate={(path) => {
-          capture.close();
+          close();
           onnavigate?.(path);
         }}
       />
@@ -969,12 +1012,12 @@
 
     {#if mode === 'one' || mode === 'lines'}
       <div class="actions">
-        <span class="keep"><Checkbox density="sm" label={t('app.capture.keep_open')} bind:checked={keepsOpen} /></span>
+        {#if !inPlace}<span class="keep"><Checkbox density="sm" label={t('app.capture.keep_open')} bind:checked={keepsOpen} /></span>{/if}
         <Button type="submit" tone="primary" size="sm" icon="plus" {isBusy} busyLabel={t('app.capture.submitting')}>{t('app.capture.submit')}<span class="enter" aria-hidden="true"><Kbd size="sm" isOnFill>⏎</Kbd></span></Button>
       </div>
     {/if}
   </form>
-  {#if collection && actor.account && (mode === 'one' || mode === 'lines') && (offersMakeEntries(text, { aiOn: manifest.value?.features?.ai_suggestions === true, intoCollection: true }) || suggestions.askingOf(actor.account.id)?.operation === 'entries')}
+  {#if !inPlace && collection && actor.account && (mode === 'one' || mode === 'lines') && (offersMakeEntries(text, { aiOn: manifest.value?.features?.ai_suggestions === true, intoCollection: true }) || suggestions.askingOf(actor.account.id)?.operation === 'entries')}
     <MakeEntries
       accountId={actor.account.id}
       {collection}
@@ -982,15 +1025,28 @@
       ondone={() => {
         // *Take all* closes the field (UC-AI-09 check 3), whether or not it was kept open.
         finish('');
-        capture.close();
+        close();
       }}
     />
   {/if}
-</Dialog>
+{/snippet}
 
 <style>
   /* The mockup's rhythm: the pills, the field, what it read and the tokens, the tabs, the footer. */
   .capture { display: flex; flex-direction: column; gap: var(--sp-150); }
+  /* In place it is one line among the parts' rows: the kind pill, the field and its add on one row,
+     the rest under it only once there is something to say. */
+  .in-place .capture { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: var(--sp-050) var(--sp-100); }
+  .in-place .capture > :global(*) { grid-column: 1 / -1; }
+  .in-place .capture > .where { grid-column: 1; grid-row: 1; }
+  .in-place .capture > .panel { grid-column: 2; grid-row: 1; }
+  .in-place .capture > .actions { grid-column: 3; grid-row: 1; }
+  .in-place .where:empty { display: none; }
+  .in-place .capture:not(:focus-within) :is(.hint-line, .actions) { display: none; }
+  /* At rest the line reads as the scene's foot row - a ＋ and the words - and becomes a field on focus. */
+  .in-place .capture:not(:focus-within) :global(textarea) { border-color: transparent; background: transparent; }
+  .in-place .capture :global(textarea) { padding-block: var(--sp-050); }
+  .in-place .capture:not(:focus-within) .where :global(.pill) { border-color: transparent; background: transparent; }
   .panel { display: flex; flex-direction: column; gap: var(--sp-150); min-width: 0; }
   /* The line itself reads larger than the furniture around it, as the mockup draws it. */
   .panel :global(.textarea) { padding-block: var(--sp-150); font-size: var(--fs-200); }
@@ -1154,5 +1210,16 @@
   .mode:focus-visible {
     outline: var(--bw-ring) solid var(--focus-ring);
     outline-offset: var(--sp-025);
+  }
+
+  /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
+     reaches layout.target, by its own height or beyond its drawn box. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .mode { min-block-size: var(--layout-target); }
+    button.pill { position: relative; }
+    button.pill::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
+    .token { position: relative; }
+    .token::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
   }
 </style>

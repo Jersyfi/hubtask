@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { COLLECTION, ITEMS, signedIn } from './fixture.mjs';
@@ -24,8 +24,7 @@ const served = await serve(DIST);
 test.after(() => served.close());
 
 test('chromium: 1280 px — a row opens beside the list, stays current and focused; Escape closes; the page is a link away', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
@@ -46,8 +45,17 @@ test('chromium: 1280 px — a row opens beside the list, stays current and focus
   assert.equal(await row.getAttribute('href'), `/items/${ENTRY.id}`);
 
   // The entry's own form is inside: the title in place, the chips, the details rows, the tabs.
-  assert.equal(await pane.getByRole('textbox', { name: 'Title' }).inputValue(), ENTRY.title);
+  // The pane is named by the title its object head draws, once (the head arrives with its chunk).
+  await pane.getByRole('heading', { name: ENTRY.title }).waitFor({ timeout: 5_000 });
+  assert.equal(await pane.getByRole('heading', { name: ENTRY.title }).count(), 1);
   assert.equal(await pane.locator('[data-detail="due"]').count(), 1);
+  // The description first, the properties after it (the work surface's pane): not a rail to read past.
+  await pane.locator('#entry-description').waitFor({ timeout: 5_000 });
+  assert.ok(await pane.evaluate((root) => {
+    const description = root.querySelector('#entry-description');
+    const rail = root.querySelector('[data-details]');
+    return Boolean(description && rail && description.compareDocumentPosition(rail) & Node.DOCUMENT_POSITION_FOLLOWING);
+  }), 'the pane puts the properties before the description');
   assert.equal(await pane.getByRole('tab', { name: /Comments/ }).count(), 1);
   await pane.locator('[data-detail="labels"]').click();
   await page.getByRole('dialog', { name: 'Labels' }).waitFor({ timeout: 5_000 });
@@ -85,8 +93,7 @@ test('chromium: 1280 px — a row opens beside the list, stays current and focus
 });
 
 test('chromium: 905 px — the same address is a redirect to the entry’s page, and the back button skips it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, unstubbed } = await signedIn(browser, 905, 900);
   t.after(() => context.close());
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
@@ -97,8 +104,10 @@ test('chromium: 905 px — the same address is a redirect to the entry’s page,
   // The pane's address, arrived at directly, is replaced by the page's.
   await page.goto(`${served.origin}/collections/${COLLECTION.id}?item=${ENTRY.id}`);
   await page.waitForURL(`**/items/${ENTRY.id}`, { timeout: 10_000 });
+  // The entry's page is its own chunk and draws a moment after the address changes.
+  await page.getByRole('heading', { level: 1, name: ENTRY.title }).waitFor({ timeout: 5_000 });
   assert.equal(await page.getByRole('complementary', { name: ENTRY.title }).count(), 0);
-  assert.equal(await page.getByRole('textbox', { name: 'Title' }).first().inputValue(), ENTRY.title);
+  assert.equal(await page.getByRole('heading', { level: 1 }).count(), 1);
   assert.deepEqual(failures, []);
   // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
   // cannot claim to have exercised (`fixture.mjs`).
@@ -106,8 +115,7 @@ test('chromium: 905 px — the same address is a redirect to the entry’s page,
 });
 
 test('chromium: 1280 px — the panel lies over the list, is as wide as the person drags it, and can make every entry open whole (UC-WRK-28 check 5)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);

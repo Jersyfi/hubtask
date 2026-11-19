@@ -12,6 +12,7 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/servicedesk"
+	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -286,5 +287,45 @@ func TestAYesWhoseStepIsRefusedLeavesTheApprovalWaiting(t *testing.T) {
 	decide = DecideApproval{Approvals: approvals}
 	if out, err := decide.Execute(context.Background(), person(handlerID), DecideApprovalCommand{ApprovalID: opened.ID, Verdict: domain.VerdictApprove}); err != nil || out["state"] != string(domain.ApprovalApproved) {
 		t.Errorf("the yes again: %v %v", out, err)
+	}
+}
+
+// approvalWorkflows answers the workflow whose step asks for the approval, named as the team wrote it.
+type approvalWorkflows struct{ workrepo.Workflows }
+
+func (approvalWorkflows) List(context.Context) ([]workdomain.Workflow, error) {
+	return []workdomain.Workflow{{Key: "purchase", Published: workdomain.WorkflowShape{
+		Statuses: []workdomain.WorkflowStatus{{Key: "new"}, {Key: "approved", Name: "Approved"}},
+		Steps:    []workdomain.WorkflowStep{{Key: "approve", Name: "Get the yes", To: "approved"}},
+	}}}, nil
+}
+
+// P-12: the team reads an approval's step by the name its workflow gives it, on the entry and on
+// their own list - never by its key; a workflow gone answers no name rather than the key.
+func TestAnApprovalNamesItsStepAsTheWorkflowDoes(t *testing.T) {
+	approvals, store, _, items := approvalFixture(t)
+	approvals.Workflows = approvalWorkflows{}
+	step := workdomain.WorkflowStep{Key: "approve", To: "approved", Approval: &workdomain.StepApproval{
+		Levels: []workdomain.ApprovalLevel{{People: []string{handlerID.String()}, Rule: workdomain.ApprovalAny}},
+	}}
+	if err := approvals.Open(context.Background(), person(requesterID), items.item, workdomain.Container{}, "purchase", step); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := ReadEntryApprovals{Approvals: approvals}.Execute(context.Background(), person(requesterID), items.item.ID)
+	if err != nil || len(rows) != 1 || rows[0]["step_name"] != "Get the yes" || rows[0]["step"] != "approve" {
+		t.Fatalf("the entry's approval: %v, %v", rows, err)
+	}
+	mine, _, err := ListMyApprovals{Approvals: approvals}.Execute(context.Background(), person(handlerID), ApprovalPage{})
+	if err != nil || len(mine) != 1 || mine[0]["step_name"] != "Get the yes" {
+		t.Fatalf("the approver's list: %v, %v", mine, err)
+	}
+	approvals.Workflows = nil
+	for key, row := range store.rows {
+		row.Workflow = "gone"
+		store.rows[key] = row
+	}
+	rows, err = ReadEntryApprovals{Approvals: approvals}.Execute(context.Background(), person(requesterID), items.item.ID)
+	if err != nil || len(rows) != 1 || rows[0]["step_name"] != nil {
+		t.Fatalf("without its workflow the step has no name: %v, %v", rows, err)
 	}
 }

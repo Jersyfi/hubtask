@@ -52,10 +52,23 @@
 </div>
 
 <style>
-  /* Below `expanded` an open section stands alone: the page's head gives way to its *‹ back*. */
+  /* Below `expanded` an open section stands alone: the page's head gives way to its *‹ back*. The
+     head keeps its h1 for a screen reader - the screen's one - and nothing else of it is
+     seen or reached: hidden, and its title clipped to the pattern `VisuallyHidden` draws. */
   /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
   @media (width < 905px) {
-    .settings-layout[data-view='detail'] :global([data-page-kind] > header),
+    .settings-layout[data-view='detail'] :global([data-page-kind] > header) {
+      position: absolute;
+      /* design-system-lint-ignore: the clip pattern's one pixel, as VisuallyHidden's */
+      inline-size: 1px;
+      /* design-system-lint-ignore: the clip pattern's one pixel, as VisuallyHidden's */
+      block-size: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+      visibility: hidden;
+    }
+    .settings-layout[data-view='detail'] :global([data-page-kind] > header h1) { visibility: visible; }
     .settings-layout[data-view='detail'] .tabs { display: none; }
   }
 </style>

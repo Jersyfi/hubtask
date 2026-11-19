@@ -9,8 +9,8 @@
      forms, no accounts. What remains is the hoster's access log and the e-mail address on the
      Impressum - and this page says exactly that, instead of a generator's twenty sections about
      features this site does not have. -->
-<div class="section legal" lang="de">
-  <div class="wrap narrow">
+<div class="site-section legal" lang="de">
+  <div class="wrap site-narrow">
 
   <h1>Datenschutzerklärung</h1>
   <p class="lede">Stand: August 2026</p>

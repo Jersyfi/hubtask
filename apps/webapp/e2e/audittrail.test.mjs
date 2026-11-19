@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -32,8 +32,7 @@ const entry = (n, actorId, label) => ({
 });
 
 test('chromium: an erased actor is named by its pseudonym, and reading is said to add nothing', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   await context.route('**/api/v1/**', async (route) => {
@@ -70,8 +69,7 @@ test('chromium: an erased actor is named by its pseudonym, and reading is said t
 // UC-AUD-01 check 2: a sensitive field set for the first time carries only the hash of what it
 // became; it reads as changed, never as having become nothing.
 test('chromium: a sensitive field set for the first time reads as changed', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   await context.route('**/api/v1/**', async (route) => {
@@ -104,8 +102,7 @@ test('chromium: a sensitive field set for the first time reads as changed', asyn
 
 // UC-AUD-01 check 8: the list continues on request, with no page numbers.
 test('chromium: the next page of the trail is announced, and its end is said', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   await context.route('**/api/v1/**', async (route) => {
@@ -141,8 +138,7 @@ test('chromium: the next page of the trail is announced, and its end is said', a
 // UC-WRK-32 check 3: checking and exporting are never unavailable for an empty period or target;
 // pressed, they mark what is missing, move focus to the first, and send nothing.
 test('chromium: checking and exporting with nothing named mark the fields and send nothing', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   const sent = [];
@@ -188,8 +184,7 @@ test('chromium: checking and exporting with nothing named mark the fields and se
 // ux-inventory §E8: the export has a period of its own, sent as named, whatever the check holds.
 // UC-AUD-04 check 1: the web app starts an export for a period to one of the workspace's targets.
 test('chromium: the export takes away its own period, not the one checked above it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   const sent = [];

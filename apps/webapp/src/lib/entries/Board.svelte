@@ -40,7 +40,7 @@
     type View,
   } from '@hubtask/design-system/components';
   import FailureState from '../frame/FailureState.svelte';
-  import type { Bucket, BulkResult, WorkflowShape, WorkItem } from '@hubtask/sync-engine';
+  import type { Bucket, BulkResult, DropAnswer, EntrySteps, StateMode, WorkflowShape, WorkItem } from '@hubtask/sync-engine';
 
   import type { ItemsQuery } from '../data/items.svelte.ts';
 
@@ -55,6 +55,10 @@
   import { archivalOfItem } from '../data/lifecycle.ts';
   import { isSwipe, swipeThreshold } from './swipe.ts';
   import { goesOverLimit } from './wip.ts';
+  import { laneOf, lanesOf } from '../data/viewquery.ts';
+  import { NO_COLUMN, columnRefusals, unmappedStatuses } from './boardlevel.ts';
+  import StateChip from './StateChip.svelte';
+  import { chipOf } from './statechip.ts';
 
   import { announcer } from '../announce.svelte.ts';
   import { celebration } from '../celebration.svelte.ts';
@@ -114,6 +118,12 @@
      * card holding nothing else stays a title alone where nobody asked for keys.
      */
     showsKey?: boolean;
+    /** The board's lanes (E-21, UC-WRK-05): a second grouping, each lane its row of the columns. */
+    lanesBy?: string;
+    /** A lane's value as it reads: a person's or a label's name. */
+    laneName?: (value: string) => string | undefined;
+    /** Whether the columns show their WIP limits (the panel's *Limits je Spalte*). */
+    showsLimits?: boolean;
     /**
      * Why the reader's role may not change this card, or nothing where it may (UC-WRK-22 checks
      * 1, 2): such a card is not carried, ranked or moved between columns, and its menu offers only
@@ -125,11 +135,15 @@
     /** Whether the reader may change the board's columns, which are the collection's shape (`STRUCTURE`). */
     mayShape: boolean;
     /**
-     * The workflow the collection runs, where it runs one: the board is then one column per status
-     * (UC-FLW-03 check 2), a card carried into another column takes the step to that status - the
-     * server decides, as on every door - and the buckets stay out of it.
+     * The collection's level for its tasks (build-plan §5): COLUMNS - the columns are the states;
+     * WORKFLOW - each column shows one or more statuses of `workflow`, the statuses no column shows
+     * stand folded in *Ohne Spalte*. Every drop goes through `:drop`, which decides at either.
      */
-    statuses?: WorkflowShape;
+    level?: StateMode;
+    /** An entry type's own level and workflow where it differs from the tasks' (build-plan §5). */
+    levelOfType?: (entryType: string) => { readonly mode: StateMode | undefined; readonly workflow: WorkflowShape | undefined } | undefined;
+    /** The workflow the collection runs, where it runs one: the statuses' names. */
+    workflow?: WorkflowShape;
   }
 
   const {
@@ -144,8 +158,13 @@
     changeRefusal,
     mayCreate,
     mayShape,
-    statuses,
+    level,
+    levelOfType,
+    workflow,
     showsKey = false,
+    lanesBy,
+    laneName,
+    showsLimits = true,
   }: Props = $props();
   // The collection the cards' keys are read from (ticket.ts).
   const keyedCollection = $derived(containers.find(collectionId));
@@ -168,8 +187,7 @@
 
   $effect(() => {
     const wanted = collectionId;
-    const byStatus = statuses !== undefined;
-    const asked = byStatus ? { ...query, group: { field: 'status', limit_per_group: query?.group?.limit_per_group ?? 50 } } : query;
+    const asked = query;
     return untrack(() => {
       const stops = [
         buckets.open(wanted),
@@ -214,19 +232,11 @@
    * the query grouped on rather than the collection's buckets, because a `wip_limit` and a done
    * column are properties of a bucket and mean nothing about a title or a type.
    */
-  const isStatusBoard = $derived(statuses !== undefined);
-  const isBucketBoard = $derived(!isStatusBoard && (query?.group?.field ?? 'bucket_id') === 'bucket_id');
+  const isBucketBoard = $derived((query?.group?.field ?? 'bucket_id') === 'bucket_id');
+  const isWorkflow = $derived(level === 'WORKFLOW');
 
   const columns = $derived(
-    statuses
-      ? statuses.statuses.map((status) => ({
-          id: status.key,
-          name: statusLabel(status, t),
-          wip_limit: null,
-          is_done_bucket: status.category === 'DONE',
-          version: 0,
-        }))
-      : isBucketBoard
+    isBucketBoard
       ? buckets.of(collectionId)
       : // A column per value the result came back grouped by, named by the value itself: the
         // grouping field is the installation's and this client has no vocabulary for its values -
@@ -241,8 +251,53 @@
             wip_limit: null,
             is_done_bucket: false,
             version: 0,
+            statuses: [] as string[],
           })),
   );
+
+  /** A status's name in the workflow, its key where the workflow does not name it. */
+  function statusName(key: string): string {
+    const status = workflow?.statuses.find((each) => each.key === key);
+    return status ? statusLabel(status, t) : key;
+  }
+  /** How the card's state chip names a column, a status and a step - the list row's words. */
+  const chipNames = $derived({
+    get noColumn() { return t('app.board.unmapped'); },
+    statusName,
+    stepName: (_key: string, name: string | null | undefined, to: string) => name ?? statusName(to),
+  });
+  /** The statuses no column shows (*Ohne Spalte*), folded, never hidden (build-plan §5). */
+  const unmapped = $derived(isWorkflow && isBucketBoard ? unmappedStatuses(columns, workflow?.statuses.map((each) => each.key) ?? []) : []);
+
+  /** The folded columns the reader opened, by key; the done column and *Ohne Spalte* start folded. */
+  let unfolded = $state<Record<string, boolean>>({});
+  const isFoldedColumn = (key: string, isDone: boolean) =>
+    !unfolded[key] && !isOneColumn && (isDone || key === NO_COLUMN);
+
+  /**
+   * The columns a carried card may not enter, with the server's reason code (build-plan §5): read
+   * from the card's steps when the drag starts, so the target dims while dragging. The server still
+   * answers the drop itself.
+   */
+  let carriedSteps = $state<Pick<EntrySteps, 'status' | 'steps' | 'blocked'> | undefined>(undefined);
+  let carriedFrom = $state<string | undefined>(undefined);
+  let stopCarried: (() => void) | undefined;
+  function carry(card: WorkItem | undefined, from: string) {
+    stopCarried?.();
+    stopCarried = undefined;
+    carriedSteps = undefined;
+    carriedFrom = card ? from : undefined;
+    if (card && isWorkflow) {
+      stopCarried = workflows.steps(card.id, (state) => {
+        if (state.status === 'ready') carriedSteps = state.data;
+      });
+    }
+  }
+  const refusals = $derived(
+    carriedFrom === undefined || !isBucketBoard ? new Map<string, string>() : columnRefusals(level, columns, unmapped, carriedSteps, carriedFrom),
+  );
+  $effect(() => () => stopCarried?.());
+
   const boardState = $derived(items.stateOf(`board:${collectionId}`));
   const failure = $derived(
     boardState?.status === 'failed' ? renderProblem(boardState.error, messages) : undefined,
@@ -259,9 +314,9 @@
   /** The column the reader chose; `undefined` until they chose one, and then the first is shown. */
   let shownColumn = $state<string | null | undefined>(undefined);
   const strip = $derived<readonly { id: string | null; label: string; count: number }[]>(
-    [null, ...columns]
+    [...columns, null]
       .filter((bucket) => bucket !== null || cardsOf(null).length > 0)
-      .map((bucket) => ({ id: bucket?.id ?? null, label: bucket?.name ?? t('app.board.unbucketed'), count: countOf(bucket?.id ?? null) ?? cardsOf(bucket?.id ?? null).length })),
+      .map((bucket) => ({ id: bucket?.id ?? null, label: bucket?.name ?? noColumnName, count: countOf(bucket?.id ?? null) ?? cardsOf(bucket?.id ?? null).length })),
   );
   const stripViews = $derived<View[]>(strip.map((column) => ({ id: column.id ?? 'none', label: t('app.board.column_with_count', { name: column.label, count: String(column.count) }) })));
   const shownKey = $derived(
@@ -270,6 +325,8 @@
       : (strip[0]?.id ?? 'none'),
   );
   const isOneColumn = $derived(viewport.isCompact);
+  /** The entries no column shows stand in *Ohne Spalte*, last and folded (build-plan §5). */
+  const noColumnName = $derived(t('app.board.unmapped'));
 
   function showColumn(key: string) {
     shownColumn = key === 'none' ? null : key;
@@ -308,6 +365,20 @@
       element.removeEventListener('touchend', onSwipeEnd);
     };
   });
+  /** The lanes in the order their first card stands, the cards without a value last. */
+  const laneKeys = $derived.by(() => {
+    if (!lanesBy) return [''];
+    void groups;
+    const all = [null, ...columns].flatMap((bucket) => items.columnCards(collectionId, bucket?.id ?? null));
+    const found = lanesOf(all, lanesBy);
+    return found.length > 0 ? found : [''];
+  });
+  function entriesOfLane(lane: string): number {
+    if (!lanesBy) return 0;
+    const field = lanesBy;
+    return [null, ...columns].flatMap((bucket) => cardsOf(bucket?.id ?? null)).filter((card) => laneOf(card, field) === lane).length;
+  }
+
   function cardsOf(bucketId: string | null): readonly WorkItem[] {
     void groups;
     return items.columnCards(collectionId, bucketId);
@@ -390,62 +461,61 @@
       return;
     }
     deleting = column;
+    successor = undefined;
     isDeletingColumn = true;
   }
 
+  /**
+   * Which column means done once the done column goes (build-plan §5): asked only when the server
+   * refuses the delete without one (`buckets.done_successor_required`), its suggestion preselected.
+   */
+  let successor = $state<string | undefined>(undefined);
   async function deleteColumn() {
     if (!deleting) return;
     writeFailure = undefined;
     try {
-      await buckets.remove(collectionId, deleting.id, deleting.version);
+      await buckets.remove(collectionId, deleting.id, deleting.version, successor);
       announcer.say(t('app.buckets.removed_announced'));
       isDeletingColumn = false;
     } catch (error) {
+      const failed = error as { detailCode?: string; params?: Readonly<Record<string, string>> };
+      if (failed.detailCode === 'buckets.done_successor_required' && successor === undefined) {
+        successor = failed.params?.suggested_bucket_id ?? columns.find((each) => each.id !== deleting?.id)?.id;
+        return;
+      }
       writeFailure = renderProblem(error as never, messages);
     }
   }
 
   /**
-   * Moves a card, and completes it where the column says so.
-   *
-   * **The completion is this client's, not the server's**, and that is the domain's own division
-   * rather than a choice made here: `Bucket.IsDoneBucket` is "stored and reported; what reacts to
-   * it is the client that renders the board … the server completes nothing on its own account".
-   * So the board is the thing that reacts, and a card dropped in the done column comes back ticked
-   * because this asked for it.
-   *
-   * Two writes, and they are not atomic. If the completion fails the card has still moved, which
-   * is the honest outcome — the move is what the reader asked for and it happened — and the failure
-   * says so rather than the move being rolled back to hide it.
-   *
-   * Moving **out** of a done column does not reopen. Nothing says it should, and inventing the
-   * reverse of a rule is how a client acquires behaviour nobody can find in the model.
+   * Drops a card on a column through `:drop` (build-plan §5): the server decides at the
+   * collection's level - a move (the done column completes, leaving it reopens), the one step that
+   * reaches the column, or the steps to choose among, which opens the picker and writes nothing
+   * until one is chosen. A refusal is the server's code, said in words.
    */
-  async function moveTo(item: WorkItem, bucketId: string | null): Promise<WorkItem | undefined> {
+  async function moveTo(item: WorkItem, bucketId: string | null, step?: string): Promise<WorkItem | undefined> {
     writeFailure = undefined;
     const target = columns.find((column) => column.id === bucketId);
     // A limit is advice: the move goes ahead, and is announced as going over it (UC-WRK-31 check 3).
     const isOverLimit =
       item.bucket_id !== bucketId && goesOverLimit(target?.wip_limit, countOf(bucketId), cardsOf(bucketId).length);
     try {
-      let moved = await items.setBucket(item.id, bucketId, item.version);
-
-      if (target?.is_done_bucket && !moved.completion?.is_completed) {
-        moved = await items.setCompleted(moved.id, true, crypto.randomUUID());
-        // A card dropped into the done column is a completion, and a completion may be a moment.
-        void celebration.celebrate(moved);
+      const answer: DropAnswer = await items.drop(item.id, bucketId, item.version, step);
+      if (answer.outcome === 'CHOOSE') {
+        choosing = { item, bucketId, steps: answer.steps };
+        return undefined;
       }
+      const moved = answer.item;
+      if (moved.completion?.is_completed && !item.completion?.is_completed) void celebration.celebrate(moved);
       announcer.say(
         t(isOverLimit ? 'app.board.moved_over_limit' : 'app.board.moved', {
           title: item.title,
-          name: target?.name ?? t('app.board.unbucketed'),
+          name: target?.name ?? noColumnName,
           limit: String(target?.wip_limit ?? ''),
         }),
       );
       refocusId = item.id;
-      // The card as it now stands, version included. A drag ranks it straight afterwards, and a
-      // version guessed rather than read is a precondition that fails for no reason the reader
-      // can act on — the completion above may have bumped it a second time.
+      // The card as it now stands, version included: a drag ranks it straight afterwards.
       return moved;
     } catch (error) {
       writeFailure = renderProblem(error as never, messages);
@@ -453,43 +523,12 @@
     }
   }
 
-  /**
-   * The converse of `moveTo`'s done column (user-experience.md §7.5): a card marked as done on a
-   * board of buckets moves to the done column, so the board and the tick never disagree. The
-   * client's reaction for the same reason the drop's is; the completion first, so a refused one
-   * moves nothing.
-   */
-  async function completeInto(item: WorkItem, bucketId: string) {
-    writeFailure = undefined;
-    try {
-      const completed = await items.setCompleted(item.id, true, crypto.randomUUID());
-      void celebration.celebrate(completed);
-      await items.setBucket(completed.id, bucketId, completed.version);
-      announcer.say(t('app.entries.completed_announced', { title: item.title }));
-      refocusId = item.id;
-    } catch (error) {
-      writeFailure = renderProblem(error as never, messages);
-    }
-  }
-
-  /**
-   * Takes the step into a status column (UC-FLW-03 check 2): the same call the status control
-   * makes, so the same rules hold. A refusal names what the step still needs, and the card stays
-   * where the server has it.
-   */
-  async function stepTo(item: WorkItem, status: string): Promise<WorkItem | undefined> {
-    writeFailure = undefined;
-    const target = columns.find((column) => column.id === status);
-    try {
-      const moved = await workflows.take(item, { to_status: status });
-      if (moved.completion?.is_completed && !item.completion?.is_completed) void celebration.celebrate(moved);
-      announcer.say(t('app.board.moved', { title: item.title, name: target?.name ?? status, limit: '' }));
-      refocusId = item.id;
-      return moved;
-    } catch (error) {
-      writeFailure = renderProblem(error as never, messages);
-      return undefined;
-    }
+  /** A drop several steps reach: the steps to choose among, until one is chosen or the picker closes. */
+  let choosing = $state<{ item: WorkItem; bucketId: string | null; steps: DropAnswer['steps'] } | undefined>(undefined);
+  async function chooseStep(step: string) {
+    const asked = choosing;
+    choosing = undefined;
+    if (asked) await moveTo(asked.item, asked.bucketId, step);
   }
 
   /**
@@ -556,16 +595,16 @@
         mayShare,
         carries: (capability) => supports(card.type, capability).status === 'permitted',
         level: level && { ...level, outReason: level.outReason },
-        extras: isStatusBoard
-          ? columns.filter((target) => target.id !== card.status).map((target) => ({
-              id: `status:${target.id}`,
-              label: t('app.board.move_to', { title: card.title, name: target.name }),
-            }))
-          : isBucketBoard
-          ? [...columns, null].map((target) => ({
-              id: `bucket:${target?.id ?? 'none'}`,
-              label: t('app.board.move_to', { title: card.title, name: target?.name ?? t('app.board.unbucketed') }),
-            }))
+        // *Move to* every other column - the keyboard's and the long press's way across the board
+        // (WCAG 2.5.7). *Ohne Spalte* only where it is a place: at L2, or where the card has no
+        // column yet; at L1 an entry stands in a column (`board.column_required`).
+        extras: isBucketBoard
+          ? [...columns, ...(isWorkflow ? [null] : [])]
+              .filter((target) => (target?.id ?? null) !== (card.bucket_id ?? null))
+              .map((target) => ({
+                id: `bucket:${target?.id ?? NO_COLUMN}`,
+                label: t('app.board.move_to', { title: card.title, name: target?.name ?? noColumnName }),
+              }))
           : [],
       },
       t,
@@ -590,18 +629,9 @@
       void rank(card, cards, id);
       return;
     }
-    if (id.startsWith('status:')) {
-      void stepTo(card, id.slice('status:'.length));
-      return;
-    }
     if (id.startsWith('bucket:')) {
       const bucketId = id.slice('bucket:'.length);
       void moveTo(card, bucketId === 'none' ? null : bucketId);
-      return;
-    }
-    const done = isBucketBoard ? columns.find((column) => column.is_done_bucket) : undefined;
-    if (id === 'complete' && done && !columns.find((column) => column.id === card.bucket_id)?.is_done_bucket) {
-      void completeInto(card, done.id);
       return;
     }
     void actions?.run(card, id, cards);
@@ -633,6 +663,7 @@
       const index = cards.findIndex((each) => each.id === cardId);
       const card = cards[index];
       if (!cardId || index < 0 || !card || !isMovable(card)) return null;
+      carry(card, key);
       return { id: cardId, index, level: { key, elements: elementsOf(key) } };
     },
     // Which column the pointer is over. `elementFromPoint` rather than a rectangle kept from the
@@ -643,6 +674,7 @@
       return key === null || key === undefined ? null : { key, elements: elementsOf(key) };
     },
     ondrop: ({ id, to, levelKey }) => {
+      carry(undefined, NO_COLUMN);
       const from = board?.querySelector(`[data-card="${id}"]`)?.getAttribute('data-column') ?? 'none';
       const card = cardsOf(from === 'none' ? null : from).find((each) => each.id === id);
       if (card) void drop(card, from, levelKey, to);
@@ -660,10 +692,10 @@
     // Across columns is a column change only where a column is a bucket. On any other grouping the
     // drag ranks within the column it was dropped in and changes nothing else, because the value
     // it was grouped by is not a place an entry can be put.
-    if (isStatusBoard && from !== to && to !== 'none') {
-      const cards = cardsOf(to);
-      const moved = await stepTo(card, to);
-      if (moved) await items.reorder(card.id, anchorFor(cards, card.id, position), moved.version, crypto.randomUUID());
+    // A column that refuses says so while the card is carried, and nothing is written.
+    const refused = from === to ? undefined : refusals.get(to);
+    if (refused) {
+      writeFailure = { message: t(refused) } as ReturnType<typeof renderProblem>;
       return;
     }
     if (!isBucketBoard) {
@@ -745,6 +777,7 @@
   $effect(() => {
     const id = drag.id;
     if (id === null) {
+      untrack(() => carry(undefined, NO_COLUMN));
       dragOrigin = null;
       dragGap = undefined;
       ghost = null;
@@ -856,6 +889,18 @@
       const card = cards[index];
       if (!card || !isMovable(card)) return;
 
+      // Alt with an arrow along the line carries the card into the next column - dragging by
+      // keyboard (WCAG 2.5.7), through the same `:drop` a pointer's drop takes.
+      if (event.altKey && isBucketBoard && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+        event.preventDefault();
+        const isRtl = getComputedStyle(node).direction === 'rtl';
+        const forward = (event.key === 'ArrowRight') !== isRtl;
+        const order: (string | null)[] = [...columns.map((each) => each.id), ...(isWorkflow ? [null] : [])];
+        const next = order[order.indexOf(column === NO_COLUMN ? null : column) + (forward ? 1 : -1)];
+        if (next !== undefined) void moveTo(card, next);
+        return;
+      }
+
       if (rankIntent(event, index, cards.length) === null) return;
       event.preventDefault();
       void rank(
@@ -904,25 +949,39 @@
        so the columns cannot cover it. -->
   <div class="frame" data-more-start={edges.start ? '' : undefined} data-more-end={edges.end ? '' : undefined}>
   <!-- design-system-lint-ignore: the gap is the carried card's measured height, not a design value. -->
-  <div class="board" data-one-column={isOneColumn ? '' : undefined} bind:this={board} onscroll={measureEdges} style:--drag-gap={dragGap}>
-    {#each [null, ...columns] as bucket (bucket?.id ?? 'none')}
+  <div class="board" data-one-column={isOneColumn ? '' : undefined} data-lanes={lanesBy ? '' : undefined} bind:this={board} onscroll={measureEdges} style:--drag-gap={dragGap}>
+    {#each laneKeys as lane (lane)}
+    <div class="lane-row" data-lane={lanesBy ? lane : undefined}>
+    {#if lanesBy}<p class="lane-head"><b>{lane === '' ? t('app.board.lane_none') : (laneName?.(lane) ?? lane)}</b> <span>{entriesOfLane(lane)}</span></p>{/if}
+    <div class="lane-columns">
+    {#each [...columns, null] as bucket (bucket?.id ?? 'none')}
       {@const bucketId = bucket?.id ?? null}
-      {@const cards = cardsOf(bucketId)}
-      <!-- The entries with no bucket are their own lane, first (design-system.md §11.9): a card
-           nobody has put in a column is a card somebody has to find, and it is found before the
-           columns rather than after them. On a phone only the column the strip chose is drawn. -->
-      {#if (bucket !== null || cards.length > 0) && (!isOneColumn || (bucket?.id ?? 'none') === shownKey)}
+      {@const cards = lanesBy ? cardsOf(bucketId).filter((card) => laneOf(card, lanesBy) === lane) : cardsOf(bucketId)}
+      <!-- The entries no column shows stand in *Ohne Spalte*, last and folded, never hidden
+           (build-plan §5). On a phone only the column the strip chose is drawn. -->
+      {@const key = bucket?.id ?? NO_COLUMN}
+      {@const shown = bucket ? (bucket.statuses ?? []) : unmapped}
+      {@const refusal = refusals.get(key)}
+      <!-- In lanes the column-less column stands in every lane once any card has no column, so the
+           columns keep one position across the lanes. -->
+      {#if (bucket !== null || cardsOf(null).length > 0 || unmapped.length > 0) && (!isOneColumn || key === shownKey)}
         <!-- The column as a drop zone. `elementFromPoint` reads this while a card is being carried
              across the board, which is why it is the whole column rather than the list of cards:
              an empty column is a destination too. -->
         <div class="zone" data-column-zone={bucket?.id ?? 'none'} data-over={drag.id !== null && drag.levelKey === (bucket?.id ?? 'none') ? '' : undefined}>
           <BucketColumn
-            name={bucket?.name ?? t('app.board.unbucketed')}
+            name={bucket?.name ?? noColumnName}
             count={countOf(bucketId) ?? cards.length}
-            wipLimit={bucket?.wip_limit ?? null}
+            wipLimit={showsLimits ? (bucket?.wip_limit ?? null) : null}
+            limitLabel={showsLimits && bucket?.wip_limit ? t('app.board.wip', { count: String(countOf(bucketId) ?? cards.length), limit: String(bucket.wip_limit) }) : undefined}
             overLimitLabel={t('app.board.over_limit')}
             isDoneBucket={bucket?.is_done_bucket ?? false}
             doneBucketLabel={t('app.board.done_bucket')}
+            statusesLabel={isWorkflow && shown.length > 0 && !(shown.length === 1 && statusName(shown[0] ?? "") === bucket?.name) ? shown.map(statusName).join(' · ') : undefined}
+            isFolded={isFoldedColumn(key, bucket?.is_done_bucket ?? false) && drag.id === null}
+            unfoldLabel={t('app.board.unfold', { name: bucket?.name ?? noColumnName })}
+            onunfold={() => (unfolded = { ...unfolded, [key]: true })}
+            refusal={refusal ? t(refusal) : undefined}
           >
             {#snippet actions()}
               <!-- A column's own actions are a **bucket's**: renaming it, its limit, deleting it.
@@ -1011,6 +1070,9 @@
                     {/if}
                   {/snippet}
                   {#snippet footer()}
+                    {@const own = card.entry_type ? levelOfType?.(card.entry_type) : undefined}
+                    {@const cardChip = card.type === 'TASK' && isBucketBoard ? chipOf(own?.mode ?? level, card, columns, own?.workflow ?? workflow, own?.mode === 'WORKFLOW' ? { ...chipNames, noColumn: t('app.board.unmapped') } : chipNames) : undefined}
+                    {#if cardChip}<StateChip item={card} chip={cardChip} disabledReason={changeRefusal(card)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
                     {#if showsKey}<EntryKey collection={keyedCollection} number={card.number} />{/if}
                     <DueMark item={card} />
                     {#if card.counts && card.counts.parts > 0}
@@ -1062,11 +1124,14 @@
             <!-- The column's own door to capture: pointed at this column, so an entry lands where it
                  is added (design-system.md §11.8). The same field as everywhere else. -->
             {#if mayCreate && !isReadOnly && isBucketBoard}
-              <AddRow label={t('app.entries.add')} onclick={() => captureField.open({ collectionId, bucketId: bucket?.id })} />
+              <AddRow label={t('app.entries.add_in', { group: bucket?.name ?? noColumnName })} onclick={() => captureField.open({ collectionId, bucketId: bucket?.id })} />
             {/if}
           </BucketColumn>
         </div>
       {/if}
+    {/each}
+    </div>
+    </div>
     {/each}
 
     <!-- After the columns rather than above them: a new column is added at the end, and the dashed
@@ -1097,6 +1162,25 @@
 
 <BucketDialog bind:isOpen={isEditingColumn} {collectionId} bucket={editing} />
 
+{#if choosing}
+  {@const asked = choosing}
+  <!-- Several steps reach the column (build-plan §5, `CHOOSE`): nothing is written until one is
+       chosen; closing writes nothing. -->
+  <Dialog size="s" isOpen={true} onClose={() => (choosing = undefined)}
+    title={t('app.board.choose_step', { title: asked.item.title })}
+    dismissLabel={t('app.workspace.cancel')}
+  >
+    <ul class="steps">
+      {#each asked.steps as step (step.key)}
+        <li><Button tone="secondary" onclick={() => void chooseStep(step.key)}>{step.name ?? statusName(step.to)}<span class="to">→ {statusName(step.to)}</span></Button></li>
+      {/each}
+    </ul>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (choosing = undefined)}>{t('app.workspace.cancel')}</Button>
+    {/snippet}
+  </Dialog>
+{/if}
+
 {#if deleting}
   {@const column = deleting}
   <!-- Confirmed, and the confirmation says the one thing a reader would otherwise have to guess:
@@ -1105,14 +1189,20 @@
     bind:isOpen={isDeletingColumn}
     title={t('app.board.delete_column')}
     dismissLabel={t('app.workspace.cancel')}
+    primary={{ label: t('app.board.column_actions', { name: column.name }), onclick: deleteColumn, tone: 'danger' }}
   >
     <p class="notice">{t('app.board.delete_confirm')}</p>
+    {#if successor !== undefined}
+      <fieldset class="successor">
+        <legend>{t('app.board.done_successor')}</legend>
+        {#each columns.filter((each) => each.id !== column.id) as other (other.id)}
+          <label class="choice"><input type="radio" name="done-successor" value={other.id} bind:group={successor} />{other.name}</label>
+        {/each}
+      </fieldset>
+    {/if}
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isDeletingColumn = false)}>
         {t('app.workspace.cancel')}
-      </Button>
-      <Button tone="danger" onclick={deleteColumn}>
-        {t('app.board.column_actions', { name: column.name })}
       </Button>
     {/snippet}
   </Dialog>
@@ -1121,6 +1211,13 @@
 <style>
 
   .notice { margin: 0; color: var(--text-secondary); max-width: 64ch; }
+
+  .steps { display: grid; gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
+  .steps .to { margin-inline-start: var(--sp-100); color: var(--text-subtle); }
+
+  .successor { display: grid; gap: var(--sp-050); margin: 0; padding: 0; border: 0; }
+  .successor legend { padding: 0; margin-block-end: var(--sp-050); font-weight: var(--fw-medium); }
+  .choice { display: flex; align-items: center; gap: var(--sp-100); }
 
   /* The card's wrapper carries what the two paths read — the identity a key press finds, and the
      state a drag draws. The card itself is the design system's. */
@@ -1139,7 +1236,9 @@
     .card:not(:hover, :focus-within) .menu:not(:has([aria-expanded='true'])) { opacity: 0; }
   }
 
-  .zone { display: flex; }
+  /* A zone never shrinks below its column: a folded column, sized by its content, would be
+     overlapped by the next one on a board wider than the screen. */
+  .zone { display: flex; flex: none; }
 
   /* A count on the card's footer: its mark and its number, the number said in words to a reader. */
   .count { display: inline-flex; align-items: center; gap: var(--sp-025); font-variant-numeric: tabular-nums; }
@@ -1239,6 +1338,16 @@
      what it scrolls: a card's checkbox hides its input the visually-hidden way, absolutely, and
      an absolute box inside an unpositioned scroller overflows the scroller's ancestor - which is
      how a board widens the page by four hundred pixels on a tablet. */
+  /* Without lanes a row is no box: the columns stand in the board's own row. In lanes every lane
+     is as wide as its columns and the board scrolls them sideways together, so a column stands at
+     one position in every lane (scene viewcfg); the lane's name stays at the start while it does. */
+  .lane-row,
+  .lane-columns { display: contents; }
+  .board[data-lanes] { flex-direction: column; align-items: flex-start; }
+  .board[data-lanes] .lane-row { display: flex; flex-direction: column; gap: var(--sp-100); inline-size: max-content; min-inline-size: 100%; box-sizing: border-box; padding-block-end: var(--sp-200); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
+  .board[data-lanes] .lane-columns { display: flex; gap: var(--sp-200); align-items: start; }
+  .lane-head { position: sticky; inset-inline-start: 0; align-self: flex-start; margin: 0; font-size: var(--fs-075); color: var(--text-secondary); }
+  .lane-head b { color: var(--text-primary); font-weight: var(--fw-semibold); }
   .board {
     position: relative;
     display: flex;
@@ -1305,8 +1414,14 @@
 
   .board[data-one-column] .zone,
   .board[data-one-column] .zone > :global(*) { box-sizing: border-box; inline-size: 100%; }
+  /* In lanes too: a lane is as wide as the phone, never as wide as its longest card's line. */
+  .board[data-one-column][data-lanes] { align-items: stretch; }
+  .board[data-one-column][data-lanes] .lane-row { inline-size: auto; min-inline-size: 0; }
+  .board[data-one-column][data-lanes] .lane-columns { flex-direction: column; min-inline-size: 0; }
 
   .strip { overflow-x: auto; padding-block-end: var(--sp-050); }
+  /* One row that scrolls sideways, as scene board 4 draws it: never wrapped onto a second line. */
+  .strip :global(.switcher) { flex-wrap: nowrap; }
 
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
 </style>

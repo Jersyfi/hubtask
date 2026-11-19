@@ -17,6 +17,8 @@
   import type { Snippet } from 'svelte';
 
   import Icon from './Icon.svelte';
+  import Sheet from './Sheet.svelte';
+  import { isCompactWidth, closeName } from './media.ts';
   import { focusReturn, rovingIndex, typeAheadIndex } from './focus.ts';
   import { openOverlay, type MenuItem } from './overlay.ts';
   import type { Placement } from './anchor.ts';
@@ -39,6 +41,14 @@
      * the list, and takes no focus.
      */
     head?: Snippet;
+    /**
+     * The name of the sheet's close control. The menu opens as a bottom sheet on a phone's width
+     * (work-surface concept §7) - a menu drawn at its trigger there runs off the screen - named by
+     * this or by the application's `setCloseLabel`.
+     */
+    closeLabel?: string;
+    /** Stays at its trigger on every width: the navigation's own menus, which its concept places. */
+    isAnchored?: boolean;
   }
 
   let {
@@ -49,6 +59,8 @@
     onselect,
     trigger,
     head,
+    closeLabel,
+    isAnchored = false,
   }: Props = $props();
 
   // Svelte's own id, not a random one: unique per instance and the same on every render, so a
@@ -61,6 +73,9 @@
   /** The `menu` element itself: what the keyboard walks and what takes focus when it opens. */
   let list = $state<HTMLElement | null>(null);
   let active = $state(-1);
+  /** Opened as a sheet: decided at the moment it opens, as a status's steps are. */
+  let isSheet = $state(false);
+  let sheetName = $state<string | undefined>(undefined);
   let opener: Element | null = null;
 
   const labels = $derived(items.map((item) => item.label));
@@ -99,6 +114,8 @@
    */
   export function open(index = 0) {
     if (!isOpen) opener = document.activeElement;
+    sheetName = isAnchored ? undefined : (closeLabel ?? closeName());
+    isSheet = sheetName !== undefined && isCompactWidth();
     active = Math.max(0, Math.min(index, items.length - 1));
     isOpen = true;
   }
@@ -138,12 +155,12 @@
   // Focus follows the active index rather than being moved at every call site: there are five
   // places that change it, and four of them would eventually forget.
   $effect(() => {
-    if (!isOpen || !list || active < 0) return;
+    if (!isOpen || isSheet || !list || active < 0) return;
     list.querySelectorAll<HTMLElement>('[role="menuitem"]')[active]?.focus();
   });
 
   $effect(() => {
-    if (!isOpen || !anchor || !surface) return;
+    if (!isOpen || isSheet || !anchor || !surface) return;
     return openOverlay({ layer: 'popover', trigger: anchor, surface, placement, onDismiss: close });
   });
 </script>
@@ -151,7 +168,16 @@
 <span class="anchor" bind:this={anchor}>
   {@render trigger(triggerProps)}
 </span>
-{#if isOpen}
+{#if isSheet && sheetName !== undefined}
+  <Sheet
+    bind:isOpen
+    title={label}
+    closeLabel={sheetName}
+    {items}
+    onClose={() => { isSheet = false; active = -1; }}
+    onselect={(id) => onselect?.(id)}
+  />
+{:else if isOpen}
   <div class="surface" bind:this={surface}>
     {#if head}<div class="head">{@render head()}</div>{/if}
   <!-- The keydown listener is on the list rather than on each item: the arrows are a property of
@@ -181,6 +207,7 @@
       >
         {#if item.icon}<Icon name={item.icon} size="sm" />{/if}
         <span class="label">{item.label}</span>
+        {#if item.description}<span class="description">{item.description}</span>{/if}
         {#if item.disabledReason !== undefined}
           <span id={`${id}-${item.id}-reason`} class="reason">{item.disabledReason}</span>
         {/if}
@@ -216,7 +243,15 @@
     border-radius: var(--r-lg);
     /* Drawn where its trigger is, so it would inherit a current row's weight: items are regular. */
     font-weight: var(--fw-regular);
-    background: var(--bg-raised);
+    /* A list taller than its room scrolls inside it, and says so where the scrollbar does not: a
+       shade at the edge with more to come, covered by the surface's own colour once it is reached. */
+    background:
+      linear-gradient(var(--bg-raised), transparent) top / 100% var(--sp-300) no-repeat local,
+      linear-gradient(transparent, var(--bg-raised)) bottom / 100% var(--sp-300) no-repeat local,
+      radial-gradient(farthest-side at 50% 0, var(--border-default), transparent) top / 100% var(--sp-150) no-repeat scroll,
+      radial-gradient(farthest-side at 50% 100%, var(--border-default), transparent) bottom / 100% var(--sp-150) no-repeat scroll,
+      var(--bg-raised);
+    overscroll-behavior: contain;
     box-shadow: var(--shadow-overlay);
     animation: open var(--motion-attach-duration) var(--motion-attach-easing) both;
   }
@@ -258,6 +293,8 @@
     font-size: var(--fs-090);
     text-align: start;
     cursor: pointer;
+    /* Under a thumb the row grows to the target (the spacious density's small control). */
+    min-block-size: var(--density-control-sm-min);
   }
 
   .item:hover { background: var(--bg-surface-hover); }
@@ -281,6 +318,12 @@
   .reason {
     grid-column: 2;
     color: var(--text-subtle);
+    font-size: var(--fs-075);
+  }
+
+  .description {
+    grid-column: 2;
+    color: var(--text-secondary);
     font-size: var(--fs-075);
   }
 

@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, MANIFEST, OWNER_GRANTS, PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -94,8 +94,7 @@ async function mintAdministrative(page, within, choice = 'Full control') {
 }
 
 test('chromium: an administrative token of one\'s own is created behind a fresh proof (UC-ID-17 check 3)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, mints, proofs, close } = await open(browser);
   t.after(close);
 
@@ -111,8 +110,7 @@ test('chromium: an administrative token of one\'s own is created behind a fresh 
 });
 
 test('chromium: a service account\'s administrative token is created behind the person\'s fresh proof (UC-INS-06 check 2)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, mints, proofs, close } = await open(browser);
   t.after(close);
 
@@ -127,8 +125,7 @@ test('chromium: a service account\'s administrative token is created behind the 
 });
 
 test('chromium: an expiry typed as a day is that day where the person is (UC-ID-17)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, mints, close } = await open(browser, { timezoneId: 'Europe/Berlin' });
   t.after(close);
 
@@ -158,8 +155,7 @@ test('chromium: an expiry typed as a day is that day where the person is (UC-ID-
 });
 
 test('chromium: a service account\'s token panel speaks about the service account', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser);
   t.after(close);
 
@@ -178,8 +174,7 @@ test('chromium: a service account\'s token panel speaks about the service accoun
 // register does not name - a workspace's owner on an installation run by somebody else - is not
 // offered the scope (P-05): on their own panel nor on a service account's. Every other scope stays.
 test('chromium: the operator scope is offered only to somebody the operator register names', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, { operator: false });
   t.after(close);
 
@@ -202,8 +197,7 @@ test('chromium: the operator scope is offered only to somebody the operator regi
 // account's preselects "Provisioning only", and that token is minted with the narrow scope alone,
 // behind the person's proof.
 test('chromium: the installation choice offers provisioning or full control, preselected by the panel', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, mints, proofs, close } = await open(browser);
   t.after(close);
 
@@ -234,8 +228,7 @@ test('chromium: the installation choice offers provisioning or full control, pre
 // A service account's token is held to the ceiling (identity.md §13): an administrator is offered no
 // mint for one that holds OWNER, and is told why; for one that holds MEMBER the form is there.
 test('chromium: an administrator is offered no token for a service account that holds OWNER', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   for (const [serviceRole, offered] of [['OWNER', false], ['MEMBER', true]]) {
     const { page, close } = await open(browser, { serviceRole });
     t.after(close);

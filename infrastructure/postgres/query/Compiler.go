@@ -913,6 +913,21 @@ func (b *builder) leaf(node view.Node) {
 	case view.FieldGroupQueueOf:
 		b.groupQueue(node)
 		return
+	case view.FieldUnder:
+		b.under(node)
+		return
+	case view.FieldBlocks:
+		b.blocks(node)
+		return
+	case view.FieldAffects:
+		b.affects(node)
+		return
+	case view.FieldTimeLogged:
+		b.timeLogged(node)
+		return
+	case view.FieldCritical:
+		b.critical(node)
+		return
 	}
 
 	if key, isCustom := view.CustomField(node.Field.Name); isCustom {
@@ -1026,6 +1041,100 @@ func (b *builder) linkedTo(node view.Node) {
 	b.write(`)) OR (ln.target_id = wi.id AND ln.source_id = ANY(`)
 	b.array(node.Field, node.Values)
 	b.write(`))))`)
+}
+
+// under writes whether the entry stands below one of the given entries: every path ends with the
+// separator and holds the entry's own identifier, so a descendant's path starts with the
+// ancestor's and the ancestor itself is left out by identity.
+func (b *builder) under(node view.Node) {
+	b.write(`EXISTS (SELECT 1 FROM work_item up WHERE up.tenant_id = wi.tenant_id AND up.id = ANY(`)
+	b.array(node.Field, node.Values)
+	b.write(`) AND up.id <> wi.id AND starts_with(wi.path, up.path))`)
+}
+
+// blocks writes whether the entry holds one of the given entries up over a link whose type
+// waits: the given entry is the waiting side (waitingLink's direction for blocking).
+func (b *builder) blocks(node view.Node) {
+	b.write(`EXISTS (SELECT 1 FROM entry_link bl`)
+	b.write(` LEFT JOIN link_type lt ON lt.tenant_id = bl.tenant_id AND lt.key = bl.own_type`)
+	b.write(` CROSS JOIN LATERAL (SELECT CASE bl.link_type WHEN 'blocks' THEN 'TARGET'`)
+	b.write(` WHEN 'depends_on' THEN 'SOURCE' ELSE lt.waits END AS waits) lw`)
+	b.write(` WHERE bl.tenant_id = wi.tenant_id AND (`)
+	b.write(`(lw.waits = 'TARGET' AND bl.source_id = wi.id AND bl.target_id = ANY(`)
+	b.array(node.Field, node.Values)
+	b.write(`)) OR (lw.waits = 'SOURCE' AND bl.target_id = wi.id AND bl.source_id = ANY(`)
+	b.array(node.Field, node.Values)
+	b.write(`))))`)
+}
+
+// affects writes whether the entry names one of the given configuration items as affected.
+func (b *builder) affects(node view.Node) {
+	b.write(`EXISTS (SELECT 1 FROM cmdb_affected ca WHERE ca.tenant_id = wi.tenant_id AND ca.item_id = wi.id`)
+	b.write(` AND ca.ci_id = ANY(`)
+	b.array(node.Field, node.Values)
+	b.write(`))`)
+}
+
+// timeLogged writes the minutes on the entry the asker may see, compared with the value: the
+// asker's own records, and other people's only on entries of the collections the use case found
+// the time module shows them in (rule 2) - where the workspace shows only sums, only on an entry
+// three or more people worked on, as a time summary withholds a smaller group (UC-TIM-04).
+func (b *builder) timeLogged(node view.Node) {
+	if node.Asked == nil {
+		b.fail(errNotAnswered(node.Field))
+		return
+	}
+	sight := node.Asked.Sight
+	b.write(`(SELECT coalesce(sum(tl.minutes), 0) FROM time_record tl`)
+	b.write(` WHERE tl.tenant_id = wi.tenant_id AND tl.entry_id = wi.id AND (tl.account_id = `)
+	b.param(sight.Reader.String())
+	b.write(`::uuid OR (wi.collection_id = ANY(`)
+	b.param(identifiers(sight.Shown))
+	b.write(`::uuid[])`)
+	if sight.Withhold {
+		b.write(` AND (SELECT count(DISTINCT tp.account_id) FROM time_record tp`)
+		b.write(` WHERE tp.tenant_id = wi.tenant_id AND tp.entry_id = wi.id) >= 3`)
+	}
+	b.write(`)))`)
+	switch node.Op {
+	case view.OpEq:
+		b.write(` = `)
+	case view.OpNeq:
+		b.write(` <> `)
+	case view.OpLt:
+		b.write(` < `)
+	case view.OpLte:
+		b.write(` <= `)
+	case view.OpGt:
+		b.write(` > `)
+	case view.OpGte:
+		b.write(` >= `)
+	case view.OpBetween:
+		b.write(` BETWEEN `)
+		b.value(node.Field, node.Values[0])
+		b.write(` AND `)
+		b.value(node.Field, node.Values[1])
+		return
+	default:
+		b.fail(errOperatorNotCompilable(node.Op))
+		return
+	}
+	b.value(node.Field, node.Values[0])
+}
+
+// critical writes whether the entry is among those the use case found on the critical path.
+func (b *builder) critical(node view.Node) {
+	if node.Asked == nil {
+		b.fail(errNotAnswered(node.Field))
+		return
+	}
+	if node.CriticalWanted() {
+		b.write(`wi.id = ANY(`)
+	} else {
+		b.write(`wi.id <> ALL(`)
+	}
+	b.param(identifiers(node.Asked.Critical))
+	b.write(`::uuid[])`)
 }
 
 // groupQueue writes whether the entry's collection has an auto-assign policy naming, as a GROUP

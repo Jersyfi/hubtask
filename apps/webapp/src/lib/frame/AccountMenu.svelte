@@ -17,7 +17,8 @@
   // What choosing a row does is the frame's to decide - a route, the tour, signing out - so the
   // choice goes back as the destination's id.
 
-  import { Avatar, Menu, NavItem, Sheet } from '@hubtask/design-system/components';
+  import type { Snippet } from 'svelte';
+  import { Avatar, Icon, Menu, NavItem, Sheet, type IconName } from '@hubtask/design-system/components';
 
   import { t } from '../i18n/i18n.svelte.ts';
   import type { Destination } from '../navigation.ts';
@@ -44,9 +45,13 @@
     workspaces?: readonly { readonly host: string; readonly name: string; readonly isHere: boolean }[];
     onworkspace?: (host: string) => void;
     onchoose: (id: string) => void;
+    /** The sheet's trigger drawn as this mark instead of the avatar (the portal's phone bar, scene `portalext`). */
+    sheetIcon?: IconName;
+    /** Rows of the sheet's own under the person, before the list (the portal's languages). */
+    extra?: Snippet<[close: () => void]>;
   }
 
-  let { destinations, name, email, picture, isSheet, isSheetOpen = $bindable(false), elsewhere, workspaces = [], onworkspace, onchoose }: Props = $props();
+  let { destinations, name, email, picture, isSheet, isSheetOpen = $bindable(false), elsewhere, workspaces = [], onworkspace, onchoose, sheetIcon, extra }: Props = $props();
 
   /**
    * The list in three bands: the places that are the reader's own, the ways through, and signing
@@ -95,10 +100,11 @@
   <!-- The avatar in the bar on a phone too (user-experience.md §2.6): the bottom bar's fifth slot
        is *More*, so the account is opened where it is on every other width. -->
   <button type="button" class="account" aria-label={name} aria-haspopup="dialog" onclick={() => (isSheetOpen = true)}>
-    <span aria-hidden="true"><Avatar {name} src={picture} size="sm" /></span>
+    <span aria-hidden="true">{#if sheetIcon}<Icon name={sheetIcon} size="md" />{:else}<Avatar {name} src={picture} size="sm" />{/if}</span>
   </button>
   <Sheet title={t('app.nav.you')} closeLabel={t('app.sheet_close')} bind:isOpen={isSheetOpen}>
     {@render who()}
+    {@render extra?.(() => (isSheetOpen = false))}
     {#if workspaces.length > 0}
       <h3 class="group-label">{t('app.nav.workspace_group')}</h3>
       <ul class="rows" data-workspaces>
@@ -118,7 +124,7 @@
     </ul>
   </Sheet>
 {:else}
-  <Menu label={t('app.nav.you')} {items} placement={{ side: 'block-end', align: 'end' }} onselect={choose}>
+  <Menu isAnchored label={t('app.nav.you')} {items} placement={{ side: 'block-end', align: 'end' }} onselect={choose}>
     {#snippet head()}
       {@render who()}
     {/snippet}

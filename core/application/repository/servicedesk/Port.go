@@ -75,6 +75,14 @@ type Records interface {
 	Report(ctx context.Context, from, to time.Time) ([]servicedesk.ReportRow, error)
 }
 
+// KeptDeadlines counts the deadlines on one person's own entries (UC-SVC-02 check 15).
+type KeptDeadlines interface {
+	// Kept answers, over the entries assigned to the account, the goals - the requester's per goal,
+	// the teams' per group and goal - that were met or breached in [from, to), and how many were
+	// met without being breached; the requester's first.
+	Kept(ctx context.Context, account shared.ID, from, to time.Time) ([]servicedesk.KeptRow, error)
+}
+
 // OLARecords stores the goals of the OLAs on an entry (UC-SVC-02 check 10): one per entry, policy
 // and goal, apart from Records - an entry carries one requester's promise and any number of teams'.
 type OLARecords interface {
@@ -103,6 +111,13 @@ type Ratings interface {
 	Save(ctx context.Context, rating servicedesk.Rating) (servicedesk.Rating, error)
 	// OfItem answers the request's rating; shared.ErrNotFound when it has none.
 	OfItem(ctx context.Context, itemID shared.ID) (servicedesk.Rating, error)
+}
+
+// RequestPaces answers how requests move for their requesters (UC-SVC-05 check 3).
+type RequestPaces interface {
+	// PaceOf answers each request's pace by its id; a request of another workspace or none at
+	// all is absent.
+	PaceOf(ctx context.Context, itemIDs []shared.ID) (map[shared.ID]servicedesk.RequestPace, error)
 }
 
 // Approvals stores the approvals a step opens, their decisions and people's delegations

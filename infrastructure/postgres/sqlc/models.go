@@ -367,6 +367,8 @@ type Account struct {
 	NavHubsOrder          *string
 	NavContentsMode       *string
 	NavHubsHidden         []pgtype.UUID
+	TodaySections         []string
+	TodaySectionsHidden   []string
 }
 
 type AccountGroup struct {
@@ -849,6 +851,7 @@ type AutomationRule struct {
 	CheckedAt         pgtype.Timestamptz
 	PausedForDeletion bool
 	Key               *string
+	Entries           string
 }
 
 type BackupRun struct {
@@ -940,6 +943,13 @@ type Bucket struct {
 	ColorToken   *string
 	DeletedAt    pgtype.Timestamptz
 	Version      int32
+}
+
+type BucketStatus struct {
+	TenantID     pgtype.UUID
+	CollectionID pgtype.UUID
+	BucketID     pgtype.UUID
+	Status       string
 }
 
 type BusinessCalendar struct {
@@ -1128,6 +1138,18 @@ type CmdbAsset struct {
 	Version       int32
 }
 
+type CmdbAssetMove struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	HubID       pgtype.UUID
+	CiID        pgtype.UUID
+	State       string
+	MovedAt     pgtype.Timestamptz
+	MovedBy     pgtype.UUID
+	AssignedTo  pgtype.UUID
+	StockroomID pgtype.UUID
+}
+
 type CmdbAttestation struct {
 	TenantID   pgtype.UUID
 	CampaignID pgtype.UUID
@@ -1177,6 +1199,8 @@ type CmdbCi struct {
 	UpdatedBy      pgtype.UUID
 	UpdatedAt      pgtype.Timestamptz
 	Version        int32
+	ConfirmedAt    pgtype.Timestamptz
+	ConfirmedBy    pgtype.UUID
 }
 
 type CmdbCiGroup struct {
@@ -1192,12 +1216,29 @@ type CmdbCiGroup struct {
 	Version   int32
 }
 
+type CmdbCiHistory struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	CiID       pgtype.UUID
+	ActorType  string
+	ActorID    pgtype.UUID
+	Verb       string
+	ChangeSet  []byte
+	OccurredAt pgtype.Timestamptz
+}
+
 type CmdbCiIdentifier struct {
 	TenantID pgtype.UUID
 	CiID     pgtype.UUID
 	HubID    pgtype.UUID
 	Name     string
 	Value    string
+}
+
+type CmdbCiMedium struct {
+	TenantID pgtype.UUID
+	CiID     pgtype.UUID
+	MediaID  pgtype.UUID
 }
 
 type CmdbClass struct {
@@ -1432,6 +1473,13 @@ type ConfigDraft struct {
 	Version  int32
 }
 
+type ConfigGoalSet struct {
+	TenantID  pgtype.UUID
+	Key       string
+	PeriodID  pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
 type ConfigHubTemplateUse struct {
 	TenantID    pgtype.UUID
 	HubID       pgtype.UUID
@@ -1613,6 +1661,7 @@ type Dashboard struct {
 	UpdatedBy pgtype.UUID
 	Version   int32
 	GroupIds  []pgtype.UUID
+	Filter    string
 }
 
 type DashboardDigest struct {
@@ -1659,6 +1708,14 @@ type DeletionJournal struct {
 	EntityID  pgtype.UUID
 	DeletedAt pgtype.Timestamptz
 	Reason    string
+}
+
+type DocumentServer struct {
+	TenantID  pgtype.UUID
+	Kind      string
+	Url       string
+	SetBy     pgtype.UUID
+	UpdatedAt pgtype.Timestamptz
 }
 
 type DurableTimer struct {
@@ -2278,6 +2335,13 @@ type MailboxAuthorization struct {
 	ExpiresAt         pgtype.Timestamptz
 }
 
+type MediaLock struct {
+	TenantID  pgtype.UUID
+	MediaID   pgtype.UUID
+	LockID    string
+	ExpiresAt pgtype.Timestamptz
+}
+
 type MediaObject struct {
 	ID                pgtype.UUID
 	TenantID          pgtype.UUID
@@ -2293,6 +2357,15 @@ type MediaObject struct {
 	Status            string
 	FileName          *string
 	UnreferencedSince pgtype.Timestamptz
+}
+
+type MediaVersion struct {
+	TenantID       pgtype.UUID
+	MediaID        pgtype.UUID
+	Number         int32
+	EarlierMediaID pgtype.UUID
+	SavedBy        pgtype.UUID
+	SavedAt        pgtype.Timestamptz
 }
 
 type Membership struct {
@@ -2340,6 +2413,7 @@ type Notification struct {
 	CalendarPushID     pgtype.UUID
 	CmdbConnectorID    pgtype.UUID
 	CodeHookID         pgtype.UUID
+	CmdbCampaignID     pgtype.UUID
 }
 
 type NotificationPreference struct {
@@ -2465,6 +2539,7 @@ type Page struct {
 	LanguageVariant  *string
 	DeletedByType    *string
 	DeletedByID      pgtype.UUID
+	Cover            []byte
 }
 
 type PageArticle struct {
@@ -2474,6 +2549,7 @@ type PageArticle struct {
 	PublishedBy  pgtype.UUID
 	PublishedAt  pgtype.Timestamptz
 	Views        int64
+	WithSubpages bool
 }
 
 type PageArticleRating struct {
@@ -2695,6 +2771,62 @@ type PortfolioUpdate struct {
 	Status      string
 	Summary     string
 	CreatedAt   pgtype.Timestamptz
+}
+
+type Post struct {
+	TenantID      pgtype.UUID
+	PageID        pgtype.UUID
+	HubID         pgtype.UUID
+	Template      *string
+	PublishAt     pgtype.Timestamptz
+	PublishedAt   pgtype.Timestamptz
+	FeaturedUntil pgtype.Timestamptz
+	Audience      string
+	GroupIds      []pgtype.UUID
+	Discussion    bool
+	Notify        bool
+	ConfirmBy     pgtype.Timestamptz
+}
+
+type PostConfirmation struct {
+	TenantID    pgtype.UUID
+	PageID      pgtype.UUID
+	AccountID   pgtype.UUID
+	ConfirmedAt pgtype.Timestamptz
+}
+
+type PostFollow struct {
+	TenantID   pgtype.UUID
+	HubID      pgtype.UUID
+	AccountID  pgtype.UUID
+	FollowedAt pgtype.Timestamptz
+}
+
+type PostReaction struct {
+	TenantID  pgtype.UUID
+	ReplyID   pgtype.UUID
+	AccountID pgtype.UUID
+	Reaction  string
+}
+
+type PostRead struct {
+	TenantID  pgtype.UUID
+	PageID    pgtype.UUID
+	AccountID pgtype.UUID
+	ReadAt    pgtype.Timestamptz
+}
+
+type PostReply struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	PageID    pgtype.UUID
+	ParentID  pgtype.UUID
+	AuthorID  pgtype.UUID
+	Body      string
+	CreatedAt pgtype.Timestamptz
+	EditedAt  pgtype.Timestamptz
+	DeletedAt pgtype.Timestamptz
+	Version   int32
 }
 
 type PrivacyIncident struct {

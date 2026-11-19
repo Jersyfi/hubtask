@@ -102,6 +102,8 @@ export interface Context {
    * what the grammar compares. `me` and `none` never reach here — they are the grammar's own words.
    */
   readonly person?: (name: string) => string | undefined;
+  /** A hub's collections, by the hub's name; absent where the caller knows no hubs. */
+  readonly hub?: (name: string) => readonly string[] | undefined;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -128,6 +130,7 @@ export const KEYS = {
   updated: 'updated_at',
   done: 'completed_at',
   in: 'collection_id',
+  hub: 'collection_id',
   label: 'labels',
   title: 'title',
   note: 'notes',
@@ -516,6 +519,15 @@ function nodeFor(token: Token, field: string, context: Context, problems: Proble
         return undefined;
       }
       return negate({ op: 'IN', field, value: ids as string[] }, token.negated);
+    }
+    case 'hub': {
+      // A hub is the collections it holds: the search knows entries by their collection.
+      const ids = context.hub?.(value);
+      if (!ids || ids.length === 0) {
+        problems.push({ code: 'app.searchline.place_unknown', params: { value } });
+        return undefined;
+      }
+      return negate({ op: 'IN', field, value: [...ids] }, token.negated);
     }
     case 'label': {
       if (!context.hasCollection) {

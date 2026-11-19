@@ -5,9 +5,9 @@ context: work
 actors: [PE-person, PE-member, PE-agent, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-08, P-11, P-12, P-13]
-state: partial
+state: verified
 tasks: [B-08, F2-12, F10-11]
-checked_by: [test/integration/move_test.go, core/domain/model/work/Path_test.go, apps/webapp/e2e/container.test.mjs, core/domain/service/Move_test.go, core/application/service/work/MoveWorkItem_test.go, apps/webapp/e2e/entrymenu.test.mjs, apps/webapp/e2e/kompassentry.test.mjs]
+checked_by: [test/integration/move_test.go, core/domain/model/work/Path_test.go, apps/webapp/e2e/container.test.mjs, core/domain/service/Move_test.go, core/application/service/work/MoveWorkItem_test.go, apps/webapp/e2e/entrymenu.test.mjs, apps/webapp/e2e/kompassentry.test.mjs, apps/webapp/e2e/calmlist.test.mjs, core/domain/service/Hierarchy_test.go]
 ---
 
 # Put work in order and move it where it belongs
@@ -53,9 +53,3 @@ by kind.
 * No manual sort that is private to one person: the rank is the collection's. A personal order is
   a saved view's sort ([UC-WRK-17](./UC-WRK-17-filter-sort-and-save-a-view-of-my-work.md)).
 * Moving many entries at once is [UC-WRK-08](./UC-WRK-08-change-many-entries-at-once.md).
-
-## Today
-
-* Check 1: not proven — the rank by drag, by the row's menu and by key is built, but no test in `checked_by` asserts it for an entry; the navigation concept's open points (`docs/backlog/navigation/README.md`).
-* Check 2: not proven — no test in `checked_by` asserts that the order survives a reload and reaches another device; the same open point.
-* Check 3: not proven — *Move inside* and *Move out* with their refusals are built, but no test in `checked_by` asserts them; the same open point.

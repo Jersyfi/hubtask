@@ -19,9 +19,11 @@
     /** The CI chosen, or none while nothing is. */
     chosen?: ConfigurationItem;
     onchoose: (ci: ConfigurationItem | undefined) => void;
+    /** The hub to open on - the entry's own, where the picker names a CI for one - else the first. */
+    hubId?: string;
   }
 
-  const { chosen, onchoose }: Props = $props();
+  const { chosen, onchoose, hubId: startHub }: Props = $props();
 
   const LIMIT = 8;
 
@@ -31,7 +33,9 @@
   let held = $state<readonly ConfigurationItem[] | undefined>(undefined);
 
   $effect(() => {
-    if (hubId === '' && hubs[0]) hubId = hubs[0].id;
+    if (hubId !== '') return;
+    const own = startHub && hubs.some((hub) => hub.id === startHub) ? startHub : undefined;
+    if (own ?? hubs[0]) hubId = own ?? hubs[0]?.id ?? '';
   });
   $effect(() => {
     const at = hubId;

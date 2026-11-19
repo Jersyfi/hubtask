@@ -32,7 +32,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">The verbs</p>
@@ -94,7 +94,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">The agent guide</p>
@@ -116,7 +116,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">Safety</p>
@@ -132,7 +132,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">Templates</p>

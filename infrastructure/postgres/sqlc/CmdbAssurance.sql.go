@@ -159,6 +159,25 @@ func (q *Queries) DeleteCmdbAffected(ctx context.Context, arg DeleteCmdbAffected
 	return i, err
 }
 
+const deleteCmdbGroup = `-- name: DeleteCmdbGroup :execrows
+DELETE FROM cmdb_ci_group
+WHERE tenant_id = current_tenant_id() AND id = $1 AND version = $2
+`
+
+type DeleteCmdbGroupParams struct {
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// Optimistic: zero rows is a group gone or changed meanwhile; the caller tells them apart.
+func (q *Queries) DeleteCmdbGroup(ctx context.Context, arg DeleteCmdbGroupParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteCmdbGroup, arg.ID, arg.ExpectedVersion)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteCmdbSoftwareAlias = `-- name: DeleteCmdbSoftwareAlias :execrows
 DELETE FROM cmdb_software_alias WHERE tenant_id = current_tenant_id() AND id = $1
 `
@@ -361,6 +380,37 @@ func (q *Queries) InsertCmdbAffected(ctx context.Context, arg InsertCmdbAffected
 	return result.RowsAffected(), nil
 }
 
+const insertCmdbAssetMove = `-- name: InsertCmdbAssetMove :exec
+INSERT INTO cmdb_asset_move (id, tenant_id, hub_id, ci_id, state, moved_at, moved_by, assigned_to, stockroom_id)
+VALUES ($1, current_tenant_id(), $2, $3, $4, $5,
+  $6, $7, $8)
+`
+
+type InsertCmdbAssetMoveParams struct {
+	ID          pgtype.UUID
+	HubID       pgtype.UUID
+	CiID        pgtype.UUID
+	State       string
+	MovedAt     pgtype.Timestamptz
+	MovedBy     pgtype.UUID
+	AssignedTo  pgtype.UUID
+	StockroomID pgtype.UUID
+}
+
+func (q *Queries) InsertCmdbAssetMove(ctx context.Context, arg InsertCmdbAssetMoveParams) error {
+	_, err := q.db.Exec(ctx, insertCmdbAssetMove,
+		arg.ID,
+		arg.HubID,
+		arg.CiID,
+		arg.State,
+		arg.MovedAt,
+		arg.MovedBy,
+		arg.AssignedTo,
+		arg.StockroomID,
+	)
+	return err
+}
+
 const insertCmdbAttestations = `-- name: InsertCmdbAttestations :exec
 INSERT INTO cmdb_attestation (tenant_id, campaign_id, ci_id, owner_id)
 SELECT current_tenant_id(), $1, c.ci_id, c.owner_id
@@ -488,6 +538,60 @@ func (q *Queries) ListCmdbAffectedOfItem(ctx context.Context, itemID pgtype.UUID
 			&i.CiID,
 			&i.AddedBy,
 			&i.AddedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCmdbAssetMoves = `-- name: ListCmdbAssetMoves :many
+SELECT id, hub_id, ci_id, state, moved_at, moved_by, assigned_to, stockroom_id
+FROM cmdb_asset_move
+WHERE tenant_id = current_tenant_id() AND ci_id = $1
+ORDER BY moved_at, id
+LIMIT $2
+`
+
+type ListCmdbAssetMovesParams struct {
+	CiID  pgtype.UUID
+	Batch int32
+}
+
+type ListCmdbAssetMovesRow struct {
+	ID          pgtype.UUID
+	HubID       pgtype.UUID
+	CiID        pgtype.UUID
+	State       string
+	MovedAt     pgtype.Timestamptz
+	MovedBy     pgtype.UUID
+	AssignedTo  pgtype.UUID
+	StockroomID pgtype.UUID
+}
+
+// An asset's life, oldest first.
+func (q *Queries) ListCmdbAssetMoves(ctx context.Context, arg ListCmdbAssetMovesParams) ([]ListCmdbAssetMovesRow, error) {
+	rows, err := q.db.Query(ctx, listCmdbAssetMoves, arg.CiID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCmdbAssetMovesRow{}
+	for rows.Next() {
+		var i ListCmdbAssetMovesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.HubID,
+			&i.CiID,
+			&i.State,
+			&i.MovedAt,
+			&i.MovedBy,
+			&i.AssignedTo,
+			&i.StockroomID,
 		); err != nil {
 			return nil, err
 		}
@@ -714,6 +818,57 @@ func (q *Queries) ListCmdbGroups(ctx context.Context, hubID pgtype.UUID) ([]List
 			&i.UpdatedBy,
 			&i.UpdatedAt,
 			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCmdbOpenWorkOfHub = `-- name: ListCmdbOpenWorkOfHub :many
+SELECT a.ci_id, a.item_id, wi.collection_id, c.parent_id AS hub_id
+FROM cmdb_affected a
+JOIN cmdb_ci ci ON ci.tenant_id = a.tenant_id AND ci.id = a.ci_id
+JOIN work_item wi ON wi.tenant_id = a.tenant_id AND wi.id = a.item_id
+JOIN container c ON c.tenant_id = wi.tenant_id AND c.id = wi.collection_id
+WHERE a.tenant_id = current_tenant_id() AND ci.hub_id = $1 AND ci.merged_into IS NULL
+  AND wi.deleted_at IS NULL AND wi.archived_at IS NULL AND NOT wi.is_completed AND c.deleted_at IS NULL
+ORDER BY a.added_at DESC, a.id
+LIMIT $2
+`
+
+type ListCmdbOpenWorkOfHubParams struct {
+	HubID pgtype.UUID
+	Batch int32
+}
+
+type ListCmdbOpenWorkOfHubRow struct {
+	CiID         pgtype.UUID
+	ItemID       pgtype.UUID
+	CollectionID pgtype.UUID
+	HubID        pgtype.UUID
+}
+
+// The open, living entries naming a CI of the hub, latest first and bounded: each CI's count of
+// open work. Whether the reader may see an entry is the application's to decide (rule 2).
+func (q *Queries) ListCmdbOpenWorkOfHub(ctx context.Context, arg ListCmdbOpenWorkOfHubParams) ([]ListCmdbOpenWorkOfHubRow, error) {
+	rows, err := q.db.Query(ctx, listCmdbOpenWorkOfHub, arg.HubID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCmdbOpenWorkOfHubRow{}
+	for rows.Next() {
+		var i ListCmdbOpenWorkOfHubRow
+		if err := rows.Scan(
+			&i.CiID,
+			&i.ItemID,
+			&i.CollectionID,
+			&i.HubID,
 		); err != nil {
 			return nil, err
 		}

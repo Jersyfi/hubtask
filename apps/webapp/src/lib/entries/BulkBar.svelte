@@ -399,7 +399,17 @@
      the bottom, so this is `fixed` for as long as there is a selection to act on. */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (width < 600px) {
-    .bar { position: static; }
+    /* A thumb's target (§7): every control of the bar at least layout.target tall - the buttons
+       and fields by their density's floor, a checkbox by its row, the whole row its label's. */
+    .bar {
+      position: static;
+      --density-control-sm-min: var(--layout-target);
+      --density-control-md-min: var(--layout-target);
+    }
+
+    .bar :global(.checkbox .row) { align-items: center; min-block-size: var(--layout-target); }
+    .bar :global(.checkbox .control) { margin-block-start: 0; }
+    .bar :global(.checkbox .label) { display: flex; flex: 1 1 auto; align-items: center; align-self: stretch; }
 
     .bar[data-active] {
       position: fixed;

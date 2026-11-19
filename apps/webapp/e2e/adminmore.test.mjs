@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { WORKSPACE, stub, forgetUnstubbed } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -46,8 +46,7 @@ async function column(browser, { severalPeople, path }) {
 const visible = async (nav, name) => (await nav.getByText(name, { exact: true }).filter({ visible: true }).count()) > 0;
 
 test('chromium: a workspace of one folds the advanced rows under More, and More opens them', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { nav, close } = await column(browser, { severalPeople: false, path: '/administration' });
   t.after(close);
 
@@ -62,8 +61,7 @@ test('chromium: a workspace of one folds the advanced rows under More, and More 
 });
 
 test('chromium: standing on a folded row finds its More open', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { nav, close } = await column(browser, { severalPeople: false, path: '/administration/voice' });
   t.after(close);
   // The row's own name, not the trail's last crumb, which names the same page.
@@ -71,8 +69,7 @@ test('chromium: standing on a folded row finds its More open', async (t) => {
 });
 
 test('chromium: a workspace of several folds nothing', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { nav, close } = await column(browser, { severalPeople: true, path: '/administration' });
   t.after(close);
   await nav.getByText('Voice assistants', { exact: true }).waitFor({ timeout: 10_000 });

@@ -137,6 +137,12 @@
     border-radius: var(--r-sm);
   }
 
+  /* A thumb's target (§7): a link of the trail is layout.target tall where the pointer is coarse. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .link { line-height: var(--layout-target); }
+  }
+
   .link:hover { color: var(--text-primary); text-decoration: underline; }
 
   /* The place itself reads as quietly as the levels above it; the title under the trail names it. */
@@ -144,6 +150,7 @@
 
   .ellipsis {
     display: inline-flex;
+    font: inherit;
     align-items: center;
     justify-content: center;
     min-width: var(--density-control-sm-min);

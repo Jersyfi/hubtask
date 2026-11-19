@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Jersyfi/hubtask/core/application/service/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/odata"
@@ -42,7 +43,7 @@ func (c *FeedDoor) feedBase(r *http.Request, presented string) string {
 }
 
 // dataFeed reads the feed's rows, or answers the one refusal and false.
-func (c *FeedDoor) dataFeed(w http.ResponseWriter, r *http.Request, presented string) ([]odata.Entry, bool) {
+func (c *FeedDoor) dataFeed(w http.ResponseWriter, r *http.Request, presented, filter string) ([]odata.Entry, bool) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	if c.Data == nil {
 		WriteProblem(w, errNotWired, requestID)
@@ -53,7 +54,12 @@ func (c *FeedDoor) dataFeed(w http.ResponseWriter, r *http.Request, presented st
 		WriteProblem(w, feedNotFound(), requestID)
 		return nil, false
 	}
-	exported, err := c.Data.Execute(r.Context(), token)
+	var exported work.ExportedView
+	if filter != "" {
+		exported, err = c.Data.ExecuteFiltered(r.Context(), token, filter)
+	} else {
+		exported, err = c.Data.Execute(r.Context(), token)
+	}
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return nil, false
@@ -89,7 +95,7 @@ func odataHeaders(w http.ResponseWriter) {
 
 // GetDataFeedService answers GET /odata/{token}.
 func (c *FeedDoor) GetDataFeedService(w http.ResponseWriter, r *http.Request, token openapi.DataFeedToken) {
-	if _, ok := c.dataFeed(w, r, token); !ok {
+	if _, ok := c.dataFeed(w, r, token, ""); !ok {
 		return
 	}
 	odataHeaders(w)
@@ -98,7 +104,7 @@ func (c *FeedDoor) GetDataFeedService(w http.ResponseWriter, r *http.Request, to
 
 // GetDataFeedMetadata answers GET /odata/{token}/$metadata.
 func (c *FeedDoor) GetDataFeedMetadata(w http.ResponseWriter, r *http.Request, token openapi.DataFeedToken) {
-	if _, ok := c.dataFeed(w, r, token); !ok {
+	if _, ok := c.dataFeed(w, r, token, ""); !ok {
 		return
 	}
 	odataHeaders(w)
@@ -110,11 +116,15 @@ func (c *FeedDoor) GetDataFeedMetadata(w http.ResponseWriter, r *http.Request, t
 
 // GetDataFeedEntries answers GET /odata/{token}/Entries.
 func (c *FeedDoor) GetDataFeedEntries(w http.ResponseWriter, r *http.Request, token openapi.DataFeedToken, params openapi.GetDataFeedEntriesParams) {
-	rows, ok := c.dataFeed(w, r, token)
+	var filter string
+	if params.Filter != nil {
+		filter = *params.Filter
+	}
+	rows, ok := c.dataFeed(w, r, token, filter)
 	if !ok {
 		return
 	}
-	page := odata.Page{}
+	page := odata.Page{Filter: filter}
 	if params.Skip != nil {
 		page.Skip = *params.Skip
 	}

@@ -55,7 +55,7 @@ export const goalRead = (found) => ({
   description: '', owner_id: ACCOUNT.id, confidence: null, grade: null, key_results: [], entries: { total: 0, done: 0 }, child_count: 0, progress: 0,
   version: 1, linked_entries: [], check_ins: [], ...found,
 });
-export const RELEASES = [{ id: id(710), hub_id: PD.id, name: 'Release 3.2', state: 'PLANNED', release_on: day(14), version: 1 }];
+export const RELEASES = [{ id: id(710), hub_id: PD.id, name: 'Release 3.2', state: 'PLANNED', release_on: day(14), version: 1, done_count: 0, open_count: 0 }];
 /** What is on the reader today: five entries due by tonight, and one later. */
 export const MINE = [0, 0, 0, -1, -2, 6].map((offset, i) => ({ id: id(800 + i), title: `Entry ${i + 1}`, collection_id: WEB.id, due_at: `${day(offset)}T00:00:00Z`, due_date_only: true, completion: { is_completed: false } }));
 export const ARRIVALS = [0, 1, 2].map((i) => ({ id: id(900 + i), channel: 'EMAIL', attachments: [], status: 'NEW', received_at: '2026-11-07T08:00:00Z' }));
@@ -208,7 +208,7 @@ export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, ad
     if (path.endsWith('/api/v1/entry-types')) {
       return route.fulfill({ json: { data: [{ key: 'incident', name: 'Incident', level: 'TASK', hub_id: null, form: { channels: [{ channel: 'PORTAL' }] } }], page: PAGE.page } });
     }
-    if (path.endsWith(`/api/v1/hubs/${IT.id}/queues`)) return route.fulfill({ json: { data: QUEUES } });
+    if (path.endsWith(`/api/v1/hubs/${IT.id}/queues`)) return route.fulfill({ json: { data: QUEUES, desks: [DESK.id] } });
     // A queue is a saved view of its hub; a starred one is read by its own address.
     const view = /\/api\/v1\/views\/([^/:]+)$/.exec(path);
     const queue = view && QUEUES.find((each) => each.view_id === view[1]);

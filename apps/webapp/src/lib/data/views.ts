@@ -143,6 +143,23 @@ export function queryOf(
   };
 }
 
+/**
+ * The read of a saved view living in a page (S-4): its own stored question, at its own stored scope,
+ * as `POST /items:query` takes it - the collection page's read, anchored where the view was saved
+ * rather than where the reader stands. The server answers only what the reader may see.
+ * `undefined` where the stored document names no scope: such a view has no rows to show.
+ */
+export function liveViewReadOf(stored: Record<string, unknown> | undefined, size: number): Record<string, unknown> | undefined {
+  const container = stored?.['scope_container_id'];
+  if (typeof container !== 'string' || container === '') return undefined;
+  return {
+    scope: { container_id: container, include_descendants: stored?.['include_descendants'] === true },
+    ...(stored?.['filter'] ? { filter: stored['filter'] } : {}),
+    ...(stored?.['sort'] ? { sort: stored['sort'] } : {}),
+    page: { size },
+  };
+}
+
 // --- the export ---------------------------------------------------------------------------------
 
 export const EXPORT_FORMATS = ['CSV', 'JSON', 'ICS'] as const;

@@ -63,6 +63,7 @@
     {/if}
     {#if menu}
       <span class="page-menu" data-bar="menu">
+        <!-- Not anchored: on a phone the page's menu is a sheet from the foot, as every menu of the page is (D-1). -->
         <Menu label={menu.label} items={menu.items} placement={{ side: 'block-end', align: 'end' }} onselect={menu.onselect}>
           {#snippet trigger(props)}
             <IconButton icon="ellipsis" label={menu.label} data-opener={menu.opener} {...props} />
@@ -80,7 +81,9 @@
     inset-block-start: 0;
     z-index: var(--z-sticky);
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
+    /* The title takes what is left between the way up and the buttons, never their room: the way
+       up keeps two thumbs' width (its words give way), the end its buttons. */
+    grid-template-columns: minmax(calc(var(--layout-target) * 2), 1fr) minmax(0, auto) minmax(min-content, 1fr);
     align-items: center;
     gap: var(--sp-050);
     min-block-size: var(--layout-appbar-height);
@@ -111,7 +114,8 @@
   .back {
     display: flex;
     align-items: center;
-    min-inline-size: 0;
+    /* Its words give way, never its press: at least a thumb's width (§7). */
+    min-inline-size: var(--layout-target);
     min-block-size: var(--layout-nav-touchrow);
     padding-inline-end: var(--sp-050);
     color: var(--text-brand);

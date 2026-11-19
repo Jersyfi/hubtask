@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { COLLECTION, ITEMS, signedIn, stub, chooseView } from './fixture.mjs';
@@ -39,8 +39,7 @@ async function withoutColumns(browser, entries) {
 }
 
 test('chromium: entries without a column are drawn in their lane while the collection has no column', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const entries = ITEMS.slice(0, 2).map((item) => ({ ...item, bucket_id: null }));
   const { page, failures, close } = await withoutColumns(browser, entries);
   t.after(close);
@@ -54,8 +53,7 @@ test('chromium: entries without a column are drawn in their lane while the colle
 });
 
 test('chromium: a board with neither a column nor an entry says what a column is', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await withoutColumns(browser, []);
   t.after(close);
 

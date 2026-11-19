@@ -47,6 +47,9 @@ const showcaseSelf = "0190a000-0000-7000-8000-00000000aaaa"
 const showcaseSprint = "0190a000-0000-7000-8000-00000000bbbb"
 const showcaseMacro = "0190a000-0000-7000-8000-00000000cccc"
 
+// showcaseKnowledge is the knowledge base page the desk's template brought.
+const showcaseKnowledge = "0190a000-0000-7000-8000-00000000dddd"
+
 func serveShowcase(t *testing.T) *showcaseInstallation {
 	t.Helper()
 	s := &showcaseInstallation{marks: map[string]map[string]any{}}
@@ -117,6 +120,9 @@ func serveShowcase(t *testing.T) *showcaseInstallation {
 		case r.Method == http.MethodGet && (strings.HasPrefix(path, "/goals/") || strings.HasPrefix(path, "/dashboards/")):
 			// The showcase's own check-ins moved it on since it was made at version 1.
 			answer(map[string]any{"id": strings.Split(path, "/")[2], "version": 3})
+		case r.Method == http.MethodGet && strings.HasPrefix(path, "/hubs/") && strings.HasSuffix(path, "/pages"):
+			// What the desk's template brings: its own knowledge base.
+			answer(map[string]any{"data": []any{map[string]any{"id": showcaseKnowledge, "title": "Wissensdatenbank"}}})
 		case r.Method == http.MethodGet:
 			answer(map[string]any{"data": []any{}, "version": 0})
 		case strings.HasSuffix(path, ":plan"):
@@ -165,8 +171,8 @@ func TestTheShowcaseMarksWhatItMakesAndMakesItOnce(t *testing.T) {
 	for _, m := range s.marks {
 		kinds[m["kind"].(string)]++
 	}
-	for kind, least := range map[string]int{"CONTAINER": 12, "ENTRY": 59, "PAGE": 10, "WHITEBOARD": 3, "GOAL": 4,
-		"PORTFOLIO": 2, "DASHBOARD": 2, "TIME_RECORD": 15} {
+	for kind, least := range map[string]int{"CONTAINER": 12, "ENTRY": 59, "PAGE": 9, "WHITEBOARD": 3, "GOAL": 4,
+		"PORTFOLIO": 2, "DASHBOARD": 3, "TIME_RECORD": 15} {
 		if kinds[kind] < least {
 			t.Errorf("%d marks of %s, want at least %d (%v)", kinds[kind], kind, least, kinds)
 		}
@@ -355,6 +361,83 @@ func TestTheShowcasesDeskOpensWithArticlesARunAndAWaitingChange(t *testing.T) {
 	// The CAB decides one; the other approval stays waiting.
 	if articles < 2 || !pressed || asked < 2 {
 		t.Errorf("%d articles on the portal, macro pressed on the request %v, %d changes asking the CAB", articles, pressed, asked)
+	}
+}
+
+// The desk's dashboard the work surface's scenes open (Servicedesk – Wochenüberblick) is made in the
+// desk's hub with every widget kind, inheriting the hub's filter; the showcase speaks German in a
+// German workspace, so neither a widget nor the desk's collection carries an English name.
+func TestTheShowcasesDeskDashboardShowsEveryKindInGerman(t *testing.T) {
+	s := serveShowcase(t)
+	if code, out, errOut := invoke(t, s.env(), "", "workspace", "demo", "--workspace", "nordlicht"); code != exitOK {
+		t.Fatalf("exit %d: %s %s", code, out, errOut)
+	}
+	desk, collections, dashboard := "", map[string]bool{}, map[string]any(nil)
+	titles := []string{}
+	for _, w := range s.bodies {
+		if w.path == "/containers" && w.body["type"] == "HUB" && w.body["name"] == "IT-Service-Desk" {
+			desk = w.id
+		}
+	}
+	for _, w := range s.bodies {
+		if w.path == "/containers" && w.body["parent_id"] == desk {
+			collections[str(w.body["name"])] = true
+		}
+		if w.path != "/dashboards" {
+			continue
+		}
+		widgets, _ := w.body["widgets"].([]any)
+		for _, raw := range widgets {
+			titles = append(titles, str(raw.(map[string]any)["title"]))
+		}
+		if w.body["name"] == "Servicedesk – Wochenüberblick" {
+			dashboard = w.body
+		}
+	}
+	if !collections["Änderungen"] || collections["Changes"] {
+		t.Errorf("the desk's collections: %v", collections)
+	}
+	if dashboard == nil {
+		t.Fatal("the desk's dashboard was not made")
+	}
+	kinds := map[string]bool{}
+	widgets, _ := dashboard["widgets"].([]any)
+	for _, raw := range widgets {
+		kinds[str(raw.(map[string]any)["chart"])] = true
+	}
+	if dashboard["hub_id"] != desk || !strings.Contains(str(dashboard["filter"]), "hub: "+desk) || len(kinds) != 9 {
+		t.Errorf("the desk's dashboard: hub %v, filter %q, kinds %v", dashboard["hub_id"], dashboard["filter"], kinds)
+	}
+	for _, title := range titles {
+		for _, word := range []string{"Entries", "Incidents", "Open ", "per week", "by "} {
+			if strings.Contains(title, word) {
+				t.Errorf("an English widget title: %q", title)
+			}
+		}
+	}
+}
+
+// The desk's articles go under the knowledge base its template brought, so the desk's pages show
+// one knowledge base, not two roots of the same name side by side.
+func TestTheShowcasesArticlesGoUnderTheTemplatesKnowledgeBase(t *testing.T) {
+	s := serveShowcase(t)
+	if code, out, errOut := invoke(t, s.env(), "", "workspace", "demo", "--workspace", "nordlicht"); code != exitOK {
+		t.Fatalf("exit %d: %s %s", code, out, errOut)
+	}
+	articles := 0
+	for _, w := range s.bodies {
+		if !strings.HasSuffix(w.path, "/pages") || !strings.HasPrefix(w.path, "/hubs/") {
+			continue
+		}
+		if strings.HasPrefix(str(w.body["title"]), "Wissensdatenbank") {
+			t.Errorf("a second knowledge base was made: %q", w.body["title"])
+		}
+		if w.body["parent_id"] == showcaseKnowledge {
+			articles++
+		}
+	}
+	if articles != 3 {
+		t.Errorf("%d articles under the template's knowledge base, want 3", articles)
 	}
 }
 

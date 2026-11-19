@@ -4,8 +4,8 @@
 // The end-user screens explain without breaking (UC-WRK-32 checks 2, 3, 4, 6 and 7): a read-only
 // area says why once, at its top, and its rows say nothing; what the reader may never do is not
 // offered; a form marks what is missing when it is pressed; a save shows its progress in place and
-// confirms afterwards. Read in the built app over the shared fixture, at the three widths a person
-// meets - by the words on the page, not by a class, so a reason that came back as a line under a
+// confirms afterwards. Read in the built app over the shared fixture, at the phone's and the wide
+// layout - by the words on the page, not by a class, so a reason that came back as a line under a
 // row is caught whatever it is called.
 
 import { test } from 'node:test';
@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, ARCHIVED, ARCHIVED_ENTRY, ARCHIVED_HUB, COLLECTION, IN_ARCHIVED, ITEMS, UNDER_ARCHIVED, UNDER_ARCHIVED_ENTRY, signedIn, viewBar, openNewCollection } from './fixture.mjs';
@@ -23,7 +23,10 @@ const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
 test.after(() => served.close());
 
-const WIDTHS = [375, 768, 1280];
+// The phone and the wide layout; the tablet width is the wide layout under the same breakpoint
+// (`medium`) and asserts nothing they do not, so it is walked once, by the archived collection.
+const WIDTHS = [375, 1280];
+const WITH_TABLET = [375, 768, 1280];
 
 /** Signs in with every memberships answer naming `role` for the reader at the workspace. */
 async function as(browser, width, role) {
@@ -52,10 +55,9 @@ async function rowBoxes(page) {
 const description = (locator) =>
   locator.evaluate((node) => (node.getAttribute('aria-describedby') ?? '').split(' ').filter(Boolean).map((id) => document.getElementById(id)?.textContent ?? '').join(' '));
 
-for (const width of WIDTHS) {
+for (const width of WITH_TABLET) {
   test(`chromium: ${width} px — an archived collection says why once, and its rows say nothing`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, failures } = await as(browser, width, 'OWNER');
     await page.goto(`${served.origin}/collections/${ARCHIVED.id}`);
     const note = page.locator('main [role="note"]');
@@ -89,10 +91,11 @@ for (const width of WIDTHS) {
     assert.deepEqual(await rowBoxes(page), before, 'trying the box moved a row');
     assert.deepEqual(failures, []);
   });
+}
 
+for (const width of WIDTHS) {
   test(`chromium: ${width} px — a member reads whom to ask, and under an archived hub every reason names the hub`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, failures } = await as(browser, width, 'MEMBER');
     await page.goto(`${served.origin}/collections/${ARCHIVED.id}`);
     const note = page.locator('main [role="note"]');
@@ -115,8 +118,7 @@ for (const width of WIDTHS) {
 }
 
 test('chromium: 1280 px — the page menu of a collection under an archived hub names the hub in every reason', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures } = await as(browser, 1280, 'OWNER');
   await page.goto(`${served.origin}/collections/${UNDER_ARCHIVED.id}`);
   await page.locator('main [role="note"]').waitFor({ timeout: 15_000 });
@@ -133,8 +135,7 @@ test('chromium: 1280 px — the page menu of a collection under an archived hub 
 
 for (const width of WIDTHS) {
   test(`chromium: ${width} px — an archived entry says why once; its children stay writable`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, failures } = await as(browser, width, 'OWNER');
     await withNotes(page, ARCHIVED_ENTRY);
     await page.goto(`${served.origin}/items/${ARCHIVED_ENTRY.id}`);
@@ -151,12 +152,15 @@ for (const width of WIDTHS) {
     if ((await title.count()) > 0) assert.equal(await title.getAttribute('title'), null, 'the title still carries the reason as a tooltip');
     await readOnlyTitleAndNotes(page);
 
-    // The completion box says done or not done and names the notice.
-    const box = page.getByRole('checkbox', { name: `Mark ${ARCHIVED_ENTRY.title} as done` });
-    assert.equal(await box.getAttribute('aria-disabled'), 'true');
-    assert.match(await description(box), /This entry is archived/);
+    // The status is read, not offered, and refers to the notice (§6.9: the status button replaced the box).
+    const status = page.locator('[data-tour="entry"] [data-steps] .status');
+    await status.waitFor({ timeout: 10_000 });
+    assert.equal(await status.evaluate((el) => el.tagName), 'SPAN', 'the status of an archived entry can be changed');
+    assert.match(await description(status), /This entry is archived/);
 
-    // Its child is an entry of its own and is not archived with it (ArchiveWorkItem.go).
+    // Its child is an entry of its own and is not archived with it (ArchiveWorkItem.go). On a phone
+    // one section shows at a time (§7): the parts are a press away.
+    if (width < 600) await page.getByRole('navigation', { name: /^Sections of/ }).getByRole('link', { name: /^Parts/ }).click();
     await page.getByText(UNDER_ARCHIVED_ENTRY.title).first().waitFor({ timeout: 10_000 });
     const child = page.getByRole('checkbox', { name: `Mark ${UNDER_ARCHIVED_ENTRY.title} as done` });
     assert.equal(await child.getAttribute('aria-disabled'), null, 'the child of an archived entry is frozen');
@@ -165,8 +169,7 @@ for (const width of WIDTHS) {
   });
 
   test(`chromium: ${width} px — an entry in an archived collection says the collection's reason, and a viewer reads its role's`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, failures } = await as(browser, width, 'OWNER');
     await withNotes(page, IN_ARCHIVED);
     await page.goto(`${served.origin}/items/${IN_ARCHIVED.id}`);
@@ -199,15 +202,20 @@ async function withNotes(page, entry) {
 
 /**
  * The entry's title and notes are drawn and refuse typing (UC-WRK-02 check 6), and the notes read
- * exactly as typed, markup characters and spaces included (UC-WRK-02 check 4).
+ * formatted, a typed tag kept as text (UC-WRK-02 check 4).
  */
 async function readOnlyTitleAndNotes(page) {
-  for (const name of ['Title', 'Notes']) {
-    const field = page.getByRole('textbox', { name, exact: true }).first();
-    await field.waitFor({ timeout: 10_000 });
-    assert.equal(await field.evaluate((el) => el.readOnly), true, `the ${name.toLowerCase()} can be typed in`);
-  }
-  assert.equal(await page.getByRole('textbox', { name: 'Notes', exact: true }).inputValue(), NOTES);
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 10_000 });
+  assert.equal(await page.getByRole('button', { name: 'Edit title' }).count(), 0, 'the title can be edited');
+  // Read only, the notes are the text they are, not a textbox a screen reader offers for typing.
+  const notes = page.locator('#entry-description .page-body').first();
+  await notes.waitFor({ timeout: 10_000 });
+  assert.notEqual(await notes.getAttribute('contenteditable'), 'true', 'the notes can be typed in');
+  assert.equal(await page.getByRole('textbox', { name: 'Notes', exact: true }).count(), 0, 'read-only notes are announced as a textbox');
+  // Read formatted (UC-WRK-02 check 4): the bold is bold, the tag stays text, the line its own.
+  assert.equal(await notes.locator('strong', { hasText: 'Not bold' }).count(), 1, 'the notes are not read formatted');
+  assert.equal(await notes.locator('b').count(), 0, 'markup typed into the notes became a tag');
+  assert.match(await notes.innerText(), /<b>not a tag<\/b>/);
 }
 
 /** A collection's template and a workspace-wide one, and one private saved view. */
@@ -237,8 +245,9 @@ async function openPart(page, tab, mayShape) {
   // A viewer's page menu may hold nothing at all, so it is not where this starts.
   await page.getByRole('heading', { name: COLLECTION.name, level: 1 }).waitFor({ state: 'attached', timeout: 15_000 });
   if (tab !== 'Templates') return undefined;
-  // The list's own add, which a reader who may add is offered and nobody else.
-  const add = page.getByRole('main').getByRole('button', { name: 'Add an entry', exact: true });
+  // The list's own add, which a reader who may add is offered and nobody else; it is named by
+  // its place ("Entry in “…”"), so it is found by its opener.
+  const add = page.getByRole('main').locator('button[data-opener="add-entry"]');
   await page.waitForTimeout(400);
   if ((await add.count()) === 0) return undefined;
   await add.first().click();
@@ -252,8 +261,7 @@ async function openPart(page, tab, mayShape) {
 
 for (const [role, may] of [['OWNER', { use: true, shape: true }], ['MEMBER', { use: true, shape: false }], ['VIEWER', { use: false, shape: false }]]) {
   test(`chromium: 1280 px — templates and fields offer a ${role.toLowerCase()} only what the role allows, with no reason for the rest`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, context, failures } = await as(browser, 1280, role);
     await context.route('**/api/v1/templates**', (route) => route.fulfill({ json: { data: TEMPLATES, page: { next_cursor: null, has_more: false } } }));
 
@@ -312,14 +320,13 @@ for (const [role, may] of [['OWNER', { use: true, shape: true }], ['MEMBER', { u
 }
 
 test('chromium: 1280 px — a saved view offers sharing only to who may share, and a way it cannot take says why in the list', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   for (const [role, mayShare] of [['OWNER', true], ['MEMBER', false]]) {
     const { page, context, failures } = await as(browser, 1280, role);
     await context.route('**/api/v1/**/views**', (route) => route.fulfill({ json: VIEWS }));
     await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
-    await page.locator('[data-opener="views"]').click();
-    await page.getByRole('menuitem', { name: 'Rename, share or delete a view…' }).click();
+    await page.locator('[data-opener="view"]').click();
+    await page.locator('[data-view-panel]').getByRole('button', { name: 'Rename, share or delete a view…' }).click();
     const dialog = page.getByRole('dialog', { name: 'Saved views' });
     await dialog.getByText('Mine, due soon').waitFor({ timeout: 10_000 });
     await page.waitForTimeout(400);
@@ -347,16 +354,16 @@ function writes(context) {
 
 for (const width of WIDTHS) {
   test(`chromium: ${width} px — a bulk Apply without its value marks the field and sends nothing`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, context, failures } = await as(browser, width, 'OWNER');
     const sent = writes(context);
     await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
     await page.locator('.task-row').first().waitFor({ timeout: 15_000 });
-    // Selecting is the toolbar's; below `expanded` its *Filter* sheet holds it.
-    const toolbar = viewBar(page);
-    if ((await toolbar.getByRole('button', { name: 'Select entries' }).count()) === 0) await toolbar.getByRole('button', { name: 'Filter' }).click();
-    await page.getByRole('button', { name: 'Select entries' }).click();
+    // Selecting is the list's tools' from `medium`; on a phone it is in the bar's ⋯ (scene board 4).
+    if ((await page.getByRole('button', { name: 'Select entries' }).count()) === 0) {
+      await page.locator('[data-bar="menu"] button').click();
+      await page.getByRole('menuitem', { name: 'Select entries' }).click();
+    } else await page.getByRole('button', { name: 'Select entries' }).click();
     await page.getByRole('checkbox', { name: `Select ${ITEMS[0].title}` }).check();
     await page.getByLabel('Do this').selectOption({ label: 'Give to somebody' });
     const apply = page.getByRole('button', { name: 'Apply', exact: true });
@@ -368,8 +375,7 @@ for (const width of WIDTHS) {
   });
 
   test(`chromium: ${width} px — creating a collection without a name marks the name and sends nothing`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, context, failures } = await as(browser, width, 'OWNER');
     const sent = writes(context);
     await page.goto(`${served.origin}/hubs/${COLLECTION.parent_id}`);
@@ -384,8 +390,7 @@ for (const width of WIDTHS) {
 }
 
 test('chromium: 1280 px — a reminder counted from a due date the entry lacks is marked on save, and a fixed time stays reachable', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await as(browser, 1280, 'OWNER');
   const sent = writes(context);
   const undated = ITEMS.find((each) => !each.due_at) ?? ITEMS[0];
@@ -411,8 +416,7 @@ test('chromium: 1280 px — a reminder counted from a due date the entry lacks i
 });
 
 test('chromium: 1280 px — Ask is absent for an arrival with nothing to ask about', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures } = await as(browser, 1280, 'OWNER');
   await page.goto(`${served.origin}/jumble`);
   await page.locator('main').waitFor({ timeout: 15_000 });

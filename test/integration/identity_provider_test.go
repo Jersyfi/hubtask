@@ -24,12 +24,14 @@ import (
 // unusable next door.
 
 var (
-	idpTenantA  = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fc01")
-	idpTenantB  = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fc02")
-	idpAccount  = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fc11")
-	idpRowA     = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fc31")
-	idpRowASec  = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fc32")
-	idpRowShare = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fc33")
+	idpTenantA   = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fc01")
+	idpTenantB   = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fc02")
+	idpAccount   = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fc11")
+	idpRowA      = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fc31")
+	idpRowASec   = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fc32")
+	idpRowShare  = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fc33")
+	idpRowOwn    = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fc34")
+	idpRowOwnSec = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fc35")
 )
 
 func seedIdentityProviderTenants(ctx context.Context, t *testing.T) {
@@ -43,6 +45,14 @@ func seedIdentityProviderTenants(ctx context.Context, t *testing.T) {
 		`INSERT INTO account (id, tenant_id, kind, email, display_name, status)
 		 VALUES ('` + idpAccount.String() + `', '` + idpTenantA.String() + `', 'USER',
 		         'ada@example.org', 'Ada', 'ACTIVE')
+		 ON CONFLICT (id) DO NOTHING`,
+		// The providers the sign-in, step-up and terms tests sign in through, so each stands alone.
+		`INSERT INTO identity_provider (id, tenant_id, issuer, client_id, client_secret_enc,
+		         client_secret_key_id, created_at)
+		 VALUES ('` + idpRowA.String() + `', '` + idpTenantA.String() + `', 'https://login.signin.example',
+		         'hubtask-signin', '\x00', 'k1', now()),
+		        ('` + idpRowASec.String() + `', '` + idpTenantA.String() + `', 'https://login.signin2.example',
+		         'hubtask-signin', '\x00', 'k1', now())
 		 ON CONFLICT (id) DO NOTHING`,
 	}
 	for _, statement := range statements {
@@ -61,7 +71,7 @@ func TestOneWorkspacesProviderIsInvisibleNextDoor(t *testing.T) {
 	now := time.Now().UTC()
 
 	configured, err := domain.NewIdentityProvider(domain.NewIdentityProviderInput{
-		ID: idpRowA, TenantID: idpTenantA, Issuer: "https://login.a.example", ClientID: "hubtask-a",
+		ID: idpRowOwn, TenantID: idpTenantA, Issuer: "https://login.a.example", ClientID: "hubtask-a",
 		AllowedEmailDomains: []string{"a.example"}, Enabled: true, Now: now,
 	})
 	if err != nil {
@@ -93,12 +103,12 @@ func TestOneWorkspacesProviderIsInvisibleNextDoor(t *testing.T) {
 		if len(listed) != 0 {
 			t.Errorf("B sees %d providers, want none of A's", len(listed))
 		}
-		if _, err := providers.Find(ctx, idpRowA); err == nil {
+		if _, err := providers.Find(ctx, idpRowOwn); err == nil {
 			t.Error("A's provider is visible next door")
 		} else if !isNotFound(err) {
 			t.Errorf("B's read answered %v, want not found", err)
 		}
-		if _, _, err := providers.FindWithSecret(ctx, idpRowA); err == nil {
+		if _, _, err := providers.FindWithSecret(ctx, idpRowOwn); err == nil {
 			t.Error("A's sealed secret is readable next door")
 		}
 		stolen := configured
@@ -109,7 +119,7 @@ func TestOneWorkspacesProviderIsInvisibleNextDoor(t *testing.T) {
 		if _, found, err := providers.Reconfigure(ctx, stolen, nil, now); err != nil || found {
 			t.Errorf("B reconfigured A's provider: (%v, %v)", found, err)
 		}
-		removed, err := providers.Delete(ctx, idpRowA, now)
+		removed, err := providers.Delete(ctx, idpRowOwn, now)
 		if err != nil {
 			t.Fatalf("B's delete: %v", err)
 		}
@@ -121,7 +131,7 @@ func TestOneWorkspacesProviderIsInvisibleNextDoor(t *testing.T) {
 
 	// And A still has it, secret and all - unchanged by what B tried.
 	inTenant(t, uow, idpTenantA, func(ctx context.Context) error {
-		found, envelope, err := providers.FindWithSecret(ctx, idpRowA)
+		found, envelope, err := providers.FindWithSecret(ctx, idpRowOwn)
 		if err != nil {
 			t.Fatalf("reading A's provider back: %v", err)
 		}
@@ -136,7 +146,7 @@ func TestOneWorkspacesProviderIsInvisibleNextDoor(t *testing.T) {
 
 	// Plural: a second provider on the same workspace, and both are in force.
 	second, err := domain.NewIdentityProvider(domain.NewIdentityProviderInput{
-		ID: idpRowASec, TenantID: idpTenantA, Issuer: "https://login.a2.example",
+		ID: idpRowOwnSec, TenantID: idpTenantA, Issuer: "https://login.a2.example",
 		ClientID: "hubtask-a2", Enabled: true, Position: 1, Now: now,
 	})
 	if err != nil {
@@ -150,11 +160,12 @@ func TestOneWorkspacesProviderIsInvisibleNextDoor(t *testing.T) {
 		if err != nil {
 			t.Fatalf("A's list: %v", err)
 		}
-		if len(listed) != 2 {
-			t.Fatalf("A sees %d providers, want both", len(listed))
+		// Both of this test's rows beside the two the sign-in tests share.
+		if len(listed) != 4 {
+			t.Fatalf("A sees %d providers, want all four", len(listed))
 		}
 		counted, err := providers.Count(ctx)
-		if err != nil || counted != 2 {
+		if err != nil || counted != 4 {
 			t.Errorf("A counts %d providers (%v)", counted, err)
 		}
 		return nil
@@ -172,7 +183,7 @@ func TestOneWorkspacesProviderIsInvisibleNextDoor(t *testing.T) {
 		if stored.Version != 2 || stored.DisplayName != "The other directory" {
 			t.Errorf("the reconfiguration answered %+v", stored)
 		}
-		_, envelope, err := providers.FindWithSecret(ctx, idpRowASec)
+		_, envelope, err := providers.FindWithSecret(ctx, idpRowOwnSec)
 		if err != nil {
 			t.Fatalf("reading the secret back: %v", err)
 		}
@@ -200,8 +211,8 @@ func TestOneWorkspacesProviderIsInvisibleNextDoor(t *testing.T) {
 	var rows int
 	if err := adminPool(ctx, t).QueryRow(ctx,
 		`SELECT count(*) FROM identity_provider WHERE tenant_id = $1`, idpTenantA.String(),
-	).Scan(&rows); err != nil || rows != 2 {
-		t.Errorf("A holds %d provider rows (%v), want two", rows, err)
+	).Scan(&rows); err != nil || rows != 4 {
+		t.Errorf("A holds %d provider rows (%v), want four", rows, err)
 	}
 }
 

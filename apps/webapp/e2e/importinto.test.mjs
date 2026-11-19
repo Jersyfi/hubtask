@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, COLLECTION, HUB, ITEMS, MANIFEST, OWNER_GRANTS, PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -37,8 +37,7 @@ const object = (status) => ({
 });
 
 test('chromium: Import a file, from capture in a collection, lands the file there and reads its entries again', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   const sent = [];
@@ -104,7 +103,7 @@ test('chromium: Import a file, from capture in a collection, lands the file ther
   await page.getByText(ITEMS[2].title).first().waitFor();
   await page.waitForTimeout(600);
   // Importing is one of capture's ways of adding: a tab, the import in its panel, the dialog the same.
-  await page.getByRole('main').getByRole('button', { name: 'Add an entry', exact: true }).first().click();
+  await page.getByRole('main').locator('button[data-opener="add-entry"]').first().click();
   await page.getByRole('dialog', { name: 'Capture' }).getByRole('tab', { name: 'Import a file' }).click();
 
   const dialog = page.getByRole('dialog', { name: 'Capture' }).getByRole('tabpanel');

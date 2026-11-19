@@ -6,8 +6,8 @@
   // who owns it and who answered what, and a campaign started or closed.
   //
   // **Who may answer is the server's rule, drawn** (P-05): the person asked answers their own CIs
-  // with READ on the hub, a writer any of them; a closed campaign offers no answer. Starting and
-  // closing need WRITE_ITEMS and are not drawn without it.
+  // with READ on the hub, a writer any of them; a closed campaign offers no answer. Starting,
+  // reminding and closing need WRITE_ITEMS and are not drawn without it.
 
   import { untrack } from 'svelte';
   import { Badge, Button, CheckboxGroup, Dialog, Input, Spinner, Stack } from '@hubtask/design-system/components';
@@ -18,7 +18,7 @@
   import { accounts } from '../data/accounts.svelte.ts';
   import {
     attestationsInOrder, campaignDraft, campaignMissing, campaignPath, campaignStart, campaignsPath, classWord, cmdb, instantiable, mayAttest,
-    percent, verdictTone, type CampaignDraft, type Words,
+    percent, verdictTone, waitingOwners, type CampaignDraft, type Words,
   } from '../data/cmdb.svelte.ts';
   import { engine } from '../data/engine.ts';
   import { toast } from '../frame/toasts.svelte.ts';
@@ -68,6 +68,11 @@
     );
   });
   const questions = $derived(detail ? attestationsInOrder(detail, me) : []);
+  // The people asked and answering, by name: the name cache holds only what a screen asked for.
+  $effect(() => {
+    const ids = questions.flatMap((each) => [each.owner_id, each.attested_by]).filter((each): each is string => Boolean(each));
+    if (ids.length > 0) untrack(() => accounts.resolve(ids));
+  });
 
   async function act<T>(run: () => Promise<T>, done: string): Promise<T | undefined> {
     try {
@@ -77,6 +82,20 @@
     } catch (error) {
       toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
       return undefined;
+    }
+  }
+
+  // *Remind* (scene `invcare`): the owners the round still waits for, each told once.
+  let isReminding = $state(false);
+  async function remind(round: CiCampaign) {
+    isReminding = true;
+    try {
+      const answer = await cmdb.remindCampaign(round);
+      toast.show({ text: t('app.campaigns.reminded', { count: answer.reminded }), tone: 'success' });
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+    } finally {
+      isReminding = false;
     }
   }
 
@@ -162,6 +181,11 @@
         {:else}
           <div class="part-head">
             <h2 id="campaign-open" class="heading">{detail.name}</h2>
+            {#if mayWrite && !detail.closed_at && waitingOwners(detail, me) > 0}
+              <Button size="sm" tone="subtle" data-remind-round isBusy={isReminding} onclick={() => detail && void remind(detail)}>
+                {t('app.campaigns.remind')}
+              </Button>
+            {/if}
             {#if mayWrite && !detail.closed_at}
               <Button size="sm" tone="secondary" data-close-campaign onclick={() => detail && void act(() => cmdb.closeCampaign(detail!), t('app.campaigns.closed_done'))}>
                 {t('app.campaigns.close')}
@@ -246,4 +270,9 @@
   .figures dt { color: var(--text-secondary); font-size: var(--fs-075); }
   .figures dd { margin: 0; font-size: var(--fs-300); font-weight: var(--fw-semibold); }
   .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
+  /* A thumb's target (§7, N20): a round's row is as tall as a press. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .pick { min-block-size: var(--layout-target); }
+  }
 </style>

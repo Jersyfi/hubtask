@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, COLLECTION, HUB, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -27,8 +27,7 @@ const served = await serve(DIST);
 test.after(() => served.close());
 
 test('chromium: the trash counts down to the day the automatic removal may take an entry', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
 
@@ -62,8 +61,7 @@ test('chromium: the trash counts down to the day the automatic removal may take 
 });
 
 test('chromium: a deletion a legal hold keeps says so, and counts no days', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
 
@@ -99,8 +97,7 @@ test('chromium: a deletion a legal hold keeps says so, and counts no days', asyn
 // UC-PRV-04 check 8: a deletion a restriction of processing keeps says that it is the restriction,
 // not a legal hold, and counts no days either.
 test('chromium: a deletion a restriction keeps says so, and counts no days', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
 
@@ -136,8 +133,7 @@ test('chromium: a deletion a restriction keeps says so, and counts no days', asy
 // One trash (user-experience.md §5.9): a hub's *Trash* is a link into /trash narrowed to its kind,
 // so the address carries the kind, the list is asked for it, and the filter says it.
 test('chromium: /trash?kind=PAGE asks for pages only and the filter says so', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
 

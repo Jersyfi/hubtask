@@ -25,7 +25,7 @@ export interface LevelRoute {
 
 /** Routes whose `:id` is a hub. */
 const HUB_ROUTES = new Set([
-  'hub', 'hub-pages', 'hub-contents', 'hub-desk', 'hub-plan', 'hub-plan-table', 'hub-plan-dependencies', 'hub-plan-releases', 'hub-plan-sprints', 'hub-inventory', 'hub-inventory-section',
+  'hub', 'hub-pages', 'hub-posts', 'hub-contents', 'hub-desk', 'hub-plan', 'hub-plan-table', 'hub-plan-dependencies', 'hub-plan-releases', 'hub-plan-sprints', 'hub-inventory', 'hub-inventory-section',
   'hub-time', 'hub-time-workload', 'hub-time-budget', 'hub-goals', 'hub-goals-dashboards', 'hub-settings', 'hub-settings-section',
 ]);
 /** Routes whose `:id` is a collection. */
@@ -34,7 +34,7 @@ const COLLECTION_ROUTES = new Set(['collection', 'collection-timeline', 'collect
  * Routes whose place the screen names once it has read it (`page.locate`): an entry, a page, a
  * board, a CI, a goal, a dashboard. A detail screen stays in the level of the place that owns it.
  */
-const LOCATED_ROUTES = new Set(['item', 'page', 'whiteboard', 'ci', 'goal', 'dashboard']);
+const LOCATED_ROUTES = new Set(['item', 'page', 'post', 'post-write', 'whiteboard', 'ci', 'goal', 'dashboard']);
 
 /**
  * The level a route shows (§2.4, §6.1): anything of a hub - the hub, a tool, a collection, a page,
@@ -137,9 +137,9 @@ export function withHidden(list: readonly string[] | null | undefined, id: strin
  * The sidebar's sections that fold, each remembered per device (`device.isSectionOpen`); a
  * section's *More* folds by its own key and starts folded.
  */
-export type NavSection = 'starred' | 'products' | 'products-more' | 'hubs' | 'hubs-more' | 'collections' | 'contents';
+export type NavSection = 'starred' | 'products' | 'products-more' | 'hubs' | 'hubs-more' | 'collections' | 'contents' | 'posts';
 export const SECTION_OPEN_AT_FIRST: Readonly<Record<NavSection, boolean>> = {
-  starred: true, products: true, 'products-more': false, hubs: true, 'hubs-more': false, collections: true, contents: true,
+  starred: true, products: true, 'products-more': false, hubs: true, 'hubs-more': false, collections: true, contents: true, posts: true,
 };
 
 /**

@@ -31,6 +31,10 @@
   // finds it - and its foot goes, since the bar now holds both ways out. Without `size` it keeps the
   // look it had before the sizes, so no caller changes by accident; each names its rung in turn.
   //
+  // `hangsFrom` hangs it under the control that opened it, its end on the control's end, the way a
+  // menu hangs (`anchor.ts`): a panel worked in from the bar - *Create* - rather than a question
+  // put in the middle. The control names it, so it draws no head; Escape and the backdrop close it.
+  //
   // `onDismiss` is asked before the close control, Escape or the backdrop close it. Answering
   // `false` keeps it open, and the caller then opens its *Discard changes?* Dialog S - the one
   // dialog allowed over another. A close by an action never asks.
@@ -39,8 +43,10 @@
 
   import Button from './Button.svelte';
   import IconButton from './IconButton.svelte';
+  import { anchorTo } from './anchor.ts';
   import { escapeHandler, focusReturn } from './focus.ts';
   import { layers } from './layers.ts';
+  import { closeName } from './media.ts';
 
   /** The primary of a sized dialog: drawn last in the foot, and in the bar when it is full screen. */
   export interface DialogAction {
@@ -71,6 +77,8 @@
     primary?: DialogAction;
     /** Asked before the person closes it without answering; `false` keeps it open. */
     onDismiss?: () => boolean;
+    /** The control it hangs from instead of standing in the middle; it then draws no head. */
+    hangsFrom?: HTMLElement;
     /** The buttons that answer it - *Cancel*; the primary goes into `primary` where there is one. */
     actions?: Snippet;
     children: Snippet;
@@ -85,6 +93,7 @@
     size,
     primary,
     onDismiss,
+    hangsFrom,
     actions,
     children,
   }: Props = $props();
@@ -134,6 +143,7 @@
 
     opener = document.activeElement;
     if (!dialog.open) dialog.showModal();
+    const untie = hangsFrom ? anchorTo(hangsFrom, dialog, { placement: { side: 'block-end', align: 'end' }, isInTopLayer: true }) : undefined;
     firstField()?.focus();
 
     // Refused, the dismissal leaves the dialog open, so it goes back into the register - below the
@@ -145,6 +155,7 @@
     document.addEventListener('keydown', onKeydown);
 
     return () => {
+      untie?.();
       document.removeEventListener('keydown', onKeydown);
       handle.release();
       if (dialog.open) dialog.close();
@@ -174,6 +185,7 @@
   class="dialog"
   data-wide={isWide && !size ? '' : undefined}
   data-size={size}
+  data-hangs={hangsFrom ? '' : undefined}
   bind:this={node}
   aria-labelledby={titleId}
   oncancel={(event) => event.preventDefault()}
@@ -195,7 +207,7 @@
         </span>
       {/if}
       {#if dismissLabel}
-        <span class="dismiss"><IconButton icon="x" label={dismissLabel} size="sm" onclick={() => dismiss()} /></span>
+        <span class="dismiss"><IconButton icon="x" label={closeName() ?? dismissLabel} size="sm" onclick={() => dismiss()} /></span>
       {/if}
     </header>
     <div class="body" bind:this={body}>{@render children()}</div>
@@ -259,7 +271,9 @@
   }
 
   .dialog[data-size] .head { align-items: center; gap: var(--sp-150); padding: var(--sp-300) var(--sp-300) var(--sp-150); }
-  .dialog[data-size] .title { flex: 1; font-size: var(--fs-500); }
+  /* One title size on every rung of the ladder (the unsized one's): a dialog is told apart by its
+     width, never by a heading that grows with it. */
+  .dialog[data-size] .title { flex: 1; }
   .dialog[data-size] .body {
     flex: 1 1 auto;
     min-block-size: 0;
@@ -274,6 +288,11 @@
     padding: var(--sp-200) var(--sp-300);
     border-block-start: var(--bw-hairline) solid var(--border-subtle);
   }
+
+  /* Hung from its control: just under it, its head left to the control that names it. */
+  .dialog[data-hangs] { margin: 0; margin-block-start: var(--sp-100); }
+  .dialog[data-hangs] .head { display: none; }
+  .dialog[data-size][data-hangs] .body { padding-block-start: var(--sp-200); }
 
   .bar-primary { display: none; }
   .dismiss { display: inline-flex; }
@@ -354,6 +373,17 @@
     justify-content: flex-end;
     gap: var(--sp-100);
   }
+
+  /* The foot's one order (page-system §5.1): the ways out first and in the secondary look, the
+     one primary at the end, wherever a caller wrote it. */
+  .actions :global(.button[data-tone='primary']),
+  .actions :global(.button[data-tone='danger']:last-child) { order: 1; }
+  .actions :global(.button[data-tone='subtle']) {
+    border-color: var(--border-default);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+  }
+  .actions :global(.button[data-tone='subtle']:hover:not([aria-disabled='true'])) { background: var(--bg-surface-hover); }
 
   @keyframes open {
     from { opacity: 0; transform: scale(0.98); }

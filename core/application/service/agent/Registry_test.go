@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/agent"
@@ -40,6 +41,36 @@ func TestTheRegistryShowsAMemberOnlyTheirOwnAgents(t *testing.T) {
 	}
 	if _, err := invoke(t, list, ana, usecase.Input{"owner_id": ben.String()}); !errors.Is(err, shared.ErrForbidden) {
 		t.Fatalf("ana asked for ben's agents: %v", err)
+	}
+}
+
+// The registry says of each agent what its card shows (UC-AGT-01): what it spent today and when
+// its latest job started - none before its first.
+func TestTheRegistrySaysWhatEachAgentSpentAndWhenItLastRan(t *testing.T) {
+	f := newFixture()
+	busy := f.register(t, nil)
+	f.register(t, usecase.Input{"name": "Quiet"})
+	now := f.desk.Clock.Now()
+	f.store.actions = append(f.store.actions, domain.Action{AgentID: busy.ID, Tokens: 340, At: now.Add(-time.Minute)})
+	started := now.Add(-2 * time.Hour).UTC()
+	f.store.jobs[shared.ID("01a0e2e0-0000-7000-8000-00000000j001")] = domain.Job{AgentID: busy.ID, StartedAt: started}
+
+	all, err := invoke(t, ListAgents{Desk: f.desk}.Descriptor(), admin, usecase.Input{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range all["data"].([]usecase.Output) {
+		usage := row["usage"].(usecase.Output)
+		switch row["name"] {
+		case "Triage":
+			if usage["tokens_today"] != int64(340) || row["last_run_at"] != started.Format(time.RFC3339) {
+				t.Fatalf("the busy agent says %v, last run %v", usage, row["last_run_at"])
+			}
+		default:
+			if usage["tokens_today"] != int64(0) || row["last_run_at"] != nil {
+				t.Fatalf("the quiet agent says %v, last run %v", usage, row["last_run_at"])
+			}
+		}
 	}
 }
 

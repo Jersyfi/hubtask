@@ -292,6 +292,8 @@ func TestAMoveCannotReachAnotherTenant(t *testing.T) {
 }
 
 // The acceptance criterion for the ranks: an insertion between two neighbours renumbers nothing else.
+// UC-WRK-06 check 2: the rank is the stored row's, read back in a new transaction - what a reload,
+// another device and every other member read.
 func TestReorderingBetweenTwoNeighboursTouchesOneRow(t *testing.T) {
 	ctx := context.Background()
 	collection := collectionFor(ctx, t, tenantA, authorA)

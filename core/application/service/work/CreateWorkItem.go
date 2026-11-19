@@ -198,6 +198,8 @@ type CreateWorkItem struct {
 	// Workflow gives a new entry the initial status of the workflow its collection runs for its
 	// type (UC-FLW-02). A build without it runs none.
 	Workflow WorkflowGate
+	// Boards keeps the new entry's column agreeing with where it stands (domain-model.md §3.5a).
+	Boards Boards
 }
 
 // Execute creates the item and returns it, together with what automatic assignment did when it
@@ -290,8 +292,23 @@ func (h CreateWorkItem) Execute(
 				return err
 			}
 		}
+		// The column agrees with where the entry stands (domain-model.md §3.5a): under a workflow
+		// it shows the initial status; without one, an entry created into the done column is done.
+		coupled, err := h.Boards.couple(ctx, domain.WorkItem{Type: item.Type, CollectionID: item.CollectionID}, item, actor.AccountID, now)
+		if err != nil {
+			return err
+		}
+		item.BucketID = coupled.BucketID
 		if item, err = h.Items.Insert(ctx, item); err != nil {
 			return err
+		}
+		if coupled.Completion.IsCompleted && !item.Completion.IsCompleted {
+			done := item.Completed(actor.AccountID, now)
+			if err := h.Items.SetCompletion(ctx, done, item.Version); err != nil {
+				return err
+			}
+			done.Version = item.Version + 1
+			item = done
 		}
 
 		// One snapshot, two recipients - the event outwards as a public contract, the change log

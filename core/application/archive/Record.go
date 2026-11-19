@@ -593,6 +593,14 @@ var entities = []Entity{
 			{Field: "published_by", Table: "account", Clearable: true}, {Field: "hub_id", Table: "container"},
 		},
 	},
+	// Which statuses a column shows (migration 0395): after the buckets and the workflows.
+	{
+		Name: "bucket_statuses", Table: "bucket_status", Whole: true, Later: true, Duplicable: true,
+		Keys: []string{"collection_id", "status"},
+		References: []Reference{
+			{Field: "collection_id", Table: "container"}, {Field: "bucket_id", Table: "bucket"},
+		},
+	},
 	{
 		Name: "workflow_schemes", Table: "workflow_scheme", Whole: true, Later: true, Duplicable: true,
 		Keys:       []string{"container_id", "entry_type"},
@@ -743,6 +751,39 @@ var entities = []Entity{
 			{Field: "updated_by", Table: "account"},
 		},
 	},
+	// A hub's posts (migrations 0401, 0404; UC-DOC-17, UC-DOC-18): the post on its page, who saw and
+	// confirmed it, its discussion and who follows the hub's posts - after the pages and the
+	// accounts they name. A post's identity is its page's.
+	{
+		Name: "posts", Table: "post", Whole: true, Later: true, Keys: []string{"page_id"},
+		References: []Reference{{Field: "page_id", Table: "page"}, {Field: "hub_id", Table: "container"}},
+	},
+	{
+		Name: "post_reads", Table: "post_read", Whole: true, Later: true, Keys: []string{"page_id", "account_id"},
+		References: []Reference{{Field: "page_id", Table: "post"}, {Field: "account_id", Table: "account"}},
+	},
+	{
+		Name: "post_confirmations", Table: "post_confirmation", Whole: true, Later: true,
+		Keys:       []string{"page_id", "account_id"},
+		References: []Reference{{Field: "page_id", Table: "post"}, {Field: "account_id", Table: "account"}},
+	},
+	{
+		Name: "post_replies", Table: "post_reply", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "page_id", Table: "post"},
+			{Field: "parent_id", Table: "post_reply"},
+			{Field: "author_id", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "post_reactions", Table: "post_reaction", Whole: true, Later: true,
+		Keys:       []string{"reply_id", "account_id", "reaction"},
+		References: []Reference{{Field: "reply_id", Table: "post_reply"}, {Field: "account_id", Table: "account"}},
+	},
+	{
+		Name: "post_follows", Table: "post_follow", Whole: true, Later: true, Keys: []string{"hub_id", "account_id"},
+		References: []Reference{{Field: "hub_id", Table: "container"}, {Field: "account_id", Table: "account"}},
+	},
 	// Drafts of the configuration's shared blocks (migration 0315, ui.md A4).
 	{
 		Name: "config_drafts", Table: "config_draft", Whole: true, Later: true, Keys: []string{"section", "key"},
@@ -781,6 +822,15 @@ var entities = []Entity{
 		References: []Reference{
 			{Field: "whiteboard_id", Table: "whiteboard"},
 			{Field: "media_id", Table: "media_object"},
+		},
+	},
+	// A file's versions saved from a document server (migration 0410), after the objects they
+	// name: the earlier bytes are media objects of their own.
+	{
+		Name: "media_versions", Table: "media_version", Whole: true, Later: true, Keys: []string{"media_id", "earlier_media_id"},
+		References: []Reference{
+			{Field: "media_id", Table: "media_object"},
+			{Field: "earlier_media_id", Table: "media_object"},
 		},
 	},
 	// A board's comments pinned to its objects and places (migration 0273), after the boards; a
@@ -907,6 +957,33 @@ var entities = []Entity{
 			{Field: "stockroom_id", Table: "cmdb_ci", Clearable: true},
 			{Field: "assigned_to", Table: "account", Clearable: true},
 			{Field: "request_id", Table: "work_item", Clearable: true},
+		},
+	},
+	{
+		// Each step of an asset's life (migration 0430). Whole: a step is never changed, so no
+		// column says when it was.
+		Name: "cmdb_asset_moves", Table: "cmdb_asset_move", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "ci_id", Table: "cmdb_asset"},
+			{Field: "hub_id", Table: "container"},
+			{Field: "assigned_to", Table: "account", Clearable: true},
+			{Field: "stockroom_id", Table: "cmdb_ci", Clearable: true},
+		},
+	},
+	{
+		// An inventory object's files (migration 0434), after the objects and the uploads they name.
+		Name: "cmdb_ci_media", Table: "cmdb_ci_media", Whole: true, Later: true, Keys: []string{"ci_id", "media_id"},
+		References: []Reference{
+			{Field: "ci_id", Table: "cmdb_ci"},
+			{Field: "media_id", Table: "media_object"},
+		},
+	},
+	{
+		// An object's own history (migration 0435): a delta on the moment of each step, as an
+		// entry's history is.
+		Name: "cmdb_ci_history", Table: "cmdb_ci_history", Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "ci_id", Table: "cmdb_ci"},
 		},
 	},
 	{
@@ -1111,6 +1188,11 @@ var entities = []Entity{
 			{Field: "created_by", Table: "account", Clearable: true},
 			{Field: "updated_by", Table: "account", Clearable: true},
 		},
+	},
+	// A template's goal sets (migration 0440): the mark only, after the periods it names.
+	{
+		Name: "config_goal_sets", Table: "config_goal_set", Whole: true, Later: true, Keys: []string{"key"},
+		References: []Reference{{Field: "period_id", Table: "goal_period"}},
 	},
 	{
 		Name: "goal_entries", Table: "goal_entry", Whole: true, Later: true,
@@ -1585,6 +1667,8 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"calendar_push_event":         "what a push wrote at the provider, which only that push's grant reaches; a push connected again writes its feed anew",
 	"calendar_push_authorization": "a connection waiting ten minutes for a provider's answer; the browser that would bring it is gone by the time anything is restored",
 	"file_store_connection":       "a file store connection's grant is sealed under one installation's key and opens nowhere else; restored elsewhere it would sign in to nothing - its owner connects the store again",
+	"media_lock":                  "a document server's hold on a file for thirty minutes; the editing session that took it is gone by the time anything is restored",
+	"document_server":             "the document server is an origin outside the installation that the workspace's files are sent to; restored elsewhere it may not reach that server or be trusted by it - it is chosen again on the workspace's settings page",
 	"file_store_authorization":    "a connection waiting ten minutes for a store's answer; the browser that would bring it is gone by the time anything is restored",
 	"satisfaction_link":           "a resolution mail's one-time rating link, a credential for 30 days; restored it would let an old mail rate again - the next resolution mails a new one; an address's own copy carries its links, without the token, as a section",
 	"chat_bot":                    "a chat bot's token is sealed under one installation's key and opens nowhere else; restored elsewhere it would read no room - it is seated again on the hub",

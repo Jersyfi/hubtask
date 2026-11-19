@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, signedIn } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -24,8 +24,7 @@ test.after(() => served.close());
 const UNTOURED = { ...ACCOUNT, id: '01a0e2f7-0000-7000-8000-000000000001', onboarding_completed_at: null };
 
 test('chromium: a profile screen opened by its address stays, and the tour waits for the overview', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const tab = await signedIn(browser, 1280, 900);
   t.after(() => tab.context.close());
   // Registered after the fixture's, so it answers first.

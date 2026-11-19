@@ -17,7 +17,9 @@ import {
   namesInstant,
   namesMedia,
   namesPeople,
+  sentenceCode,
 } from './activity.ts';
+import { SOURCE } from '../i18n/source.ts';
 
 const step = (extra: Partial<ActivityEntry> = {}): ActivityEntry =>
   ({
@@ -173,4 +175,16 @@ test('a due date in the history is an instant to be drawn, not a string to be pr
   // The zone beside it is a string and stays one: it is already the name a reader would say.
   assert.equal(namesInstant('due_time_zone'), false);
   assert.equal(namesInstant('title'), false);
+});
+
+test("the reader's own step is said in their own grammar, where the catalogue has the form", () => {
+  // "{actor} hat" with "Du" is wrong German; a step of the reader's reads from its own `_you` form.
+  const has = (code: string) => code in SOURCE;
+  assert.equal(sentenceCode('activity.ci_confirmed', true, has), 'activity.ci_confirmed_you');
+  assert.equal(sentenceCode('activity.ci_confirmed', false, has), 'activity.ci_confirmed');
+  assert.equal(sentenceCode('activity.not_said_yet', true, has), 'activity.not_said_yet');
+  // Every step an inventory object's history tells has the reader's form.
+  const steps = Object.keys(SOURCE).filter((code) => /^activity\.ci_[a-z_]+$/u.test(code) && !code.endsWith('_you'));
+  assert.ok(steps.length >= 11);
+  assert.deepEqual(steps.filter((code) => !has(`${code}_you`)), []);
 });

@@ -148,6 +148,7 @@ func TestThePolicyIsExactlyThis(t *testing.T) {
 		"script-src 'self'; " +
 		"style-src 'self'; " +
 		"img-src 'self' data: blob:; " +
+		"media-src 'self'; " +
 		"font-src 'self'; " +
 		"connect-src 'self'; " +
 		"manifest-src 'self'; " +
@@ -178,6 +179,7 @@ func TestThePolicyNamesTheMediaOriginInTwoDirectivesAndNowhereElse(t *testing.T)
 		"script-src 'self'; " +
 		"style-src 'self'; " +
 		"img-src 'self' data: blob: " + origin + "; " +
+		"media-src 'self' " + origin + "; " +
 		"font-src 'self'; " +
 		"connect-src 'self' " + origin + "; " +
 		"manifest-src 'self'; " +
@@ -188,8 +190,8 @@ func TestThePolicyNamesTheMediaOriginInTwoDirectivesAndNowhereElse(t *testing.T)
 	if got != want {
 		t.Errorf("the s3 policy:\n got %q\nwant %q", got, want)
 	}
-	if n := strings.Count(got, origin); n != 2 {
-		t.Errorf("the origin appears %d times, want exactly twice", n)
+	if n := strings.Count(got, origin); n != 3 {
+		t.Errorf("the origin appears %d times, want exactly three times", n)
 	}
 
 	// And it is what the handler sends, on every answer, once composed.

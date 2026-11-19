@@ -11,7 +11,8 @@
   // dialog. Without the right to change the entry neither naming nor removing is drawn (P-05).
 
   import { untrack } from 'svelte';
-  import { Badge, Button, Dialog, IconButton, Skeleton, Stack } from '@hubtask/design-system/components';
+  import { Badge, Button, DataTable, Dialog, Skeleton, Stack } from '@hubtask/design-system/components';
+  import type { DataColumn } from '@hubtask/design-system/components';
   import type { ConfigurationItem, EntryCis, EntryOnCi } from '@hubtask/sync-engine';
 
   import CiPicker from '../assets/CiPicker.svelte';
@@ -26,9 +27,13 @@
     itemId: string;
     /** Whether the reader may change this entry, which naming and removing a CI need. */
     mayChange: boolean;
+    /** How many items are named once read: the heading's count and the jump mark's (ET-2). */
+    count?: number;
+    /** The entry's hub: the picker opens on its inventory. */
+    hubId?: string;
   }
 
-  const { itemId, mayChange }: Props = $props();
+  let { itemId, mayChange, count = $bindable(undefined), hubId }: Props = $props();
 
   // Keyed on the entry by its caller, so the path is fixed for its life.
   const read = resource<EntryCis>(untrack(() => entryCisPath(itemId)));
@@ -39,6 +44,9 @@
     return { ...data, cis: data.cis ?? [], services: data.services ?? [], related: data.related ?? [], collisions: data.collisions ?? [] };
   }
   const failure = $derived(read.state.status === 'failed' ? renderProblem(read.state.error, messages).message : undefined);
+  $effect(() => {
+    count = answer?.cis.length;
+  });
   const services = $derived(answer ? reachedServices(answer) : []);
   const collisions = $derived(answer ? collisionsInOrder(answer) : []);
   const nameOf = (ciId: string) => answer?.cis.find((each) => each.ci_id === ciId)?.name ?? t('app.assets.unknown_ci');
@@ -82,6 +90,12 @@
       isNaming = false;
     }
   }
+
+  const ciColumns = $derived<DataColumn[]>([
+    { id: 'name', label: t('app.affected.col_name'), priority: 1 },
+    { id: 'class', label: t('app.affected.col_class'), priority: 2 },
+    { id: 'stage', label: t('app.affected.col_stage'), priority: 2, isStatus: true },
+  ]);
 </script>
 
 {#snippet entry(other: EntryOnCi)}
@@ -90,7 +104,10 @@
 
 <section class="affected" aria-labelledby="affected-heading-{itemId}" data-affected-cis>
   <div class="head">
-    <h2 class="section" id="affected-heading-{itemId}">{t('app.affected.title')}</h2>
+    <!-- Named as its jump mark is: one name for one section. -->
+    <h2 class="section" id="affected-heading-{itemId}">{t('app.entry.mark_affected')}{#if answer?.cis.length}{' '}<span class="count">{answer.cis.length}</span>{/if}</h2>
+    <!-- Nothing named: the section is one line (ET-3). -->
+    {#if answer && !failure && answer.cis.length === 0}<span class="quiet none">{t('app.affected.none')}</span>{/if}
     {#if mayChange}
       <Button size="sm" tone="subtle" icon="plus" data-name-ci onclick={open}>{t('app.affected.add')}</Button>
     {/if}
@@ -100,30 +117,31 @@
     <p class="refusal" role="alert">{failure}</p>
   {:else if !answer}
     <div aria-busy="true"><Skeleton lines={2} /></div>
-  {:else if answer.cis.length === 0}
-    <p class="quiet">{t('app.affected.none')}</p>
-  {:else}
-    <ul class="rows">
-      {#each answer.cis as ci (ci.ci_id)}
-        <li class="row" data-affected-ci={ci.ci_id}>
-          <span class="what">
-            <a href={`/cis/${ci.ci_id}`}>{ci.name}</a>
-            <span class="quiet">{classWord(ci.class)}</span>
-            <Badge size="sm">{t(`app.assets.stage.${ci.stage}`)}</Badge>
-          </span>
-          {#if mayChange}
-            <IconButton
-              icon="x" size="sm" tone="subtle"
-              label={t('app.affected.remove', { name: ci.name })}
-              data-unaffect-ci={ci.ci_id}
-              onclick={() => void remove(ci.ci_id)}
-            />
-          {/if}
-        </li>
-      {/each}
-    </ul>
+  {:else if answer.cis.length > 0}
+    <!-- A table, as the ticket's scene draws it (§6.9): what it is, its class and its stage in
+         columns; taking one off is the row's menu. -->
+    <DataTable
+      label={t('app.affected.title')}
+      columns={ciColumns}
+      rows={answer.cis}
+      density="compact"
+      key={(ci) => ci.ci_id}
+      rowLabel={(ci) => ci.name}
+      href={(ci) => `/cis/${ci.ci_id}`}
+      menu={mayChange ? (ci) => ({ label: t('app.affected.col_acts'), items: [{ id: 'remove', label: t('app.affected.remove', { name: ci.name }) }] }) : undefined}
+      onmenu={(ci) => void remove(ci.ci_id)}
+    >
+      {#snippet cell(ci, column)}
+        {#if column.id === 'name'}<span data-affected-ci={ci.ci_id}>{ci.name}</span>
+        {:else if column.id === 'class'}{classWord(ci.class)}
+        {:else}<Badge size="sm">{t(`app.assets.stage.${ci.stage}`)}</Badge>{/if}
+      {/snippet}
+    </DataTable>
 
-    <div class="group">
+
+    <!-- What it reaches and the other open entries are one line each under the table (the scene's
+         foot line); a collision keeps its row, it is a warning. -->
+    <div class="group" data-inline>
       <h3 class="relation">{t('app.affected.services')}</h3>
       {#if services.length === 0}
         <p class="quiet">{t('app.affected.services_none')}</p>
@@ -159,12 +177,13 @@
     {/if}
 
     {#if answer.related.length > 0}
-      <div class="group">
+      <div class="group" data-inline>
         <h3 class="relation">{t('app.affected.related')}</h3>
         <ul class="rows">
           {#each answer.related as other (`${other.item_id}:${other.ci_id}`)}
             <li class="row" data-related-entry={other.item_id}>
-              <span class="what">{@render entry(other)}</span>
+              <!-- The key alone on the line, the title its name and its tip. -->
+              <a href={`/items/${other.item_id}`} class="entry key" title={other.title} aria-label={`${entryKey(other)} ${other.title}`}>{entryKey(other)}</a>
             </li>
           {/each}
         </ul>
@@ -177,7 +196,7 @@
 {#if isOpen}
   <Dialog size="l" primary={{ label: t('app.affected.confirm'), isBusy: isNaming, disabledReason: chosen ? undefined : t('app.affected.choose_first'), onclick: () => void name() }} bind:isOpen title={t('app.affected.picker_title')} dismissLabel={t('app.assets.cancel')} onClose={() => { chosen = undefined; }}>
     <Stack gap="200">
-      <CiPicker {chosen} onchoose={(found) => (chosen = found)} />
+      <CiPicker {chosen} {hubId} onchoose={(found) => (chosen = found)} />
       {#if nameRefusal}<p class="refusal" role="alert">{nameRefusal}</p>{/if}
     </Stack>
     {#snippet actions()}
@@ -187,16 +206,22 @@
 {/if}
 
 <style>
+  .none { flex: 1; min-inline-size: 0; font-size: var(--fs-075); }
+
   .affected { display: flex; flex-direction: column; gap: var(--sp-100); }
   .head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); }
   .section { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
+  .count { color: var(--text-subtle); font-weight: var(--fw-regular); }
   .group { display: flex; flex-direction: column; gap: var(--sp-050); }
   .relation { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-medium); }
   .rows { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }
+  .group[data-inline] { flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: var(--sp-150); }
+  .group[data-inline] .rows { display: flex; flex-wrap: wrap; column-gap: var(--sp-200); }
   .row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); }
   .what { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-100); min-inline-size: 0; }
   .what a, .entry { color: var(--text-primary); font-weight: var(--fw-medium); }
   .key { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .refusal { margin: 0; color: var(--text-danger); }
+
 </style>

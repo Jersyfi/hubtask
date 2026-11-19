@@ -593,6 +593,10 @@ type OutboundConfig struct {
 	// webhook into a port scanner of the host network. A self-hoster with an internal target
 	// on the same LAN is the one legitimate reason to turn it on, and it warns when set.
 	AllowPrivateNetworks bool
+	// DocumentServerPrivate lets the one document server a workspace's administration entered sit
+	// on a private network, and only that host (security.md §10). On by default for self-hosting,
+	// off by default in provider operation; the operator can switch it off for the installation.
+	DocumentServerPrivate bool
 	// CAFile names a PEM file of further roots that outbound calls through GuardedClient trust,
 	// beside the system's (security.md §10): a self-hoster's private CA. Empty adds none; the
 	// system roots are never replaced.
@@ -600,6 +604,10 @@ type OutboundConfig struct {
 	// CARoots is CAFile's content, read once when the configuration is loaded; nil where none is
 	// named or it could not be read, which the validation refuses.
 	CARoots []byte
+	// CoverImagesURL is the API root of the openly licensed image library a page's cover may take
+	// a picture from (UC-DOC-16 check 5). Configuration rather than source, so that nothing is
+	// dialled that nobody configured (PG-6); it is asked only for a workspace that chose it.
+	CoverImagesURL string
 }
 
 // MetricsConfig covers what a metric may say about a tenant.

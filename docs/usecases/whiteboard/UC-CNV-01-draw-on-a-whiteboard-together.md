@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-05, P-18, P-19]
 state: built
 tasks: []
-checked_by: [core/domain/model/whiteboard/Scene_test.go, packages/whiteboard/test/tools.test.ts, core/application/service/whiteboard/Boards_test.go, test/integration/whiteboard_repository_test.go, packages/whiteboard/test/scene.test.ts, packages/whiteboard/test/geometry.test.ts, core/application/service/whiteboard/Changes_test.go, core/application/service/sync/InitialSyncWhiteboards_test.go, apps/webapp/src/lib/data/replica.test.ts, apps/webapp/e2e/whiteboardframes.test.mjs]
+checked_by: [core/domain/model/whiteboard/Scene_test.go, packages/whiteboard/test/tools.test.ts, core/application/service/whiteboard/Boards_test.go, test/integration/whiteboard_repository_test.go, packages/whiteboard/test/scene.test.ts, packages/whiteboard/test/geometry.test.ts, core/application/service/whiteboard/Changes_test.go, core/application/service/sync/InitialSyncWhiteboards_test.go, apps/webapp/src/lib/data/replica.test.ts, apps/webapp/e2e/whiteboardframes.test.mjs, apps/webapp/e2e/whiteboardwork.test.mjs, apps/webapp/e2e/whiteboardscreen.test.mjs, apps/webapp/src/lib/whiteboards/dock.test.ts, apps/webapp/src/lib/whiteboards/list.test.ts]
 ---
 
 # Draw on a whiteboard together
@@ -32,6 +32,10 @@ The team's retrospective runs on a board in the team's hub. Anna draws three fra
 8. Whoever may write the board draws freehand strokes with the pen or the highlighter, puts web links (http or https) drawn as their card, and groups objects; reading the board back answers each stroke's line, each link's address and each group as drawn, and a link to anything but a web address is refused with `whiteboards.link_url_invalid`.
 9. A reader of the hub reads its boards and their objects while the server is away, a board they never opened included, and draws nothing on one read from the copy; a board in a hub they may not read never reaches their device.
 10. A board of 5,000 objects opens with its objects drawn in less than 3 seconds, and is carried and zoomed in the browser at 50 frames a second or more in the middle of the gesture, at its own size and zoomed out as far as the view goes, with none of the slowest twentieth of its frames over a tenth of a second.
+11. On the board the tools stand in a dock at its foot, grouped move · create · draw · conversation, each showing its key (V, H, N, R, T, L, F, P, M, E, C); a placing tool springs back to select after one object, a double click holds it, the pen stays after a stroke, and Esc leads back to select.
+12. A board made from the *Create* button, the home or the hub's *Whiteboards* screen opens at once; an empty one offers the templates as a sheet and the keys of the first use, a template card puts its template, and *Leave empty* closes the sheet.
+13. The board reads as a list by frame in reading order, each frame with the objects in it.
+14. A sticky note put on the board names at its foot the person who put it there, on every device that draws it.
 
 ## Where it ends
 

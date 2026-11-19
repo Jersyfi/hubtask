@@ -40,7 +40,7 @@
 
 <style>
   .thumb { display: block; inline-size: 100%; block-size: 100%; }
-  .frame { fill: none; stroke: var(--border-strong); stroke-width: 1.5; stroke-dasharray: 4 3; }
+  .frame { fill: var(--bg-canvas); fill-opacity: 0.6; stroke: var(--border-strong); stroke-width: 1.5; }
   .line { fill: none; stroke: var(--text-subtle); stroke-width: 1.5; }
   .object { fill: var(--bg-raised); stroke: var(--border-default); stroke-width: 1; }
   .object.sticky { stroke: none; }

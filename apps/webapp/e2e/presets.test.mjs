@@ -22,7 +22,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, DEFAULT_STRUCTURE, MANIFEST, PAGE, PERMISSIONS, PRESETS, PRESET_SETTINGS, SHAPE_HUB, SHAPES, WORKSPACE, forgetUnstubbed, showStructures, stub, openSettings, openNewCollection, kindChoice } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -95,8 +95,7 @@ async function openPanel(page, collection) {
 }
 
 test('chromium: Save as preset - for the workspace, sent with the collection (check 1)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures, written } = await as(browser, 'OWNER');
   t.after(() => context.close());
 
@@ -124,8 +123,7 @@ test('chromium: Save as preset - for the workspace, sent with the collection (ch
 });
 
 test('chromium: the picker shows the preset in force until another is chosen', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, 'OWNER');
   t.after(() => context.close());
 
@@ -138,8 +136,7 @@ test('chromium: the picker shows the preset in force until another is chosen', a
 });
 
 test('chromium: a member saves for themselves alone, and replacing their own keeps its name (check 1)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures, written } = await as(browser, 'MEMBER');
   t.after(() => context.close());
 
@@ -170,8 +167,7 @@ test('chromium: a member saves for themselves alone, and replacing their own kee
 });
 
 test("chromium: creating a collection offers every origin, marked, and sends a saved one's id (check 2)", async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures, written } = await as(browser, 'OWNER');
   t.after(() => context.close());
 
@@ -197,8 +193,7 @@ test("chromium: creating a collection offers every origin, marked, and sends a s
 });
 
 test("chromium: Templates' Presets - rename, withdraw, the default kept; New hubs - the default chosen, a lock set (checks 3, 4)", async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures, written } = await as(browser, 'OWNER');
   t.after(() => context.close());
 
@@ -270,8 +265,7 @@ test("chromium: Templates' Presets - rename, withdraw, the default kept; New hub
 });
 
 test('chromium: Save from a hub - a Dialog M saving the hub for the workspace (check 1)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures, written } = await as(browser, 'OWNER');
   t.after(() => context.close());
   await page.goto(`${served.origin}/administration/templates?tab=presets`);
@@ -289,8 +283,7 @@ test('chromium: Save from a hub - a Dialog M saving the hub for the workspace (c
 });
 
 test("chromium: a member reaches no Presets screen", async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, written } = await as(browser, 'MEMBER');
   t.after(() => context.close());
   await page.goto(`${served.origin}/administration/templates?tab=presets`);

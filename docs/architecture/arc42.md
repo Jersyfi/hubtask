@@ -167,6 +167,8 @@ The architecture's roles; the people who use the product are
 | Email | Both | SMTP out. In: the operator's inbound service posts each raw message to `POST /mail/inbound`, and connected mailboxes are read every minute (IMAP with TLS through the egress guard, or JMAP through the guarded HTTP client), signing in by password or by OAuth 2.0 with PKCE, the secrets and refresh tokens sealed; one worker holds IMAP mailboxes in IDLE so mail lands in seconds. No SMTP receiver; the jumble's token-protected webhook doors stay ([ADR-0094](../adr/ADR-0094-one-mail-intake-routed-by-handles-and-ticket-keys.md), [automation.md](./automation.md) §5) |
 | Calendar | Both | An ICS feed per view; CalDAV with a personal access token, writing through the use cases ([security.md](./security.md) T-22) |
 | LLM provider | Outbound | `core/port/ai`, OpenAI-compatible and Ollama; off by default |
+| Document server | Both | Chosen per workspace, none by default. In: its WOPI calls (CheckFileInfo, GetFile, PutFile, locks) under a token for one person and one file; out: its discovery and its conversion to PDF through `GuardedClient`, the one private-network exception ([security.md](./security.md) §8, §10; [ADR-0104](../adr/ADR-0104-wopi-host-and-file-viewer.md)) |
+| Image library for covers | Outbound | `core/port/coverimages`, searched and fetched by the server alone through `GuardedClient`; off until a workspace chooses it (`knowledge.cover_images`) |
 | Operator/SRE | Inbound | Health, metrics, traces (§3.2) |
 
 ### 3.2 Technical context
@@ -245,33 +247,33 @@ graph LR
 | Context | Aggregates / key terms | Note |
 |---|---|---|
 | **Identity & Access** | `Tenant`, `Account`, `Membership`, `Group`, `Role`, `AccessToken`, `Session`, `IdentityProvider` | The tenant is the topmost isolation boundary, above the hub |
-| **Work Management** | `Container`, `WorkItem`, `Bucket`, `Label`, `Comment`, `Cover`, `CustomFieldDefinition`, `AutoAssignPolicy` | The business core ([domain-model.md](./domain-model.md)) |
+| **Work Management** | `Container`, `WorkItem`, `Bucket`, `Board` with its column ↔ status mapping (`bucket_status`), `Label`, `Comment`, `Cover`, `CustomFieldDefinition`, `AutoAssignPolicy` | The business core ([domain-model.md](./domain-model.md)); a list, a board and a workflow are three derived levels, and the server keeps column and completion together through every door (§3.5a there, [ADR-0103](../adr/ADR-0103-a-board-keeps-one-source-of-done.md)) |
 | **Scheduling** | `DueDate`, `Reminder`, `RecurrenceRule` | An occurrence *is* a `WorkItem`; no occurrence table (§6.3) |
 | **Templates** | `Template`, its node tree | Produces item trees |
-| **Views & Query** | `SavedView`, `QuerySpec`, the query field catalogue | List, kanban, timeline |
+| **Views & Query** | `SavedView`, `QuerySpec`, the query field catalogue, the Hubtask query | List, kanban, timeline, calendar; one parser reads both spellings of a query onto the filter tree ([api-guidelines.md](./api-guidelines.md) §3.1, [ADR-0102](../adr/ADR-0102-one-query-language.md)) |
 | **Jumble** | `JumbleEntry` | Converted into a `WorkItem` |
 | **Lifecycle** | Trash, archive, retention rules, legal holds, the deletion journal | [data-retention.md](./data-retention.md) |
 | **Automation** | `AutomationRule`, `Run`, scheduled triggers, outbound calls | Separately deployable |
 | **Integration** | `WebhookSubscription`, `CalendarFeed`, inbound tokens, AI provider settings | |
 | **Notification** | `Notification`, `NotificationPreference`, channel ports | Email is the only channel that sends; webhook and push are named channels not yet built (an outbound webhook of an event is Integration's) |
 | **Audit & Activity** | `ActivityEntry`, the audit trail | Append-only; the activity entry is the item history |
-| **Media** | `MediaObject` | Covers and attachments, presigned upload (§8.4) |
-| **Search** | Full text, optionally vector | |
+| **Media** | `MediaObject`, `media_version`, `media_lock`, the document server | Covers and attachments, presigned upload (§8.4); one viewer for every file, and a WOPI host for a workspace's document server, a save being a new version ([ADR-0104](../adr/ADR-0104-wopi-host-and-file-viewer.md)) |
+| **Search** | Full text, optionally vector | One search over every kind (`POST /search:all`): each kind's own query, narrowed by its product's read rule |
 | **Quotas & Metering** | The quota guard, `UsageRecord` | §8.12 |
 | **Backup** | Targets, schedules, runs, restores | [backup-restore.md](./backup-restore.md) |
 | **Privacy** | Data subject requests, consent | [data-protection.md](./data-protection.md) |
 | **Sync** | Devices, mutations, the change log | [offline-sync.md](./offline-sync.md) |
 | **Suggestions** | `Suggestion` | AI proposals; nothing changes until a person accepts ([ai-first.md](./ai-first.md)) |
 | **Workflow** | an entry type's statuses in categories, steps with who may take them, the scheme per hub, forms per channel | A workflow is published as a draft first; its preview says what it moves (UC-FLW-*) |
-| **Configuration** | `Revision`, `Proposal`, `Sandbox`, `Template`, `Finding` | One document per workspace and hub: plan, apply, versions, rollback, templates, the check ([configuration.md](./configuration.md)) |
-| **Knowledge** | `Page`, `Article`, `Comment`, `Share`, `File` | Pages in a hub's space, versions, review dates, references (UC-DOC-*) |
+| **Configuration** | `Revision`, `Proposal`, `Sandbox`, `Template`, `Finding` | One document per workspace and hub: plan, apply, versions, rollback, templates (goal sets and kinds of work among the workspace's), the check ([configuration.md](./configuration.md)) |
+| **Knowledge** | `Page`, `Article`, `Comment`, `Share`, `File`, `Post` | Pages in a hub's space, versions, review dates, references, covers; a post is a page with a date, an audience and read confirmations (UC-DOC-*) |
 | **Whiteboard** | `Board`, `Element`, `Scene`, `Comment` | A live document beside its saved projection (UC-CNV-*) |
 | **Realtime** | `Ref`, `Update`, `Snapshot`, `Head` | Live documents of pages and boards: the server relays and keeps the updates, clients merge ([offline-sync.md](./offline-sync.md) §13) |
 | **Planning** | `Baseline`, `Variance`, `Estimate`, `Release`, sprints, dependencies, the time tolerance | Scheduling with lags, critical path, baselines; the roadmap is read from Goals' portfolio (UC-PLN-*) |
 | **Timekeeping** | time records, `CostRate`, `BillingRate`, `Budget`, `Burn` | Approved records are kept, a person erased is pseudonymised (UC-TIM-*) |
 | **Goals & Portfolio** | `Goal`, `KeyResult`, `Dashboard`, `Widget`, `Digest` | Goals, a portfolio's health and roadmap, dashboards and their mailed digests (UC-GOL-*) |
-| **Service desk** | `Calendar` (business hours), SLA policies, `Approval`, `Organisation`, the portal, replies, satisfaction | Requests from people without an account, SLA clocks (UC-SVC-*) |
-| **CMDB** | configuration items (`Asset`), relations, `Affected`, change windows, `Disposal` | CIs are switched off, never deleted (UC-AST-*) |
+| **Service desk** | `Calendar` (business hours), SLA policies, `Approval`, `Organisation`, the portal, replies, satisfaction | Requests from people without an account, SLA clocks, a handler's own deadlines kept (UC-SVC-*) |
+| **CMDB** (the inventory) | objects (`CI`), object types (`Class`), relations, register records (`Asset`), `Affected`, change windows, `Disposal`, an object's history and files | An object database of related objects, not merely a list of what is owned; objects are switched off, never deleted (UC-AST-*, [domain-model.md](./domain-model.md) §3.10) |
 | **Calendars** | `BusinessCalendar`, `Span`, `Timer` | Working time shared by SLAs, planning and rules; an installation's calendar is the fallback |
 | **Connectors** | file links, forge hooks, mailboxes, inventory connectors | Each outbound call through `GuardedClient` (rule 6) |
 | **Agents** | `Agent`, `Policy`, `Budget`, `Run`, `Action`, provenance marks | Registered agents with a policy per act class; the ledger is kept 13 months (UC-AGT-*) |
@@ -291,6 +293,7 @@ The rules behind each element are in [domain-model.md](./domain-model.md).
 | `Reference` | Value object | A pointer to any object (P-19), resolved for the reader by `ResolveReferences` |
 | `Ordering` | Value object | The sort key, a fractional index |
 | `CompletionPolicy` | Domain policy | Optional, per collection: a parent completes once all its children have |
+| `Board` | Domain policy | A collection's columns, done column and column ↔ status mapping: the level (L0/L1/L2), where an entry stands, what a drop does (§3.5a there) |
 | `AssignmentStrategy` | Interface + strategies | `FIXED`, `RANDOM_MEMBER`, `RANDOM_GROUP_MEMBER`, `ROUND_ROBIN`, `LEAST_LOADED` (§3.6 there) |
 | Work item repository | Repository interface | The aggregate, tree queries, the query DSL |
 
@@ -343,6 +346,9 @@ AI suggestion → the user confirms, or a rule converts it → a `WorkItem` refe
 | Tenant deletion | [multi-tenancy.md](./multi-tenancy.md) §5 |
 | Zero-downtime migration | [versioning-release.md](./versioning-release.md) §4 |
 | Webhook delivery | [automation.md](./automation.md) §3.1 |
+| A drop on a board | `POST /items/{id}:drop` → `DropItemOnColumn` → `Board.PlanDrop`: moved (L1, completion following the column), one step taken, a choice of steps answered without writing, or a refusal with its code ([domain-model.md](./domain-model.md) §3.5a) |
+| Editing an office file | `POST /media/{id}:edit` answers a token and the editor's address; the document server calls the WOPI host with it, and `PutFile` saves a new version ([security.md](./security.md) §8, [ADR-0104](../adr/ADR-0104-wopi-host-and-file-viewer.md)) |
+| A scheduled post | A `POST_PUBLISH` durable timer publishes it at its moment and its audience is told ([domain-model.md](./domain-model.md) §3.8) |
 
 ---
 
@@ -423,7 +429,10 @@ cites it: **the server never carries a client's file bytes on object storage.** 
 go directly between client and store through presigned URLs; the server issues the URL and, on
 confirmation, reads the bytes back and judges them. On a local volume the server's own
 token-protected content routes stand in for the store, and a storage key is minted, never taken
-from a request.
+from a request. A workspace's document server is the one door that is not a browser: the WOPI host
+streams a file's bytes to it and takes a save back as a new version, and the conversion to PDF
+returns the server's PDF to the viewer, each under a token for one person and one file
+([ADR-0104](../adr/ADR-0104-wopi-host-and-file-viewer.md)).
 
 ### 8.5 The API concept
 [api-guidelines.md](./api-guidelines.md).
@@ -521,6 +530,12 @@ levels of containment, and a task opens in a dialog or on a page of its own by o
 ([design-system.md](../design/design-system.md) §6, §11.1, §11.8;
 [ADR-0101](../adr/ADR-0101-one-page-system.md)). The clients fill the kinds; they draw no page
 shape of their own.
+
+What a client remembers of one device's use stays on that device, by identifier alone and per
+account, and ends with the session: the hubs visited for offline reading and the boards *recently
+opened* on the whiteboards' home, which falls back to the last changed. Nothing of it reaches the
+server. A new board is made at once and opened with its templates as a sheet rather than asked for
+in a dialog ([user-experience.md](./user-experience.md) §7.2).
 
 ---
 
@@ -621,6 +636,11 @@ Where a scenario has been walked, its evidence file is linked; QS-24 to QS-27 ar
 | Archive | `Archive` | Indefinite storage, restorable |
 | Template | `Template` | A predefined item tree |
 | View | `SavedView` | A saved query plus a layout hint |
+| Hubtask query | `view.ParseQuery` | One query in two spellings, `field: value` and the `=`/`AND` line, read onto the filter tree ([ADR-0102](../adr/ADR-0102-one-query-language.md)) |
+| Level (L0, L1, L2) | `work.StateMode` | Whether a collection's entries stand by completion, by board column or by workflow status; derived, never stored |
+| Object | `CI` (`cmdb`) | An item of the inventory, an object database; object type = `Class`, register record = `Asset`. ITIL calls objects in IT operations configuration items |
+| Post | `knowledge.Post` | A page with a date, an audience and optional read confirmations |
+| Document server | `media.DocumentServerChoice` | A workspace's office server, called through the WOPI host |
 | Tenant | `Tenant` | The topmost isolation boundary; a workspace |
 | Use case | `UC-…` | A requirement with numbered checks ([`docs/usecases/`](../usecases/README.md)) |
 | Operation | a use case of the application layer | Registered in three channels ([domain-model.md](./domain-model.md) §5) |

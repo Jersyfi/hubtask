@@ -14,8 +14,8 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Banner, Button, Dialog, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Textarea,
-    DataTable, DetailPage, type DataColumn, type DataRowMenu,
+    Badge, Banner, Button, Dialog, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Textarea,
+    DataTable, DetailPage, type DataColumn, type DataRowMenu, Breadcrumb, ObjectHead, StateLozenge, StatusButton, lozengeLook,
   } from '@hubtask/design-system/components';
   import type { Portfolio, PortfolioList, PortfolioUpdateList, PortfolioWrite } from '@hubtask/sync-engine';
 
@@ -28,7 +28,7 @@
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
-  import { goalTone } from '../lib/goals/tone.ts';
+  import { goalState, goalTone, healthMenu } from '../lib/goals/tone.ts';
   import { formatDateTime, formatPlainDay } from '../lib/i18n/datetime.ts';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -188,6 +188,13 @@
 
   let isReporting = $state(false);
   const report = $state({ status: 'ON_TRACK' as 'ON_TRACK' | 'AT_RISK' | 'OFF_TRACK', summary: '' });
+  /** The status report, with the health chosen in the head's status button where one was. */
+  function openReport(status?: 'ON_TRACK' | 'AT_RISK' | 'OFF_TRACK') {
+    if (!portfolio) return;
+    report.status = status ?? (portfolio.status !== 'NONE' ? portfolio.status : 'ON_TRACK');
+    report.summary = '';
+    isReporting = true;
+  }
   async function saveReport() {
     const ok = await act(() => goals.reportStatus(portfolioId, { status: report.status, summary: report.summary.trim() }), t('app.portfolios.reported'));
     if (ok) isReporting = false;
@@ -206,38 +213,54 @@
 
 <DetailPage>
   {#snippet top()}
-  <PageHeader
-    title={portfolio?.name ?? t('app.portfolios.portfolio')}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={{
-      trail: [{ id: 'portfolios', label: t('app.goals.tab_portfolios'), href: '/goals?tab=portfolios' }, { id: 'portfolio', label: portfolio?.name ?? '' }],
-      label: t('app.goals.trail'),
-      expandLabel: t('app.goals.expand_trail'),
-      onnavigate: () => onnavigate('/goals?tab=portfolios'),
-    }}
-    primary={mayWrite ? { label: t('app.portfolios.add_project'), icon: 'plus', onclick: () => openProject() } : undefined}
-    secondary={mayWrite ? [
-      { label: t('app.portfolios.report'), icon: 'send', onclick: () => { report.status = portfolio?.status && portfolio.status !== 'NONE' ? portfolio.status : 'ON_TRACK'; report.summary = ''; isReporting = true; } },
-      { label: t('app.roadmap.title'), icon: 'calendar', onclick: () => onnavigate(`/portfolios/${portfolioId}/roadmap`) },
-    ] : [{ label: t('app.roadmap.title'), icon: 'calendar', onclick: () => onnavigate(`/portfolios/${portfolioId}/roadmap`) }]}
-    menu={{
-      label: t('app.goals.more'),
-      items: [
-        { id: 'export', label: t('app.portfolios.export'), icon: 'file-text' },
-        { id: 'export_sheet', label: t('app.portfolios.export_sheet'), icon: 'layout-template' },
-        ...(mayWrite ? [
-          { id: 'change', label: t('app.portfolios.change'), icon: 'pencil' as const },
-          { id: 'delete', label: t('app.portfolios.delete'), icon: 'trash' as const, isDestructive: true, hasSeparatorBefore: true },
-        ] : []),
-      ],
-      onselect: (id: string) => {
-        if (id === 'export') exportTable();
-        if (id === 'export_sheet') exportTable(true);
-        if (id === 'change' && portfolio) { draft.name = portfolio.name; draft.description = portfolio.description; draft.parent = portfolio.parent_id ?? ''; isChanging = true; }
-        if (id === 'delete') isDeleting = true;
-      },
-    }}
-  />
+  {#if portfolio}
+    <!-- One head for every object (WB-1): the portfolio's key, name, status and owner; adding a
+         project the next step, an update beside it; the roadmap and the rest in ⋯. -->
+    {@const shown = portfolio}
+    <ObjectHead hasActsOnPhone
+      objectKey={{ label: t('app.portfolios.portfolio'), icon: 'briefcase', product: 'goals' }}
+      title={shown.name}
+      titleLabel={t('app.portfolios.portfolio')}
+      next={mayWrite ? { label: t('app.portfolios.add_project'), icon: 'plus', onclick: () => openProject() } : undefined}
+      secondary={mayWrite ? { label: t('app.portfolios.report'), onclick: () => openReport() } : undefined}
+      person={{ name: personName(shown.owner_id), src: shown.owner_id ? accounts.pictureOf(shown.owner_id) : undefined }}
+      trail={viewport.isCompact ? undefined : portfolioTrail}
+      menu={{
+        label: t('app.goals.more'),
+        items: [
+          { id: 'roadmap', label: t('app.roadmap.title'), icon: 'calendar' },
+          { id: 'export', label: t('app.portfolios.export'), icon: 'file-text' },
+          { id: 'export_sheet', label: t('app.portfolios.export_sheet'), icon: 'layout-template' },
+          ...(mayWrite ? [
+            { id: 'change', label: t('app.portfolios.change'), icon: 'pencil' as const },
+            { id: 'delete', label: t('app.portfolios.delete'), icon: 'trash' as const, isDestructive: true, hasSeparatorBefore: true },
+          ] : []),
+        ],
+        onselect: (id: string) => {
+          if (id === 'roadmap') onnavigate(`/portfolios/${portfolioId}/roadmap`);
+          if (id === 'export') exportTable();
+          if (id === 'export_sheet') exportTable(true);
+          if (id === 'change' && portfolio) { draft.name = portfolio.name; draft.description = portfolio.description; draft.parent = portfolio.parent_id ?? ''; isChanging = true; }
+          if (id === 'delete') isDeleting = true;
+        },
+      }}
+    >
+      {#snippet status()}
+        {#if mayWrite}
+          <!-- The health's ⌄ lists what a status report gives; choosing one opens the report with it. -->
+          {@const menu = healthMenu(shown.status, HEALTH.filter((each) => each !== 'NONE'), (each) => t(`app.goals.status_${each}`))}
+          <span data-portfolio-status><StatusButton current={menu.current} statuses={menu.statuses} steps={menu.steps}
+            look={lozengeLook('goal', goalState(shown.status))}
+            label={t('app.portfolios.status_button', { state: menu.current.label })}
+            menuTitle={t('app.portfolios.status_menu')}
+            onstep={(step) => openReport(step.to.id as 'ON_TRACK' | 'AT_RISK' | 'OFF_TRACK')}
+            closeLabel={t('app.workflows.close')} grabLabel={t('app.workflows.close')} /></span>
+        {:else if shown.status !== 'NONE'}<StateLozenge vocabulary="goal" state={goalState(shown.status)} size="md" label={t(`app.goals.status_${shown.status}`)} />{/if}
+      {/snippet}
+    </ObjectHead>
+  {:else}
+    <PageHeader title={t('app.portfolios.portfolio')} isTitleInBar={viewport.isCompact} />
+  {/if}
   {/snippet}
 
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
@@ -249,8 +272,6 @@
   {:else}
     <section class="summary" aria-label={t('app.goals.summary')}>
       <div class="facts">
-        {#if portfolio.status !== 'NONE'}<Badge tone={goalTone(portfolio.status)}>{t(`app.goals.status_${portfolio.status}`)}</Badge>{/if}
-        <span>{t('app.goals.owned_by', { name: personName(portfolio.owner_id) })}</span>
         {#if parentName && portfolio.parent_id}<span>{t('app.portfolios.inside')} <a href={`/portfolios/${portfolio.parent_id}`}>{parentName}</a></span>{/if}
       </div>
       {#if portfolio.progress !== null}
@@ -278,7 +299,7 @@
           menu={projectMenu} onmenu={(item: Project, id: string) => { if (id === 'change') openProject(item); else void takeOut(item.container_id, item.name); }}
           rowLabel={(item: Project) => item.name} actionsLabel={t('app.goals.actions')} sheetDismissLabel={t('app.page.sheet_close')} sheetGrabLabel={t('app.page.sheet_grab')}>
           {#snippet cell(item: Project, column: DataColumn)}
-            {#if column.id === 'project'}<a href={projectPath(item.kind, item.container_id)}>{item.name}</a>{#if item.archived}<span class="note">{t('app.portfolios.archived')}</span>{/if}
+            {#if column.id === 'project'}<a class="project" href={projectPath(item.kind, item.container_id)}>{item.name}</a>{#if item.archived}<span class="note">{t('app.portfolios.archived')}</span>{/if}
             {:else if column.id === 'when'}
               {#if item.start_on || item.end_on}<span class="day">{item.start_on ? formatPlainDay(item.start_on, locale) : ''}</span> – <span class="day">{item.end_on ? formatPlainDay(item.end_on, locale) : ''}</span>{/if}
             {:else if column.id === 'health'}
@@ -291,7 +312,8 @@
             {:else}<span class="number" class:over={item.budget?.over_time || item.budget?.over_money}>{item.budget ? burnText(item.budget) : ''}</span>{/if}
           {/snippet}
           {#snippet verb(item: Project)}
-            {#if mayWrite}<Button size="sm" tone="subtle" icon="pencil" onclick={() => openProject(item)}>{t('app.portfolios.change')}</Button>{/if}
+            <!-- The row's act changes this project's dates and state, not the portfolio: short, named by its project. -->
+            {#if mayWrite}<Button size="sm" tone="subtle" icon="pencil" aria-label={t('app.portfolios.change_project', { name: item.name })} onclick={() => openProject(item)}>{t('app.portfolios.project_verb')}</Button>{/if}
           {/snippet}
         </DataTable>
       {/if}
@@ -322,20 +344,27 @@
   {/if}
 </DetailPage>
 
+{#snippet portfolioTrail()}
+  <Breadcrumb label={t('app.goals.trail')} trail={[{ id: 'portfolios', label: t('app.goals.tab_portfolios'), href: '/goals?tab=portfolios' }, { id: 'portfolio', label: portfolio?.name ?? '' }]}
+    expandLabel={t('app.goals.expand_trail')} onnavigate={() => onnavigate('/goals?tab=portfolios')} />
+{/snippet}
+
 {#if isChanging}
-  <Dialog size="m" bind:isOpen={isChanging} title={t('app.portfolios.change')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isChanging} title={t('app.portfolios.change')} dismissLabel={t('app.links.cancel')} primary={{ label: t('app.goals.save'), onclick: () => void saveChange(), disabledReason: draft.name.trim() === '' ? t('app.portfolios.name_needed') : undefined }}>
     <Stack gap="150">
       <Input label={t('app.portfolios.col_name')} bind:value={draft.name} maxlength={200} />
       <Textarea label={t('app.portfolios.description')} bind:value={draft.description} maxlength={10000} />
       <Select label={t('app.portfolios.col_parent')} bind:value={draft.parent}
         options={[{ value: '', label: t('app.portfolios.no_parent') }, ...others.filter((each) => each.id !== portfolioId).map((each) => ({ value: each.id, label: each.name }))]} />
-      <Inline justify="end"><Button disabledReason={draft.name.trim() === '' ? t('app.portfolios.name_needed') : undefined} onclick={() => void saveChange()}>{t('app.goals.save')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isChanging = false)}>{t('app.links.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
 {#if isAdding}
-  <Dialog size="m" bind:isOpen={isAdding} title={project.editing ? t('app.portfolios.change_project_title') : t('app.portfolios.add_project')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isAdding} title={project.editing ? t('app.portfolios.change_project_title') : t('app.portfolios.add_project')} dismissLabel={t('app.links.cancel')} primary={{ label: t('app.goals.save'), onclick: () => void saveProject(), disabledReason: project.id === '' ? t('app.portfolios.pick_project') : undefined }}>
     <Stack gap="150">
       {#if !project.editing}
         <Select label={t('app.portfolios.col_project')} bind:value={project.id} placeholder={t('app.portfolios.pick_project')} options={projectChoices} />
@@ -343,27 +372,33 @@
       <Input label={t('app.portfolios.col_start')} type="date" bind:value={project.start} />
       <Input label={t('app.portfolios.col_end')} type="date" bind:value={project.end} />
       <Select label={t('app.portfolios.col_health')} bind:value={project.status} options={HEALTH.map((each) => ({ value: each, label: t(`app.goals.status_${each}`) }))} />
-      <Inline justify="end"><Button disabledReason={project.id === '' ? t('app.portfolios.pick_project') : undefined} onclick={() => void saveProject()}>{t('app.goals.save')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isAdding = false)}>{t('app.links.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
 {#if isReporting}
-  <Dialog size="m" bind:isOpen={isReporting} title={t('app.portfolios.report')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isReporting} title={t('app.portfolios.report')} dismissLabel={t('app.links.cancel')} primary={{ label: t('app.portfolios.send_report'), onclick: () => void saveReport(), disabledReason: report.summary.trim() === '' ? t('app.portfolios.summary_needed') : undefined }}>
     <Stack gap="150">
       <Select label={t('app.portfolios.col_health')} bind:value={report.status} options={HEALTH.filter((each) => each !== 'NONE').map((each) => ({ value: each, label: t(`app.goals.status_${each}`) }))} />
       <Textarea label={t('app.portfolios.summary')} hint={t('app.portfolios.summary_hint')} bind:value={report.summary} maxlength={10000} />
-      <Inline justify="end"><Button disabledReason={report.summary.trim() === '' ? t('app.portfolios.summary_needed') : undefined} onclick={() => void saveReport()}>{t('app.portfolios.send_report')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isReporting = false)}>{t('app.links.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
 {#if isDeleting && portfolio}
-  <Dialog size="s" bind:isOpen={isDeleting} title={t('app.portfolios.delete_title', { name: portfolio.name })} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="s" bind:isOpen={isDeleting} title={t('app.portfolios.delete_title', { name: portfolio.name })} dismissLabel={t('app.links.cancel')} primary={{ label: t('app.portfolios.delete'), onclick: () => void remove(), tone: 'danger' }}>
     <Stack gap="150">
       <p class="quiet">{t('app.portfolios.delete_hint')}</p>
-      <Inline justify="end"><Button tone="danger" onclick={() => void remove()}>{t('app.portfolios.delete')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isDeleting = false)}>{t('app.links.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
@@ -376,14 +411,21 @@
   }
   .summary, .block { display: flex; flex-direction: column; gap: var(--sp-100); min-width: 0; }
   .facts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-150); color: var(--text-secondary); font-size: var(--fs-075); }
-  .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }
+  /* The entry's section head (FoldingSection, H-6): one look for every object's parts. */
+  .heading { margin: 0; font-family: var(--font-display); font-size: var(--fs-200); font-weight: var(--fw-semibold); line-height: var(--lh-tight); }
   .description { margin: 0; white-space: pre-wrap; }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
   .note { margin-inline-start: var(--sp-050); color: var(--text-subtle); font-size: var(--fs-075); }
   .number { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .over { color: var(--text-danger); }
-  .progress { display: block; min-width: var(--layout-board-column); }
+  /* Wide enough to read the bar, narrow enough that the row's act and ⋯ stay inside the frame at 1280. */
+  .progress { display: block; min-width: var(--sp-1600); white-space: nowrap; }
   .clip { display: block; max-inline-size: var(--layout-panel-width); white-space: pre-wrap; }
   .plain { margin: 0; padding-inline-start: var(--sp-200); }
+  /* A thumb's target (§7, N20): a project's link is as tall as a press. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .project { display: inline-flex; align-items: center; min-block-size: var(--layout-target); }
+  }
 </style>

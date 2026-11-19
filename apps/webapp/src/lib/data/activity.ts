@@ -158,3 +158,11 @@ export function actorCodes(entry: ActivityEntry, selfAccountId: string | undefin
   if (kind === 'USER' && id && id === selfAccountId) return ['app.activity.actor_you'];
   return [`app.activity.actor_${kind ?? 'UNKNOWN'}`, 'app.activity.actor_someone'];
 }
+
+/**
+ * The sentence code of a step: the reader's own step reads from the code's `_you` form where the
+ * catalogue has one, because "{actor} did" with "You" is not grammatical in every language.
+ */
+export function sentenceCode(code: string, isReader: boolean, has: (code: string) => boolean): string {
+  return isReader && has(`${code}_you`) ? `${code}_you` : code;
+}

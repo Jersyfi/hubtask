@@ -68,3 +68,13 @@ func TestEntriesArePagedAndWindowed(t *testing.T) {
 		t.Errorf("an empty value is not null: %v", rows[0])
 	}
 }
+
+// The next link carries the $filter on, so every page is read with the same query (P-08).
+func TestTheNextLinkKeepsTheFilter(t *testing.T) {
+	rows := make([]Entry, PageSize+1)
+	out := Entries("https://x/odata/t", rows, Page{Filter: "is: open who: me"})
+	next, _ := out["@odata.nextLink"].(string)
+	if next != "https://x/odata/t/Entries?$skip=1000&$filter=is%3A+open+who%3A+me" {
+		t.Errorf("next link %q", next)
+	}
+}

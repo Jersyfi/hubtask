@@ -58,7 +58,7 @@ func TestASpaceIsReadAsItWasWritten(t *testing.T) {
 	at := time.Date(2026, 10, 29, 10, 0, 0, 0, time.UTC)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		tree, err := repo.List(ctx, hub, false, false, 100)
-		if err != nil || len(tree) != 2 || tree[0].ID != root || tree[0].Body != "" {
+		if err != nil || len(tree) != 2 || tree[0].ID != root || tree[0].Body != "" || tree[1].Head != "Day one" {
 			t.Errorf("tree %+v, %v", tree, err)
 		}
 		ancestors, err := repo.Ancestors(ctx, child)
@@ -375,11 +375,93 @@ func TestAnArticleIsFoundInItsServiceAndStaysInItsWorkspace(t *testing.T) {
 		if hits, _ := articles.Search(ctx, collection, "", nil, 10); len(hits) != 0 {
 			t.Error("the workspace next door found the articles")
 		}
-		if held, _ := articles.Published(ctx, root, collection); held {
+		if source, _ := articles.Source(ctx, root, collection); !source.IsZero() {
 			t.Error("the workspace next door read the publication")
 		}
 		if removed, _ := articles.Unpublish(ctx, root, collection); removed {
 			t.Error("the workspace next door unpublished the article")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// UC-DOC-13 check 5 (PO-4, migration 0420): a page shared as a space reaches its service with
+// every live page under it - found, read through the space - except a restricted page and what
+// lies under it; the workspace next door neither reads nor lists it.
+func TestASpaceReachesItsServiceWithoutItsRestrictedBranch(t *testing.T) {
+	ctx := context.Background()
+	hub, root, child := seedSpace(ctx, t)
+	collection := collectionFor(ctx, t, tenantA, authorA)
+	articles := postgres.NewPageArticleRepository()
+	pages := postgres.NewPageRepository()
+	at := time.Date(2026, 11, 14, 9, 0, 0, 0, time.UTC)
+	secret, below := freshID(t), freshID(t)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		for _, page := range []knowledge.Page{
+			{ID: secret, HubID: hub, ParentID: root, Title: "Internal budget", Body: "budget for the team",
+				OrderKey: "a1", CreatedBy: authorA, CreatedAt: at, UpdatedBy: authorA, UpdatedAt: at, Version: 1},
+			{ID: below, HubID: hub, ParentID: secret, Title: "Below", Body: "budget detail",
+				OrderKey: "a0", CreatedBy: authorA, CreatedAt: at, UpdatedBy: authorA, UpdatedAt: at, Version: 1},
+		} {
+			if err := pages.Insert(ctx, page); err != nil {
+				return err
+			}
+		}
+		restricted := knowledge.Page{ID: secret, UpdatedBy: authorA, UpdatedAt: at}
+		if err := pages.Restrict(ctx, restricted, []shared.ID{authorA}, 1); err != nil {
+			return err
+		}
+		if added, err := articles.Publish(ctx, knowledge.Article{PageID: root, CollectionID: collection, PublishedBy: authorA, PublishedAt: at}); err != nil || !added {
+			t.Errorf("publish %v, %v", added, err)
+		}
+		if source, err := articles.Source(ctx, child, collection); err != nil || !source.IsZero() {
+			t.Errorf("a single article carried its subpage: %v, %v", source, err)
+		}
+		if again, err := articles.Publish(ctx, knowledge.Article{PageID: root, CollectionID: collection, PublishedBy: authorA, PublishedAt: at}); err != nil || again {
+			t.Errorf("publishing twice the same way changed %v, %v", again, err)
+		}
+		if widened, err := articles.Publish(ctx, knowledge.Article{PageID: root, CollectionID: collection, WithSubpages: true, PublishedBy: authorA, PublishedAt: at}); err != nil || !widened {
+			t.Errorf("sharing as a space %v, %v", widened, err)
+		}
+		if source, err := articles.Source(ctx, child, collection); err != nil || source != root {
+			t.Errorf("the subpage is read through %v, %v", source, err)
+		}
+		for _, hidden := range []shared.ID{secret, below} {
+			if source, _ := articles.Source(ctx, hidden, collection); source != root {
+				t.Errorf("the source of a restricted branch is the application's to refuse, got %v", source)
+			}
+		}
+		hits, err := articles.Search(ctx, collection, "day", nil, 10)
+		if err != nil || len(hits) != 1 || hits[0].PageID != child {
+			t.Errorf("search under the space %+v, %v", hits, err)
+		}
+		if hits, _ := articles.Search(ctx, collection, "detail", nil, 10); len(hits) != 0 {
+			t.Errorf("the restricted branch was found: %+v", hits)
+		}
+		spaces, err := articles.Shared(ctx, collection)
+		if err != nil || len(spaces) != 1 || spaces[0].PageID != root || !spaces[0].WithSubpages ||
+			len(spaces[0].Pages) != 1 || spaces[0].Pages[0].PageID != child || spaces[0].Pages[0].ParentID != root {
+			t.Errorf("shared %+v, %v", spaces, err)
+		}
+		of, err := articles.Of(ctx, root)
+		if err != nil || len(of) != 1 || !of[0].WithSubpages {
+			t.Errorf("of %+v, %v", of, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if spaces, _ := articles.Shared(ctx, collection); len(spaces) != 0 {
+			t.Error("the workspace next door listed the space")
+		}
+		if source, _ := articles.Source(ctx, child, collection); !source.IsZero() {
+			t.Error("the workspace next door read a page under the space")
+		}
+		if hits, _ := articles.Search(ctx, collection, "day", nil, 10); len(hits) != 0 {
+			t.Error("the workspace next door found a page under the space")
 		}
 		return nil
 	}); err != nil {
@@ -573,7 +655,8 @@ func TestAPagesLabelsNarrowASearchInItsWorkspaceAlone(t *testing.T) {
 			len(hits) != 1 || hits[0].ID != root || hits[0].Excerpt != "" {
 			t.Errorf("by label alone %+v, %v", hits, err)
 		}
-		if hits, _ := repo.Search(ctx, repository.PageQuery{Text: "budget", HubIDs: []shared.ID{hub}, Label: "hr", AuthorID: authorA, Limit: 10}); len(hits) != 1 {
+		if hits, _ := repo.Search(ctx, repository.PageQuery{Text: "budget", HubIDs: []shared.ID{hub}, Label: "hr", AuthorID: authorA, Limit: 10}); len(hits) != 1 ||
+			hits[0].CreatedBy != authorA || hits[0].CreatedAt.IsZero() {
 			t.Errorf("by text, label and author %+v", hits)
 		}
 		later := time.Date(2026, 10, 29, 10, 0, 0, 0, time.UTC)
@@ -697,5 +780,119 @@ func TestAPageUnderATakenIdentifierIsRefusedAsTaken(t *testing.T) {
 	})
 	if problem := shared.AsError(err); problem == nil || problem.DetailCode != "pages.id_taken" {
 		t.Fatalf("the second page answered %v", err)
+	}
+}
+
+// UC-WRK-18 check 10. Among pages that match equally well, the verified one comes first - also against a newer
+// unverified one; a page past its review date counts as unverified. The order changes, not what
+// is found (E-8, UC-DOC-01 check 3).
+func TestAVerifiedPageRanksBeforeAnEquallyGoodUnverifiedOne(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	hub := freshID(t)
+	repo := postgres.NewPageRepository()
+	at := time.Date(2026, 10, 29, 9, 0, 0, 0, time.UTC)
+	verified, lapsed, plain := freshID(t), freshID(t), freshID(t)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if _, err := containerRepo().Insert(ctx, containerIn(tenantA, authorA, hub, freshName(t), "a0")); err != nil {
+			return err
+		}
+		for i, id := range []shared.ID{verified, lapsed, plain} {
+			// The later a page was written, the higher it stood before: plain is the newest.
+			written := at.Add(time.Duration(i) * time.Hour)
+			page := knowledge.Page{ID: id, HubID: hub, Title: "Travel", Body: "travel expenses claim",
+				OrderKey: "a" + string(rune('0'+i)), CreatedBy: authorA, CreatedAt: written, UpdatedBy: authorA, UpdatedAt: written, Version: 1}
+			if err := repo.Insert(ctx, page); err != nil {
+				return err
+			}
+		}
+		future, past := at.AddDate(0, 3, 0), at.AddDate(0, -1, 0)
+		for id, until := range map[shared.ID]time.Time{verified: future, lapsed: past} {
+			page, err := repo.Find(ctx, id)
+			if err != nil {
+				return err
+			}
+			page.VerifiedUntil, page.VerifiedAt, page.VerifiedBy, page.OwnerID = &until, &at, authorA, authorA
+			page.UpdatedAt = at
+			if err := repo.Update(ctx, page, 1); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		hits, err := repo.Search(ctx, repository.PageQuery{Text: "travel", HubIDs: []shared.ID{hub}, Limit: 10, At: at.Add(24 * time.Hour)})
+		if err != nil {
+			return err
+		}
+		if len(hits) != 3 || hits[0].ID != verified {
+			t.Fatalf("hits %+v, want the verified page first of three", hits)
+		}
+		if hits[0].VerifiedUntil == nil || hits[1].ID == verified || hits[2].ID == verified {
+			t.Errorf("the verified page's date is not answered: %+v", hits)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A page's cover is read as it was written and taken away again (migration 0400, UC-DOC-16 checks 3 and 4); the
+// workspace next door neither reads nor writes it.
+func TestAPagesCoverIsReadAsWrittenInItsWorkspaceAlone(t *testing.T) {
+	ctx := context.Background()
+	_, root, _ := seedSpace(ctx, t)
+	repo := postgres.NewPageRepository()
+	at := time.Date(2026, 10, 29, 11, 0, 0, 0, time.UTC)
+	cover := knowledge.Cover{Source: knowledge.CoverGradient, Key: "indigo-teal", Position: 30}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		page, err := repo.FindForUpdate(ctx, root)
+		if err != nil {
+			return err
+		}
+		page.Cover, page.UpdatedAt = &cover, at
+		return repo.Update(ctx, page, page.Version)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		page, err := repo.Find(ctx, root)
+		if err != nil || page.Cover == nil || *page.Cover != cover {
+			t.Errorf("the cover read back: %+v, %v", page.Cover, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if _, err := repo.Find(ctx, root); err == nil {
+			t.Error("the workspace next door read the covered page")
+		}
+		if err := repo.Update(ctx, knowledge.Page{ID: root, Title: "x", OrderKey: "a0", UpdatedBy: authorB, UpdatedAt: at, Version: 2}, 2); err == nil {
+			t.Error("the workspace next door took the cover away")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		page, err := repo.FindForUpdate(ctx, root)
+		if err != nil || page.Cover == nil {
+			t.Errorf("the workspace next door changed the cover: %+v, %v", page.Cover, err)
+			return err
+		}
+		page.Cover = nil
+		if err := repo.Update(ctx, page, page.Version); err != nil {
+			return err
+		}
+		again, err := repo.Find(ctx, root)
+		if err != nil || again.Cover != nil {
+			t.Errorf("the cover taken away: %+v, %v", again.Cover, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
 	}
 }

@@ -214,7 +214,7 @@ func (q *Queries) FindDailyNote(ctx context.Context, arg FindDailyNoteParams) (p
 const findPage = `-- name: FindPage :one
 SELECT id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for, cover
 FROM page
 WHERE tenant_id = current_tenant_id() AND id = $1
 `
@@ -242,6 +242,7 @@ type FindPageRow struct {
 	Version         int32
 	Restricted      bool
 	DailyFor        pgtype.Date
+	Cover           []byte
 }
 
 func (q *Queries) FindPage(ctx context.Context, id pgtype.UUID) (FindPageRow, error) {
@@ -270,6 +271,7 @@ func (q *Queries) FindPage(ctx context.Context, id pgtype.UUID) (FindPageRow, er
 		&i.Version,
 		&i.Restricted,
 		&i.DailyFor,
+		&i.Cover,
 	)
 	return i, err
 }
@@ -347,7 +349,7 @@ func (q *Queries) FindPageDraft(ctx context.Context, pageID pgtype.UUID) (FindPa
 const findPageForUpdate = `-- name: FindPageForUpdate :one
 SELECT id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for, cover
 FROM page
 WHERE tenant_id = current_tenant_id() AND id = $1
 FOR UPDATE
@@ -376,6 +378,7 @@ type FindPageForUpdateRow struct {
 	Version         int32
 	Restricted      bool
 	DailyFor        pgtype.Date
+	Cover           []byte
 }
 
 func (q *Queries) FindPageForUpdate(ctx context.Context, id pgtype.UUID) (FindPageForUpdateRow, error) {
@@ -404,6 +407,7 @@ func (q *Queries) FindPageForUpdate(ctx context.Context, id pgtype.UUID) (FindPa
 		&i.Version,
 		&i.Restricted,
 		&i.DailyFor,
+		&i.Cover,
 	)
 	return i, err
 }
@@ -677,25 +681,6 @@ func (q *Queries) InsertPageVersion(ctx context.Context, arg InsertPageVersionPa
 	return err
 }
 
-const isPageArticle = `-- name: IsPageArticle :one
-SELECT EXISTS (
-  SELECT 1 FROM page_article
-  WHERE tenant_id = current_tenant_id() AND page_id = $1 AND collection_id = $2
-) AS held
-`
-
-type IsPageArticleParams struct {
-	PageID       pgtype.UUID
-	CollectionID pgtype.UUID
-}
-
-func (q *Queries) IsPageArticle(ctx context.Context, arg IsPageArticleParams) (bool, error) {
-	row := q.db.QueryRow(ctx, isPageArticle, arg.PageID, arg.CollectionID)
-	var held bool
-	err := row.Scan(&held)
-	return held, err
-}
-
 const isPageSharedWith = `-- name: IsPageSharedWith :one
 SELECT EXISTS (
   SELECT 1 FROM page_share
@@ -767,12 +752,15 @@ func (q *Queries) LastSiblingOrderKey(ctx context.Context, arg LastSiblingOrderK
 const listHubPages = `-- name: ListHubPages :many
 SELECT id, hub_id, parent_id, title, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for,
+       left(body, 1000)::text AS body_head
 FROM page
-WHERE tenant_id = current_tenant_id() AND hub_id = $1
+WHERE page.tenant_id = current_tenant_id() AND page.hub_id = $1
   AND deleted_at IS NULL
   AND ($2::boolean OR archived_at IS NULL)
   AND (NOT $3::boolean OR template)
+  -- A post's page stands among the hub's posts, not in its tree.
+  AND NOT EXISTS (SELECT 1 FROM post po WHERE po.tenant_id = page.tenant_id AND po.page_id = page.id)
 ORDER BY parent_id NULLS FIRST, order_key, id
 LIMIT $4
 `
@@ -806,9 +794,11 @@ type ListHubPagesRow struct {
 	Version         int32
 	Restricted      bool
 	DailyFor        pgtype.Date
+	BodyHead        string
 }
 
-// A space's tree without the bodies, at most a bound past the space's limit.
+// A space's tree without the bodies, at most a bound past the space's limit; a body's head is
+// read for the row's excerpt alone.
 func (q *Queries) ListHubPages(ctx context.Context, arg ListHubPagesParams) ([]ListHubPagesRow, error) {
 	rows, err := q.db.Query(ctx, listHubPages,
 		arg.HubID,
@@ -845,6 +835,7 @@ func (q *Queries) ListHubPages(ctx context.Context, arg ListHubPagesParams) ([]L
 			&i.Version,
 			&i.Restricted,
 			&i.DailyFor,
+			&i.BodyHead,
 		); err != nil {
 			return nil, err
 		}
@@ -1017,7 +1008,8 @@ func (q *Queries) ListPagesUnderReview(ctx context.Context, arg ListPagesUnderRe
 const listTrashedHubPages = `-- name: ListTrashedHubPages :many
 SELECT id, hub_id, parent_id, title, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for,
+       left(body, 1000)::text AS body_head
 FROM page
 WHERE tenant_id = current_tenant_id() AND hub_id = $1 AND deleted_at IS NOT NULL
 ORDER BY deleted_at DESC, id
@@ -1051,6 +1043,7 @@ type ListTrashedHubPagesRow struct {
 	Version         int32
 	Restricted      bool
 	DailyFor        pgtype.Date
+	BodyHead        string
 }
 
 func (q *Queries) ListTrashedHubPages(ctx context.Context, arg ListTrashedHubPagesParams) ([]ListTrashedHubPagesRow, error) {
@@ -1084,6 +1077,7 @@ func (q *Queries) ListTrashedHubPages(ctx context.Context, arg ListTrashedHubPag
 			&i.Version,
 			&i.Restricted,
 			&i.DailyFor,
+			&i.BodyHead,
 		); err != nil {
 			return nil, err
 		}
@@ -1152,15 +1146,60 @@ func (q *Queries) PageAncestors(ctx context.Context, id pgtype.UUID) ([]PageAnce
 	return items, nil
 }
 
+const pageArticleSource = `-- name: PageArticleSource :many
+WITH RECURSIVE up (id, parent_id, depth) AS (
+  SELECT p.id, p.parent_id, 0 FROM page p
+  WHERE p.tenant_id = current_tenant_id() AND p.id = $2
+  UNION ALL
+  SELECT p.id, p.parent_id, up.depth + 1 FROM page p
+  JOIN up ON p.tenant_id = current_tenant_id() AND p.id = up.parent_id
+  WHERE up.depth < 16
+)
+SELECT a.page_id FROM up
+JOIN page_article a ON a.tenant_id = current_tenant_id() AND a.page_id = up.id
+  AND a.collection_id = $1
+WHERE up.depth = 0 OR a.with_subpages
+ORDER BY up.depth
+LIMIT 1
+`
+
+type PageArticleSourceParams struct {
+	CollectionID pgtype.UUID
+	PageID       pgtype.UUID
+}
+
+// The publication a page is read through in a service: the page itself where it is published,
+// else the nearest page above it shared as a space; none for neither. Its openings and ratings
+// are the publication's.
+func (q *Queries) PageArticleSource(ctx context.Context, arg PageArticleSourceParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, pageArticleSource, arg.CollectionID, arg.PageID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var page_id pgtype.UUID
+		if err := rows.Scan(&page_id); err != nil {
+			return nil, err
+		}
+		items = append(items, page_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const pageArticles = `-- name: PageArticles :many
-SELECT a.collection_id, a.published_by, a.published_at, a.views,
+SELECT a.collection_id, a.published_by, a.published_at, a.views, a.with_subpages,
        count(r.account_id) FILTER (WHERE r.helpful)::bigint AS helpful,
        count(r.account_id) FILTER (WHERE NOT r.helpful)::bigint AS unhelpful
 FROM page_article a
 LEFT JOIN page_article_rating r
   ON r.tenant_id = a.tenant_id AND r.page_id = a.page_id AND r.collection_id = a.collection_id
 WHERE a.tenant_id = current_tenant_id() AND a.page_id = $1
-GROUP BY a.collection_id, a.published_by, a.published_at, a.views
+GROUP BY a.collection_id, a.published_by, a.published_at, a.views, a.with_subpages
 ORDER BY a.published_at, a.collection_id
 `
 
@@ -1169,6 +1208,7 @@ type PageArticlesRow struct {
 	PublishedBy  pgtype.UUID
 	PublishedAt  pgtype.Timestamptz
 	Views        int64
+	WithSubpages bool
 	Helpful      int64
 	Unhelpful    int64
 }
@@ -1188,6 +1228,7 @@ func (q *Queries) PageArticles(ctx context.Context, pageID pgtype.UUID) ([]PageA
 			&i.PublishedBy,
 			&i.PublishedAt,
 			&i.Views,
+			&i.WithSubpages,
 			&i.Helpful,
 			&i.Unhelpful,
 		); err != nil {
@@ -1468,7 +1509,7 @@ WITH RECURSIVE down (id, depth) AS (
 )
 SELECT p.id, p.hub_id, p.parent_id, p.title, p.body, p.icon, p.order_key, p.template, p.content_language,
        p.owner_id, p.verified_until, p.verified_at, p.verified_by, p.archived_at, p.deleted_at,
-       p.created_by, p.created_at, p.updated_by, p.updated_at, p.version, p.restricted, p.daily_for
+       p.created_by, p.created_at, p.updated_by, p.updated_at, p.version, p.restricted, p.daily_for, p.cover
 FROM page p JOIN down ON down.id = p.id
 WHERE p.tenant_id = current_tenant_id()
 ORDER BY down.depth, p.order_key, p.id
@@ -1504,6 +1545,7 @@ type PageSubtreeRow struct {
 	Version         int32
 	Restricted      bool
 	DailyFor        pgtype.Date
+	Cover           []byte
 }
 
 // The page and every page under it, the page first, bodies included, bounded.
@@ -1539,6 +1581,7 @@ func (q *Queries) PageSubtree(ctx context.Context, arg PageSubtreeParams) ([]Pag
 			&i.Version,
 			&i.Restricted,
 			&i.DailyFor,
+			&i.Cover,
 		); err != nil {
 			return nil, err
 		}
@@ -1647,10 +1690,83 @@ func (q *Queries) PagesSharedWith(ctx context.Context, arg PagesSharedWithParams
 	return items, nil
 }
 
+const portalKnowledge = `-- name: PortalKnowledge :many
+WITH RECURSIVE reach (root_id, page_id, parent_id, depth, path) AS (
+  SELECT a.page_id, a.page_id, NULL::uuid, 0, ARRAY[]::text[]
+  FROM page_article a
+  JOIN page s ON s.tenant_id = a.tenant_id AND s.id = a.page_id
+  WHERE a.tenant_id = current_tenant_id() AND a.collection_id = $1
+    AND s.deleted_at IS NULL AND s.archived_at IS NULL AND NOT page_behind_restriction(s.id)
+  UNION ALL
+  SELECT r.root_id, c.id, c.parent_id, r.depth + 1, r.path || (c.order_key || c.id::text)
+  FROM reach r
+  JOIN page_article a ON a.tenant_id = current_tenant_id() AND a.page_id = r.root_id
+    AND a.collection_id = $1 AND a.with_subpages
+  JOIN page c ON c.tenant_id = current_tenant_id() AND c.parent_id = r.page_id
+    AND c.deleted_at IS NULL AND c.archived_at IS NULL AND NOT c.restricted
+    AND c.language_source_id IS NULL AND NOT c.template
+  WHERE r.depth < 16
+), ranked AS (
+  SELECT r.root_id, r.page_id, r.parent_id, r.depth, r.path, row_number() OVER (PARTITION BY r.root_id ORDER BY r.path) AS place
+  FROM reach r
+)
+SELECT r.root_id, r.page_id, r.parent_id, p.title, p.icon, a.with_subpages, r.depth
+FROM ranked r
+JOIN page p ON p.tenant_id = current_tenant_id() AND p.id = r.page_id
+JOIN page_article a ON a.tenant_id = current_tenant_id() AND a.page_id = r.root_id
+  AND a.collection_id = $1
+WHERE r.place <= 501
+ORDER BY a.published_at, r.root_id, r.path
+`
+
+type PortalKnowledgeRow struct {
+	RootID       pgtype.UUID
+	PageID       pgtype.UUID
+	ParentID     pgtype.UUID
+	Title        string
+	Icon         string
+	WithSubpages bool
+	Depth        int32
+}
+
+// What a service's portal shares: each publication, and under a space every live page a
+// requester reads, parents before children in their order. A page behind a restriction or
+// archived is left out with everything under it; language variants are read in their source's
+// place, never listed. At most 500 pages under one space.
+func (q *Queries) PortalKnowledge(ctx context.Context, collectionID pgtype.UUID) ([]PortalKnowledgeRow, error) {
+	rows, err := q.db.Query(ctx, portalKnowledge, collectionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PortalKnowledgeRow{}
+	for rows.Next() {
+		var i PortalKnowledgeRow
+		if err := rows.Scan(
+			&i.RootID,
+			&i.PageID,
+			&i.ParentID,
+			&i.Title,
+			&i.Icon,
+			&i.WithSubpages,
+			&i.Depth,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const publishPageArticle = `-- name: PublishPageArticle :execrows
-INSERT INTO page_article (tenant_id, page_id, collection_id, published_by, published_at)
-VALUES (current_tenant_id(), $1, $2, $3, $4)
-ON CONFLICT (tenant_id, page_id, collection_id) DO NOTHING
+INSERT INTO page_article (tenant_id, page_id, collection_id, published_by, published_at, with_subpages)
+VALUES (current_tenant_id(), $1, $2, $3, $4,
+        $5)
+ON CONFLICT (tenant_id, page_id, collection_id) DO UPDATE SET with_subpages = EXCLUDED.with_subpages
+WHERE page_article.with_subpages IS DISTINCT FROM EXCLUDED.with_subpages
 `
 
 type PublishPageArticleParams struct {
@@ -1658,14 +1774,17 @@ type PublishPageArticleParams struct {
 	CollectionID pgtype.UUID
 	PublishedBy  pgtype.UUID
 	At           pgtype.Timestamptz
+	WithSubpages bool
 }
 
+// Publishing again the same way changes nothing; the other way changes only whether it is a space.
 func (q *Queries) PublishPageArticle(ctx context.Context, arg PublishPageArticleParams) (int64, error) {
 	result, err := q.db.Exec(ctx, publishPageArticle,
 		arg.PageID,
 		arg.CollectionID,
 		arg.PublishedBy,
 		arg.At,
+		arg.WithSubpages,
 	)
 	if err != nil {
 		return 0, err
@@ -1789,12 +1908,24 @@ func (q *Queries) RestorePageSubtree(ctx context.Context, arg RestorePageSubtree
 }
 
 const searchPageArticles = `-- name: SearchPageArticles :many
-WITH articles AS (
-  SELECT a.page_id, a.views
+WITH RECURSIVE reach (page_id, views, spread, depth) AS (
+  SELECT a.page_id, a.views, a.with_subpages, 0
   FROM page_article a
-  JOIN page s ON s.tenant_id = a.tenant_id AND s.id = a.page_id
   WHERE a.tenant_id = current_tenant_id() AND a.collection_id = $3
-    AND s.deleted_at IS NULL AND s.archived_at IS NULL AND NOT page_behind_restriction(s.id)
+  UNION ALL
+  -- Under a space (PO-4): live pages, stopping at one restricted or archived.
+  SELECT c.id, 0::bigint, true, r.depth + 1
+  FROM reach r
+  JOIN page c ON c.tenant_id = current_tenant_id() AND c.parent_id = r.page_id
+    AND c.deleted_at IS NULL AND c.archived_at IS NULL AND NOT c.restricted
+    AND c.language_source_id IS NULL AND NOT c.template
+  WHERE r.spread AND r.depth < 16
+), articles AS (
+  SELECT DISTINCT ON (r.page_id) r.page_id, r.views
+  FROM reach r
+  JOIN page s ON s.tenant_id = current_tenant_id() AND s.id = r.page_id
+  WHERE s.deleted_at IS NULL AND s.archived_at IS NULL AND NOT page_behind_restriction(s.id)
+  ORDER BY r.page_id, r.views DESC
 ), chosen AS (
   SELECT DISTINCT ON (r.page_id) r.page_id AS article_id, r.views, p.title, p.icon, p.updated_at,
          p.body, p.content_language, p.search_document,
@@ -1841,10 +1972,11 @@ type SearchPageArticlesRow struct {
 	Excerpt         string
 }
 
-// The live articles of one service a text finds, ranked; with no text, the most read. A page
-// behind a restriction is never an article a requester reads. Each article is offered in the
-// first of `languages` (lower case, preferred first) a live, unrestricted variant of its page is
-// written in, else as the page itself, and is found by the words of the text it is offered in.
+// The live articles of one service a text finds, ranked - the pages under a space among them;
+// with no text, the most read. A page behind a restriction is never an article a requester
+// reads. Each article is offered in the first of `languages` (lower case, preferred first) a
+// live, unrestricted variant of its page is written in, else as the page itself, and is found by
+// the words of the text it is offered in.
 func (q *Queries) SearchPageArticles(ctx context.Context, arg SearchPageArticlesParams) ([]SearchPageArticlesRow, error) {
 	rows, err := q.db.Query(ctx, searchPageArticles,
 		arg.Text,
@@ -1878,7 +2010,7 @@ func (q *Queries) SearchPageArticles(ctx context.Context, arg SearchPageArticles
 }
 
 const searchPages = `-- name: SearchPages :many
-SELECT p.id, p.hub_id, p.parent_id, p.title, p.icon, p.updated_at,
+SELECT p.id, p.hub_id, p.parent_id, p.title, p.icon, p.updated_at, p.verified_until, p.created_at, p.created_by,
        (CASE WHEN $1::text = '' THEN 0
              ELSE ts_rank_cd(p.search_document, q.query) END)::float8 AS rank,
        (CASE WHEN $1::text = '' THEN ''
@@ -1889,6 +2021,8 @@ FROM page p,
                   || websearch_to_tsquery('simple', $1::text) AS query) q
 WHERE p.tenant_id = current_tenant_id() AND p.hub_id = ANY($2::uuid[])
   AND p.deleted_at IS NULL AND p.archived_at IS NULL
+  -- A post is found as a post, where its audience and moment are judged, never as a page.
+  AND NOT EXISTS (SELECT 1 FROM post po WHERE po.tenant_id = p.tenant_id AND po.page_id = p.id)
   AND ($1::text = '' OR p.search_document @@ q.query)
   AND ($3::text IS NULL OR EXISTS (
         SELECT 1 FROM page_label l
@@ -1896,34 +2030,51 @@ WHERE p.tenant_id = current_tenant_id() AND p.hub_id = ANY($2::uuid[])
   AND ($4::uuid IS NULL OR p.created_by = $4::uuid)
   AND ($5::timestamptz IS NULL OR p.updated_at >= $5::timestamptz)
   AND ($6::timestamptz IS NULL OR p.updated_at < $6::timestamptz)
-ORDER BY rank DESC, p.updated_at DESC, p.id
-LIMIT $7
+  AND ($7::boolean IS NULL
+       OR (p.verified_until IS NOT NULL AND p.verified_until > $8::timestamptz) = $7::boolean)
+  AND ($9::boolean IS NULL
+       OR (coalesce(p.owner_id = ANY($10::uuid[]), false)
+           OR ($11::boolean AND p.owner_id IS NULL))
+          <> $9::boolean)
+ORDER BY rank DESC, (p.verified_until IS NOT NULL AND p.verified_until > $8::timestamptz) DESC,
+         p.updated_at DESC, p.id
+LIMIT $12
 `
 
 type SearchPagesParams struct {
-	Text        string
-	HubIds      []pgtype.UUID
-	Label       *string
-	AuthorID    pgtype.UUID
-	UpdatedFrom pgtype.Timestamptz
-	UpdatedTo   pgtype.Timestamptz
-	Batch       int32
+	Text         string
+	HubIds       []pgtype.UUID
+	Label        *string
+	AuthorID     pgtype.UUID
+	UpdatedFrom  pgtype.Timestamptz
+	UpdatedTo    pgtype.Timestamptz
+	Verified     *bool
+	At           pgtype.Timestamptz
+	OwnerNegated *bool
+	OwnerValues  []pgtype.UUID
+	OwnerNone    bool
+	Batch        int32
 }
 
 type SearchPagesRow struct {
-	ID        pgtype.UUID
-	HubID     pgtype.UUID
-	ParentID  pgtype.UUID
-	Title     string
-	Icon      string
-	UpdatedAt pgtype.Timestamptz
-	Rank      float64
-	Excerpt   string
+	ID            pgtype.UUID
+	HubID         pgtype.UUID
+	ParentID      pgtype.UUID
+	Title         string
+	Icon          string
+	UpdatedAt     pgtype.Timestamptz
+	VerifiedUntil pgtype.Timestamptz
+	CreatedAt     pgtype.Timestamptz
+	CreatedBy     pgtype.UUID
+	Rank          float64
+	Excerpt       string
 }
 
 // The pages a text finds in the spaces named, ranked, narrowed to a label, the person who wrote a
 // page first and a window of its last change; without a text, the pages the label or the author
-// names, newest first, with no passage. Archived and trashed pages stay out.
+// names, newest first, with no passage. Archived and trashed pages stay out. Among equally good
+// hits a page verified at the moment comes first: the order changes, not what is found (E-8).
+// page.verified and page.owner narrow as the keys of one kind do (SearchKinds.sql).
 func (q *Queries) SearchPages(ctx context.Context, arg SearchPagesParams) ([]SearchPagesRow, error) {
 	rows, err := q.db.Query(ctx, searchPages,
 		arg.Text,
@@ -1932,6 +2083,11 @@ func (q *Queries) SearchPages(ctx context.Context, arg SearchPagesParams) ([]Sea
 		arg.AuthorID,
 		arg.UpdatedFrom,
 		arg.UpdatedTo,
+		arg.Verified,
+		arg.At,
+		arg.OwnerNegated,
+		arg.OwnerValues,
+		arg.OwnerNone,
 		arg.Batch,
 	)
 	if err != nil {
@@ -1948,6 +2104,9 @@ func (q *Queries) SearchPages(ctx context.Context, arg SearchPagesParams) ([]Sea
 			&i.Title,
 			&i.Icon,
 			&i.UpdatedAt,
+			&i.VerifiedUntil,
+			&i.CreatedAt,
+			&i.CreatedBy,
 			&i.Rank,
 			&i.Excerpt,
 		); err != nil {
@@ -2110,11 +2269,11 @@ UPDATE page SET
   verified_until = $9, verified_at = $10,
   verified_by = $11, archived_at = $12,
   deleted_at = $13, updated_by = $14,
-  updated_at = $15, version = version + 1,
+  updated_at = $15, version = version + 1, cover = $16,
   -- Who trashed it is TrashPageSubtree's to write; a page no longer trashed names nobody.
   deleted_by_type = CASE WHEN $13::timestamptz IS NULL THEN NULL ELSE deleted_by_type END,
   deleted_by_id = CASE WHEN $13::timestamptz IS NULL THEN NULL ELSE deleted_by_id END
-WHERE tenant_id = current_tenant_id() AND id = $16 AND version = $17
+WHERE tenant_id = current_tenant_id() AND id = $17 AND version = $18
 `
 
 type UpdatePageParams struct {
@@ -2133,6 +2292,7 @@ type UpdatePageParams struct {
 	DeletedAt       pgtype.Timestamptz
 	UpdatedBy       pgtype.UUID
 	UpdatedAt       pgtype.Timestamptz
+	Cover           []byte
 	ID              pgtype.UUID
 	ExpectedVersion int32
 }
@@ -2155,6 +2315,7 @@ func (q *Queries) UpdatePage(ctx context.Context, arg UpdatePageParams) (int64, 
 		arg.DeletedAt,
 		arg.UpdatedBy,
 		arg.UpdatedAt,
+		arg.Cover,
 		arg.ID,
 		arg.ExpectedVersion,
 	)

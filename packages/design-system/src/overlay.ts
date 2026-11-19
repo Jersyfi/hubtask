@@ -67,6 +67,8 @@ export interface MenuItem {
   /** What it does, in the verb voice-and-tone.md §2.1 asks for. Resolved text (ADR-0011). */
   readonly label: string;
   readonly icon?: IconName;
+  /** What it does, in a quieter line under the label: a macro's effect, a step's question. */
+  readonly description?: string;
   /** Why it cannot be used. Present means unavailable - the rule `Disableable` states. */
   readonly disabledReason?: string;
   /** A destructive item is marked as one, and is never the item focus lands on by default. */

@@ -28,7 +28,8 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { elementId } from '@hubtask/whiteboard';
-  import BoardTemplates, { STARTS, startElements, templateOf, type BoardStart, type RetroFormat } from '../lib/whiteboards/BoardTemplates.svelte';
+  import BoardTemplates, { STARTS, startElements, templateOf, type BoardStart } from '../lib/whiteboards/BoardTemplates.svelte';
+  import { makeBoard } from '../lib/whiteboards/make.ts';
   import CreateDialog from '../lib/product/CreateDialog.svelte';
 
   interface Props {
@@ -166,7 +167,6 @@
   let isMaking = $state(false);
   let titleDraft = $state('');
   let start = $state<BoardStart>('BLANK');
-  let format = $state<RetroFormat>('RETRO_START_STOP_CONTINUE');
   const suggested = (choice: BoardStart) => (choice === 'BLANK' ? '' : t(`app.whiteboards.start_${choice.toLowerCase()}`));
   let lastSuggested = '';
   $effect(() => {
@@ -176,7 +176,19 @@
       lastSuggested = name;
     });
   });
+  /** A board is made at once (scene wnew); the dialog stays for one under a page and for an import. */
+  async function makeAtOnce(choice: BoardStart = 'BLANK', go: (path: string) => void = onnavigate) {
+    try {
+      go(await makeBoard(hubId, choice));
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+    }
+  }
   function startMaking(choice: BoardStart = 'BLANK') {
+    if (!parentAsked && !isImportOpen) {
+      void makeAtOnce(choice);
+      return;
+    }
     start = choice;
     titleDraft = suggested(choice);
     lastSuggested = titleDraft;
@@ -192,7 +204,12 @@
     if (!asked || wasAsked || !mayWrite) return;
     wasAsked = true;
     untrack(() => {
-      startMaking(STARTS.find((each) => each === startAsked) ?? 'BLANK');
+      const choice = STARTS.find((each) => each === startAsked) ?? 'BLANK';
+      if (!parentAsked) {
+        void makeAtOnce(choice, onreplace ?? onnavigate);
+        return;
+      }
+      startMaking(choice);
       (onreplace ?? onnavigate)(`/hubs/${hubId}/contents${kind ? `?kind=${kind}` : ''}`);
     });
   });
@@ -211,7 +228,14 @@
 
   const contentsHead = $derived<PageHead>({
     title: t('app.nav.all_contents'),
-    primary: mayWrite ? { label: t('app.whiteboards.new'), icon: 'plus', onclick: () => startMaking() } : undefined,
+    primary: mayWrite
+      ? {
+          label: t('app.whiteboards.new'),
+          icon: 'plus',
+          onclick: () => startMaking(),
+          menu: { label: t('app.split_more', { action: t('app.whiteboards.new') }), items: [{ id: 'import', label: t('app.whiteboards.import_menu'), icon: 'cloud-upload' as const }], onselect: () => { isImportOpen = true; start = 'BLANK'; titleDraft = ''; isMaking = true; } },
+        }
+      : undefined,
     breadcrumb: hub
       ? {
           trail: [{ id: hubId, label: hub.name, href: `/hubs/${hubId}` }, { id: 'contents', label: t('app.nav.all_contents') }],
@@ -228,7 +252,7 @@
     isBusy = true;
     makeFailure = undefined;
     try {
-      const name = templateOf(start, format);
+      const name = templateOf(start);
       const elements = imported?.elements ?? (name ? startElements(name, (key) => t(`app.whiteboards.word_${key}`), elementId) : undefined);
       const made = await whiteboards.create(hubId, {
         title,
@@ -303,7 +327,7 @@
     <!-- No board yet: one starts from a template in one press (user-experience.md §4, §5.5). -->
     <div class="start" data-boards-start>
       <EmptyState kind="unused" title={t('app.whiteboards.empty')} description={t('app.whiteboards.empty_hint')} icon="layout-template" />
-      <BoardTemplates chosen={'BLANK'} {format} onpick={(choice) => startMaking(choice)} />
+      <BoardTemplates look="tiles" onpick={(choice) => startMaking(choice)} />
     </div>
   {:else if rows.length === 0}
     <EmptyState kind="unused" title={t('app.nav.contents_empty')} />
@@ -335,7 +359,7 @@
       {#if imported}
         <Banner tone="info">{t('app.whiteboards.import_ready', { count: String(imported.elements.length) })}</Banner>
       {:else}
-        <BoardTemplates bind:chosen={start} bind:format />
+        <BoardTemplates bind:chosen={start} />
       {/if}
     {/snippet}
     <Disclosure label={t('app.whiteboards.import_fold')} description={t('app.whiteboards.import_fold_hint')} tone="quiet" bind:isOpen={isImportOpen}>

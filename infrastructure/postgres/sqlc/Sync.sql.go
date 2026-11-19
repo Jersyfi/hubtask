@@ -1192,7 +1192,7 @@ func (q *Queries) SnapshotCmdbAssets(ctx context.Context, arg SnapshotCmdbAssets
 const snapshotCmdbCis = `-- name: SnapshotCmdbCis :many
 SELECT id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id,
        location_ci_id, protection, review_due, quantity, last_seen_at, merged_into,
-       created_by, created_at, updated_by, updated_at, version
+       created_by, created_at, updated_by, updated_at, confirmed_at, confirmed_by, version
 FROM cmdb_ci
 WHERE tenant_id = current_tenant_id() AND id > $1 AND merged_into IS NULL
 ORDER BY id
@@ -1225,6 +1225,8 @@ type SnapshotCmdbCisRow struct {
 	CreatedAt      pgtype.Timestamptz
 	UpdatedBy      pgtype.UUID
 	UpdatedAt      pgtype.Timestamptz
+	ConfirmedAt    pgtype.Timestamptz
+	ConfirmedBy    pgtype.UUID
 	Version        int32
 }
 
@@ -1260,6 +1262,8 @@ func (q *Queries) SnapshotCmdbCis(ctx context.Context, arg SnapshotCmdbCisParams
 			&i.CreatedAt,
 			&i.UpdatedBy,
 			&i.UpdatedAt,
+			&i.ConfirmedAt,
+			&i.ConfirmedBy,
 			&i.Version,
 		); err != nil {
 			return nil, err
@@ -1749,7 +1753,7 @@ func (q *Queries) SnapshotCustomRoles(ctx context.Context, arg SnapshotCustomRol
 }
 
 const snapshotDashboards = `-- name: SnapshotDashboards :many
-SELECT id, hub_id, owner_id, name, sharing, group_ids, widgets, version
+SELECT id, hub_id, owner_id, name, sharing, group_ids, widgets, version, filter
 FROM dashboard
 WHERE tenant_id = current_tenant_id() AND id > $1
 ORDER BY id
@@ -1770,6 +1774,7 @@ type SnapshotDashboardsRow struct {
 	GroupIds []pgtype.UUID
 	Widgets  []byte
 	Version  int32
+	Filter   string
 }
 
 // The workspace's dashboards as their widgets' queries, each filed under its hub; a private one
@@ -1792,6 +1797,7 @@ func (q *Queries) SnapshotDashboards(ctx context.Context, arg SnapshotDashboards
 			&i.GroupIds,
 			&i.Widgets,
 			&i.Version,
+			&i.Filter,
 		); err != nil {
 			return nil, err
 		}
@@ -2611,10 +2617,12 @@ func (q *Queries) SnapshotOwnTimesheets(ctx context.Context, arg SnapshotOwnTime
 const snapshotPages = `-- name: SnapshotPages :many
 SELECT p.id, p.hub_id, p.parent_id, p.title, p.body, p.icon, p.order_key, p.template, p.content_language,
        p.owner_id, p.verified_until, p.verified_at, p.verified_by, p.archived_at, p.deleted_at,
-       p.created_by, p.created_at, p.updated_by, p.updated_at, p.version, p.restricted, p.daily_for
+       p.created_by, p.created_at, p.updated_by, p.updated_at, p.version, p.restricted, p.daily_for, p.cover
 FROM page p
 WHERE p.tenant_id = current_tenant_id() AND p.id > $1 AND p.deleted_at IS NULL
   AND NOT page_behind_restriction(p.id)
+  -- Nor does a post: its audience and its moment are judged on the server.
+  AND NOT EXISTS (SELECT 1 FROM post po WHERE po.tenant_id = p.tenant_id AND po.page_id = p.id)
 ORDER BY p.id
 LIMIT $2
 `
@@ -2647,6 +2655,7 @@ type SnapshotPagesRow struct {
 	Version         int32
 	Restricted      bool
 	DailyFor        pgtype.Date
+	Cover           []byte
 }
 
 // The workspace's living pages with their bodies (migration 0238), for reading offline; each is
@@ -2684,6 +2693,7 @@ func (q *Queries) SnapshotPages(ctx context.Context, arg SnapshotPagesParams) ([
 			&i.Version,
 			&i.Restricted,
 			&i.DailyFor,
+			&i.Cover,
 		); err != nil {
 			return nil, err
 		}

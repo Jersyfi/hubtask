@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, MANIFEST, PAGE, forgetUnstubbed, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -42,7 +42,7 @@ async function portal(browser, { width, scheme, kinds, team = false, refusedTeam
     const url = new URL(route.request().url());
     const path = url.pathname.replace(/^.*\/api\/v1/, '');
     asked.push(`${route.request().method()} ${path}`);
-    if (path === '/accounts/me') return route.fulfill({ json: { ...ACCOUNT, has_access: false, portals: [{ collection_id: DESK, name: 'IT help' }] } });
+    if (path === '/accounts/me') return route.fulfill({ json: { ...ACCOUNT, has_access: team, portals: [{ collection_id: DESK, name: 'IT help' }] } });
     if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: team ? permissions : [] } });
     if (path === '/memberships') return route.fulfill({ json: { ...PAGE, data: [], grantable_roles: [] } });
     if (path === `/containers/${DESK}/desk-logo`) return route.fulfill({ json: { collection_id: DESK, logo_media_id: logo } });
@@ -83,27 +83,25 @@ async function noSidewaysScroll(page, label) {
 
 for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
   test(`chromium ${width} px, ${scheme}: the portal offers its kinds as tiles and the form below the chosen one`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, failures, raised, close } = await portal(browser, { width, scheme, kinds: KINDS });
     t.after(close);
     const tiles = page.getByRole('list', { name: 'Kind of request' });
     await tiles.waitFor({ timeout: 15_000 });
     assert.equal(await tiles.getByRole('listitem').count(), 3);
     assert.match(await tiles.getByRole('listitem').first().innerText(), /A device, a program or the network/);
-    // Nothing to fill before a kind is chosen.
+    // Nothing to fill before a kind is chosen: the form is the chosen kind's dialog.
     assert.equal(await page.getByLabel('In a few words').count(), 0);
     await noSidewaysScroll(page, `portal tiles ${width} ${scheme}`);
 
-    await page.getByRole('button', { name: 'Ask for this Something is broken' }).click();
-    assert.equal(await page.getByRole('button', { name: 'Chosen Something is broken' }).getAttribute('aria-pressed'), 'true');
-    const title = page.getByLabel('In a few words');
+    await page.locator('[data-portal-kind="incident"]').click();
+    const dialog = page.getByRole('dialog', { name: 'Something is broken' });
+    const title = dialog.getByLabel('In a few words');
     await title.waitFor({ timeout: 5_000 });
-    assert.equal(await title.evaluate((node) => node === document.activeElement), true, 'the chosen tile moves the requester to the form');
     await title.fill('VPN drops at noon');
-    await page.getByText('When the VPN drops').waitFor({ timeout: 5_000 });
+    await dialog.getByText('When the VPN drops').waitFor({ timeout: 5_000 });
     await noSidewaysScroll(page, `portal form ${width} ${scheme}`);
-    await page.getByRole('button', { name: 'Send request' }).click();
+    await dialog.getByRole('button', { name: 'Send request' }).click();
     await page.waitForURL('**/portal/requests/*', { timeout: 5_000 });
     assert.deepEqual(raised.map((body) => [body.entry_type, body.title]), [['incident', 'VPN drops at noon']]);
     assert.deepEqual(failures, []);
@@ -111,8 +109,7 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
 }
 
 test('chromium 375 px, light: a portal that offers nothing says so', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await portal(browser, { width: 375, scheme: 'light', kinds: [] });
   t.after(close);
   await page.getByText('Nothing can be asked here yet').waitFor({ timeout: 15_000 });
@@ -123,8 +120,7 @@ test('chromium 375 px, light: a portal that offers nothing says so', async (t) =
 
 // UC-SVC-05: the desk's team opening its portal is led to invite its first requester.
 test('chromium: the desk\'s team sees its portal as the team, with the way to invite requesters', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, asked, close } = await portal(browser, { width: 1280, scheme: 'light', kinds: [], team: true });
   t.after(close);
   await page.getByText('You see this portal as the desk\'s team').waitFor({ timeout: 15_000 });
@@ -136,17 +132,16 @@ test('chromium: the desk\'s team sees its portal as the team, with the way to in
   assert.deepEqual(failures, []);
 });
 
-// UC-SVC-05 check 9: where a server refuses the team the requester catalogue, its head and the logo
-// panel are drawn from the collection and the logo read the team holds - not left empty.
-test('chromium: the team that shapes the desk sees its name and sets its logo at the portal', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+// UC-SVC-05 check 9: where a server refuses the team the requester catalogue, its head is drawn from
+// the collection - not left empty. The logo is set in the desk's settings, not here (scene portal).
+test('chromium: the team that shapes the desk sees its name at the portal, and no logo upload', async (t) => {
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await portal(browser, { width: 1280, scheme: 'light', kinds: [], refusedTeam: true, permissions: ['READ', 'STRUCTURE'], logo: null });
   t.after(close);
   await page.getByText('You see this portal as the desk\'s team').waitFor({ timeout: 15_000 });
-  await page.getByRole('heading', { name: 'IT help', level: 1 }).waitFor({ timeout: 10_000 });
-  await page.getByText('Logo of this service').first().waitFor({ timeout: 10_000 });
-  assert.equal(await page.getByText('Choose a logo').count() > 0, true, 'the logo panel offers a choice');
+  await page.locator('[data-portal-start] .eyebrow', { hasText: 'IT help' }).waitFor({ timeout: 10_000 });
+  await page.waitForLoadState('networkidle');
+  assert.equal(await page.getByText('Choose a logo').count(), 0, 'the portal offers an upload the scene does not draw');
   assert.equal(await page.getByText(/is below/).count(), 0, 'nothing promises a panel below');
   assert.deepEqual(failures, []);
 });

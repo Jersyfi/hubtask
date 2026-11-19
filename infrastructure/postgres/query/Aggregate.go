@@ -274,6 +274,10 @@ func (b *builder) quantity(aggregation view.Aggregation) {
 		// A score, not a span.
 		b.write(satisfactionScore)
 		return
+	case view.QuantitySlip:
+		// Days, as the filter reads them.
+		b.write(entrySlip)
+		return
 	default:
 		b.fail(shared.ErrInternal.WithDetail("query.quantity_unknown"))
 		return

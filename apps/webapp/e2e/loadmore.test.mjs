@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { PRIVACY_REQUESTS, signedIn, stub } from './fixture.mjs';
@@ -95,8 +95,7 @@ const RUN = (n) => ({
 });
 
 test('chromium: a page of runs that did not arrive is said beside the button, the retry brings it, and a new filter clears the line', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 1000);
   t.after(() => context.close());
   await listFailingOnce(context, {
@@ -145,8 +144,7 @@ const ARRIVAL = (n) => ({
 });
 
 test('chromium: a page of the jumble that did not arrive because the connection was gone is said beside the button, and the retry brings it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 1000);
   t.after(() => context.close());
   await listFailingOnce(context, {
@@ -166,8 +164,7 @@ test('chromium: a page of the jumble that did not arrive because the connection 
 });
 
 test('chromium: a page of privacy cases that was refused is said beside the button, and the retry brings it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 1000);
   t.after(() => context.close());
   const later = { ...PRIVACY_REQUESTS[0], id: '01a0e2e0-0000-7000-8000-0000000016a1', subject_email: 'later@example.invalid' };
@@ -207,8 +204,7 @@ const DELIVERY = (n) => ({
 });
 
 test('chromium: a page of a webhook\'s deliveries that did not arrive is said beside the button, and the retry brings it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 1000);
   t.after(() => context.close());
   await listFailingOnce(context, {

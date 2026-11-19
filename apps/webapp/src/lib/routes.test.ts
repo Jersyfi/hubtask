@@ -318,6 +318,7 @@ test('the detail pane is a place, not a feature: a pane from large, a redirect b
   assert.deepEqual(paneFor(open, { isLarge: false }), { kind: 'redirect', path: '/items/i1' });
   // Without the parameter there is nothing to open, on any width.
   assert.deepEqual(paneFor(resolve(ROUTES, '/collections/c1'), { isLarge: true }), { kind: 'none' });
+  assert.deepEqual(paneFor(resolve(ROUTES, '/collections/c1/timeline?item=i1'), { isLarge: true }), { kind: 'pane', collectionId: 'c1', itemId: 'i1' }, 'the timeline opens an entry beside it too');
   // The entry's own address is not a pane and is not redirected, whatever its query says.
   assert.deepEqual(paneFor(resolve(ROUTES, '/items/i1?item=i2'), { isLarge: false }), { kind: 'none' });
   // A hub has no list of entries to open one beside.

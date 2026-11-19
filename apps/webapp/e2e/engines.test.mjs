@@ -73,6 +73,9 @@ async function stub(route) {
   }
   // A bare list, as the contract answers it - not a page: the create dialog reads it.
   if (url.pathname.endsWith('/api/v1/presets')) return route.fulfill({ json: [] });
+  // The saved views, a bare array too, as fixture.mjs answers them: the search reads them once it
+  // opens, and WebKit's first Tab lands in its field.
+  if (url.pathname.endsWith('/api/v1/views')) return route.fulfill({ json: [] });
   // The reads the contract answers as a bare array: an envelope there is no list to the client.
   if (ARRAYS.has(url.pathname.replace(/^.*\/api\/v1/, ''))) return route.fulfill({ json: [] });
   return route.fulfill({ json: EMPTY_PAGE });
@@ -118,7 +121,7 @@ for (const [name, engine] of Object.entries(ENGINES)) {
 
     await page.goto(`${served.origin}/`);
     // *Today*, drawn: the page the app opens on, past the session and the manifest.
-    await page.locator('main section.panel').first().waitFor({ state: 'visible', timeout: 15_000 });
+    await page.locator('main [data-card]').first().waitFor({ state: 'visible', timeout: 15_000 });
     // The navigation's way to make a hub, ＋ on *Hubs* (the navigation concept §5.2): the dialog this walk opens below.
     const createHub = page.locator('aside.sidenav').getByRole('button', { name: 'Create hub', exact: true }).first();
     await createHub.waitFor({ state: 'visible', timeout: 15_000 });
@@ -413,7 +416,10 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     await page.waitForTimeout(600);
     await checkbox.focus();
 
+    // Q opens Create; Enter on its empty line opens capture (UC-WRK-46 check 1).
     await page.keyboard.press('q');
+    await page.getByRole('textbox', { name: 'A new entry in one sentence' }).waitFor({ timeout: 5_000 });
+    await page.keyboard.press('Enter');
     const field = page.getByRole('textbox', { name: 'What do you want to remember?' });
     await field.waitFor({ timeout: 5_000 });
     await page.keyboard.type('Order tiles !Materials');
@@ -432,9 +438,10 @@ for (const [name, engine] of Object.entries(ENGINES)) {
 
     await checkbox.focus();
     await page.keyboard.press('q');
-    await field.waitFor({ timeout: 5_000 });
+    const line = page.getByRole('textbox', { name: 'A new entry in one sentence' });
+    await line.waitFor({ timeout: 5_000 });
     await page.keyboard.press('Escape');
-    await field.waitFor({ state: 'hidden', timeout: 5_000 });
+    await line.waitFor({ state: 'hidden', timeout: 5_000 });
     assert.ok(await checkbox.evaluate((node) => node === document.activeElement), `${name}: Escape did not return focus`);
     await context.close();
     assert.deepEqual(failures, [], `${name}: the bundle threw in the capture field`);

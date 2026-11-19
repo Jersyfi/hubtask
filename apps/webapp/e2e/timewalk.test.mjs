@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, COLLECTION, HUB, ITEMS, OTHER } from './fixture.mjs';
@@ -34,11 +34,11 @@ const LAST_MONDAY = new Date(Date.parse(`${MONDAY}T00:00:00Z`) - 7 * DAY).toISOS
 const [ENTRY] = ITEMS;
 
 /** The time module's routes, kept in memory as the server would keep them. */
-function timeBackend({ running, kinds, rates, absences } = {}) {
+function timeBackend({ running, kinds, rates, absences, capacities, held } = {}) {
   const id = ids('00000b');
   const defined = kinds ?? [{ key: 'work', name: 'Work', billable: true, archived: false, position: 0, version: 1 }];
   let timer = running ?? { running: false };
-  const records = [];
+  const records = [...(held ?? [])];
   const sheet = (account, week, state) => ({
     account_id: account, week_start: week, state, submitted_minutes: 0, submitted_at: null, decided_at: null, decided_by: null, reason: '', version: 1,
   });
@@ -62,7 +62,7 @@ function timeBackend({ running, kinds, rates, absences } = {}) {
       return { json: { account_id: ACCOUNT.id, scope_type: query.get('scope_type') ?? 'TENANT', roles: ['OWNER'], permissions: [], sources: [] } };
     }
     if (path === '/timer' && method === 'GET') return { json: timer };
-    if (path === '/time-capacities' && method === 'GET') return { json: { data: [] } };
+    if (path === '/time-capacities' && method === 'GET') return { json: { data: capacities ?? [] } };
     if (path === '/cost-rates' && method === 'GET') return { json: { data: rates ?? [] } };
     if (path === '/time-absences' && method === 'GET') return { json: { data: absences ?? [] } };
     if (path === '/timer:start' && method === 'POST') {
@@ -105,9 +105,10 @@ function timeBackend({ running, kinds, rates, absences } = {}) {
 }
 
 test('chromium: time - a timer on an entry, the week handed in, a colleague\'s week approved - without an error', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
-  const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend() });
+  const browser = await sharedChromium(t);
+  // Eight hours a weekday: the week's figure and each day measure against them (UC-TIM-01).
+  const capacities = [{ account_id: ACCOUNT.id, from: '2020-01-06', week_minutes: [480, 480, 480, 480, 480, 0, 0], version: 1 }];
+  const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ capacities }) });
   t.after(walk.close);
   const { page } = walk;
 
@@ -118,10 +119,24 @@ test('chromium: time - a timer on an entry, the week handed in, a colleague\'s w
 
   await page.goto(`${served.origin}/time`);
   await page.getByText(ENTRY.title).first().waitFor({ timeout: 5_000 });
-  await page.getByRole('button', { name: 'Hand in' }).click();
+  // The band opens the home (E-1, UC-TIM-01 check 10) with the timer beside its act; the grid's last row is the
+  // capacity, each weekday measured against eight hours (scene time).
+  await page.locator('.band[data-product="time"]').locator('[data-timer]').waitFor({ timeout: 5_000 });
+  assert.equal(await page.locator('[data-capacity="480"]').count(), 5, 'each weekday says its capacity');
+  assert.match((await page.locator('[data-capacity]').first().getAttribute('aria-label')) ?? '', / of 8:00$/u);
+  assert.equal(await page.getByRole('row').filter({ hasText: 'Capacity' }).count(), 1, 'the capacity is a row of the grid');
+  // An entry is added from a row inside the grid (UC-TIM-02 check 9), and the week's state is a lozenge in the band.
+  await page.getByRole('row').locator('[data-add-entry]').filter({ hasText: 'Add an entry' }).click();
+  await page.getByRole('dialog', { name: 'Record time' }).waitFor({ timeout: 5_000 });
+  await page.keyboard.press('Escape');
+  await page.locator('.band .figures .lozenge[data-tone="neutral"]').filter({ hasText: 'Open' }).locator('svg').waitFor();
+  assert.equal(await page.getByRole('list', { name: /^The days of / }).count(), 0, 'the desktop draws the grid, no day strip');
+  // Handing in says what happens next, under the week.
+  await page.locator('[data-hand-in]').getByText(/sends the week for approval/u).waitFor();
+  await page.getByRole('button', { name: 'Hand in the week' }).click();
   await page.getByRole('button', { name: 'Take back' }).waitFor({ timeout: 5_000 });
 
-  await page.getByText(/^0:25 this week · Handed in$/).waitFor({ timeout: 5_000 });
+  await page.locator('.band .figures').filter({ hasText: /^\s*0:25 of 40:00\s*·.*·\s*Handed in\s*$/u }).waitFor({ timeout: 5_000 });
   assert.equal(await page.locator('[data-page-kind="work"]').count(), 1, 'the time is no work page');
   await page.getByRole('link', { name: 'To decide' }).click();
   await page.getByRole('button', { name: 'Approve' }).first().click();
@@ -137,11 +152,38 @@ test('chromium: time - a timer on an entry, the week handed in, a colleague\'s w
   assert.deepEqual(walk.unstubbed(), []);
 });
 
+// HOME-time-week: one primary per view. *Record time* leads until every working day holds time;
+// then *Hand in the week* does, and recording steps back to a secondary act in the head.
+test('chromium: time - handing the week in becomes the primary once every working day holds time', async (t) => {
+  const browser = await sharedChromium(t);
+  const booked = (days) => days.map((offset, i) => ({
+    id: `00000c00-0000-4000-8000-00000000000${i}`, account_id: ACCOUNT.id, entry_id: ENTRY.id, work_type: 'work',
+    day: new Date(Date.parse(`${MONDAY}T00:00:00Z`) + offset * DAY).toISOString().slice(0, 10), started_at: null, minutes: 480,
+    note: '', billable: true, source: 'MANUAL', corrects: null, created_at: `${MONDAY}T09:00:00Z`, updated_at: `${MONDAY}T09:00:00Z`, version: 1,
+    collection_id: COLLECTION.id, hub_id: HUB.id, entry_title: ENTRY.title,
+  }));
+  const tones = async (page) => {
+    await page.locator('[data-hand-in]').waitFor({ timeout: 5_000 });
+    return {
+      handIn: await page.getByRole('button', { name: 'Hand in the week' }).getAttribute('data-tone'),
+      record: await page.locator('header').getByRole('button', { name: 'Record time', exact: true }).getAttribute('data-tone'),
+      primaries: await page.locator('main .button[data-tone=primary]:visible').count(),
+    };
+  };
+  for (const [days, want] of [[[0, 1, 2, 3], { handIn: 'secondary', record: 'primary' }], [[0, 1, 2, 3, 4], { handIn: 'primary', record: 'secondary' }]]) {
+    const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ held: booked(days) }) });
+    const { page } = walk;
+    await page.goto(`${served.origin}/time`);
+    assert.deepEqual(await tones(page), { ...want, primaries: 1 }, `${days.length} of five weekdays recorded`);
+    assert.deepEqual(walk.errors(), []);
+    await walk.close();
+  }
+});
+
 // UC-TIM-03 check 7: the approver is shown the queue of weeks to decide - whose, which week and
 // how long - opens one whole and sends it back with a reason, after which the queue holds nothing.
 test('chromium: time - a colleague\'s week is opened from the queue and sent back with a reason', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend() });
   t.after(walk.close);
   const { page } = walk;
@@ -168,8 +210,7 @@ test('chromium: time - a colleague\'s week is opened from the queue and sent bac
 });
 
 test('chromium: time - a timer left running past a day is recorded until a time on its start\'s day', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   // Started two days ago at 09:00 UTC (the walk's zone): a stop now would be refused.
   const started = `${new Date(Date.now() - 2 * DAY).toISOString().slice(0, 10)}T09:00:00.000Z`;
   const running = { running: true, entry_id: null, work_type: 'work', note: '', billable: true, started_at: started, elapsed_minutes: 2880 };
@@ -199,8 +240,7 @@ test('chromium: time - a timer left running past a day is recorded until a time 
 });
 
 test('chromium: time - 375 px, an empty week says what to do and nothing scrolls sideways', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   // The reader away on the 3rd of this month, so the absence calendar draws a person's month.
   const thisMonth = new Date().toISOString().slice(0, 7);
   const away = { id: '01a0e2e0-0000-7000-8000-00000000ab01', account_id: ACCOUNT.id, from: `${thisMonth}-03`, to: `${thisMonth}-03`, kind: 'LEAVE', half: false, version: 1 };
@@ -227,8 +267,11 @@ test('chromium: time - 375 px, an empty week says what to do and nothing scrolls
   const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   assert.ok(wide <= 0, `the page scrolls ${wide} px sideways`);
 
-  // A day of the strip records on that day.
-  await page.getByRole('button', { name: /^Record time on / }).first().click();
+  // The timer is a card above the week; a day of the strip is chosen, and records on that day.
+  await page.locator('section[data-timer="idle"]').getByRole('button', { name: 'Start timer' }).waitFor();
+  await page.getByRole('list', { name: /^The days of / }).getByRole('button').first().click();
+  assert.equal(await page.getByRole('list', { name: /^The days of / }).getByRole('button').first().getAttribute('aria-pressed'), 'true');
+  await page.locator('[data-day-records]').getByRole('button', { name: /^Record time on / }).click();
   await page.getByRole('dialog').getByLabel('Day').waitFor({ timeout: 5_000 });
   assert.equal(await page.getByRole('dialog').getByLabel('Day').inputValue(), MONDAY);
   await page.keyboard.press('Escape');
@@ -251,17 +294,16 @@ test('chromium: time - 375 px, an empty week says what to do and nothing scrolls
   assert.deepEqual(walk.unstubbed(), []);
 });
 
-// A locked day is drawn as a card that is not a button, so both kinds are measured.
-for (const isLocked of [false, true]) test(`chromium: time - 1280 px, each ${isLocked ? 'locked' : 'open'} day card keeps inside its own cell and the content edge`, async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+// The strip is the phone's (scene time, UC-TIM-02 check 9); a locked day is measured as well as an open one.
+for (const isLocked of [false, true]) test(`chromium: time - 390 px, each ${isLocked ? 'locked' : 'open'} day of the strip keeps inside its own cell and the content edge`, async (t) => {
+  const browser = await sharedChromium(t);
   const backend = timeBackend();
   const answer = (method, path, query, body) => {
     const answered = backend(method, path, query, body);
     if (isLocked && answered?.json?.days) return { json: { ...answered.json, days: answered.json.days.map((day) => ({ ...day, locked: true })) } };
     return answered;
   };
-  const walk = await productWalk(browser, { modules: ['TIME'], answer, width: 1280, height: 900 });
+  const walk = await productWalk(browser, { modules: ['TIME'], answer, width: 390, height: 844 });
   t.after(walk.close);
   const { page } = walk;
 
@@ -282,21 +324,26 @@ for (const isLocked of [false, true]) test(`chromium: time - 1280 px, each ${isL
 
 // §4: a workspace's kinds of work are there on first use - the first reader who may write them
 // gets the usual ones, in their words - so the timer starts and a day records.
-test('chromium: time - a workspace without a kind of work is given the usual ones, and the timer starts', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+test('chromium: time - a workspace without a kind of work starts on its start page, is given the usual ones by the first record, and the timer starts', async (t) => {
+  const browser = await sharedChromium(t);
   const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ kinds: [] }) });
   t.after(walk.close);
   const { page } = walk;
 
+  // Scene emptytime: the start page writes nothing; its main way writes the usual kinds and opens the record.
   await page.goto(`${served.origin}/time`);
+  await page.getByRole('heading', { level: 1, name: 'Time' }).waitFor({ timeout: 10_000 });
+  assert.deepEqual(walk.written.filter((each) => each.path.startsWith('/time-work-types')), [], 'the start page wrote kinds');
+  // The start page stands alone, as emptytime draws it: no week to hand in under its templates.
+  assert.equal(await page.locator('[data-hand-in]').count(), 0, 'the start page offers handing in an empty week');
+  await page.getByRole('button', { name: 'Record the first time' }).click();
+  await page.getByRole('dialog').getByLabel('Day').waitFor({ timeout: 5_000 });
+  assert.equal(walk.written.filter((each) => each.path.startsWith('/time-work-types')).length, 4, 'the usual kinds were not written');
+  await page.keyboard.press('Escape');
   const start = page.getByRole('button', { name: 'Start timer' });
   await start.waitFor({ timeout: 10_000 });
   for (let waited = 0; await start.isDisabled() && waited < 5000; waited += 100) await page.waitForTimeout(100);
   assert.equal(await start.isDisabled(), false, 'the timer still cannot start');
-  await page.getByRole('button', { name: 'Record time', exact: true }).first().click();
-  await page.getByRole('dialog').getByLabel('Day').waitFor({ timeout: 5_000 });
-  await page.keyboard.press('Escape');
 
   await page.goto(`${served.origin}/time/settings/kinds`);
   await page.getByRole('cell', { name: 'Development', exact: true }).waitFor({ timeout: 10_000 });
@@ -323,9 +370,20 @@ test('chromium: time - a workspace without a kind of work is given the usual one
 
 // user-experience.md §5.12: on a phone the running timer, a long entry title among it, wraps
 // rather than widening the page.
+test('chromium: time - 390 px, the start page draws no day strip and no hand-in, as emptytime', async (t) => {
+  const browser = await sharedChromium(t);
+  const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ kinds: [] }), width: 390, height: 844 });
+  t.after(walk.close);
+  const { page } = walk;
+  await page.goto(`${served.origin}/time`);
+  await page.getByRole('heading', { name: 'Time' }).first().waitFor({ timeout: 10_000 });
+  await page.getByText(/What your work costs in time/u).waitFor({ timeout: 10_000 });
+  assert.equal(await page.getByRole('list', { name: /^The days of / }).count(), 0, 'a day strip over the start page');
+  assert.equal(await page.locator('[data-hand-in]').count(), 0, 'a hand-in under the start page');
+});
+
 test('chromium: time - 390 px, a running timer on a long title scrolls nothing sideways', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const title = 'Als Kundin möchte ich meine offenen Rechnungen im Portal sehen und einzeln herunterladen können';
   const running = { running: true, entry_id: ENTRY.id, entry_title: title, work_type: 'work', note: '', billable: true, started_at: new Date(Date.now() - 25 * 60_000).toISOString(), elapsed_minutes: 25 };
   const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ running }), width: 390, height: 844 });
@@ -342,8 +400,7 @@ test('chromium: time - 390 px, a running timer on a long title scrolls nothing s
 
 // user-experience.md §5.10: a rate's days are the reader's dates, never ISO text.
 test('chromium: time - the cost rates name their days in words', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const rate = { id: '01a0e2e0-0000-7000-8000-00000000b701', account_id: null, role: 'MEMBER', hour_minor: 9000, currency: 'EUR', from: '2025-11-05', to: '2026-03-31', version: 1 };
   const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ rates: [rate] }) });
   t.after(walk.close);
@@ -362,8 +419,7 @@ test('chromium: time - the cost rates name their days in words', async (t) => {
 
 // The time head names the entry the timer runs on (user-experience.md §7.6), and the name opens it.
 test('chromium: time - the running timer names its entry in the head and opens it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const started = new Date(Date.now() - 25 * 60_000).toISOString();
   const running = { running: true, entry_id: ENTRY.id, entry_title: ENTRY.title, work_type: 'work', note: '', billable: true, started_at: started, elapsed_minutes: 25 };
   const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ running }) });
@@ -382,8 +438,7 @@ test('chromium: time - the running timer names its entry in the head and opens i
 // The product's first mark keeps the width of its words where its target ends the head: it turns to
 // end at the create act instead of squeezing into the strip beside it (user-experience.md §3.4).
 test('chromium: time - the first visit\'s mark at the head\'s create act keeps its width', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { products_seen: _seen, ...newcomer } = ACCOUNT;
   const backend = timeBackend();
   const answer = (method, path, query, body) =>

@@ -38,7 +38,7 @@
       <a href="/licence/">What that means</a>
     </p>
 
-    <dl class="figures">
+    <dl class="site-figures">
       <div class="site-figure">
         <dt>5</dt>
         <dd>levels, from an area of life down to a single tick</dd>
@@ -70,7 +70,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">The model</p>
@@ -142,7 +142,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">The contract</p>
@@ -198,7 +198,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">The difference</p>
@@ -250,7 +250,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">Operations</p>
@@ -285,7 +285,7 @@ curl /api/v1/meta/capabilities</code></pre>
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">Who runs it</p>
@@ -331,7 +331,7 @@ curl /api/v1/meta/capabilities</code></pre>
   </div>
 </section>
 
-<section class="section closing">
+<section class="site-section closing">
   <div class="wrap">
     <p class="kicker">Where to start</p>
     <h2>Take it and run it</h2>

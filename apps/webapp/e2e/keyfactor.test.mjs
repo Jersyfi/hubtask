@@ -14,7 +14,7 @@ import { generateKeyPairSync, randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { PASSKEYS, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -116,8 +116,7 @@ async function password(page) {
 
 // Check 5: a key without a PIN completes the step after the password - and only that.
 test('chromium: a security key without a PIN completes the step after the password', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, sent, failures } = await openCard(browser);
   await attachKey(context, page);
   await password(page);
@@ -144,8 +143,7 @@ test('chromium: a security key without a PIN completes the step after the passwo
 
 // Check 9 and P-11: reached and named, the wait said; a closed prompt says nothing, the focus kept.
 test('chromium: the key is reached by keyboard, the wait said, and a closed prompt silent', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, failures } = await openCard(browser);
   await password(page);
   await page.getByRole('button', { name: 'Use my security key' }).waitFor();
@@ -177,8 +175,7 @@ test('chromium: the key is reached by keyboard, the wait said, and a closed prom
 
 // UC-ID-22 check 8: the setup the rule demands offers a key beside the app, and the codes come first.
 test('chromium: the setup during sign-in adds a security key, shows the codes, then opens the session', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const registration = {
     expires_at: '2099-01-01T00:05:00Z',
     public_key: {
@@ -239,8 +236,7 @@ test('chromium: the setup during sign-in adds a security key, shows the codes, t
 
 // Check 6: the fresh proof offers the key among the account's ways, and the device answers it.
 test('chromium: the step-up prompt proves the caller with a security key', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const sent = { removals: [], options: 0, proofs: [] };
   const held = [{ id: '01936f2a-7c1e-7000-8000-0000000000a0', name: 'Old laptop', created_at: '2026-10-01T09:00:00Z', last_used_at: null }];
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });

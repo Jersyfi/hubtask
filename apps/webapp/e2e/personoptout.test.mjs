@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { AI_SOURCE, WORKSPACE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -49,8 +49,7 @@ async function open(browser, source, { alone = false } = {}) {
 }
 
 test('chromium: AI for everybody needs its basis, and says how many people it touches', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser, { ...AI_SOURCE, keeping_out_count: 2 });
   t.after(close);
 
@@ -77,8 +76,7 @@ test('chromium: AI for everybody needs its basis, and says how many people it to
 });
 
 test('chromium: under the installation\'s lock the screen says who decided and offers no control', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, { ...AI_SOURCE, person_opt_out_lock: 'INSTANCE', person_opt_out_origin: 'INSTANCE' });
   t.after(close);
 
@@ -92,8 +90,7 @@ test('chromium: under the installation\'s lock the screen says who decided and o
 });
 
 test('chromium: the consent register names who keeps their content out', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, AI_SOURCE);
   t.after(close);
 
@@ -107,8 +104,7 @@ test('chromium: the consent register names who keeps their content out', async (
 // P-10, UC-PRV-05 check 8 and data-protection.md §4.1: alone in a workspace there is nobody whose
 // content could be kept out, so neither the position nor the register is drawn.
 test('chromium: a workspace of one is asked nothing about people keeping their content out', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, AI_SOURCE, { alone: true });
   t.after(close);
 
@@ -124,8 +120,7 @@ test('chromium: a workspace of one is asked nothing about people keeping their c
 });
 
 test('chromium: a workspace of one still sees a stored AI for everybody, which stays in force', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, {
     ...AI_SOURCE, person_opt_out: 'NOT_OFFERED', person_opt_out_basis: 'WORKS_AGREEMENT',
     person_opt_out_contact: 'the works council', person_opt_out_origin: 'WORKSPACE',

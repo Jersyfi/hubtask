@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, DEFAULT_STRUCTURE, MANIFEST, PAGE, PERMISSIONS, PRESETS, WORKSPACE, forgetUnstubbed, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -87,8 +87,7 @@ async function openScrum(page) {
 }
 
 test('chromium: an empty workspace switches Workflows on and takes Scrum team', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures, written } = await as(browser, 'OWNER');
   t.after(() => context.close());
 
@@ -111,8 +110,7 @@ test('chromium: an empty workspace switches Workflows on and takes Scrum team', 
 // §3.2: a GROUP question in an empty workspace offers *Create a group* in place, and the group made
 // there is the answer - the plan is asked again with it - so no part is left out for want of one.
 test('chromium: a group question makes its group in place and answers with it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   forgetUnstubbed();

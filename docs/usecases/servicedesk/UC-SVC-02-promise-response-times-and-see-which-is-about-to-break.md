@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
 state: verified
 tasks: []
-checked_by: [core/domain/model/servicedesk/Sla_test.go, core/application/service/servicedesk/EntrySla_test.go, core/application/service/servicedesk/Clocks_test.go, core/application/service/servicedesk/OlaClocks_test.go, core/application/service/servicedesk/Organisations_test.go, test/integration/service_desk_repository_test.go, apps/webapp/src/lib/servicedesk/desk.test.ts, core/domain/model/servicedesk/SlaHub_test.go, core/application/service/servicedesk/PolicyHub_test.go, test/integration/sla_policy_hub_test.go, apps/webapp/e2e/servicedeskwalk.test.mjs, core/application/service/servicedesk/DeskDoors_test.go]
+checked_by: [core/application/service/servicedesk/DeadlinesKept_test.go, test/integration/deadlines_kept_test.go, infrastructure/expression/ShippedPriority_test.go, core/application/service/automation/MatchRules_test.go, core/domain/model/servicedesk/Sla_test.go, core/application/service/servicedesk/EntrySla_test.go, core/application/service/servicedesk/Clocks_test.go, core/application/service/servicedesk/OlaClocks_test.go, core/application/service/servicedesk/Organisations_test.go, test/integration/service_desk_repository_test.go, apps/webapp/src/lib/servicedesk/desk.test.ts, core/domain/model/servicedesk/SlaHub_test.go, core/application/service/servicedesk/PolicyHub_test.go, test/integration/sla_policy_hub_test.go, apps/webapp/e2e/servicedeskwalk.test.mjs, core/application/service/servicedesk/DeskDoors_test.go, apps/webapp/e2e/productsband.test.mjs]
 ---
 
 # Promise response times and see which promise is about to break
@@ -35,6 +35,8 @@ Lena's policy *incidents* measures entries of the type *incident*: a first respo
 11. An OLA's goals stand still in their pause statuses, and are met by the completion or when the entry is handed on to somebody outside the group; handed back later, the entry is not measured by that OLA again.
 12. An OLA's goal at risk or breached is announced as the requester's is, with the group (`assignee_group_id`), so a rule escalates it; the entry's goals and the report carry the OLAs' beside the requester's, each marked `SLA` or `OLA`, and the portal shows the requester's alone.
 13. A person who may shape a hub defines SLA policies of the hub's own, and makes a copy of a policy shared from the workspace there under a key of its own, which names the policy it was copied from; a hub's own policy measures only the hub's entries and is tried there before the workspace's, is listed only to who may read the hub, and stays at its hub (`sla_policies.hub_fixed`).
+14. A desk made from the ITIL template sets an entry's priority from its impact and urgency (high × high P1; high × medium or medium × high P2; high × low, medium × medium or low × high P3; the rest P4) when it is raised and again when either changes; an administrator edits or switches off the two rules that do it like any other rule (decision of 2026-11-12, the work surface concept).
+15. A handler reads how many of the deadlines on the entries assigned to them they kept, over the last 30 days or a span of their choosing up to a year: per kind - the requester's first response, next response and resolution, and each team's OLA by its group - the deadlines met or breached in that span and how many were met without a breach. They need no report permission, and nobody reads another person's (decision of 2026-11-12, the work surface concept).
 
 ## Where it ends
 

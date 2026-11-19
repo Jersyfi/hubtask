@@ -10,6 +10,7 @@
 
 import { TransportError, type FieldProblem } from './errors.ts';
 import type {
+  ByteReceive,
   ByteTransfer,
   SnapshotLine,
   SnapshotOptions,
@@ -282,6 +283,22 @@ export class FetchTransport implements Transport {
       });
     }
     report(total, total);
+  }
+
+  async receive(request: ByteReceive): Promise<Blob> {
+    if (!Number.isFinite(request.timeoutMs) || request.timeoutMs <= 0) {
+      throw new TypeError('a receive needs a positive timeoutMs; there is no default of "forever"');
+    }
+    const deadline = AbortSignal.timeout(request.timeoutMs);
+    const signal = request.signal ? AbortSignal.any([deadline, request.signal]) : deadline;
+    let answer: globalThis.Response;
+    try {
+      answer = await this.#fetch(request.url, { method: 'GET', signal, credentials: 'omit' });
+      if (answer.ok) return await answer.blob();
+    } catch (cause) {
+      throw new TransportError(aborted(cause) ? 'timeout' : 'offline', { cause });
+    }
+    throw new TransportError('problem', { status: answer.status });
   }
 
   /**

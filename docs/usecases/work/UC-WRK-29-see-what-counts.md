@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-10, P-12]
 state: verified
 tasks: [UX-24, UX-25, UX-26]
-checked_by: [core/domain/model/work/StructureResolve_test.go, core/domain/model/work/Figure_test.go, core/domain/model/work/FigureKept_test.go, core/application/service/work/FigureKept_test.go, test/integration/figure_kept_test.go, core/application/service/work/StructureProgress_test.go, core/application/service/work/FigureReader_test.go, core/application/service/work/HubFigureReader_test.go, test/integration/figure_repository_test.go, test/integration/container_figure_test.go, cmd/hubctl/Structure_test.go, apps/webapp/src/lib/data/figure.test.ts, apps/webapp/src/lib/data/figureOffer.test.ts, apps/webapp/e2e/figure.test.mjs, core/domain/model/work/Kudos_test.go, core/application/service/work/Milestones_test.go, core/application/service/work/Kudos_test.go, test/integration/milestones_test.go, test/integration/kudos_test.go, test/integration/celebrations_archive_test.go, apps/webapp/src/lib/data/kudos.test.ts, apps/webapp/e2e/celebrate.test.mjs, apps/webapp/e2e/flow.test.mjs]
+checked_by: [core/domain/model/work/StructureResolve_test.go, core/domain/model/work/Figure_test.go, core/domain/model/work/FigureKept_test.go, core/application/service/work/FigureKept_test.go, test/integration/figure_kept_test.go, core/application/service/work/StructureProgress_test.go, core/application/service/work/FigureReader_test.go, core/application/service/work/HubFigureReader_test.go, test/integration/figure_repository_test.go, test/integration/container_figure_test.go, cmd/hubctl/Structure_test.go, apps/webapp/src/lib/data/figure.test.ts, apps/webapp/src/lib/data/figureOffer.test.ts, apps/webapp/e2e/figure.test.mjs, core/domain/model/work/Kudos_test.go, core/application/service/work/Milestones_test.go, core/application/service/work/Kudos_test.go, test/integration/milestones_test.go, test/integration/kudos_test.go, test/integration/celebrations_archive_test.go, apps/webapp/src/lib/data/kudos.test.ts, apps/webapp/e2e/celebrate.test.mjs, apps/webapp/e2e/flow.test.mjs, apps/webapp/e2e/productsband.test.mjs]
 ---
 
 # See what counts in a hub or collection
@@ -30,6 +30,8 @@ The shopping list says "5 items · about €38", the household "3 due today", th
 6. Figures about one person are shown only to that person: no administrator, auditor or report sees them; team figures count the collection, not people.
 7. The account's `celebrations` preference switches milestones, kudos and celebrations off together.
 8. In a collection written to all the time, a figure shows the last count kept for up to a minute after that count was made, marked "as of <time>", while a newer count runs beside the read - not "could not be counted" and not a recount in every read (decision: the owner's fifth answers 3).
+9. A hub's overview shows each tool as a tile with one figure about the hub's work - days to the
+   sprint's end, items, pages changed this week - and none about a person.
 
 ## Where it ends
 

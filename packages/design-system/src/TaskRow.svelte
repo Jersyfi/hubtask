@@ -61,11 +61,28 @@
     /** Labels, a badge, a menu. Not part of the row's own activation. */
     trailing?: Snippet;
     /**
+     * The state control in the checkbox's place, where the entry is not completed by a tick: a
+     * column chip on a board without a workflow, a status chip under one (build-plan §5).
+     */
+    state?: Snippet;
+    /**
      * A change this device made and the server has not yet confirmed: the row carries
      * the `pending` motion role beside a word, so it reads without motion too. Resolved text -
      * "Waiting to be sent" - and absent for an entry the server has.
      */
     pendingLabel?: string;
+    /** One line, its end lost: a list nested in a page, where every row keeps the scene's height. */
+    isOneLine?: boolean;
+    /**
+     * A row of a calm table (WB-4): ruled from the next by a hairline inside one region rather
+     * than a card with a gap; the title on one line from `medium` up, its whole words on hover.
+     */
+    isRuled?: boolean;
+    /**
+     * The entry's key before its title ("SA-7"), where a list mixes collections and the key is
+     * what a person quotes. Resolved text; absent where the collection gives no key.
+     */
+    entryKey?: string;
   }
 
   const {
@@ -84,7 +101,11 @@
     onToggleComplete,
     onToggleExpand,
     trailing,
+    state,
     pendingLabel,
+    isOneLine = false,
+    isRuled = false,
+    entryKey,
   }: Props = $props();
 
   /**
@@ -102,7 +123,7 @@
   const mark = $derived(MARKS[type] ?? 'circle-check');
 </script>
 
-<div class="task-row" style:--depth={depth} data-type={type} data-completed={isCompleted ? '' : undefined} data-pending={pendingLabel !== undefined ? '' : undefined}>
+<div class="task-row" style:--depth={depth} data-type={type} data-completed={isCompleted ? '' : undefined} data-pending={pendingLabel !== undefined ? '' : undefined} data-one-line={isOneLine ? '' : undefined} data-ruled={isRuled ? '' : undefined}>
   <ListRow {href} onactivate={onOpen} isSelected={isCurrent} {trailing}>
     {#snippet leading()}
       <!-- The twist first, so the titles of a level line up whether or not a row has children. -->
@@ -122,19 +143,24 @@
            a screen reader announces as checked or not. Its label is announced and not drawn — the
            title beside it is what the reader sees, and "Completed" printed against every row would
            be noise on screen and nothing in the tree. -->
-      <Checkbox
-        label={completeLabel}
-        isLabelHidden
-        checked={isCompleted}
-        disabledReason={completeDisabledReason}
-        onchange={() => onToggleComplete?.()}
-      />
+      {#if state}
+        {@render state()}
+      {:else}
+        <Checkbox
+          label={completeLabel}
+          isLabelHidden
+          checked={isCompleted}
+          disabledReason={completeDisabledReason}
+          onchange={() => onToggleComplete?.()}
+        />
+      {/if}
       <!-- The level's mark below the top only: a top-level row is the collection's own kind, and
            its indent and twist already say where a nested one stands. -->
       {#if depth > 0}<span class="mark" aria-hidden="true"><Icon name={mark} size="sm" /></span>{/if}
     {/snippet}
 
-    <span class="title">{title}</span>
+    {#if entryKey}<span class="key" data-entry-key>{entryKey}</span>{/if}
+    <span class="title" title={isOneLine || isRuled ? title : undefined}>{title}</span>
     {#if pendingLabel !== undefined}
       <!-- The change is on its way: the mark turns with the `pending` role, the word says why. -->
       <span class="pending"><span class="pending-mark" aria-hidden="true"><Icon name="cloud-upload" size="sm" /></span>{pendingLabel}</span>
@@ -146,6 +172,16 @@
   /* The indent mirrors itself: `padding-inline-start` and not `padding-left`, so a deep entry in
      Arabic is indented from the right. */
   .task-row { padding-inline-start: calc(var(--depth) * var(--sp-300)); }
+
+  .key {
+    flex: none;
+    margin-inline-end: var(--sp-050);
+    white-space: nowrap;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: var(--fs-075);
+    font-variant-numeric: tabular-nums;
+  }
 
   /* In a narrow tree - a phone, a 400 px pane - the step is smaller and stops at the third level:
      deeper rows keep that indent and their type mark says the level (ADR-0061). A container query
@@ -166,8 +202,33 @@
     background: var(--bg-surface);
   }
 
+  /* A list the person made compact (WB-4, E-5): the row as high as the region's density says. */
+  :global([data-density='compact']) .task-row > :global(.row) { min-block-size: var(--density-row-height); padding-block: 0; }
+
   .task-row > :global(.row:hover) { border-color: var(--border-subtle); background: var(--bg-surface); }
 
+  /* One line inside a page: the rows of a table, ruled apart instead of cards with a gap, so a
+     part is as high as the scene draws it. */
+  .task-row[data-one-line] > :global(.row) {
+    min-block-size: var(--sp-400);
+    padding-block: 0;
+    border-radius: 0;
+    border-color: transparent transparent var(--border-subtle);
+  }
+  .task-row[data-one-line] > :global(.row:hover) { border-color: transparent transparent var(--border-subtle); background: var(--bg-surface-hover); }
+
+  /* A calm table's row (WB-4): square, ruled from the next by a hairline, tinted under the pointer;
+     the region around the rows is the caller's. */
+  .task-row[data-ruled] > :global(.row) {
+    border-radius: 0;
+    border-color: transparent transparent var(--border-subtle);
+  }
+  .task-row[data-ruled] > :global(.row:hover) { border-color: transparent transparent var(--border-subtle); background: var(--bg-surface-hover); }
+  /* One line from a tablet's width, also in a list a panel narrows: the viewport decides (N14). */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width >= 600px) {
+    .task-row[data-ruled] .title { display: block; white-space: nowrap; text-overflow: ellipsis; min-inline-size: 0; }
+  }
   /* The entry open beside the list: outlined in the brand and tinted, as the concept marks it;
      the outline is what says it in greyscale (rule 3). */
   .task-row > :global(.row[data-selected]) {
@@ -177,6 +238,11 @@
   }
 
   .twist { display: inline-flex; flex: none; width: var(--sp-400); justify-content: center; }
+  /* A thumb's target (§7): the twist is layout.target wide where the pointer is coarse. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .twist { width: var(--layout-target); }
+  }
   .mark { display: inline-flex; flex: none; width: var(--sp-300); justify-content: center; }
 
   .mark { color: var(--text-subtle); }
@@ -192,6 +258,8 @@
     overflow: hidden;
     overflow-wrap: anywhere;
   }
+
+  .task-row[data-one-line] .title { display: block; white-space: nowrap; text-overflow: ellipsis; min-inline-size: 0; }
 
   /* A change waiting to be sent: the `pending` role on the mark - a continuous indicator with
      no end - and the word beside it, because a pulse alone is a colour argument (rule 3) and is

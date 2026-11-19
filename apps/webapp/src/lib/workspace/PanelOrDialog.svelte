@@ -10,7 +10,7 @@
 
   import type { Snippet } from 'svelte';
 
-  import { Dialog } from '@hubtask/design-system/components';
+  import { Button, Dialog, type DialogAction } from '@hubtask/design-system/components';
 
   interface Props {
     /** Drawn inside a *Structure* tab rather than as a dialog of its own. */
@@ -22,21 +22,28 @@
     dismissLabel?: string;
     onClose?: () => void;
     actions?: Snippet;
+    /** The one primary (page-system §5.1): the dialog's own, or last in the embedded section's acts. */
+    primary?: DialogAction;
     children: Snippet;
   }
 
-  let { isEmbedded = false, size = 'l', title, isOpen = $bindable(false), dismissLabel, onClose, actions, children }: Props = $props();
+  let { isEmbedded = false, size = 'l', title, isOpen = $bindable(false), dismissLabel, onClose, actions, primary, children }: Props = $props();
 </script>
 
 {#if isEmbedded}
   {#if isOpen}
     <section class="embedded" aria-label={title}>
       {@render children()}
-      {#if actions}<div class="actions">{@render actions()}</div>{/if}
+      {#if actions || primary}
+        <div class="actions">
+          {#if actions}{@render actions()}{/if}
+          {#if primary}<Button tone={primary.tone ?? 'primary'} isBusy={primary.isBusy} busyLabel={primary.busyLabel} disabledReason={primary.disabledReason} onclick={primary.onclick}>{primary.label}</Button>{/if}
+        </div>
+      {/if}
     </section>
   {/if}
 {:else}
-  <Dialog {size} {title} bind:isOpen {dismissLabel} {onClose} {actions}>
+  <Dialog {size} {title} bind:isOpen {dismissLabel} {onClose} {actions} {primary}>
     {@render children()}
   </Dialog>
 {/if}

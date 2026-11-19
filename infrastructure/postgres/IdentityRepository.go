@@ -70,6 +70,7 @@ func (r AccountRepository) Find(ctx context.Context, accountID shared.ID) (ident
 		Products: row.NavProducts, ProductsHidden: row.NavProductsHidden, HubsHidden: idStrings(row.NavHubsHidden),
 		HubsOrder: stringFrom(row.NavHubsOrder), ContentsMode: stringFrom(row.NavContentsMode),
 	}
+	account.Today = identity.TodaySections{Order: row.TodaySections, Hidden: row.TodaySectionsHidden}
 	if !row.AvatarMediaID.Valid {
 		return account, nil
 	}
@@ -418,6 +419,8 @@ func (r AccountRepository) UpdatePreferences(
 		NavHubsOrder:          optionalText(account.Nav.HubsOrder),
 		NavContentsMode:       optionalText(account.Nav.ContentsMode),
 		NavHubsHidden:         hubsHidden,
+		TodaySections:         productsSeenOf(account.Today.Order),
+		TodaySectionsHidden:   productsSeenOf(account.Today.Hidden),
 		UpdatedAt:             timestampOf(at),
 		ID:                    id,
 	})
@@ -1137,4 +1140,54 @@ func pairOf(groupID, accountID shared.ID) (group, account pgtype.UUID, err error
 	}
 	account, err = uuidOf(accountID)
 	return group, account, err
+}
+
+// GroupPeopleRepository reads the people a query names by group.
+type GroupPeopleRepository struct{}
+
+var _ repository.GroupPeople = GroupPeopleRepository{}
+
+func (GroupPeopleRepository) PeopleOfGroupsOf(ctx context.Context, accountID shared.ID, limit int) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	id, err := uuidOf(accountID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.PeopleOfGroupsOf(ctx, sqlc.PeopleOfGroupsOfParams{AccountID: id, MaxRows: boundedInt32(limit)})
+	if err != nil {
+		return nil, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the people of an account's groups: %w", err))
+	}
+	return idsFrom(rows)
+}
+
+func (GroupPeopleRepository) PeopleOfGroup(ctx context.Context, ref string, limit int) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var group pgtype.UUID
+	if parsed, parseErr := shared.ParseID(ref); parseErr == nil {
+		if group, err = uuidOf(parsed); err == nil {
+			_, err = queries.FindGroup(ctx, group)
+		}
+	} else {
+		group, err = queries.GroupNamed(ctx, ref)
+	}
+	if err != nil {
+		if IsNoRows(err) {
+			return nil, shared.ErrNotFound.WithDetail("groups.not_found")
+		}
+		return nil, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("finding a group a query names: %w", err))
+	}
+	rows, err := queries.GroupMembers(ctx, group)
+	if err != nil {
+		return nil, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the members of a group a query names: %w", err))
+	}
+	return idsFrom(rows[:min(len(rows), limit)])
 }

@@ -11,6 +11,11 @@
     readonly icon?: IconName;
     /** A count worth seeing before opening it. */
     readonly count?: number;
+    /**
+     * The view is shown changed and not saved (work-surface §6.2, scene viewcfg 1): a dot after its
+     * word, and this text said to a reader.
+     */
+    readonly changed?: string;
   }
 </script>
 
@@ -278,6 +283,7 @@
             {#if view.icon}<Icon name={view.icon} size="sm" />{/if}
             <span class="word">{view.label}</span>
             {#if view.count}<span class="count">{view.count}</span>{/if}
+            {#if view.changed}<span class="changed" data-changed-dot title={view.changed}><span class="visually-hidden">{view.changed}</span></span>{/if}
           </a>
         </li>
       {/each}
@@ -295,7 +301,7 @@
     </ul>
     {#if tools && fit === 'menu'}
       <span class="tools-more">
-        <Popover label={toolsLabel ?? label} placement={{ side: 'block-end', align: 'end' }}>
+        <Popover isAnchored label={toolsLabel ?? label} placement={{ side: 'block-end', align: 'end' }}>
           {#snippet trigger(props)}
             <IconButton icon="ellipsis" label={toolsLabel ?? label} size="sm" tone="secondary" {...props} />
           {/snippet}
@@ -396,6 +402,8 @@
     pointer-events: none;
   }
 
+  .changed { inline-size: var(--sp-100); block-size: var(--sp-100); border-radius: var(--r-full); background: var(--accent-primary); flex: none; }
+  .visually-hidden { position: absolute; inline-size: var(--sp-025); block-size: var(--sp-025); overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .count {
     min-inline-size: var(--sp-250);
     padding: 0 var(--sp-050);

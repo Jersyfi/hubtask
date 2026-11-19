@@ -460,3 +460,36 @@ func TestAnOrdinaryEventFiresNoJumbleRule(t *testing.T) {
 		t.Errorf("%d jobs queued on an item event", len(queued.queued))
 	}
 }
+
+// A trigger narrowed to changed fields (automation.Trigger) fires only when one of them is in the update's
+// change set - a rule about impact and urgency does not run on a rename; one not narrowed fires on
+// every update.
+func TestATriggerNarrowedToFieldsFiresOnlyWhenOneChanged(t *testing.T) {
+	narrowed := ruleAt(domain.Scope{Type: domain.ScopeTenant}, shared.ID("01936f2a-7c1e-7000-8000-000000000111"))
+	narrowed.Trigger.ChangedFields = []string{"custom_fields.impact", "custom_fields.urgency"}
+	open := ruleAt(domain.Scope{Type: domain.ScopeTenant}, shared.ID("01936f2a-7c1e-7000-8000-000000000112"))
+	fired := func(changed ...string) []any {
+		t.Helper()
+		matcher, queued, _ := newMatcher([]domain.Rule{narrowed, open})
+		envelope := itemEvent()
+		set := map[string]any{}
+		for _, field := range changed {
+			set[field] = map[string]any{"from": nil, "to": "x"}
+		}
+		envelope.Payload["change_set"] = set
+		if err := matcher.Deliver(context.Background(), envelope); err != nil {
+			t.Fatalf("delivering: %v", err)
+		}
+		var rules []any
+		for _, request := range queued.queued {
+			rules = append(rules, request.Payload["rule_id"])
+		}
+		return rules
+	}
+	if rules := fired("title"); len(rules) != 1 || rules[0] != open.ID.String() {
+		t.Errorf("a rename fired %v, want only the rule not narrowed", rules)
+	}
+	if rules := fired("title", "custom_fields.urgency"); len(rules) != 2 {
+		t.Errorf("a change of urgency fired %v, want both rules", rules)
+	}
+}

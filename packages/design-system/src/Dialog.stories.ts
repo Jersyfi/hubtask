@@ -31,6 +31,13 @@ export const wide: Story = {
   args: { mode: 'wide' },
 };
 
+export const hang: Story = {
+  name: 'Hung from its button',
+  about:
+    'A panel worked in from the bar — *Create* — hangs under the button that opened it, its end on the button’s end, instead of standing in the middle. The button names it, so it draws no head; focus, the trap, Escape and the backdrop are the dialog’s.',
+  args: { mode: 'hang' },
+};
+
 export const sizeS: Story = {
   name: 'Size S — a confirmation',
   about: 'Dialog S (`layout.dialog.s`): a confirmation or one field. Centred on every width, a phone included; the primary names the verb and stands last.',

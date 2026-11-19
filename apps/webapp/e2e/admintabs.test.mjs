@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, ADMIN_GRANTS, MANIFEST, OTHER, OWNER_GRANTS, PAGE, PERMISSIONS, SIGN_IN_POLICY, WORKSPACE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -73,8 +73,7 @@ const MOVED = [
 ];
 
 test('chromium: each old address lands on its tab, and a tab chosen is an address', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, PERMISSIONS.OWNER, OWNER_GRANTS);
   t.after(() => context.close());
 
@@ -110,8 +109,7 @@ test('chromium: each old address lands on its tab, and a tab chosen is an addres
 
 for (const [who, permissions, grants] of [['an owner', PERMISSIONS.OWNER, OWNER_GRANTS], ['an administrator', PERMISSIONS.ADMIN, ADMIN_GRANTS]]) {
   test(`chromium: ${who} adds people through one primary action with the three ways`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await as(browser, permissions, grants);
     t.after(() => context.close());
 
@@ -149,8 +147,7 @@ for (const [who, permissions, grants] of [['an owner', PERMISSIONS.OWNER, OWNER_
 }
 
 test('chromium: an auditor reads the people, the groups and the roles, and is offered no way to add anybody', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, PERMISSIONS.AUDITOR, []);
   t.after(() => context.close());
 
@@ -167,8 +164,7 @@ test('chromium: an auditor reads the people, the groups and the roles, and is of
 });
 
 test('chromium: 375 px — the three ways are in the head\'s menu under the same name', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, PERMISSIONS.OWNER, OWNER_GRANTS, 375);
   t.after(() => context.close());
 
@@ -182,8 +178,7 @@ test('chromium: 375 px — the three ways are in the head\'s menu under the same
 
 for (const [who, permissions] of [['an owner', PERMISSIONS.OWNER], ['an auditor', PERMISSIONS.AUDITOR]]) {
   test(`chromium: ${who} finds AI in its sections, each with an address of its own`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await as(browser, permissions, []);
     t.after(() => context.close());
 
@@ -214,8 +209,7 @@ for (const [who, permissions] of [['an owner', PERMISSIONS.OWNER], ['an auditor'
 }
 
 test('chromium: each shipped role says how many hold it at the workspace (user-experience.md §8.7)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, PERMISSIONS.OWNER, []);
   t.after(() => context.close());
 

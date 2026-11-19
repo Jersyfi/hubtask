@@ -20,12 +20,12 @@ import type { LayoutStore } from './layoutmemory.ts';
  * What can stand beside a title, in the order the columns are drawn. The key first: it is what a
  * person quotes, drawn as everywhere else (`ticket.ts`, user-experience.md §5.6).
  */
-export type ListField = 'key' | 'type' | 'amount' | 'column' | 'due' | 'people' | 'labels' | 'progress';
-export const LIST_FIELDS: readonly ListField[] = ['key', 'type', 'amount', 'column', 'due', 'people', 'labels', 'progress'];
+export type ListField = 'key' | 'type' | 'requester' | 'priority' | 'sla' | 'amount' | 'column' | 'due' | 'people' | 'labels' | 'progress' | `cf.${string}`;
+export const LIST_FIELDS: readonly ListField[] = ['key', 'type', 'requester', 'priority', 'sla', 'amount', 'column', 'due', 'people', 'labels', 'progress'];
 
 /** How the top level is grouped: nothing, or by one value each entry has. */
-export type ListGrouping = 'none' | 'type' | 'category' | 'column' | 'assignee' | 'due';
-export const LIST_GROUPINGS: readonly ListGrouping[] = ['none', 'type', 'category', 'column', 'assignee', 'due'];
+export type ListGrouping = 'none' | 'status' | 'type' | 'category' | 'column' | 'assignee' | 'due';
+export const LIST_GROUPINGS: readonly ListGrouping[] = ['none', 'status', 'type', 'category', 'column', 'assignee', 'due'];
 
 /** Where a done entry goes: where it stands, gathered at the end, or out of sight. */
 export type DonePlacement = 'inline' | 'bottom' | 'hidden';
@@ -50,12 +50,22 @@ export interface ListOffer {
   readonly carriesLabels: boolean;
   /** The workspace shows entry types (the workflows module is on, UC-FLW-01 check 8). */
   readonly showsTypes?: boolean;
+  /** A desk's collection (service desk on): the queue's requester, priority and SLA (UC-WRK-45 check 1). */
+  readonly isDesk?: boolean;
+  /** A workflow runs for the collection's entries: they stand in statuses, a way to group them. */
+  readonly runsWorkflow?: boolean;
+  /** The custom fields in force, offered as `cf.<key>` columns after the collection's own (E-21). */
+  readonly customKeys?: readonly string[];
 }
 
 /** The fields the collection offers, in column order. */
 export function offeredFields(offer: ListOffer): readonly ListField[] {
-  return LIST_FIELDS.filter((field) => {
+  const own = LIST_FIELDS.filter((field) => {
     switch (field) {
+      case 'requester':
+      case 'priority':
+      case 'sla':
+        return offer.isDesk === true && !offer.isSimple;
       case 'key':
         return !offer.isSimple;
       case 'type':
@@ -72,8 +82,11 @@ export function offeredFields(offer: ListOffer): readonly ListField[] {
         return offer.carriesLabels;
       case 'progress':
         return offer.isLevelled;
+      default:
+        return false;
     }
   });
+  return [...own, ...(offer.customKeys ?? []).map((key): ListField => `cf.${key}`)];
 }
 
 /** The groupings the collection offers: a value it does not hold is not a way to group by. */
@@ -82,6 +95,8 @@ export function offeredGroupings(offer: ListOffer): readonly ListGrouping[] {
     switch (grouping) {
       case 'none':
         return true;
+      case 'status':
+        return offer.runsWorkflow === true && !offer.isSimple;
       case 'type':
         return offer.showsTypes === true;
       case 'category':
@@ -110,11 +125,20 @@ export function defaultArrangement(offer: ListOffer): ListArrangement {
       done: 'bottom',
     };
   }
+  // A desk's own list is its queue (UC-SVC-03 check 12, scene queue): the key, type, requester,
+  // priority, SLA and assignee, grouped by status.
+  if (offer.isDesk === true) {
+    return {
+      fields: offered.filter((field) => field === 'key' || field === 'type' || field === 'requester' || field === 'priority' || field === 'sla' || field === 'people'),
+      grouping: offeredGroupings(offer).includes('status') ? 'status' : 'none',
+      done: 'inline',
+    };
+  }
   // The key where entries run through a workflow - a desk's queue, a team's tickets - which is
   // where they are quoted; a plain project list stays as quiet as it was.
   const shownKey = offer.showsTypes === true;
   return {
-    fields: offered.filter((field) => (field === 'key' && shownKey) || field === 'due' || field === 'people' || field === 'labels' || field === 'progress'),
+    fields: offered.filter((field) => ((field === 'key' || field === 'requester' || field === 'priority' || field === 'sla') && (shownKey || offer.isDesk === true)) || field === 'due' || field === 'people' || field === 'labels' || field === 'progress'),
     grouping: 'none',
     done: 'inline',
   };
@@ -147,7 +171,7 @@ export function openingArrangement(options: {
   const offeredF = offeredFields(options.offer);
   const offeredG = offeredGroupings(options.offer);
   const fields = Array.isArray(read.fields)
-    ? LIST_FIELDS.filter((field) => (read.fields as unknown[]).includes(field) && offeredF.includes(field))
+    ? offeredF.filter((field) => (read.fields as unknown[]).includes(field))
     : fallback.fields;
   const grouping = offeredG.includes(read.grouping as ListGrouping) ? (read.grouping as ListGrouping) : fallback.grouping;
   const done = DONE_PLACEMENTS.includes(read.done as DonePlacement) ? (read.done as DonePlacement) : fallback.done;
@@ -171,7 +195,7 @@ export function rememberArrangement(
 /** A field toggled on or off, the columns kept in their one order. */
 export function toggleField(fields: readonly ListField[], field: ListField): readonly ListField[] {
   const next = fields.includes(field) ? fields.filter((each) => each !== field) : [...fields, field];
-  return LIST_FIELDS.filter((each) => next.includes(each));
+  return [...LIST_FIELDS.filter((each) => next.includes(each)), ...next.filter((each) => each.startsWith('cf.'))];
 }
 
 /** One group of a list: its key (null for the entries without the value), and what it holds. */

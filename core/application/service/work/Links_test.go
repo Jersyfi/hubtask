@@ -149,7 +149,8 @@ func (s *linkStore) Entries(_ context.Context, ids []shared.ID) ([]repository.En
 		if item, ok := s.items.stored[id]; ok {
 			out = append(out, repository.EntrySummary{
 				ID: item.ID, CollectionID: item.CollectionID, HubID: hubID, Handle: "shop",
-				Level: item.Type, Title: item.Title, Number: 7,
+				Level: item.Type, EntryType: item.EntryType, Title: item.Title, Number: 7,
+				Status: item.Status, Completed: item.Completion.IsCompleted,
 			})
 		}
 	}
@@ -379,6 +380,61 @@ func TestALinkNeverShowsWhatTheReaderMayNotSee(t *testing.T) {
 	// A hidden entry and a missing one answer the same (T-04).
 	if resolved[1]["kind"] != resolved[2]["kind"] || len(resolved[1]) != len(resolved[2]) {
 		t.Error("a hidden and a missing entry can be told apart")
+	}
+}
+
+// A linked entry reads its status as the workflow in force names it, and done or not alone where
+// no workflow runs (§6.9 links, P-12).
+func TestALinkedEntryReadsItsStatusAsItsWorkflowNamesIt(t *testing.T) {
+	ctx := context.Background()
+	h := newLinkHarness()
+	reviewing := h.two
+	reviewing.Status = "review"
+	h.items.stored[reviewing.ID] = reviewing
+	for _, other := range []domain.WorkItem{h.two, h.three} {
+		if _, err := (LinkEntries{Linking: h.linking()}).Execute(ctx, linkActor(),
+			LinkEntriesCommand{SourceID: h.one.ID, TargetID: other.ID, Type: domain.LinkTypeBlocks}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	linking := h.linking()
+	linking.Workflow = WorkflowGate{Workflows: &workflowStore{
+		rows: []domain.Workflow{{Key: "flow", Published: domain.WorkflowShape{Initial: "open", Statuses: []domain.WorkflowStatus{
+			{Key: "open", Name: "Offen", Category: domain.CategoryTodo},
+			{Key: "review", Name: "Im Review", Category: domain.CategoryInProgress},
+		}}}},
+		schemes: []domain.WorkflowScheme{{ContainerID: collectionID, EntryType: domain.SystemEntryTypeKey(domain.ItemTask), WorkflowKey: "flow"}},
+	}}
+	// The third entry lives where no workflow runs.
+	secret := h.three
+	secret.CollectionID = shared.MustParseID("0192f000-0000-7000-8000-0000000004cc")
+	h.items.stored[secret.ID] = secret
+
+	links, err := ListEntryLinks{Linking: linking}.Execute(ctx, linkActor(), h.one.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := map[string][2]any{}
+	for _, link := range links.Output(h.one.ID)["links"].([]usecase.Output) {
+		other := link["other"].(usecase.Output)
+		names[other["title"].(string)] = [2]any{other["status_name"], other["status_category"]}
+	}
+	if got := names["Build"]; got != [2]any{"Im Review", "IN_PROGRESS"} {
+		t.Errorf("an entry in a workflow reads %v", got)
+	}
+	if got := names["Secret launch"]; got != [2]any{nil, nil} {
+		t.Errorf("an entry where no workflow runs reads %v", got)
+	}
+
+	// Unwired, every entry reads done or not alone.
+	links, err = ListEntryLinks{Linking: h.linking()}.Execute(ctx, linkActor(), h.one.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, link := range links.Output(h.one.ID)["links"].([]usecase.Output) {
+		if other := link["other"].(usecase.Output); other["status_name"] != nil || other["status_category"] != nil {
+			t.Errorf("without a workflow an entry reads %v / %v", other["status_name"], other["status_category"])
+		}
 	}
 }
 
@@ -632,5 +688,28 @@ func TestARequesterReadsNoLinkTypes(t *testing.T) {
 	}
 	if asked := h.authorizer.requests[len(h.authorizer.requests)-1]; !asked.AnyMember || asked.Action != LinkTypesReadAction {
 		t.Errorf("asked %+v, want any member", asked)
+	}
+}
+
+// A card on a board shows the person an entry is on (UC-CNV-02 check 9): the summary names the account,
+// and an entry nobody is on reads null.
+func TestAnEntrySummaryNamesThePersonItIsOn(t *testing.T) {
+	person := shared.MustParseID("0192f000-0000-7000-8000-0000000005aa")
+	for _, tc := range []struct {
+		name     string
+		assignee shared.ID
+		want     any
+	}{
+		{"on a person", person, person.String()},
+		{"on nobody", "", nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			out := EntrySummaryOutput(repository.EntrySummary{
+				ID: shared.MustParseID("0192f000-0000-7000-8000-0000000005ab"), Level: domain.ItemTask, AssigneeID: tc.assignee,
+			}, "")
+			if out["assignee_id"] != tc.want {
+				t.Errorf("assignee_id = %v, want %v", out["assignee_id"], tc.want)
+			}
+		})
 	}
 }

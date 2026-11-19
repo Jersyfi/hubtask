@@ -9,8 +9,8 @@
   import { untrack } from 'svelte';
 
   import {
-    Badge, Button, DataTable, EmptyState, RecordPage, Select, Skeleton, Stack,
-    type DataColumn, type RecordList, type DataRowMenu, type SelectOption,
+    Badge, Breadcrumb, Button, DataTable, EmptyState, ObjectHead, RecordPage, Select, Skeleton, Stack, StateLozenge, StatusButton,
+    type DataColumn, type RecordList, type DataRowMenu, type SelectOption, type StatusCategory, type StatusRef, type WorkflowStep,
   } from '@hubtask/design-system/components';
   import type { Agent, AgentActionList, AgentCaseList, AgentJobList, AgentModelList, AgentRequestList, AgentRunList } from '@hubtask/sync-engine';
 
@@ -18,6 +18,7 @@
   import CaseDialog from '../lib/agents/CaseDialog.svelte';
   import RetireDialog from '../lib/agents/RetireDialog.svelte';
   import RunOnDialog from '../lib/agents/RunOnDialog.svelte';
+  import { expectedFields } from '../lib/agents/expected.ts';
   import { AGENTS_HOME } from '../lib/agents/trail.ts';
   import { actor } from '../lib/data/account.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
@@ -31,6 +32,7 @@
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -70,8 +72,12 @@
   const grouped = (value: number) => new Intl.NumberFormat(messages.locale).format(value);
   const modelName = (modelId: string | null | undefined) => (modelId ? (models.find((each) => each.id === modelId)?.name ?? t('app.agents.model_unread')) : t('app.agents.no_model'));
 
+  // Approved is a good standing, not a warning (the agents' scenes draw it green); a draft still waits.
   const statusTone = (status: Agent['status']) =>
-    status === 'ACTIVE' ? 'success' : status === 'SUSPENDED' ? 'danger' : status === 'RETIRED' ? 'neutral' : 'warning';
+    status === 'ACTIVE' || status === 'APPROVED' ? 'success' : status === 'SUSPENDED' ? 'danger' : status === 'RETIRED' ? 'neutral' : 'warning';
+  /** Every toned standing says it with a mark too (UX-7); an approval that no longer covers the model warns. */
+  const STATUS_GLYPH = { DRAFT: 'pencil', APPROVED: 'check', ACTIVE: 'zap', SUSPENDED: 'circle-alert', RETIRED: 'archive' } as const;
+  const isApprovalDue = (each: Agent) => each.needs_approval && each.status !== 'DRAFT' && each.status !== 'RETIRED';
 
   async function act(run: () => Promise<unknown>, done: string) {
     try {
@@ -91,9 +97,11 @@
 
   const presses = $derived(agent ? lifecyclePresses(agent, viewer) : []);
   const waiting = $derived(pendingRead.state.status === 'ready' ? (heldCounts(pendingRead.state.data.data).get(key) ?? 0) : 0);
+  // The head's next step (WB-1): putting it live, else approving it; the other presses stay in ⋯.
+  const nextPress = $derived(presses.find((each) => each === 'activate') ?? presses.find((each) => each === 'approve'));
   const menuItems = $derived([
     ...(waiting > 0 ? [{ id: 'held', label: t('app.agents.held_count', { count: String(waiting) }) }] : []),
-    ...presses.filter((each) => each !== 'retire').map((each) => ({ id: each, label: t(`app.agents.press.${each}`) })),
+    ...presses.filter((each) => each !== 'retire' && each !== nextPress).map((each) => ({ id: each, label: t(`app.agents.press.${each}`) })),
   ]);
   function onMenu(item: string) {
     if (!agent) return;
@@ -101,18 +109,31 @@
     else void act(() => agents.press(agent.id, item as LifecyclePress), t(`app.agents.pressed.${item}`, { name: agent.name }));
   }
 
-  const facts = $derived(
-    agent
-      ? [
-          t(`app.agents.kind.${agent.kind}`),
-          t('app.agents.acts_for', { name: nameOf(agent.owner_id) }),
-          modelName(agent.model_id),
-          ...(one.state.status === 'ready' && one.state.data.usage
-            ? [t('app.agents.usage', { actions: one.state.data.usage.actions_this_hour ?? 0, tokens: one.state.data.usage.tokens_today ?? 0 })]
-            : []),
-        ].join(' · ')
-      : undefined,
+  // The status's ⌄ (H-2): the lifecycle steps the reader may take from here, each to the status it
+  // leads to; retiring stays in the danger zone, where its cost is said.
+  const PRESS_TO = { approve: 'APPROVED', activate: 'ACTIVE', suspend: 'SUSPENDED' } as const;
+  const categoryOf = (status: Agent['status']): StatusCategory => (status === 'ACTIVE' ? 'progress' : status === 'RETIRED' ? 'done' : 'todo');
+  const statusRef = (status: Agent['status'], label = t(`app.agents.status.${status}`)): StatusRef => ({ id: status, label, category: categoryOf(status) });
+  const statusSteps = $derived<WorkflowStep[]>(
+    presses.flatMap((press) => (press === 'retire' ? [] : [{ id: press, label: t(`app.agents.press.${press}`), to: statusRef(PRESS_TO[press]), isNext: press === nextPress }])),
   );
+
+  const meta = $derived(agent ? [t('app.agents.acts_for', { name: nameOf(agent.owner_id) }), modelName(agent.model_id)].join(' · ') : undefined);
+  const statusLabel = $derived(
+    agent
+      ? agent.needs_approval && agent.status !== 'DRAFT' && agent.status !== 'RETIRED'
+        ? `${t(`app.agents.status.${agent.status}`)} · ${t('app.agents.needs_approval')}`
+        : t(`app.agents.status.${agent.status}`)
+      : '',
+  );
+  // The budget as the head's fact: a day's tokens and how much of it today used (the scene's line).
+  const budgetFact = $derived.by(() => {
+    if (!agent) return undefined;
+    const perDay = agent.budget.tokens_per_day ?? 0;
+    if (perDay === 0) return t('app.agents.budget_none');
+    const today = one.state.status === 'ready' ? (one.state.data.usage?.tokens_today ?? 0) : 0;
+    return t('app.agents.budget_fact', { tokens: grouped(perDay), share: String(Math.min(100, Math.round((100 * today) / perDay))) });
+  });
 
   const about = $derived(
     agent
@@ -139,14 +160,16 @@
   const target = $derived(agent ? jobTarget(agent.kind) : undefined);
   const mayRun = $derived(agent ? mayStartJob(agent, viewer) : false);
   const countOf = (state: { status: string; data?: { data: readonly unknown[] } }) => (state.status === 'ready' ? String(state.data?.data.length ?? 0) : undefined);
+  /** An empty part is one line, its sentence beside its heading (WB-3). */
+  const emptyOf = (state: { status: string; data?: { data: readonly unknown[] } }, code: string) => (state.status === 'ready' && (state.data?.data.length ?? 0) === 0 ? { emptyLabel: t(code) } : {});
 
   const lists = $derived<RecordList[]>([
-    { id: 'ledger', title: t('app.agents.ledger'), count: countOf(ledger.state as never) },
+    { id: 'ledger', title: t('app.agents.ledger'), count: countOf(ledger.state as never), ...emptyOf(ledger.state as never, 'app.agents.ledger_empty') },
     ...(target
-      ? [{ id: 'jobs', title: t('app.agents.jobs'), count: countOf(jobs.state as never), ...(mayRun ? { add: { label: t('app.agents.run_on'), icon: 'play' as const, onclick: () => (isRunOpen = true) } } : {}) }]
+      ? [{ id: 'jobs', title: t('app.agents.jobs'), count: countOf(jobs.state as never), ...emptyOf(jobs.state as never, 'app.agents.jobs_empty'), ...(mayRun ? { add: { label: t('app.agents.run_on'), icon: 'play' as const, onclick: () => (isRunOpen = true) } } : {}) }]
       : []),
-    { id: 'cases', title: t('app.agents.cases'), count: countOf(cases.state as never), ...(administers ? { add: { label: t('app.agents.add_case'), icon: 'plus' as const, onclick: () => (isCaseOpen = true) } } : {}) },
-    { id: 'runs', title: t('app.agents.runs'), count: countOf(runs.state as never) },
+    { id: 'cases', title: t('app.agents.cases'), count: countOf(cases.state as never), ...emptyOf(cases.state as never, 'app.agents.cases_empty'), ...(administers ? { add: { label: t('app.agents.add_case'), icon: 'plus' as const, onclick: () => (isCaseOpen = true) } } : {}) },
+    { id: 'runs', title: t('app.agents.runs'), count: countOf(runs.state as never), ...emptyOf(runs.state as never, 'app.agents.runs_empty') },
   ]);
 
   const failureOf = (state: { status: string; error?: unknown }) => (state.status === 'failed' ? renderProblem(state.error as never, messages) : undefined);
@@ -212,13 +235,12 @@
     kind: t('app.agents.record_kind'),
     title,
     back: { label: t('app.agents.title'), href: base, onnavigate: () => onnavigate(base) },
-    status: agent
-      ? { label: agent.needs_approval && agent.status !== 'DRAFT' && agent.status !== 'RETIRED' ? `${t(`app.agents.status.${agent.status}`)} · ${t('app.agents.needs_approval')}` : t(`app.agents.status.${agent.status}`), tone: statusTone(agent.status) }
-      : undefined,
-    facts,
+    status: agent ? { label: statusLabel, tone: statusTone(agent.status) } : undefined,
+    facts: meta,
     edit: agent && administers && agent.status !== 'RETIRED' ? { label: t('app.agents.edit'), icon: 'pencil', onclick: () => agent && (drafting = { agent }) } : undefined,
     menu: agent && menuItems.length > 0 ? { label: t('app.page.more_for', { name: title }), items: menuItems, onselect: onMenu } : undefined,
   }}
+  head={agent ? agentHead : undefined}
   lists={agent ? lists : []}
   facts={about}
   danger={agent && presses.includes('retire')
@@ -282,7 +304,13 @@
           actionsLabel={t('app.page.row_actions')} sheetDismissLabel={t('app.page.sheet_close')} sheetGrabLabel={t('app.page.sheet_grab')}>
           {#snippet cell(each: Case, column: DataColumn)}
             {#if column.id === 'title'}<span class="name">{each.title}</span>
-            {:else}<code class="sub">{JSON.stringify(each.expected)}</code>{/if}
+            {:else}
+              <dl class="expected">
+                {#each expectedFields(each.expected) as field (field.name)}
+                  <div>{#if field.name}<dt>{field.name}</dt>{/if}<dd>{field.value}</dd></div>
+                {/each}
+              </dl>
+            {/if}
           {/snippet}
           {#snippet empty()}<EmptyState kind="unused" title={t('app.agents.cases_empty')} />{/snippet}
         </DataTable>
@@ -322,6 +350,45 @@
   {/snippet}
 </RecordPage>
 
+{#snippet agentHead()}
+  {#if agent}
+    {@const shown = agent}
+    <!-- One head for every object (WB-1): its state, putting it live as the next step, changing it
+         beside, the budget as its fact; the other presses in ⋯, retiring in the danger zone. -->
+    <ObjectHead hasActsOnPhone
+      objectKey={{ label: t('app.agents.record_kind'), icon: 'zap', product: 'agents' }}
+      type={{ label: t(`app.agents.kind.${shown.kind}`) }}
+      {meta}
+      title={shown.name}
+      titleLabel={t('app.agents.record_kind')}
+      next={nextPress ? { label: t(`app.agents.press.${nextPress}`), onclick: () => onMenu(nextPress) } : undefined}
+      secondary={administers && shown.status !== 'RETIRED' ? { label: t('app.agents.edit'), onclick: () => (drafting = { agent: shown }) } : undefined}
+      person={{ name: nameOf(shown.owner_id), src: accounts.pictureOf(shown.owner_id) }}
+      trail={viewport.isCompact ? undefined : agentTrail}
+      menu={menuItems.length > 0 ? { label: t('app.page.more_for', { name: title }), items: menuItems, onselect: onMenu } : undefined}
+    >
+      {#snippet status()}
+        {#if statusSteps.length > 0}
+          <span data-agent-status><StatusButton current={statusRef(shown.status, statusLabel)} steps={statusSteps}
+            look={{ tone: isApprovalDue(shown) ? 'warning' : statusTone(shown.status), icon: isApprovalDue(shown) ? 'triangle-alert' : STATUS_GLYPH[shown.status] }}
+            label={t('app.agents.status_button', { state: statusLabel })}
+            menuTitle={t('app.agents.status_from', { state: t(`app.agents.status.${shown.status}`) })}
+            onstep={(step) => onMenu(step.id)}
+            closeLabel={t('app.workflows.close')} grabLabel={t('app.workflows.close')} /></span>
+        {:else}
+          <StateLozenge size="md" tone={isApprovalDue(shown) ? 'warning' : statusTone(shown.status)} icon={isApprovalDue(shown) ? 'triangle-alert' : STATUS_GLYPH[shown.status]} label={statusLabel} />
+        {/if}
+      {/snippet}
+      {#snippet facts()}{#if budgetFact}<span data-budget-fact>{budgetFact}</span>{/if}{/snippet}
+    </ObjectHead>
+  {/if}
+{/snippet}
+
+{#snippet agentTrail()}
+  <Breadcrumb label={t('app.goals.trail')} trail={[{ id: 'agents', label: t('app.agents.title'), href: base }, { id: 'agent', label: title }]}
+    expandLabel={t('app.goals.expand_trail')} onnavigate={() => onnavigate(base)} />
+{/snippet}
+
 {#snippet notHere()}
   <FailureNote problem={failureOf(one.state) ?? ''} />
 {/snippet}
@@ -337,6 +404,10 @@
   .quiet { margin: 0; color: var(--text-secondary); }
   .name { display: block; font-weight: var(--fw-medium); overflow-wrap: anywhere; }
   .sub { display: block; color: var(--text-subtle); font-size: var(--fs-075); overflow-wrap: anywhere; }
+  .expected { display: flex; flex-wrap: wrap; gap: var(--sp-025) var(--sp-150); margin: 0; font-size: var(--fs-075); }
+  .expected div { display: flex; gap: var(--sp-050); min-inline-size: 0; }
+  .expected dt { color: var(--text-subtle); }
+  .expected dd { margin: 0; color: var(--text-primary); overflow-wrap: anywhere; }
   .number { font-variant-numeric: tabular-nums; }
   .line { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: end; }
 </style>

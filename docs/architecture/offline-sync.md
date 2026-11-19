@@ -613,9 +613,11 @@ it, order it and decide who may touch it.
   connected and reads the body as last saved.
 * **A whiteboard** (kind `whiteboard`) is the same connection over a Yjs document of the board's
   objects (`packages/whiteboard`): each object a map of its own, keyed by its identifier, ordered
-  by a number per object. A writer seeds an empty document from the board's saved scene and saves
-  the scene beside the document a moment after the drawing stops, without `If-Match`; a reader is
-  connected read-only and, before the document holds anything, draws the scene as last saved.
+  by a number per object, and naming the account that put it there (`by`; never in the saved
+  scene, so an object seeded from one names nobody). A writer seeds an empty document from the
+  board's saved scene and saves the scene beside the document a moment after the drawing stops,
+  without `If-Match`; a reader is connected read-only and, before the document holds anything,
+  draws the scene as last saved.
   Offline, an open board keeps being drawn on and merges when the connection is back.
 * **Unsent words are kept on the device.** A writer's local changes of a page or a board that no
   answered connection carried yet are merged into one update and kept in the account's own store

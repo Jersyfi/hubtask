@@ -817,6 +817,41 @@ type Buckets interface {
 	MoveItems(ctx context.Context, sourceID, targetID shared.ID, at time.Time) (int, error)
 }
 
+// BucketStatuses stores which statuses a board's columns show under a workflow (domain-model.md
+// §3.5a): a status in at most one column per board, which the primary key holds.
+type BucketStatuses interface {
+	// List returns a board's mapping, left to right; a deleted column's rows are left out.
+	List(ctx context.Context, collectionID shared.ID) ([]work.ColumnStatus, error)
+
+	// Replace writes a board's whole mapping in place of the one it had; an empty mapping
+	// clears it. A row naming a column of another board is refused as buckets.not_found.
+	Replace(ctx context.Context, collectionID shared.ID, mapping []work.ColumnStatus) error
+
+	// PlaceByStatus puts a collection's top-level tasks in one status into a column - zero for
+	// none - and answers those whose column changed, each with its new version.
+	PlaceByStatus(ctx context.Context, collectionID shared.ID, status string, column shared.ID, at time.Time) ([]MovedEntry, error)
+
+	// PlaceByCompletion puts a collection's top-level tasks without a status, of one completion
+	// and - where from is given - in that column, into a column, and answers those it moved.
+	PlaceByCompletion(ctx context.Context, collectionID shared.ID, completed bool, from, column shared.ID, at time.Time) ([]MovedEntry, error)
+
+	// CompleteInColumn completes the open top-level tasks without a status standing in a column,
+	// by the account and at the moment given, and answers those it completed.
+	CompleteInColumn(ctx context.Context, collectionID, column, by shared.ID, at time.Time) ([]MovedEntry, error)
+
+	// PlaceUnplaced puts a collection's top-level tasks without a status and without a column, of
+	// one completion, into a column, and answers those it moved.
+	PlaceUnplaced(ctx context.Context, collectionID shared.ID, completed bool, column shared.ID, at time.Time) ([]MovedEntry, error)
+
+	// Cells counts a collection's top-level tasks by status, column and completion, trashed ones
+	// included.
+	Cells(ctx context.Context, collectionID shared.ID) ([]work.BoardCell, error)
+
+	// SetStatusInColumn gives a status to the top-level tasks without one standing in a column -
+	// or, with no column, to those of one completion standing in none - and answers them.
+	SetStatusInColumn(ctx context.Context, collectionID, column shared.ID, completed bool, status string, at time.Time) ([]MovedEntry, error)
+}
+
 // Labels stores a collection's vocabulary.
 type Labels interface {
 	// Find returns the label, or ErrNotFound if it does not exist *for this tenant*. Deleted

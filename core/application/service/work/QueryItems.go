@@ -49,6 +49,12 @@ type QueryItems struct {
 	Gate EntryGate
 	// Counter answers CountWithin; nil where nothing asks it.
 	Counter repository.ItemCounter
+	// Groups reads the people of `my-groups` and `members("…")`; unwired, both are refused.
+	Groups GroupPeople
+	// Time decides whose time `time.logged` counts; unwired, the reader's own alone.
+	Time TimeReach
+	// Critical answers `plan.critical`; unwired, it is refused.
+	Critical CriticalPath
 }
 
 // Execute answers the query.
@@ -111,7 +117,7 @@ func (h QueryItems) CountWithin(
 func (h QueryItems) admitted(
 	ctx context.Context, actor appshared.ActorContext, spec view.Spec,
 ) (view.Spec, repository.Anchor, *FieldLens, error) {
-	resolved, err := h.resolvePlaceholders(actor, spec)
+	resolved, err := h.resolvePlaceholders(ctx, actor, spec)
 	if err != nil {
 		return view.Spec{}, repository.Anchor{}, nil, err
 	}
@@ -129,6 +135,10 @@ func (h QueryItems) admitted(
 		TargetType: containerTarget,
 		TargetID:   container.ID,
 	}); err != nil {
+		return view.Spec{}, repository.Anchor{}, nil, err
+	}
+	// Asked only once READ is granted: the time module and the scheduler are asked as the reader.
+	if resolved.Filter, err = h.askedKeys(ctx, actor, resolved.Filter, anchor, container); err != nil {
 		return view.Spec{}, repository.Anchor{}, nil, err
 	}
 	lens, err := h.lens(ctx, actor, container, resolved)
@@ -201,11 +211,15 @@ func (h QueryItems) narrowed(
 	return result, nil
 }
 
-// resolvePlaceholders replaces `@me` and the date anchors in the query's filter.
+// resolvePlaceholders replaces `@me`, the date anchors and the group words in the query's filter.
 func (h QueryItems) resolvePlaceholders(
-	actor appshared.ActorContext, spec view.Spec,
+	ctx context.Context, actor appshared.ActorContext, spec view.Spec,
 ) (view.Spec, error) {
-	resolved, err := resolveFilter(h.Clock, actor, spec.Filter, "/filter")
+	groups, err := askGroups(ctx, actor, h.Groups, spec.Filter)
+	if err != nil {
+		return view.Spec{}, err
+	}
+	resolved, err := resolveFilter(h.Clock, actor, spec.Filter, "/filter", groups)
 	if err != nil {
 		return view.Spec{}, err
 	}
@@ -229,7 +243,7 @@ func (h QueryItems) resolvePlaceholders(
 //
 // A nil filter is nothing to resolve, which is what a search with words and no narrowing is.
 func resolveFilter(
-	source clock.Clock, actor appshared.ActorContext, filter *view.Node, path string,
+	source clock.Clock, actor appshared.ActorContext, filter *view.Node, path string, groups map[string][]shared.ID,
 ) (*view.Node, error) {
 	if filter == nil {
 		return nil, nil
@@ -246,6 +260,7 @@ func resolveFilter(
 		Now:      source.Now(),
 		Location: location,
 		ActorID:  actor.AccountID,
+		Groups:   groups,
 	}.WithWeekStart(actor.WeekStart), path)
 	if err != nil {
 		return nil, err
@@ -370,9 +385,12 @@ func (h QueryItems) Descriptor() usecase.Descriptor {
 			},
 			{
 				Name: "q", Kind: usecase.KindString,
-				Description: "The filter and the order as one line instead of filter and sort, for " +
-					"example: status = open AND custom_fields.priority >= 3 ORDER BY due_at DESC. " +
-					"Comparisons =, !=, <, <=, >, >=, ~ (contains), IN (...), NOT IN (...), IS EMPTY, " +
+				Description: "The filter and the order as one Hubtask query instead of filter and " +
+					"sort, in either spelling: who: me, none is: open due: <today sort: -updated, " +
+					"or status = open AND custom_fields.priority >= 3 ORDER BY due_at DESC. " +
+					"GET /query/keys lists the keys of the first; free words find entries by " +
+					"their words. In the second, comparisons are " +
+					"=, !=, <, <=, >, >=, ~ (contains), IN (...), NOT IN (...), IS EMPTY, " +
 					"IS NOT EMPTY, BETWEEN ... AND ..., CONTAINS, CONTAINS ANY (...), CONTAINS ALL (...), " +
 					"STARTS WITH and MATCHES, joined by AND, OR, NOT and brackets; texts quoted. " +
 					"Held to the same fields, operators and bounds as filter.",
@@ -551,19 +569,14 @@ func specOf(in usecase.Input) (view.Spec, error) {
 		return view.Spec{}, err
 	}
 	filterOf, sortOf, filterPath, sortPath := in["filter"], in["sort"], "/filter", "/sort"
-	if in.Present("q") {
-		// One spelling or the other: a line beside a tree would leave which one counts to a guess.
-		if in.Present("filter") || in.Present("sort") {
-			return view.Spec{}, shared.ErrValidation.WithDetail("query.line_with_filter").
-				WithFields(shared.FieldError{Path: "/q", Code: "query.line_with_filter"})
-		}
-		lineFilter, lineSort, err := view.ParseLine(in.String("q"), "/q")
-		if err != nil {
-			return view.Spec{}, err
-		}
-		filterOf, sortOf, filterPath, sortPath = lineFilter, nil, "/q", "/q"
-		if lineSort != nil {
-			sortOf = lineSort
+	line, err := queryLineOf(in, "q", true)
+	if err != nil {
+		return view.Spec{}, err
+	}
+	if line.present {
+		filterOf, sortOf, filterPath, sortPath = line.filter, nil, "/q", "/q"
+		if line.sort != nil {
+			sortOf = line.sort
 		}
 	}
 	filter, err := view.ParseFilter(filterOf, filterPath)
@@ -588,8 +601,8 @@ func specOf(in usecase.Input) (view.Spec, error) {
 		Filter:          filter,
 		Sort:            sort,
 		GroupBy:         groupBy,
-		IncludeArchived: in.Bool("include_archived"),
-		IncludeTrashed:  in.Bool("include_trashed"),
+		IncludeArchived: in.Bool("include_archived") || line.archived,
+		IncludeTrashed:  in.Bool("include_trashed") || line.trashed,
 		Cursor:          in.String("cursor"),
 		Size:            PageSize(in.Int("size")),
 		Count:           count,
@@ -598,6 +611,42 @@ func specOf(in usecase.Input) (view.Spec, error) {
 		return view.Spec{}, err
 	}
 	return spec, nil
+}
+
+// queryLine is a Hubtask query sent as text in place of filter and sort (ADR-0102).
+type queryLine struct {
+	present           bool
+	filter            any
+	sort              []any
+	words             string
+	archived, trashed bool
+}
+
+// queryLineOf reads the text under name in either spelling. One spelling or the other: a line
+// beside a tree would leave which one counts to a guess. entries says the free words join the
+// tree as a MATCHES leaf; a search keeps them apart to rank by.
+func queryLineOf(in usecase.Input, name string, entries bool) (queryLine, error) {
+	if !in.Present(name) {
+		return queryLine{}, nil
+	}
+	path := "/" + name
+	if in.Present("filter") || in.Present("sort") {
+		return queryLine{}, shared.ErrValidation.WithDetail("query.line_with_filter").
+			WithFields(shared.FieldError{Path: path, Code: "query.line_with_filter"})
+	}
+	query, err := view.ParseQuery(in.String(name), path)
+	if err != nil {
+		return queryLine{}, err
+	}
+	line := queryLine{present: true, sort: query.Sort, archived: query.IncludeArchived, trashed: query.IncludeTrashed}
+	if entries {
+		line.filter, err = query.EntryFilter(path)
+		return line, err
+	}
+	line.words = query.Words
+	query.Words = ""
+	line.filter, err = query.EntryFilter(path)
+	return line, err
 }
 
 // SpecOfView reads a saved view's stored query as the query it asks - the reading :export gives

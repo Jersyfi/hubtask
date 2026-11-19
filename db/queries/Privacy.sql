@@ -436,6 +436,23 @@ DELETE FROM chat_link WHERE tenant_id = current_tenant_id() AND account_id = sql
 DELETE FROM setting_value
 WHERE tenant_id = current_tenant_id() AND level = 'PERSON' AND scope_id = sqlc.arg('account_id');
 
+-- name: DeletePostReadsOfAccount :execrows
+-- Which posts the person has seen (UC-DOC-18 check 6): personal data kept with the post, erased with
+-- the person.
+DELETE FROM post_read WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id');
+
+-- name: DeletePostConfirmationsOfAccount :execrows
+-- The read confirmations the person gave (UC-DOC-18 check 6).
+DELETE FROM post_confirmation WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id');
+
+-- name: DeletePostFollowsOfAccount :execrows
+-- The hubs whose posts the person follows (B-5): erased with the person.
+DELETE FROM post_follow WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id');
+
+-- name: DeletePostReactionsOfAccount :execrows
+-- The reactions the person gave in a post's discussion (UC-DOC-18 check 6).
+DELETE FROM post_reaction WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id');
+
 -- name: KudosOfAccount :many
 -- The kudos the person gave and received, for their own copy of their data, a page at a time in the
 -- key's order. Never kudos between two other people.
@@ -492,7 +509,7 @@ FOR UPDATE;
 -- hub, a collection, an entry or another person is judged against. Their comments, the entries
 -- assigned to them, the entries they created - and what they wrote outside entries: page and board
 -- comments (with the hub), goal check-ins and portfolio updates (in no hub), the drafts of pages
--- they edited last (the page's identifier, with the hub).
+-- they edited last (the page's identifier, with the hub), their replies under a post (with the hub).
 SELECT 'COMMENT'::text AS kind, c.id, w.id AS item_id, w.path, w.collection_id,
        col.parent_id AS hub_id, w.created_by AS item_created_by
 FROM comment c
@@ -532,7 +549,12 @@ UNION ALL
 SELECT 'PAGE_DRAFT'::text, d.page_id, NULL::uuid, ''::text, NULL::uuid, p.hub_id, NULL::uuid
 FROM page_draft d
 JOIN page p ON p.tenant_id = d.tenant_id AND p.id = d.page_id
-WHERE d.tenant_id = current_tenant_id() AND d.updated_by = sqlc.arg('account_id');
+WHERE d.tenant_id = current_tenant_id() AND d.updated_by = sqlc.arg('account_id')
+UNION ALL
+SELECT 'POST_REPLY'::text, r.id, NULL::uuid, ''::text, NULL::uuid, po.hub_id, NULL::uuid
+FROM post_reply r
+JOIN post po ON po.tenant_id = r.tenant_id AND po.page_id = r.page_id
+WHERE r.tenant_id = current_tenant_id() AND r.author_id = sqlc.arg('account_id');
 
 -- name: DeleteCommentsOf :execrows
 -- The person's comments a hold does not keep, by identifier: the ones that were read, judged and
@@ -557,6 +579,23 @@ RETURNING pc.id;
 -- the quote and the author go, and the comment stays a removed one so its replies keep their thread.
 UPDATE page_comment
 SET body = '', quote = '', author_id = NULL, edited_at = NULL,
+    deleted_at = COALESCE(deleted_at, sqlc.arg('at')), version = version + 1
+WHERE tenant_id = current_tenant_id() AND author_id = sqlc.arg('author_id')
+  AND id = ANY(sqlc.arg('ids')::uuid[]);
+
+-- name: DeletePostRepliesOf :many
+-- As DeletePageCommentsOf, for the replies under a post: one answered is blanked instead.
+DELETE FROM post_reply pr
+WHERE pr.tenant_id = current_tenant_id() AND pr.author_id = sqlc.arg('author_id')
+  AND pr.id = ANY(sqlc.arg('ids')::uuid[])
+  AND NOT EXISTS (
+    SELECT 1 FROM post_reply r WHERE r.tenant_id = pr.tenant_id AND r.parent_id = pr.id)
+RETURNING pr.id;
+
+-- name: BlankPostRepliesOf :execrows
+-- As BlankPageCommentsOf, for the replies under a post.
+UPDATE post_reply
+SET body = '', author_id = NULL, edited_at = NULL,
     deleted_at = COALESCE(deleted_at, sqlc.arg('at')), version = version + 1
 WHERE tenant_id = current_tenant_id() AND author_id = sqlc.arg('author_id')
   AND id = ANY(sqlc.arg('ids')::uuid[]);

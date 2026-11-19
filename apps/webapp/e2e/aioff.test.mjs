@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { COLLECTION, HUB, ITEMS, MANIFEST, signedIn } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -35,8 +35,7 @@ const SCREENS = [
 
 test('chromium: with AI off no screen draws an AI control, placeholder or prompt (UC-AI-01 check 1)', { timeout: 120_000 }, async (t) => {
   assert.ok(!MANIFEST.features.ai_suggestions, 'the shared manifest announces no AI');
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
 

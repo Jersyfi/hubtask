@@ -25,6 +25,8 @@
     trailLabel: string;
     expandLabel: string;
     oncrumb: (id: string) => void;
+    /** The tile before the title, where the screen's mockup draws one (the hub's inventory). */
+    mark?: Snippet;
     titleEnd?: Snippet;
     figure?: Snippet;
     primary?: PageAction;
@@ -41,7 +43,7 @@
     notices?: Snippet;
   }
 
-  const { kind, title, subtitle, trail, trailLabel, expandLabel, oncrumb, titleEnd, figure, primary, secondary, menu, aside, views, compactTools, toolsLabel, tour, notices }: Props = $props();
+  const { kind, title, subtitle, trail, trailLabel, expandLabel, oncrumb, mark, titleEnd, figure, primary, secondary, menu, aside, views, compactTools, toolsLabel, tour, notices }: Props = $props();
 
   const hasCompactTools = $derived(viewport.isCompact && compactTools !== undefined);
 </script>
@@ -61,6 +63,7 @@
     {menu}
     {aside}
     figure={figureLine}
+    {mark}
     {titleEnd}
     isFigureBelow
   />

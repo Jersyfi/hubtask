@@ -16,20 +16,20 @@ checked_by: [core/domain/model/agent/Job_test.go, core/application/service/agent
 
 The person an agent of the product acts for, or an administrator, sets it to work on a ticket or on
 a hub's inventory; the agent reads what it may, as itself, and leaves what it would change - labels,
-the configuration items a ticket names, which of two duplicate CIs stays, a knowledge page drawn
+the objects a ticket names, which of two duplicate objects stays, a knowledge page drawn
 from a resolved ticket - for a person to approve, and never changes anything itself.
 
 ## Story
 
 Ana starts *Triage* on a new ticket about the printer on floor 3. A minute later the ticket carries
-a suggestion of labels, and among the agent's requests waits a comment naming the CIs *Printer* and
+a suggestion of labels, and among the agent's requests waits a comment naming the objects *Printer* and
 *Router-2*. She approves the comment and dismisses nothing else. Once the ticket is resolved, the
 knowledge agent proposes a page from it in the hub's space.
 
 ## How to check
 
 1. A job of a shipped agent is started by its owner or an administrator, never by an agent, on an
-   entry - ticket triage, CI suggestion, knowledge draft - or a hub - duplicate review; an agent
+   entry - ticket triage, object suggestion, knowledge draft - or a hub - duplicate review; an agent
    built elsewhere runs none (`agents.runs_elsewhere`).
 2. A job is refused at its start, and ends refused at its run, where the agent is stopped, not live
    or its model changed, where its tokens for the day are spent, or where it already runs as many
@@ -39,8 +39,8 @@ knowledge agent proposes a page from it in the hub's space.
    waits for a person among the agent's requests, whatever its policy would allow; nothing is
    applied by the job itself.
 4. Ticket triage proposes labels by the workspace's classifier as a suggestion on the entry and the
-   CIs of the entry's hub its title or notes name as a comment; CI suggestion proposes those CIs;
-   duplicate review proposes, for each open duplicate, the CI a source saw last - else the oldest -
+   objects of the entry's hub its title or notes name as a comment; object suggestion proposes those objects;
+   duplicate review proposes, for each open duplicate, the object a source saw last - else the oldest -
    as the one that stays; knowledge draft proposes a page in the entry's hub from a resolved entry's
    title and notes, with a reference back, and nothing from an open one (`agents.job_entry_open`).
 5. A job keeps its target, how it ended, how many proposals it left and the tokens it spent - never
@@ -53,7 +53,7 @@ knowledge agent proposes a page from it in the hub's space.
    not started from an entry (`agents.target_invalid`), and a start naming no target is refused
    (`agents.target_required`). The rule's account is held to the owner's or an administrator's right.
 9. Ticket triage routes a ticket nobody holds by its offering: the offering it names, else the
-   nearest one a CI it names affects (none if two are equally near, or if it names two), and
+   nearest one an object it names affects (none if two are equally near, or if it names two), and
    proposes `AssignWorkItem`, held for a person to approve, to the member of that offering's support
    group with the fewest open entries in the hub.
 

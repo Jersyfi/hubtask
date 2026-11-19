@@ -333,6 +333,8 @@ export interface ValueReading {
   readonly groupOf?: (groupId: string) => string | undefined;
   readonly fileOf?: (mediaId: string) => string | undefined;
   readonly moment?: (iso: string) => string;
+  /** An option of a choice as the reader reads it (`optionWord`); the stored value without it. */
+  readonly option?: (value: string) => string;
   /** What an account or an entry this client cannot name reads as. */
   readonly unknown: string;
 }
@@ -371,9 +373,30 @@ export function valueText(
       return reading.moment ? reading.moment(String(held)) : String(held);
     case 'CASCADING_SELECT':
       return String(held).split('/').join(' › ');
+    case 'SELECT':
+    case 'MULTI_SELECT':
+    case 'STATUS':
+      return (Array.isArray(held) ? held : [held]).map((each) => reading.option?.(String(each)) ?? String(each)).join(', ');
     case 'RICH_TEXT':
       return String(held).trim().split('\n')[0];
     default:
       return Array.isArray(held) ? held.map(String).join(', ') : String(held);
   }
+}
+
+/**
+ * The message code of one word of a shipped template - the server's `TemplateWordCode`: the FNV-1a
+ * hash of its English text. A choice's options are stored values a rule compares, so installing a
+ * template leaves them in English; the reader's catalogue names them (user-experience.md §4).
+ */
+export function templateWordCode(text: string): string {
+  let hash = 0x811c9dc5;
+  for (const byte of new TextEncoder().encode(text)) hash = Math.imul(hash ^ byte, 0x01000193) >>> 0;
+  return `templates.text.${hash.toString(16).padStart(8, '0')}`;
+}
+
+/** An option as the reader reads it: a shipped template's word in their language, any other as stored. */
+export function optionWord(value: string, words: { has: (code: string) => boolean; t: (code: string) => string }): string {
+  const code = templateWordCode(value);
+  return words.has(code) ? words.t(code) : value;
 }

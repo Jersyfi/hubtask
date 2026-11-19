@@ -14,6 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -461,6 +462,7 @@ func TestCountsAreStampedOnEveryRowAndZeroWhereNothingIsHeld(t *testing.T) {
 
 // UC-WRK-17 check 12: a line is read into the same filter and order the tree would be, its
 // placeholders resolved alike; a line beside a tree is refused rather than one of them guessed.
+// UC-INT-10 check 10: the = / AND spelling reads as the filter and the order.
 func TestQueryItemsReadsALineAsTheFilterAndTheOrder(t *testing.T) {
 	store, containerStore, uow := queryFixture()
 	_, err := queryHandler(store, containerStore, uow, &authorizer{}).invoke(t.Context(), actorFixture(), usecase.Input{
@@ -491,6 +493,48 @@ func TestQueryItemsReadsALineAsTheFilterAndTheOrder(t *testing.T) {
 		var domainErr *shared.Error
 		if !errors.As(err, &domainErr) || len(domainErr.Fields) != 1 || domainErr.Fields[0].Code != name || !strings.HasPrefix(domainErr.Fields[0].Path, "/q") {
 			t.Errorf("%v answered %v, want %s at /q", input["q"], err, name)
+		}
+	}
+}
+
+// UC-WRK-43 check 3: the field: value spelling is read into the same filter and order, its free
+// words a MATCHES leaf and its flags the lifecycle; an error names where it stops.
+func TestQueryItemsReadsTheFieldValueSpelling(t *testing.T) {
+	store, containerStore, uow := queryFixture()
+	_, err := queryHandler(store, containerStore, uow, &authorizer{}).invoke(t.Context(), actorFixture(), usecase.Input{
+		"scope_container_id": readCollectionID.String(),
+		"q":                  "by: me status: open, \"in review\" angebot is: archived sort: -due",
+	})
+	if err != nil {
+		t.Fatalf("querying: %v", err)
+	}
+	spec := store.searched[0].Spec
+	if spec.Filter == nil || spec.Filter.Op != "AND" || len(spec.Filter.Nodes) != 2 {
+		t.Fatalf("the query arrived as %+v", spec.Filter)
+	}
+	words := spec.Filter.Nodes[1]
+	inner := spec.Filter.Nodes[0]
+	if words.Op != view.OpMatches || words.Values[0].Text != "angebot" || inner.Op != "AND" || inner.Nodes[1].Op != view.OpIn {
+		t.Errorf("the tree is %+v", spec.Filter)
+	}
+	if got := inner.Nodes[0].Values[0]; got.IsPlaceholder() || got.ID != accountID {
+		t.Errorf("me resolved to %+v", got)
+	}
+	if !spec.IncludeArchived || len(spec.Sort) != 1 || spec.Sort[0].Field.Name != "due_at" || !spec.Sort[0].Descending {
+		t.Errorf("the flags and the order arrived as %v %+v", spec.IncludeArchived, spec.Sort)
+	}
+
+	for name, line := range map[string]string{
+		"query.field_unknown": "whom: me",
+		"query.value_unknown": "is: opne",
+		"query.kind_not_here": "type: page",
+	} {
+		_, err := queryHandler(store, containerStore, uow, &authorizer{}).invoke(t.Context(), actorFixture(), usecase.Input{
+			"scope_container_id": readCollectionID.String(), "q": line,
+		})
+		var domainErr *shared.Error
+		if !errors.As(err, &domainErr) || len(domainErr.Fields) != 1 || domainErr.Fields[0].Code != name || domainErr.Fields[0].Path != "/q" {
+			t.Errorf("%q answered %v, want %s at /q", line, err, name)
 		}
 	}
 }

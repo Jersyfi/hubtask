@@ -18,33 +18,43 @@
   // **By mail** (check 9): every reader may have the dashboard sent to them, daily or on one
   // weekday at an hour of their zone; the server computes the mail as them when it is sent.
 
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Button, Dialog, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, WorkPage,
+    Button, Dialog, Icon, IconButton, Inline, Input, Menu, PageHeader, Select, Skeleton, Stack, VisuallyHidden, WorkPage,
   } from '@hubtask/design-system/components';
+  import { formatQuery, parseQuery, type QueryKey } from '@hubtask/query';
   import type { Dashboard, DashboardDigest, DashboardFigures, DashboardWidgetWrite, GoalList } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { ticketKeyOf } from '../lib/data/ticket.ts';
+  import { lineOf, personNamed, readQuery, type Names } from '../lib/data/viewquery.ts';
+  import QueryStrip from '../lib/entries/QueryStrip.svelte';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { entryTypes, typeNameOf } from '../lib/data/entrytypes.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import {
-    MAX_WIDGETS, csvOf, dashboardPath, digestPath, figureRows, figuresPath, goals, hubOf, leftRows, moved, nextBox, readingOrder, resized, runningRows,
+    MAX_WIDGETS, conditionsOf, searchFilter, csvOf, listFilter, dashboardPath, digestPath, figureRows, figuresPath, goals, groupedPeople, hubOf, leftRows, moved, nextBox, readingOrder, resized, runningRows,
     seriesTable, widgetWrite, type FigureNaming, type FigureRow, type SeriesTable,
   } from '../lib/data/goals.svelte.ts';
   import { SPREADSHEET_TYPE, xlsxOf } from '../lib/data/xlsx.ts';
   import { views } from '../lib/data/views.svelte.ts';
+  import { workflows } from '../lib/data/workflows.svelte.ts';
+  import { statusNameOf } from '../lib/workspace/happened.ts';
+  import { handOver } from '../lib/data/listhandoff.ts';
+  import { search } from '../lib/data/search.svelte.ts';
+  import { people } from '../lib/data/people.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
-  import WidgetChart from '../lib/goals/WidgetChart.svelte';
+  import WidgetChart, { type ListEntry } from '../lib/goals/WidgetChart.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import SharingPicker, { type Sharing } from '../lib/goals/SharingPicker.svelte';
   import WidgetEditor from '../lib/goals/WidgetEditor.svelte';
-  import { formatDateTime, formatPlainDay } from '../lib/i18n/datetime.ts';
+  import { formatDateTime, formatPlainDay, formatRelative } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { platform } from '../lib/platform/index.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -107,22 +117,139 @@
     return t('app.dashboards.empty_query');
   }
 
+  /** The layouts before each change, newest last: *Rückgängig* takes one back. */
+  let history = $state<DashboardWidgetWrite[][]>([]);
+  let isLibraryOpen = $state(false);
   function startEditing() {
     if (!dashboard) return;
     layout = dashboard.widgets.map(widgetWrite);
+    history = [];
     isEditing = true;
+  }
+  function change(next: DashboardWidgetWrite[]) {
+    history = [...history, layout];
+    layout = next;
+  }
+  function undo() {
+    const last = history[history.length - 1];
+    if (!last) return;
+    history = history.slice(0, -1);
+    layout = last;
+  }
+  function discard() {
+    isEditing = false;
+    isLibraryOpen = false;
+    history = [];
   }
   const boxOf = (each: DashboardWidgetWrite) => ({ x: each.x ?? 0, y: each.y ?? 0, w: each.w ?? 6, h: each.h ?? 2 });
   const shown = $derived<DashboardWidgetWrite[]>(isEditing ? layout : (dashboard?.widgets ?? []).map(widgetWrite));
   const ordered = $derived(readingOrder(shown.map((widget, index) => ({ ...boxOf(widget), widget, index }))));
-  function place(index: number, next: { x: number; y: number; w: number; h: number }) {
-    layout = layout.map((each, i) => (i === index ? { ...each, ...next } : each));
+  function place(index: number, next: { x: number; y: number; w: number; h: number }, isLive = false) {
+    const placed = layout.map((each, i) => (i === index ? { ...each, ...next } : each));
+    if (isLive) layout = placed;
+    else change(placed);
+    const widget = placed[index];
+    if (widget) announced = t('app.dashboards.where_of', { title: widget.title, x: String(next.x + 1), y: String(next.y + 1), w: String(next.w), h: String(next.h) });
   }
+  let announced = $state('');
+
+  // Dragging by the handle and resizing by the corner move by whole cells (WCAG 2.5.7: the
+  // keyboard does both too - arrows move, Shift with arrows resizes).
+  let grid = $state<HTMLElement | undefined>(undefined);
+  function dragFrom(event: PointerEvent, index: number, mode: 'move' | 'size') {
+    const article = (event.currentTarget as HTMLElement).closest('article');
+    const start = layout[index];
+    if (!article || !grid || !start || event.button !== 0) return;
+    event.preventDefault();
+    const gap = Number.parseFloat(getComputedStyle(grid).columnGap) || 0;
+    const box = boxOf(start);
+    const cellW = (article.offsetWidth + gap) / box.w;
+    const cellH = (article.offsetHeight + gap) / box.h;
+    const handle = event.currentTarget as HTMLElement;
+    handle.setPointerCapture(event.pointerId);
+    history = [...history, layout];
+    const fromX = event.clientX;
+    const fromY = event.clientY;
+    const onMove = (next: PointerEvent) => {
+      const dx = Math.round((next.clientX - fromX) / cellW);
+      const dy = Math.round((next.clientY - fromY) / cellH);
+      place(index, mode === 'move' ? moved(box, dx, dy) : resized(box, dx, dy), true);
+    };
+    const onUp = () => {
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+      handle.removeEventListener('pointercancel', onUp);
+    };
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+    handle.addEventListener('pointercancel', onUp);
+  }
+  function keyed(event: KeyboardEvent, index: number, mode: 'move' | 'size') {
+    const steps: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+    const step = steps[event.key];
+    const widget = layout[index];
+    if (!step || !widget) return;
+    event.preventDefault();
+    const box = boxOf(widget);
+    const handle = event.currentTarget as HTMLElement;
+    place(index, mode === 'size' || event.shiftKey ? resized(box, step[0], step[1]) : moved(box, step[0], step[1]));
+    // Moving in reading order moves the element, which drops its focus: the handle keeps it.
+    void tick().then(() => handle.focus());
+  }
+
+  // --- The library: the nine kinds, previewed with one's own data -------------------------------
+
+  type Kind = DashboardWidgetWrite['chart'];
+  const KINDS: readonly Kind[] = ['NUMBER', 'BAR', 'LINE', 'LIST', 'PIE', 'TABLE', 'MATRIX', 'PROGRESS', 'TEXT'];
+  const KIND_GROUP: Record<Kind, string> = { NUMBER: 'figures', BAR: 'charts', LINE: 'charts', PIE: 'charts', TABLE: 'lists', MATRIX: 'charts', LIST: 'lists', PROGRESS: 'goals', TEXT: 'text' };
+  let librarySearch = $state('');
+  let libraryGroup = $state('all');
+  const libraryKinds = $derived(KINDS.filter((kind) => (libraryGroup === 'all' || KIND_GROUP[kind] === libraryGroup)
+    && `${t(`app.dashboards.kind_${kind}`)} ${t(`app.dashboards.kind_${kind}_hint`)}`.toLowerCase().includes(librarySearch.trim().toLowerCase())));
+  const filterTree = $derived.by(() => {
+    const parsed = dashboard?.filter ? parseQuery(dashboard.filter) : undefined;
+    return parsed?.ok ? parsed.query.filter : undefined;
+  });
+  // The library's previews count by status: kept as read, named as the statuses' names arrive (C-2).
+  let previewCounts = $state<Record<string, unknown>[]>([]);
+  const previewRows = $derived<FigureRow[]>(figureRows(previewCounts, { group: (value) => groupName('status', value), period: (day) => day }));
+  let previewEntries = $state<ListEntry[]>([]);
+  $effect(() => {
+    if (!isLibraryOpen) return;
+    const filter = filterTree;
+    const hub = placeHub ?? undefined;
+    // The previews count where the dashboard lives: its hub, or the whole workspace; a list needs a place.
+    const scope = hub ? { container_id: hub, include_descendants: true } : { workspace: true };
+    return untrack(() => {
+      const closers = [
+        engine.subscribe<{ data: Record<string, unknown>[] }>({ path: '/items:aggregate', body: { scope, ...(filter ? { filter } : {}), aggregate: { function: 'COUNT', group_by: 'status' } } }, (next) => {
+          if (next.status === 'ready') previewCounts = next.data.data;
+        }),
+        ...(hub ? [engine.subscribe<{ data: Record<string, unknown>[] }>({ path: '/items:query', body: { scope, ...(filter ? { filter } : {}), page: { size: 3 } } }, (next) => {
+          if (next.status === 'ready') previewEntries = next.data.data.map((row) => ({ id: String(row['id']), key: ticketKeyOf(typeof row['collection_id'] === 'string' ? containers.find(row['collection_id']) : undefined, row['number'] as number) ?? '', title: String(row['title'] ?? ''), href: `/items/${String(row['id'])}`, column: '' }));
+        })] : []),
+      ];
+      return () => closers.forEach((close) => close());
+    });
+  });
+  let preset = $state<DashboardWidgetWrite | undefined>(undefined);
+  /** A kind taken from the library opens the editor with it; the widget lands where the drop asked, else under the rest. */
+  function addKind(kind: Kind) {
+    const source = kind === 'PROGRESS' ? 'GOALS' : kind === 'TEXT' ? 'TEXT' : 'QUERY';
+    const query = kind === 'LIST' ? { q: 'is: open sort: due' }
+      : kind === 'LINE' ? { aggregate: { function: 'COUNT', bucket: { field: 'created_at', period: 'week' } } }
+        : kind === 'NUMBER' ? { aggregate: { function: 'COUNT' } }
+          : kind === 'MATRIX' ? { aggregate: { function: 'COUNT', group_by: 'status', bucket: { field: 'created_at', period: 'week' } } }
+            : { aggregate: { function: 'COUNT', group_by: 'status' } };
+    preset = { title: t(`app.dashboards.kind_${kind}`), chart: kind, source, ...(source === 'QUERY' ? { query } : {}), ...(kind === 'LIST' ? { column: 'due_at' } : {}), x: 0, y: 0, w: 6, h: 2 } as DashboardWidgetWrite;
+    openWidget(-1);
+  }
+  let isDropping = $state(false);
   async function saveLayout() {
     const at = dashboard;
     if (!at) return;
-    const ok = await act(() => goals.updateDashboard(at, { name: at.name, sharing: at.sharing, group_ids: at.group_ids ?? [], widgets: layout }), t('app.dashboards.saved'));
-    if (ok) isEditing = false;
+    const ok = await act(() => goals.updateDashboard(at, { name: at.name, sharing: at.sharing, group_ids: at.group_ids ?? [], filter: at.filter ?? '', widgets: layout }), t('app.dashboards.saved'));
+    if (ok) { isEditing = false; isLibraryOpen = false; history = []; }
   }
 
   // The widget dialog: a new one (`editingIndex` -1) or a change.
@@ -149,13 +276,46 @@
     editingIndex = index;
     isWidgetOpen = true;
   }
+  function closeWidget() {
+    isWidgetOpen = false;
+    preset = undefined;
+    onDraft(undefined);
+  }
+
+  // The widget as it is being edited, drawn large and live (scene wedit, UC-GOL-04 check 23): the
+  // server computes the unsaved definition as the reader and stores nothing. Asked once typing
+  // rests, so a line being written is not computed letter by letter.
+  let draftWidget = $state<DashboardWidgetWrite | undefined>(undefined);
+  let draftFigure = $state<Figure | undefined>(undefined);
+  let draftAsked = $state('');
+  let draftTimer: ReturnType<typeof setTimeout> | undefined;
+  const DRAFT_REST_MS = 300;
+  function onDraft(next: DashboardWidgetWrite | undefined) {
+    draftWidget = next;
+    clearTimeout(draftTimer);
+    if (!next) { draftAsked = ''; draftFigure = undefined; return; }
+    const body = JSON.stringify({ filter: dashboard?.filter ?? '', widgets: [{ ...next, x: 0, y: 0 }] });
+    if (body === draftAsked) return;
+    draftTimer = setTimeout(() => (draftAsked = body), DRAFT_REST_MS);
+  }
+  $effect(() => {
+    const body = draftAsked;
+    if (body === '') return;
+    const path = `${dashboardPath(dashboardId)}/figures:draft`;
+    return untrack(() => engine.subscribe<DashboardFigures>({ path, body: JSON.parse(body) }, (next) => {
+      if (next.status === 'ready') draftFigure = next.data.widgets[0];
+      if (next.status === 'failed') draftFigure = { id: '', data: [], truncated: false, error: renderProblem(next.error, messages).message, compare: null, remaining: null };
+    }));
+  });
+  $effect(() => () => clearTimeout(draftTimer));
   function saveWidget(write: DashboardWidgetWrite) {
     if (editingIndex < 0) {
-      layout = [...layout, { ...write, ...nextBox(layout.map(boxOf)) }];
+      change([...layout, { ...write, ...nextBox(layout.map(boxOf), 6, 2) }]);
     } else {
-      layout = layout.map((each, i) => (i === editingIndex ? { ...write, ...boxOf(each) } : each));
+      change(layout.map((each, i) => (i === editingIndex ? { ...write, ...boxOf(each) } : each)));
     }
     isWidgetOpen = false;
+    preset = undefined;
   }
 
   // --- Name and sharing, deleting ---------------------------------------------------------------
@@ -165,8 +325,15 @@
   async function saveName() {
     const at = dashboard;
     if (!at) return;
-    const ok = await act(() => goals.updateDashboard(at, { name: draft.name.trim(), sharing: draft.sharing, group_ids: draft.sharing === 'GROUPS' ? draft.groupIds : [], widgets: at.widgets.map(widgetWrite) }), t('app.dashboards.saved'));
+    const ok = await act(() => goals.updateDashboard(at, { name: draft.name.trim(), sharing: draft.sharing, group_ids: draft.sharing === 'GROUPS' ? draft.groupIds : [], filter: at.filter ?? '', widgets: at.widgets.map(widgetWrite) }), t('app.dashboards.saved'));
     if (ok) isRenaming = false;
+  }
+  function openSharing() {
+    if (!dashboard) return;
+    draft.name = dashboard.name;
+    draft.sharing = dashboard.sharing;
+    draft.groupIds = [...(dashboard.group_ids ?? [])];
+    isRenaming = true;
   }
   let isDeleting = $state(false);
   async function remove() {
@@ -230,10 +397,11 @@
   const readsViews = $derived(shown.some((widget) => widget.source === 'VIEW'));
   // A group is named by what it is a value of, so the names are read where a widget groups by them.
   $effect(() => {
-    const wanted = { types: groupFields.has('entry_type'), views: readsViews, hub: placeHub ?? undefined };
+    const wanted = { types: groupFields.has('entry_type'), statuses: groupFields.has('status') || shown.some((widget) => widget.chart === 'LIST' && widget.column === 'status') || isLibraryOpen || (draftWidget !== undefined && aggregateOf(draftWidget)?.group_by === 'status'), views: readsViews, hub: placeHub ?? undefined };
     return untrack(() => {
       const closers = [
         ...(wanted.types ? [entryTypes.open()] : []),
+        ...(wanted.statuses ? [workflows.open()] : []),
         ...(wanted.views ? [views.open(), ...(wanted.hub ? [views.open(wanted.hub)] : [])] : []),
       ];
       return () => closers.forEach((close) => close());
@@ -241,7 +409,8 @@
   });
   $effect(() => {
     if (!groupFields.has('assignee_id') && !groupFields.has('created_by')) return;
-    const ids = (figures?.widgets ?? []).flatMap((each) => each.data.map((row) => row['group'])).filter((id): id is string => typeof id === 'string');
+    const fieldOf = (id: string) => { const widget = shown.find((each) => each.id === id); return widget ? aggregateOf(widget)?.group_by : undefined; };
+    const ids = groupedPeople(figures?.widgets ?? [], fieldOf);
     untrack(() => accounts.resolve(ids));
   });
   /** A group's value in words (user-experience.md §5.6), by the field it is a value of. */
@@ -253,7 +422,8 @@
       case 'created_by': return accounts.nameOf(value) ?? t('app.people.unnamed');
       case 'collection_id': return containers.find(value)?.name ?? value;
       case 'is_completed': return t(value === 'true' ? 'app.dashboards.group_done' : 'app.dashboards.group_open');
-      case 'status': return ['todo', 'in_progress', 'done'].includes(value) ? t(`workflows.status.${value}`) : value;
+      // A widget counts across workflows, so a status is named as any workflow names it (as a hub's activity does).
+      case 'status': return statusNameOf({ statusKey: value }, '', workflows.list, t);
       default: return value;
     }
   }
@@ -271,20 +441,20 @@
     return { group: (value) => groupName(aggregate?.group_by, value), period: (day) => periodName(aggregate?.bucket?.period, day) };
   }
 
+  type Figure = DashboardFigures['widgets'][number];
   const figureOf = (id: string | undefined) => (id ? figures?.widgets.find((each) => each.id === id) : undefined);
   /** A widget's own rows, as running totals where it is cumulative. */
-  function rowsOf(widget: DashboardWidgetWrite): FigureRow[] {
-    const rows = figureRows(figureOf(widget.id)?.data ?? [], namingOf(widget));
+  function rowsOf(widget: DashboardWidgetWrite, figure: Figure | undefined = figureOf(widget.id)): FigureRow[] {
+    const rows = figureRows(figure?.data ?? [], namingOf(widget));
     return widget.cumulative ? runningRows(rows) : rows;
   }
   /** A widget with a second series as one table: its own, the second, and with running totals what is left. */
-  function tableOf(widget: DashboardWidgetWrite): SeriesTable | undefined {
-    const figure = figureOf(widget.id);
+  function tableOf(widget: DashboardWidgetWrite, figure: Figure | undefined = figureOf(widget.id)): SeriesTable | undefined {
     if (!widget.compare || !figure) return undefined;
     const running = widget.cumulative === true;
     const second = figureRows(figure.compare?.data ?? [], namingOf(widget));
     return seriesTable([
-      { name: widget.compare.first_title, rows: rowsOf(widget), isRunning: running },
+      { name: widget.compare.first_title, rows: rowsOf(widget, figure), isRunning: running },
       ...(figure.compare?.error ? [] : [{ name: widget.compare.title, rows: running ? runningRows(second) : second, isRunning: running }]),
       ...(figure.remaining ? [{ name: t('app.dashboards.series_left'), rows: leftRows(figure.remaining, namingOf(widget)) }] : []),
     ]);
@@ -302,6 +472,174 @@
       rows.map((row) => [row.label, row.column ?? '', { text: row.text, value: row.value }]), asSheet);
   }
   type Cell = string | { text: string; value: number | undefined };
+
+  // --- The filter every widget inherits (§6.5) --------------------------------------------------
+
+  /** Names for the line as the collections read them (ADR-0102): a place, a person among those of the dashboard's place. */
+  const peoplePath = $derived(placeHub ? { hubId: placeHub } : {});
+  $effect(() => {
+    const path = peoplePath;
+    return untrack(() => people.open(path));
+  });
+  const names: Names = {
+    person: (name) => personNamed(name, people.candidates(peoplePath), (id) => accounts.nameOf(id)),
+    label: () => undefined,
+    collection: (name) => {
+      const wanted = name.toLowerCase();
+      return [...containers.hubs, ...containers.loadedCollections].find((each) => each.name.toLowerCase() === wanted)?.id;
+    },
+    nameOf: (field, value) => (field === 'hub_id' || field === 'collection_id' ? containers.find(value)?.name : accounts.nameOf(value)),
+  };
+  /** A stored query text - identifiers for names - as the line a person reads. */
+  function namedLine(text: string | undefined): string {
+    if (!text) return '';
+    const parsed = parseQuery(text);
+    if (!parsed.ok || !parsed.query.filter) return text;
+    return lineOf({ filter: parsed.query.filter as never }, names) ?? text;
+  }
+  const filterLine = $derived(namedLine(dashboard?.filter));
+  const filterPieces = $derived(filterLine === '' ? [] : filterLine.match(/(?:[^\s"]+:\s*(?:"[^"]*"|\S+))|"[^"]*"|\S+/gu) ?? []);
+  const queryKeys = $derived<readonly QueryKey[]>(((manifest.value as { query_keys?: readonly QueryKey[] } | undefined)?.query_keys ?? []).filter((key) => !['asset', 'page', 'goal'].includes(key.product ?? '')));
+  let filterRefusal = $state<string | undefined>(undefined);
+  async function saveFilter(next: string) {
+    const at = dashboard;
+    if (!at) return;
+    const read = readQuery(next, names);
+    if (!read.ok) { filterRefusal = t(read.error.code); return; }
+    if (read.unknown.length > 0) { filterRefusal = t('app.dashboards.filter_unknown', { names: read.unknown.join(', ') }); return; }
+    filterRefusal = undefined;
+    const filter = read.query.filter ? formatQuery({ filter: read.query.filter as never }) : '';
+    if (filter === (at.filter ?? '')) return;
+    await act(() => goals.updateDashboard(at, { name: at.name, sharing: at.sharing, group_ids: at.group_ids ?? [], filter, widgets: at.widgets.map(widgetWrite) }));
+  }
+  /** The dashboard's conditions as the editor's chips: a field's own condition, by its line. */
+  const inheritedChips = $derived(conditionsOf(filterTree as Record<string, unknown> | undefined)
+    .filter((node) => typeof node['field'] === 'string')
+    .map((node) => ({ field: String(node['field']), piece: lineOf({ filter: node as never }, names) ?? String(node['field']) })));
+  const editedList = $derived.by(() => {
+    const widget = isWidgetOpen && editingIndex >= 0 ? layout[editingIndex] : undefined;
+    return widget && listHref(widget) ? widget : undefined;
+  });
+  /** Widgets that do not take the whole filter: one fed by a saved view, or one that released a field. */
+  const ownFilters = $derived(shown.filter((widget) => widget.source === 'VIEW' || (widget.released?.length ?? 0) > 0).length);
+
+  // --- One widget's anatomy: title, content, its query in one line, ⋯ -----------------------------
+
+  let tables = $state<Record<string, boolean>>({});
+  const viewName = (id: string | null | undefined) => views.of().concat(placeHub ? views.of(placeHub) : []).find((each) => each.id === id)?.name ?? t('app.dashboards.view_unread');
+  /** The widget's query in one line, as its foot shows it. */
+  function sourceLine(widget: DashboardWidgetWrite): string {
+    if (widget.source === 'VIEW') return t('app.dashboards.from_view', { name: viewName(widget.view_id) });
+    if (widget.source === 'GOALS') return t('app.dashboards.from_goals', { count: String(widget.goal_ids?.length ?? 0) });
+    if (widget.source !== 'QUERY') return '';
+    const query = (widget.query ?? {}) as { q?: unknown; filter?: unknown };
+    const own = typeof query.q === 'string' ? query.q : query.filter ? (lineOf({ filter: query.filter as never }, names) ?? '') : '';
+    const released = widget.released?.length ? t('app.dashboards.released_line', { fields: widget.released.join(', ') }) : '';
+    return [own, released].filter(Boolean).join(' · ');
+  }
+  /** The widget's own filter as a tree: its stored one, or its line read. */
+  function ownTree(widget: DashboardWidgetWrite): Record<string, unknown> | undefined {
+    const query = (widget.query ?? {}) as { q?: unknown; filter?: unknown };
+    if (typeof query.q === 'string') {
+      const parsed = parseQuery(query.q);
+      return parsed.ok ? (parsed.query.filter as Record<string, unknown> | undefined) : undefined;
+    }
+    return query.filter && typeof query.filter === 'object' ? query.filter as Record<string, unknown> : undefined;
+  }
+  // A widget's scope is a place: the hubs' collections are read so a scope is known as one.
+  const scopesWidgets = $derived(shown.some((widget) => widget.source === 'QUERY'));
+  const hubIds = $derived(containers.hubs.map((hub) => hub.id).join(' '));
+  $effect(() => {
+    if (!scopesWidgets || hubIds === '') return;
+    const ids = hubIds.split(' ');
+    const opened = untrack(() => ids.map((id) => containers.openLevel(id)));
+    return () => opened.forEach((close) => close());
+  });
+  /** The collection a widget counts in, where its list can be opened. */
+  function countedCollection(widget: DashboardWidgetWrite): string | undefined {
+    const query = widget.query as { scope_container_id?: unknown; scope?: { container_id?: unknown } } | undefined;
+    const scope = query?.scope?.container_id ?? query?.scope_container_id;
+    return typeof scope === 'string' && containers.find(scope)?.type === 'COLLECTION' ? scope : undefined;
+  }
+  /** The hub a widget counts in, or none for the whole workspace; undefined where it counts no entries there. */
+  function countedWide(widget: DashboardWidgetWrite): { hubId?: string } | undefined {
+    if (widget.source !== 'QUERY' || countedCollection(widget)) return undefined;
+    const query = widget.query as { scope_container_id?: unknown; scope?: { container_id?: unknown }; aggregate?: { source?: unknown } } | undefined;
+    if (query?.aggregate?.source !== undefined && query.aggregate.source !== 'entries') return undefined;
+    const scope = query?.scope?.container_id ?? query?.scope_container_id;
+    if (typeof scope !== 'string') return {};
+    return containers.find(scope)?.type === 'HUB' ? { hubId: scope } : undefined;
+  }
+  /** Where the widget's entries are listed: its saved view, the collection it counts in, or the search. */
+  function listHref(widget: DashboardWidgetWrite): string | undefined {
+    if (widget.source === 'VIEW' && widget.view_id) {
+      const view = views.of().concat(placeHub ? views.of(placeHub) : []).find((each) => each.id === widget.view_id) as { container_id?: string | null } | undefined;
+      return view?.container_id ? `/collections/${view.container_id}?view=${widget.view_id}` : undefined;
+    }
+    const scope = countedCollection(widget);
+    if (scope) return `/collections/${scope}`;
+    return countedWide(widget) ? '/search' : undefined;
+  }
+  /**
+   * Opens the widget's list. A counted collection opens with the widget's line - what the
+   * dashboard passes on and its own - as a changed, unsaved view; the line goes over in memory,
+   * never in the address (security.md §9). A widget counting a hub or the whole workspace opens the
+   * search with that line, handed over the way the bar hands its words.
+   */
+  function openList(widget: DashboardWidgetWrite) {
+    const href = listHref(widget);
+    if (!href) return;
+    const scope = widget.source === 'QUERY' ? countedCollection(widget) : undefined;
+    const wide = countedWide(widget);
+    if (wide) {
+      const tree = searchFilter(filterTree as Record<string, unknown> | undefined, widget.released ?? [], ownTree(widget), wide.hubId);
+      const line = tree ? lineOf({ filter: tree as never }, names) : '';
+      if (line) search.handOver(line);
+    } else if (scope) {
+      const tree = listFilter(filterTree as Record<string, unknown> | undefined, widget.released ?? [], ownTree(widget), containers.find(scope)?.parent_id);
+      const line = tree ? lineOf({ filter: tree as never }, names) : '';
+      if (line) handOver(scope, line);
+    }
+    onnavigate(href);
+  }
+  function widgetMenu(widget: DashboardWidgetWrite, key: string) {
+    const href = listHref(widget);
+    return [
+      { id: 'list', label: t('app.dashboards.open_list'), icon: 'list' as const, ...(href ? {} : { disabledReason: t('app.dashboards.open_list_none') }) },
+      { id: 'table', label: t(tables[key] ? 'app.dashboards.as_chart' : 'app.dashboards.as_table'), icon: 'table' as const },
+      { id: 'csv', label: t('app.dashboards.export_csv'), icon: 'file-text' as const, hasSeparatorBefore: true },
+      { id: 'xlsx', label: t('app.dashboards.export_xlsx'), icon: 'layout-template' as const },
+    ];
+  }
+  function onWidgetMenu(widget: DashboardWidgetWrite, key: string, id: string) {
+    if (id === 'list') openList(widget);
+    if (id === 'table') tables = { ...tables, [key]: !tables[key] };
+    if (id === 'csv') exportWidget(widget);
+    if (id === 'xlsx') exportWidget(widget, true);
+  }
+  /** A LIST widget's entries: key, title and its one column in words. */
+  function entriesOf(widget: DashboardWidgetWrite, figure: Figure | undefined = figureOf(widget.id)): ListEntry[] {
+    const now = Date.now();
+    return (figure?.data ?? []).map((row) => {
+      const id = String(row['id'] ?? '');
+      const collection = typeof row['collection_id'] === 'string' ? containers.find(row['collection_id']) : undefined;
+      const key = ticketKeyOf(collection, typeof row['number'] === 'number' ? row['number'] : undefined) ?? '';
+      const { text, tone } = columnText(widget.column ?? '', row[widget.column ?? ''], now);
+      return { id, key, title: String(row['title'] ?? ''), href: `/items/${id}`, column: text, ...(tone ? { tone } : {}) };
+    });
+  }
+  function columnText(field: string, value: unknown, now: number): { text: string; tone?: 'danger' | 'warning' } {
+    if (value === null || value === undefined || value === '') return { text: '' };
+    if ((field === 'due_at' || field.endsWith('_at')) && typeof value === 'string') {
+      const at = Date.parse(value);
+      if (field === 'due_at' && at < now) return { text: t('app.dashboards.overdue'), tone: 'danger' };
+      return { text: formatRelative(value, locale, now), ...(field === 'due_at' && at - now < 86_400_000 ? { tone: 'warning' as const } : {}) };
+    }
+    if (field === 'assignee_id' || field === 'created_by') return { text: accounts.nameOf(String(value)) ?? t('app.people.unnamed') };
+    if (field === 'status') return { text: groupName('status', String(value)) };
+    return { text: String(value) };
+  }
+  const computedAgo = $derived(figures ? formatRelative(figures.computed_at, locale) : '');
   function exportTable(title: string, heads: string[], lines: Cell[][], asSheet: boolean) {
     const name = title.replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 60) || 'widget';
     if (asSheet) {
@@ -322,7 +660,7 @@
   {#snippet top()}
   <PageHeader
     title={dashboard?.name ?? t('app.dashboards.dashboard')}
-    subtitle={dashboard ? t(`app.dashboards.subtitle_${dashboard.sharing}`, { place: placeName }) : undefined}
+    subtitle={dashboard ? [t(`app.dashboards.subtitle_${dashboard.sharing}`, { place: placeName }), ...(computedAgo ? [t('app.dashboards.computed_ago', { when: computedAgo })] : [])].join(' · ') : undefined}
     isTitleInBar={viewport.isCompact}
     breadcrumb={{
       trail: [{ id: 'dashboards', label: t('app.goals.tab_dashboards'), href: '/goals?tab=dashboards' }, { id: 'dashboard', label: dashboard?.name ?? '' }],
@@ -330,28 +668,25 @@
       expandLabel: t('app.goals.expand_trail'),
       onnavigate: () => onnavigate('/goals?tab=dashboards'),
     }}
-    primary={mayEdit && isEditing
-      ? { label: t('app.dashboards.add_widget'), icon: 'plus', onclick: () => openWidget(-1), ...(layout.length >= MAX_WIDGETS ? { disabledReason: t('dashboards.too_many_widgets') } : {}) }
-      : undefined}
+    primary={undefined}
     secondary={mayEdit
       ? isEditing
-        ? [{ label: t('app.dashboards.save_layout'), icon: 'check', onclick: () => void saveLayout() }]
-        : [{ label: t('app.dashboards.edit'), icon: 'pencil', onclick: startEditing }]
+        ? [{ label: t('app.dashboards.add_widget'), icon: 'plus', onclick: () => { isLibraryOpen = !isLibraryOpen; }, ...(layout.length >= MAX_WIDGETS ? { disabledReason: t('dashboards.too_many_widgets') } : {}) }]
+        : [{ label: t('app.dashboards.edit'), icon: 'pencil', onclick: startEditing }, { label: t('app.dashboards.share'), icon: 'users', onclick: openSharing }]
       : []}
     menu={dashboard ? {
       label: t('app.goals.more'),
       items: [
         { id: 'digest', label: t('app.dashboards.digest'), icon: 'mail' as const },
         ...(mayEdit ? [
-          ...(isEditing ? [{ id: 'cancel', label: t('app.dashboards.discard'), icon: 'x' as const }] : []),
           { id: 'rename', label: t('app.dashboards.rename'), icon: 'pencil' as const },
           { id: 'delete', label: t('app.dashboards.delete'), icon: 'trash' as const, isDestructive: true, hasSeparatorBefore: true },
         ] : []),
       ],
       onselect: (id: string) => {
         if (id === 'digest') isDigestOpen = true;
-        if (id === 'cancel') isEditing = false;
-        if (id === 'rename' && dashboard) { draft.name = dashboard.name; draft.sharing = dashboard.sharing; draft.groupIds = [...(dashboard.group_ids ?? [])]; isRenaming = true; }
+        if (id === 'cancel') discard();
+        if (id === 'rename') openSharing();
         if (id === 'delete') isDeleting = true;
       },
     } : undefined}
@@ -365,67 +700,166 @@
   {:else if !dashboard}
     <div aria-busy="true"><Skeleton lines={8} /></div>
   {:else}
-    {#if figures && !isEditing}<p class="quiet">{t('app.dashboards.computed', { when: formatDateTime(figures.computed_at, locale) })}</p>{/if}
     {#if figuresRefusal}<FailureNote problem={figuresRefusal} />{/if}
-    {#if isEditing}<p class="quiet">{t('app.dashboards.editing_hint')}</p>{/if}
+
+    <!-- The filter every widget inherits (§6.5): chips of one query line; a reader reads them. -->
+    {#if mayEdit || filterPieces.length > 0}
+      <section class="filterbar" aria-label={t('app.dashboards.filter_all')} data-dashboard-filter>
+        <span class="filter-lead"><Icon name="funnel" size="sm" />{t('app.dashboards.filter_all')}</span>
+        {#if mayEdit}
+          <QueryStrip line={filterLine} keys={queryKeys} onchange={(next) => void saveFilter(next)} />
+        {:else}
+          <ul class="chips">
+            {#each filterPieces as piece, i (i)}
+              {@const at = piece.indexOf(':')}
+              <li class="chip">{#if at > 0}<span class="chip-key">{piece.slice(0, at)}</span><span>{piece.slice(at + 1).trim()}</span>{:else}{piece}{/if}</li>
+            {/each}
+          </ul>
+        {/if}
+        {#if ownFilters > 0}<span class="own">{t('app.dashboards.own_filters', { count: String(ownFilters) })}</span>{/if}
+      </section>
+      {#if filterRefusal}<p class="failure" role="alert">{filterRefusal}</p>{/if}
+    {/if}
+    {#if isEditing}
+      <div class="band" role="toolbar" aria-label={t('app.dashboards.editing')} data-edit-band>
+        <span class="quiet">{t('app.dashboards.editing_hint')}</span>
+        <Inline gap="100">
+          <Button icon="undo-2" disabledReason={history.length === 0 ? t('app.dashboards.undo_none') : undefined} onclick={undo}>{t('app.dashboards.undo')}</Button>
+          <Button onclick={discard}>{t('app.dashboards.discard_short')}</Button>
+          <!-- One primary: while a widget is edited, the editor's *Übernehmen* is the one. -->
+          <Button tone={isWidgetOpen ? 'secondary' : 'primary'} icon="check" onclick={() => void saveLayout()}>{t('app.dashboards.done')}</Button>
+        </Inline>
+      </div>
+    {/if}
 
     {#if ordered.length === 0}
       <ProductEmpty product="GOALS" place={{ type: 'TENANT' }} kind={mayEdit ? 'unused' : 'settled'} icon="gauge" title={t('app.dashboards.no_widgets_title')}
         description={mayEdit ? t('app.dashboards.no_widgets') : undefined}
         create={mayEdit && !isEditing ? { label: t('app.dashboards.add_widget'), onclick: () => { startEditing(); openWidget(-1); } } : undefined} />
+      {#if isWidgetOpen}{@render editorPanel()}{/if}
     {:else}
-      <div class="grid" class:stacked={viewport.isCompact}>
+      <div class="board" class:with-side={isEditing && (isLibraryOpen || isWidgetOpen) && !viewport.isCompact} class:stacked={viewport.isCompact}>
+      <div class="stage">
+      {#if isWidgetOpen && draftWidget}
+        {@const live = draftWidget}
+        {@const foot = sourceLine(live)}
+        <!-- The edited widget large and live over the dimmed grid (scene wedit). -->
+        <article class="widget preview" aria-label={t('app.dashboards.preview_of', { title: live.title })} aria-busy={draftFigure === undefined} data-widget-preview>
+          <header class="widget-head"><h2 class="heading">{live.title}</h2><span class="quiet">{t('app.dashboards.preview_live')}</span></header>
+          {#if !draftFigure}
+            <Skeleton lines={3} />
+          {:else if draftFigure.error}
+            <p class="refused" role="status">{messages.has(draftFigure.error) ? t(draftFigure.error) : draftFigure.error}</p>
+          {:else}
+            <div class="content">
+              <WidgetChart title={live.title} chart={live.chart} rows={live.chart === 'LIST' ? [] : rowsOf(live, draftFigure)} table={tableOf(live, draftFigure)}
+                entries={live.chart === 'LIST' ? entriesOf(live, draftFigure) : []} text={live.text ?? ''} target={live.target} warnAt={live.warn_at} empty={emptyOf(live)} />
+            </div>
+          {/if}
+          {#if foot}<p class="foot">{foot}</p>{/if}
+        </article>
+      {/if}
+      <div bind:this={grid} class="grid" class:editing={isEditing} class:stacked={viewport.isCompact} class:half={!viewport.isCompact && viewport.isBelowExpanded}>
         {#each ordered as each (each.widget.id ?? `new-${each.index}`)}
           {@const figure = figureOf(each.widget.id)}
-          <article class="widget" style:--x={each.x + 1} style:--y={each.y + 1} style:--w={each.w} style:--h={each.h} aria-label={each.widget.title}>
+          {@const key = each.widget.id ?? `new-${each.index}`}
+          {@const foot = sourceLine(each.widget)}
+          <article class="widget" class:dimmed={isWidgetOpen && each.index !== editingIndex} class:focused={isWidgetOpen && each.index === editingIndex} style:--x={each.x + 1} style:--y={each.y + 1} style:--w={each.w} style:--h={each.h} style:--half={Math.min(6, Math.max(1, Math.ceil(each.w / 2)))} aria-label={each.widget.title} data-widget={each.widget.chart}>
             <header class="widget-head">
+              {#if isEditing}
+                <button type="button" class="handle" aria-label={t('app.dashboards.move_handle', { title: each.widget.title })} aria-describedby="dashboard-keys"
+                  onpointerdown={(event) => dragFrom(event, each.index, 'move')} onkeydown={(event) => keyed(event, each.index, 'move')}><Icon name="grip-vertical" size="sm" /></button>
+              {/if}
               <h2 class="heading">{each.widget.title}</h2>
-              {#if !isEditing && figure && !figure.error}
-                <IconButton icon="file-text" size="sm" tone="subtle" label={t('app.dashboards.export', { title: each.widget.title })} onclick={() => exportWidget(each.widget)} />
-                <IconButton icon="layout-template" size="sm" tone="subtle" label={t('app.dashboards.export_sheet', { title: each.widget.title })} onclick={() => exportWidget(each.widget, true)} />
+              {#if isEditing}
+                <IconButton icon="settings" size="sm" tone="subtle" label={t('app.dashboards.change_widget', { title: each.widget.title })} onclick={() => openWidget(each.index)} />
+                <IconButton icon="trash" size="sm" tone="subtle" label={t('app.dashboards.remove_widget', { title: each.widget.title })} onclick={() => change(layout.filter((_, i) => i !== each.index))} />
+              {/if}
+              {#if !isEditing && figure && !figure.error && each.widget.chart !== 'TEXT'}
+                <Menu label={t('app.dashboards.widget_menu', { title: each.widget.title })} items={widgetMenu(each.widget, key)} placement={{ side: 'block-end', align: 'end' }} onselect={(id) => onWidgetMenu(each.widget, key, id)}>
+                  {#snippet trigger(props)}<IconButton icon="ellipsis" size="sm" tone="subtle" label={t('app.dashboards.widget_menu', { title: each.widget.title })} {...props} />{/snippet}
+                </Menu>
               {/if}
             </header>
-            {#if isEditing}
-              {@const index = each.index}
-              <p class="quiet">{t('app.dashboards.where', { x: String(each.x + 1), y: String(each.y + 1), w: String(each.w), h: String(each.h) })}</p>
-              <Inline gap="050" isWrapping>
-                <IconButton icon="arrow-left" size="sm" label={t('app.dashboards.move_left', { title: each.widget.title })} onclick={() => place(index, moved(each, -1, 0))} />
-                <IconButton icon="arrow-right" size="sm" label={t('app.dashboards.move_right', { title: each.widget.title })} onclick={() => place(index, moved(each, 1, 0))} />
-                <IconButton icon="chevron-up" size="sm" label={t('app.dashboards.move_up', { title: each.widget.title })} onclick={() => place(index, moved(each, 0, -1))} />
-                <IconButton icon="chevron-down" size="sm" label={t('app.dashboards.move_down', { title: each.widget.title })} onclick={() => place(index, moved(each, 0, 1))} />
-                <IconButton icon="minus" size="sm" label={t('app.dashboards.narrower', { title: each.widget.title })} onclick={() => place(index, resized(each, -1, 0))} />
-                <IconButton icon="plus" size="sm" label={t('app.dashboards.wider', { title: each.widget.title })} onclick={() => place(index, resized(each, 1, 0))} />
-                <IconButton icon="fold-vertical" size="sm" label={t('app.dashboards.shorter', { title: each.widget.title })} onclick={() => place(index, resized(each, 0, -1))} />
-                <IconButton icon="chevrons-up-down" size="sm" label={t('app.dashboards.taller', { title: each.widget.title })} onclick={() => place(index, resized(each, 0, 1))} />
-                <IconButton icon="pencil" size="sm" label={t('app.dashboards.change_widget', { title: each.widget.title })} onclick={() => openWidget(index)} />
-                <IconButton icon="trash" size="sm" tone="danger" label={t('app.dashboards.remove_widget', { title: each.widget.title })} onclick={() => (layout = layout.filter((_, i) => i !== index))} />
-              </Inline>
-            {:else if !figures}
+            {#if !figures && !isEditing}
               <div aria-busy="true"><Skeleton lines={3} /></div>
             {:else if !figure}
               <p class="quiet">{t('app.dashboards.not_computed')}</p>
             {:else if figure.error}
               <p class="refused" role="status">{t(figure.error)}</p>
             {:else}
-              <WidgetChart title={each.widget.title} chart={each.widget.chart} rows={rowsOf(each.widget)} table={tableOf(each.widget)} empty={emptyOf(each.widget)} />
+              <div class="content">
+                <WidgetChart title={each.widget.title} chart={each.widget.chart} rows={each.widget.chart === 'LIST' ? [] : rowsOf(each.widget)} table={tableOf(each.widget)}
+                  entries={each.widget.chart === 'LIST' ? entriesOf(each.widget) : []} text={each.widget.text ?? ''} target={each.widget.target} warnAt={each.widget.warn_at}
+                  isTable={tables[key] === true} empty={emptyOf(each.widget)} />
+              </div>
               {#if figure.compare?.error}<p class="refused" role="status">{t('app.dashboards.series_refused', { title: each.widget.compare?.title ?? '', reason: t(figure.compare.error) })}</p>{/if}
               {#if figure.truncated || figure.compare?.truncated}<p class="quiet">{t('app.dashboards.truncated')}</p>{/if}
             {/if}
+            {#if foot}<p class="foot" data-widget-query>{foot}</p>{/if}
+            {#if isEditing}
+              <button type="button" class="corner" aria-label={t('app.dashboards.resize_handle', { title: each.widget.title })} aria-describedby="dashboard-keys"
+                onpointerdown={(event) => dragFrom(event, each.index, 'size')} onkeydown={(event) => keyed(event, each.index, 'size')}></button>
+            {/if}
           </article>
         {/each}
+        {#if isEditing && isDropping}
+          <div class="drop" role="region" aria-label={t('app.dashboards.drop_here')} ondragover={(event) => event.preventDefault()}
+            ondrop={(event) => { event.preventDefault(); isDropping = false; const kind = event.dataTransfer?.getData('text/plain') as Kind; if (KINDS.includes(kind)) addKind(kind); }}>
+            <Icon name="plus" size="sm" />{t('app.dashboards.drop_here_cells', { w: '6', h: '2' })}
+          </div>
+        {/if}
       </div>
+      </div>
+      {#if isWidgetOpen}
+        {@render editorPanel()}
+      {:else if isEditing && isLibraryOpen}
+        <aside class="side" aria-label={t('app.dashboards.library')} data-widget-library>
+          <header class="side-head"><h2 class="heading">{t('app.dashboards.library')}</h2><IconButton icon="x" size="sm" tone="subtle" label={t('app.links.cancel')} onclick={() => (isLibraryOpen = false)} /></header>
+          <Input label={t('app.dashboards.library_search')} isLabelHidden placeholder={t('app.dashboards.library_search')} bind:value={librarySearch} />
+          <div class="kinds" role="group" aria-label={t('app.dashboards.library_groups')}>
+            {#each ['all', 'figures', 'charts', 'lists', 'goals', 'text'] as group (group)}
+              <button type="button" class="kind-chip" aria-pressed={libraryGroup === group} onclick={() => (libraryGroup = group)}>{t(`app.dashboards.library_${group}`)}</button>
+            {/each}
+          </div>
+          <ul class="cards">
+            {#each libraryKinds as kind (kind)}
+              <li>
+                <button type="button" class="card" draggable="true" data-kind={kind} onclick={() => addKind(kind)}
+                  ondragstart={(event) => { event.dataTransfer?.setData('text/plain', kind); isDropping = true; }} ondragend={() => (isDropping = false)}>
+                  <span class="preview" aria-hidden="true">
+                    <WidgetChart title={t(`app.dashboards.kind_${kind}`)} chart={kind === 'PROGRESS' ? 'BAR' : kind} rows={kind === 'LINE' ? previewRows.map((row, i) => ({ ...row, period: String(i) })) : previewRows}
+                      entries={previewEntries} text={t('app.dashboards.kind_TEXT_sample')} empty={t('app.dashboards.library_no_data')} />
+                  </span>
+                  <span class="card-text"><strong>{t(`app.dashboards.kind_${kind}`)}</strong><span class="quiet">{t(`app.dashboards.kind_${kind}_hint`)}</span></span>
+                </button>
+              </li>
+            {/each}
+          </ul>
+          <p class="quiet">{t('app.dashboards.library_hint')}</p>
+        </aside>
+      {/if}
+      </div>
+      <VisuallyHidden><span id="dashboard-keys">{t('app.dashboards.keys_hint')}</span><span aria-live="polite">{announced}</span></VisuallyHidden>
     {/if}
   {/if}
 </WorkPage>
 
-{#if isWidgetOpen}
-  <Dialog size="l" bind:isOpen={isWidgetOpen} title={editingIndex < 0 ? t('app.dashboards.add_widget') : t('app.dashboards.change_widget', { title: layout[editingIndex]?.title ?? '' })} dismissLabel={t('app.links.cancel')}>
-    <WidgetEditor widget={editingIndex < 0 ? undefined : layout[editingIndex]} {summaryViews} goals={goalChoices} onsave={saveWidget} />
-  </Dialog>
-{/if}
+{#snippet editorPanel()}
+  <!-- The editor stands beside the grid (scene wedit): the widget it changes stays in view, the others dimmed. -->
+  <aside class="side" aria-label={editingIndex < 0 ? t('app.dashboards.add_widget') : t('app.dashboards.change_widget', { title: layout[editingIndex]?.title ?? '' })} data-widget-editor>
+    <header class="side-head">
+      <h2 class="heading">{editingIndex < 0 ? t('app.dashboards.add_widget') : t('app.dashboards.change_widget', { title: layout[editingIndex]?.title ?? '' })}</h2>
+      <IconButton icon="x" size="sm" tone="subtle" label={t('app.links.cancel')} onclick={closeWidget} />
+    </header>
+    <WidgetEditor widget={editingIndex < 0 ? preset : layout[editingIndex]} {summaryViews} goals={goalChoices} inherited={inheritedChips} keys={queryKeys} {names} ondraft={onDraft} onsave={saveWidget} oncancel={closeWidget}
+      onlist={editedList ? () => { const widget = editedList; closeWidget(); if (widget) openList(widget); } : undefined} />
+  </aside>
+{/snippet}
 
 {#if isDigestOpen}
-  <Dialog size="m" bind:isOpen={isDigestOpen} title={t('app.dashboards.digest_title')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isDigestOpen} title={t('app.dashboards.digest_title')} dismissLabel={t('app.links.cancel')}
+    primary={{ label: t('app.dashboards.digest_save'), onclick: () => void saveDigest() }}>
     <Stack gap="150">
       <p class="quiet">{t('app.dashboards.digest_hint')}</p>
       <Select label={t('app.dashboards.digest_cadence')} bind:value={digestDraft.cadence}
@@ -437,30 +871,36 @@
       {#if digest}
         <p class="quiet">{t('app.dashboards.digest_next', { when: formatDateTime(digest.next_at, locale) })}</p>
       {/if}
-      <Inline justify="end">
-        {#if digest}<Button tone="danger" onclick={() => void stopDigest()}>{t('app.dashboards.digest_stop')}</Button>{/if}
-        <Button tone="primary" onclick={() => void saveDigest()}>{t('app.dashboards.digest_save')}</Button>
-      </Inline>
     </Stack>
+    {#snippet actions()}
+      {#if digest}<Button tone="danger" onclick={() => void stopDigest()}>{t('app.dashboards.digest_stop')}</Button>{/if}
+      <Button tone="secondary" onclick={() => (isDigestOpen = false)}>{t('app.links.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
 {#if isRenaming}
-  <Dialog size="m" bind:isOpen={isRenaming} title={t('app.dashboards.rename')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isRenaming} title={t('app.dashboards.rename')} dismissLabel={t('app.links.cancel')}
+    primary={{ label: t('app.goals.save'), disabledReason: draft.name.trim() === '' ? t('app.dashboards.name_needed') : draft.sharing === 'GROUPS' && draft.groupIds.length === 0 ? t('app.dashboards.groups_needed') : undefined, onclick: () => void saveName() }}>
     <Stack gap="150">
       <Input label={t('app.dashboards.col_name')} bind:value={draft.name} maxlength={200} />
       <SharingPicker bind:sharing={draft.sharing} bind:groupIds={draft.groupIds} />
-      <Inline justify="end"><Button disabledReason={draft.name.trim() === '' ? t('app.dashboards.name_needed') : draft.sharing === 'GROUPS' && draft.groupIds.length === 0 ? t('app.dashboards.groups_needed') : undefined} onclick={() => void saveName()}>{t('app.goals.save')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isRenaming = false)}>{t('app.links.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
 {#if isDeleting && dashboard}
-  <Dialog size="s" bind:isOpen={isDeleting} title={t('app.dashboards.delete_title', { name: dashboard.name })} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="s" bind:isOpen={isDeleting} title={t('app.dashboards.delete_title', { name: dashboard.name })} dismissLabel={t('app.links.cancel')}
+    primary={{ label: t('app.dashboards.delete'), tone: 'danger', onclick: () => void remove() }}>
     <Stack gap="150">
       <p class="quiet">{t('app.dashboards.delete_hint')}</p>
-      <Inline justify="end"><Button tone="danger" onclick={() => void remove()}>{t('app.dashboards.delete')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isDeleting = false)}>{t('app.links.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
@@ -468,7 +908,7 @@
   .grid {
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
-    grid-auto-rows: minmax(var(--sp-1000), auto);
+    grid-auto-rows: var(--sp-1000);
     gap: var(--sp-200);
   }
   .widget {
@@ -478,15 +918,64 @@
     flex-direction: column;
     gap: var(--sp-100);
     min-width: 0;
-    padding: var(--sp-150);
+    padding: var(--sp-150) var(--sp-200);
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
     background: var(--bg-surface);
   }
+  /* A tablet halves the columns and places the widgets in reading order; a phone stacks them. */
+  .grid.half { grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-rows: minmax(var(--sp-1000), auto); grid-auto-flow: row dense; }
+  .grid.half .widget { grid-column: span var(--half); grid-row: auto; }
   .grid.stacked { display: flex; flex-direction: column; }
-  .widget-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); }
-  .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }
+  .stage { display: flex; flex-direction: column; gap: var(--sp-200); min-width: 0; }
+  .widget.preview { min-block-size: calc(var(--sp-1000) * 3); outline: var(--bw-thick) dashed var(--accent-primary); outline-offset: var(--sp-050); }
+  .board { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-200); align-items: start; }
+  .board.with-side { grid-template-columns: minmax(0, 1fr) var(--layout-pane-width); }
+  /* A phone has no room beside the grid: the editor or the library stands above it, the phone's width. */
+  .board.stacked > .side { order: -1; min-inline-size: 0; }
+  .grid.editing { padding: var(--sp-100); border: var(--bw-hairline) dashed var(--border-strong); border-radius: var(--r-lg); }
+  .grid.editing .widget { position: relative; }
+  .widget.dimmed { opacity: 0.45; }
+  .widget.focused { outline: var(--bw-thick) dashed var(--accent-primary); outline-offset: var(--sp-050); }
+  .handle { display: inline-grid; place-items: center; padding: 0; border: none; background: none; color: var(--text-subtle); cursor: grab; touch-action: none; }
+  .handle:focus-visible, .corner:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
+  .corner { position: absolute; inset-block-end: var(--sp-050); inset-inline-end: var(--sp-050); inline-size: var(--sp-200); block-size: var(--sp-200); padding: 0; border: none; border-block-end: var(--bw-thick) solid var(--text-subtle); border-inline-end: var(--bw-thick) solid var(--text-subtle); background: none; cursor: nwse-resize; touch-action: none; }
+  .drop { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: var(--sp-050); min-block-size: var(--sp-1000); border: var(--bw-thick) dashed var(--accent-primary); border-radius: var(--r-lg); background: var(--accent-primary-subtle); color: var(--text-brand); }
+  .band { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); padding: var(--sp-100) var(--sp-150); border-radius: var(--r-lg); background: var(--accent-primary-subtle); }
+  .side { display: flex; flex-direction: column; gap: var(--sp-150); padding: var(--sp-200); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
+  .side-head { display: flex; align-items: center; justify-content: space-between; }
+  .kinds { display: flex; flex-wrap: wrap; gap: var(--sp-050); }
+  .kind-chip { padding: var(--sp-025) var(--sp-100); border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-full); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-075); cursor: pointer; }
+  .kind-chip[aria-pressed='true'] { border-color: var(--accent-primary); background: var(--accent-primary-subtle); color: var(--text-brand); }
+  .cards { display: flex; flex-direction: column; gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }
+  .card { display: grid; grid-template-columns: var(--sp-1000) minmax(0, 1fr); gap: var(--sp-150); inline-size: 100%; padding: var(--sp-100); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface); color: var(--text-primary); font: inherit; text-align: start; cursor: grab; }
+  .card:hover { border-color: var(--border-strong); }
+  .preview { overflow: hidden; block-size: var(--sp-800); padding: var(--sp-050); border-radius: var(--r-sm); background: var(--bg-surface-sunken); pointer-events: none; font-size: var(--fs-050); }
+  .card-text { display: flex; flex-direction: column; gap: var(--sp-025); font-size: var(--fs-075); }
+  .widget-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); min-block-size: var(--sp-300); }
+  .heading { flex: 1 1 auto; min-width: 0; margin: 0; overflow: hidden; font-size: var(--fs-100); font-weight: var(--fw-semibold); text-overflow: ellipsis; white-space: nowrap; }
+  /* A widget is as tall as its cells (wcat): what is longer scrolls inside it, so a table's head
+     sticks to the widget's top, not as far down as the app bar would be. */
+  .content { --page-sticky-top: 0; flex: 1 1 auto; min-width: 0; min-block-size: 0; overflow: auto; }
+  .grid .widget { overflow: hidden; }
+  .grid.half .widget, .grid.stacked .widget { overflow: visible; }
+  .foot { flex: none; margin: 0; overflow: hidden; color: var(--text-subtle); font-family: var(--font-mono); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
+  .filterbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100) var(--sp-150); padding: var(--sp-100) var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
+  .filterbar :global([data-query-strip]) { flex: 1 1 0; }
+  .filter-lead { display: inline-flex; align-items: center; gap: var(--sp-050); color: var(--text-secondary); font-size: var(--fs-075); white-space: nowrap; }
+  .chips { display: flex; flex: 1 1 0; flex-wrap: wrap; gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }
+  .chip { display: inline-flex; gap: var(--sp-050); padding: var(--sp-025) var(--sp-100); border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-sm); font-size: var(--fs-075); }
+  .chip-key { color: var(--text-secondary); }
+  .own { margin-inline-start: auto; color: var(--text-secondary); font-size: var(--fs-075); white-space: nowrap; }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .refused { margin: 0; color: var(--text-warning); font-size: var(--fs-075); }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
+
+  /* A thumb's target (§7, P-2): the corner's press reaches layout.target beyond its drawn mark. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .corner::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
+    /* The move handle is a press, as wide and tall as one (N20). */
+    .handle { min-inline-size: var(--layout-target); min-block-size: var(--layout-target); }
+  }
 </style>

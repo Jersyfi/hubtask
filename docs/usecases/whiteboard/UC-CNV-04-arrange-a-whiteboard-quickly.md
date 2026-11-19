@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-05, P-18]
 state: verified
 tasks: []
-checked_by: [packages/whiteboard/test/tools.test.ts, core/application/service/whiteboard/Boards_test.go, apps/webapp/e2e/whiteboardtemplate.test.mjs]
+checked_by: [packages/whiteboard/test/tools.test.ts, core/application/service/whiteboard/Boards_test.go, apps/webapp/e2e/whiteboardtemplate.test.mjs, apps/webapp/e2e/whiteboardwork.test.mjs]
 ---
 
 # Arrange a whiteboard quickly
@@ -27,6 +27,8 @@ Anna starts the team's retro from the "Start, stop, continue" template, circles 
 3. The map of the board shows every object and the part of the board on the screen; clicking it moves the screen there.
 4. Objects grouped are chosen, moved and copied together; copied objects - with the connectors between them - paste on the same or another board under new identifiers, the connectors attached to the copies, the group a new one; Ctrl or ⌘ with C, X, V and D copy, cut, paste and duplicate.
 5. The templates "Retrospective: start, stop, continue", "Retrospective: liked, learned, lacked, longed for", "Retrospective: mad, sad, glad", "Kanban board", "Brainstorm", "Flowchart" and "User story map" put their frames, notes, shapes and connectors on the board in the reader's language.
+6. A chosen object carries a bar above it in a fixed order: colour, size, arrow, comment, lock, task from it, more.
+7. On a tablet the pen draws whatever tool is chosen and a finger moves the board.
 
 ## Where it ends
 

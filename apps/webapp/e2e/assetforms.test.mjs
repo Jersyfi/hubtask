@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { HUB, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -72,8 +72,7 @@ const FILES = [
 
 for (const file of FILES) {
   test(`chromium: ${file.name}'s columns are offered for the mapping`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     t.after(() => context.close());
     // One file source an administrator defined, without a saved mapping: the import starts there.
@@ -110,8 +109,7 @@ const SERVER_CLASS = {
 // The same holds for a new configuration item: its class's attributes start empty, and the dialog
 // asks for each of them rather than falling over.
 test('chromium: a new configuration item asks for its class attributes', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   await context.route('**/api/v1/**', (route) => (new URL(route.request().url()).pathname.endsWith('/cmdb/classes')
@@ -123,9 +121,9 @@ test('chromium: a new configuration item asks for its class attributes', async (
   page.on('pageerror', (error) => failures.push(String(error)));
 
   await page.goto(`${served.origin}/hubs/${HUB.id}/assets`);
-  await page.getByRole('button', { name: 'New configuration item' }).first().click();
+  await page.getByRole('button', { name: 'New object', exact: true }).first().click();
   const dialog = page.getByRole('dialog');
-  await dialog.getByLabel('Class', { exact: false }).first().selectOption('server');
+  await dialog.getByLabel('Object type', { exact: false }).first().selectOption('server');
   await dialog.getByLabel('serial', { exact: false }).waitFor({ timeout: 5_000 });
   assert.equal(await dialog.getByLabel('rack', { exact: false }).inputValue(), '');
   assert.deepEqual(failures, []);
@@ -143,8 +141,7 @@ const SERVER = {
 
 // Refined to a more specific class, a configuration item is asked for the attributes it gains.
 test('chromium: a configuration item refined to a narrower class asks for the attributes it gains', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   await context.route('**/api/v1/**', (route) => {
@@ -160,8 +157,8 @@ test('chromium: a configuration item refined to a narrower class asks for the at
   page.on('pageerror', (error) => failures.push(String(error)));
 
   await page.goto(`${served.origin}/cis/${SERVER.id}`);
-  await page.getByRole('button', { name: 'Change' }).first().click();
-  await page.getByLabel('More specific class').selectOption('blade');
+  await page.locator('[data-edit-attributes]').click();
+  await page.getByLabel('More specific object type').selectOption('blade');
   await page.getByLabel('slot', { exact: false }).waitFor({ timeout: 5_000 });
   assert.equal(await page.getByLabel('serial', { exact: false }).inputValue(), 'SN1');
   assert.deepEqual(failures, []);
@@ -170,8 +167,7 @@ test('chromium: a configuration item refined to a narrower class asks for the at
 // A configuration item whose read says it has no asset record is not asked for one: the 404 that
 // read would answer is logged by the browser however the screen takes it.
 test('chromium: a configuration item without an asset record asks for none', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   const asked = [];
@@ -190,15 +186,14 @@ test('chromium: a configuration item without an asset record asks for none', asy
   const page = await context.newPage();
 
   await page.goto(`${served.origin}/cis/${SERVER.id}`);
-  await page.locator('[data-ci-asset] .meta').waitFor({ timeout: 5_000 });
+  await page.locator('[data-ci-asset] [data-register-empty]').waitFor({ timeout: 5_000 });
   await page.waitForLoadState('networkidle');
   assert.deepEqual(asked, [], 'the asset record was asked for although the CI has none');
 });
 
 // A new connector asks for its program's settings, none of which it holds yet.
 test('chromium: a new connector asks for its program settings', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   await context.route('**/api/v1/**', stub);
@@ -219,8 +214,7 @@ test('chromium: a new connector asks for its program settings', async (t) => {
 // UX-5: a class is named, never keyed, on the settings' list, and its line's parts are spaced the
 // same whichever of them a class has.
 test('chromium: the class list names each class and spaces its line', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   const SHIPPED = { ...SERVER_CLASS, key: 'business_process', name: 'Business process', parent: null, lineage: ['business_process'], system: true, all_attributes: [] };

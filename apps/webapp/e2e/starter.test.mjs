@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { HUB, WORKSPACE, signedIn, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -90,8 +90,7 @@ async function as(browser, offered, { failFirstApply = false, skipped = false } 
 const dialogOf = (page) => page.locator('[data-starter]');
 
 test('chromium: the first start - asked once, answered by one command making a hub and collections on presets', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, sent } = await as(browser, true);
   t.after(() => context.close());
 
@@ -127,8 +126,7 @@ test('chromium: the first start - asked once, answered by one command making a h
 });
 
 test('chromium: the first start failed once - the retry sends the same key and makes one set', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, sent } = await as(browser, true, { failFirstApply: true });
   t.after(() => context.close());
 
@@ -148,14 +146,14 @@ test('chromium: the first start failed once - the retry sends the same key and m
 });
 
 test('chromium: the first start skipped - closed, nothing made', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, sent } = await as(browser, true);
   t.after(() => context.close());
 
   await page.goto(`${served.origin}/`);
   await dialogOf(page).waitFor({ timeout: 10_000 });
-  await page.getByRole('button', { name: 'Skip' }).last().click();
+  // The dialog's X is named *Close* as every dialog's; closing the first start skips it.
+  await page.locator('dialog[open]').getByRole('button', { name: 'Close' }).first().click();
   await page.waitForTimeout(600);
   assert.deepEqual(sent, [{ path: '/tenant/starter:close' }]);
   assert.equal(await dialogOf(page).isVisible(), false);
@@ -163,8 +161,7 @@ test('chromium: the first start skipped - closed, nothing made', async (t) => {
 });
 
 test('chromium: where the first start is not offered, nobody is asked', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, sent } = await as(browser, false);
   t.after(() => context.close());
 
@@ -177,8 +174,7 @@ test('chromium: where the first start is not offered, nobody is asked', async (t
 });
 
 test('chromium: the first start on a template - its family, its plan in words, then one command with the template and its samples', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, sent } = await as(browser, true);
   t.after(() => context.close());
 
@@ -217,8 +213,7 @@ test('chromium: the first start on a template - its family, its plan in words, t
 // After a skip, Today's first steps carry *Choose what you use Hubtask for* (user-experience.md
 // §3.3), which opens the same dialog; dismissing it sends nothing, choosing makes the one set.
 test('chromium: a skipped first start is offered on Today and opens the same dialog', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, sent } = await as(browser, false, { skipped: true });
   t.after(() => context.close());
   await context.route('**/api/v1/items:query', async (route) => {

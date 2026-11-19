@@ -346,6 +346,32 @@ func TestTakingAStepAnswersTheEntry(t *testing.T) {
 	}
 }
 
+// A drop answers what it did and the entry; a choice carries the steps (UC-WRK-05, UC-FLW-06,
+// UC-FLW-03 check 8).
+func TestADropAnswersTheOutcomeAndTheEntry(t *testing.T) {
+	item := "0192f000-0000-7000-8000-000000000011"
+	column := "0192f000-0000-7000-8000-000000000012"
+	registry := &catalogue{out: usecase.Output{
+		"outcome": "CHOOSE",
+		"steps":   []usecase.Output{{"key": "accept", "name": nil, "to": "done"}, {"key": "reject", "name": nil, "to": "rejected"}},
+		"item":    usecase.Output{"id": item, "type": "TASK", "title": "Buy milk", "status": "review", "version": 4},
+	}}
+	recorder := callDoor(t, registry, http.MethodPost, "/items/"+item+":drop", `{"bucket_id":"`+column+`"}`,
+		map[string]string{"Content-Type": "application/json", "If-Match": `"4"`})
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "DropItemOnColumn" || registry.in["item_id"] != item || registry.in["bucket_id"] != column ||
+		registry.in["expected_version"] != 4 {
+		t.Errorf("%s %v", registry.name, registry.in)
+	}
+	for _, want := range []string{`"outcome":"CHOOSE"`, `"key":"reject"`, `"status":"review"`} {
+		if !strings.Contains(recorder.Body.String(), want) {
+			t.Errorf("the answer is %s, want %s", recorder.Body, want)
+		}
+	}
+}
+
 // A secret shown once is marked so for a cache and the idempotency record (T-18) - only when the
 // answer carries it: an invitation sent by mail shows no link and is not marked.
 func TestAGeneratedAnswerShowingASecretOnceIsMarkedSo(t *testing.T) {
@@ -501,5 +527,44 @@ func TestAGeneratedOperationFlattensANestedMember(t *testing.T) {
 	}
 	if registry.in["scope"] != "HUB" || registry.in["scope_id"] != hub || registry.in["reason"] != "audit" {
 		t.Errorf("the input is %v", registry.in)
+	}
+}
+
+// The level switch and the workflow from columns name the collection from the path; the done
+// column's successor travels as a query parameter; a scheme's columns reach the use case whole.
+func TestTheBoardLevelDoorsHandOnTheirInputs(t *testing.T) {
+	collection := "0192f000-0000-7000-8000-0000000c0001"
+	column := "0192f000-0000-7000-8000-0000000c0002"
+	json := map[string]string{"Content-Type": "application/json"}
+
+	registry := &catalogue{out: usecase.Output{
+		"dry_run": true, "level_before": "NONE", "level_after": "COLUMNS",
+		"columns_created": 2, "columns_removed": 0, "entries_placed": 3,
+	}}
+	recorder := callDoor(t, registry, http.MethodPost, "/containers/"+collection+"/board:switch", `{"to":"COLUMNS","dry_run":true}`, json)
+	if recorder.Code != http.StatusOK || registry.name != "SwitchBoard" || registry.in["collection_id"] != collection ||
+		registry.in["to"] != "COLUMNS" || registry.in["dry_run"] != true {
+		t.Errorf("switch: %d %s %v", recorder.Code, registry.name, registry.in)
+	}
+
+	registry = &catalogue{out: usecase.Output{"dry_run": false, "workflow": "board_1", "statuses": []usecase.Output{}, "entries": 0}}
+	recorder = callDoor(t, registry, http.MethodPost, "/containers/"+collection+"/board:workflow", `{"name":"Flow"}`, json)
+	if recorder.Code != http.StatusOK || registry.name != "MakeBoardWorkflow" || registry.in["collection_id"] != collection ||
+		registry.in["name"] != "Flow" {
+		t.Errorf("workflow: %d %s %v", recorder.Code, registry.name, registry.in)
+	}
+
+	registry = &catalogue{out: usecase.Output{"bucket_id": column, "target_bucket_id": nil, "moved_items": 0, "done_bucket_id": nil}}
+	recorder = callDoor(t, registry, http.MethodDelete, "/containers/"+collection+"/buckets/"+column+"?new_done_bucket_id="+collection, "", nil)
+	if recorder.Code != http.StatusOK || registry.name != "DeleteBucket" || registry.in["new_done_bucket_id"] != collection {
+		t.Errorf("delete: %d %s %v", recorder.Code, registry.name, registry.in)
+	}
+
+	registry = &catalogue{out: usecase.Output{"container_id": collection, "entry_type": nil, "workflow": "w", "entries_moved": 0}}
+	recorder = callDoor(t, registry, http.MethodPut, "/workflow-scheme",
+		`{"container_id":"`+collection+`","workflow":"w","confirm":true,"columns":[{"bucket_id":"`+column+`","statuses":["todo"]}]}`, json)
+	columns, _ := registry.in["columns"].([]any)
+	if recorder.Code != http.StatusOK || registry.name != "SetWorkflowScheme" || len(columns) != 1 {
+		t.Errorf("scheme: %d %s %v", recorder.Code, registry.name, registry.in)
 	}
 }

@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, MANIFEST, forgetUnstubbed, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -23,8 +23,7 @@ const FRESH = { ...ACCOUNT, id: '01a0e2e0-0000-7000-8000-0000000032a1', onboardi
 
 for (const [width, height] of [[1280, 860], [390, 844]]) {
   test(`chromium: the tour is clicked through at ${width}x${height}`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const context = await browser.newContext({ viewport: { width, height } });
     t.after(() => context.close());
     forgetUnstubbed();
@@ -99,8 +98,7 @@ for (const [width, height] of [[1280, 860], [390, 844]]) {
 
 // user-experience.md §3.4: where a product is on, the second step points at the products band.
 test('chromium: with a product on, the tour shows where the products live', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
   t.after(() => context.close());
   forgetUnstubbed();

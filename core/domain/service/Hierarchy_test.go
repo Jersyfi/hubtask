@@ -119,6 +119,7 @@ func TestTheFourPermittedPlacementsSucceed(t *testing.T) {
 // The placement rule read backwards: every forbidden placement is refused, and each with the code
 // that says which of the reasons it was. Never silently ignored, and never the same answer for
 // three different problems - the fix differs per reason.
+// UC-WRK-06 check 3: a move inside or out is refused where the profile does not permit the type.
 func TestEveryForbiddenPlacementIsRefusedWithItsOwnReason(t *testing.T) {
 	h := hierarchyOf(t, systemProfiles())
 
@@ -180,6 +181,7 @@ func TestEveryForbiddenPlacementIsRefusedWithItsOwnReason(t *testing.T) {
 // under a type, this says how far the subtree may reach. A profile widened to accept its own type
 // passes the first check and is caught here - which is the day the check earns its keep.
 // UC-WRK-03 check 2.
+// UC-WRK-06 check 3: the depth budget refuses with items.depth_exceeded.
 func TestTheDepthBudgetCatchesWhatThePermittedChildrenCannot(t *testing.T) {
 	selfNesting := []work.CapabilityProfile{
 		{

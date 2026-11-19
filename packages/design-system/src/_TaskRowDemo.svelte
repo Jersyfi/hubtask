@@ -94,6 +94,7 @@
       completeLabel={`Mark “${row.title}” as done`}
       expandLabel={row.expansion === 'expanded' ? 'Hide what is inside' : 'Show what is inside'}
       hasTwist={mode !== 'anywhere'}
+      entryKey={mode === 'anywhere' ? `SA-${row.id.charCodeAt(0) - 90}` : undefined}
       onToggleComplete={() =>
         (done = done.includes(row.id) ? done.filter((id) => id !== row.id) : [...done, row.id])}
     >

@@ -23,7 +23,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <ul class="site-api-tags">
       {#each codes as entry (entry.code)}

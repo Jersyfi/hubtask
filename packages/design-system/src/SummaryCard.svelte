@@ -21,12 +21,17 @@
     link?: { label: string; href: string; onnavigate?: () => void };
     /** The parts of the state, one line each, above the link. */
     children?: Snippet;
+    /**
+     * What carries the card. `figure` is a key figure of a product home (WB-5): the title a small
+     * quiet label, the figure large, the line small - the mockups' KPI. `title` is the default.
+     */
+    lead?: 'title' | 'figure';
   }
 
-  const { title, figure, state, line, link, children }: Props = $props();
+  const { title, figure, state, line, link, children, lead = 'title' }: Props = $props();
 </script>
 
-<article class="summary-card">
+<article class="summary-card" data-lead={lead}>
   <h3 class="title">{title}</h3>
   {#if figure}<span class="figure">{figure}</span>{/if}
   {#if state || line}
@@ -74,4 +79,9 @@
     outline-offset: var(--sp-025);
     border-radius: var(--r-xs);
   }
+
+  .summary-card[data-lead='figure'] { gap: var(--sp-050); padding: var(--sp-150) var(--sp-200); }
+  .summary-card[data-lead='figure'] .title { color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-regular); }
+  .summary-card[data-lead='figure'] .figure { font-size: var(--fs-450); font-weight: var(--fw-semibold); }
+  .summary-card[data-lead='figure'] .line { font-size: var(--fs-075); }
 </style>

@@ -15,7 +15,7 @@
   import { untrack } from 'svelte';
 
   import {
-    Badge, Banner, Button, DataTable, EmptyState, FilterBar, ListPage, Radio, Skeleton, ViewBar,
+    Badge, Banner, Button, DataTable, EmptyState, FilterBar, IconButton, ListPage, Menu, ProductBand, ProductTile, Radio, Skeleton, ViewBar,
     type DataColumn, type Filter, type DataRowMenu, type ViewLink,
   } from '@hubtask/design-system/components';
   import type { Agent, AgentHalt, AgentJobList, AgentList, AgentModelList, AgentRequest, AgentRequestList } from '@hubtask/sync-engine';
@@ -98,8 +98,9 @@
     }
   }
 
+  // Approved is a good standing, not a warning (the agents' scenes draw it green); a draft still waits.
   const statusTone = (status: Agent['status']) =>
-    status === 'ACTIVE' ? 'success' : status === 'SUSPENDED' ? 'danger' : status === 'RETIRED' ? 'neutral' : 'warning';
+    status === 'ACTIVE' || status === 'APPROVED' ? 'success' : status === 'SUSPENDED' ? 'danger' : status === 'RETIRED' ? 'neutral' : 'warning';
 
   // --- Adding, changing, retiring ---------------------------------------------------------------
 
@@ -113,7 +114,7 @@
           icon: 'plus' as const,
           onclick: () => (drafting = {}),
           menu: {
-            label: t('app.agents.add_from_role'),
+            label: t('app.split_more', { action: t('app.agents.add_agent') }),
             items: SHIPPED_ROLES.map((kind) => ({ id: kind, label: t(`app.agents.kind.${kind}`) })),
             onselect: (id: string) => (drafting = { role: id as (typeof SHIPPED_ROLES)[number] }),
           },
@@ -143,12 +144,6 @@
   const ordered = $derived(byState(all));
   const shown = $derived(ordered.filter((each) => matchesSearch(search, [each.name, each.purpose, t(`app.agents.kind.${each.kind}`), nameOf(each.owner_id)])));
 
-  const columns = $derived<DataColumn[]>([
-    { id: 'name', label: t('app.agents.col_name'), priority: 1 },
-    { id: 'state', label: t('app.agents.col_state'), isStatus: true },
-    { id: 'model', label: t('app.agents.model'), priority: 3 },
-    { id: 'budget', label: t('app.agents.col_budget'), priority: 3 },
-  ]);
   const grouped = (value: number) => new Intl.NumberFormat(messages.locale).format(value);
   const isBudgetZero = (agent: Agent) =>
     (agent.budget.tokens_per_day ?? 0) === 0 || (agent.budget.actions_per_hour ?? 0) === 0 || (agent.budget.concurrent_runs ?? 0) === 0;
@@ -181,6 +176,9 @@
   function decide(request: AgentRequest, approve: boolean) {
     void act(() => agents.decide(request, approve), approve ? t('app.agents.request_approved') : t('app.agents.request_declined'));
   }
+
+  /** How many held acts the agents' home shows before *all*. */
+  const WAITING_SHOWN = 3;
 
   // --- Runs -------------------------------------------------------------------------------------
 
@@ -237,16 +235,22 @@
     })),
   );
 
-  const figureText = $derived.by(() => {
-    if (agentsRead.state.status !== 'ready' || all.length === 0) return '';
+  const figureParts = $derived.by<string[]>(() => {
+    if (agentsRead.state.status !== 'ready' || all.length === 0) return [];
     const live = all.filter((each) => each.status === 'ACTIVE').length;
     const drafts = all.filter((each) => each.status === 'DRAFT').length;
+    const approved = all.filter((each) => each.status === 'APPROVED').length;
+    // In the cards' own words (N37): an approved agent is not yet live, and says so.
     return [
       t('app.agents.figure_live', { count: String(live) }),
+      ...(approved > 0 ? [t('app.agents.figure_approved', { count: String(approved) })] : []),
       ...(drafts > 0 ? [t('app.agents.figure_drafts', { count: drafts })] : []),
       ...(pending.length > 0 ? [t('app.agents.figure_held', { count: String(pending.length) })] : []),
-    ].join(' · ');
+    ];
   });
+  const figureText = $derived(figureParts.join(' · '));
+  /** The product's home opens with its band and figures line (WB-2, WB-5); a person's own agents keep the page head. */
+  const isProductHome = $derived(base === AGENTS_HOME);
 
   const head = $derived({
     title,
@@ -263,7 +267,13 @@
 
 {#snippet figure()}{#if figureText}<span class="figure" data-agents-figure>{figureText}</span>{/if}{/snippet}
 
-<ListPage {head} refused={refusal ? refusedSnippet : undefined}>
+{#snippet band()}
+  <ProductBand product="agents" icon="zap" name={title} primary={current === 'agents' ? primary : undefined}
+    breadcrumb={agentsTrail(base)}
+    figures={figureParts} />
+{/snippet}
+
+<ListPage {head} top={isProductHome ? band : undefined} refused={refusal ? refusedSnippet : undefined}>
   {#snippet strip()}
     <ViewBar label={title} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} {current} onnavigate={(id) => onnavigate?.(hrefOf(id))} />
   {/snippet}
@@ -361,58 +371,70 @@
     <ProductEmpty product="AGENTS"
       kind="unused"
       icon="zap"
-      title={t('app.agents.empty_title')}
+      title={t('app.modules.name_agents')}
       description={t('app.agents.empty_body')}
       create={administers ? { label: t('app.agents.add_agent'), onclick: () => (drafting = {}) } : undefined}
-      templates={administers ? SHIPPED_ROLES.slice(0, 3).map((kind) => ({ label: t(`app.agents.kind.${kind}`), onclick: () => (drafting = { role: kind }) })) : []}
+      templates={administers ? SHIPPED_ROLES.slice(0, 3).map((kind) => ({ label: t(`app.agents.kind.${kind}`), description: t(`app.agents.role_purpose.${kind}`), icon: 'zap' as const, onclick: () => (drafting = { role: kind }) })) : []}
       whoCan={t('app.agents.empty_who')}
+      isProductHome
+      templateShape="row"
     />
   {:else}
-    <DataTable
-      label={title}
-      {columns}
-      rows={shown}
-      key={(agent: Agent) => agent.id}
-      href={(agent: Agent) => `${base}/${agent.id}`}
-      rowLabel={(agent: Agent) => agent.name}
-      menu={rowMenu}
-      onmenu={onRowMenu}
-      actionsLabel={t('app.page.row_actions')}
-      sheetDismissLabel={t('app.page.sheet_close')}
-      sheetGrabLabel={t('app.page.sheet_grab')}
-      shownLabel={t('app.page.showing', { count: String(shown.length) })}
-    >
-      {#snippet cell(agent: Agent, column: DataColumn)}
-        {#if column.id === 'name'}
-          <span class="name" data-agent-row={agent.id}>{agent.name}</span>
-          <span class="sub">{t(`app.agents.kind.${agent.kind}`)} · {t('app.agents.acts_for', { name: nameOf(agent.owner_id) })}</span>
-        {:else if column.id === 'state'}
-          <span class="state">
-            <Badge size="sm" tone={statusTone(agent.status)}>{t(`app.agents.status.${agent.status}`)}</Badge>
-            {#if agent.needs_approval && agent.status !== 'DRAFT' && agent.status !== 'RETIRED'}
-              <Badge size="sm" tone="warning">{t('app.agents.needs_approval')}</Badge>
+    <!-- What waits for the reader first (scene homeagents): the held acts they may decide, three. -->
+    {@const mine = pending.filter((each) => mayDecide(byId.get(each.agent_id), viewer))}
+    {#if mine.length > 0 && !search}
+      <section class="waiting" aria-labelledby="agents-waiting" data-agents-waiting>
+        <h2 class="heading" id="agents-waiting">{t('app.agents.waiting_for_you')}</h2>
+        <ul class="rows">
+          {#each mine.slice(0, WAITING_SHOWN) as request (request.id)}
+            <HeldActCard {request} agentName={nameOfAgent(request.agent_id)} mayDecide ondecide={(approve) => decide(request, approve)} />
+          {/each}
+        </ul>
+        {#if mine.length > WAITING_SHOWN}
+          <a class="more" href={hrefOf('requests')}>{t('app.agents.waiting_all', { count: mine.length })}</a>
+        {/if}
+      </section>
+    {/if}
+    {#if shown.length === 0}
+      <EmptyState kind="filtered" title={t('app.agents.filtered')}>
+        {#snippet action()}<Button onclick={() => (search = '')}>{t('app.people.filtered_clear')}</Button>{/snippet}
+      </EmptyState>
+    {:else}
+      <!-- The agents as cards: name and state, what it does and for whom, its spend. -->
+      <ul class="agent-cards" aria-label={title}>
+        {#each shown as agent (agent.id)}
+          {@const waiting = held.get(agent.id) ?? 0}
+          {@const menu = rowMenu(agent)}
+          <li class="agent-card" data-agent-card={agent.id}>
+            <span class="card-head">
+              <ProductTile icon="zap" product="agents" size="sm" />
+              <a class="name" href={`${base}/${agent.id}`} data-agent-row={agent.id}>{agent.name}</a>
+              <span class="state">
+                <Badge size="sm" tone={statusTone(agent.status)}>{t(`app.agents.status.${agent.status}`)}</Badge>
+                {#if agent.needs_approval && agent.status !== 'DRAFT' && agent.status !== 'RETIRED'}
+                  <Badge size="sm" tone="warning">{t('app.agents.needs_approval')}</Badge>
+                {/if}
+              </span>
+              {#if menu}
+                <Menu label={menu.label} items={menu.items} placement={{ side: 'block-end', align: 'end' }} onselect={(item) => onRowMenu(agent, item)}>
+                  {#snippet trigger(props)}<IconButton icon="ellipsis" label={menu.label} size="sm" {...props} />{/snippet}
+                </Menu>
+              {/if}
+            </span>
+            <span class="sub">{t(`app.agents.kind.${agent.kind}`)} · {t('app.agents.acts_for', { name: nameOf(agent.owner_id) })} · {modelName(agent.model_id)}</span>
+            {#if isBudgetZero(agent)}
+              <span class="warn" data-agent-budget-zero>{t('app.agents.budget_zero_short')}</span>
+            {:else}
+              <!-- Its share of the day's budget and its last run (scene homeagents); a draft is not live yet. -->
+              <span class="quiet" data-agent-spend>{t('app.agents.budget_share', { share: String(Math.round(((agent.usage?.tokens_today ?? 0) / (agent.budget.tokens_per_day ?? 1)) * 100)) })} · {agent.status === 'DRAFT' ? t('app.agents.not_live') : agent.last_run_at ? t('app.agents.last_run', { when: formatRelative(agent.last_run_at, messages.locale) }) : t('app.agents.never_ran')}</span>
             {/if}
-          </span>
-        {:else if column.id === 'model'}
-          <span class="quiet">{modelName(agent.model_id)}</span>
-        {:else if isBudgetZero(agent)}
-          <span class="warn" data-agent-budget-zero>{t('app.agents.budget_zero_short')}</span>
-        {:else}
-          <span class="quiet">{t('app.agents.budget_short', { tokens: grouped(agent.budget.tokens_per_day ?? 0), actions: grouped(agent.budget.actions_per_hour ?? 0) })}</span>
-        {/if}
-      {/snippet}
-      {#snippet verb(agent: Agent)}
-        {@const waiting = held.get(agent.id) ?? 0}
-        {#if waiting > 0}
-          <Button size="sm" tone="primary" icon="clock" onclick={() => onnavigate?.(`${hrefOf('requests')}&agent=${agent.id}`)}>{t('app.agents.held_count', { count: String(waiting) })}</Button>
-        {/if}
-      {/snippet}
-      {#snippet empty()}
-        <EmptyState kind="filtered" title={t('app.agents.filtered')}>
-          {#snippet action()}<Button onclick={() => (search = '')}>{t('app.people.filtered_clear')}</Button>{/snippet}
-        </EmptyState>
-      {/snippet}
-    </DataTable>
+            {#if waiting > 0}
+              <span class="held"><Button size="sm" tone="primary" icon="clock" onclick={() => onnavigate?.(`${hrefOf('requests')}&agent=${agent.id}`)}>{t('app.agents.held_count', { count: String(waiting) })}</Button></span>
+            {/if}
+          </li>
+        {/each}
+      </ul>
+    {/if}
   {/if}
 </ListPage>
 
@@ -430,5 +452,30 @@
   .warn { color: var(--text-warning); }
   .rows { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-100); }
   .narrowed { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
+  .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); color: var(--text-primary); }
+  .waiting { display: grid; gap: var(--sp-100); }
+  .more { justify-self: start; color: var(--text-brand); font-size: var(--fs-075); }
+  .agent-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(var(--sp-1600) * 2)), 1fr)); gap: var(--sp-150); margin: 0; padding: 0; list-style: none; }
+  .agent-card {
+    display: grid;
+    align-content: start;
+    gap: var(--sp-050);
+    padding: var(--sp-200);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-md);
+    background: var(--bg-surface);
+  }
+  .card-head { display: flex; align-items: center; gap: var(--sp-100); min-inline-size: 0; }
+  .card-head .name { flex: 1; min-inline-size: 0; color: var(--text-primary); text-decoration: none; }
+  .card-head .name:hover { text-decoration: underline; }
+  .held { justify-self: start; }
   .chip { padding: var(--sp-025) var(--sp-100); border-radius: var(--r-full); background: var(--bg-surface-sunken); color: var(--text-primary); font-size: var(--fs-075); }
+
+  /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
+     reaches layout.target, by its own height or beyond its drawn box. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .agent-card a.name { position: relative; }
+    .agent-card a.name::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
+  }
 </style>

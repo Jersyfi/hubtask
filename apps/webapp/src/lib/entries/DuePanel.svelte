@@ -141,9 +141,9 @@
       onchange={saveStart}
     />
     {#if item.start_at}
+      <!-- The due date's clear is quiet (DueDateControl): both clears of the dialog wear one style. -->
       <Button
-        size="sm"
-        tone="secondary"
+        tone="subtle"
         {disabledReason}
         onclick={() => {
           draftStartDate = '';

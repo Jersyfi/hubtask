@@ -140,7 +140,19 @@
   }
 </script>
 
-<Dialog size="l" bind:isOpen title={t('app.feeds.title')} dismissLabel={t('app.workspace.cancel')}>
+<!-- The ladder (page-system §5.1): the one primary is the dialog's - *Done* once an address is
+     shown, else a new subscription of the view; the per-feed acts stay small on their rows. -->
+<Dialog
+  size="l"
+  bind:isOpen
+  title={t('app.feeds.title')}
+  dismissLabel={t('app.workspace.cancel')}
+  primary={secret
+    ? { label: t('app.feeds.done'), onclick: () => (secret = undefined) }
+    : view
+      ? { label: t('app.feeds.create'), onclick: () => mint(), isBusy: isWorking, busyLabel: t('app.workspace.saving') }
+      : undefined}
+>
   <Stack gap="200">
     {#if secret}
       <Stack gap="150">
@@ -150,7 +162,6 @@
         <Inline gap="100">
           <Button tone="secondary" onclick={copy}>{t('app.feeds.copy')}</Button>
           {#if copied}<span class="quiet">{t('app.feeds.copied')}</span>{/if}
-          <Button onclick={() => (secret = undefined)}>{t('app.feeds.done')}</Button>
         </Inline>
         {#if minted?.kind === 'DATA'}
           <p class="quiet" data-data-feed-how>{t('app.feeds.data_how')}</p>
@@ -163,9 +174,6 @@
     {:else}
       {#if view}
         <div>
-          <Button isBusy={isWorking} busyLabel={t('app.workspace.saving')} onclick={() => mint()}>
-            {t('app.feeds.create')}
-          </Button>
           <Button tone="secondary" isBusy={isWorking} busyLabel={t('app.workspace.saving')} data-mint-data-feed onclick={() => mint('DATA')}>
             {t('app.feeds.create_data')}
           </Button>
@@ -239,14 +247,12 @@
     title={t('app.feeds.revoke_title')}
     dismissLabel={t('app.workspace.cancel')}
     onClose={() => (revoking = undefined)}
+    primary={{ label: t('app.feeds.revoke'), onclick: confirmRevoke, tone: 'danger', isBusy: isWorking, busyLabel: t('app.workspace.saving') }}
   >
     <Stack gap="150">
       <p class="quiet">{t('app.feeds.revoke_explains')}</p>
       {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
       <Inline gap="100">
-        <Button tone="danger" isBusy={isWorking} busyLabel={t('app.workspace.saving')} onclick={confirmRevoke}>
-          {t('app.feeds.revoke')}
-        </Button>
         <Button tone="secondary" onclick={() => (revoking = undefined)}>{t('app.workspace.cancel')}</Button>
       </Inline>
     </Stack>

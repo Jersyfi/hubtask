@@ -3,7 +3,10 @@
 
 package work
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 // UC-WRK-31 check 1: the preset *Flow* brings its states as columns, with a limit and a column that
 // completes; *Project* brings the columns without a limit; a preset without a board brings none.
@@ -19,7 +22,9 @@ func TestANewCollectionStartsWithTheColumnsItsBoardNeeds(t *testing.T) {
 		limit   int
 	}{
 		{"flow", presets[PresetFlow].Values, 3, StartingWipLimit},
-		{"project", presets[PresetProject].Values, 3, 0},
+		// The board is offered but not the default view: a list without columns (L0) until someone
+		// shows it as a board (domain-model.md §3.5a).
+		{"project", presets[PresetProject].Values, 0, 0},
 		{"tasks", presets[PresetTasks].Values, 0, 0},
 		{"list", presets[PresetList].Values, 0, 0},
 		{"nothing said", StructureValues{}, 0, 0},
@@ -50,6 +55,40 @@ func TestANewCollectionStartsWithTheColumnsItsBoardNeeds(t *testing.T) {
 				}); err != nil {
 					t.Errorf("column %s is no valid bucket: %v", column.NameCode, err)
 				}
+			}
+		})
+	}
+}
+
+// UC-WRK-31 check 5: a collection created under a workflow starts with one column per status.
+func TestACollectionUnderAWorkflowStartsWithAColumnPerStatus(t *testing.T) {
+	cases := []struct {
+		name  string
+		shape WorkflowShape
+		want  []StartingColumn
+	}{
+		{"named statuses keep their names and colours", WorkflowShape{Statuses: []WorkflowStatus{
+			{Key: "new", Name: "Neu", Category: CategoryTodo},
+			{Key: "doing", Name: "In Arbeit", Category: CategoryInProgress, ColorToken: "amber"},
+			{Key: "done", Name: "Erledigt", Category: CategoryDone},
+			{Key: "dropped", Name: "Verworfen", Category: CategoryDone},
+		}}, []StartingColumn{
+			{Name: "Neu", Status: "new", ColorToken: "slate"},
+			{Name: "In Arbeit", Status: "doing", ColorToken: "amber"},
+			{Name: "Erledigt", Status: "done", ColorToken: "green", IsDoneBucket: true},
+			{Name: "Verworfen", Status: "dropped", ColorToken: "green"},
+		}},
+		{"the system workflow's statuses are named by category", WorkflowShape{Statuses: []WorkflowStatus{
+			{Key: "todo", Category: CategoryTodo}, {Key: "done", Category: CategoryDone},
+		}}, []StartingColumn{
+			{NameCode: "seed.bucket.todo", Status: "todo", ColorToken: "slate"},
+			{NameCode: "seed.bucket.done", Status: "done", ColorToken: "green", IsDoneBucket: true},
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := WorkflowStartingColumns(c.shape); !reflect.DeepEqual(got, c.want) {
+				t.Errorf("columns %+v, want %+v", got, c.want)
 			}
 		})
 	}

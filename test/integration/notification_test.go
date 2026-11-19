@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/cmdb"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
@@ -504,5 +505,63 @@ func TestARuleNoticeIsWrittenAndReadBack(t *testing.T) {
 		return preferenceRepo().Save(ctx, off)
 	}); err != nil {
 		t.Errorf("the SLA switch was not stored: %v", err)
+	}
+}
+
+// A post's notice is a category the table takes (migration 0403, UC-DOC-17 check 5), and so is a
+// person's switch of it.
+func TestAPostNoticeIsWrittenAndReadBack(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	recipient := seedAccount(ctx, t, tenantA)
+	record := pendingNotification(t, tenantA, recipient, authorA, freshID(t))
+	record.Category = domain.CategoryPost
+	if !insertNotification(ctx, t, tenantA, record) {
+		t.Fatal("the record was not written")
+	}
+	if stored, err := findNotification(ctx, t, tenantA, record.ID); err != nil || stored.Category != domain.CategoryPost {
+		t.Errorf("read back as %q (%v)", stored.Category, err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		off := domain.DefaultPreference(tenantA, recipient, domain.CategoryPost, domain.ChannelEmail)
+		off.Enabled, off.UpdatedAt = false, created
+		return preferenceRepo().Save(ctx, off)
+	}); err != nil {
+		t.Errorf("the POST switch was not stored: %v", err)
+	}
+}
+
+// A round's reminder is a category the table takes and names the round (migrations 0432-0433,
+// UC-AST-10); the workspace next door does not find it.
+func TestAnAttestationNoticeIsWrittenAndReadBack(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	hub, app, _ := seedCIs(ctx, t)
+	recipient := seedAccount(ctx, t, tenantA)
+	campaign := freshID(t)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		c := cmdb.Campaign{ID: campaign, HubID: hub, Name: "Q4", DueOn: created.AddDate(0, 0, 14), ReviewMonths: 12, StartedBy: authorA, StartedAt: created}
+		return postgres.NewCmdbAssuranceRepository().InsertCampaign(ctx, c, []cmdb.Attestation{{CIID: app, Owner: recipient}})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	record := pendingNotification(t, tenantA, recipient, authorA, freshID(t))
+	record.Category, record.ItemID, record.CampaignID = domain.CategoryAttestation, "", campaign
+	if !insertNotification(ctx, t, tenantA, record) {
+		t.Fatal("the record was not written")
+	}
+	stored, err := findNotification(ctx, t, tenantA, record.ID)
+	if err != nil || stored.Category != domain.CategoryAttestation || stored.CampaignID != campaign {
+		t.Errorf("read back as %q naming %s (%v)", stored.Category, stored.CampaignID, err)
+	}
+	if _, err := findNotification(ctx, t, tenantB, record.ID); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("the workspace next door found it: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		off := domain.DefaultPreference(tenantA, recipient, domain.CategoryAttestation, domain.ChannelEmail)
+		off.Enabled, off.UpdatedAt = false, created
+		return preferenceRepo().Save(ctx, off)
+	}); err != nil {
+		t.Errorf("the ATTESTATION switch was not stored: %v", err)
 	}
 }

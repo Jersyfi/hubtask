@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { PERMISSIONS, fallback } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -150,27 +150,29 @@ async function open(browser, { width, scheme = 'light', modulesOn, twoHubs = fal
   page.on('pageerror', (error) => failures.push(String(error)));
   await page.goto(`${served.origin}/`);
   await page.getByRole('heading', { name: /^(Good morning|Hello|Good evening)/u, level: 1 }).waitFor({ state: 'attached', timeout: 15_000 });
+  // A phone shows *Your day* or the overview (work-surface §7): the bands are the overview's.
+  if (width < 600) await page.getByRole('tab', { name: 'Overview' }).click();
   return { page, failures, asked, decided, close: () => context.close() };
 }
 
 // The scheme changes no row or box asserted here: each width once, in one of them.
 for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
   test(`chromium ${width} px, ${scheme}: the desk's and time's bands stand on Today where they are on`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, failures, decided, close } = await open(browser, { width, scheme, modulesOn: ['SERVICE_DESK', 'TIME'] });
     t.after(close);
 
-    const yes = page.getByRole('region', { name: 'Waiting for your yes' });
-    await yes.waitFor({ timeout: 10_000 });
-    assert.match((await yes.textContent()) ?? '', /#42 New laptop for the design team/u);
+    // The approval waits in *Needs you*, one row and one act; the card counts it.
+    const yes = page.getByRole('region', { name: 'Needs you' });
+    await yes.getByText('#42 New laptop for the design team').waitFor({ timeout: 10_000 });
     assert.equal(await yes.getByRole('link', { name: '#42 New laptop for the design team' }).getAttribute('href'), `/items/${ENTRY}`);
 
+    // *Time today* is a card: the day's figure, the week, the running timer, and its act Stop.
     const time = page.getByRole('region', { name: 'Time today' });
-    await time.waitFor({ timeout: 10_000 });
+    await time.getByText('2:30').waitFor({ timeout: 10_000 });
     const words = (await time.textContent()) ?? '';
-    assert.match(words, /2:30\s*today, of 10:30 this week/u, words);
-    assert.match(words, /Timer running: 0:2[5-6]/u, words);
+    assert.match(words, /of 10:30 this week · timer running/u, words);
+    assert.equal(await time.getByRole('button', { name: 'Stop' }).count(), 1, words);
 
     const scroll = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth }));
     assert.equal(scroll.width, scroll.viewport, `the page scrolls sideways (${scroll.width} of ${scroll.viewport})`);
@@ -184,19 +186,18 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
     await yes.getByRole('button', { name: 'Approve' }).click();
     for (let tries = 0; tries < 50 && decided.length === 0; tries++) await page.waitForTimeout(100);
     assert.deepEqual(decided.map((each) => each.verdict), ['APPROVE']);
-    await yes.waitFor({ state: 'detached', timeout: 10_000 });
+    await yes.getByText('#42 New laptop for the design team').waitFor({ state: 'detached', timeout: 10_000 });
     if (width >= 1280) await waitingRow.locator('.figure').waitFor({ state: 'detached', timeout: 5_000 }).catch(() => assert.fail('the count stays once nothing waits'));
     assert.deepEqual(failures, []);
   });
 }
 
 test('chromium 1280 px: with the products off, Today draws no product band and asks no product read', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, asked, close } = await open(browser, { width: 1280, modulesOn: ['GOALS'] });
   t.after(close);
   await page.waitForLoadState('networkidle');
-  for (const band of ['Needs your answer', 'Waiting for your yes', 'Time today', 'Sprint']) {
+  for (const band of ['Needs your answer', 'Waiting for your yes', 'Time today', 'Needs you']) {
     assert.equal(await page.getByRole('region', { name: band }).count(), 0, band);
   }
   assert.deepEqual(asked, [], 'a read of a module that is off was sent');
@@ -207,11 +208,10 @@ test('chromium 1280 px: with the products off, Today draws no product band and a
 // approved only where its preview is read, so its row offers Decline alone.
 for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
   test(`chromium ${width} px, ${scheme}: an agent's held acts wait for the reader's yes on Today`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, failures, decided, close } = await open(browser, { width, scheme, modulesOn: ['AGENTS'] });
     t.after(close);
-    const yes = page.getByRole('region', { name: 'Waiting for your yes' });
+    const yes = page.getByRole('region', { name: 'Needs you' });
     await yes.waitFor({ timeout: 10_000 });
     const reversible = yes.locator(`[data-held-act="${ACTS[0].id}"]`);
     const irreversible = yes.locator(`[data-held-act="${ACTS[1].id}"]`);
@@ -234,27 +234,28 @@ for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
 // The scheme changes no row or box asserted here: each width once, in one of them.
 for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
   test(`chromium ${width} px, ${scheme}: Needs your answer, a page review and the Sprint stand on Today`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, failures, asked, close } = await open(browser, { width, scheme, modulesOn: ['SERVICE_DESK', 'KNOWLEDGE', 'PLANNING'] });
     t.after(close);
 
-    const desk = page.getByRole('region', { name: 'Needs your answer' });
-    await desk.waitFor({ timeout: 10_000 });
+    const desk = page.getByRole('region', { name: 'Needs you' });
+    await desk.getByRole('link', { name: DESK_ENTRY.title }).waitFor({ timeout: 10_000 });
     assert.equal(await desk.getByRole('link', { name: DESK_ENTRY.title }).getAttribute('href'), `/items/${DESK_ENTRY.id}`);
     await desk.getByText(/left/u).first().waitFor({ timeout: 10_000 });
+    assert.equal(await desk.locator(`[data-desk-entry="${DESK_ENTRY.id}"]`).getByRole('button', { name: 'Reply' }).count(), 1);
 
-    const yes = page.getByRole('region', { name: 'Waiting for your yes' });
-    await yes.waitFor({ timeout: 10_000 });
+    const yes = desk;
     assert.equal(await yes.getByRole('link', { name: `Review ${REVIEW.title}` }).getAttribute('href'), `/pages/${REVIEW.id}`);
     // *Waiting for your yes* counts the review with the approval, as the band does: two.
     if (width >= 1280) await waitingRowOf(page).filter({ has: page.locator('.figure', { hasText: /^2$/u }) }).waitFor({ timeout: 10_000 });
 
-    const sprint = page.getByRole('region', { name: 'Sprint' });
+    // The sprint stands under *Needs you*, its act opens it.
+    const sprint = page.getByRole('region', { name: SPRINT.name });
     await sprint.waitFor({ timeout: 10_000 });
-    assert.equal(await sprint.getByRole('link', { name: SPRINT.name }).getAttribute('href'), `/collections/${SPRINT.collection_id}/sprints`);
+    assert.equal(await sprint.getByRole('button', { name: 'Open' }).count(), 1);
+    await sprint.getByText(/3 of your entries/u).waitFor({ timeout: 10_000 });
     const words = (await sprint.textContent()) ?? '';
-    assert.match(words, /6 days left · 3 of your entries/u, words);
+    assert.match(words, /6 days left/u, words);
     await sprint.getByRole('img', { name: /^Burndown: 8 points left/u }).waitFor({ timeout: 10_000 });
     assert.match((await sprint.textContent()) ?? '', /12 of 20 points done/u);
     // The chart says its axes - the top value and nothing, the first and the last day - and its
@@ -280,15 +281,14 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
 // §3.3: *Needs your answer* across hubs is nearest first - the second hub's entry, due sooner, stands
 // above the first hub's, although the navigation draws the first hub first.
 test('chromium 1280 px: Needs your answer puts the entry due soonest first across hubs', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { width: 1280, modulesOn: ['SERVICE_DESK'], twoHubs: true });
   t.after(close);
-  const desk = page.getByRole('region', { name: 'Needs your answer' });
+  const desk = page.getByRole('region', { name: 'Needs you' });
   await desk.getByRole('link', { name: DESK_ENTRY.title }).waitFor({ timeout: 10_000 });
   await desk.getByRole('link', { name: SOONER.title }).waitFor({ timeout: 10_000 });
   for (let tries = 0; tries < 50; tries++) {
-    const titles = await desk.getByRole('link').allTextContents();
+    const titles = (await desk.getByRole('link').allTextContents()).map((title) => title.trim());
     if (titles.indexOf(SOONER.title) === 0) break;
     await page.waitForTimeout(100);
   }

@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { stub, forgetUnstubbed } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -25,8 +25,7 @@ test.after(() => served.close());
 const TARGET = { id: '01a0e2e0-0000-7000-8000-0000000007b1', name: 'The NAS', kind: 'SFTP', scope: 'TENANT', config: {}, encryption_mode: 'AES256_GCM' };
 
 test('chromium: a backup schedule is chosen as weekly on Sunday at 22:30 and sent as that rule', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const written = [];
   const context = await browser.newContext({ viewport: { width: 1280, height: 1100 }, timezoneId: 'Europe/Berlin' });
   t.after(() => context.close());

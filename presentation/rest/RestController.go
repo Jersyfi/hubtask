@@ -50,6 +50,9 @@ type RestController struct {
 
 	// Media serves the two content routes (MediaDoor). Nil leaves them answering the pending 404.
 	Media *MediaDoor
+	// Wopi serves the WOPI host and the viewer's conversion and editing routes (WopiDoor). Nil
+	// leaves them answering the pending 404.
+	Wopi *WopiDoor
 	// WorkspaceArchive streams the owner's download of the whole workspace (UC-BAK-07 check 7).
 	WorkspaceArchive *WorkspaceArchiveDoor
 

@@ -179,7 +179,7 @@ type ListCiConnectors struct{ Connectors Connectors }
 func (h ListCiConnectors) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListCiConnectorsName, Permission: service.PermissionRead,
-		Summary: "Lists a hub's connectors: the programs its configuration items are pulled from (GLPI, NetBox, " +
+		Summary: "Lists a hub's connectors: the programs its objects are pulled from (GLPI, NetBox, " +
 			"Intune, Entra ID, Hetzner Cloud, OpenStack) and the monitoring programs that post alerts to it " +
 			"(Alertmanager, Zabbix, Checkmk), each with the source it writes as, the hosts it may reach, its " +
 			"period, whether a credential is set (never the credential) and how its last run ended.",
@@ -220,7 +220,7 @@ func (h DefineCiConnector) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: DefineCiConnectorName, Permission: service.PermissionStructure,
 		Summary: "Adds or changes a connector in a hub: its kind, the workspace's connector source it writes as " +
-			"(whose rank and classes decide what it may change), the address it pulls from over https, the " +
+			"(whose rank and object types decide what it may change), the address it pulls from over https, the " +
 			"kind's settings (a client's identifier, a directory, an application credential), further hosts it " +
 			"may reach, a period of 15 minutes to a week or none, whether it is on, and - for an alert intake - " +
 			"the collection a firing alert opens an entry in. The credential is set on its own and never " +
@@ -754,7 +754,7 @@ func (h ListCiAlerts) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListCiAlertsName, Permission: service.PermissionRead,
 		Summary: "Lists the alerts monitoring programs posted to a hub's intakes, the latest first: each problem " +
-			"once by its key, firing or resolved, with its severity and title, how often it fired, the CI its " +
+			"once by its key, firing or resolved, with its severity and title, how often it fired, the object its " +
 			"host names and the entry opened for it.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Input: []usecase.Field{

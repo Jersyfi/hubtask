@@ -389,6 +389,17 @@ type Groups interface {
 	Members(ctx context.Context, groupID shared.ID) ([]shared.ID, error)
 }
 
+// GroupPeople answers the people a query names by group - `my-groups` and `members("…")`. Whether
+// the asker may read groups at all is the use case's question; this only reads.
+type GroupPeople interface {
+	// PeopleOfGroupsOf answers everybody in a group the account is in, the account among them,
+	// at most limit.
+	PeopleOfGroupsOf(ctx context.Context, accountID shared.ID, limit int) ([]shared.ID, error)
+	// PeopleOfGroup answers the people of the group named by its identifier or, failing that,
+	// its name (case-insensitive), at most limit; shared.ErrNotFound when no group is so named.
+	PeopleOfGroup(ctx context.Context, ref string, limit int) ([]shared.ID, error)
+}
+
 // MembershipGrants is the write half of Memberships. Separate interface, same table: reading is
 // on the hot path of every request and writing happens when an administrator acts, and a use case
 // that only grants should not be handed the ability to resolve.

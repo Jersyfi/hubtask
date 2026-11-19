@@ -123,8 +123,8 @@ type ResultSource string
 const (
 	// SourceManual: the value a check-in reported.
 	SourceManual ResultSource = "MANUAL"
-	// SourceView: the total a saved summary view answers the reader - a count of entries or a
-	// sum - so the number is the list's (P-11).
+	// SourceView: the number a saved view answers the reader - a summary view's count or sum, any
+	// other view's count of what it lists (§6.11) - so the number is the list's (P-11).
 	SourceView ResultSource = "VIEW"
 )
 

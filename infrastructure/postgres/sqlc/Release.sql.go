@@ -218,6 +218,58 @@ func (q *Queries) ListReleaseEntries(ctx context.Context, arg ListReleaseEntries
 	return items, nil
 }
 
+const listReleaseMemberStates = `-- name: ListReleaseMemberStates :many
+SELECT re.release_id, re.entry_id, wi.is_completed, wi.collection_id, c.parent_id AS hub_id
+FROM release_entry re
+JOIN work_item wi ON wi.tenant_id = re.tenant_id AND wi.id = re.entry_id
+JOIN container c ON c.tenant_id = wi.tenant_id AND c.id = wi.collection_id
+WHERE re.tenant_id = current_tenant_id() AND re.release_id = ANY($1::uuid[])
+  AND wi.deleted_at IS NULL
+ORDER BY re.release_id, re.entry_id
+LIMIT $2::int
+`
+
+type ListReleaseMemberStatesParams struct {
+	ReleaseIds []pgtype.UUID
+	Max        int32
+}
+
+type ListReleaseMemberStatesRow struct {
+	ReleaseID    pgtype.UUID
+	EntryID      pgtype.UUID
+	IsCompleted  bool
+	CollectionID pgtype.UUID
+	HubID        pgtype.UUID
+}
+
+// The entries of several releases, each done or open with where it lives, for the counts a list of
+// releases shows its reader; a trashed entry is left out.
+func (q *Queries) ListReleaseMemberStates(ctx context.Context, arg ListReleaseMemberStatesParams) ([]ListReleaseMemberStatesRow, error) {
+	rows, err := q.db.Query(ctx, listReleaseMemberStates, arg.ReleaseIds, arg.Max)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListReleaseMemberStatesRow{}
+	for rows.Next() {
+		var i ListReleaseMemberStatesRow
+		if err := rows.Scan(
+			&i.ReleaseID,
+			&i.EntryID,
+			&i.IsCompleted,
+			&i.CollectionID,
+			&i.HubID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listReleases = `-- name: ListReleases :many
 SELECT id, hub_id, name, description, release_on, state, released_at, notes_page_id, created_at,
   created_by, updated_at, version

@@ -248,6 +248,17 @@ by store and outcome, as `encryption.resealed` in the workspace's trail when any
 
 ---
 
+**The WOPI access token** ([ADR-0104](../adr/ADR-0104-wopi-host-and-file-viewer.md)) is a
+credential kind of its own: an HMAC under the purpose label `hubtask/wopi/v1`, carrying the tenant,
+the person, the file, a write flag and an expiry two hours out; never stored, never logged (the
+query string is not a log field), refused alike when forged, expired or presented for another
+file. The document server presents it on every call; each call is asked again in the application
+layer whether its person reads the file, and to write, whether they may change an entry, a board or a
+page holding it - a page's writers answered by the knowledge module through a port, never read
+from its tables. The token's write flag only narrows.
+
+---
+
 ## 9. HTTP hardening
 
 | Measure | Requirement |
@@ -268,10 +279,13 @@ by store and outcome, as `encryption.resealed` in the workspace's trail when any
 | Origin | Policy | Why |
 |---|---|---|
 | The API (`/api/*`, `/mcp`) | `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'` | It answers JSON only; a body reaching a browser as HTML could load or send nothing |
-| The web interface (everything else, when enabled) | `default-src 'none'`, then `'self'` for script, style, font, connect, manifest and worker; `img-src 'self' data: blob:`; no `'unsafe-inline'` or `'unsafe-eval'` — a **constraint on the frontend framework**. Under `HUBTASK_STORAGE_KIND=s3` the media origin is added to `connect-src` and `img-src` only ([ADR-0047](../adr/ADR-0047-media-origin-in-the-interface-policy.md)). `frame-ancestors 'none'` unless `HUBTASK_UI_FRAME_ANCESTORS` names the complete origins that may embed the interface (a portal such as openDesk's); a wildcard is refused at start, and the API's policy never takes them. `frame-src` only where `HUBTASK_UI_FRAME_SOURCES` names complete https origins a page's embed may frame; the editor frames only those (`sandbox="allow-scripts allow-popups allow-presentation"`, never `allow-same-origin`, no referrer), every other embed is a link card | Bundle and API share one origin ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)); the upload flow needs the media origin |
+| The web interface (everything else, when enabled) | `default-src 'none'`, then `'self'` for script, style, font, connect, manifest and worker; `img-src 'self' data: blob:`, `media-src 'self'` (the file viewer plays audio and video by URL, only types on the media allowlist); no `'unsafe-inline'` or `'unsafe-eval'` — a **constraint on the frontend framework**, which is why the viewer's pdf.js runs with `isEvalSupported: false` (CVE-2024-4367). Under `HUBTASK_STORAGE_KIND=s3` the media origin is added to `connect-src`, `img-src` and `media-src` only ([ADR-0047](../adr/ADR-0047-media-origin-in-the-interface-policy.md)). `frame-ancestors 'none'` unless `HUBTASK_UI_FRAME_ANCESTORS` names the complete origins that may embed the interface (a portal such as openDesk's); a wildcard is refused at start, and the API's policy never takes them. `frame-src` only where `HUBTASK_UI_FRAME_SOURCES` names complete https origins a page's embed may frame; the editor frames only those (`sandbox="allow-scripts allow-popups allow-presentation"`, never `allow-same-origin`, no referrer), every other embed is a link card. **The document server's editor:** a page loaded on a workspace whose administration entered a document server carries that one origin in `frame-src` and in `form-action` (otherwise `'none'`), read from the stored choice at each page load and gone once the choice is removed; the file viewer posts the short-lived, per-person-and-file WOPI token to the editor's address from the server's discovery in a form into a frame, never in a URL ([ADR-0104](../adr/ADR-0104-wopi-host-and-file-viewer.md)). An asset, the API and another workspace's page keep the closed policy | Bundle and API share one origin ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)); the upload flow needs the media origin |
 | The media origin | `sandbox` | T-11 |
 
-`presentation/webui` sets its policy on every answer, 404 and 405 included. **The upload's middle
+`presentation/webui` sets its policy on every answer, 404 and 405 included. **A local-storage
+target is minted at the host the request came on** - a workspace's own host - with the
+installation's scheme, so the page fetching it needs neither a wider policy nor CORS; a call from no
+request (a job) keeps `HUBTASK_BASE_URL`. No mail carries a media target. **The upload's middle
 step carries no credential**: the presigned URL is its own, and a bearer sent to a bucket is leaked.
 
 ---
@@ -290,7 +304,18 @@ Rules trigger HTTP calls and agents write, so:
    certificate refuses the start. The object store, an operator-configured endpoint in the database DSN's trust
    class, may use its own client, listed in the architecture test's exceptions, with deadlines,
    refused redirects, the breaker and the bulkhead.
-4. **A causality bound** against loops and amplification (T-09).
+4. **A causality bound** against loops and amplification (T-09). A workspace's document server
+   is reached only through GuardedClient with a deadline: a conversion's answer is handed on only
+   when it is a PDF, and ONLYOFFICE's result and the editor's address only from the server's own
+   origin ([ADR-0104](../adr/ADR-0104-wopi-host-and-file-viewer.md)). **The guard's one
+   exception:** the document server a workspace's administration entered (STRUCTURE, never an
+   agent, audited) may sit on a private network, and only calls to its own host name - the
+   discovery, the test, the conversion - may reach a private address. Every other private target
+   stays refused: another host, the entered server's address written as another name, a redirect
+   from it, a name that rebinds at dial time; the metadata addresses stay blocked for it too. The
+   installation switches the exception off with `HUBTASK_DOCUMENT_SERVER_PRIVATE_NETWORK=false`
+   (default on for self-hosting, off in multi mode); then an entered private server is refused with
+   `media.document_server_private_network`.
 5. **AI is opt-in per tenant**, off by default; content goes only to the configured provider
    (documented in the data catalogue); AI results are suggestions with provenance.
 6. **MCP tools** carry `readOnly`/`destructive` hints; destructive tools need explicit release per
@@ -299,6 +324,11 @@ Rules trigger HTTP calls and agents write, so:
    holds its condition as sentences the server compiles, every value an escaped literal; it drafts no
    branch condition, dedupe key, outbound request or webhook, and only entry-level steps from an
    allowlist ([ai-first.md](./ai-first.md) §2).
+8. **An image library for covers is opt-in per workspace** (`knowledge.cover_images`, off by
+   default; UC-DOC-16 check 5): the server searches and fetches through `GuardedClient` with its
+   deadline and an 8 MiB response limit; the browser never calls the library, and neither the
+   query nor the library's address reaches a log or an error's cause (rule 10). The picture is then
+   uploaded as any other cover image, through the upload's checks.
 
 ---
 

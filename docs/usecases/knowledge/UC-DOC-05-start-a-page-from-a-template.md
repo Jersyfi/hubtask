@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-17, P-18]
 state: built
 tasks: []
-checked_by: [core/application/service/knowledge/Pages_test.go, core/application/service/knowledge/SpaceTemplate_test.go, apps/webapp/src/lib/data/pages.test.ts]
+checked_by: [core/application/service/knowledge/Pages_test.go, core/application/service/knowledge/SpaceTemplate_test.go, apps/webapp/src/lib/data/pages.test.ts, apps/webapp/src/lib/pages/starts.test.ts]
 ---
 
 # Start a page from a template

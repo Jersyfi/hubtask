@@ -30,12 +30,14 @@ const (
 	RowCheckIn         RowKind = "GOAL_CHECK_IN"
 	RowPortfolioUpdate RowKind = "PORTFOLIO_UPDATE"
 	RowPageDraft       RowKind = "PAGE_DRAFT"
+	// RowPostReply is a reply under a post (UC-DOC-18 check 6); HubID is the post's hub.
+	RowPostReply RowKind = "POST_REPLY"
 )
 
 // Writing reports whether the kind is something the person wrote outside entries.
 func (k RowKind) Writing() bool {
 	switch k {
-	case RowPageComment, RowBoardComment, RowCheckIn, RowPortfolioUpdate, RowPageDraft:
+	case RowPageComment, RowBoardComment, RowCheckIn, RowPortfolioUpdate, RowPageDraft, RowPostReply:
 		return true
 	}
 	return false

@@ -53,6 +53,20 @@ func collectionUnder() domain.Container {
 		Type: domain.ContainerCollection, ParentID: hubID}
 }
 
+// A board offered beside a list that is the default view starts as a list: no columns until
+// someone shows it as a board (domain-model.md §3.5a).
+func TestABoardThatIsNotTheDefaultViewStartsWithoutColumns(t *testing.T) {
+	h := newHarness()
+	store := &startedColumns{}
+	h.handler.Buckets, h.handler.Workspaces, h.handler.Renderer = store, workspaces{locale: "de"}, echoRenderer{}
+	if err := h.handler.startColumns(context.Background(), collectionUnder(), actor(), structured(boardOn(domain.ViewListCollapsed)), now); err != nil {
+		t.Fatalf("starting the columns failed: %v", err)
+	}
+	if len(store.inserted) != 0 {
+		t.Errorf("%d columns, want none", len(store.inserted))
+	}
+}
+
 func TestANewCollectionStartsWithItsColumnsInTheWorkspacesLanguage(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -60,7 +74,6 @@ func TestANewCollectionStartsWithItsColumnsInTheWorkspacesLanguage(t *testing.T)
 		wantLimit int
 	}{
 		{"the board as the default view limits the work in progress", boardOn(domain.ViewKanban), domain.StartingWipLimit},
-		{"the board offered beside the list limits nothing", boardOn(domain.ViewListCollapsed), 0},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -68,7 +81,7 @@ func TestANewCollectionStartsWithItsColumnsInTheWorkspacesLanguage(t *testing.T)
 			store := &startedColumns{}
 			h.handler.Buckets, h.handler.Workspaces, h.handler.Renderer = store, workspaces{locale: "de"}, echoRenderer{}
 
-			if err := h.handler.startColumns(context.Background(), collectionUnder(), actor(), tc.values, now); err != nil {
+			if err := h.handler.startColumns(context.Background(), collectionUnder(), actor(), structured(tc.values), now); err != nil {
 				t.Fatalf("starting the columns failed: %v", err)
 			}
 
@@ -108,7 +121,7 @@ func TestACollectionWithoutABoardStartsWithNoColumn(t *testing.T) {
 		Offered: []domain.ViewLayout{domain.ViewListCollapsed}, Default: domain.ViewListCollapsed,
 	}}
 
-	if err := h.handler.startColumns(context.Background(), collectionUnder(), actor(), values, now); err != nil {
+	if err := h.handler.startColumns(context.Background(), collectionUnder(), actor(), structured(values), now); err != nil {
 		t.Fatalf("a list without a board failed: %v", err)
 	}
 	if len(store.inserted) != 0 || len(h.events.appended) != 0 {
@@ -120,7 +133,7 @@ func TestACollectionWithoutABoardStartsWithNoColumn(t *testing.T) {
 // rather than failing it.
 func TestABuildWithoutTheColumnsWiringCreatesNone(t *testing.T) {
 	h := newHarness()
-	if err := h.handler.startColumns(context.Background(), collectionUnder(), actor(), boardOn(domain.ViewKanban), now); err != nil {
+	if err := h.handler.startColumns(context.Background(), collectionUnder(), actor(), structured(boardOn(domain.ViewKanban)), now); err != nil {
 		t.Fatalf("an unwired build failed: %v", err)
 	}
 	if len(h.events.appended) != 0 {
@@ -142,10 +155,50 @@ func TestAFailureWhileStartingTheColumnsIsReturned(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			h := newHarness()
 			h.handler.Buckets, h.handler.Workspaces, h.handler.Renderer = tc.startedColumns, tc.workspaces, echoRenderer{}
-			err := h.handler.startColumns(context.Background(), collectionUnder(), actor(), boardOn(domain.ViewKanban), now)
+			err := h.handler.startColumns(context.Background(), collectionUnder(), actor(), structured(boardOn(domain.ViewKanban)), now)
 			if !errors.Is(err, refused) {
 				t.Errorf("got %v, want the failure returned so the transaction rolls back", err)
 			}
 		})
+	}
+}
+
+func structured(values domain.StructureValues) *domain.EffectiveStructure {
+	return &domain.EffectiveStructure{Values: values}
+}
+
+// A collection created under a workflow for its tasks starts with one column per status, each
+// showing its own, whatever its default view (§3.5a).
+func TestACollectionUnderAWorkflowStartsWithAColumnPerStatus(t *testing.T) {
+	h := newHarness()
+	store := &startedColumns{}
+	shown := &mapping{}
+	h.handler.Buckets, h.handler.Workspaces, h.handler.Renderer = store, workspaces{locale: "de"}, echoRenderer{}
+	h.handler.Statuses = shown
+	h.handler.Workflow = WorkflowGate{Workflows: &workflowStore{
+		rows:    []domain.Workflow{reviewWorkflow()},
+		schemes: []domain.WorkflowScheme{{ContainerID: hubID, WorkflowKey: "review"}},
+	}}
+
+	if err := h.handler.startColumns(context.Background(), collectionUnder(), actor(), structured(boardOn(domain.ViewListCollapsed)), now); err != nil {
+		t.Fatalf("starting the columns: %v", err)
+	}
+	statuses := reviewWorkflow().Published.Statuses
+	if len(store.inserted) != len(statuses) || len(shown.rows) != len(statuses) {
+		t.Fatalf("%d columns and %d mapped for %d statuses", len(store.inserted), len(shown.rows), len(statuses))
+	}
+	marked := false
+	for i, status := range statuses {
+		if shown.rows[i].BucketID != store.inserted[i].ID || shown.rows[i].Status != status.Key {
+			t.Errorf("column %d shows %+v, want %s", i, shown.rows[i], status.Key)
+		}
+		if store.inserted[i].Name != status.Name {
+			t.Errorf("column %d is named %q, want %q", i, store.inserted[i].Name, status.Name)
+		}
+		// The first done status's column is the one marked done.
+		if want := status.Category.Completes() && !marked; store.inserted[i].IsDoneBucket != want {
+			t.Errorf("column %d done %v, want %v", i, store.inserted[i].IsDoneBucket, want)
+		}
+		marked = marked || store.inserted[i].IsDoneBucket
 	}
 }

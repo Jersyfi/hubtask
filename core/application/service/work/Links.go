@@ -72,6 +72,9 @@ type Linking struct {
 	Cis CiSummaries
 	// Goals resolves a reference to a goal or a dashboard (M8); nil resolves none.
 	Goals GoalSummaries
+	// Workflow names a linked or mentioned entry's status as its workflow does (P-12); unwired, an
+	// entry carries done or not alone.
+	Workflow WorkflowGate
 	// Groups answers whether a reader is a member of a group a dashboard is shared with; nil
 	// resolves a GROUPS dashboard for its owner alone.
 	Groups     GroupMembers
@@ -122,8 +125,11 @@ func (l Linking) visibleEntries(
 	var summaries []repository.EntrySummary
 	err := l.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		read, err := l.References.Entries(ctx, ids)
+		if err != nil {
+			return err
+		}
 		summaries = read
-		return err
+		return l.Workflow.NameStatuses(ctx, summaries)
 	})
 	if err != nil || len(summaries) == 0 {
 		return visible, err
@@ -159,6 +165,16 @@ func EntrySummaryOutput(s repository.EntrySummary, anchor string) usecase.Output
 		"available": true, "title": s.Title, "level": string(s.Level), "entry_type": entryType,
 		"completed": s.Completed, "archived": s.Archived, "collection_id": s.CollectionID.String(),
 		"number": nil, "key": nil, "start_at": timeOrNil(s.StartAt), "due_at": timeOrNil(s.DueAt),
+		"status_name": nil, "status_category": nil, "assignee_id": nil,
+	}
+	if !s.AssigneeID.IsZero() {
+		out["assignee_id"] = s.AssigneeID.String()
+	}
+	if s.StatusCategory != "" {
+		out["status_category"] = s.StatusCategory
+		if s.StatusName != "" {
+			out["status_name"] = s.StatusName
+		}
 	}
 	if s.Number > 0 {
 		out["number"] = s.Number

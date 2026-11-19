@@ -122,11 +122,27 @@ const ROLES = {
   'rim.highlight': ['decorative', 'a one-pixel highlight along a raised edge; it carries no information'],
   'rim.primary': ['decorative', 'as rim.highlight, tinted with the primary hue'],
   'rim.signature': ['decorative', 'as rim.highlight, tinted with the signature hue'],
+
+  // The viewer's dark room (stage.*): the same in both modes, so its ink is measured on its own
+  // planes rather than on the page's surfaces it never stands on.
+  'stage.surface': 'stage-plane',
+  'stage.raised': 'stage-plane',
+  'stage.control': 'stage-plane',
+  'stage.ink': 'stage-ink',
+  'stage.ink-subtle': 'stage-ink',
+  'stage.border': ['decorative', "a hairline between the stage's bars, never the only thing identifying a control"],
+
+  // A chart's series are graphical objects (SC 1.4.11): 3:1 against every surface they are drawn on.
+  ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7].map((n) => [`chart.categorical.${n}`, 'indicator'])),
 };
 
 // The ten label pairs are generated rather than listed: the point of the check is that it grows
 // with tokens.json, and an eleventh label must not need an edit here to be measured.
 const labelRole = (leaf) => (leaf === 'bg' ? 'label-bg' : leaf === 'fg' ? 'label-fg' : null);
+/** A product's colour is a label pair under the product's name: `surface` its tile, `ink` its mark. */
+const productRole = (leaf) => (leaf === 'surface' ? 'label-bg' : leaf === 'ink' ? 'label-fg' : null);
+/** The tile a label-fg is measured on: a label's `bg`, a product's `surface`. */
+const tileOf = (dotted) => (dotted.startsWith('product.') ? dotted.replace(/\.ink$/, '.surface') : dotted.replace(/\.fg$/, '.bg'));
 
 /** at walks a dotted path into the token tree. */
 const at = (dotted) => dotted.split('.').reduce((node, key) => node?.[key], source);
@@ -200,6 +216,7 @@ function colourTokens(mode) {
 function roleOf(dotted) {
   const segments = dotted.split('.');
   if (segments[0] === 'label' && segments.length === 3) return labelRole(segments[2]);
+  if (segments[0] === 'product' && segments.length === 3) return productRole(segments[2]);
   const role = ROLES[dotted];
   if (!role) return null;
   return Array.isArray(role) ? role[0] : role;
@@ -294,9 +311,16 @@ function pairs(mode) {
       const fill = flatten(dotted);
       out.push(['text.inverse', dotted, on('text.inverse', fill), fill, BODY_TEXT]);
     }
+    if (role === 'stage-ink') {
+      for (const [plane] of tokens) {
+        if (roleOf(plane) !== 'stage-plane') continue;
+        const background = flatten(plane);
+        out.push([dotted, plane, on(dotted, background), background, BODY_TEXT]);
+      }
+    }
     if (role === 'label-fg') {
-      const background = flatten(dotted.replace(/\.fg$/, '.bg'));
-      out.push([dotted, dotted.replace(/\.fg$/, '.bg'), on(dotted, background), background, BODY_TEXT]);
+      const background = flatten(tileOf(dotted));
+      out.push([dotted, tileOf(dotted), on(dotted, background), background, BODY_TEXT]);
     }
   }
   return out;

@@ -216,6 +216,46 @@ export const DECLARED = {
     // `chevrons-up-down`, and no two actions of the sidebar share a mark (the navigation concept).
     'arrow-up-down',
   ],
+  'The work surface': [
+    // A priority's glyph beside its word (the queue's mockup): up for high and critical, down for
+    // low; the middle takes `minus`.
+    'arrow-up',
+    'arrow-down',
+    // The composer's formatting bar (ET-5) and its mention.
+    'bold',
+    'italic',
+    'strikethrough',
+    'quote',
+    'list-checks',
+    'layout-grid',
+    'file-spreadsheet',
+    'file-archive',
+    'list',
+    'at-sign',
+    // *All deadlines as a table* (ET-6).
+    'table',
+  ],
+  'The whiteboard': [
+    // The dock's tools and the selection bar (work surface W-2, W-4).
+    'eraser',
+    'frame',
+    'map',
+    'mouse-pointer-2',
+    'move-up-right',
+    'redo-2',
+    'rotate-ccw-clock',
+    'shapes',
+    'sticky-note',
+    'timer',
+    'type',
+    'undo-2',
+    'vote',
+    'highlighter', // the marker
+    'message-circle', // a comment at a place
+    'align-start-vertical', // align the chosen notes
+    'group', // group the chosen
+    'layers', // bring to the front
+  ],
 };
 
 /**

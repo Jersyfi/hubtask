@@ -290,7 +290,9 @@ async function walk(server, browser) {
   await session.click(PLACE, COLLECTION);
 
   step('create an entry');
-  const add = await until('an add control', async () => (await session.find('main button', 'Add an entry')) ?? (await session.find('nav button', 'Capture')));
+  // The list's add, named by its place ("Entry in “…”", L-6) and so found by its opener; an empty
+  // collection draws it on every width, the phone's included.
+  const add = await session.wait('main button[data-opener="add-entry"]');
   await add.click();
   const field = await session.wait('input, textarea', 'What do you want to remember?', { exact: false });
   await field.type(ENTRY + ENTER);
@@ -299,16 +301,22 @@ async function walk(server, browser) {
 
   step('edit it');
   await session.click('main a', ENTRY);
+  // The head shows the title as text; its pencil opens the field.
+  await session.click('button', 'Edit title');
   const title = await session.wait('input, textarea', 'Title', { exact: false });
   // The title stays read-only until the reader's role is known (ItemView), and a driver refuses
   // to clear a read-only field.
   await until('the title to take typing', () => title.editable());
-  await title.clear();
+  // A clear blurs the field, and the head's title field closes when it loses focus.
+  await title.select();
   await title.type(EDITED + ENTER);
   await until('the new title on the server', async () => (await items(server)).find((item) => item.id === created.id && item.title === EDITED));
 
   step('complete it');
-  await session.click('input[type="checkbox"], [role="checkbox"]', `Mark ${EDITED} as done`);
+  // The row's box lives in the list; where the entry took the whole window, the list is one step back.
+  const done = 'input[type="checkbox"], [role="checkbox"]';
+  if ((await session.find(done, `Mark ${EDITED} as done`)) === null) await session.script('history.back();');
+  await session.click(done, `Mark ${EDITED} as done`);
   await until('the completion on the server', async () => (await items(server)).find((item) => item.id === created.id && item.completion?.is_completed));
 
   step('sign out');

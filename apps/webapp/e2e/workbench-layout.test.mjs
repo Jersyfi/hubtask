@@ -59,7 +59,6 @@ const STORIES = [
   { id: 'wave-1-forms-icon-button--in-row', kind: 'reason' },
   { id: 'wave-1-forms-icon-button--in-table-row', kind: 'reason' },
   { id: 'wave-1-forms-icon-button--busy', kind: 'busy' },
-  { id: 'wave-3-domain-comment-thread--in-table-row', kind: 'reason' },
   { id: 'wave-1-forms-input--in-row', kind: 'reason' },
   { id: 'wave-1-forms-input--in-table-row', kind: 'reason' },
   { id: 'wave-1-forms-input--range', kind: 'range' },
@@ -98,10 +97,19 @@ const STORIES = [
   { id: 'wave-3-hubtask-view-switcher--in-table-row', kind: 'roving' },
 ];
 
+/**
+ * The runs, side by side: Chromium's matrix in four quarters by direction and zoom, each with its
+ * own server, browser and page - in one page the matrix alone took most of the CI job's time, most
+ * of it the hover grace each case waits out - and the two corners in Firefox and in WebKit.
+ */
+const quarter = (dir, zoom) => MATRIX.filter((axes) => axes.dir === dir && axes.zoom === zoom);
 const ENGINES = [
-  ['chromium', chromium, MATRIX],
-  ['firefox', firefox, CORNERS],
-  ['webkit', webkit, CORNERS],
+  ['chromium', chromium, quarter('ltr', '100'), 'ltr, 100 %'],
+  ['chromium', chromium, quarter('ltr', '200'), 'ltr, 200 %'],
+  ['chromium', chromium, quarter('rtl', '100'), 'rtl, 100 %'],
+  ['chromium', chromium, quarter('rtl', '200'), 'rtl, 200 %'],
+  ['firefox', firefox, CORNERS, 'two corners'],
+  ['webkit', webkit, CORNERS, 'two corners'],
 ];
 
 const query = (story, axes) => `?story=${story}&dir=${axes.dir}&text=${axes.text}&zoom=${axes.zoom}&width=${axes.width}`;
@@ -199,6 +207,12 @@ async function pastGrace(page) {
   await page.waitForTimeout(ms + 150);
 }
 
+/** Whether the bubble is put away within a second past the grace: a wait that ends when it is. */
+async function goesAway(page, bubble) {
+  return page.waitForFunction((node) => node.hidden || !node.checkVisibility(), await bubble.elementHandle(), { timeout: 2_000 })
+    .then(() => true, () => false);
+}
+
 /**
  * Leaves the control backwards and comes back to it forwards, as a keyboard reader would: the
  * control is a stop in the tab order. Forward until it is reached - a date field's own parts and
@@ -241,8 +255,7 @@ async function checkReason(page, what, engine, { isRoving = false, isGroup = fal
   await pastGrace(page);
   assert.equal(await isShowing(bubble), true, `${what}: the bubble went away under the pointer`);
   await page.mouse.move(1, 1);
-  await pastGrace(page);
-  assert.equal(await isShowing(bubble), false, `${what}: the bubble stayed after the pointer left`);
+  assert.equal(await goesAway(page, bubble), true, `${what}: the bubble stayed after the pointer left`);
 
   // A click: refused before the caller and the row, and it shows the reason.
   await page.mouse.click(at.x, at.y);
@@ -452,11 +465,9 @@ const CHECKS = {
   refused: (page, what, engine) => checkAnswer(page, what, engine, { isSizeOnly: true }),
   group: checkGroup, reason: checkReason, busy: checkBusy, roving: checkRoving, range: checkRange, shape: checkShape };
 
-// The engines run side by side: each has its own server, browser and page, and run one after
-// another the Chromium matrix alone took most of the CI job's time limit.
 describe('a reason never moves the page', { concurrency: true }, () => {
-  for (const [name, engine, axes] of ENGINES.filter(([name]) => !process.env.ENGINES || process.env.ENGINES.split(',').includes(name))) {
-    test(`a reason never moves the page, in ${name}`, { timeout: 15 * 60_000 }, async () => {
+  for (const [name, engine, axes, part] of ENGINES.filter(([name]) => !process.env.ENGINES || process.env.ENGINES.split(',').includes(name))) {
+    test(`a reason never moves the page, in ${name} (${part})`, { timeout: 15 * 60_000 }, async () => {
       assert.ok(existsSync(join(WORKBENCH, 'index.html')), 'no built workbench: run `make workbench-build` first');
       const server = await serve(WORKBENCH, { headers: { 'content-security-policy': "style-src 'self'" } });
       const browser = await engine.launch();

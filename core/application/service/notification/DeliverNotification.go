@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -79,6 +80,16 @@ const (
 	// category, its own sentence - nobody asked for this reminder, the page's verification did.
 	subjectPageReview = "email.page_review.subject"
 	bodyPageReview    = "email.page_review.body"
+	// A post reaching its audience (UC-DOC-17 check 5), and a writer's reminder to confirm it
+	// (UC-DOC-18 check 2): POST's category, told apart by the reminder naming who reminds.
+	subjectPostPublished = "email.post_published.subject"
+	bodyPostPublished    = "email.post_published.body"
+	subjectPostReminder  = "email.post_reminder.subject"
+	bodyPostReminder     = "email.post_reminder.body"
+	// A writer reminding the owners of objects an attestation round still waits for (UC-AST-10):
+	// ATTESTATION's category, naming the round and how many of the recipient's objects wait.
+	subjectAttestationReminder = "email.attestation_reminder.subject"
+	bodyAttestationReminder    = "email.attestation_reminder.body"
 	// An agent that did what its policy lets it do with its owner told (UC-AGT-02, NOTIFY).
 	subjectAgentNotice = "email.agent_notice.subject"
 	bodyAgentNotice    = "email.agent_notice.body"
@@ -174,6 +185,9 @@ type DeliverNotification struct {
 	// Approvals names the approval a message is about, and through it the entry. Optional: nil
 	// leaves the entry's title out.
 	Approvals ApprovalReader
+	// Rounds names the attestation round a reminder is about, its hub and how many of the
+	// recipient's objects it still waits for. Optional: nil leaves the name and the count out.
+	Rounds RoundReader
 	// Baselines names the baseline a plan slipped from, and through it the plan; its place is read
 	// through Places. Optional: nil leaves the plan's name and its link out.
 	Baselines BaselineReader
@@ -279,6 +293,12 @@ type BaselineReader interface {
 	Find(ctx context.Context, id shared.ID) (planning.Baseline, error)
 }
 
+// RoundReader answers an attestation round's name, its hub and how many of the owner's objects it
+// still waits for.
+type RoundReader interface {
+	RoundWaiting(ctx context.Context, campaignID, owner shared.ID) (name string, hubID shared.ID, waiting int, err error)
+}
+
 // RedemptionMinter is the identity service's seam. The empty secret means the account is no
 // longer waiting, and the mail carries the plain link.
 type RedemptionMinter interface {
@@ -311,6 +331,10 @@ type subject struct {
 	samlEnd time.Time
 	// hookHub is the hub a forge hook the record names belongs to, zero for every other message.
 	hookHub shared.ID
+	// roundHub and waiting are the hub of the attestation round the record names and how many of
+	// the recipient's objects it waits for, zero for every other message.
+	roundHub shared.ID
+	waiting  int
 	// base is the workspace's address every link of the message names, read with the rest.
 	base string
 	// personalRule is a rule the record names that is a person's own: its screen is the profile's,
@@ -556,6 +580,12 @@ func (d DeliverNotification) load(
 				return err
 			}
 			loaded.title, loaded.hookHub = name, hubID
+		case !record.CampaignID.IsZero() && d.Rounds != nil:
+			name, hubID, waiting, err := d.Rounds.RoundWaiting(ctx, record.CampaignID, record.RecipientID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			loaded.title, loaded.roundHub, loaded.waiting = name, hubID, waiting
 		case !record.MailboxID.IsZero() && d.Mailboxes != nil:
 			address, err := d.Mailboxes.MailboxAddress(ctx, record.MailboxID)
 			if err != nil && !errors.Is(err, shared.ErrNotFound) {
@@ -667,6 +697,9 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 	if !loaded.record.PageID.IsZero() {
 		subjectCode, bodyCode = subjectPageReview, bodyPageReview
 	}
+	if loaded.record.Category == domain.CategoryPost {
+		subjectCode, bodyCode = postCodes(loaded.record)
+	}
 	if !loaded.record.AgentID.IsZero() {
 		subjectCode, bodyCode = subjectAgentNotice, bodyAgentNotice
 	}
@@ -688,6 +721,11 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 	if !loaded.record.WhiteboardID.IsZero() {
 		subjectCode, bodyCode = subjectWhiteboardMention, bodyWhiteboardMention
 	}
+	count := ""
+	if !loaded.record.CampaignID.IsZero() {
+		subjectCode, bodyCode = subjectAttestationReminder, bodyAttestationReminder
+		count = strconv.Itoa(loaded.waiting)
+	}
 	isOverdue := false
 	if !loaded.record.ApprovalID.IsZero() {
 		subjectCode, bodyCode = approvalCodes(loaded)
@@ -699,6 +737,7 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 		BodyCode:    bodyCode,
 		ActorName:   loaded.actorName,
 		Link:        link(loaded),
+		Count:       count,
 	}
 	message = message.WithTitle(loaded.title, loaded.decision)
 	if !loaded.samlEnd.IsZero() {
@@ -776,6 +815,15 @@ func currentCounted(approval servicedesk.Approval) []shared.ID {
 	return approval.Levels[approval.Current].Counted
 }
 
+// postCodes is a post's pair: a reminder names the writer who reminds, a publication nobody - the
+// post went out, by a writer's hand or at its scheduled moment.
+func postCodes(record domain.Notification) (subjectCode, bodyCode string) {
+	if !record.ActorID.IsZero() {
+		return subjectPostReminder, bodyPostReminder
+	}
+	return subjectPostPublished, bodyPostPublished
+}
+
 // codesFor is the category's pair of catalogue keys. A switch rather than a map, so that a
 // category added without its messages does not compile.
 func codesFor(category domain.Category) (subjectCode, bodyCode string) {
@@ -803,6 +851,10 @@ func codesFor(category domain.Category) (subjectCode, bodyCode string) {
 		return subjectEmergencyAccess, bodyEmergencyAccess
 	case domain.CategorySLA:
 		return subjectRuleNotice, bodyRuleNotice
+	case domain.CategoryPost:
+		return postCodes(domain.Notification{})
+	case domain.CategoryAttestation:
+		return subjectAttestationReminder, bodyAttestationReminder
 	case domain.CategoryRequestReply:
 		// The comment's sentence: somebody wrote on the request; only the link differs.
 		return subjectComment, bodyComment
@@ -837,6 +889,8 @@ func link(loaded subject) string {
 		return base + "/administration/webhooks"
 	case !record.ItemID.IsZero():
 		return base + "/items/" + url.PathEscape(record.ItemID.String())
+	case !record.PageID.IsZero() && record.Category == domain.CategoryPost:
+		return base + "/posts/" + url.PathEscape(record.PageID.String())
 	case !record.PageID.IsZero():
 		return base + "/pages/" + url.PathEscape(record.PageID.String())
 	case !record.AgentID.IsZero():
@@ -851,6 +905,8 @@ func link(loaded subject) string {
 		return base + "/administration/configuration-items"
 	case !record.CodeHookID.IsZero() && !loaded.hookHub.IsZero():
 		return base + "/hubs/" + url.PathEscape(loaded.hookHub.String()) + "/settings/code"
+	case !record.CampaignID.IsZero() && !loaded.roundHub.IsZero():
+		return base + "/hubs/" + url.PathEscape(loaded.roundHub.String()) + "/inventory/campaigns"
 	case !record.WhiteboardID.IsZero():
 		return base + "/whiteboards/" + url.PathEscape(record.WhiteboardID.String())
 	case !record.ApprovalID.IsZero():

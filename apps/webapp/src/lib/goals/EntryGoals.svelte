@@ -24,8 +24,7 @@
 </script>
 
 {#if list.length > 0}
-  <section class="goals" aria-labelledby={`goals-${itemId}`}>
-    <h2 id={`goals-${itemId}`} class="heading">{t('app.goals.served', { count: list.length })}</h2>
+  <div class="goals" data-entry-goals>
     <ul>
       {#each list as goal (goal.id)}
         <li>
@@ -36,11 +35,10 @@
         </li>
       {/each}
     </ul>
-  </section>
+  </div>
 {/if}
 
 <style>
   .goals { display: flex; flex-direction: column; gap: var(--sp-050); }
-  .heading { margin: 0; font-size: var(--fs-075); font-weight: var(--fw-medium); color: var(--text-secondary); }
   ul { display: flex; flex-direction: column; gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }
 </style>

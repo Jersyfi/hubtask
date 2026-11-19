@@ -451,6 +451,11 @@ export class HubtaskClient {
     return this.call("GET", "/dashboards/{dashboardId}/figures", { "dashboardId": dashboardId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** A dashboard's numbers for a definition not saved yet */
+  draftDashboardFigures(dashboardId: string, body: NonNullable<operations["draftDashboardFigures"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["draftDashboardFigures"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/dashboards/{dashboardId}/figures:draft", { "dashboardId": dashboardId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The caller's digest of a dashboard */
   readDashboardDigest(dashboardId: string, options: CallOptions = {}): Promise<operations["readDashboardDigest"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/dashboards/{dashboardId}/digest", { "dashboardId": dashboardId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
@@ -876,6 +881,11 @@ export class HubtaskClient {
     return this.call("GET", "/sla-report", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** How many of the deadlines on my own tickets I kept */
+  readMyDeadlinesKept(options: CallOptions & { readonly query?: NonNullable<operations["readMyDeadlinesKept"]['parameters']['query']> } = {}): Promise<operations["readMyDeadlinesKept"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/deadlines-kept", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Who raised the entry, and their organisation */
   readEntryRequester(itemId: string, options: CallOptions = {}): Promise<operations["readEntryRequester"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/items/{itemId}/requester", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
@@ -961,6 +971,11 @@ export class HubtaskClient {
     return this.call("GET", "/articles", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** What a service's portal shares of the knowledge base */
+  listPortalKnowledge(options: CallOptions & { readonly query?: NonNullable<operations["listPortalKnowledge"]['parameters']['query']> } = {}): Promise<operations["listPortalKnowledge"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/portal-knowledge", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Open an article of a service's portal */
   readArticle(pageId: string, options: CallOptions & { readonly query?: NonNullable<operations["readArticle"]['parameters']['query']> } = {}): Promise<operations["readArticle"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/articles/{pageId}", { "pageId": pageId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
@@ -996,17 +1011,17 @@ export class HubtaskClient {
     return this.call("POST", "/requests/{itemId}/comments", { "itemId": itemId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** The configuration item classes */
+  /** The object types */
   listCiClasses(options: CallOptions = {}): Promise<operations["listCiClasses"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/cmdb/classes", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Add or change a class of the workspace's own */
+  /** Add or change an object type of the workspace's own */
   defineCiClass(classKey: string, body: NonNullable<operations["defineCiClass"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["defineCiClass"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/cmdb/classes/{classKey}", { "classKey": classKey }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** The relation types between configuration items */
+  /** The relation types between objects */
   listCiRelationTypes(options: CallOptions = {}): Promise<operations["listCiRelationTypes"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/cmdb/relation-types", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
@@ -1016,7 +1031,7 @@ export class HubtaskClient {
     return this.call("PUT", "/cmdb/relation-types/{typeKey}", { "typeKey": typeKey }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** The sources configuration items come from */
+  /** The sources objects come from */
   listCiSources(options: CallOptions = {}): Promise<operations["listCiSources"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/cmdb/sources", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
@@ -1026,12 +1041,12 @@ export class HubtaskClient {
     return this.call("PUT", "/cmdb/sources/{sourceKey}", { "sourceKey": sourceKey }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** A hub's configuration items */
+  /** A hub's objects */
   listCis(hubId: string, options: CallOptions & { readonly query?: NonNullable<operations["listCis"]['parameters']['query']> } = {}): Promise<operations["listCis"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/hubs/{hubId}/cis", { "hubId": hubId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Make a configuration item by hand */
+  /** Make an object by hand */
   createCi(hubId: string, body: NonNullable<operations["createCi"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["createCi"]['responses'][201]['content']["application/json"]> {
     return this.call("POST", "/hubs/{hubId}/cis", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
@@ -1041,7 +1056,7 @@ export class HubtaskClient {
     return this.call("POST", "/hubs/{hubId}/cis:reconcile", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** Import a file of configuration items */
+  /** Import a file of objects */
   importCiFile(hubId: string, body: NonNullable<operations["importCiFile"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["importCiFile"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/hubs/{hubId}/cis:import", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
@@ -1200,42 +1215,72 @@ export class HubtaskClient {
     return this.call("GET", "/hubs/{hubId}/cmdb-health", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Read a configuration item */
+  /** Read an object */
   readCi(ciId: string, options: CallOptions = {}): Promise<operations["readCi"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/cis/{ciId}", { "ciId": ciId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Change a configuration item by hand */
+  /** Change an object by hand */
   updateCi(ciId: string, body: NonNullable<operations["updateCi"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["updateCi"]['responses'][200]['content']["application/json"]> {
     return this.call("PATCH", "/cis/{ciId}", { "ciId": ciId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** Set a configuration item's lifecycle and compliance fields */
+  /** Confirm an object is as recorded */
+  confirmCi(ciId: string, body: NonNullable<operations["confirmCi"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["confirmCi"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/cis/{ciId}:confirm", { "ciId": ciId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Set an object's lifecycle and compliance fields */
   setCiCompliance(ciId: string, body: NonNullable<operations["setCiCompliance"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setCiCompliance"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/cis/{ciId}/compliance", { "ciId": ciId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** What a configuration item's failure reaches */
+  /** What an object's failure reaches */
   readCiImpact(ciId: string, options: CallOptions & { readonly query?: NonNullable<operations["readCiImpact"]['parameters']['query']> } = {}): Promise<operations["readCiImpact"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/cis/{ciId}/impact", { "ciId": ciId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** What points at a configuration item */
+  /** What points at an object */
   listCiBacklinks(ciId: string, options: CallOptions = {}): Promise<operations["listCiBacklinks"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/cis/{ciId}/backlinks", { "ciId": ciId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** The configuration items an entry names as affected */
+  /** The entries an object is part of */
+  listCiWork(ciId: string, options: CallOptions = {}): Promise<operations["listCiWork"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/cis/{ciId}/work", { "ciId": ciId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** An object's files */
+  listCiAttachments(ciId: string, options: CallOptions & { readonly query?: NonNullable<operations["listCiAttachments"]['parameters']['query']> } = {}): Promise<operations["listCiAttachments"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/cis/{ciId}/attachments", { "ciId": ciId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Put a file on an object */
+  attachCiMedia(ciId: string, mediaId: string, options: CallOptions = {}): Promise<operations["attachCiMedia"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/cis/{ciId}/attachments/{mediaId}", { "ciId": ciId, "mediaId": mediaId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Take a file off an object */
+  detachCiMedia(ciId: string, mediaId: string, options: CallOptions = {}): Promise<operations["detachCiMedia"]['responses'][200]['content']["application/json"]> {
+    return this.call("DELETE", "/cis/{ciId}/attachments/{mediaId}", { "ciId": ciId, "mediaId": mediaId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** An object's history */
+  listCiHistory(ciId: string, options: CallOptions & { readonly query?: NonNullable<operations["listCiHistory"]['parameters']['query']> } = {}): Promise<operations["listCiHistory"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/cis/{ciId}/history", { "ciId": ciId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** The objects an entry names as affected */
   listEntryCis(itemId: string, options: CallOptions = {}): Promise<operations["listEntryCis"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/items/{itemId}/cis", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Name a configuration item as affected by an entry */
+  /** Name an object as affected by an entry */
   affectEntryCi(itemId: string, ciId: string, options: CallOptions = {}): Promise<operations["affectEntryCi"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/items/{itemId}/cis/{ciId}", { "itemId": itemId, "ciId": ciId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Remove a configuration item from an entry's affected ones */
+  /** Remove an object from an entry's affected ones */
   unaffectEntryCi(itemId: string, ciId: string, options: CallOptions = {}): Promise<operations["unaffectEntryCi"]['responses'][200]['content']["application/json"]> {
     return this.call("DELETE", "/items/{itemId}/cis/{ciId}", { "itemId": itemId, "ciId": ciId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
@@ -1245,12 +1290,12 @@ export class HubtaskClient {
     return this.call("GET", "/hubs/{hubId}/ci-campaigns", { "hubId": hubId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Ask the owners of a hub's CIs to attest them */
+  /** Ask the owners of a hub's objects to attest them */
   startCiCampaign(hubId: string, body: NonNullable<operations["startCiCampaign"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["startCiCampaign"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/hubs/{hubId}/ci-campaigns", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** A certification campaign with every CI asked */
+  /** A certification campaign with every object asked */
   readCiCampaign(campaignId: string, options: CallOptions = {}): Promise<operations["readCiCampaign"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/ci-campaigns/{campaignId}", { "campaignId": campaignId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
@@ -1260,22 +1305,37 @@ export class HubtaskClient {
     return this.call("POST", "/ci-campaigns/{campaignId}:close", { "campaignId": campaignId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Answer a campaign's question about a configuration item */
+  /** Remind the owners who have not answered yet */
+  remindCiCampaign(campaignId: string, options: CallOptions = {}): Promise<operations["remindCiCampaign"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/ci-campaigns/{campaignId}:remind", { "campaignId": campaignId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Answer a campaign's question about an object */
   attestCi(campaignId: string, ciId: string, body: NonNullable<operations["attestCi"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["attestCi"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/ci-campaigns/{campaignId}/cis/{ciId}", { "campaignId": campaignId, "ciId": ciId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** A hub's CI groups */
+  /** How many open entries name each object of a hub */
+  listHubCiWork(hubId: string, options: CallOptions = {}): Promise<operations["listHubCiWork"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/ci-work", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** A hub's object groups */
   listCiGroups(hubId: string, options: CallOptions = {}): Promise<operations["listCiGroups"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/hubs/{hubId}/ci-groups", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Define or change a CI group by its key */
+  /** Define or change an object group by its key */
   defineCiGroup(hubId: string, groupKey: string, body: NonNullable<operations["defineCiGroup"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["defineCiGroup"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/hubs/{hubId}/ci-groups/{groupKey}", { "hubId": hubId, "groupKey": groupKey }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** The configuration items a group holds now */
+  /** Delete an object group by its key */
+  deleteCiGroup(hubId: string, groupKey: string, options: CallOptions & { readonly ifMatch?: string } = {}): Promise<void> {
+    return this.call("DELETE", "/hubs/{hubId}/ci-groups/{groupKey}", { "hubId": hubId, "groupKey": groupKey }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** The objects a group holds now */
   listCiGroupMembers(groupId: string, options: CallOptions = {}): Promise<operations["listCiGroupMembers"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/ci-groups/{groupId}/members", { "groupId": groupId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
@@ -1285,22 +1345,22 @@ export class HubtaskClient {
     return this.call("GET", "/hubs/{hubId}/service-map", { "hubId": hubId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** A hub's asset register */
+  /** A hub's register records */
   listCiAssets(hubId: string, options: CallOptions & { readonly query?: NonNullable<operations["listCiAssets"]['parameters']['query']> } = {}): Promise<operations["listCiAssets"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/hubs/{hubId}/assets", { "hubId": hubId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** A configuration item's asset record */
+  /** An object's register record */
   readCiAsset(ciId: string, options: CallOptions = {}): Promise<operations["readCiAsset"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/cis/{ciId}/asset", { "ciId": ciId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Write a configuration item's asset record */
+  /** Write an object's register record */
   registerCiAsset(ciId: string, body: NonNullable<operations["registerCiAsset"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["registerCiAsset"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/cis/{ciId}/asset", { "ciId": ciId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** Move an asset through its life */
+  /** Move a register record through its life */
   moveCiAsset(ciId: string, body: NonNullable<operations["moveCiAsset"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["moveCiAsset"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/cis/{ciId}/asset:move", { "ciId": ciId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
@@ -1325,7 +1385,7 @@ export class HubtaskClient {
     return this.call("GET", "/hubs/{hubId}/software", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Join two configuration items */
+  /** Join two objects */
   relateCis(body: NonNullable<operations["relateCis"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["relateCis"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/ci-relations", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
@@ -3348,6 +3408,11 @@ export class HubtaskClient {
     return this.call("POST", "/items/{itemId}:step", { "itemId": itemId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Drop an entry onto a board's column */
+  dropItemOnColumn(itemId: string, body: NonNullable<operations["dropItemOnColumn"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["dropItemOnColumn"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/items/{itemId}:drop", { "itemId": itemId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Change an entry's type */
   setItemEntryType(itemId: string, body: NonNullable<operations["setItemEntryType"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setItemEntryType"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/items/{itemId}/entry-type", { "itemId": itemId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
@@ -3698,9 +3763,29 @@ export class HubtaskClient {
     return this.call("POST", "/glance:search", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** One search over every kind of object the caller may read */
+  searchAll(body: NonNullable<operations["searchAll"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["searchAll"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/search:all", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Write a Hubtask query from a question in words */
+  askQuery(body: NonNullable<operations["askQuery"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["askQuery"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/query:ask", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Bring the workspace's search documents current */
   reindexSearch(options: CallOptions = {}): Promise<operations["reindexSearch"]['responses'][202]['content']["application/json"]> {
     return this.call("POST", "/search:reindex", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Show a collection's tasks as a board, or as a list again */
+  switchBoard(containerId: string, body: NonNullable<operations["switchBoard"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["switchBoard"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/containers/{containerId}/board:switch", { "containerId": containerId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Make a workflow from a board's columns */
+  makeBoardWorkflow(containerId: string, body: NonNullable<operations["makeBoardWorkflow"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["makeBoardWorkflow"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/containers/{containerId}/board:workflow", { "containerId": containerId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
   /** POST /items/{itemId}:complete */
@@ -3849,8 +3934,8 @@ export class HubtaskClient {
   }
 
   /** DELETE /containers/{containerId}/buckets/{bucketId} */
-  deleteBucket(containerId: string, bucketId: string, options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["deleteBucket"]['responses'][200]['content']["application/json"]> {
-    return this.call("DELETE", "/containers/{containerId}/buckets/{bucketId}", { "containerId": containerId, "bucketId": bucketId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "json", options.signal);
+  deleteBucket(containerId: string, bucketId: string, options: CallOptions & { readonly query?: NonNullable<operations["deleteBucket"]['parameters']['query']>; readonly ifMatch?: string } = {}): Promise<operations["deleteBucket"]['responses'][200]['content']["application/json"]> {
+    return this.call("DELETE", "/containers/{containerId}/buckets/{bucketId}", { "containerId": containerId, "bucketId": bucketId }, options.query, { "If-Match": options.ifMatch }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** POST /containers/{containerId}/buckets/{bucketId}:reorder */
@@ -4045,6 +4130,55 @@ export class HubtaskClient {
     return this.call("GET", "/media/{mediaId}:content", { "mediaId": mediaId }, options.query, {  }, undefined, "none", undefined, "raw", options.signal);
   }
 
+  /** POST /media/{mediaId}:pdf */
+  convertMediaToPdf(mediaId: string, body: NonNullable<operations["convertMediaToPdf"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<Response> {
+    return this.call("POST", "/media/{mediaId}:pdf", { "mediaId": mediaId }, undefined, {  }, body, "json", "application/json", "raw", options.signal);
+  }
+
+  /** POST /media/{mediaId}:edit */
+  startMediaEditing(mediaId: string, options: CallOptions = {}): Promise<operations["startMediaEditing"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/media/{mediaId}:edit", { "mediaId": mediaId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** The workspace's document server */
+  readDocumentServer(options: CallOptions = {}): Promise<operations["readDocumentServer"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/media:document-server", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Choose the workspace's document server */
+  setDocumentServer(body: NonNullable<operations["setDocumentServer"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setDocumentServer"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/media:document-server", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Test a document server before choosing it */
+  checkDocumentServer(body: NonNullable<operations["checkDocumentServer"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["checkDocumentServer"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/media:document-server-check", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** GET /wopi/files/{mediaId}
+   * Public: sent without a bearer where the client holds none. */
+  checkWopiFileInfo(mediaId: string, options: CallOptions & { readonly query?: NonNullable<operations["checkWopiFileInfo"]['parameters']['query']> } = {}): Promise<operations["checkWopiFileInfo"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/wopi/files/{mediaId}", { "mediaId": mediaId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** POST /wopi/files/{mediaId}
+   * Public: sent without a bearer where the client holds none. */
+  lockWopiFile(mediaId: string, options: CallOptions & { readonly query?: NonNullable<operations["lockWopiFile"]['parameters']['query']> } = {}): Promise<void> {
+    return this.call("POST", "/wopi/files/{mediaId}", { "mediaId": mediaId }, options.query, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** GET /wopi/files/{mediaId}/contents
+   * Public: sent without a bearer where the client holds none. */
+  getWopiFile(mediaId: string, options: CallOptions & { readonly query?: NonNullable<operations["getWopiFile"]['parameters']['query']> } = {}): Promise<Response> {
+    return this.call("GET", "/wopi/files/{mediaId}/contents", { "mediaId": mediaId }, options.query, {  }, undefined, "none", undefined, "raw", options.signal);
+  }
+
+  /** POST /wopi/files/{mediaId}/contents
+   * Public: sent without a bearer where the client holds none. */
+  putWopiFile(mediaId: string, body: BodyInit, options: CallOptions & { readonly query?: NonNullable<operations["putWopiFile"]['parameters']['query']> } = {}): Promise<void> {
+    return this.call("POST", "/wopi/files/{mediaId}/contents", { "mediaId": mediaId }, options.query, {  }, body, "raw", "application/octet-stream", "void", options.signal);
+  }
+
   /** The change stream, as server-sent events */
   streamChanges(options: CallOptions & { readonly lastEventId?: string } = {}): Promise<Response> {
     return this.call("GET", "/stream", {  }, undefined, { "Last-Event-ID": options.lastEventId }, undefined, "none", undefined, "raw", options.signal);
@@ -4104,6 +4238,16 @@ export class HubtaskClient {
   /** Add a template's page */
   addHubTemplatePage(hubId: string, body: NonNullable<operations["addHubTemplatePage"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["addHubTemplatePage"]['responses'][201]['content']["application/json"]> {
     return this.call("POST", "/hubs/{hubId}/template-pages", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The goal periods a template brought */
+  listGoalSets(options: CallOptions = {}): Promise<operations["listGoalSets"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/goal-sets", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Add a template's goal set */
+  addGoalSet(body: NonNullable<operations["addGoalSet"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["addGoalSet"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/goal-sets", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
   /** Remove the hub's sample entries */
@@ -4192,6 +4336,86 @@ export class HubtaskClient {
     return this.call("DELETE", "/page-comments/{commentId}", { "commentId": commentId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** A hub's posts */
+  listHubPosts(hubId: string, options: CallOptions & { readonly query?: NonNullable<operations["listHubPosts"]['parameters']['query']> } = {}): Promise<operations["listHubPosts"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/posts", { "hubId": hubId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Write a new post */
+  createPost(hubId: string, body: NonNullable<operations["createPost"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["createPost"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/hubs/{hubId}/posts", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Follow a hub's posts */
+  followHubPosts(hubId: string, body: NonNullable<operations["followHubPosts"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["followHubPosts"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/hubs/{hubId}/posts/following", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The posts new for the caller */
+  listUnreadPosts(options: CallOptions = {}): Promise<operations["listUnreadPosts"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/posts", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Read a post */
+  readPost(pageId: string, options: CallOptions = {}): Promise<operations["readPost"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/posts/{pageId}", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Schedule, feature or narrow a post */
+  setPostSettings(pageId: string, body: NonNullable<operations["setPostSettings"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setPostSettings"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/posts/{pageId}", { "pageId": pageId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Publish a post now */
+  publishPost(pageId: string, options: CallOptions = {}): Promise<operations["publishPost"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/posts/{pageId}:publish", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Mark a post seen */
+  markPostSeen(pageId: string, options: CallOptions = {}): Promise<operations["markPostSeen"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/posts/{pageId}:seen", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Confirm having read a post */
+  confirmPost(pageId: string, options: CallOptions = {}): Promise<operations["confirmPost"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/posts/{pageId}:confirm", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Who confirmed a post */
+  readPostConfirmations(pageId: string, options: CallOptions = {}): Promise<operations["readPostConfirmations"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/posts/{pageId}/confirmations", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Remind those who have not confirmed a post */
+  remindPost(pageId: string, options: CallOptions = {}): Promise<operations["remindPost"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/posts/{pageId}:remind", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** A post's discussion */
+  listPostReplies(pageId: string, options: CallOptions = {}): Promise<operations["listPostReplies"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/posts/{pageId}/replies", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Reply in a post's discussion */
+  addPostReply(pageId: string, body: NonNullable<operations["addPostReply"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["addPostReply"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/posts/{pageId}/replies", { "pageId": pageId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Take a reply back */
+  deletePostReply(pageId: string, replyId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/posts/{pageId}/replies/{replyId}", { "pageId": pageId, "replyId": replyId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** React to a reply */
+  reactToPostReply(pageId: string, replyId: string, reaction: string, options: CallOptions = {}): Promise<operations["reactToPostReply"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/posts/{pageId}/replies/{replyId}/reactions/{reaction}", { "pageId": pageId, "replyId": replyId, "reaction": reaction }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Take a reaction back */
+  unreactToPostReply(pageId: string, replyId: string, reaction: string, options: CallOptions = {}): Promise<operations["unreactToPostReply"]['responses'][200]['content']["application/json"]> {
+    return this.call("DELETE", "/posts/{pageId}/replies/{replyId}/reactions/{reaction}", { "pageId": pageId, "replyId": replyId, "reaction": reaction }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** What links to a page */
   listPageBacklinks(pageId: string, options: CallOptions = {}): Promise<operations["listPageBacklinks"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/pages/{pageId}/backlinks", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
@@ -4260,6 +4484,26 @@ export class HubtaskClient {
   /** Attach an uploaded picture or file to a page */
   attachPageMedia(pageId: string, body: NonNullable<operations["attachPageMedia"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["attachPageMedia"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/pages/{pageId}/media", { "pageId": pageId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Search an image library for a page's cover */
+  searchCoverImages(pageId: string, options: CallOptions & { readonly query?: NonNullable<operations["searchCoverImages"]['parameters']['query']> } = {}): Promise<operations["searchCoverImages"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/pages/{pageId}/cover-images", { "pageId": pageId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Fetch an image library's picture for a page's cover */
+  fetchCoverImage(pageId: string, pictureId: string, options: CallOptions = {}): Promise<operations["fetchCoverImage"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/pages/{pageId}/cover-images/{pictureId}:fetch", { "pageId": pageId, "pictureId": pictureId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Which image library covers may take pictures from */
+  readCoverImagesPolicy(options: CallOptions = {}): Promise<operations["readCoverImagesPolicy"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/pages:cover-images", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Offer an image library for covers, or none */
+  setCoverImagesPolicy(body: NonNullable<operations["setCoverImagesPolicy"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setCoverImagesPolicy"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/pages:cover-images", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
   /** Publish a page to a service's portal */

@@ -118,6 +118,21 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		queryFields = append(queryFields, rendered)
 	}
 
+	queryKeys := make([]openapi.QueryKey, 0, len(source.QueryKeys))
+	for _, key := range source.QueryKeys {
+		rendered := openapi.QueryKey{
+			Key: key.Key, Value: openapi.QueryKeyValue(key.Value), Kinds: key.Objects,
+			Examples: nonNil(key.Examples), Values: nonNil(key.Values),
+		}
+		if key.Field != "" {
+			rendered.Field = &key.Field
+		}
+		if key.Product != "" {
+			rendered.Product = &key.Product
+		}
+		queryKeys = append(queryKeys, rendered)
+	}
+
 	roles := make([]openapi.RoleDescription, 0, len(source.Roles))
 	for _, described := range source.Roles {
 		permissions := make([]openapi.RoleDescriptionPermissions, 0, len(described.Permissions))
@@ -368,6 +383,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		AppClientId:            &appClient,
 		ItemTypes:              &itemTypes,
 		QueryFields:            &queryFields,
+		QueryKeys:              &queryKeys,
 		ViewLayouts:            &viewLayouts,
 		CompletionPolicies:     &completionPolicies,
 		AutoAssignStrategies:   &autoAssignStrategies,
@@ -459,4 +475,12 @@ func legalLinksResponse(links identity.LegalLinks) *openapi.LegalLinks {
 		answer.TermsSetBy = &setBy
 	}
 	return &answer
+}
+
+// nonNil answers an empty list for none, so a required list is never null.
+func nonNil(values []string) []string {
+	if values == nil {
+		return []string{}
+	}
+	return values
 }

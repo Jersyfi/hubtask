@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { AI_MANIFEST, COLLECTION, ITEMS, MANIFEST, forgetUnstubbed, stub, unstubbedSoFar, openSettings } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -79,8 +79,7 @@ async function at(browser, hasAi, width = 1280) {
 }
 
 test('chromium: the ✦ at the figure asks how the collection stands, and the answer is kept as an entry', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures, state } = await at(browser, true);
   t.after(() => context.close());
 
@@ -109,8 +108,7 @@ test('chromium: the ✦ at the figure asks how the collection stands, and the an
 });
 
 test('chromium: a template drafted for the collection stands in Structure → Templates', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await at(browser, true);
   t.after(() => context.close());
   await openSettings(page, COLLECTION.name);
@@ -124,8 +122,7 @@ test('chromium: a template drafted for the collection stands in Structure → Te
 });
 
 test('chromium: without AI, no ✦ at the figure and no AI area', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await at(browser, false);
   t.after(() => context.close());
   assert.equal(await page.getByRole('button', { name: 'Ask AI how this collection stands' }).count(), 0);

@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, HUB, ITEMS, MANIFEST, OWNER_GRANTS, PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -83,8 +83,7 @@ async function settle(sent, count) {
 }
 
 test('chromium: People invites somebody with a role on one hub, not on the workspace', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const sent = { invites: [], grants: [], roleGrants: [] };
   const { page, failures, close } = await open(browser, sent);
   t.after(close);
@@ -107,8 +106,7 @@ test('chromium: People invites somebody with a role on one hub, not on the works
 });
 
 test('chromium: an entry’s Share invites somebody to that entry alone, and offers a person from another hub', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const sent = { invites: [], grants: [], roleGrants: [] };
   const { page, failures, close } = await open(browser, sent);
   t.after(close);
@@ -140,8 +138,7 @@ test('chromium: an entry’s Share invites somebody to that entry alone, and off
 // UC-SVC-05: an outside requester is invited with the workspace's requester role at the desk's
 // collection alone - not with a shipped role on the whole hub first.
 test('chromium: People invites a requester with the workspace\'s own role at one collection', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const sent = { invites: [], grants: [], roleGrants: [] };
   const { page, failures, close } = await open(browser, sent);
   t.after(close);

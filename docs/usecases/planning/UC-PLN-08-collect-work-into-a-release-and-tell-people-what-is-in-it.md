@@ -40,14 +40,16 @@ link to its entry.
 4. Released with its notes, the release writes a page of the hub's space titled with the release's
    name: its description, then the done entries the releaser may see grouped under their type's
    name, each a mention of the entry; the release names that page.
-5. Reading a release answers only the entries in it the reader may see, each with its title, its
-   type's name and whether it is done, and how many are done and open; only a planned release is
-   deleted, and its entries are in none afterwards.
+5. Reading a release answers only the entries in it the reader may see, each with its key, its
+   title, its type's name, its status as its workflow names it and whether it is done, and how many
+   are done and open; the list of a hub's releases answers those counts for each release; only a
+   planned release is deleted, and its entries are in none afterwards.
 6. A release stays in its workspace: the workspace next door neither reads nor deletes it, and it
    and its entries are in the workspace's archive and its access export.
-7. The *Releases* screen of a hub shows its releases, the selected one's entries done and open, the
-   entries of one of the hub's collections to add, and releases it with the choice where open work
-   goes and whether the notes are written.
+7. The *Releases* screen of a hub names the next release and the sprint running, shows its releases
+   on an axis of months, the selected one's entries with their status and the query that finds
+   them (`plan.release`), adds entries from every collection of the hub, and releases it with the choice where open work goes and whether the
+   notes are written.
 8. While the server is away, the *Releases* screen answers a hub's releases and a release's entries
    from the device's copy; every write waits for the server.
 9. REST, MCP and hubctl plan, change, fill, release and read releases alike.

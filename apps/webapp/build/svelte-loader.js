@@ -48,5 +48,7 @@ export async function load(url, context, nextLoad) {
     const { js } = compileModule(stripTypes(source, path), { filename: path, generate: 'server' });
     return { format: 'module', source: js.code, shortCircuit: true };
   }
+  // A stylesheet a component imports is the bundler's; rendered on the server it is nothing.
+  if (url.endsWith('.css')) return { format: 'module', source: 'export {};', shortCircuit: true };
   return nextLoad(url, context);
 }

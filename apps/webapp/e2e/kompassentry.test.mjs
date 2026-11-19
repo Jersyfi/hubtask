@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, COLLECTION, GROCERIES, GROCERY_ITEMS, GROCERY_LABELS, HUB, ITEMS, signedIn } from './fixture.mjs';
@@ -20,8 +20,7 @@ const served = await serve(join(dirname(fileURLToPath(import.meta.url)), '..', '
 test.after(() => served.close());
 
 test('UC-WRK-06 check 8: an entry dragged from the list onto a collection of the sidebar moves there, with Undo', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await signedIn(browser, 1440, 900);
   t.after(() => context.close());
   const entry = ITEMS[0];
@@ -83,8 +82,7 @@ async function carry(page, row, target) {
 }
 
 test('UC-WRK-06 check 8: onto another hub\'s starred collection after a dialog; onto one the reader may not write in, nothing', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await signedIn(browser, 1440, 900);
   t.after(() => context.close());
   const entry = ITEMS[0];

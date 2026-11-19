@@ -49,6 +49,7 @@ test('a keyword finds a row in the reader\'s words, but below one that says them
   assert.deepEqual(rank([capture, create], 'create').map((each) => each.id), ['create', 'capture']);
 });
 
+// UC-WRK-27 check 8. Before anything is typed, what was opened recently comes first.
 test('the places opened last are offered with an empty field only, before the actions', () => {
   const recent: Candidate = { kind: 'recent', id: 'collection:c1', label: 'Kitchen' };
   assert.deepEqual(rank([recent, board, kitchen], '').map((each) => each.id), ['collection:c1', 'open-as:c1:KANBAN']);
@@ -135,4 +136,12 @@ test('and up, from the words to the last row', () => {
 test('an empty list has nowhere to go', () => {
   assert.equal(step(-1, 0, 1), -1);
   assert.equal(step(-1, 0, -1), -1);
+});
+
+// §6.11: the go-tos stand after the few actions and are never cut by their cap.
+test('an empty field lists the go-tos after the actions, every one of them', () => {
+  const acts = Array.from({ length: 8 }, (_, i) => ({ kind: 'action' as const, id: `a${i}`, label: `Act ${i}` }));
+  const goTos = Array.from({ length: 6 }, (_, i) => ({ kind: 'action' as const, id: `goto:${i}`, label: `Go ${i}` }));
+  const empty = rank([...goTos, ...acts], '');
+  assert.deepEqual(empty.map((each) => each.id), [...acts.slice(0, EMPTY_ACTIONS).map((each) => each.id), ...goTos.map((each) => each.id)]);
 });

@@ -94,6 +94,21 @@ type Inventory struct {
 	// nothing, a test's convenience.
 	Changes changelog.ChangeLog
 	HLC     clock.HLCSource
+	// Notify reminds the owners an attestation round waits for; nil tells nobody.
+	Notify RoundNotifier
+	// History keeps each object's own history (migration 0435); nil records none.
+	History repository.History
+	// Files are the uploads an object holds (migration 0434); nil holds none.
+	Files Files
+	// Reader answers, without a record, whether the actor reads other hubs: an upload another
+	// object holds may be put on this one by a reader of that object.
+	Reader Reader
+}
+
+// RoundNotifier tells the owners of objects a round still waits for that a writer reminds them.
+// It is handed the people the application judged (rule 2).
+type RoundNotifier interface {
+	AttestationReminder(ctx context.Context, tenant, writer, campaign shared.ID, owners []shared.ID) error
 }
 
 // The change log's entities: a CI and a relation, each filed under its hub; the catalogue of
@@ -191,6 +206,27 @@ func (s Inventory) authorizeConfig(ctx context.Context, actor appshared.ActorCon
 		Permission: permission, Path: []identity.Scope{identity.TenantScope()}, Action: action, TokenScope: scope,
 		TargetType: target, TargetID: actor.TenantID,
 	})
+}
+
+// stillReading keeps the owners who read the hub now (rule 2): an attestation names whoever owned
+// the object when the round began, and a person who has since lost the hub is told nothing of it.
+// Without a Reader nobody can be judged, so nobody is told.
+func (s Inventory) stillReading(ctx context.Context, tenant, hubID shared.ID, owners []shared.ID) ([]shared.ID, error) {
+	if s.Reader == nil {
+		return nil, nil
+	}
+	var kept []shared.ID
+	for _, owner := range owners {
+		allowed, err := s.Reader.Permitted(ctx, appshared.ActorContext{Kind: appshared.ActorUser, TenantID: tenant, AccountID: owner},
+			access.Request{Permission: service.PermissionRead, Action: CampaignRemindedAction, TargetType: campaignTarget}, [][]identity.Scope{hubPath(hubID)})
+		if err != nil {
+			return nil, err
+		}
+		if len(allowed) == 1 && allowed[0] {
+			kept = append(kept, owner)
+		}
+	}
+	return kept, nil
 }
 
 // hub refuses anything that is not a living hub.
@@ -323,9 +359,12 @@ func CIOutput(ci domain.CI, effective *domain.Protection) usecase.Output {
 	if ci.Compliance.ReviewDue != nil {
 		review = ci.Compliance.ReviewDue.Format("2006-01-02")
 	}
-	var lastSeen any
+	var lastSeen, confirmedAt any
 	if ci.LastSeen != nil {
 		lastSeen = *ci.LastSeen
+	}
+	if ci.ConfirmedAt != nil {
+		confirmedAt = *ci.ConfirmedAt
 	}
 	out := usecase.Output{
 		"id": ci.ID.String(), "hub_id": ci.HubID.String(), "class": ci.Class, "name": ci.Name,
@@ -335,6 +374,7 @@ func CIOutput(ci domain.CI, effective *domain.Protection) usecase.Output {
 		"quantity": ci.Compliance.Quantity, "last_seen_at": lastSeen, "merged_into": idOrNil(ci.MergedInto),
 		"created_by": ci.CreatedBy.String(), "created_at": ci.CreatedAt,
 		"updated_by": ci.UpdatedBy.String(), "updated_at": ci.UpdatedAt, "version": ci.Version,
+		"confirmed_at": confirmedAt, "confirmed_by": idOrNil(ci.ConfirmedBy),
 	}
 	if effective != nil {
 		out["effective_protection"] = protectionOutput(*effective)

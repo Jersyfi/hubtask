@@ -435,6 +435,22 @@ test('a byte transfer without a deadline is refused, and an aborted one is a tim
   );
 });
 
+test('a receive fetches bytes with no bearer and no cookie, and needs a deadline', async () => {
+  const { fetch, calls } = recordingFetch(() => new Response('%PDF-1.7', { status: 200 }));
+  const transport = new FetchTransport({ baseUrl: '/api/v1', fetch });
+  const bytes = await transport.receive({ url: 'http://localhost/api/v1/media/m1:content?token=t', timeoutMs: 1000 });
+  assert.equal(await bytes.text(), '%PDF-1.7');
+  assert.equal(new Headers(calls[0]?.init.headers).has('Authorization'), false);
+  assert.equal(calls[0]?.init.credentials, 'omit');
+  await assert.rejects(() => transport.receive({ url: 'https://b/o', timeoutMs: 0 }), TypeError);
+
+  const refusing = recordingFetch(() => new Response(null, { status: 403 }));
+  await assert.rejects(
+    () => new FetchTransport({ baseUrl: '/api/v1', fetch: refusing.fetch }).receive({ url: 'https://b/o', timeoutMs: 1000 }),
+    (error: unknown) => error instanceof TransportError && error.status === 403,
+  );
+});
+
 test('a streamed transfer the connection refuses is sent once more, whole', async () => {
   // Chromium streams a request body over HTTP/2 only and fails the fetch over HTTP/1.1 before a
   // byte leaves; the feature test cannot see the connection. The first attempt here is whatever

@@ -58,6 +58,7 @@ const STORED: Rule = {
   run_as: 'sa-1',
   trigger: { kind: 'EVENT', event_type: 'de.hubtask.work.item.updated.v1', changed_fields: ['due_at'] },
   conditions: [{ expr: "item.type == 'TASK'" }, { expr: 'now.getHours() >= 8 && now.getHours() < 18' }, { expr: 'size(item.title) > 3' }],
+  entries: 'is: open',
   actions: [
     { kind: 'ADD_LABEL', params: { label_id: 'l-1' } },
     {
@@ -86,6 +87,8 @@ test('a stored rule opens on the canvas and closes back into the document it cam
     run_as: 'sa-1',
     trigger: { kind: 'EVENT', event_type: 'de.hubtask.work.item.updated.v1', changed_fields: ['due_at'] },
     conditions: STORED.conditions,
+    // UC-AUT-01 check 12: *for which entries* goes back as stored, beside the conditions.
+    entries: 'is: open',
     actions: [
       { kind: 'ADD_LABEL', params: { label_id: 'l-1' } },
       {
@@ -474,4 +477,13 @@ test("a rule of one's own is scoped to its owner, runs as them and starts on an 
   assert.equal(isOwnRule({ scope: { type: 'PERSON', id: 'acc-2' } }, 'acc-1'), false);
   assert.equal(isOwnRule({ scope: { type: 'TENANT' } }, 'acc-1'), false);
   assert.equal(isOwnRule({ scope: { type: 'PERSON', id: 'acc-1' } }, undefined), false);
+});
+
+// UC-AUT-01 check 12: a trigger about no entry takes no line, and a cleared line is sent empty so the
+// rule widens back to every entry.
+test('for which entries is sent where the trigger is about an entry, empty too', () => {
+  const draft = { ...fromRule(STORED), entries: '' };
+  assert.equal(toRuleDraft(draft, 'x').entries, '');
+  const scheduled = { ...draft, entries: 'is: open', trigger: { kind: 'SCHEDULE', rrule: 'FREQ=DAILY', timezone: 'UTC' } };
+  assert.equal('entries' in toRuleDraft(scheduled, 'x'), false);
 });

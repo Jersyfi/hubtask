@@ -95,7 +95,8 @@ func (p *pass) item(ctx context.Context, item domain.Item) (domain.Decision, err
 		}
 		return d, nil
 	case len(ident.Matches) == 1:
-		ci, err := p.s.Store.FindCI(ctx, ident.Matches[0], true)
+		// A dry run reads in a read-only transaction, which refuses the lock.
+		ci, err := p.s.Store.FindCI(ctx, ident.Matches[0], !p.dry)
 		if err != nil {
 			return d, err
 		}
@@ -177,6 +178,9 @@ func (p *pass) create(ctx context.Context, item domain.Item, class domain.Resolv
 	if err := p.s.announce(ctx, p.actor, ci); err != nil {
 		return d, err
 	}
+	if err := p.s.chronicle(ctx, p.actor, ci.ID, domain.VerbCreated, sourceSide(p.source.Key, nil)); err != nil {
+		return d, err
+	}
 	return d, p.s.recordCI(ctx, p.actor, CICreatedAction, ci, append([]string{domain.FieldClass}, taken...))
 }
 
@@ -232,6 +236,9 @@ func (p *pass) update(ctx context.Context, ci domain.CI, item domain.Item, d dom
 	if err := p.s.announce(ctx, p.actor, next); err != nil {
 		return d, err
 	}
+	if err := p.s.chronicleChange(ctx, p.actor, ci, next, p.source.Key, taken); err != nil {
+		return d, err
+	}
 	return d, p.s.recordCI(ctx, p.actor, CIChangedAction, next, taken)
 }
 
@@ -284,6 +291,9 @@ func (p *pass) relation(ctx context.Context, r domain.RelationItem) error {
 	}
 	p.run.Counts.RelationsAdded++
 	rel.ID = stored
+	if err := p.s.chronicleRelation(ctx, p.actor, rel, domain.VerbRelated); err != nil {
+		return err
+	}
 	return p.s.announceRelations(ctx, p.actor, rel)
 }
 

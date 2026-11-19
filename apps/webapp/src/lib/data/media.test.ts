@@ -12,6 +12,7 @@ import {
   colourCover,
   coverImageIdOf,
   downloadUrlOf,
+  fileKindOf,
   imageCover,
   isReady,
   isUsable,
@@ -117,4 +118,15 @@ test('an attachment is kept for later only where the copy holds files, and only 
   assert.equal(keepsOffline(offline, false), false, 'the browser does not: sync.needs_connection');
   assert.equal(keepsOffline(refused, true), false, 'a refusal is the server\'s answer and stays one');
   assert.equal(keepsOffline(new Error('else'), true), false);
+});
+
+test('a file is named by its kind, from its media type or else its ending, never the media type itself', () => {
+  assert.equal(fileKindOf('application/pdf', 'Merchant.pdf'), 'pdf');
+  assert.equal(fileKindOf('image/png', 'Checkout.png'), 'image');
+  assert.equal(fileKindOf('text/markdown', 'Wallet.md'), 'text');
+  assert.equal(fileKindOf('application/zip', 'HAR-Logs.zip'), 'archive');
+  assert.equal(fileKindOf('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Q3.xlsx'), 'sheet');
+  assert.equal(fileKindOf('application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'Terms.docx'), 'document');
+  assert.equal(fileKindOf('application/octet-stream', 'Terms.docx'), 'document');
+  assert.equal(fileKindOf(null, 'blob'), 'file');
 });

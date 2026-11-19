@@ -255,6 +255,10 @@ export const ROUTES: readonly Route[] = [
   // from a mention, a search hit or a backlink, which know the page and not its hub.
   { name: 'hub-pages', pattern: '/hubs/:id/pages' },
   { name: 'page', pattern: '/pages/:id' },
+  // A hub's posts, one of them to read, and one to write (UC-DOC-17, UC-DOC-18); a mail links the second.
+  { name: 'hub-posts', pattern: '/hubs/:id/posts' },
+  { name: 'post-write', pattern: '/posts/:id/write' },
+  { name: 'post', pattern: '/posts/:id' },
   // The reader's own notes and the pages shared with them (UC-DOC-07, UC-DOC-08).
   { name: 'notes', pattern: '/notes' },
   // The approvals waiting for the reader's yes (UC-SVC-09). End-user: deciding is the work.
@@ -263,7 +267,12 @@ export const ROUTES: readonly Route[] = [
   // the service publishes - the same app, its own route area by address (NG-second-app).
   { name: 'portal-request', pattern: '/portal/requests/:id' },
   { name: 'portal-article', pattern: '/portal/:id/articles/:pageId' },
+  // The portal's own tabs (PO-2, PO-3, PO-4) and every department one may ask (PO-1).
+  { name: 'portal-requests', pattern: '/portal/:id/requests' },
+  { name: 'portal-approvals', pattern: '/portal/:id/approvals' },
+  { name: 'portal-knowledge', pattern: '/portal/:id/knowledge' },
   { name: 'portal', pattern: '/portal/:id' },
+  { name: 'portal-directory', pattern: '/portals' },
   // A hub's whiteboards and one of them (M4), addressed as a page is.
   { name: 'hub-whiteboards', pattern: '/hubs/:id/whiteboards' },
   // A hub's desk (user-experience.md §2.4): the handler's queues across its desk collections.
@@ -449,7 +458,7 @@ export function paneFor(
 ): PaneResolution {
   const itemId = route.query['item'];
   const collectionId = route.params['id'];
-  if (route.name !== 'collection' || !itemId || !collectionId) return { kind: 'none' };
+  if ((route.name !== 'collection' && route.name !== 'collection-timeline') || !itemId || !collectionId) return { kind: 'none' };
   if (!options.isLarge) return { kind: 'redirect', path: `/items/${encodeURIComponent(itemId)}` };
   return { kind: 'pane', collectionId, itemId };
 }

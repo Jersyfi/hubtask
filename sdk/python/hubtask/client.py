@@ -375,6 +375,10 @@ class Client:
         """A dashboard's numbers, for the caller"""
         return self._call("GET", "/dashboards/{dashboardId}/figures", {"dashboardId": dashboard_id}, None, {}, None, "none", None, "json")
 
+    def draft_dashboard_figures(self, dashboard_id: str, body: "DashboardDraft") -> "DashboardFigures":
+        """A dashboard's numbers for a definition not saved yet"""
+        return self._call("POST", "/dashboards/{dashboardId}/figures:draft", {"dashboardId": dashboard_id}, None, {}, body, "json", "application/json", "json")
+
     def read_dashboard_digest(self, dashboard_id: str) -> "DashboardDigest":
         """The caller's digest of a dashboard"""
         return self._call("GET", "/dashboards/{dashboardId}/digest", {"dashboardId": dashboard_id}, None, {}, None, "none", None, "json")
@@ -715,6 +719,10 @@ class Client:
         """How the SLA goals of a period stood"""
         return self._call("GET", "/sla-report", {}, query, {}, None, "none", None, "json")
 
+    def read_my_deadlines_kept(self, *, query: dict[str, Any] | None = None) -> "DeadlinesKept":
+        """How many of the deadlines on my own tickets I kept"""
+        return self._call("GET", "/deadlines-kept", {}, query, {}, None, "none", None, "json")
+
     def read_entry_requester(self, item_id: str) -> "EntryRequester":
         """Who raised the entry, and their organisation"""
         return self._call("GET", "/items/{itemId}/requester", {"itemId": item_id}, None, {}, None, "none", None, "json")
@@ -783,6 +791,10 @@ class Client:
         """The articles a service's portal offers for what a requester types"""
         return self._call("GET", "/articles", {}, query, {}, None, "none", None, "json")
 
+    def list_portal_knowledge(self, *, query: dict[str, Any] | None = None) -> "PortalKnowledge":
+        """What a service's portal shares of the knowledge base"""
+        return self._call("GET", "/portal-knowledge", {}, query, {}, None, "none", None, "json")
+
     def read_article(self, page_id: str, *, query: dict[str, Any] | None = None) -> "Article":
         """Open an article of a service's portal"""
         return self._call("GET", "/articles/{pageId}", {"pageId": page_id}, query, {}, None, "none", None, "json")
@@ -812,15 +824,15 @@ class Client:
         return self._call("POST", "/requests/{itemId}/comments", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
     def list_ci_classes(self) -> "CiClassList":
-        """The configuration item classes"""
+        """The object types"""
         return self._call("GET", "/cmdb/classes", {}, None, {}, None, "none", None, "json")
 
     def define_ci_class(self, class_key: str, body: "CiClassDefine", *, if_match: str | None = None) -> "CiClass":
-        """Add or change a class of the workspace's own"""
+        """Add or change an object type of the workspace's own"""
         return self._call("PUT", "/cmdb/classes/{classKey}", {"classKey": class_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
     def list_ci_relation_types(self) -> "CiRelationTypeList":
-        """The relation types between configuration items"""
+        """The relation types between objects"""
         return self._call("GET", "/cmdb/relation-types", {}, None, {}, None, "none", None, "json")
 
     def define_ci_relation_type(self, type_key: str, body: "CiRelationTypeDefine", *, if_match: str | None = None) -> "CiRelationType":
@@ -828,7 +840,7 @@ class Client:
         return self._call("PUT", "/cmdb/relation-types/{typeKey}", {"typeKey": type_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
     def list_ci_sources(self) -> "CiSourceList":
-        """The sources configuration items come from"""
+        """The sources objects come from"""
         return self._call("GET", "/cmdb/sources", {}, None, {}, None, "none", None, "json")
 
     def define_ci_source(self, source_key: str, body: "CiSourceDefine", *, if_match: str | None = None) -> "CiSource":
@@ -836,11 +848,11 @@ class Client:
         return self._call("PUT", "/cmdb/sources/{sourceKey}", {"sourceKey": source_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
     def list_cis(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "ConfigurationItemList":
-        """A hub's configuration items"""
+        """A hub's objects"""
         return self._call("GET", "/hubs/{hubId}/cis", {"hubId": hub_id}, query, {}, None, "none", None, "json")
 
     def create_ci(self, hub_id: str, body: "ConfigurationItemCreate") -> "ConfigurationItem":
-        """Make a configuration item by hand"""
+        """Make an object by hand"""
         return self._call("POST", "/hubs/{hubId}/cis", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
 
     def reconcile_cis(self, hub_id: str, body: "CiPayload") -> "CiRun":
@@ -848,7 +860,7 @@ class Client:
         return self._call("POST", "/hubs/{hubId}/cis:reconcile", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
 
     def import_ci_file(self, hub_id: str, body: "CiFileImport") -> "CiRun":
-        """Import a file of configuration items"""
+        """Import a file of objects"""
         return self._call("POST", "/hubs/{hubId}/cis:import", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
 
     def list_ci_runs(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "CiRunList":
@@ -972,35 +984,59 @@ class Client:
         return self._call("GET", "/hubs/{hubId}/cmdb-health", {"hubId": hub_id}, None, {}, None, "none", None, "json")
 
     def read_ci(self, ci_id: str) -> "ConfigurationItem":
-        """Read a configuration item"""
+        """Read an object"""
         return self._call("GET", "/cis/{ciId}", {"ciId": ci_id}, None, {}, None, "none", None, "json")
 
     def update_ci(self, ci_id: str, body: "ConfigurationItemUpdate", *, if_match: str | None = None) -> "ConfigurationItem":
-        """Change a configuration item by hand"""
+        """Change an object by hand"""
         return self._call("PATCH", "/cis/{ciId}", {"ciId": ci_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
+    def confirm_ci(self, ci_id: str, body: "CiConfirm") -> "ConfigurationItem":
+        """Confirm an object is as recorded"""
+        return self._call("POST", "/cis/{ciId}:confirm", {"ciId": ci_id}, None, {}, body, "json", "application/json", "json")
+
     def set_ci_compliance(self, ci_id: str, body: "CiCompliance", *, if_match: str | None = None) -> "ConfigurationItem":
-        """Set a configuration item's lifecycle and compliance fields"""
+        """Set an object's lifecycle and compliance fields"""
         return self._call("PUT", "/cis/{ciId}/compliance", {"ciId": ci_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
     def read_ci_impact(self, ci_id: str, *, query: dict[str, Any] | None = None) -> "CiImpact":
-        """What a configuration item's failure reaches"""
+        """What an object's failure reaches"""
         return self._call("GET", "/cis/{ciId}/impact", {"ciId": ci_id}, query, {}, None, "none", None, "json")
 
     def list_ci_backlinks(self, ci_id: str) -> "CiBacklinkList":
-        """What points at a configuration item"""
+        """What points at an object"""
         return self._call("GET", "/cis/{ciId}/backlinks", {"ciId": ci_id}, None, {}, None, "none", None, "json")
 
+    def list_ci_work(self, ci_id: str) -> "CiWork":
+        """The entries an object is part of"""
+        return self._call("GET", "/cis/{ciId}/work", {"ciId": ci_id}, None, {}, None, "none", None, "json")
+
+    def list_ci_attachments(self, ci_id: str, *, query: dict[str, Any] | None = None) -> "MediaPage":
+        """An object's files"""
+        return self._call("GET", "/cis/{ciId}/attachments", {"ciId": ci_id}, query, {}, None, "none", None, "json")
+
+    def attach_ci_media(self, ci_id: str, media_id: str) -> "CiAttachments":
+        """Put a file on an object"""
+        return self._call("PUT", "/cis/{ciId}/attachments/{mediaId}", {"ciId": ci_id, "mediaId": media_id}, None, {}, None, "none", None, "json")
+
+    def detach_ci_media(self, ci_id: str, media_id: str) -> "CiAttachments":
+        """Take a file off an object"""
+        return self._call("DELETE", "/cis/{ciId}/attachments/{mediaId}", {"ciId": ci_id, "mediaId": media_id}, None, {}, None, "none", None, "json")
+
+    def list_ci_history(self, ci_id: str, *, query: dict[str, Any] | None = None) -> "CiHistoryPage":
+        """An object's history"""
+        return self._call("GET", "/cis/{ciId}/history", {"ciId": ci_id}, query, {}, None, "none", None, "json")
+
     def list_entry_cis(self, item_id: str) -> "EntryCis":
-        """The configuration items an entry names as affected"""
+        """The objects an entry names as affected"""
         return self._call("GET", "/items/{itemId}/cis", {"itemId": item_id}, None, {}, None, "none", None, "json")
 
     def affect_entry_ci(self, item_id: str, ci_id: str) -> "EntryCis":
-        """Name a configuration item as affected by an entry"""
+        """Name an object as affected by an entry"""
         return self._call("PUT", "/items/{itemId}/cis/{ciId}", {"itemId": item_id, "ciId": ci_id}, None, {}, None, "none", None, "json")
 
     def unaffect_entry_ci(self, item_id: str, ci_id: str) -> "EntryCis":
-        """Remove a configuration item from an entry's affected ones"""
+        """Remove an object from an entry's affected ones"""
         return self._call("DELETE", "/items/{itemId}/cis/{ciId}", {"itemId": item_id, "ciId": ci_id}, None, {}, None, "none", None, "json")
 
     def list_ci_campaigns(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "CiCampaignList":
@@ -1008,31 +1044,43 @@ class Client:
         return self._call("GET", "/hubs/{hubId}/ci-campaigns", {"hubId": hub_id}, query, {}, None, "none", None, "json")
 
     def start_ci_campaign(self, hub_id: str, body: "CiCampaignStart") -> "CiCampaign":
-        """Ask the owners of a hub's CIs to attest them"""
+        """Ask the owners of a hub's objects to attest them"""
         return self._call("POST", "/hubs/{hubId}/ci-campaigns", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
 
     def read_ci_campaign(self, campaign_id: str) -> "CiCampaignDetail":
-        """A certification campaign with every CI asked"""
+        """A certification campaign with every object asked"""
         return self._call("GET", "/ci-campaigns/{campaignId}", {"campaignId": campaign_id}, None, {}, None, "none", None, "json")
 
     def close_ci_campaign(self, campaign_id: str, *, if_match: str | None = None) -> "CiCampaign":
         """Stop a campaign taking answers"""
         return self._call("POST", "/ci-campaigns/{campaignId}:close", {"campaignId": campaign_id}, None, {"If-Match": if_match}, None, "none", None, "json")
 
+    def remind_ci_campaign(self, campaign_id: str) -> "CiCampaignReminded":
+        """Remind the owners who have not answered yet"""
+        return self._call("POST", "/ci-campaigns/{campaignId}:remind", {"campaignId": campaign_id}, None, {}, None, "none", None, "json")
+
     def attest_ci(self, campaign_id: str, ci_id: str, body: "CiAttest") -> "CiAttestation":
-        """Answer a campaign's question about a configuration item"""
+        """Answer a campaign's question about an object"""
         return self._call("PUT", "/ci-campaigns/{campaignId}/cis/{ciId}", {"campaignId": campaign_id, "ciId": ci_id}, None, {}, body, "json", "application/json", "json")
 
+    def list_hub_ci_work(self, hub_id: str) -> "CiWorkCounts":
+        """How many open entries name each object of a hub"""
+        return self._call("GET", "/hubs/{hubId}/ci-work", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
     def list_ci_groups(self, hub_id: str) -> "CiGroupList":
-        """A hub's CI groups"""
+        """A hub's object groups"""
         return self._call("GET", "/hubs/{hubId}/ci-groups", {"hubId": hub_id}, None, {}, None, "none", None, "json")
 
     def define_ci_group(self, hub_id: str, group_key: str, body: "CiGroupDefine", *, if_match: str | None = None) -> "CiGroup":
-        """Define or change a CI group by its key"""
+        """Define or change an object group by its key"""
         return self._call("PUT", "/hubs/{hubId}/ci-groups/{groupKey}", {"hubId": hub_id, "groupKey": group_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
+    def delete_ci_group(self, hub_id: str, group_key: str, *, if_match: str | None = None) -> None:
+        """Delete an object group by its key"""
+        return self._call("DELETE", "/hubs/{hubId}/ci-groups/{groupKey}", {"hubId": hub_id, "groupKey": group_key}, None, {"If-Match": if_match}, None, "none", None, "void")
+
     def list_ci_group_members(self, group_id: str) -> "CiGroupMembers":
-        """The configuration items a group holds now"""
+        """The objects a group holds now"""
         return self._call("GET", "/ci-groups/{groupId}/members", {"groupId": group_id}, None, {}, None, "none", None, "json")
 
     def read_service_map(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "ServiceMap":
@@ -1040,19 +1088,19 @@ class Client:
         return self._call("GET", "/hubs/{hubId}/service-map", {"hubId": hub_id}, query, {}, None, "none", None, "json")
 
     def list_ci_assets(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "CiAssetList":
-        """A hub's asset register"""
+        """A hub's register records"""
         return self._call("GET", "/hubs/{hubId}/assets", {"hubId": hub_id}, query, {}, None, "none", None, "json")
 
     def read_ci_asset(self, ci_id: str) -> "CiAsset":
-        """A configuration item's asset record"""
+        """An object's register record"""
         return self._call("GET", "/cis/{ciId}/asset", {"ciId": ci_id}, None, {}, None, "none", None, "json")
 
     def register_ci_asset(self, ci_id: str, body: "CiAssetRegister", *, if_match: str | None = None) -> "CiAsset":
-        """Write a configuration item's asset record"""
+        """Write an object's register record"""
         return self._call("PUT", "/cis/{ciId}/asset", {"ciId": ci_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
     def move_ci_asset(self, ci_id: str, body: "CiAssetMove", *, if_match: str | None = None) -> "CiAsset":
-        """Move an asset through its life"""
+        """Move a register record through its life"""
         return self._call("POST", "/cis/{ciId}/asset:move", {"ciId": ci_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
     def list_software_aliases(self) -> "SoftwareAliasList":
@@ -1072,7 +1120,7 @@ class Client:
         return self._call("GET", "/hubs/{hubId}/software", {"hubId": hub_id}, None, {}, None, "none", None, "json")
 
     def relate_cis(self, body: "CiRelate") -> "CiRelation":
-        """Join two configuration items"""
+        """Join two objects"""
         return self._call("POST", "/ci-relations", {}, None, {}, body, "json", "application/json", "json")
 
     def unrelate_cis(self, relation_id: str) -> "CiRelationRemoved":
@@ -2659,6 +2707,10 @@ class Client:
         """Move an entry on by one step"""
         return self._call("POST", "/items/{itemId}:step", {"itemId": item_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
+    def drop_item_on_column(self, item_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "DropAnswer":
+        """Drop an entry onto a board's column"""
+        return self._call("POST", "/items/{itemId}:drop", {"itemId": item_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
     def set_item_entry_type(self, item_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "WorkItem":
         """Change an entry's type"""
         return self._call("PUT", "/items/{itemId}/entry-type", {"itemId": item_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
@@ -2939,9 +2991,25 @@ class Client:
         """One search across entries and pages, for another product's search box"""
         return self._call("POST", "/glance:search", {}, None, {}, body, "json", "application/json", "json")
 
+    def search_all(self, body: "SearchAllRequest") -> "SearchAllAnswer":
+        """One search over every kind of object the caller may read"""
+        return self._call("POST", "/search:all", {}, None, {}, body, "json", "application/json", "json")
+
+    def ask_query(self, body: "AskQueryRequest") -> "AskedQuery":
+        """Write a Hubtask query from a question in words"""
+        return self._call("POST", "/query:ask", {}, None, {}, body, "json", "application/json", "json")
+
     def reindex_search(self) -> "SearchReindex":
         """Bring the workspace's search documents current"""
         return self._call("POST", "/search:reindex", {}, None, {}, None, "none", None, "json")
+
+    def switch_board(self, container_id: str, body: dict[str, Any]) -> "BoardSwitch":
+        """Show a collection's tasks as a board, or as a list again"""
+        return self._call("POST", "/containers/{containerId}/board:switch", {"containerId": container_id}, None, {}, body, "json", "application/json", "json")
+
+    def make_board_workflow(self, container_id: str, body: dict[str, Any]) -> "BoardWorkflow":
+        """Make a workflow from a board's columns"""
+        return self._call("POST", "/containers/{containerId}/board:workflow", {"containerId": container_id}, None, {}, body, "json", "application/json", "json")
 
     def complete_work_item(self, item_id: str, body: dict[str, Any], *, idempotency_key: str | None = None) -> "WorkItem":
         """POST /items/{itemId}:complete"""
@@ -3059,9 +3127,9 @@ class Client:
         """PATCH /containers/{containerId}/buckets/{bucketId}"""
         return self._call("PATCH", "/containers/{containerId}/buckets/{bucketId}", {"containerId": container_id, "bucketId": bucket_id}, None, {"If-Match": if_match}, body, "json", "application/merge-patch+json", "json")
 
-    def delete_bucket(self, container_id: str, bucket_id: str, *, if_match: str | None = None) -> "BucketDeletion":
+    def delete_bucket(self, container_id: str, bucket_id: str, *, query: dict[str, Any] | None = None, if_match: str | None = None) -> "BucketDeletion":
         """DELETE /containers/{containerId}/buckets/{bucketId}"""
-        return self._call("DELETE", "/containers/{containerId}/buckets/{bucketId}", {"containerId": container_id, "bucketId": bucket_id}, None, {"If-Match": if_match}, None, "none", None, "json")
+        return self._call("DELETE", "/containers/{containerId}/buckets/{bucketId}", {"containerId": container_id, "bucketId": bucket_id}, query, {"If-Match": if_match}, None, "none", None, "json")
 
     def reorder_bucket(self, container_id: str, bucket_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "Bucket":
         """POST /containers/{containerId}/buckets/{bucketId}:reorder"""
@@ -3215,6 +3283,42 @@ class Client:
         """GET /media/{mediaId}:content"""
         return self._call("GET", "/media/{mediaId}:content", {"mediaId": media_id}, query, {}, None, "none", None, "raw")
 
+    def convert_media_to_pdf(self, media_id: str, body: dict[str, Any]) -> bytes:
+        """POST /media/{mediaId}:pdf"""
+        return self._call("POST", "/media/{mediaId}:pdf", {"mediaId": media_id}, None, {}, body, "json", "application/json", "raw")
+
+    def start_media_editing(self, media_id: str) -> "MediaEditingSession":
+        """POST /media/{mediaId}:edit"""
+        return self._call("POST", "/media/{mediaId}:edit", {"mediaId": media_id}, None, {}, None, "none", None, "json")
+
+    def read_document_server(self) -> "DocumentServer":
+        """The workspace's document server"""
+        return self._call("GET", "/media:document-server", {}, None, {}, None, "none", None, "json")
+
+    def set_document_server(self, body: "DocumentServer") -> "DocumentServer":
+        """Choose the workspace's document server"""
+        return self._call("PUT", "/media:document-server", {}, None, {}, body, "json", "application/json", "json")
+
+    def check_document_server(self, body: "DocumentServer") -> "DocumentServerCheck":
+        """Test a document server before choosing it"""
+        return self._call("POST", "/media:document-server-check", {}, None, {}, body, "json", "application/json", "json")
+
+    def check_wopi_file_info(self, media_id: str, *, query: dict[str, Any] | None = None) -> "WopiFileInfo":
+        """GET /wopi/files/{mediaId}"""
+        return self._call("GET", "/wopi/files/{mediaId}", {"mediaId": media_id}, query, {}, None, "none", None, "json")
+
+    def lock_wopi_file(self, media_id: str, *, query: dict[str, Any] | None = None) -> None:
+        """POST /wopi/files/{mediaId}"""
+        return self._call("POST", "/wopi/files/{mediaId}", {"mediaId": media_id}, query, {}, None, "none", None, "void")
+
+    def get_wopi_file(self, media_id: str, *, query: dict[str, Any] | None = None) -> bytes:
+        """GET /wopi/files/{mediaId}/contents"""
+        return self._call("GET", "/wopi/files/{mediaId}/contents", {"mediaId": media_id}, query, {}, None, "none", None, "raw")
+
+    def put_wopi_file(self, media_id: str, body: bytes, *, query: dict[str, Any] | None = None) -> None:
+        """POST /wopi/files/{mediaId}/contents"""
+        return self._call("POST", "/wopi/files/{mediaId}/contents", {"mediaId": media_id}, query, {}, body, "raw", "application/octet-stream", "void")
+
     def stream_changes(self, *, last_event_id: str | None = None) -> bytes:
         """The change stream, as server-sent events"""
         return self._call("GET", "/stream", {}, None, {"Last-Event-ID": last_event_id}, None, "none", None, "raw")
@@ -3262,6 +3366,14 @@ class Client:
     def add_hub_template_page(self, hub_id: str, body: dict[str, Any]) -> "HubTemplatePage":
         """Add a template's page"""
         return self._call("POST", "/hubs/{hubId}/template-pages", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_goal_sets(self) -> "GoalSetList":
+        """The goal periods a template brought"""
+        return self._call("GET", "/goal-sets", {}, None, {}, None, "none", None, "json")
+
+    def add_goal_set(self, body: dict[str, Any]) -> "GoalSet":
+        """Add a template's goal set"""
+        return self._call("POST", "/goal-sets", {}, None, {}, body, "json", "application/json", "json")
 
     def remove_sample_entries(self, hub_id: str) -> dict[str, Any]:
         """Remove the hub's sample entries"""
@@ -3331,6 +3443,70 @@ class Client:
         """Take a page comment back"""
         return self._call("DELETE", "/page-comments/{commentId}", {"commentId": comment_id}, None, {}, None, "none", None, "void")
 
+    def list_hub_posts(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "PostList":
+        """A hub's posts"""
+        return self._call("GET", "/hubs/{hubId}/posts", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def create_post(self, hub_id: str, body: "PostCreate") -> "Post":
+        """Write a new post"""
+        return self._call("POST", "/hubs/{hubId}/posts", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def follow_hub_posts(self, hub_id: str, body: "PostFollowing") -> "PostFollowing":
+        """Follow a hub's posts"""
+        return self._call("PUT", "/hubs/{hubId}/posts/following", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_unread_posts(self) -> "UnreadPostList":
+        """The posts new for the caller"""
+        return self._call("GET", "/posts", {}, None, {}, None, "none", None, "json")
+
+    def read_post(self, page_id: str) -> "Post":
+        """Read a post"""
+        return self._call("GET", "/posts/{pageId}", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def set_post_settings(self, page_id: str, body: "PostSettings") -> "Post":
+        """Schedule, feature or narrow a post"""
+        return self._call("PUT", "/posts/{pageId}", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
+    def publish_post(self, page_id: str) -> "Post":
+        """Publish a post now"""
+        return self._call("POST", "/posts/{pageId}:publish", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def mark_post_seen(self, page_id: str) -> "Post":
+        """Mark a post seen"""
+        return self._call("POST", "/posts/{pageId}:seen", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def confirm_post(self, page_id: str) -> "Post":
+        """Confirm having read a post"""
+        return self._call("POST", "/posts/{pageId}:confirm", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def read_post_confirmations(self, page_id: str) -> "PostConfirmations":
+        """Who confirmed a post"""
+        return self._call("GET", "/posts/{pageId}/confirmations", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def remind_post(self, page_id: str) -> "PostReminded":
+        """Remind those who have not confirmed a post"""
+        return self._call("POST", "/posts/{pageId}:remind", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def list_post_replies(self, page_id: str) -> "PostReplyList":
+        """A post's discussion"""
+        return self._call("GET", "/posts/{pageId}/replies", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def add_post_reply(self, page_id: str, body: "PostReplyCreate") -> "PostReply":
+        """Reply in a post's discussion"""
+        return self._call("POST", "/posts/{pageId}/replies", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
+    def delete_post_reply(self, page_id: str, reply_id: str) -> None:
+        """Take a reply back"""
+        return self._call("DELETE", "/posts/{pageId}/replies/{replyId}", {"pageId": page_id, "replyId": reply_id}, None, {}, None, "none", None, "void")
+
+    def react_to_post_reply(self, page_id: str, reply_id: str, reaction: str) -> "PostReply":
+        """React to a reply"""
+        return self._call("PUT", "/posts/{pageId}/replies/{replyId}/reactions/{reaction}", {"pageId": page_id, "replyId": reply_id, "reaction": reaction}, None, {}, None, "none", None, "json")
+
+    def unreact_to_post_reply(self, page_id: str, reply_id: str, reaction: str) -> "PostReply":
+        """Take a reaction back"""
+        return self._call("DELETE", "/posts/{pageId}/replies/{replyId}/reactions/{reaction}", {"pageId": page_id, "replyId": reply_id, "reaction": reaction}, None, {}, None, "none", None, "json")
+
     def list_page_backlinks(self, page_id: str) -> "PageBacklinkList":
         """What links to a page"""
         return self._call("GET", "/pages/{pageId}/backlinks", {"pageId": page_id}, None, {}, None, "none", None, "json")
@@ -3386,6 +3562,22 @@ class Client:
     def attach_page_media(self, page_id: str, body: "PageMediaAttachment") -> "PageMediaAttachment":
         """Attach an uploaded picture or file to a page"""
         return self._call("POST", "/pages/{pageId}/media", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
+    def search_cover_images(self, page_id: str, *, query: dict[str, Any] | None = None) -> "CoverImageSearch":
+        """Search an image library for a page's cover"""
+        return self._call("GET", "/pages/{pageId}/cover-images", {"pageId": page_id}, query, {}, None, "none", None, "json")
+
+    def fetch_cover_image(self, page_id: str, picture_id: str) -> "CoverImageFetched":
+        """Fetch an image library's picture for a page's cover"""
+        return self._call("POST", "/pages/{pageId}/cover-images/{pictureId}:fetch", {"pageId": page_id, "pictureId": picture_id}, None, {}, None, "none", None, "json")
+
+    def read_cover_images_policy(self) -> "CoverImagesPolicy":
+        """Which image library covers may take pictures from"""
+        return self._call("GET", "/pages:cover-images", {}, None, {}, None, "none", None, "json")
+
+    def set_cover_images_policy(self, body: dict[str, Any]) -> "CoverImagesPolicy":
+        """Offer an image library for covers, or none"""
+        return self._call("PUT", "/pages:cover-images", {}, None, {}, body, "json", "application/json", "json")
 
     def publish_page_to_portal(self, page_id: str, body: dict[str, Any]) -> "PageArticle":
         """Publish a page to a service's portal"""

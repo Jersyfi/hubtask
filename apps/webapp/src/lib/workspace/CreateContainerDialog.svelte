@@ -375,7 +375,7 @@
               {@const isChosen = fromTemplate === '' && preset === option.value}
               <TemplateCard name={option.label} summary={option.hint} {isChosen} isCompact data-hub-preset={option.value || 'default'}>
                 {#snippet action()}
-                  <Button size="sm" tone={isChosen ? 'primary' : 'secondary'} icon={isChosen ? 'check' : undefined} aria-pressed={isChosen} onclick={() => pickPreset(option.value)}>
+                  <Button size="sm" tone="secondary" icon={isChosen ? 'check' : undefined} aria-pressed={isChosen} onclick={() => pickPreset(option.value)}>
                     {t(isChosen ? 'app.workspace.hub_template_chosen' : 'app.workspace.hub_template_choose')}<VisuallyHidden>{` ${option.label}`}</VisuallyHidden>
                   </Button>
                 {/snippet}
@@ -393,7 +393,7 @@
                 <TemplateCard {name} mark={markOf(each)} summary={summaryOf(each)} products={productsOf(each)} {isChosen} isCompact data-hub-template={each.key}
                   note={each.taken_version == null ? undefined : t('app.workspace.hub_template_in_workspace')}>
                   {#snippet action()}
-                    <Button size="sm" tone={isChosen ? 'primary' : 'secondary'} icon={isChosen ? 'check' : undefined} aria-pressed={isChosen} onclick={() => pickTemplate(each.key)}>
+                    <Button size="sm" tone="secondary" icon={isChosen ? 'check' : undefined} aria-pressed={isChosen} onclick={() => pickTemplate(each.key)}>
                       {t(isChosen ? 'app.workspace.hub_template_chosen' : 'app.workspace.hub_template_choose')}<VisuallyHidden>{` ${name}`}</VisuallyHidden>
                     </Button>
                   {/snippet}

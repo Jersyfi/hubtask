@@ -462,6 +462,9 @@ type ListBuckets struct {
 	Containers repository.Containers
 	Authorizer Authorizer
 	UnitOfWork persistence.UnitOfWork
+	// Statuses answers the statuses each column shows under a workflow; a build without it
+	// answers every column with none.
+	Statuses repository.BucketStatuses
 }
 
 // ListBucketsQuery is the input, typed.
@@ -477,8 +480,17 @@ type ListBucketsQuery struct {
 func (h ListBuckets) Execute(
 	ctx context.Context, actor appshared.ActorContext, query ListBucketsQuery,
 ) ([]domain.Bucket, error) {
+	board, err := h.read(ctx, actor, query)
+	return board.Columns, err
+}
+
+// read answers the live columns and, where the build reads them, the statuses they show, in one
+// read-only transaction after the permission question.
+func (h ListBuckets) read(
+	ctx context.Context, actor appshared.ActorContext, query ListBucketsQuery,
+) (domain.Board, error) {
 	if query.CollectionID.IsZero() {
-		return nil, collectionIDRequired()
+		return domain.Board{}, collectionIDRequired()
 	}
 
 	// The collection is read first, because the permission question needs its path: a membership at
@@ -490,7 +502,7 @@ func (h ListBuckets) Execute(
 		return err
 	})
 	if err != nil {
-		return nil, err
+		return domain.Board{}, err
 	}
 
 	if err := h.Authorizer.Authorize(ctx, actor, access.Request{
@@ -501,19 +513,19 @@ func (h ListBuckets) Execute(
 		TargetType: bucketTarget,
 		TargetID:   query.CollectionID,
 	}); err != nil {
-		return nil, err
+		return domain.Board{}, err
 	}
 
-	var board []domain.Bucket
+	var board domain.Board
 	err = h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		board, err = h.Buckets.List(ctx, query.CollectionID)
+		if board.Columns, err = h.Buckets.List(ctx, query.CollectionID); err != nil || h.Statuses == nil {
+			return err
+		}
+		board.Mapping, err = h.Statuses.List(ctx, query.CollectionID)
 		return err
 	})
-	if err != nil {
-		return nil, err
-	}
-	return board, nil
+	return board, err
 }
 
 // Descriptor is the catalogue entry.
@@ -552,14 +564,20 @@ func (h ListBuckets) invoke(
 		return nil, err
 	}
 
-	board, err := h.Execute(ctx, actor, ListBucketsQuery{CollectionID: collectionID})
+	board, err := h.read(ctx, actor, ListBucketsQuery{CollectionID: collectionID})
 	if err != nil {
 		return nil, err
 	}
 
-	data := make([]usecase.Output, 0, len(board))
-	for _, bucket := range board {
-		data = append(data, bucketOutput(bucket))
+	data := make([]usecase.Output, 0, len(board.Columns))
+	for _, bucket := range board.Columns {
+		out := bucketOutput(bucket)
+		statuses := board.StatusesOf(bucket.ID)
+		if statuses == nil {
+			statuses = []string{}
+		}
+		out["statuses"] = statuses
+		data = append(data, out)
 	}
 	return usecase.Output{"data": data}, nil
 }

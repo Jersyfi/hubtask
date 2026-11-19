@@ -17,7 +17,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { MANIFEST, signedIn, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -122,8 +122,7 @@ async function openSwitch(page) {
 }
 
 test('chromium: a sign-in adds the workspace, and Switch workspace opens another (checks 1, 2)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, asked } = await device(browser);
   t.after(() => context.close());
 
@@ -151,8 +150,7 @@ test('chromium: a sign-in adds the workspace, and Switch workspace opens another
 });
 
 test('chromium: on a phone the account sheet lists the workspaces, and one tapped opens (the navigation concept §9)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context } = await device(browser, { width: 390 });
   t.after(() => context.close());
 
@@ -169,8 +167,7 @@ test('chromium: on a phone the account sheet lists the workspaces, and one tappe
 });
 
 test('chromium: forgetting takes the workspace off the menu at once and off the installation\'s address (checks 3, 4)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context } = await device(browser);
   t.after(() => context.close());
 
@@ -200,8 +197,7 @@ test('chromium: forgetting takes the workspace off the menu at once and off the 
 });
 
 test('chromium: an entry whose address changed says so and is only forgotten; a forged one is never added (checks 5, 6)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context } = await device(browser, { main: ['acme.localhost'] });
   t.after(() => context.close());
   const forged = entryFor('north.localhost', { forged: true });
@@ -235,8 +231,7 @@ test('chromium: an entry whose address changed says so and is only forgotten; a 
 });
 
 test('chromium: in single mode there is no list and no Switch workspace (check 8)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page } = await signedIn(browser, 1280);
   t.after(() => context.close());
   const asked = [];

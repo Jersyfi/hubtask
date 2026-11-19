@@ -8,6 +8,7 @@ import (
 
 	goalrepo "github.com/Jersyfi/hubtask/core/application/repository/goal"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/goal"
@@ -132,8 +133,10 @@ func (s Steward) readableEntries(ctx context.Context, actor appshared.ActorConte
 	var summaries []workrepo.EntrySummary
 	if err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		summaries, err = s.References.Entries(ctx, ids)
-		return err
+		if summaries, err = s.References.Entries(ctx, ids); err != nil {
+			return err
+		}
+		return work.WorkflowGate{Workflows: s.Workflows}.NameStatuses(ctx, summaries)
 	}); err != nil {
 		return nil, err
 	}
@@ -157,14 +160,14 @@ func (s Steward) readableEntries(ctx context.Context, actor appshared.ActorConte
 	return out, nil
 }
 
-// viewTotal answers a saved summary view's total for the reader: the sum of its rows' values, or
-// of their counts for a count. A view the reader cannot run answers nothing, and the key result
+// viewTotal answers a saved view's total for the reader: the sum of its rows' values, or of their
+// counts for a count - and for a view that stores no summary, the count of what it lists (§6.11). A view the reader cannot run answers nothing, and the key result
 // shows its stored value.
 func (s Steward) viewTotal(ctx context.Context, actor appshared.ActorContext, viewID shared.ID) (float64, bool) {
 	if s.ViewSummaries == nil {
 		return 0, false
 	}
-	out, err := s.ViewSummaries.Invoke(ctx, actor, usecase.Input{"view_id": viewID.String()})
+	out, err := s.ViewSummaries.Invoke(ctx, actor, usecase.Input{"view_id": viewID.String(), "as_count": true})
 	if err != nil {
 		return 0, false
 	}

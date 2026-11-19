@@ -11,7 +11,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, ALL, IT, KB, PD, VPN, WEB, id, open, served, texts } from './kompassstub.mjs';
 
@@ -31,11 +31,10 @@ const heads = (locator) => locator.evaluateAll((nodes) => nodes.map((node) => no
 const at = (page, path) => page.waitForFunction((want) => location.pathname + location.search === want, path, { timeout: 10_000 });
 
 test('UC-WRK-36 check 13: Today · Browse · ＋ · Inbox · Search; Browse holds the levels as steps, each tab keeps its own stack', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await phone(browser, '/');
   t.after(close);
-  assert.deepEqual(await texts(tabs(page).locator('.word')), ['Today', 'Browse', 'Capture', 'Inbox', 'Search']);
+  assert.deepEqual(await texts(tabs(page).locator('.word')), ['Today', 'Browse', 'Create', 'Inbox', 'Search']);
   assert.equal(await page.getByRole('button', { name: 'Open the navigation' }).count(), 0, 'a drawer beside the stack');
 
   await tabs(page).getByRole('link', { name: 'Browse' }).click();
@@ -66,8 +65,7 @@ test('UC-WRK-36 check 13: Today · Browse · ＋ · Inbox · Search; Browse hold
 });
 
 test('UC-WRK-36 check 14: ‹ the level above, the title, ☆ and ⋯; a content row opens by its name and descends by its ›; the view is a chip with the same views', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await phone(browser, `/browse/hubs/${IT.id}`);
   t.after(close);
   await bar(page).getByRole('button', { name: `Star ${IT.name}` }).waitFor({ timeout: 10_000 });
@@ -101,8 +99,7 @@ test('UC-WRK-36 check 14: ‹ the level above, the title, ☆ and ⋯; a content
 });
 
 test('UC-WRK-36 check 15: every stack change is announced, every target is 44 pixels, every sheet has a heading and Close', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await phone(browser, '/browse');
   t.after(close);
   await step(page).getByRole('link', { name: IT.name }).click();
@@ -110,7 +107,9 @@ test('UC-WRK-36 check 15: every stack change is announced, every target is 44 pi
   await step(page).getByRole('link', { name: /^Queues/ }).click();
   await page.waitForFunction(() => document.querySelector('.announcement')?.textContent?.trim() === 'Queues, level 3', null, { timeout: 10_000 });
 
-  const small = async () => page.evaluate(() => {
+  // Measured once nothing moves: a target caught mid-transition measures under its size.
+  const small = async () => page.evaluate(async () => {
+    await Promise.all(document.getAnimations().map((each) => each.finished.catch(() => undefined)));
     const seen = [...document.querySelectorAll('[data-phone-bar] a, [data-phone-bar] button, nav[aria-label="Sections"] a, nav[aria-label="Sections"] button, [data-browse-step] a, [data-browse-step] button, dialog[open] a, dialog[open] button')];
     return seen
       .filter((each) => each.getClientRects().length > 0)
@@ -142,8 +141,7 @@ test('UC-WRK-36 check 15: every stack change is announced, every target is 44 pi
 });
 
 test('UC-WRK-36 check 16: between 600 and 904 pixels the sidebar is a drawer with both levels, and no bottom bar', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { path: '/', modulesOn: ALL, hubModules: ON, owner: true, width: 768, height: 1024 });
   t.after(close);
   assert.equal(await tabs(page).count(), 0, 'a bottom bar on a tablet');
@@ -163,8 +161,7 @@ test('UC-WRK-36 check 16: between 600 and 904 pixels the sidebar is a drawer wit
 });
 
 test('UC-INS-21 check 11: on a phone a module off at a hub takes its tool and its part of the hub out of the stack', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await phone(browser, `/browse/hubs/${IT.id}`, { hubModules: { [IT.id]: ['WORKFLOWS', 'SERVICE_DESK'] } });
   t.after(close);
   const tools = step(page).getByRole('list', { name: `Tools of ${IT.name}` });
@@ -175,8 +172,7 @@ test('UC-INS-21 check 11: on a phone a module off at a hub takes its tool and it
 });
 
 test('no sideways scroll at 390 pixels on the main screens', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await phone(browser, '/');
   t.after(close);
   const screens = ['/', '/browse', `/browse/hubs/${IT.id}`, `/browse/hubs/${IT.id}/queues`, `/browse/hubs/${IT.id}/contents`, `/hubs/${IT.id}`, `/hubs/${PD.id}/plan`,
@@ -192,8 +188,7 @@ test('no sideways scroll at 390 pixels on the main screens', async (t) => {
 });
 
 test('UC-WRK-36 check 14: an edge swipe goes one level up; one from the middle of the screen goes nowhere', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await phone(browser, `/browse/hubs/${IT.id}/queues`);
   t.after(close);
   await step(page).getByRole('link', { name: /^About to breach/ }).waitFor({ timeout: 10_000 });

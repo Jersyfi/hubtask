@@ -8,8 +8,8 @@
 <!-- § 5 DDG. The site is German-operated, so the legal pages are German while the product pages
      stay English; the whole page carries lang="de" for that reason. Minimal by design: name,
      address, contact - a private individual, no VAT id, nothing sold yet. -->
-<div class="section legal" lang="de">
-  <div class="wrap narrow">
+<div class="site-section legal" lang="de">
+  <div class="wrap site-narrow">
 
   <h1>Impressum</h1>
   <p class="lede">Angaben gemäß § 5 DDG</p>

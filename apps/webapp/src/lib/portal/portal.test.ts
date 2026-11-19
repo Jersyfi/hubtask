@@ -8,7 +8,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { actsAsDesk, answersOf, portalTypesOf, articleText, askable, deflectionText, deskHead, deskLogoOf, goalTone, isTeamView, portalStart, teamDeskOf } from './portal.ts';
+import {
+  actsAsDesk, answersOf, portalTypesOf, articleText, askable, deflectionText, deskHead, deskLogoOf, goalTone, isOutsider, isOutsiderRoute,
+  isTeamView, newestEverywhere, nextStep, portalStart, portalTabOf, portalTabPath, requestState, spaceOutline, teamDeskOf, wordsFind,
+} from './portal.ts';
 
 const questions = [
   { key: 'room', kind: 'SELECT', options: ['floor_1', 'floor_2'] },
@@ -71,12 +74,84 @@ test('the desk\'s team opening its portal is told so, not shown a refusal', () =
   assert.equal(isTeamView(undefined), false);
 });
 
-test('a requester who holds nothing but one portal starts there; several are listed; access starts on the day', () => {
+// UC-SVC-05 check 11 (PO-2, E-13): whoever holds READ nowhere starts in a portal - the one they
+// last chose of several, else the first - and gets the portal's frame; access starts on the day.
+test('an outsider starts in a portal and gets its frame; access starts on the day', () => {
   const desk = { collection_id: 'c-1', name: 'Service desk' };
+  const facilities = { collection_id: 'c-2', name: 'Facilities' };
   assert.equal(portalStart(true, [desk]), '/portal/c-1');
-  assert.equal(portalStart(true, [desk, { collection_id: 'c-2', name: 'Facilities' }]), undefined);
+  assert.equal(portalStart(true, [desk, facilities]), '/portal/c-1');
+  assert.equal(portalStart(true, [desk, facilities], 'c-2'), '/portal/c-2', 'the portal chosen last');
+  assert.equal(portalStart(true, [desk, facilities], 'gone'), '/portal/c-1');
   assert.equal(portalStart(true, []), undefined);
   assert.equal(portalStart(false, [desk]), undefined, 'somebody with access keeps their day');
+  assert.equal(isOutsider(true, [desk]), true);
+  assert.equal(isOutsider(true, []), false, 'nothing at all is the no-access screen, not a portal');
+  assert.equal(isOutsider(false, [desk]), false, 'a member keeps the sidebar (PO-1)');
+  for (const route of ['portal', 'portal-requests', 'portal-approvals', 'portal-knowledge', 'portal-article', 'portal-request', 'profile', 'item']) {
+    assert.equal(isOutsiderRoute(route), true, route);
+  }
+  for (const route of ['home', 'search', 'hub', 'collection', 'approvals', 'portal-directory', null]) {
+    assert.equal(isOutsiderRoute(route), false, String(route));
+  }
+});
+
+// UC-SVC-09 check 5 (PO-3): the outsiders' tabs, approvals among them, each at its own address.
+test('the portal frame has four tabs, each route under its own', () => {
+  assert.equal(portalTabPath('c-1', 'start'), '/portal/c-1');
+  assert.equal(portalTabPath('c-1', 'approvals'), '/portal/c-1/approvals');
+  assert.equal(portalTabOf('portal-request'), 'requests');
+  assert.equal(portalTabOf('portal-article'), 'knowledge');
+  assert.equal(portalTabOf('portal-approvals'), 'approvals');
+  assert.equal(portalTabOf('home'), undefined);
+});
+
+// UC-SVC-05 check 3 (P-12): a request's state is the server's status name, never its key; without
+// a name its category's word stands; the next step follows the category.
+test('a request reads by its status name and its next step, never by a key', () => {
+  const words = { received: 'Received', working: 'We are on it', done: 'Done' };
+  const base = { completed_at: null, created_at: '2026-11-01T09:00:00Z', updated_at: '2026-11-02T09:00:00Z' };
+  assert.deepEqual(requestState({ status_name: 'In Bearbeitung', status_category: 'IN_PROGRESS', is_completed: false }, words), { label: 'In Bearbeitung', category: 'progress' });
+  assert.deepEqual(requestState({ status_name: null, status_category: 'IN_PROGRESS', is_completed: false }, words), { label: 'We are on it', category: 'progress' });
+  assert.deepEqual(requestState({ status_name: '  ', status_category: null, is_completed: false }, words), { label: 'Received', category: 'todo' });
+  assert.deepEqual(requestState({ status_name: null, status_category: null, is_completed: true }, words), { label: 'Done', category: 'done' });
+  assert.deepEqual(nextStep({ ...base, status_category: 'TODO', is_completed: false }), { kind: 'received', at: base.created_at });
+  assert.deepEqual(nextStep({ ...base, status_category: 'IN_PROGRESS', is_completed: false }), { kind: 'working', at: base.updated_at });
+  assert.deepEqual(nextStep({ ...base, completed_at: '2026-11-03T09:00:00Z', is_completed: true }), { kind: 'done', at: '2026-11-03T09:00:00Z' });
+});
+
+// UC-SVC-05 check 12 (P-12): the line says when the team replied, else by when it answers, as the
+// mockup's "replied 09:40" and "we answer by 14:00"; a closed request says neither.
+test('the next step names the team\'s reply first, then the promised answer', () => {
+  const base = { completed_at: null, created_at: '2026-11-01T09:00:00Z', updated_at: '2026-11-02T09:00:00Z', status_category: 'IN_PROGRESS', is_completed: false };
+  const replied = '2026-11-02T09:40:00Z';
+  const due = '2026-11-02T14:00:00Z';
+  assert.deepEqual(nextStep({ ...base, last_reply_at: replied, next_due_at: due }), { kind: 'replied', at: replied });
+  assert.deepEqual(nextStep({ ...base, status_category: 'TODO', last_reply_at: null, next_due_at: due }), { kind: 'promised', at: due });
+  assert.deepEqual(nextStep({ ...base, last_reply_at: null, next_due_at: null }), { kind: 'working', at: base.updated_at });
+  assert.deepEqual(nextStep({ ...base, is_completed: true, completed_at: '2026-11-03T09:00:00Z', last_reply_at: replied, next_due_at: due }), { kind: 'done', at: '2026-11-03T09:00:00Z' });
+});
+
+// UC-SVC-14 checks 2 and 3 (PO-1): one search over every department's request types and
+// articles; my requests everywhere, newest first, each once.
+test('the directory finds by every word and lists my requests everywhere newest first', () => {
+  assert.equal(wordsFind('laptop bestellen', 'Laptop oder Zubehör bestellen', 'IT'), true);
+  assert.equal(wordsFind('laptop drucker', 'Laptop oder Zubehör bestellen'), false);
+  assert.equal(wordsFind('  ', 'anything'), false);
+  const a = { id: 'a', created_at: '2026-11-01T00:00:00Z' };
+  const b = { id: 'b', created_at: '2026-11-03T00:00:00Z' };
+  const c = { id: 'c', created_at: '2026-11-02T00:00:00Z' };
+  assert.deepEqual(newestEverywhere([[a, b], [c, b]], 2).map((each) => each.id), ['b', 'c']);
+});
+
+// UC-DOC-13 check 5 (PO-4): a shared space's pages read as a tree, parents first.
+test('a space reads as an outline', () => {
+  const outline = spaceOutline('root', [
+    { page_id: 'p1', parent_id: 'root', title: 'Account', icon: '' },
+    { page_id: 'p2', parent_id: 'p1', title: 'Lost device', icon: '' },
+    { page_id: 'p3', parent_id: 'root', title: 'Orders', icon: '' },
+  ]);
+  assert.deepEqual(outline.map((each) => [each.page.page_id, each.depth]), [['p1', 1], ['p2', 2], ['p3', 1]]);
 });
 
 test('the portal is offered only where a collection acts as a desk', () => {

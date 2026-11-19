@@ -44,6 +44,44 @@ type StepGroups interface {
 // Wired reports whether the gate has what it needs.
 func (g WorkflowGate) Wired() bool { return g.Workflows != nil }
 
+// NameStatuses names each entry's status as the workflow in force for its collection and type
+// does, inside the caller's transaction: the schemes and workflows are read once for all. Unwired,
+// it names none.
+func (g WorkflowGate) NameStatuses(ctx context.Context, summaries []repository.EntrySummary) error {
+	if !g.Wired() || len(summaries) == 0 {
+		return nil
+	}
+	schemes, err := g.Workflows.Schemes(ctx)
+	if err != nil || len(schemes) == 0 {
+		return err
+	}
+	rows, err := g.Workflows.List(ctx)
+	if err != nil {
+		return err
+	}
+	workflows := domain.NewWorkflows(rows)
+	for i := range summaries {
+		s := &summaries[i]
+		entryType := s.EntryType
+		if entryType == "" {
+			entryType = domain.SystemEntryTypeKey(s.Level)
+		}
+		key, found := domain.ResolveWorkflow(schemes, s.CollectionID, s.HubID, entryType)
+		if !found {
+			continue
+		}
+		workflow, found := workflows.Find(key)
+		if !found {
+			continue
+		}
+		shape := workflow.Published
+		if status, found := shape.Status(shape.Entering(s.Status, s.Completed)); found {
+			s.StatusName, s.StatusCategory = status.Name, string(status.Category)
+		}
+	}
+	return nil
+}
+
 // InForce answers the workflow in force for an entry type in a collection, and false where none
 // runs.
 func (g WorkflowGate) InForce(ctx context.Context, collection domain.Container, entryType string) (domain.Workflow, bool, error) {
@@ -77,9 +115,19 @@ func StatusOf(shape domain.WorkflowShape, item domain.WorkItem) string {
 type StepVerdict struct {
 	Step    domain.WorkflowStep
 	Allowed bool
+	// Reason says why a step not allowed is not (UC-FLW-06 check 1): a StepReason code.
+	Reason string
+	// People are whom the step's person fields name on the entry: who may take it by them.
+	People  []shared.ID
 	Missing []string
 	Checks  map[string]bool
 }
+
+// The reasons a step is not allowed, codes a client words (rule 8).
+const (
+	StepReasonWhoUnmet       = "workflows.step_who_unmet"
+	StepReasonConditionUnmet = "workflows.step_condition_unmet"
+)
 
 // Holds reports whether the step may be taken now.
 func (v StepVerdict) Holds() bool {
@@ -119,10 +167,11 @@ func (g WorkflowGate) Judge(
 	if err != nil {
 		return StepVerdict{}, err
 	}
-	verdict.Allowed, err = g.allowed(ctx, actor, collection, item, workflowKey, step, activation)
+	verdict.Allowed, verdict.Reason, err = g.allowed(ctx, actor, collection, item, workflowKey, step, activation)
 	if err != nil {
 		return StepVerdict{}, err
 	}
+	verdict.People = peopleNamed(item, step.Who.PersonFields)
 	verdict.Missing = domain.StepRequirementsMissing(step, item)
 	for _, check := range step.Checks {
 		held, err := g.holds(ctx, check.Holds, activation)
@@ -137,22 +186,22 @@ func (g WorkflowGate) Judge(
 func (g WorkflowGate) allowed(
 	ctx context.Context, actor appshared.ActorContext, collection domain.Container, item domain.WorkItem,
 	workflowKey string, step domain.WorkflowStep, activation formActivation,
-) (bool, error) {
+) (bool, string, error) {
 	who := step.Who
 	if who.IsOpen() {
-		return true, nil
+		return true, "", nil
 	}
 	held := access.Held{}
 	if g.Roles != nil {
 		var err error
 		if held, err = g.Roles.HeldAlong(ctx, actor, containerPath(collection)); err != nil {
-			return false, err
+			return false, "", err
 		}
 	}
 	// A step permission from the catalogue opens the step whatever its who names (UC-FLW-04); the
 	// owner and the administrators hold every one, as a family.
 	if workflowKey != "" && carriedBy(held)(service.TakeStep(workflowKey, step.Key)) {
-		return true, nil
+		return true, "", nil
 	}
 	if len(who.Roles) > 0 || len(who.PersonFields) > 0 || len(who.Groups) > 0 {
 		met := false
@@ -169,18 +218,61 @@ func (g WorkflowGate) allowed(
 		if !met {
 			inGroup, err := g.inGroup(ctx, actor, who.Groups)
 			if err != nil {
-				return false, err
+				return false, "", err
 			}
 			met = inGroup
 		}
 		if !met {
-			return false, nil
+			return false, StepReasonWhoUnmet, nil
 		}
 	}
 	if who.Condition == "" {
-		return true, nil
+		return true, "", nil
 	}
-	return g.holds(ctx, who.Condition, activation)
+	holds, err := g.holds(ctx, who.Condition, activation)
+	if err != nil || !holds {
+		return false, StepReasonConditionUnmet, err
+	}
+	return true, "", nil
+}
+
+// peopleNamed answers the accounts the person fields name on the entry, each once.
+func peopleNamed(item domain.WorkItem, fields []string) []shared.ID {
+	var people []shared.ID
+	add := func(id shared.ID) {
+		if !id.IsZero() && !slices.Contains(people, id) {
+			people = append(people, id)
+		}
+	}
+	for _, field := range fields {
+		switch field {
+		case "assignee":
+			add(item.AssigneeID)
+		case "created_by":
+			add(item.CreatedBy)
+		default:
+			key, _ := strings.CutPrefix(field, domain.FormCustomPrefix)
+			var values []string
+			switch value := item.CustomFields[key].(type) {
+			case string:
+				values = []string{value}
+			case []string:
+				values = value
+			case []any:
+				for _, one := range value {
+					if text, ok := one.(string); ok {
+						values = append(values, text)
+					}
+				}
+			}
+			for _, value := range values {
+				if id, err := shared.ParseID(value); err == nil {
+					add(id)
+				}
+			}
+		}
+	}
+	return people
 }
 
 // inGroup reports whether the actor is in any of the groups a step names.
@@ -293,18 +385,29 @@ func (g WorkflowGate) Offered(
 	ctx context.Context, actor appshared.ActorContext, collection domain.Container, item domain.WorkItem,
 	workflowKey string, shape domain.WorkflowShape,
 ) ([]StepVerdict, error) {
+	offered, _, err := g.Standing(ctx, actor, collection, item, workflowKey, shape)
+	return offered, err
+}
+
+// Standing answers the steps from where the entry stands, split into those the actor may take
+// and those they may not, each in the workflow's order (UC-FLW-06 check 1).
+func (g WorkflowGate) Standing(
+	ctx context.Context, actor appshared.ActorContext, collection domain.Container, item domain.WorkItem,
+	workflowKey string, shape domain.WorkflowShape,
+) (offered, blocked []StepVerdict, err error) {
 	status := StatusOf(shape, item)
-	var offered []StepVerdict
 	for _, step := range shape.StepsFrom(status) {
 		verdict, err := g.Judge(ctx, actor, collection, item, workflowKey, status, step)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if verdict.Allowed {
 			offered = append(offered, verdict)
+		} else {
+			blocked = append(blocked, verdict)
 		}
 	}
-	return offered, nil
+	return offered, blocked, nil
 }
 
 // completionStep answers the step a completion or a reopening takes in a workflow collection
@@ -413,6 +516,9 @@ type StatusMover struct {
 	Activity  ActivityJournal
 	Changes   changelog.ChangeLog
 	HLC       clock.HLCSource
+	// Boards puts each moved status's entries into the column showing it (domain-model.md
+	// §3.5a); unwired, columns stay as they were.
+	Boards Boards
 }
 
 // StatusSettler is Settle and Move together, for a writer outside this package that lands entries
@@ -425,11 +531,15 @@ type StatusSettler struct {
 // Settle puts the collection's entries where its workflows stand; those already there stay.
 func (s StatusSettler) Settle(ctx context.Context, actor appshared.ActorContext, collection domain.Container, now time.Time) error {
 	moves, err := s.Workflow.Settle(ctx, collection)
-	if err != nil || len(moves) == 0 {
+	if err != nil {
 		return err
 	}
-	_, err = s.Statuses.Move(ctx, actor, moves, now)
-	return err
+	if len(moves) > 0 {
+		if _, err := s.Statuses.Move(ctx, actor, moves, now); err != nil {
+			return err
+		}
+	}
+	return s.Statuses.placeByCompletion(ctx, actor, collection.ID, now)
 }
 
 // Move applies the moves and answers how many entries moved.
@@ -462,6 +572,74 @@ func (m StatusMover) Move(
 			}
 		}
 		moved += len(entries)
+		if err := m.place(ctx, actor, move, now); err != nil {
+			return 0, err
+		}
 	}
 	return moved, nil
+}
+
+// placeByCompletion puts the entries of a board without a workflow where their completion says:
+// completed ones into the done column, open ones out of it into the first (an import, §3.5a).
+func (m StatusMover) placeByCompletion(ctx context.Context, actor appshared.ActorContext, collectionID shared.ID, now time.Time) error {
+	if !m.Boards.Wired() || m.Boards.Statuses == nil {
+		return nil
+	}
+	board, err := m.Boards.Of(ctx, collectionID)
+	if err != nil {
+		return err
+	}
+	done, hasDone := board.DoneColumn()
+	if !hasDone {
+		return nil
+	}
+	first, _ := board.FirstColumn()
+	for _, put := range []struct {
+		completed    bool
+		from, column shared.ID
+	}{{true, "", done.ID}, {false, done.ID, first.ID}} {
+		placed, err := m.Boards.Statuses.PlaceByCompletion(ctx, collectionID, put.completed, put.from, put.column, now)
+		if err != nil {
+			return err
+		}
+		if err := m.recordColumns(ctx, actor, collectionID, placed, put.column); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// recordColumns tells offline clients the new column of each placed entry.
+func (m StatusMover) recordColumns(
+	ctx context.Context, actor appshared.ActorContext, collectionID shared.ID, placed []repository.MovedEntry, column shared.ID,
+) error {
+	for _, entry := range placed {
+		if err := m.Changes.Record(ctx, changelog.Change{
+			TenantID: actor.TenantID, Entity: itemTarget, EntityID: entry.ID, Op: changelog.Upsert,
+			ContainerID: collectionID, ActorID: actor.AccountID, HLC: m.HLC.Next(),
+			Field:   domain.FieldBucketID,
+			Payload: map[string]any{domain.FieldBucketID: idOrNil(column), "version": entry.Version},
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// place puts the entries now in move.To into the column showing it, none for *Ohne Spalte*,
+// on a board that has columns.
+func (m StatusMover) place(ctx context.Context, actor appshared.ActorContext, move domain.StatusMove, now time.Time) error {
+	if !m.Boards.Wired() || m.Boards.Statuses == nil || move.To == "" {
+		return nil
+	}
+	board, err := m.Boards.Of(ctx, move.CollectionID)
+	if err != nil || len(board.Columns) == 0 {
+		return err
+	}
+	column, _ := board.ColumnOfStatus(move.To)
+	placed, err := m.Boards.Statuses.PlaceByStatus(ctx, move.CollectionID, move.To, column, now)
+	if err != nil {
+		return err
+	}
+	return m.recordColumns(ctx, actor, move.CollectionID, placed, column)
 }

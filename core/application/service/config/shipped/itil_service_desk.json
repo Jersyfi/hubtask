@@ -1,6 +1,6 @@
 {
   "key": "itil_service_desk",
-  "version": 16,
+  "version": 17,
   "questions": [
     {
       "key": "first_group",
@@ -1065,6 +1065,158 @@
             "kind": "NOTIFY_GROUP",
             "params": {
               "group_id": "answer:first_group"
+            }
+          }
+        ]
+      },
+      "priority_on_create": {
+        "name": "Set the priority from impact and urgency when a request comes in",
+        "enabled": true,
+        "trigger": {
+          "kind": "EVENT",
+          "event_type": "de.hubtask.work.item.created.v1"
+        },
+        "conditions": [
+          {
+            "expr": "item.entry_type in ['incident', 'service_request', 'problem', 'change'] && has(item.custom_fields) && has(item.custom_fields.impact) && has(item.custom_fields.urgency)"
+          }
+        ],
+        "on_error": "STOP",
+        "actions": [
+          {
+            "kind": "BRANCH",
+            "params": {
+              "condition": "(item.custom_fields.impact == 'High' && item.custom_fields.urgency == 'High')",
+              "then": [
+                {
+                  "kind": "SET_CUSTOM_FIELD",
+                  "params": {
+                    "key": "priority",
+                    "value": "P1"
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "kind": "BRANCH",
+                  "params": {
+                    "condition": "(item.custom_fields.impact == 'High' && item.custom_fields.urgency == 'Medium') || (item.custom_fields.impact == 'Medium' && item.custom_fields.urgency == 'High')",
+                    "then": [
+                      {
+                        "kind": "SET_CUSTOM_FIELD",
+                        "params": {
+                          "key": "priority",
+                          "value": "P2"
+                        }
+                      }
+                    ],
+                    "else": [
+                      {
+                        "kind": "BRANCH",
+                        "params": {
+                          "condition": "(item.custom_fields.impact == 'High' && item.custom_fields.urgency == 'Low') || (item.custom_fields.impact == 'Medium' && item.custom_fields.urgency == 'Medium') || (item.custom_fields.impact == 'Low' && item.custom_fields.urgency == 'High')",
+                          "then": [
+                            {
+                              "kind": "SET_CUSTOM_FIELD",
+                              "params": {
+                                "key": "priority",
+                                "value": "P3"
+                              }
+                            }
+                          ],
+                          "else": [
+                            {
+                              "kind": "SET_CUSTOM_FIELD",
+                              "params": {
+                                "key": "priority",
+                                "value": "P4"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "priority_on_change": {
+        "name": "Set the priority again when impact or urgency changes",
+        "enabled": true,
+        "trigger": {
+          "kind": "EVENT",
+          "event_type": "de.hubtask.work.item.updated.v1",
+          "changed_fields": [
+            "custom_fields.impact",
+            "custom_fields.urgency"
+          ]
+        },
+        "conditions": [
+          {
+            "expr": "item.entry_type in ['incident', 'service_request', 'problem', 'change'] && has(item.custom_fields) && has(item.custom_fields.impact) && has(item.custom_fields.urgency)"
+          }
+        ],
+        "on_error": "STOP",
+        "actions": [
+          {
+            "kind": "BRANCH",
+            "params": {
+              "condition": "(item.custom_fields.impact == 'High' && item.custom_fields.urgency == 'High')",
+              "then": [
+                {
+                  "kind": "SET_CUSTOM_FIELD",
+                  "params": {
+                    "key": "priority",
+                    "value": "P1"
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "kind": "BRANCH",
+                  "params": {
+                    "condition": "(item.custom_fields.impact == 'High' && item.custom_fields.urgency == 'Medium') || (item.custom_fields.impact == 'Medium' && item.custom_fields.urgency == 'High')",
+                    "then": [
+                      {
+                        "kind": "SET_CUSTOM_FIELD",
+                        "params": {
+                          "key": "priority",
+                          "value": "P2"
+                        }
+                      }
+                    ],
+                    "else": [
+                      {
+                        "kind": "BRANCH",
+                        "params": {
+                          "condition": "(item.custom_fields.impact == 'High' && item.custom_fields.urgency == 'Low') || (item.custom_fields.impact == 'Medium' && item.custom_fields.urgency == 'Medium') || (item.custom_fields.impact == 'Low' && item.custom_fields.urgency == 'High')",
+                          "then": [
+                            {
+                              "kind": "SET_CUSTOM_FIELD",
+                              "params": {
+                                "key": "priority",
+                                "value": "P3"
+                              }
+                            }
+                          ],
+                          "else": [
+                            {
+                              "kind": "SET_CUSTOM_FIELD",
+                              "params": {
+                                "key": "priority",
+                                "value": "P4"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
             }
           }
         ]

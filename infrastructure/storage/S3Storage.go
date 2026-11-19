@@ -234,7 +234,8 @@ var _ port.TransferIssuer = (*S3Storage)(nil)
 
 // IssueUpload mints a presigned PUT: the client sends the bytes to the bucket directly, and the
 // server never carries them (arc42 §8.4).
-func (s *S3Storage) IssueUpload(object media.Object, expiresAt time.Time) (port.Transfer, error) {
+func (s *S3Storage) IssueUpload(
+	_ context.Context, object media.Object, expiresAt time.Time) (port.Transfer, error) {
 	target, err := s.objectURL(object.StorageKey)
 	if err != nil {
 		return port.Transfer{}, err
@@ -254,7 +255,7 @@ func (s *S3Storage) IssueUpload(object media.Object, expiresAt time.Time) (port.
 // signature (T-11 - the bucket origin is not the application's, and the download stays a
 // download there too).
 func (s *S3Storage) IssueDownload(
-	object media.Object, expiresAt time.Time,
+	_ context.Context, object media.Object, expiresAt time.Time,
 ) (port.Transfer, error) {
 	target, err := s.objectURL(object.StorageKey)
 	if err != nil {

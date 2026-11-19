@@ -212,7 +212,19 @@
   }
 </script>
 
-<Dialog size="l" bind:isOpen title={intent === 'save' ? t('app.views.save_title') : t('app.views.title')} dismissLabel={t('app.workspace.cancel')}>
+<!-- The ladder (page-system §5.1): the dialog's one primary is what its body is for - saving the
+     view, or renaming the one being edited; the list of views has none. -->
+<Dialog
+  size="l"
+  bind:isOpen
+  title={intent === 'save' ? t('app.views.save_title') : t('app.views.title')}
+  dismissLabel={t('app.workspace.cancel')}
+  primary={editing
+    ? { label: t('app.views.rename'), onclick: () => editing && rename(editing), isBusy: isSaving, busyLabel: t('app.workspace.saving') }
+    : intent === 'save'
+      ? { label: t('app.views.save_current'), onclick: save, isBusy: isSaving, busyLabel: t('app.workspace.saving') }
+      : undefined}
+>
   <Stack gap="200">
     {#if intent === 'save'}
       <!-- Saving only: the views already held are the menu's own rows. -->
@@ -283,9 +295,6 @@
         {#if failure && !failure.fields.get('/name')}<p class="failure" role="alert">{failure.message}</p>{/if}
 
         <Inline gap="100">
-          <Button isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={() => rename(current)}>
-            {t('app.views.rename')}
-          </Button>
           <Button tone="secondary" onclick={() => replaceQuery(current)}>
             {t('app.views.update_query')}
           </Button>
@@ -312,15 +321,6 @@
           options={VIEW_SCOPES.filter((each) => scopeIdOf(each, { collectionId, hubId }) !== undefined && (!needsStructure(each) || mayShapeAt(each) === true)).map((each) => ({ value: each, label: t(`app.views.scope_${each}`) }))}
         />
         {#if failure && !failure.fields.get('/name')}<p class="failure" role="alert">{failure.message}</p>{/if}
-        <div>
-          <Button
-            isBusy={isSaving}
-            busyLabel={t('app.workspace.saving')}
-            onclick={save}
-          >
-            {t('app.views.save_current')}
-          </Button>
-        </div>
       </Stack>
       </div>
     {/if}
@@ -333,16 +333,11 @@
     title={t('app.views.delete_title', { name: deleting.name })}
     dismissLabel={t('app.workspace.cancel')}
     onClose={() => (deleting = undefined)}
+    primary={{ label: t('app.views.delete'), onclick: confirmDelete, tone: 'danger', isBusy: isSaving, busyLabel: t('app.workspace.saving') }}
   >
     <Stack gap="150">
       <p class="quiet">{t('app.views.delete_explains')}</p>
       {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
-      <Inline gap="100">
-        <Button tone="danger" isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={confirmDelete}>
-          {t('app.views.delete')}
-        </Button>
-        <Button tone="secondary" onclick={() => (deleting = undefined)}>{t('app.workspace.cancel')}</Button>
-      </Inline>
     </Stack>
   </Dialog>
 {/if}

@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-18, P-19]
 state: verified
 tasks: []
-checked_by: [core/domain/model/work/Link_test.go, core/domain/model/reference/Reference_test.go, core/application/service/work/Links_test.go, core/application/condition/Links_test.go, core/domain/event/Link_test.go, test/integration/entry_link_test.go, apps/webapp/src/lib/data/links.test.ts]
+checked_by: [core/domain/model/work/Link_test.go, core/domain/model/reference/Reference_test.go, core/application/service/work/Links_test.go, core/application/condition/Links_test.go, core/domain/event/Link_test.go, test/integration/entry_link_test.go, apps/webapp/src/lib/data/links.test.ts, apps/webapp/src/lib/data/planview.test.ts]
 ---
 
 # Say that one piece of work waits for another
@@ -44,8 +44,9 @@ pages.
 5. A person who may shape the workspace adds a link type with its two names, its direction, which
    end waits, whether an entry may start only one, and whether loops are allowed; a type in use can
    only be archived, and an archived type draws no new link while the old ones stay readable.
-6. On the timeline, a dependency between two shown entries is drawn from the entry waited for to
-   the waiting one, and marked when the waiting entry starts before the other is due.
+6. On a collection's timeline - the plan's light presentation, with or without the planning
+   module - a dependency between two shown entries is drawn from the entry waited for to the
+   waiting one, and marked when the waiting entry starts before the other is due.
 7. A note or a comment that mentions an entry (a link to `hubtask:entry/<id>`, drawn inline or as a
    card) shows on the mentioned entry as a backlink, for readers who may see the text's entry.
 8. REST, MCP and the rule engine draw, read and remove links the same way; a rule's condition reads

@@ -82,13 +82,16 @@ const (
 	// QuantityTimeInStatus is how long an open entry has stood in its current status: its latest
 	// entry into it to now. A completed entry, or one without history, holds none.
 	QuantityTimeInStatus Quantity = "time_in_status"
+	// QuantitySlip is how many days the entry's due date lies after its latest baseline's, as
+	// `plan.slip` filters it: in days, not minutes. An entry outside every baseline holds none.
+	QuantitySlip Quantity = "slip_days"
 )
 
 // Quantities lists the built-in measures, for a door that offers them.
 func Quantities() []Quantity {
 	return []Quantity{
 		QuantityLeadTime, QuantityScheduledSpan, QuantitySatisfaction,
-		QuantityCycleTime, QuantityWipAge, QuantityTimeInStatus,
+		QuantityCycleTime, QuantityWipAge, QuantityTimeInStatus, QuantitySlip,
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 
 	viewrepo "github.com/Jersyfi/hubtask/core/application/repository/view"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/application/service/search"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -46,7 +47,7 @@ type ListHubQueues struct {
 	Views      viewrepo.SavedViews
 	EntryTypes workrepo.EntryTypes
 	// Gate answers what each collection offers, which says whether it acts as a desk.
-	Gate work.EntryGate
+	Gate Offering
 	// Query counts each queue; its Counter is required.
 	Query work.QueryItems
 }
@@ -62,11 +63,23 @@ type HubQueue struct {
 	Counted bool
 }
 
-// Execute answers the hub's queues in their order.
-func (h ListHubQueues) Execute(ctx context.Context, actor appshared.ActorContext, hubID shared.ID) ([]HubQueue, error) {
+// HubQueues is the answer: the queues in their order and the hub's desks, which a client names
+// a desk by rather than reading the entry types itself.
+type HubQueues struct {
+	Queues []HubQueue
+	Desks  []shared.ID
+}
+
+// Execute answers the hub's queues in their order and its desks.
+func (h ListHubQueues) Execute(ctx context.Context, actor appshared.ActorContext, hubID shared.ID) (HubQueues, error) {
 	if err := h.Desk.hub(ctx, actor, hubID, service.PermissionRead, QueuesReadAction, deskRead); err != nil {
-		return nil, err
+		return HubQueues{}, err
 	}
+	queues, desks, err := h.queues(ctx, actor, hubID)
+	return HubQueues{Queues: queues, Desks: desks}, err
+}
+
+func (h ListHubQueues) queues(ctx context.Context, actor appshared.ActorContext, hubID shared.ID) ([]HubQueue, []shared.ID, error) {
 
 	var (
 		saved []view.SavedView
@@ -74,19 +87,19 @@ func (h ListHubQueues) Execute(ctx context.Context, actor appshared.ActorContext
 	)
 	err := h.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		if saved, err = h.Views.ListHubQueues(ctx, actor.AccountID, hubID); err != nil || len(saved) > 0 {
+		if saved, err = h.Views.ListHubQueues(ctx, actor.AccountID, hubID); err != nil {
 			return err
 		}
 		desks, err = h.desksOf(ctx, actor, hubID)
 		return err
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	within, err := atRisk()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	queues := make([]HubQueue, 0, max(len(saved), 4))
 	if len(saved) > 0 {
@@ -97,27 +110,27 @@ func (h ListHubQueues) Execute(ctx context.Context, actor appshared.ActorContext
 				err = h.count(ctx, actor, spec, within, &queue)
 			}
 			if err != nil && !unanswerable(err) {
-				return nil, err
+				return nil, nil, err
 			}
 			queues = append(queues, queue)
 		}
-		return queues, nil
+		return queues, desks, nil
 	}
 	if len(desks) == 0 {
-		return queues, nil
+		return queues, desks, nil
 	}
 	for _, key := range []string{QueueMine, QueueUnassigned, QueueBreaching, QueueOpen} {
 		spec, err := StandardQueue(key, hubID, desks)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		queue := HubQueue{Key: key}
 		if err := h.count(ctx, actor, spec, within, &queue); err != nil && !unanswerable(err) {
-			return nil, err
+			return nil, nil, err
 		}
 		queues = append(queues, queue)
 	}
-	return queues, nil
+	return queues, desks, nil
 }
 
 func (h ListHubQueues) count(
@@ -139,8 +152,8 @@ func unanswerable(err error) bool {
 }
 
 // desksOf answers the hub's collections that act as a desk: those offering a type the portal
-// takes (UC-SVC-05), as the client's desksOf reads them. At most view.MaxValues, the most one
-// query's IN names; a hub holds far fewer desks.
+// takes (UC-SVC-05). At most view.MaxValues, the most one query's IN names; a hub holds far fewer
+// desks.
 func (h ListHubQueues) desksOf(ctx context.Context, actor appshared.ActorContext, hubID shared.ID) ([]shared.ID, error) {
 	rows, err := h.EntryTypes.List(ctx)
 	if err != nil {
@@ -155,11 +168,11 @@ func (h ListHubQueues) desksOf(ctx context.Context, actor appshared.ActorContext
 			return nil, err
 		}
 		for _, collection := range page.Containers {
-			offered, err := h.Gate.OfferedTaskTypes(ctx, collection)
+			acting, err := actsAsDesk(ctx, h.Gate, types, collection, actor.Locale)
 			if err != nil {
 				return nil, err
 			}
-			if len(domain.RequestCatalogue(types, offered, nil, actor.Locale)) > 0 && len(desks) < view.MaxValues {
+			if acting && len(desks) < view.MaxValues {
 				desks = append(desks, collection.ID)
 			}
 		}
@@ -168,6 +181,57 @@ func (h ListHubQueues) desksOf(ctx context.Context, actor appshared.ActorContext
 		}
 		query.Page.Cursor = page.Info.NextCursor
 	}
+}
+
+// DeskCollections tells the collections that act as a desk as the client's actsAsDesk reads them:
+// those offering by name a type the portal takes (UC-SVC-05) - a collection that offers every
+// type names none and is no desk. The search names their entries tickets. It reads inside the
+// caller's transaction.
+type DeskCollections struct {
+	EntryTypes workrepo.EntryTypes
+	Gate       Offering
+}
+
+// Offering answers the type keys a collection offers its top-level entries; none offers every
+// type. work.EntryGate is the one the server wires.
+type Offering interface {
+	OfferedTaskTypes(ctx context.Context, collection workdomain.Container) ([]string, error)
+}
+
+// actsAsDesk is the client's actsAsDesk: a collection naming a type the portal takes. One that
+// names none offers every type and is no desk, for the queues as for the search; without a gate
+// nothing is named.
+func actsAsDesk(ctx context.Context, gate Offering, types workdomain.EntryTypes, collection workdomain.Container, locale string) (bool, error) {
+	if gate == nil {
+		return false, nil
+	}
+	offered, err := gate.OfferedTaskTypes(ctx, collection)
+	if err != nil {
+		return false, err
+	}
+	return len(offered) > 0 && len(domain.RequestCatalogue(types, offered, nil, locale)) > 0, nil
+}
+
+var _ search.Desks = DeskCollections{}
+
+// Desks answers, per collection, whether it acts as a desk.
+func (d DeskCollections) Desks(ctx context.Context, actor appshared.ActorContext, collections []workdomain.Container) (map[shared.ID]bool, error) {
+	acting := map[shared.ID]bool{}
+	if len(collections) == 0 {
+		return acting, nil
+	}
+	rows, err := d.EntryTypes.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	types := workdomain.NewEntryTypes(rows)
+	for _, collection := range collections {
+		acting[collection.ID], err = actsAsDesk(ctx, d.Gate, types, collection, actor.Locale)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return acting, nil
 }
 
 // StandardQueue is a standard queue's query at a hub: the open entries of its desks, narrowed by
@@ -236,7 +300,8 @@ func (h ListHubQueues) Descriptor() usecase.Descriptor {
 		Summary: "Lists a hub's queues with their counts: the hub's saved views marked as queues the caller " +
 			"sees, by their place, each with how many entries its query holds and how many of them are " +
 			"AT_RISK or BREACHED, counted with the caller's own permissions. A hub with a desk and no queue " +
-			"view answers the standard queues mine, unassigned, breaching and open by key; a count that " +
+			"view answers the standard queues mine, unassigned, breaching and open by key; desks names the " +
+			"hub's collections that act as a desk either way; a count that " +
 			"cannot be made in two seconds, or whose view the caller cannot ask, is null.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  deskRead, ReadOnly: true,
@@ -249,15 +314,19 @@ func (h ListHubQueues) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			queues, err := h.Execute(ctx, actor, hub)
+			answer, err := h.Execute(ctx, actor, hub)
 			if err != nil {
 				return nil, err
 			}
-			data := make([]usecase.Output, 0, len(queues))
-			for _, queue := range queues {
+			data := make([]usecase.Output, 0, len(answer.Queues))
+			for _, queue := range answer.Queues {
 				data = append(data, HubQueueOutput(queue))
 			}
-			return usecase.Output{"data": data}, nil
+			desks := make([]string, 0, len(answer.Desks))
+			for _, desk := range answer.Desks {
+				desks = append(desks, desk.String())
+			}
+			return usecase.Output{"data": data, "desks": desks}, nil
 		}),
 	}, queuesTarget)
 }

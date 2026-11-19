@@ -776,8 +776,9 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
   if (match?.[1]) return planFromCopy(storage, match[1], query.get('zone') ?? 'UTC');
 
   // A hub's releases and a release read while the server is away (UC-PLN-08 check 8): the list in
-  // the server's order - the latest day first - and a release with the entries the copy holds of
-  // it, each with its title, its type's name and whether it is done.
+  // the server's order - the latest day first - each with its done and open entries, and a release
+  // with the entries the copy holds of it, each with its title, key, type's name and whether it is
+  // done.
   match = /^\/hubs\/([^/:]+)\/releases$/.exec(pathname);
   if (match?.[1]) {
     const hubId = match[1];
@@ -790,7 +791,20 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
         if (x !== y) return x < y ? 1 : -1;
         return String(a.id) < String(b.id) ? -1 : 1;
       });
-    return { data: rows };
+    const members = await documents(storage, 'release_entries');
+    const counted: Document[] = [];
+    for (const row of rows) {
+      let done = 0;
+      let open = 0;
+      for (const member of members.filter((each) => each.release_id === row.id)) {
+        const item = await one(storage, 'items', String(member.item_id));
+        if (!item) continue;
+        if (item.is_completed === true) done++;
+        else open++;
+      }
+      counted.push({ ...row, done_count: done, open_count: open });
+    }
+    return { data: counted };
   }
   match = /^\/releases\/([^/:]+)$/.exec(pathname);
   if (match?.[1]) {
@@ -802,9 +816,14 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
     for (const member of (await documents(storage, 'release_entries')).filter((row) => row.release_id === releaseId)) {
       const item = await one(storage, 'items', String(member.item_id));
       if (!item) continue;
+      const collection = await one(storage, 'containers', String(item.collection_id));
+      const number = typeof item.number === 'number' && item.number > 0 ? item.number : null;
+      // The copy holds no workflow to name a status by: the state is done or open, as without one.
       entries.push({
         item_id: item.id, title: item.title, type_name: names.get(String(item.entry_type ?? '')) ?? '',
         done: item.is_completed === true, collection_id: item.collection_id, added_at: item.created_at,
+        key: ticketKeyOf({ handle: text(collection?.handle), key_prefix: text(collection?.key_prefix) }, number) ?? null,
+        status_name: null, status_category: null,
       });
     }
     const done = entries.filter((entry) => entry.done).length;

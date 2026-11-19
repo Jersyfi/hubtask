@@ -142,6 +142,18 @@ func containerResponse(out usecase.Output) openapi.Container {
 			container.Figure = &answered
 		}
 	}
+	if mode := out.String("state_mode"); mode != "" {
+		taskMode := openapi.StateMode(mode)
+		container.StateMode = &taskMode
+	}
+	if modes, held := out["state_modes"].(map[string]any); held {
+		byType := make(map[string]openapi.StateMode, len(modes))
+		for key, mode := range modes {
+			text, _ := mode.(string)
+			byType[key] = openapi.StateMode(text)
+		}
+		container.StateModes = &byType
+	}
 	if milestone, held := out["milestone"].(map[string]any); held {
 		container.Milestone = &openapi.ContainerMilestone{ReachedAt: timeValue(milestone["reached_at"])}
 		if openSince, counted := milestone["open_since"].(int); counted {

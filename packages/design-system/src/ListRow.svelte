@@ -143,6 +143,16 @@
   a.content,
   button.content { cursor: pointer; }
 
+  /* A thumb's target (§7): where the pointer is coarse the press reaches layout.target tall, into
+     the row's own padding, without moving the title. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    a.content,
+    button.content { position: relative; min-block-size: var(--layout-target); }
+    a.content::after,
+    button.content::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: 0; }
+  }
+
   .content:focus-visible {
     outline: var(--bw-ring) solid var(--focus-ring);
     outline-offset: var(--sp-025);

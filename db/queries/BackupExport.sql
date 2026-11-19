@@ -705,6 +705,20 @@ FROM (
   ORDER BY s.key_1, s.key_2
   LIMIT sqlc.arg('batch')::int;
 
+-- name: ExportBucketStatuses :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (w.collection_id::text || '/' || w.status)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(w) - 'tenant_id')::jsonb AS payload,
+         w.collection_id AS key_1,
+         w.status AS key_2
+  FROM bucket_status w
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::text)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;
+
 -- name: ExportRealtimeDocuments :many
 -- Live documents (migration 0237): the head, the log and the snapshots, written whole - an update
 -- removed by retention leaves no marker.
@@ -1704,6 +1718,47 @@ FROM (
   ORDER BY s.key_1
   LIMIT sqlc.arg('batch')::int;
 
+-- name: ExportCmdbAssetMoves :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM cmdb_asset_move x
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportCmdbCiMedia :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (c.ci_id::text || '/' || c.media_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(c) - 'tenant_id')::jsonb AS payload,
+         c.ci_id AS key_1,
+         c.media_id AS key_2
+  FROM cmdb_ci_media c
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportCmdbCiHistory :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         x.occurred_at AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM cmdb_ci_history x
+) s
+  WHERE (sqlc.narg('since')::timestamptz IS NULL OR s.changed_at > sqlc.narg('since')::timestamptz)
+    AND (s.changed_at, s.key_1) > (sqlc.arg('after_at')::timestamptz, sqlc.arg('after_id')::uuid)
+  ORDER BY s.changed_at, s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
 -- name: ExportCmdbSoftwareAliases :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (
@@ -1929,6 +1984,19 @@ FROM (
   ORDER BY s.key_1, s.key_2
   LIMIT sqlc.arg('batch')::int;
 
+-- name: ExportConfigGoalSets :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (e.key)::text AS record_id,
+         e.created_at AS changed_at,
+         (to_jsonb(e) - 'tenant_id')::jsonb AS payload,
+         e.key AS key_1
+  FROM config_goal_set e
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::text
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
 -- name: ExportTemplatePages :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (
@@ -1970,4 +2038,101 @@ FROM (
   WHERE (sqlc.narg('since')::timestamptz IS NULL OR s.changed_at > sqlc.narg('since')::timestamptz)
     AND (s.changed_at, s.key_1) > (sqlc.arg('after_at')::timestamptz, sqlc.arg('after_id')::uuid)
   ORDER BY s.changed_at, s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportPosts :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (p.page_id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(p) - 'tenant_id')::jsonb AS payload,
+         p.page_id AS key_1
+  FROM post p
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportPostReads :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (r.page_id::text || '/' || r.account_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(r) - 'tenant_id')::jsonb AS payload,
+         r.page_id AS key_1,
+         r.account_id AS key_2
+  FROM post_read r
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportPostConfirmations :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (c.page_id::text || '/' || c.account_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(c) - 'tenant_id')::jsonb AS payload,
+         c.page_id AS key_1,
+         c.account_id AS key_2
+  FROM post_confirmation c
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportPostReplies :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (r.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(r) - 'tenant_id')::jsonb AS payload,
+         r.id AS key_1
+  FROM post_reply r
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportPostReactions :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (r.reply_id::text || '/' || r.account_id::text || '/' || r.reaction)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(r) - 'tenant_id')::jsonb AS payload,
+         r.reply_id AS key_1,
+         r.account_id AS key_2,
+         r.reaction AS key_3
+  FROM post_reaction r
+) s
+  WHERE (s.key_1, s.key_2, s.key_3) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::uuid, sqlc.arg('after_third')::text)
+  ORDER BY s.key_1, s.key_2, s.key_3
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportPostFollows :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (f.hub_id::text || '/' || f.account_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(f) - 'tenant_id')::jsonb AS payload,
+         f.hub_id AS key_1,
+         f.account_id AS key_2
+  FROM post_follow f
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportMediaVersions :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (v.media_id::text || '/' || v.earlier_media_id::text)::text AS record_id,
+         v.saved_at AS changed_at,
+         (to_jsonb(v) - 'tenant_id')::jsonb AS payload,
+         v.media_id AS key_1,
+         v.earlier_media_id AS key_2
+  FROM media_version v
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::uuid)
+  ORDER BY s.key_1, s.key_2
   LIMIT sqlc.arg('batch')::int;

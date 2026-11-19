@@ -98,18 +98,20 @@ func workspaceDemo(ctx context.Context, cli *CLI, args []string) error {
 
 // demo is one run of the showcase: the marks the workspace holds and what this run made.
 type demo struct {
-	cli     *CLI
-	c       *Client
-	held    map[string]string // mark key -> object id
-	people  map[string]string // display name -> account id, where the workspace has the person
-	self    string            // the signed-in person's account id, once read
-	groups  map[string]string // group name -> id, where the workspace has the group
-	counts  map[string]int
-	refused []string
-	today   time.Time
-	voices  bool
-	spoken  []demoVoice
-	pending []demoMark
+	cli    *CLI
+	c      *Client
+	held   map[string]string // mark key -> object id
+	people map[string]string // display name -> account id, where the workspace has the person
+	self   string            // the signed-in person's account id, once read
+	groups map[string]string // group name -> id, where the workspace has the group
+	// knowledge is the desk's knowledge base page, the template's where it brought one.
+	knowledge string
+	counts    map[string]int
+	refused   []string
+	today     time.Time
+	voices    bool
+	spoken    []demoVoice
+	pending   []demoMark
 }
 
 // demoVoice is one write left to its speaker; "" is the signed-in person, whose write waits for

@@ -9,6 +9,7 @@
 
   import Button from './Button.svelte';
   import DangerZone, { type DangerAct } from './DangerZone.svelte';
+  import FoldingSection from './FoldingSection.svelte';
   import RecordHead from './RecordHead.svelte';
   import PageFrame from './_PageFrame.svelte';
   import { pageBar } from './page.ts';
@@ -22,6 +23,8 @@
     /** *2*. */
     readonly count?: string;
     readonly add?: PageAction;
+    /** Empty: the sentence that says so, and a work object's part stands as one line (WB-3). */
+    readonly emptyLabel?: string;
   }
 
   interface Props {
@@ -35,6 +38,8 @@
       edit?: PageAction;
       menu?: { label: string; items: readonly MenuItem[]; onselect: (id: string) => void };
     };
+    /** A work object's `ObjectHead` in place of `RecordHead` (WB-1); `record.back` still goes to the bar. */
+    head?: Snippet;
     strip?: Snippet;
     /** The object's own lists, in order. */
     lists?: readonly RecordList[];
@@ -46,7 +51,7 @@
     refused?: Snippet;
   }
 
-  const { record, strip, lists = [], list, facts, danger, refused }: Props = $props();
+  const { record, head: objectHead, strip, lists = [], list, facts, danger, refused }: Props = $props();
 
   // On a phone the way back to the list is the bar's (the navigation concept §9): handed over,
   // and not drawn a second time in the head.
@@ -60,11 +65,22 @@
 
 <PageFrame kind="record" {refused}>
   {#snippet top()}
-    <RecordHead {...head} />
+    {#if objectHead}{@render objectHead()}{:else}<RecordHead {...head} />{/if}
   {/snippet}
   {#snippet children()}
     {#if strip}{@render strip()}{/if}
     {#each lists as item (item.id)}
+      {#if objectHead}
+        <!-- A work object's parts have the entry's one section head (WB-1, WB-3), an empty one a line. -->
+        <FoldingSection id={`part-${item.id}`} title={item.title} count={item.count} emptyLabel={item.emptyLabel}>
+          {#snippet actions()}
+            {#if item.add}
+              <Button size="sm" tone="secondary" icon={item.add.icon ?? 'plus'} onclick={item.add.onclick} disabledReason={item.add.disabledReason} data-opener={item.add.opener}>{item.add.label}</Button>
+            {/if}
+          {/snippet}
+          {#snippet children()}{@render list?.(item)}{/snippet}
+        </FoldingSection>
+      {:else}
       <section class="part">
         <RegionHead title={item.title} note={item.count}>
           {#snippet acts()}
@@ -75,15 +91,21 @@
         </RegionHead>
         {@render list?.(item)}
       </section>
+      {/if}
     {/each}
-    {#if facts}
+    {#snippet factList()}
+      <dl class="facts">
+        {#each facts?.rows ?? [] as row (row.label)}
+          <div class="fact"><dt>{row.label}</dt><dd>{row.value}</dd></div>
+        {/each}
+      </dl>
+    {/snippet}
+    {#if facts && objectHead}
+      <FoldingSection id="part-facts" title={facts.title}>{#snippet children()}{@render factList()}{/snippet}</FoldingSection>
+    {:else if facts}
       <section class="part">
         <RegionHead title={facts.title} />
-        <dl class="facts">
-          {#each facts.rows as row (row.label)}
-            <div class="fact"><dt>{row.label}</dt><dd>{row.value}</dd></div>
-          {/each}
-        </dl>
+        {@render factList()}
       </section>
     {/if}
     {#if danger}<DangerZone title={danger.title} acts={danger.acts} onact={danger.onact} />{/if}

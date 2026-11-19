@@ -9,13 +9,13 @@
   // Dialog M the card's *Decline* opens - a card holds no form (PS-4) - where a yes with a reason
   // is given too.
 
-  import { Badge, Button, Dialog, Inline, Stack, Textarea } from '@hubtask/design-system/components';
+  import { Badge, Button, Dialog, Icon, Inline, Stack, Textarea } from '@hubtask/design-system/components';
   import type { Approval } from '@hubtask/sync-engine';
 
   import { accounts } from '../data/accounts.svelte.ts';
   import { approvals, type Verdict } from '../data/approvals.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
-  import { formatDateTime } from '../i18n/datetime.ts';
+  import { formatDateTime, formatRelative } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import { decidedOnOlderVersion, levelStanding, stateTone, trailOf } from './approvals.ts';
@@ -24,9 +24,16 @@
     approval: Approval;
     /** Drawn on the reader's own list: the entry's title links to it; without it, the title is text. */
     onnavigate?: (path: string) => void;
+    /**
+     * The portal start's line (scene `portalext`): the entry and since when it waits, then the two
+     * answers - its levels and trail stay on the approvals tab.
+     */
+    isBrief?: boolean;
+    /** Read in the portal, by a requester: asked for their yes, without the team's step. */
+    isPortal?: boolean;
   }
 
-  const { approval, onnavigate }: Props = $props();
+  const { approval, onnavigate, isBrief = false, isPortal = false }: Props = $props();
 
   $effect(() => accounts.resolve([approval.requested_by, approval.on_behalf_of, ...approval.decisions.flatMap((d) => [d.approver_id, d.on_behalf_of])]));
 
@@ -64,6 +71,35 @@
   }
 </script>
 
+{#snippet answers()}
+  {#if approval.may_decide && approval.state === 'PENDING'}
+    <Inline gap="100">
+      {#if isBrief}
+        <Button tone="secondary" size="sm" disabledReason={deciding ? t('app.approvals.deciding') : undefined} onclick={answer}>{t('app.approvals.decline')}</Button>
+        <Button tone="primary" size="sm" isBusy={deciding === 'APPROVE' && !isAnswering} busyLabel={t('app.approvals.deciding')}
+          disabledReason={deciding ? t('app.approvals.deciding') : undefined} onclick={() => void decide('APPROVE')}>{t('app.approvals.approve')}</Button>
+      {:else}
+        <Button tone="primary" size="sm" icon="check" isBusy={deciding === 'APPROVE' && !isAnswering} busyLabel={t('app.approvals.deciding')}
+          disabledReason={deciding ? t('app.approvals.deciding') : undefined} onclick={() => void decide('APPROVE')}>{t('app.approvals.approve')}</Button>
+        <Button tone="secondary" size="sm" icon="x" disabledReason={deciding ? t('app.approvals.deciding') : undefined} onclick={answer}>{t('app.approvals.decline')}</Button>
+      {/if}
+    </Inline>
+  {/if}
+  {#if refusal && !isAnswering}<p class="refusal" role="alert">{refusal}</p>{/if}
+{/snippet}
+
+{#if isBrief}
+  <article class="brief" data-approval={approval.id}>
+    <div class="line">
+      <span class="mark" aria-hidden="true"><Icon name="user-check" size="sm" /></span>
+      <span class="words">
+        <span>{t('app.approvals.brief_title', { title: approval.item_title ?? '' })}</span>
+        <span class="quiet">{t('app.approvals.brief_since', { since: formatRelative(approval.requested_at, messages.locale) })}</span>
+      </span>
+    </div>
+    {@render answers()}
+  </article>
+{:else}
 <article class="card" data-approval={approval.id}>
   <Stack gap="100">
     <Inline gap="100" align="center">
@@ -79,7 +115,11 @@
       {#if approval.on_behalf_of}<span class="quiet">{t('app.approvals.for_person', { name: name(approval.on_behalf_of) })}</span>{/if}
     </Inline>
     <p class="quiet">
-      {t('app.approvals.asked_by', { name: name(approval.requested_by), at: at(approval.requested_at), step: approval.step })}
+      <!-- A step is read by its workflow's name, never its key (P-12); the portal's reader reads
+           none - the team's step is the team's word. -->
+      {#if isPortal}{t('app.approvals.asked_by_portal', { name: name(approval.requested_by), at: at(approval.requested_at) })}
+      {:else if approval.step_name}{t('app.approvals.asked_by', { name: name(approval.requested_by), at: at(approval.requested_at), step: approval.step_name })}
+      {:else}{t('app.approvals.asked_unnamed', { name: name(approval.requested_by), at: at(approval.requested_at) })}{/if}
       {#if approval.state === 'PENDING' && approval.due_at} · {t('app.approvals.due', { at: at(approval.due_at) })}{/if}
     </p>
     <ol class="levels">
@@ -110,21 +150,15 @@
         {/each}
       </ol>
     {/if}
-    {#if approval.may_decide && approval.state === 'PENDING'}
-      <Inline gap="100">
-        <Button tone="primary" size="sm" icon="check" isBusy={deciding === 'APPROVE' && !isAnswering} busyLabel={t('app.approvals.deciding')}
-          disabledReason={deciding ? t('app.approvals.deciding') : undefined} onclick={() => void decide('APPROVE')}>{t('app.approvals.approve')}</Button>
-        <Button tone="secondary" size="sm" icon="x" disabledReason={deciding ? t('app.approvals.deciding') : undefined} onclick={answer}>{t('app.approvals.decline')}</Button>
-      </Inline>
-    {/if}
-    {#if refusal && !isAnswering}<p class="refusal" role="alert">{refusal}</p>{/if}
+    {@render answers()}
   </Stack>
 </article>
+{/if}
 
 {#if approval.may_decide && approval.state === 'PENDING'}
   <Dialog
     size="m"
-    title={t('app.approvals.answer_title', { title: approval.item_title ?? approval.step })}
+    title={t('app.approvals.answer_title', { title: approval.item_title ?? approval.step_name ?? '' })}
     bind:isOpen={isAnswering}
     dismissLabel={t('app.page.cancel')}
     onClose={() => (refusal = undefined)}
@@ -145,6 +179,10 @@
 
 <style>
   .card { padding: var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface); }
+  .brief { display: flex; flex-direction: column; gap: var(--sp-150); }
+  .line { display: flex; align-items: flex-start; gap: var(--sp-150); }
+  .mark { display: inline-flex; padding: var(--sp-050); border-radius: var(--r-md); background: var(--label-green-bg); color: var(--label-green-fg); }
+  .words { display: flex; flex-direction: column; gap: var(--sp-025); min-inline-size: 0; overflow-wrap: anywhere; }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .refusal { margin: 0; color: var(--text-danger); }
   .levels, .trail { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }

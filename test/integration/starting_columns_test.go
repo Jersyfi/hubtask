@@ -52,8 +52,8 @@ func columnsOf(ctx context.Context, t *testing.T, collection string) []column {
 
 // UC-WRK-31 check 1 against PostgreSQL: a collection on *Flow* - here following its hub - starts
 // with its states as columns in the workspace's language, the one in progress limited, the last
-// completing; one on *Project* has the columns without a limit; one on *List* has none. Each
-// column reaches a synchronising client.
+// completing; one on *Project*, which offers the board beside its list, and one on *List* have none
+// (domain-model.md §3.5a). Each column reaches a synchronising client.
 func TestACollectionOnAPresetWithABoardStartsWithItsColumns(t *testing.T) {
 	ctx := context.Background()
 	registry := structureCatalogue(t)
@@ -90,9 +90,8 @@ func TestACollectionOnAPresetWithABoardStartsWithItsColumns(t *testing.T) {
 		t.Errorf("only the last column completes: %+v", columns)
 	}
 
-	columns = columnsOf(ctx, t, project)
-	if len(columns) != 3 || columns[1].limit != nil {
-		t.Errorf("a Project collection starts with %+v, want three columns without a limit", columns)
+	if columns := columnsOf(ctx, t, project); len(columns) != 0 {
+		t.Errorf("a Project collection starts with columns: %+v", columns)
 	}
 	if columns := columnsOf(ctx, t, list); len(columns) != 0 {
 		t.Errorf("a List collection starts with columns: %+v", columns)

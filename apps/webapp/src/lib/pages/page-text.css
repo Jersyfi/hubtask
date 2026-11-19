@@ -1,0 +1,237 @@
+/* SPDX-License-Identifier: Apache-2.0
+   Copyright (c) 2026 Jérôme Bastian Winkel */
+
+/* A page's text as the editor draws it, read or written: the page itself and each version the
+   history draws (UC-DOC-06), so a version looks as the page did. */
+
+/* Reading first (S-1): running text at the reading size and the loose line height, no box. */
+.page-text .page-body {
+  min-block-size: var(--sp-1000);
+  padding-block: var(--sp-100);
+  color: var(--text-primary);
+  font-size: var(--fs-250);
+  line-height: var(--lh-loose);
+  outline: none;
+}
+.page-text .page-body h2,
+.page-text .page-body h3 { scroll-margin-block-start: var(--sp-1000); }
+/* The column is the measure (`layout.reading`), not the frame's narrower one for a paragraph. */
+.page-text .page-body p { max-inline-size: none; color: var(--text-primary); }
+.page-text .page-body:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
+/* An empty page explains itself in its first line (S-6); the words are no text, so the caret stays first. */
+.page-text .page-body .page-empty::before {
+  float: inline-start;
+  block-size: 0;
+  color: var(--text-subtle);
+  content: attr(data-placeholder);
+  pointer-events: none;
+}
+.page-text .page-body h1,
+.page-text .page-body h2,
+.page-text .page-body h3 { font-family: var(--font-display); line-height: var(--lh-tight); }
+/* The headings on the type scale, never the browser's em steps of the body (25.5 px, 19.9 px). */
+.page-text .page-body h2 { font-size: var(--fs-500); }
+.page-text .page-body h3 { font-size: var(--fs-400); }
+.page-text .page-body pre {
+  padding: var(--sp-100);
+  border-radius: var(--r-md);
+  background: var(--bg-surface-sunken);
+  font-family: var(--font-mono);
+}
+.page-text .page-body code { font-family: var(--font-mono); }
+.page-text .page-body blockquote {
+  margin-inline: 0;
+  padding-inline-start: var(--sp-150);
+  border-inline-start: var(--bw-thick) solid var(--border-default);
+  color: var(--text-secondary);
+}
+.page-text .page-body ul[data-type='taskList'] { list-style: none; padding-inline-start: var(--sp-050); }
+.page-text .page-body ul[data-type='taskList'] li { display: flex; gap: var(--sp-100); align-items: baseline; }
+.page-text .page-mention {
+  padding-inline: var(--sp-025);
+  border-radius: var(--r-xs);
+  background: var(--accent-primary-subtle);
+  color: var(--text-brand);
+  cursor: pointer;
+}
+.page-text .page-card {
+  margin-block: var(--sp-100);
+  padding: var(--sp-150);
+  border: var(--bw-hairline) solid var(--border-default);
+  border-radius: var(--r-md);
+  background: var(--bg-surface-sunken);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+}
+.page-text .page-card[data-kind='view'],
+.page-text .page-card[data-kind='dashboard'],
+.page-text .page-card[data-kind='whiteboard'] { min-block-size: var(--sp-1000); }
+.page-text .page-card--live { padding: 0; border: none; background: none; cursor: default; }
+.blocks { display: grid; gap: var(--sp-100); }
+.block-form { display: flex; gap: var(--sp-100); align-items: center; }
+.block-form input {
+  flex: 1;
+  min-inline-size: 0;
+  padding: var(--sp-050) var(--sp-100);
+  border: var(--bw-hairline) solid var(--border-default);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+.page-text .page-callout {
+  margin-block: var(--sp-100);
+  padding: var(--sp-100) var(--sp-150);
+  border-inline-start: var(--bw-thick) solid var(--status-info-accent);
+  border-radius: var(--r-sm);
+  background: var(--status-info-surface);
+}
+.page-text .page-callout--warning { border-inline-start-color: var(--status-warning-accent); background: var(--status-warning-surface); }
+.page-text .page-callout--success { border-inline-start-color: var(--status-success-accent); background: var(--status-success-surface); }
+.page-text .page-callout--error { border-inline-start-color: var(--status-danger-accent); background: var(--status-danger-surface); }
+.page-text .page-details {
+  margin-block: var(--sp-100);
+  padding: var(--sp-050) var(--sp-150);
+  border: var(--bw-hairline) solid var(--border-default);
+  border-radius: var(--r-md);
+}
+/* A table: as wide as its words, scrolled sideways on a narrow screen rather than squeezed. */
+.page-text .page-math {
+  margin-block: var(--sp-100);
+  padding: var(--sp-100);
+  border-radius: var(--r-md);
+  background: var(--bg-surface-sunken);
+}
+.page-text .page-math__formula { overflow-x: auto; font-size: var(--fs-300); }
+.page-text .page-math__formula--error { color: var(--text-danger); font-size: var(--fs-075); }
+.page-text .page-math__source {
+  inline-size: 100%;
+  margin-block-start: var(--sp-050);
+  padding: var(--sp-050);
+  border: var(--bw-hairline) solid var(--border-default);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--fs-075);
+  resize: vertical;
+}
+.page-text .page-diagram { margin-block: var(--sp-100); margin-inline: 0; overflow-x: auto; }
+.page-text .page-diagram__picture { display: block; max-inline-size: 100%; border-radius: var(--r-md); }
+.page-text .page-diagram--error { color: var(--text-danger); font-size: var(--fs-075); }
+/* A language's colours from the text tokens alone: a code colour tells no status (design-system.md §6). */
+.page-text .hljs-keyword, .page-text .hljs-built_in, .page-text .hljs-selector-tag { color: var(--text-brand); font-weight: var(--fw-semibold); }
+.page-text .hljs-string, .page-text .hljs-regexp, .page-text .hljs-number, .page-text .hljs-literal { color: var(--text-success); }
+.page-text .hljs-comment, .page-text .hljs-quote, .page-text .hljs-meta { color: var(--text-secondary); font-style: italic; }
+.page-text .hljs-title, .page-text .hljs-section, .page-text .hljs-name { color: var(--text-primary); font-weight: var(--fw-semibold); }
+.page-text .hljs-type, .page-text .hljs-attr, .page-text .hljs-attribute, .page-text .hljs-symbol { color: var(--text-brand); }
+.page-text .hljs-deletion { color: var(--text-secondary); text-decoration: line-through; }
+.page-text .tableWrapper { margin-block: var(--sp-100); overflow-x: auto; }
+.page-text .page-table { border-collapse: collapse; min-inline-size: 50%; }
+.page-text .page-table th,
+.page-text .page-table td {
+  padding: var(--sp-050) var(--sp-100);
+  border: var(--bw-hairline) solid var(--border-default);
+  vertical-align: top;
+  text-align: start;
+}
+.page-text .page-table th { background: var(--bg-surface-sunken); font-weight: var(--fw-semibold); }
+.page-text .page-table p { margin: 0; }
+.page-text .page-table .selectedCell { background: var(--bg-surface-pressed); }
+.page-text .page-details__summary { font-weight: var(--fw-medium); cursor: pointer; }
+.page-text .page-details__input {
+  inline-size: calc(100% - var(--sp-300));
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+}
+.page-text .page-toc,
+.page-text .page-children {
+  margin-block: var(--sp-100);
+  padding: var(--sp-100) var(--sp-150);
+  border-radius: var(--r-md);
+  background: var(--bg-surface-sunken);
+  color: var(--text-secondary);
+}
+.page-text .page-toc__list,
+.page-text .page-children__list { margin: 0; padding-inline-start: var(--sp-200); }
+.page-text .page-toc__item--3,
+.page-text .page-toc__item--4,
+.page-text .page-toc__item--5,
+.page-text .page-toc__item--6 { margin-inline-start: var(--sp-200); }
+.page-text .page-toc__link,
+.page-text .page-children__link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-brand);
+  font: inherit;
+  cursor: pointer;
+}
+.page-text .page-embed__link {
+  display: flex;
+  gap: var(--sp-100);
+  margin-block: var(--sp-100);
+  padding: var(--sp-150);
+  border: var(--bw-hairline) solid var(--border-default);
+  border-radius: var(--r-md);
+  background: var(--bg-surface-sunken);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+.page-text .page-embed__host { color: var(--text-secondary); }
+.page-text .page-embed__frame {
+  display: block;
+  inline-size: 100%;
+  aspect-ratio: 16 / 9;
+  margin-block: var(--sp-100);
+  border: var(--bw-hairline) solid var(--border-default);
+  border-radius: var(--r-md);
+  background: var(--bg-surface-sunken);
+}
+.page-text .page-date,
+.page-text .page-status {
+  padding-inline: var(--sp-050);
+  border-radius: var(--r-xs);
+  background: var(--bg-surface-sunken);
+  font-size: var(--fs-075);
+}
+.page-text .page-status { font-weight: var(--fw-medium); text-transform: uppercase; }
+.page-text .page-status--info { background: var(--status-info-surface); color: var(--status-info-text); }
+.page-text .page-status--success { background: var(--status-success-surface); color: var(--status-success-text); }
+.page-text .page-status--warning { background: var(--status-warning-surface); color: var(--status-warning-text); }
+.page-text .page-status--error { background: var(--status-danger-surface); color: var(--status-danger-text); }
+.page-text .page-passage {
+  background: var(--label-amber-bg);
+  border-block-end: var(--bw-thick) solid var(--label-amber-fg);
+}
+.page-text .page-caret {
+  position: relative;
+  margin-inline: calc(-1 * var(--bw-hairline));
+  border-inline-start: var(--bw-thick) solid currentColor;
+  pointer-events: none;
+}
+.page-text .page-caret__label {
+  position: absolute;
+  inset-block-end: 100%;
+  inset-inline-start: calc(-1 * var(--bw-thick));
+  padding-inline: var(--sp-025);
+  border-radius: var(--r-xs);
+  background: currentColor;
+  font-size: var(--fs-050);
+  white-space: nowrap;
+}
+.page-text .page-caret__label::first-line { color: var(--text-inverse); }
+/* The name never covers words (carets.ts): below where the line above holds words, tucked away
+   where both neighbours do, faded near the reader's own caret. */
+.page-text .page-caret[data-place='below'] .page-caret__label { inset-block: 100% auto; }
+.page-text .page-caret[data-place='tucked'] .page-caret__label { visibility: hidden; }
+.page-text .page-caret[data-near] .page-caret__label { opacity: 0.25; }
+.page-text .page-caret--0 { color: var(--label-blue-fg); }
+.page-text .page-caret--1 { color: var(--label-green-fg); }
+.page-text .page-caret--2 { color: var(--label-violet-fg); }
+.page-text .page-caret--3 { color: var(--label-orange-fg); }
+.page-text .page-caret--4 { color: var(--label-teal-fg); }
+.page-text .page-caret--5 { color: var(--label-magenta-fg); }
+.page-text .page-caret--6 { color: var(--label-amber-fg); }
+.page-text .page-caret--7 { color: var(--label-red-fg); }

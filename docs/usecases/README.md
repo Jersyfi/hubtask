@@ -36,7 +36,7 @@ Filed by **bounded context**, under the same name as the code that implements it
 | [`planning/`](./planning/) | `UC-PLN` | Dependencies between entries and the plan they make: schedule, critical path, baselines, milestones, sprints and estimates | `service/work` (links), `service/planning` |
 | [`knowledge/`](./knowledge/) | `UC-DOC` | A hub's pages: writing together, finding, linking, versions, comments, export | `service/knowledge` |
 | [`whiteboard/`](./whiteboard/) | `UC-CNV` | A hub's whiteboards: drawing together, notes made tasks, cards of entries, export, arranging, sessions with votes and a timer, history, comments | `service/whiteboard` |
-| [`assets/`](./assets/) | `UC-AST` | A hub's configuration items: classes, relations, compliance fields, one reconciliation for every source, files, duplicates, impact, health | `service/cmdb` |
+| [`assets/`](./assets/) | `UC-AST` | The inventory, an object database: a hub's objects - hardware, software, services, contracts, locations, anything a process needs - related to each other, so that processes can be automated over connected information, not merely a list of what is owned; object types, relations, compliance fields, one reconciliation for every source, files, duplicates, impact, health | `service/cmdb` |
 | [`servicedesk/`](./servicedesk/) | `UC-SVC` | The service desk: business calendars, SLA policies and the clocks they run on an entry, queues, internal notes, the requester portal, canned replies and macros, satisfaction, approvals | `service/servicedesk` |
 | [`timekeeping/`](./timekeeping/) | `UC-TIM` | Time: records and the timer, a person's week handed in and approved, the locked period, reports, estimates against actuals, the export to accounting, capacity, absences and the workload, cost rates and budgets | `service/timekeeping` |
 | [`goal/`](./goal/) | `UC-GOL` | Goals and insight: periods, goals with key results fed by check-ins, views and linked entries, check-ins and grades, portfolios with their health and updates, dashboards over the summaries | `service/goal` |
@@ -264,6 +264,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-FLW-03](./workflow/UC-FLW-03-move-an-entry-on.md) | Move an entry on, and be told what it still needs | workflow |
 | [UC-FLW-04](./workflow/UC-FLW-04-ask-for-what-a-step-needs.md) | Ask for what a step needs, and act when it is taken | workflow |
 | [UC-FLW-05](./workflow/UC-FLW-05-change-a-workflow-in-use.md) | Change a workflow that is already in use | workflow |
+| [UC-FLW-06](./workflow/UC-FLW-06-see-where-an-entry-can-go-next.md) | See where an entry can go next and how its workflow looks | workflow |
 | [UC-PLN-01](./planning/UC-PLN-01-say-that-one-piece-of-work-waits-for-another.md) | Say that one piece of work waits for another | planning |
 | [UC-PLN-02](./planning/UC-PLN-02-see-the-plan-as-a-gantt-chart-and-move-it.md) | See the plan as a Gantt chart and move it by hand | planning |
 | [UC-PLN-03](./planning/UC-PLN-03-know-which-chain-decides-the-end-date.md) | Know which chain decides the end date | planning |
@@ -288,6 +289,9 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-DOC-13](./knowledge/UC-DOC-13-answer-a-requester-from-the-knowledge-base.md) | Answer a requester from the knowledge base | knowledge |
 | [UC-DOC-14](./knowledge/UC-DOC-14-put-pictures-and-files-on-a-page.md) | Put pictures and files on a page | knowledge |
 | [UC-DOC-15](./knowledge/UC-DOC-15-prepare-changes-to-a-page-before-readers-see-them.md) | Prepare changes to a page before readers see them | knowledge |
+| [UC-DOC-16](./knowledge/UC-DOC-16-give-a-page-a-cover.md) | Give a page a cover | knowledge |
+| [UC-DOC-17](./knowledge/UC-DOC-17-announce-news-to-a-hub-as-a-post.md) | Announce news to a hub as a post | knowledge |
+| [UC-DOC-18](./knowledge/UC-DOC-18-read-a-post-discuss-it-and-confirm-it.md) | Read a post, discuss it and confirm it | knowledge |
 | [UC-CNV-01](./whiteboard/UC-CNV-01-draw-on-a-whiteboard-together.md) | Draw on a whiteboard together | whiteboard |
 | [UC-CNV-02](./whiteboard/UC-CNV-02-turn-a-sticky-note-into-a-task-and-keep-it-on-the-board.md) | Turn a sticky note into a task and keep it on the board | whiteboard |
 | [UC-CNV-03](./whiteboard/UC-CNV-03-take-a-whiteboard-out-again.md) | Take a whiteboard out again | whiteboard |
@@ -300,16 +304,16 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-CNV-10](./whiteboard/UC-CNV-10-keep-whiteboards-beside-the-pages.md) | Keep whiteboards beside the pages | whiteboard |
 | [UC-AST-01](./assets/UC-AST-01-keep-an-inventory-of-what-our-services-run-on.md) | Keep an inventory of what our services run on | assets |
 | [UC-AST-02](./assets/UC-AST-02-let-every-source-write-through-one-reconciliation.md) | Let every source write through one reconciliation | assets |
-| [UC-AST-03](./assets/UC-AST-03-merge-duplicate-configuration-items-without-losing-one.md) | Merge duplicate configuration items without losing one | assets |
+| [UC-AST-03](./assets/UC-AST-03-merge-duplicate-configuration-items-without-losing-one.md) | Merge duplicate objects without losing one | assets |
 | [UC-AST-04](./assets/UC-AST-04-bring-an-inventory-in-from-a-file.md) | Bring an inventory in from a file | assets |
 | [UC-AST-05](./assets/UC-AST-05-see-what-a-failure-reaches.md) | See what a failure reaches | assets |
 | [UC-AST-06](./assets/UC-AST-06-see-how-healthy-our-inventory-is.md) | See how healthy our inventory is | assets |
 | [UC-AST-07](./assets/UC-AST-07-pull-our-inventory-from-the-tools-that-know-it.md) | Pull our inventory from the tools that already know it | assets |
-| [UC-AST-08](./assets/UC-AST-08-turn-monitoring-alerts-into-entries-on-the-affected-ci.md) | Turn monitoring alerts into entries on the affected configuration item | assets |
+| [UC-AST-08](./assets/UC-AST-08-turn-monitoring-alerts-into-entries-on-the-affected-ci.md) | Turn monitoring alerts into entries on the affected object | assets |
 | [UC-AST-09](./assets/UC-AST-09-see-what-an-incident-or-a-change-touches.md) | See what an incident or a change touches | assets |
 | [UC-AST-10](./assets/UC-AST-10-have-owners-attest-our-inventory.md) | Have owners attest our inventory | assets |
-| [UC-AST-11](./assets/UC-AST-11-group-cis-by-a-filter-and-draw-the-service-map.md) | Group configuration items by a filter and draw the service map | assets |
-| [UC-AST-12](./assets/UC-AST-12-keep-an-asset-register-to-its-disposal.md) | Keep an asset register to its disposal | assets |
+| [UC-AST-11](./assets/UC-AST-11-group-cis-by-a-filter-and-draw-the-service-map.md) | Group objects by a filter and draw the service map | assets |
+| [UC-AST-12](./assets/UC-AST-12-keep-an-asset-register-to-its-disposal.md) | Keep the register record of a device or licence to its disposal | assets |
 | [UC-AST-13](./assets/UC-AST-13-count-software-by-its-product.md) | Count software by its product | assets |
 | [UC-SVC-01](./servicedesk/UC-SVC-01-keep-our-working-hours-and-holidays.md) | Keep our working hours and holidays | servicedesk |
 | [UC-SVC-02](./servicedesk/UC-SVC-02-promise-response-times-and-see-which-is-about-to-break.md) | Promise response times and see which promise is about to break | servicedesk |
@@ -324,6 +328,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-SVC-11](./servicedesk/UC-SVC-11-see-the-requests-of-my-organisation.md) | See the requests of my organisation in the portal | servicedesk |
 | [UC-SVC-12](./servicedesk/UC-SVC-12-answer-a-requester-by-mail.md) | Answer a requester by mail and get their reply on the request | servicedesk |
 | [UC-SVC-13](./servicedesk/UC-SVC-13-take-a-request-from-somebody-without-an-account.md) | Take a request from somebody without an account through a public form | servicedesk |
+| [UC-SVC-14](./servicedesk/UC-SVC-14-ask-any-department-without-a-link.md) | Ask any department without a link | servicedesk |
 | [UC-TIM-01](./timekeeping/UC-TIM-01-track-my-time-on-what-i-work-on.md) | Track my time on what I work on | timekeeping |
 | [UC-TIM-02](./timekeeping/UC-TIM-02-fill-in-and-hand-in-my-week.md) | Fill in and hand in my week | timekeeping |
 | [UC-TIM-03](./timekeeping/UC-TIM-03-approve-a-teams-time.md) | Approve a team's time | timekeeping |
@@ -355,6 +360,10 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-WRK-40](./work/UC-WRK-40-see-and-change-what-a-screen-sets.md) | See and change what a screen sets without scrolling past the rest | work |
 | [UC-WRK-41](./work/UC-WRK-41-find-any-object-in-a-long-list.md) | Find any object in a long list and act on it | work |
 | [UC-WRK-42](./work/UC-WRK-42-add-change-and-remove-the-same-way.md) | Add, change and remove the same way everywhere | work |
+| [UC-WRK-43](./work/UC-WRK-43-ask-the-same-question-everywhere-with-one-query-language.md) | Ask the same question everywhere with one query language | work |
+| [UC-WRK-44](./work/UC-WRK-44-read-and-move-an-object-the-same-way-in-every-product.md) | Read and move an object the same way in every product | work |
+| [UC-WRK-45](./work/UC-WRK-45-overview-a-queue-and-a-list.md) | Overview a queue and a list | work |
+| [UC-WRK-46](./work/UC-WRK-46-create-anything-from-one-button.md) | Create anything from one button | work |
 | [UC-JUM-01](./jumble/UC-JUM-01-jot-something-down-before-deciding-what-it-is.md) | Jot something down before deciding what it is | jumble |
 | [UC-JUM-02](./jumble/UC-JUM-02-give-the-jumble-an-address-and-replace-it.md) | Give the jumble an address, and replace it when it leaks | jumble |
 | [UC-JUM-03](./jumble/UC-JUM-03-forward-mail-into-the-jumble.md) | Forward mail into the jumble | jumble |
@@ -407,6 +416,8 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-MED-02](./media/UC-MED-02-give-an-entry-a-cover.md) | Give an entry a cover | media |
 | [UC-MED-03](./media/UC-MED-03-remove-files-nobody-needs.md) | Remove files nobody needs any more | media |
 | [UC-MED-04](./media/UC-MED-04-set-how-much-may-be-uploaded.md) | Set how much may be uploaded | media |
+| [UC-MED-05](./media/UC-MED-05-see-a-file-without-downloading.md) | See a file without downloading it | media |
+| [UC-MED-06](./media/UC-MED-06-edit-an-office-file-in-the-document-server.md) | Edit an office file in the document server | media |
 | [UC-LIF-01](./lifecycle/UC-LIF-01-get-something-back-from-the-trash.md) | Get something I deleted back from the trash | lifecycle |
 | [UC-LIF-02](./lifecycle/UC-LIF-02-remove-something-for-good.md) | Remove something for good | lifecycle |
 | [UC-LIF-03](./lifecycle/UC-LIF-03-archive-finished-work.md) | Archive finished work and bring it back when needed | lifecycle |

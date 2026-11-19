@@ -156,6 +156,14 @@ export interface Names {
   none: string;
 }
 
+/**
+ * A report group's identity for its row: its keys as dimension and value. A key is an object, so
+ * joining the keys themselves made every group the same text and the table refused the duplicates.
+ */
+export function groupKey(group: { readonly keys: readonly { readonly dimension: string; readonly value: string }[] }): string {
+  return JSON.stringify(group.keys.map((key) => [key.dimension, key.value]));
+}
+
 /** The words for one key of a report's group. */
 export function keyLabel(key: TimeReport['groups'][number]['keys'][number], names: Names): string {
   if (key.value === '') return names.none;
@@ -366,4 +374,28 @@ export function minutesOfHours(text: string, separator: string): number | null |
   const match = pattern.exec(trimmed);
   if (!match) return undefined;
   return Math.round(Number(`${match[1]}.${match[2] ?? '0'}`) * 60);
+}
+
+/**
+ * Whether every working day of a week holds time (HOME-time-week): the days the person's capacity
+ * counts, Monday to Friday where it counts none. `minutes` and `capacity` run Monday first.
+ */
+export function isWeekLogged(minutes: readonly number[], capacity: readonly number[] | undefined): boolean {
+  const working = capacity?.some((each) => each > 0) ? capacity.map((each) => each > 0) : [true, true, true, true, true, false, false];
+  return working.every((isWorking, day) => !isWorking || (minutes[day] ?? 0) > 0);
+}
+
+/**
+ * A person's capacity for each day of the week from `monday` (UC-TIM-01): the latest capacity in
+ * force by then, Monday first; none where nothing is recorded for them.
+ */
+export function dayCapacities(
+  list: readonly { readonly account_id: string; readonly from: string; readonly week_minutes: readonly number[] }[],
+  accountId: string | undefined,
+  monday: string,
+): readonly number[] | undefined {
+  const inForce = list
+    .filter((each) => each.account_id === accountId && each.from <= monday)
+    .sort((a, b) => b.from.localeCompare(a.from))[0];
+  return inForce ? Array.from({ length: 7 }, (_, day) => inForce.week_minutes[day] ?? 0) : undefined;
 }

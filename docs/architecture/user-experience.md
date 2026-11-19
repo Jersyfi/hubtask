@@ -45,6 +45,14 @@ Each principle has a stable identifier a screen, a test or a review cites.
 | UX-6 | **Lively, calm, through tokens** | Things arrive, move and leave visibly — lists, panels, cards, figures — in the motion roles (§6). Figures are live where the reader looks. Motion stays short and honours reduced motion |
 | UX-7 | **Never by colour alone** | Rule 3 of the design system, applied to every chart, bar and status (WCAG 1.4.1, 1.4.11) |
 | UX-8 | **Freedom of use is kept** | Every default is a starting point the customer changes: templates are copied, never bound; a product's home is a door, not a cage; the plain task manager stays whole for a household that switches nothing on (D1, P-03) |
+| UX-9 | **One object, one shape** (WB-1) | Entry, ticket, inventory object, goal, release, agent and portfolio share one head (`ObjectHead`): key with the product's tile, type, title, and under it the action bar with the status, the next step, the person and the due date (§5.6) |
+| UX-10 | **The product colour identifies, it means nothing** (WB-2) | A product's colour (`product.<id>.surface`, `.ink`) stands in its home's head band, at the key, in its empty state and on widgets; never as a status, a button or a chart's series |
+| UX-11 | **What matters first, the rest folded** (WB-3) | The main column is description, parts and conversation; everything else is in the property rail; an empty section is one line with ＋; at most two levels |
+| UX-12 | **Lists are calm tables** (WB-4) | One region with hairlines, columns by the kind of collection, groups with counts and *+ Entry*, one act and ⋯ on hover; comfortable or compact, remembered on the device |
+| UX-13 | **Figures on top, sentences instead of keys** (WB-5) | Every product home and head starts with its figures; trends are a chart in the fixed palette (`chart.categorical.1–7`) with a table beside it |
+| UX-14 | **Never empty when there is something** (WB-6) | A product home does not open on an empty tab when the product has content; what is truly empty says so in a sentence, with a template as the main way and a side way |
+| UX-15 | **Immediate and visible** (WB-7) | A change appears at once and arrives, moves and leaves in the motion roles (§6); an error stands in place, with undo where there is one |
+| UX-16 | **Every device, the same functions** (WB-8) | Only the arrangement changes: a table becomes rows, a rail a sheet, columns strips, and the primary act floats above the bottom bar |
 
 ---
 
@@ -68,7 +76,7 @@ there); the sidebar has three regions:
 | Foot, fixed | *Administration* (only where the manifest's `workspace_permissions` carry `STRUCTURE` or `READ_CONFIGURATION`), *Archive*, *Trash* | On both levels, after a hairline |
 
 **A detail screen stays in the level of the place that owns it.** An entry, a page, a whiteboard,
-a CI, a goal or a dashboard of a hub shows that hub's level, with the row it belongs to current (its
+an object, a goal or a dashboard of a hub shows that hub's level, with the row it belongs to current (its
 collection, itself in *Contents*, *Inventory*, *Goals*); a goal or a dashboard of the workspace (no
 hub) shows the workspace level with its product current. The route names only the object, so the
 screen names its place once it has read it (`page.locate`, `null` for the workspace); until then
@@ -95,7 +103,7 @@ By default in `Module.Keys()` order, so the section never reorders itself when a
 | KNOWLEDGE | *Pages* | `/pages` | The page spaces of the hubs the reader may read, recently changed pages, pages waiting for the reader's review; *My notes* as a tab (today `/notes`, which moves there) |
 | WHITEBOARD | *Whiteboards* | `/whiteboards` | Every board the reader may read, as preview cards, recent first |
 | SERVICE_DESK | *Service desk* | `/desk` | The handler's queues across every desk collection the reader works in: *Mine*, *Unassigned in my groups*, *About to breach*, *All open*, as saved views; the desks as a tab |
-| ASSETS | *Assets* | `/assets` | The inventory across hubs and the configuration items, with a health summary at the top |
+| ASSETS | *Inventory* | `/assets` | The inventory across hubs and its objects, with a health summary at the top |
 | TIME | *Time* | `/time` | The reader's week first (as today), the weeks they decide, the report |
 | GOALS | *Goals* | `/goals` | Goals of the current period, portfolios and dashboards as tabs, as today |
 | AGENTS | *Agents* | `/agents` | The agents working here that the reader may see, their held acts and their recent runs |
@@ -104,7 +112,7 @@ By default in `Module.Keys()` order, so the section never reorders itself when a
 lives there and never in a hub, with the shared vocabulary of tabs of §5.1 (*For you* first where
 the product holds personal work, *Settings* last): Plans *For you · Sprints · Releases · Roadmaps*;
 Pages *For you · Spaces · My notes*; Whiteboards *For you · All · Templates*; Service desk *For you ·
-Desks · Reports · Settings*; Assets *Inventory · Classes · Sources · Settings*; Time *My week · To
+Desks · Reports · Settings*; Inventory *Inventory · Object types · Sources · Settings*; Time *My week · To
 decide · Report · Absences · Settings*; Goals *Goals · Portfolios · Dashboards*; Agents *Agents ·
 Waiting · Runs · Settings*. The rows are ordered personally by drag or `Alt+↑/↓`, and a row's ⋯
 (its long press on touch) hides it: hidden rows stand behind one *More* row below the shown ones,
@@ -141,8 +149,8 @@ concept's §2.4 has the tables):
 2. ***Overview* and the hub tools**, one row each where its module is on at the hub, in a fixed
    order that no person changes: *Queues* (SERVICE_DESK and at least one desk; expands to the hub's
    queues with live counts, starred first; replaces the tab *Desk*), *Plan* (PLANNING; tabs
-   *Schedule · Releases · Sprints*), *Inventory* (ASSETS; tabs *Inventory · Health · Alerts · Map ·
-   Manage ▾*, the class tree inside the page), *Time* (TIME; tabs *Actuals · Workload · Budget*),
+   *Schedule · Releases · Sprints*), *Inventory* (ASSETS; tabs *Stock · Map · Health · Alerts ·
+   Upkeep*, the object-type tree inside *Stock*), *Time* (TIME; tabs *Actuals · Workload · Budget*),
    *Goals* (GOALS; tabs *Goals · Dashboards*). A tool is switched off at the hub by a holder of
    `STRUCTURE`, never hidden by a person. Agents, portfolios, types and workflows, approvals, the
    person's own time and the portal are not on the hub level.
@@ -153,6 +161,9 @@ concept's §2.4 has the tables):
    children; templates are offered in the create dialog, not in the tree. From 30 entries a filter
    (*All · Pages · Whiteboards*); modes *Tree*, *Recently changed*, *A–Z*, personal; *All contents*
    opens the table.
+5. ***Posts*** at the foot (the work-surface concept's one exception to the navigation, B-2): the
+   three newest published posts, an unread one with its dot, then *All posts*; shown where the hub
+   has a published post or the reader may write one (§7.12).
 
 A part appears only where its product is on at the hub; an empty part only for whoever may create
 in it, as one quiet row (*Create the first page*). **One view bar per object**: a collection, a tool
@@ -278,7 +289,7 @@ portfolio*. Today's four purposes are the first two families and the plain team 
 * Afterwards the app opens **the home of the template's main product** (the desk's queue for a
   service template, the space's first page for a docs template), with its first-visit mark.
 * *Knowledge and docs* and *Assets and registers* each have a template the product is mainly for:
-  *Team wiki* among the team templates and *Configuration items* among the registers
+  *Team wiki* among the team templates and *Inventory objects* among the registers
   (`configuration.md` §9).
 * *Skip* and dismissing still close the question for good; Today's first steps then carry
   *Choose what you use Hubtask for* (§3.3), which opens the same dialog.
@@ -329,9 +340,19 @@ see (one in use, where nothing is on the reader, shows *In use here* instead: it
 products, each leading there): *Choose what you use Hubtask for*
 (where the starter was skipped), *Create a hub*, *Capture*, *Invite*, and **More in Hubtask**: a
 strip of the switched-off products, each with a one-line value and *Try it*, which takes the
-matching template through §3.2's dialog (*Pages* takes the *Team wiki*, *Assets* the
-*Configuration items*) — for holders of `STRUCTURE` only; nobody else sees a
+matching template through §3.2's dialog (*Pages* takes the *Team wiki*, *Inventory* the
+*Inventory objects*) — for holders of `STRUCTURE` only; nobody else sees a
 product they cannot switch on. The strip can be dismissed for good.
+
+As built with the work surface (`TodayView.svelte`, `lib/today.ts`): the greeting by the time of the
+person's day, then **one row of cards** - overdue, due today, and where their products are on *Needs
+your reply*, *Time today* and *Waiting for your yes* -, each with one act leading to its entries; the
+entries below in two columns by level; **tiles** for the collections shown as themselves, the inbox
+and what was recently opened; *New for you*, the published posts the reader has not seen across the
+hubs they read, where Knowledge is on. ***Sections*** hides and orders the cards and tiles; the
+arrangement is the account's (`account.today_sections`, `today_sections_hidden`), so it follows the
+person to another device, and a card their roles or modules do not give is neither shown nor offered
+(UC-WRK-34 checks 7-9).
 
 ### 3.4 Tours
 
@@ -368,7 +389,7 @@ the person's requests.
 `hubctl workspace demo --workspace <short>` (and `make demo`) fills a workspace through the public
 API: one starter template of each family with its marked samples, plus pages with pictures, a
 whiteboard, a goal period with key results, a portfolio and a dashboard with charts, assets and
-CIs, a desk with portal requests and running SLAs, time records over two weeks. It is idempotent,
+objects, a desk with portal requests and running SLAs, time records over two weeks. It is idempotent,
 marks everything as sample, and removes it in one act. It is how the owner sees what exists and
 what the UI/UX run walks "with very much content"; the R3 walk of `test/load/PLAN.md` extends to
 every product home.
@@ -376,7 +397,7 @@ every product home.
 Today: `hubctl workspace demo --workspace <short>` fills the credential's workspace (the short
 name is a guard against filling another) with the showcase of `cmd/hubctl/DemoContent.go`, written
 by the one signed-in person: the four templates with the desk's samples, the Scrum, Kanban, project
-and desk hubs with their entries, sprints, releases, plan, risks, the desk's calls and CIs, pages
+and desk hubs with their entries, sprints, releases, plan, risks, the desk's calls and objects, pages
 with an image and versions, three whiteboards, two weeks of the person's own time, goals with key
 results and check-ins, two portfolios and two dashboards. Every object it makes is marked under
 a key (`POST /tenant/samples`, migration 0384); a second run makes only what no mark holds, and
@@ -397,7 +418,7 @@ people and requesters and runs the same showcase as its owner with `--voices`: w
 there - their comments, check-ins, own time and timesheets, a requester's request and reply -
 comes back in order and is written as each of them, the CAB approves the change as itself, and two
 agents are registered (not marked). Another person's time stays theirs when the showcase is removed
-(T-04). Not marked: the goal period (a frame, found by name), CIs, sprints and releases (they leave
+(T-04). Not marked: the goal period (a frame, found by name), objects, sprints and releases (they leave
 with their hub), and the workspace's kinds of work, rates and absences.
 
 ---
@@ -410,11 +431,11 @@ already there, the templates offered, the first act, and what stays folded until
 | Product | Already there on first use | Templates offered first | First act | Folded until needed |
 |---|---|---|---|---|
 | Pages | A space per hub with a home page; the template's guide pages | Handbook, How-to, Meeting notes, Decision log, Onboarding | *New page* in the space | Drafts and publishing, page review, public link, templates of pages |
-| Whiteboards | — | Retrospective, Brainstorm, User story map, Kanban sketch, Blank — a gallery with previews in the create dialog | *New whiteboard* | Voting, timer, history, backlinks, export (side sheets) |
+| Whiteboards | — | Retrospective, Brainstorm, User story map, Kanban sketch, Blank — a sheet of previews on the new board | *New whiteboard*, which opens the board at once | Voting, timer, history, backlinks, export (side sheets) |
 | Service desk | A desk collection with the ITIL or basic workflow, queues as saved views, a portal, a business calendar Mon–Fri 8–18, P1–P4 SLAs | ITIL service desk, Internal IT, Facility, HR, Customer support | *Open the portal* to see what requesters see; *New request* | Intake mail, organisations, canned replies, approvals, CMDB links |
 | Plans | A plan over the hub's dated entries; today marked | Classic project, Hybrid project, Scrum team, Scaled agile | *Add a phase* / *Plan a sprint* | Tolerances, baselines, critical path, cost |
 | Time | The reader's week; the workspace's kinds of work | — (the defaults are the template's) | *Start a timer* / *Record time* | Approval of weeks, rates, export |
-| Assets | An inventory with the shipped CI types (laptop, server, licence, service) | IT asset register, Internal IT | *Add an asset* / *Import* | Connectors, discovery runs, duplicates, campaigns, software register |
+| Inventory | An inventory with the shipped object types (laptop, server, licence, service) | IT inventory, Internal IT | *New object* / *Import* | Connectors, discovery runs, duplicates, campaigns, software register |
 | Goals | **The current quarter as the default period**, created on first visit by a holder or offered in one press, editable | Quarterly OKRs, Delivery dashboard, Portfolio | *New goal* | Check-in rhythm, weighting, public roadmap link |
 | Agents | — | The shipped agent roles (triage, summariser) | *Add an agent* | Budgets, registered-only, run traces |
 
@@ -500,7 +521,7 @@ Every product home and every hub tool has one anatomy (mockup: `shell.html`, *Pr
   composition, `lib/product/CreateDialog.svelte` (the title field, the gallery, the product's own
   fields, the *In:* chip listing the hubs where the product is on and the reader may write, the
   one primary beside *Cancel*), filled by pages (Blank, the hub's own templates, Hubtask's pages
-  and spaces as cards), whiteboards, configuration items and sprints; an entry's is capture's
+  and spaces as cards), whiteboards, objects and sprints; an entry's is capture's
   dialog with its place chip (design-system §11.8). A product home's act opens it at the place
   holding most of the product.
 * **Creating a hub shows the template gallery**, grouped by family, the four presets as its
@@ -517,15 +538,23 @@ Every product home and every hub tool has one anatomy (mockup: `shell.html`, *Pr
 ### 5.3 Find
 
 * **Search is one door for every object the reader may see** (P-19). `/search` fans out to the
-  existing per-kind searches — entries, pages (`SearchPages`), boards, CIs and assets by title,
-  goals, portfolios and dashboards by name, releases and sprints — and groups the results by kind
-  with a kind filter (*All · Entries · Pages · Boards · Assets · Goals …*), one `ListRow` anatomy
+  existing per-kind searches — entries, pages (`SearchPages`), boards, objects by title,
+  goals, portfolios and dashboards by name, releases and sprints, and posts once published, for
+  their audience alone and never as pages — and groups the results by kind
+  with a kind filter (*All · Entries · Pages · Boards · Inventory · Goals …*), one `ListRow` anatomy
   for each. Module switches and READ per object are respected as each per-kind search already
   does. Searching inside attached files stays out (the owner's second answers, 11).
 * **The palette** gets one source per module, registered beside its navigation row, with the top
   hits of the same fan-out, and *Go to <product>* and *Go to <hub> › <tab>* commands. The settings
   catalogue is a source too, each setting with its level and its synonyms, filtered by what the
   reader may reach (A7). A test asserts that every module that is on contributes a source.
+* **As built with the work surface**: the header search and the search page draw from one read,
+  `POST /search:all` - entries and tickets, pages, whiteboards, goals, dashboards, objects, people,
+  file names, comments, portfolios, releases, sprints and posts -, grouped by kind with each kind's
+  count on the left; the line travels whole in the request's body and is a Hubtask query
+  (api-guidelines.md §3.1), so a key of one kind keeps the search to that kind. Where a list or
+  a view filters, it is the same query line as chips with the count while typing (UC-WRK-43); a
+  `word:` that names no field is searched as words and says so at its chip.
 
 ### 5.4 Configure
 
@@ -537,7 +566,7 @@ Every product home and every hub tool has one anatomy (mockup: `shell.html`, *Pr
   `ModuleSwitches` documents. A test over the administration routes asserts each uses the shell.
   The desk's, the time's and the assets' settings, each its home's last tab, stand on it too - one
   section at a time, never a second row of tabs - and the home's head keeps its create act there.
-  The assets' class tree shows its families, each deeper branch folded until opened.
+  The inventory's object type tree shows its families, each deeper branch folded until opened.
 * **Pickers, never keys.** A setting that names a type, a status, a group, a priority or a field
   is a picker fed by the workspace's own values, validated before saving; a duration is a
   `DurationInput` in minutes, hours or business days, converted on the client; a recurrence is a
@@ -583,6 +612,14 @@ refuses a `*.empty` or `*_none` message code rendered outside `EmptyState` in `v
 * **One key format everywhere**: a short prefix the template or a person sets (*INC*, *ATL*),
   `PREFIX-n`, drawn identically in a list, a panel, a board card and a mail. A prefix derived from
   a name is at most five letters, transliterated, never the collection's whole name.
+* **As built with the work surface** (UC-WRK-44): an entry, a ticket, an inventory object, a goal, a
+  release, an agent and a portfolio start with one head (`ObjectHead`) over the full width - key or
+  tile, type, title, the state as one button saying where it can go next (UC-FLW-06), the next step
+  as the primary act -, then jump marks to the sections (with their counts), the content and the
+  properties in a rail beside it (`PropertyRail`); on a phone the jump marks switch between
+  sections and the properties open as a sheet. The conversation opens on *All*, the history as
+  quiet rows between the comments. The steps the reader may not take stand under the allowed ones
+  with their reason and are never taken (design-system.md, `StatusButton`).
 
 ### 5.7 A place's settings
 
@@ -778,59 +815,144 @@ A portal article leaves every internal address out of what a requester reads.
 at the top or under a page (UC-CNV-10); the hub's former *Whiteboards* tab becomes *All contents*
 filtered to whiteboards, and the gallery across hubs is the product home's.
 
-A **full-bleed canvas**. One compact floating tool bar of icon buttons (with tooltips and names)
-at the top centre; zoom and the map in a corner; the selected object's properties first in a
-side sheet; voting, timer, comments, history, backlinks, frames and export as collapsible side
-sheets, closed by default. On a phone a bottom tool sheet. A new board is created from the
-template gallery in the create dialog (§5.2); the template select leaves the tool bar.
+A **full-bleed canvas** whose controls are islands in its corners and a grouped dock at its foot,
+an edit bar above the selection, a session bar at the top centre and sheets closed by default. A
+new board opens at once with its templates as a sheet.
 
-As built: the board takes the content region whole (`page.fill`). Its head is one row: the hub
-and the title once, the timer while it runs, the connection's state, who else is here as an
-avatar stack, *Comments* with the open threads' count, *Voting, timer and who is here*, *History*
-and the board's menu (put a template, frames, *Pointing here*, export, rename, the trash last).
-One sheet is open at a time; it lies over the canvas, so opening it never moves the board, and the
-tools and the corner keep to the canvas beside it. The chosen object's properties come first in
-it on a wide screen; on a phone they wait for *Properties* in the tool sheet. The tools are icon
-buttons with their names as tooltips and accessible names; an entry, a template and, on a phone,
-the tools used less (connector, text, frame, eraser, link) and *Redo* are under *Put on the
-board*. A board opens showing everything it holds, never above its own size. An empty board says
-so in its middle and offers a template. The hub's *Whiteboards* lists the boards as preview cards,
-recent first, each drawing its objects once on the screen (up to 1,500 objects; a larger or
-empty board shows its mark); an empty hub offers the gallery, one press each. The gallery is
-Blank, Retrospective (its questions chosen beside it: start-stop-continue, the four Ls,
-mad-sad-glad), Brainstorm, User story map, Kanban sketch and Flowchart, each with a drawing of
-what it puts; the name defaults to the template's until the person types their own; an exported
-board is a folded alternative to a template. On an open board a template is chosen in the same
-gallery and put by the dialog's own button.
+As built: the board takes the
+content region whole (`page.fill`) and has no head above it; its controls are islands in the four
+corners and a dock at the foot. Top left: back to the boards, the title with its product tile
+and star, the connection's state (a tick once everything is saved; a longer state gives way before
+the title), *Surface | List* and the board's menu (put a template, frames, *Pointing here*, export,
+rename, the trash last). Top right: who else is here as faces (a press lists them, each with
+*Follow*; following draws a coloured frame round the board and ends when the reader moves it),
+*Moderate*, *Comments* with the open threads' count and *History*. Bottom left undo and redo; bottom
+right the frames, zoom and the map on request. The dock is grouped — move · create · draw ·
+conversation · insert — each tool showing its key (V, H, N, R, T, L, F, P, M, E, C), the shapes in a
+fan at their tool; a tool springs back to select after one use, a double click holds it, the held
+space bar is the hand and Esc leads back. *Insert* holds the tools used less, a picture
+or file (the platform's chooser, no control of its own), an entry and a template. A selection
+carries a bar above it in a fixed order — colour, size, arrow, comment, lock, *Task from it*, ⋯ —
+instead of a form; a task card shows its key, the person it is on, its status and a tick,
+live. A running timer or vote is one bar at the top centre for everyone, level with the top
+islands where it clears them and just below them where it would touch one; *Moderate* opens
+the sheet that sets them up. One sheet is open at a time and lies over the canvas: comments as
+thread cards with the composer at their foot, history as a log, frames as numbered rows at the
+corner. On a phone the frames are paged at the top and the sheets wait under ⋯; a finger moves the
+board and a pen draws on a tablet. A board opens showing everything it holds, never above its own
+size.
 
-### 7.3 Assets and the CMDB
+A **new board opens at once** (scene `wnew`): every *New whiteboard* — the Create menu, the home,
+a hub's *Whiteboards* — makes a blank board and opens it with *How do you start?* as a sheet of the
+eight templates (the three retrospectives each a card), *Leave it empty* and the first-use keys; a
+template chosen names an untitled board after it. The contents dialog stays only for a board under
+a page and for an import.
 
-*Inventory* first, with a health summary above it (*218 assets · 6 need attention · 3 licences
-expire this month*). The operator's tabs — runs, duplicates, connectors, campaigns, register,
-software — go behind *Manage* (one tab that opens them as a second strip), visible to whoever
-may run them. A lifecycle state is a non-interactive `Badge`, never a bordered pill that reads as
-a button. A CI's detail shows its relations as a small graph with the list beside it.
+The **whiteboards' home** (scene `whome`) is a band (*n whiteboards · n changed today · n open
+comments*) over *For you*: *Recently opened* — the boards opened on this device, per account, by
+identifier alone and forgotten at sign-out; the last changed where none was — as drawings of their
+objects with who made and last changed them (`BoardThumbnail`, also on search hits), a row of
+five templates each starting a board in one press, and the open comments naming the reader, each
+opening its board at the thread. *All* lists every board as cards, the last changed first.
 
-As built: the hub's *Assets* has a `PageHeader` with the trail, a figure (*40 configuration items ·
-6 need attention*, and a danger badge *1 alert firing* while alerts fire) and *New configuration
-item* as the primary; its list holds *Import a file…*, *New connector*, *New group* and *Start a
-campaign*, each opening its section's own dialog once. No licence count is drawn: no read answers
-which licences expire. The tool's view bar is *Inventory · Health · Alerts · Map · Manage ▾*
-(*Map* holds the groups and the service map); *Manage ▾* is a menu of *Runs · Duplicates ·
-Connectors · Campaigns · Register · Software · Import*, never a second strip, and is drawn for
-whoever may write or shape the hub, the import for a writer only; for a reader without it,
-*Register* and *Software*, which only list, join the view bar (UC-AST-12 check 5); an address naming a section the reader cannot reach shows the inventory. The inventory's rows are
-`ListRow`s with the lifecycle as a neutral `Badge` and the state only where it is not OK; an
-empty inventory offers the create and the import, a reader is told how CIs arrive. A connector is
+The hub's *Whiteboards* lists the boards as preview cards, recent first, each drawing its objects
+once on the screen (up to 1,500 objects; a larger or empty board shows its mark); an empty hub
+offers the gallery, one press each. The gallery is Blank, Retrospective (start-stop-continue, the
+four Ls, mad-sad-glad), Brainstorm, User story map, Kanban sketch and Flowchart, each with a drawing
+of what it puts; an exported board is a folded alternative to a template. On an open board a
+template is chosen in the same gallery and put by the dialog's own button.
+
+### 7.3 Inventory: objects and their relations
+
+The product is *Inventory* (de *Inventar*), an object database: it maps any structure as related
+objects - hardware, software, services, contracts, locations, anything a process needs - so that
+processes can be automated over connected information, not merely an inventory tool (the owner's
+decision of 2026-11-14). Its words on every screen: *object* (de *Objekt*), *object type*
+(*Objekttyp*), *attribute* (*Attribut*), *relation* (*Beziehung*) and *relation type*
+(*Beziehungstyp*); an object's cost, supplier and warranty are its *register record* (*Bestand*,
+*Bestandsdatensatz*) under *Devices and licences* (*Geräte und Lizenzen*). "Object" is
+said only in the help, as the ITIL word for objects in IT operations (*In IT, objects are also
+called objects (ITIL)*, the empty inventory's hint); no display text says "Asset".
+
+*Stock* first, with a health summary above it (*12 objects · 2 need attention · 1 review overdue ·
+Completeness 100 %*), work-surface §6.10. The operator's former sections - runs, duplicates,
+connectors, rounds, the import - are gathered under the tab *Upkeep* (IN-4), drawn for whoever may
+run them, the import for a writer only. A lifecycle state is a non-interactive lozenge, never a
+bordered pill that reads as a button. An object's page has the entry's shape (IN-2, scene `ci`): one
+head with the stage as a step bar and *Change stage*, jump marks, the main column - attributes with
+the source of each, the relations as a picture *or* a list (the reader's choice, kept on the device;
+a phone opens on the list), the impact both ways, *Work on it* with each entry's reason and *Report
+an incident* (IN-3), the register record with the device's life - and the rail with responsibility,
+protection need, origin and the saved groups holding it.
+
+As built: the hub's *Inventory* has the tool's head with the trail, the figure from the health read,
+*Import* as the secondary act and *New object* as the primary, whose list holds *New connector*,
+*New group* and *Start a campaign*, each opening its tab's own dialog once; on a phone the head offers
+neither, the stock is read there (UC-AST-01 check 10). The view bar is *Stock · Map · Health ·
+Alerts n · Upkeep*, never a second strip; every former section keeps its address under
+`/hubs/:id/inventory/` and lands on its tab (`inventoryPlace`): runs, duplicates, connectors,
+campaigns and import on *Upkeep*, each drawn alone under *Back to upkeep* with its `#care-{part}`
+anchor (a deeper page, so a part's own dialog never opens over another), groups on *Stock* with its saved groups, register and
+software on *Stock*'s switch *All objects · Devices and licences n · Software n*, which a reader
+reads too (UC-AST-12 check 5); an address the reader cannot reach shows *Stock*. *Stock* is the query
+line with the `asset.` keys - narrowed on the device over the hub's loaded objects with the server's
+reading of the keys (`data/inventoryquery.ts`), opening on `-asset.stage: disposed` -, the
+object-type tree with counts and the saved groups beside it (a select on a phone), and a `DataTable`
+of name, type, stage, owner, location, protection and open entries, *List* or *By object type*,
+the columns kept on the device. An
+empty inventory offers the create and the import, a reader is told how objects arrive. A connector is
 a card: its program, its state as badges (*Last run failed*, *No credential yet*, *Switched
 off*), when it last and next runs, *Pull now* as its one act and the dry run, the full pull,
 *Change* and the credential in its menu; an alert intake shows its address with a line about its
-secret. Alerts narrow in a toolbar; an empty list says how alerts arrive and offers *Set up an
-alert intake* to whoever may define one, narrowed to firing it says *Nothing is firing*. A CI's
-head is a `PageHeader` (trail, class, lifecycle, *Copy the reference*); its relations are drawn
-as what points at it, the CI and what it points at, six a side with the rest counted, beside the
+secret. Alerts are a calm table - alert, object, entry, since, count, state - narrowed in a toolbar;
+an empty list says how alerts arrive and offers *Set up an alert intake* to whoever may define one,
+narrowed to firing it says *Nothing is firing*. An object's
+head is a `PageHeader` (trail, object type, lifecycle, *Copy the reference*); its relations are drawn
+as what points at it, the object and what it points at, six a side with the rest counted, beside the
 list from the expanded width and above it on a phone, hidden from assistive technology because
 the list carries every relation with its link.
+
+*Map* (scene `invmap`) shows one service at a time, the worst-standing first by the health's
+service scores: *Service: name ▾*, how far below it (*1 step · 2 · 3*), *Only problems* (the ways to
+objects with an open entry, a firing alert or found wanting) and *As a list* (§8 of the concept: the
+picture's table), the legend at the end. The service stands at the start, what it rests on in
+columns by steps, measured curves between them; an object with an open incident is drawn on the
+danger surface with the entry's key, a planned change's key beside it, a stage other than *in use*
+as a lozenge, and the way from the service down to a struck object dashed - the dash, the key and a
+hidden word say it, never the colour alone. Under it *Open on this service* (each entry *via* the
+object it names, or *direct*) and *Planned changes*, each with its collisions as the entry's own read
+answers them (`readEntryCis`: other entries planned in an overlapping window on an object it names or
+reaches, across the hub), so the map and the entry's page never disagree. *All services* keeps the
+hub's layered map. The map writes nothing; on a phone the picture scrolls in its own frame and the
+cards stack.
+
+*Upkeep* (scene `invcare`, IN-4) is one page of cards: six figures - complete, correct (with the
+deviations a source's run held), stale, orphaned, duplicates, without responsibility -, each on the
+warning surface when wanting and opening what it counts (*Health*, the runs, the duplicates, the stock
+narrowed to `asset.owner: none`); *To do*, one row per problem with one act - *Assign* and *Check* open
+the object, *Relate* its relations, *Compare* a deviation beside its run's decision in a Dialog L and
+closes it, *Decide* a duplicate pair in today's comparison in a Dialog L -, five shown and *Show all n*;
+the open attestation round with its score (no reminder: the server has no act for one) or *Start a
+round*, the earlier rounds counted; the open duplicate pairs; and *Sources and runs*: each connector
+that brings objects with its last run (*12 read · 1 changed*) and its next, each source a run named
+without a connector, and *By hand* - the objects only a person ever spoke for -, a run's decisions in
+a Dialog L behind its row, *Connect a source*, *Import*, *All runs*, *All connectors*. The deviations
+are rows of *To do* and have no card of their own. On a phone *Upkeep* reads: no act that writes.
+
+**The source definitions stay in the administration** (`/assets/sources`, beside the object types),
+not in *Upkeep*: a source's trust order is the workspace's and decides reconciliation in every hub,
+while *Upkeep* is one hub's - its connectors and its runs. *Manage sources* in *Sources and runs*
+leads there for a STRUCTURE holder.
+
+*Devices and licences* (scene `invreg`) is the register as a calm table - number in the monospace
+face, device as *object type · name*, with whom, state, cost aligned to the end, warranty as month
+and year on the warning surface once it ended or ends within six months on a device still kept -,
+the value issued and the warranties ending beside *Stock*'s switch. A row opens the device beside the
+table (its address `?asset=`), on a phone as a sheet that reads: number, name and holder, the
+device's life (`AssetLife`, as the object's page draws it), its stock facts and the moves its state
+allows as buttons for a writer online - *Back to stock*, *Retire*, *Issue* once a holder or a
+stockroom is named, *Dispose of* with its method and certificate in a Dialog M. *Software* is one
+table of versions grouped by product.
 
 ### 7.4 Service desk and portal
 
@@ -879,8 +1001,23 @@ changes - its whole workspace part, since its policies measure the types, priori
 that part brings and would measure nothing alone. A desk entry's SLA chips lead its main column, above the
 notes; the triage fields stay in the fields beside it. The portal draws its kinds as
 `TemplateCard`s with their mark and sentence and *Ask for this*; the form follows only once one is
-chosen, focus moving to it, with the articles beside it from the expanded width. A request's
-status is still its key where the workflow named it: the portal answers no status name.
+chosen, focus moving to it, with the articles beside it from the expanded width. A request
+shows its status by the name the desk's workflow gives it (`status_name`), else in the words of its
+category, never by its key, with when the team last answered in public and the next moment the
+desk promised (`last_reply_at`, `next_due_at`; UC-SVC-05).
+
+With the work surface (scene `deskhome`, `deskentry`): the desk home carries one card ***My
+deadlines kept*** - a short row per kind of deadline that ended in the window over the handler's own
+tickets (first reply, next reply, resolution, each team's OLA by its group), its share and a bar,
+worst first, at most three and then *+ n more* opening the whole table; a phone draws only the worst
+(`GET /deadlines-kept`, any member, always the caller's own, so no report permission; UC-SVC-02
+check 15). A ticket's rail starts with its deadlines, most urgent first, each by what is left or how
+long it is overdue, its policy and group by name, its urgency in a word and a mark beside the colour;
+*All deadlines as a table* opens the matrix on demand. The composer has two tabs, *Reply to …* and
+*Internal note* (drawn apart, its button *Save note*), with the desk's snippets and macros, each
+macro saying what it does; the conversation's tabs count the replies and the notes apart. The ITIL
+desk template sets the priority from impact × urgency by an automation rule an administrator edits
+or switches off (configuration.md, `itil_service_desk@17`), never by a computation of its own.
 
 ### 7.5 Plans, sprints and boards
 
@@ -899,6 +1036,14 @@ status is still its key where the workflow named it: the portal answers no statu
 * **The board**: a template sets where new entries land (the first column) and makes completion
   and the done column one (a ticked card moves to the done column; a card dropped there
   completes), as D-02 says for workflow collections; a column cut at the edge shows a scroll hint.
+  As built with the work surface, the server keeps column and completion together at every level
+  (domain-model.md §3.5a): an entry's state is one control - a checkbox in a list (L0), the column
+  chip on a board without a workflow (L1), the status chip under one (L2) - the same on the list
+  row, the card and the entry head; a board under a workflow names each column's statuses and folds
+  the unmapped ones into *Ohne Spalte*, a drop target; every drop goes through `POST
+  /items/{id}:drop`, a choice among several steps opens a picker and a refusal says its reason at
+  the card. *Show as board*, *Back to the list* and *Workflow from these columns* sit in the
+  collection's ⋯ and preview the server's dry run first.
 * **The default view comes from the template** per collection kind: Kanban opens on the board, a
   classic project on its plan, a desk on its queue, Scrum on the sprint board.
 
@@ -999,7 +1144,7 @@ agent starts from its shipped roles.
 As built: `/agents` is the agents' one screen, and the administration's and the reader's own
 addresses draw the same one. The head names the figure (*2 live · 1 draft · 3 waiting for a
 person*) and *Add an agent* as its primary, the split offering the shipped roles (ticket triage,
-knowledge draft, duplicate review, CI suggestion), each prefilled with its name, what it does and
+knowledge draft, duplicate review, object suggestion), each prefilled with its name, what it does and
 the domain's default budget — a zero budget allows nothing, and a card whose budget holds a zero
 says so. The tabs are *Agents · Waiting · Runs · Settings*, Settings for whoever
 administers agents (the kill switch, MCP's registered-only, the models, the metering). A card
@@ -1009,7 +1154,7 @@ held acts lead. A run reads *Triage helper on an entry · 2 proposals · 1,840 t
 workspace offers the roles; a reader who may not add one is told that an administrator does. A
 held act of a shipped role is said in words (`heldActWordsOf`): *Add an internal comment to an
 entry* with the comment and *Open the entry*, *Create the page "…"* with its text, *Merge a
-duplicate configuration item into the one that stays*. Not built: an act no shipped role makes -
+duplicate object into the one that stays*. Not built: an act no shipped role makes -
 an external agent may call any use case its scopes allow - keeps the use case's name and the
 input's keys, and the agent's ledger in its detail shows the names; words for them need a phrase
 per use case, which none has today.
@@ -1024,7 +1169,7 @@ creating a collection stays.
 As built (`HubProductLines`): above the cards, a line for *Plan* (the running sprint ending
 soonest and its days left, then the next release; *No sprint running, no release planned* where
 neither is), *Pages* (the content pages changed since the reader's week began, in the reader's
-zone) and *Assets* (the inventory's total and what needs attention), each leading to its screen
+zone) and *Inventory* (the inventory's total and what needs attention), each leading to its screen
 and drawn only once its read answered; *Whiteboards* (the boards changed since the week began,
 drawn only where the hub's list came whole), *Desk* (the desks' open requests and those about to
 breach, as the desk's queues count them), *Time* (the reader's own time recorded here this week)
@@ -1098,6 +1243,20 @@ changes -, and the report with *See the plan* or *Open the inventory*. Mockup: `
 *An import*.
 
 ---
+
+### 7.12 Posts
+
+A post is a page with a date (domain-model.md §3.8; UC-DOC-17, UC-DOC-18), written in the pages'
+editor and read in the pages' reading layout, so it needs no editor or reader of its own. A hub's
+posts are its *Posts* (`/hubs/{id}/posts`): the featured ones first, then newest first, each with
+its cover, excerpt, writer, date and reading time, narrowed by *All · Unread · By me · Scheduled*
+(*Scheduled* only for its writers). Writing starts from *Blank* or a post template; *Publish* asks
+when (now or a day and time ahead), for whom (the hub, or some of its groups), how long it stays on
+top, whether it is discussed, whether followers are told and whether readers are asked to confirm
+by a day. A reader asked to confirm sees a band with *Read and understood*; the writers alone see
+who has seen it and who confirmed, and may remind the rest. The discussion is replies one level
+deep with four fixed reactions. The hub column's foot lists the newest (§2.4) and *Today* the
+unread ones (§3.3); a person follows a hub's posts from its *Posts*.
 
 ## 8. The administration and the installation
 
@@ -1291,7 +1450,7 @@ workspace's — English*), so leaving it says what it means.
   the ladder (D-3, `design-system.md` §11.8); the entry's panel beside a collection stays. *Advanced* is not
   folded on Mail, Voice, Retention, Backup and the workspace: none has a setting the direction names as advanced, and Mail's filing order and
   handles are what a newcomer reads to send mail in.
-* **A product's settings at its home** (§8.2): the service desk's, the configuration items',
+* **A product's settings at its home** (§8.2): the service desk's, the inventory's,
   time's and the agents' screens left the administration column. Each is its home's last tab, a
   settings page of its own whose section list replaces the home's tabs, without the home's create
   act and with the product in the trail (page-system §9.6, PS-2), each section at `?section=` -
@@ -1495,7 +1654,7 @@ section of the design system it changes, and is walked against the mockups befor
     default views by template (§7.5).
 22. Pages: the home page first, the three regions, the public link's media (§7.1).
 23. Whiteboards: the full-bleed canvas, side sheets, the create gallery (§7.2).
-24. Assets and CMDB: inventory first, *Manage*, badges (§7.3).
+24. Assets and CMDB: *Stock* first, *Upkeep*, lozenges (§7.3).
 25. Time: *My week*, the record dialog, *Record until…* (§7.6).
 26. Goals and dashboards: the default quarter, charts in templates, headings (§7.7).
 27. Agents: cards, held acts, runs (§7.8).

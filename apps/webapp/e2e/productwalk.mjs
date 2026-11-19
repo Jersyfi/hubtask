@@ -15,8 +15,8 @@ import { fold, record } from './scalewalk-errors.mjs';
  * object `{ status, json }` (or `{ status }` for no body) is the answer, undefined leaves the
  * request to the fixture. `modules` are switched on in the manifest; `manifest` adds to it.
  */
-export async function productWalk(browser, { modules, answer, width = 1280, height = 900, manifest = {} }) {
-  const { page, context, unstubbed } = await signedIn(browser, width, height, { timezoneId: 'UTC' });
+export async function productWalk(browser, { modules, answer, width = 1280, height = 900, manifest = {}, isMobile = false }) {
+  const { page, context, unstubbed } = await signedIn(browser, width, height, { timezoneId: 'UTC', isMobile });
   // A live document's socket (an entry's notes) is accepted and kept silent: the fixture serves no
   // live documents, and a refused handshake would be the harness's error, not the product's.
   await context.routeWebSocket(/\/api\/v1\/realtime\//, () => {});

@@ -54,7 +54,8 @@ export function homeTabs(module: string): readonly HomeTab[] {
     case 'ASSETS':
       // The classes and the sources are the workspace's (§8.2), the rest of their setup last.
       return [
-        { id: 'inventory', code: 'app.product_home.tab_inventory', path: '/assets' },
+        // *For you* as on every other home (scene homeassets): what needs attention across hubs.
+        { id: 'inventory', code: 'app.product_home.tab_for_you', path: '/assets' },
         { id: 'classes', code: 'app.cmdb_admin.classes', path: '/assets/classes' },
         { id: 'sources', code: 'app.cmdb_admin.sources', path: '/assets/sources' },
         { id: 'settings', code: 'app.product_home.tab_settings', path: '/assets/settings' },
@@ -118,16 +119,16 @@ export function hubScreenOf(module: string, hubId: string): string | undefined {
  * with *Add an agent* in its head. The plans lead to a collection's sprints, whose head is *Plan a
  * sprint* (§7.5) - a hub's plan holds its entries' dates and has no act of making.
  */
-export function createOf(module: string): { readonly code: string; readonly inCode: string; readonly level: 'HUB' | 'COLLECTION' } | undefined {
+export function createOf(module: string): { readonly code: string; readonly level: 'HUB' | 'COLLECTION' } | undefined {
   switch (module) {
     case 'PLANNING':
-      return { code: 'app.sprints.plan', inCode: 'app.product_home.plan_in', level: 'COLLECTION' };
+      return { code: 'app.sprints.plan', level: 'COLLECTION' };
     case 'KNOWLEDGE':
-      return { code: 'app.pages.new', inCode: 'app.product_home.new_in', level: 'HUB' };
+      return { code: 'app.pages.new', level: 'HUB' };
     case 'WHITEBOARD':
-      return { code: 'app.whiteboards.new', inCode: 'app.product_home.new_in', level: 'HUB' };
+      return { code: 'app.whiteboards.new', level: 'HUB' };
     case 'ASSETS':
-      return { code: 'app.assets.new', inCode: 'app.product_home.new_in', level: 'HUB' };
+      return { code: 'app.assets.new', level: 'HUB' };
     default:
       return undefined;
   }
@@ -185,6 +186,28 @@ export function isUnused(counts: Readonly<Record<string, number>>, hubIds: reado
 }
 
 /**
+ * What each hub holds of plans - its releases, its dated entries and its collections' sprints - for
+ * `isUnused` (scene homeplans): a hub whose releases or schedule is still being read is left out, so
+ * nothing is decided before both have answered.
+ */
+export function planCounts(
+  hubIds: readonly string[],
+  releasesAt: Readonly<Record<string, readonly unknown[]>>,
+  entriesAt: Readonly<Record<string, readonly unknown[]>>,
+  sprintsAt: Readonly<Record<string, readonly unknown[]>>,
+  hubOf: (collectionId: string) => string | undefined,
+): Record<string, number> {
+  const sprints = new Map<string, number>();
+  for (const [collection, list] of Object.entries(sprintsAt)) {
+    const hub = hubOf(collection);
+    if (hub) sprints.set(hub, (sprints.get(hub) ?? 0) + list.length);
+  }
+  return Object.fromEntries(hubIds
+    .filter((hub) => releasesAt[hub] !== undefined && entriesAt[hub] !== undefined)
+    .map((hub) => [hub, releasesAt[hub]!.length + entriesAt[hub]!.length + (sprints.get(hub) ?? 0)]));
+}
+
+/**
  * *More in Hubtask* (user-experience.md §3.3): the products switched off, each with what it does,
  * in the products band's order. Offered only to a holder of `STRUCTURE` on the workspace, who can
  * switch one on; nobody else is shown a product they cannot have.
@@ -232,6 +255,8 @@ export interface PageRow {
   readonly due_for_review: boolean;
   readonly trashed_at: string | null;
   readonly daily_for: string | null;
+  /** Until when the page is known to be right; absent where a list does not carry it. */
+  readonly verified_until?: string | null;
 }
 
 // A template is a start, an archived or trashed page is put away, and a daily note is somebody's
@@ -282,6 +307,42 @@ export function pagesToReview<P extends PageRow>(lists: Readonly<Record<string, 
     .flatMap((hubId) => lists[hubId] ?? [])
     .filter((page) => isContent(page) && page.due_for_review && page.owner_id === viewerId)
     .sort((a, b) => (a.updated_at < b.updated_at ? -1 : a.updated_at > b.updated_at ? 1 : 0));
+}
+
+/** A page is verified while its verification runs: a date to come and no review due. */
+export const isVerified = (page: PageRow, now: string): boolean =>
+  !page.due_for_review && typeof page.verified_until === 'string' && page.verified_until > now;
+
+/** How many whole days a page's review has been due (scene phome 4 reads "since 3 days"); 0 on its first day. */
+export function daysOverdue(verifiedUntil: string, now: string): number {
+  const days = Math.floor((Date.parse(now) - Date.parse(verifiedUntil)) / 86_400_000);
+  return Number.isFinite(days) && days > 0 ? days : 0;
+}
+
+/** The pages' home's band (scene phome 1): the space's pages, the spaces, how many verified, the reader's reviews. */
+export function pagesFigures(lists: Readonly<Record<string, readonly PageRow[]>>, hubIds: readonly string[], now: string, toReview: number): {
+  readonly pages: number; readonly spaces: number; readonly verified: number; readonly toReview: number;
+} {
+  const content = hubIds.flatMap((hubId) => (lists[hubId] ?? []).filter(isContent));
+  const spaces = hubIds.filter((hubId) => (lists[hubId] ?? []).some(isContent)).length;
+  return { pages: content.length, spaces, verified: content.filter((page) => isVerified(page, now)).length, toReview };
+}
+
+/** Per space how much of it is verified (scene phome 5), the spaces with pages only, the most pages first. */
+export function verifiedBySpace(lists: Readonly<Record<string, readonly PageRow[]>>, hubIds: readonly string[], now: string): { hubId: string; verified: number; total: number }[] {
+  return hubIds
+    .map((hubId) => {
+      const content = (lists[hubId] ?? []).filter(isContent);
+      return { hubId, verified: content.filter((page) => isVerified(page, now)).length, total: content.length };
+    })
+    .filter((space) => space.total > 0)
+    .sort((a, b) => b.total - a.total);
+}
+
+/** *Continue reading* (scene phome 3): the pages read here last that the spaces still hold as content, at most `limit`. */
+export function continueReading<P extends PageRow & { readonly id: string }>(lists: Readonly<Record<string, readonly P[]>>, hubIds: readonly string[], read: readonly string[], limit: number): P[] {
+  const byId = new Map(hubIds.flatMap((hubId) => (lists[hubId] ?? []).filter(isContent).map((page) => [page.id, page] as const)));
+  return read.flatMap((id) => byId.get(id) ?? []).slice(0, limit);
 }
 
 /** The inventory's summary across hubs (§2.2): configuration items in all and those found wanting. */
@@ -417,4 +478,43 @@ export function placesToCreate(options: {
       .filter((collection) => mayWrite({ hubId: hub.id, collectionId: collection.id }) === true)
       .map((collection) => ({ id: collection.id, label: `${hub.name} › ${collection.name}` })),
   );
+}
+
+/** A plan's phase as the plans' home draws it: its share of the plan and where it stands. */
+export interface Phase {
+  readonly id: string;
+  readonly title: string;
+  readonly days: number;
+  readonly state: 'done' | 'now' | 'later';
+}
+
+/**
+ * A plan's phases (work-surface §6.1, scene homeplans): its top-level entries in the order they
+ * start, each with its working days; the one running today is *now*, else the first not done.
+ * A plan with no dated top-level entry has none.
+ */
+export function phasesOf(
+  entries: readonly { readonly item_id: string; readonly title: string; readonly parent_id: string | null; readonly start: string; readonly finish: string; readonly duration_days: number; readonly done: boolean; readonly external: boolean }[],
+  today: string,
+): Phase[] {
+  const top = entries.filter((each) => each.parent_id === null && !each.external).sort((a, b) => a.start.localeCompare(b.start));
+  const running = top.find((each) => !each.done && each.start <= today && today <= each.finish) ?? top.find((each) => !each.done);
+  return top.map((each) => ({
+    id: each.item_id,
+    title: each.title,
+    days: Math.max(1, each.duration_days),
+    state: each === running ? 'now' : each.done ? 'done' : 'later',
+  }));
+}
+
+/**
+ * What needs attention in the inventory across hubs (scene homeassets): each hub's problems in the
+ * order its health lists them, the hubs in the order given, at most `limit`.
+ */
+export function attentionAcross<P extends { readonly ci_id: string }>(
+  healthAt: Readonly<Record<string, { readonly problems: readonly P[] } | undefined>>,
+  hubIds: readonly string[],
+  limit: number,
+): (P & { readonly hubId: string })[] {
+  return hubIds.flatMap((hubId) => (healthAt[hubId]?.problems ?? []).map((problem) => ({ ...problem, hubId }))).slice(0, limit);
 }

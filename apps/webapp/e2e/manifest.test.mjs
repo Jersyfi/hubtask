@@ -23,10 +23,11 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, ITEMS, MANIFEST, stub } from './fixture.mjs';
+import { unfoldFields } from './reveal.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const ENTRY = ITEMS[0];
@@ -52,8 +53,7 @@ const problem = (status, code) => ({
 const markOf = (page) => page.getByRole('banner', { name: 'Application bar' }).locator('.notice-mark');
 
 test('chromium: the manifest never answers — the entry says so, and the bar can ask again', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   // The read fails until the walk says otherwise, which is what the retry is measured against.
   let answers = false;
@@ -74,10 +74,10 @@ test('chromium: the manifest never answers — the entry says so, and the bar ca
   page.on('pageerror', (error) => failures.push(String(error)));
 
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
-  await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
 
   // The entry's own values are there — they are the entry's, not the type's.
-  assert.equal(await page.getByRole('textbox', { name: 'Title' }).first().inputValue(), ENTRY.title);
+  assert.equal(await page.getByRole('heading', { level: 1, name: ENTRY.title }).count(), 1);
 
   // **Nothing is claimed about the type.** Not one row, and not the language row either: the
   // picker's own list of languages comes out of the same manifest, so a row offered here would be
@@ -112,21 +112,23 @@ test('chromium: the manifest never answers — the entry says so, and the bar ca
   answers = true;
   await surface.getByRole('button', { name: 'Try again' }).click();
 
-  // No reload. The rows arrive because the manifest did.
-  await page.locator('[data-detail="due"]').waitFor({ state: 'attached', timeout: 10_000 })
+  // No reload. The rows arrive because the manifest did - the set ones in Details, the empty
+  // ones under the rail's folded More fields.
+  await page.locator('[data-detail], button[aria-controls$="-more-fields"]').first().waitFor({ state: 'attached', timeout: 10_000 })
     .catch(() => assert.fail('asking again from the bar did not bring the entry back'));
   await page.keyboard.press('Escape');
+  await unfoldFields(page);
   assert.deepEqual(
-    await page.locator('[data-detail]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-detail'))),
-    ROWS,
+    await page.locator('[data-detail]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-detail')).sort()),
+    [...ROWS].sort(),
   );
-  assert.equal(await page.getByRole('textbox', { name: 'Notes' }).count(), 1, 'the notes did not come back');
+  // The pages' editor is its own chunk (E-3): it arrives a moment after the rows.
+  await page.getByRole('textbox', { name: 'Notes' }).waitFor({ timeout: 10_000 }).catch(() => assert.fail('the notes did not come back'));
   assert.deepEqual(failures, []);
 });
 
 test('chromium: a manifest that declares no profile for the type says so, once', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   const context = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
   t.after(() => context.close());
@@ -146,7 +148,7 @@ test('chromium: a manifest that declares no profile for the type says so, once',
   page.on('pageerror', (error) => failures.push(String(error)));
 
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
-  await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
 
   await page.getByText('This workspace does not offer tasks.', { exact: false }).waitFor({ timeout: 5_000 })
     .catch(() => assert.fail('a type the installation does not declare is drawn as a type that carries nothing'));
@@ -159,8 +161,7 @@ test('chromium: a manifest that declares no profile for the type says so, once',
 });
 
 test('chromium: a stale bearer signs the reader out, and the sign-in reads the manifest as that actor', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   const GOOD = 'e2e-fresh-bearer';
   const context = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
@@ -209,15 +210,60 @@ test('chromium: a stale bearer signs the reader out, and the sign-in reads the m
   // Back where the reader was, and **whole**. Before this the manifest stayed `failed` for the
   // life of the page: the sign-in succeeded, every other read worked with the new token, and the
   // entry drew as though its type carried nothing until somebody reloaded.
-  await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
   assert.equal(new URL(page.url()).pathname, `/items/${ENTRY.id}`, 'the reader was not returned to the entry');
-  await page.locator('[data-detail="due"]').waitFor({ state: 'attached', timeout: 10_000 })
+  await page.locator('[data-detail], button[aria-controls$="-more-fields"]').first().waitFor({ state: 'attached', timeout: 10_000 })
     .catch(() => assert.fail('the manifest was not read again as the signed-in actor'));
+  await unfoldFields(page);
   assert.deepEqual(
-    await page.locator('[data-detail]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-detail'))),
-    ROWS,
+    await page.locator('[data-detail]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-detail')).sort()),
+    [...ROWS].sort(),
   );
   // Nothing is left over from the failure: the mark is quiet again.
   assert.equal(await markOf(page).locator('.dot').count(), 0, 'the bar still says the installation is unread');
   assert.deepEqual(failures, []);
+});
+
+// A refresh the server sheds for load (`429`, the address's sign-in budget spent - T-02) did not
+// refuse the session: the token was never spent. The reader stays signed in, and the next
+// exchange presents the same refresh token and goes on.
+test('chromium: a refresh answered 429 keeps the session, and the next exchange goes on', async (t) => {
+  const browser = await sharedChromium(t);
+
+  const GOOD = 'e2e-fresh-bearer';
+  const exchanges = [];
+  const context = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
+  t.after(() => context.close());
+  await context.route('**/api/v1/**', (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    const bearer = request.headers().authorization;
+    if (path.endsWith('/api/v1/auth/sessions:refresh')) {
+      exchanges.push(request.postDataJSON()?.refresh_token);
+      return exchanges.length === 1
+        ? route.fulfill(problem(429, 'errors.rate_limited'))
+        : route.fulfill({ json: { access_token: GOOD, refresh_token: 'e2e-next-refresh' } });
+    }
+    if (bearer !== undefined && bearer !== `Bearer ${GOOD}`) return route.fulfill(problem(401, 'errors.unauthenticated'));
+    if (path.endsWith('/api/v1/meta/capabilities')) return route.fulfill({ json: MANIFEST });
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    if (sessionStorage.getItem('hubtask.refresh') !== null) return;
+    sessionStorage.setItem('hubtask.bearer', 'e2e-stale-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-stale-refresh');
+  });
+  const page = await context.newPage();
+
+  await page.goto(`${served.origin}/items/${ENTRY.id}`);
+  for (let waited = 0; exchanges.length === 0 && waited < 100; waited++) await page.waitForTimeout(100);
+  await page.waitForTimeout(500);
+  assert.equal(await page.getByRole('textbox', { name: 'Email address' }).count(), 0, 'a shed refresh signed the reader out');
+
+  // The next refusal, of this page or after a reload, exchanges the same unspent token.
+  await page.reload();
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
+  assert.equal(await page.getByRole('textbox', { name: 'Email address' }).count(), 0);
+  assert.deepEqual(exchanges.slice(0, 2), ['e2e-stale-refresh', 'e2e-stale-refresh'], 'the second exchange presented another token');
+  assert.equal(await page.evaluate(() => sessionStorage.getItem('hubtask.refresh')), 'e2e-next-refresh');
 });

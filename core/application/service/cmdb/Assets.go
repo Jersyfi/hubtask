@@ -53,6 +53,27 @@ func AssetOutput(a domain.Asset, now time.Time) usecase.Output {
 	}
 }
 
+// maxAssetMoves bounds the steps of an asset's life a record answers.
+const maxAssetMoves = 200
+
+// withMoves adds an asset's life, oldest first, to its record: an asset registered before the
+// moves were kept answers none, and its state alone.
+func (s Inventory) withMoves(ctx context.Context, out usecase.Output, ciID shared.ID) error {
+	moves, err := s.Assurance.AssetMoves(ctx, ciID, maxAssetMoves)
+	if err != nil {
+		return err
+	}
+	rows := make([]usecase.Output, 0, len(moves))
+	for _, m := range moves {
+		rows = append(rows, usecase.Output{
+			"state": string(m.State), "at": m.At, "by": idOrNil(m.By), "assigned_to": idOrNil(m.AssignedTo),
+			"stockroom_id": idOrNil(m.StockroomID),
+		})
+	}
+	out["moves"] = rows
+	return nil
+}
+
 func assetStateNames() []string {
 	out := make([]string, 0, len(domain.AssetStates))
 	for _, s := range domain.AssetStates {
@@ -78,8 +99,8 @@ type ListCiAssets struct{ Inventory Inventory }
 func (h ListCiAssets) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListCiAssetsName, Permission: service.PermissionRead,
-		Summary: "Lists a hub's asset register in CI order after a cursor: each CI's tag, cost, purchase, supplier, " +
-			"warranty (and whether it ended), contract, stockroom, holder and state, with the CI's name and class; " +
+		Summary: "Lists a hub's register records in object order after a cursor: each object's tag, cost, purchase, supplier, " +
+			"warranty (and whether it ended), contract, stockroom, holder and state, with the object's name and object type; " +
 			"narrowed to a state when given.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Input: []usecase.Field{
@@ -146,7 +167,8 @@ type ReadCiAsset struct{ Inventory Inventory }
 func (h ReadCiAsset) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ReadCiAssetName, Permission: service.PermissionRead,
-		Summary:     "Reads a configuration item's asset record with its disposal, if any; not found when it has none.",
+		Summary: "Reads an object's register record with its disposal, if any, and the steps of its life " +
+			"oldest first - each state reached, when, by whom, with whom or in which stockroom; not found when it has none.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Input: []usecase.Field{{Name: "ci_id", Kind: usecase.KindID, Required: true, Description: "The configuration item."}},
 		Audit: usecase.AuditDeclaration{Action: CIReadAction, TargetType: assetTarget, Severity: audit.SeverityInfo},
@@ -166,10 +188,11 @@ func (h ReadCiAsset) Descriptor() usecase.Descriptor {
 			var out usecase.Output
 			err = s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 				a, err := s.Assurance.FindAsset(ctx, id)
-				if err == nil {
-					out = AssetOutput(a, s.Clock.Now())
+				if err != nil {
+					return err
 				}
-				return err
+				out = AssetOutput(a, s.Clock.Now())
+				return s.withMoves(ctx, out, id)
 			})
 			return out, err
 		}),
@@ -195,8 +218,8 @@ type RegisterCiAsset struct{ Inventory Inventory }
 func (h RegisterCiAsset) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: RegisterCiAssetName, Permission: service.PermissionWriteItems,
-		Summary: "Writes a configuration item's asset record: its tag, cost in minor units with its currency, " +
-			"purchase day, supplier, warranty end, contract (a contract CI), stockroom (a location CI), the person " +
+		Summary: "Writes an object's register record: its tag, cost in minor units with its currency, " +
+			"purchase day, supplier, warranty end, contract (a contract object), stockroom (a location object), the person " +
 			"holding it and the request it came from. A new record starts in the state given - REQUESTED when " +
 			"none -; an existing one keeps its state, which MoveCiAsset moves. A field left out stays; null clears it.",
 		SideEffects: "Writes the asset record, an audit entry and the change log.", TokenScope: cisWrite,
@@ -268,11 +291,20 @@ func (h RegisterCiAsset) Descriptor() usecase.Descriptor {
 				}
 				a.Version = version + 1
 				if version == 0 {
+					if err := s.Assurance.AddAssetMove(ctx, domain.MoveOf(s.IDs.NewID(), a, actor.AccountID, a.UpdatedAt)); err != nil {
+						return err
+					}
+					if err := s.chronicle(ctx, actor, a.CIID, domain.VerbAssetMoved, map[string]domain.Moved{"state": {To: string(a.State)}}); err != nil {
+						return err
+					}
 					if err := s.followStage(ctx, actor, a); err != nil {
 						return err
 					}
 				}
 				out = AssetOutput(a, a.UpdatedAt)
+				if err := s.withMoves(ctx, out, id); err != nil {
+					return err
+				}
 				if err := s.announceAsset(ctx, actor, a); err != nil {
 					return err
 				}
@@ -344,6 +376,9 @@ func (s Inventory) followStage(ctx context.Context, actor appshared.ActorContext
 	if err := s.announce(ctx, actor, next); err != nil {
 		return err
 	}
+	if err := s.chronicleChange(ctx, actor, ci, next, "", []string{domain.FieldLifecycle}); err != nil {
+		return err
+	}
 	return s.recordCI(ctx, actor, CIChangedAction, next, []string{domain.FieldLifecycle})
 }
 
@@ -354,10 +389,10 @@ type MoveCiAsset struct{ Inventory Inventory }
 func (h MoveCiAsset) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: MoveCiAssetName, Permission: service.PermissionWriteItems,
-		Summary: "Moves an asset to the next state of its life - REQUESTED, ORDERED, IN_STOCK, DEPLOYED (to a person " +
+		Summary: "Moves a register record to the next state of its life - REQUESTED, ORDERED, IN_STOCK, DEPLOYED (to a person " +
 			"or a stockroom), RETIRED, DISPOSED -, a deployed one back to stock and a retired one back into it; the " +
-			"CI's lifecycle stage follows. Disposing needs the method (WIPED, DESTROYED, RECYCLED, RETURNED, SOLD) " +
-			"and the reference of the certificate that proves it; a disposed asset moves no more.",
+			"object's lifecycle stage follows. Disposing needs the method (WIPED, DESTROYED, RECYCLED, RETURNED, SOLD) " +
+			"and the reference of the certificate that proves it; a disposed object moves no more.",
 		SideEffects: "Writes the asset record, the CI's stage, audit entries and the change log.", TokenScope: cisWrite,
 		Input: []usecase.Field{
 			{Name: "ci_id", Kind: usecase.KindID, Required: true, Description: "The configuration item."},
@@ -403,6 +438,12 @@ func (h MoveCiAsset) Descriptor() usecase.Descriptor {
 					return err
 				}
 				moved.Version = a.Version + 1
+				if err := s.Assurance.AddAssetMove(ctx, domain.MoveOf(s.IDs.NewID(), moved, actor.AccountID, now)); err != nil {
+					return err
+				}
+				if err := s.chronicle(ctx, actor, moved.CIID, domain.VerbAssetMoved, map[string]domain.Moved{"state": {From: string(from), To: string(moved.State)}}); err != nil {
+					return err
+				}
 				if err := s.followStage(ctx, actor, moved); err != nil {
 					return err
 				}
@@ -410,6 +451,9 @@ func (h MoveCiAsset) Descriptor() usecase.Descriptor {
 					return err
 				}
 				out = AssetOutput(moved, now)
+				if err := s.withMoves(ctx, out, id); err != nil {
+					return err
+				}
 				return s.record(ctx, actor, AssetMovedAction, assetTarget, id,
 					audit.Change{Field: "state", Classification: audit.Open, From: string(from), To: string(moved.State)})
 			})

@@ -90,8 +90,9 @@ export { default as Logo } from './Logo.svelte';
 export { type LogoSize } from './mark.ts';
 export { default as ResizeHandle } from './ResizeHandle.svelte';
 // Wave 5 - the sidebar's pieces (the navigation concept, design-system.md §11.3).
-export { default as ProductTile } from './ProductTile.svelte';
+export { default as ProductTile, type ProductId } from './ProductTile.svelte';
 export { default as NavItem, type RowAction, type RowBadge, type DropState } from './NavItem.svelte';
+export { default as UnreadDot } from './UnreadDot.svelte';
 export { default as NavGroup, type NavTreeNode, type FilterKind } from './NavGroup.svelte';
 export { default as NavLevel, type HubHead } from './NavLevel.svelte';
 export { default as NavFlyout } from './NavFlyout.svelte';
@@ -143,7 +144,7 @@ export {
   type QueryOperator,
 } from './QueryBuilder.svelte';
 export { default as ViewSwitcher, type View } from './ViewSwitcher.svelte';
-export { default as CommentThread, type ThreadComment } from './CommentThread.svelte';
+export { default as CommentThread, type ThreadComment, type ThreadEvent } from './CommentThread.svelte';
 export {
   default as CustomFieldRenderer,
   type CustomFieldKind,
@@ -157,6 +158,7 @@ export { default as DueDateControl, type DueDate } from './DueDateControl.svelte
 export {
   default as Timeline,
   type TimelineCarry,
+  type TimelineColumn,
   type TimelineDependency,
   type TimelineLink,
   type TimelineRow,
@@ -180,6 +182,7 @@ export type { Align, Justify, Space } from './space.ts';
 
 export { anchorTo, positionArea, raiseToTopLayer, type Alignment, type Placement, type Side } from './anchor.ts';
 
+export { isCompactWidth, setCloseLabel } from './media.ts';
 export { escapeHandler, focusFirst, focusReturn, focusables, rovingIndex, typeAheadIndex } from './focus.ts';
 export { arrive, arrivals, enter, flip, isMotionReduced, leave, reveal } from './motion.ts';
 
@@ -235,7 +238,7 @@ export { provideReasonGroup, sharedReason, type ReasonGroup } from './reason.ts'
 export { default as Grid, type GridColumns, type GridCount } from './Grid.svelte';
 export { default as SectionNav, type SectionLink } from './SectionNav.svelte';
 export { default as FilterBar, type Filter } from './FilterBar.svelte';
-export { default as DataTable, type DataColumn, type RowMenu as DataRowMenu } from './DataTable.svelte';
+export { default as DataTable, type DataColumn, type RowMenu as DataRowMenu, type RowSwipe as DataRowSwipe } from './DataTable.svelte';
 export { default as ResourceGrid } from './ResourceGrid.svelte';
 export { default as ResourceCard } from './ResourceCard.svelte';
 export { default as BulkBar, type BulkAction } from './BulkBar.svelte';
@@ -247,6 +250,7 @@ export { default as FormSection } from './FormSection.svelte';
 export { default as RecordHead } from './RecordHead.svelte';
 export { default as DangerZone, type DangerAct } from './DangerZone.svelte';
 export { default as SummaryCard } from './SummaryCard.svelte';
+export { default as SummaryStrip } from './SummaryStrip.svelte';
 export { default as ListPage } from './ListPage.svelte';
 export { default as RecordPage, type RecordList } from './RecordPage.svelte';
 export { default as SettingsLayout } from './SettingsLayout.svelte';
@@ -258,3 +262,49 @@ export { default as WorkPage } from './WorkPage.svelte';
 export { default as DetailPage } from './DetailPage.svelte';
 export { default as StandalonePage } from './StandalonePage.svelte';
 export { pageBar, providePageBar, type PageBack, type PageBar, type PageHead, type PageKind } from './page.ts';
+
+// Wave 7 - the work surface (docs/backlog/work-surface/ §5): the shared blocks every work surface is
+// built from, and the arithmetic behind them.
+export { default as StateLozenge } from './StateLozenge.svelte';
+export { default as StatusButton } from './StatusButton.svelte';
+export { default as ObjectHead, type DeadlineChip, type ObjectKey } from './ObjectHead.svelte';
+export { default as Property } from './Property.svelte';
+export { default as PropertyRail, type RailSection } from './PropertyRail.svelte';
+export { default as JumpMarks } from './JumpMarks.svelte';
+export { default as StepBar } from './StepBar.svelte';
+export { default as FoldingSection } from './FoldingSection.svelte';
+export { default as ProductBand } from './ProductBand.svelte';
+export { default as Widget } from './Widget.svelte';
+export { default as Composer, type ComposerMode } from './Composer.svelte';
+export { default as QueryLine } from './QueryLine.svelte';
+export { default as TrustLine } from './TrustLine.svelte';
+export { default as PageOutline } from './PageOutline.svelte';
+export { default as FloatingBar } from './FloatingBar.svelte';
+export { default as FloatingToolbar } from './FloatingToolbar.svelte';
+export { default as BlockHandle } from './BlockHandle.svelte';
+export { default as BoxPopover } from './BoxPopover.svelte';
+export { default as InsertList } from './InsertList.svelte';
+export type { InsertChoice, InsertGroup } from './InsertList.svelte';
+export { default as LiveBlock } from './LiveBlock.svelte';
+export { default as WidgetStrip } from './WidgetStrip.svelte';
+export { default as PriorityMark } from './PriorityMark.svelte';
+export { default as DeadlineBar } from './DeadlineBar.svelte';
+export { default as DeadlineList, type Deadline } from './DeadlineList.svelte';
+export { default as DensitySwitch } from './DensitySwitch.svelte';
+export { LOZENGE_VOCABULARIES, lozengeLook, type LozengeLook, type LozengeTone, type LozengeVocabulary } from './lozenge.ts';
+export { defaultSteps, primaryStep, splitSteps, type StatusCategory, type StatusRef, type WorkflowStep } from './steps.ts';
+export { FOLD_LINES, foldWindow, type FoldFrom, type FoldLines, type FoldWindow } from './fold.ts';
+export { SWIPE_MIN, SWIPE_SHARE, swipeIntent, swipeOffset, swipeOutcome, type SwipeOutcome } from './swipe.ts';
+export { readDensity, writeDensity, type DensityStore, type ListDensity } from './density.ts';
+export {
+  lineText,
+  suggest,
+  type FieldCatalogue,
+  type QueryField,
+  type QueryLanguage,
+  type QueryParse,
+  type QueryProblem,
+  type QuerySuggestion,
+  type QueryToken,
+  type QueryValue,
+} from './query.ts';

@@ -27,6 +27,8 @@ type assured struct {
 	groups    []domain.Group
 	assets    map[shared.ID]domain.Asset
 	aliases   []domain.SoftwareAlias
+	open      []repository.OpenWork
+	moves     []domain.AssetMove
 }
 
 func newAssured() *assured {
@@ -69,6 +71,10 @@ func (a *assured) AffectingAny(_ context.Context, cis []shared.ID, _ int) ([]dom
 		}
 	}
 	return out, nil
+}
+
+func (a *assured) OpenWorkOfHub(_ context.Context, _ shared.ID, limit int) ([]repository.OpenWork, error) {
+	return a.open[:min(limit, len(a.open))], nil
 }
 
 func (a *assured) InsertCampaign(_ context.Context, c domain.Campaign, asked []domain.Attestation) error {
@@ -161,6 +167,37 @@ func (a *assured) FindAsset(_ context.Context, id shared.ID) (domain.Asset, erro
 		return x, shared.ErrNotFound.WithDetail("cmdb.asset_not_found")
 	}
 	return x, nil
+}
+
+func (a *assured) Assets(_ context.Context, hub, after shared.ID, limit int) ([]domain.Asset, error) {
+	var out []domain.Asset
+	for _, id := range sortedIDs(func() []shared.ID {
+		var ids []shared.ID
+		for id := range a.assets {
+			ids = append(ids, id)
+		}
+		return ids
+	}()) {
+		if x := a.assets[id]; x.HubID == hub && id > after && len(out) < limit {
+			out = append(out, x)
+		}
+	}
+	return out, nil
+}
+
+func (a *assured) AddAssetMove(_ context.Context, m domain.AssetMove) error {
+	a.moves = append(a.moves, m)
+	return nil
+}
+
+func (a *assured) AssetMoves(_ context.Context, ci shared.ID, limit int) ([]domain.AssetMove, error) {
+	var out []domain.AssetMove
+	for _, m := range a.moves {
+		if m.CIID == ci && len(out) < limit {
+			out = append(out, m)
+		}
+	}
+	return out, nil
 }
 
 func (a *assured) PutAlias(_ context.Context, x domain.SoftwareAlias, _ int) error {
@@ -391,6 +428,47 @@ func TestAGroupStandsForAServiceInTheServiceMap(t *testing.T) {
 	}
 	if !grouped {
 		t.Errorf("the group's membership is not drawn: %v", m["edges"])
+	}
+}
+
+// UC-AST-11 check 1: any line of the inventory's asset. keys - owner, location, tag, each with
+// none - is kept as a group, read back as it was saved and matched as the line reads it.
+func TestAGroupKeepsTheInventoryLinesOwnerLocationAndTag(t *testing.T) {
+	f, a := assuredFixture()
+	a.assets[vm1] = domain.Asset{CIID: vm1, HubID: hub, AssetTag: "INV-7", State: domain.AssetDeployed}
+	a.assets[host] = domain.Asset{CIID: host, HubID: hub, AssetTag: "INV-8", State: domain.AssetDeployed}
+	define := DefineCiGroup{Inventory: f.inv}.Descriptor()
+	out, err := call(t, define, as(anna), usecase.Input{
+		"hub_id": hub.String(), "key": "bert_or_nobody", "name": "Bert's or nobody's, tagged",
+		"filter": map[string]any{"owners": []any{bert.String()}, "no_owner": true, "tags": []any{"inv-7", "INV-8"}},
+	})
+	if err != nil || out["members"] != 2 {
+		t.Fatalf("group: %v %v", out, err)
+	}
+	filter := out["filter"].(usecase.Output)
+	if filter["owners"].([]string)[0] != bert.String() || filter["no_owner"] != true || len(filter["tags"].([]string)) != 2 {
+		t.Errorf("the filter as saved: %v", filter)
+	}
+	members, err := call(t, ListCiGroupMembers{Inventory: f.inv}.Descriptor(), as(bert), usecase.Input{"group_id": out["id"]})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]bool{}
+	for _, m := range members["data"].([]usecase.Output) {
+		got[m["ci_id"].(string)] = true
+	}
+	if !got[host.String()] || !got[vm1.String()] || len(got) != 2 {
+		t.Errorf("members: %v", got)
+	}
+	if out, err := call(t, define, as(anna), usecase.Input{
+		"hub_id": hub.String(), "key": "nowhere", "name": "Nowhere", "filter": map[string]any{"no_location": true},
+	}); err != nil || out["members"] != 4 {
+		t.Errorf("no location: %v %v", out, err)
+	}
+	if _, err := call(t, define, as(anna), usecase.Input{
+		"hub_id": hub.String(), "key": "bad", "name": "Bad", "filter": map[string]any{"locations": []any{"room 1"}},
+	}); !errors.Is(err, shared.ErrValidation) {
+		t.Errorf("a location that is no identifier: %v", err)
 	}
 }
 

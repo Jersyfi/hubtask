@@ -25,6 +25,9 @@ func commentResponse(out usecase.Output) openapi.Comment {
 		Version:    out.Int("version"),
 		SystemCode: optionalTextField(out["system_code"]),
 	}
+	if internal, ok := out["internal"].(bool); ok {
+		comment.Internal = &internal
+	}
 	if kind := out.String("kind"); kind != "" {
 		kind := openapi.CommentKind(kind)
 		comment.Kind = &kind

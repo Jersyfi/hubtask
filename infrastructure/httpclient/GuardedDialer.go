@@ -53,7 +53,7 @@ func (d GuardedDialer) DialContext(ctx context.Context, network, address string)
 	dialer := &net.Dialer{
 		Timeout: d.timeout,
 		Control: func(network, address string, _ syscall.RawConn) error {
-			return d.guard.CheckControl(network, address)
+			return d.guard.ControlFor(host)(network, address)
 		},
 	}
 	return dialer.DialContext(ctx, network, address)

@@ -16,12 +16,12 @@
   import StarToggle from '../lib/workspace/StarToggle.svelte';
 
   import { page as frame } from '../lib/frame/page.svelte.ts';
-  import { untrack } from 'svelte';
+  import { untrack, type Snippet } from 'svelte';
   import {
-    AvatarGroup, Badge, Banner, Breadcrumb, Button, Dialog, EmptyState, IconButton, Inline, Input, Menu, PageHeader, Select, Spinner, Stack, Switch,
-    TemplateCard, TemplateGallery, Textarea, VisuallyHidden, WorkPage,
+    AvatarGroup, Badge, Banner, Breadcrumb, Button, Dialog, EmptyState, IconButton, Inline, Input, Menu, PageHeader, PageOutline, Select, Sheet, Spinner, Stack, Switch,
+    TemplateCard, TemplateGallery, Textarea, TrustLine, VisuallyHidden, WorkPage,
   } from '@hubtask/design-system/components';
-  import { compareBodies, type Passage, type SelectedBlock } from '@hubtask/editor';
+  import { type Passage, type SelectedBlock } from '@hubtask/editor';
   import type {
     Page, PageBacklinkList, PageComment, PageCommentList, PageList, PageRead, PageVersionList,
     PageVersionRead,
@@ -29,12 +29,13 @@
 
   import { capture } from '../lib/capture/capture.svelte.ts';
   import { actor } from '../lib/data/account.svelte.ts';
+  import { notePageRead } from '../lib/pages/reading.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { holds, roleOrder } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import {
-    EXPORT_TYPES, SHIPPED_SPACES, SHIPPED_TEMPLATES, draftStateOf, hasSubpages, homePageOf, shippedSpace, VERIFY_DAYS, exportBytes, backlinksPath, exportFileName, pageCommentsPath, pagePath, pages,
+    EXPORT_TYPES, SHIPPED_SPACES, SHIPPED_TEMPLATES, draftStateOf, hasSubpages, homePageOf, writtenBody, shippedSpace, VERIFY_DAYS, exportBytes, backlinksPath, exportFileName, pageCommentsPath, pagePath, pages,
     pagesPath, shippedTemplate, subtreeOf, templatesPath, verifiedUntil, versionPath, versionsPath,
     type ShippedSpace, type ShippedTemplate,
   } from '../lib/data/pages.svelte.ts';
@@ -44,16 +45,20 @@
   import { views } from '../lib/data/views.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
-  import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { formatDateTime, formatDay, formatRelative } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import PageAccess from '../lib/pages/PageAccess.svelte';
   import PageLabels from '../lib/pages/PageLabels.svelte';
   import PageEditor from '../lib/pages/PageEditor.svelte';
+  import PageHistory from '../lib/pages/PageHistory.svelte';
+  import PageStarts from '../lib/pages/PageStarts.svelte';
+  import PageCover from '../lib/pages/PageCover.svelte';
+  import type { PageCover as Cover } from '../lib/pages/covers.ts';
+  import PageStartPreview from '../lib/pages/PageStartPreview.svelte';
+  import { START_ICONS, isBlankBody, startChange, type PageStart } from '../lib/pages/starts.ts';
   import { levelThreads } from '../lib/pages/margin.ts';
   import { platform } from '../lib/platform/index.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import CreateDialog from '../lib/product/CreateDialog.svelte';
-  import { createPlaces } from '../lib/product/places.svelte.ts';
 
   interface Props {
     /** The hub whose space is drawn; absent when a page's address names only the page. */
@@ -66,9 +71,30 @@
     isCreateAsked?: boolean;
     /** The create asked for is under the open page: ＋ on its row in the sidebar's *Contents* (§5.2). */
     isCreateUnder?: boolean;
+    /** The create asked for starts from one of Hubtask's templates: the pages' home's *start with a template*. */
+    startWith?: string;
+    /**
+     * A post's page (B-1): the same reader and editor, the post drawing its own head in place of
+     * the trust line, its band, its discussion under the words and its writers' panel beside them.
+     */
+    post?: PostFrame;
   }
 
-  const { hubId: hubFromRoute, pageId, onnavigate, onreplace, isCreateAsked = false, isCreateUnder = false }: Props = $props();
+  interface PostFrame {
+    /** The step between the hub and the post: *Posts*. */
+    trail: { label: string; href: string };
+    /** Its kind and origin, over the title. */
+    kicker?: Snippet;
+    head: Snippet;
+    band?: Snippet;
+    foot: Snippet;
+    aside?: Snippet;
+    acts?: Snippet;
+    /** Words that replace the post's body through the live document: a template's start. */
+    replaceWith?: { body: string };
+  }
+
+  const { hubId: hubFromRoute, pageId, onnavigate, onreplace, isCreateAsked = false, isCreateUnder = false, startWith, post }: Props = $props();
 
   // --- What is read ------------------------------------------------------------------------------
 
@@ -78,6 +104,11 @@
   // The sidebar shows this hub's level; the route names only the page, board or item (`levelOf`).
   $effect(() => (hubFromRoute ? undefined : frame.locate(hubId || undefined)));
   const hub = $derived(hubId ? containers.find(hubId) : undefined);
+  // The pages' home offers what was read here last to continue (scene phome).
+  $effect(() => {
+    const read = current?.id;
+    if (read) untrack(() => notePageRead(actor.account?.id, read, Date.now()));
+  });
 
 
   let treeState = $state<PageList | undefined>(undefined);
@@ -119,7 +150,7 @@
   $effect(() => {
     if (!isCreateAsked || isCreateOpened || !mayWrite) return;
     isCreateOpened = true;
-    untrack(() => startCreate(isCreateUnder ? pageId : undefined));
+    untrack(() => startCreate(isCreateUnder ? pageId : undefined, SHIPPED_TEMPLATES.find((key) => key === startWith)));
   });
   /** A wiki's or documents' import makes pages in the hub, which takes shaping it, as every import there does. */
   const mayImport = $derived(
@@ -147,25 +178,21 @@
     }
   }
 
-  let isCreating = $state(false);
-  let draftTitle = $state('');
-  let draftParent = $state<string | undefined>(undefined);
-  let draftTemplate = $state('');
-  let draftWithSubpages = $state(true);
-  // A top-level page may be made in another hub where pages are on (§5.2); a child stays under its parent.
-  let draftHub = $state('');
-  const placesToMake = createPlaces('KNOWLEDGE', 'HUB', () => isCreating && !draftParent);
-  const isElsewhere = $derived(draftHub !== '' && draftHub !== hubId);
-  const draftOwnTemplate = $derived(draftTemplate.startsWith('own:') ? draftTemplate.slice(4) : undefined);
-  const draftOffersSubpages = $derived(draftOwnTemplate !== undefined && hasSubpages(rows, draftOwnTemplate));
-
-  function startCreate(parent?: string) {
-    draftTitle = '';
-    draftParent = parent;
-    draftHub = hubId;
-    draftTemplate = '';
-    draftWithSubpages = true;
-    isCreating = true;
+  // A new page opens at once (S-6): no dialog; its templates wait under its empty title.
+  let isMaking = false;
+  async function startCreate(parent?: string, template?: ShippedTemplate) {
+    if (isMaking || !hubId) return;
+    isMaking = true;
+    const shipped = template ? shippedTemplate(template, t) : undefined;
+    const made = await act(() =>
+      pages.create(hubId, {
+        title: shipped?.title ?? t('app.pages.untitled'),
+        ...(parent ? { parent_id: parent } : {}),
+        ...(shipped && template ? { body: shipped.body, icon: START_ICONS[template] } : {}),
+      }),
+    );
+    isMaking = false;
+    if (made) onnavigate(`/pages/${made.id}`);
   }
 
   /** An empty space started from one of Hubtask's space templates, in one press. */
@@ -175,25 +202,80 @@
     if (made) onnavigate(`/pages/${made.id}`);
   }
 
-  async function create() {
-    const title = draftTitle.trim();
-    const space = draftTemplate.startsWith('space:') ? shippedSpace(draftTemplate.slice(6) as ShippedSpace, t) : undefined;
-    const shipped = draftTemplate.startsWith('shipped:') ? shippedTemplate(draftTemplate.slice(8) as ShippedTemplate, t) : space;
-    const own = draftOwnTemplate;
-    const subpages = space?.subpages;
-    const made = await act(() =>
-      pages.create(isElsewhere ? draftHub : hubId, {
-        title: title || shipped?.title || t('app.pages.untitled'),
-        ...(draftParent ? { parent_id: draftParent } : {}),
-        ...(shipped ? { body: shipped.body } : {}),
-        ...(subpages ? { subpages } : {}),
-        ...(own ? { template_id: own } : {}),
-        ...(own && draftOffersSubpages && draftWithSubpages ? { with_subpages: true } : {}),
-      }),
-    );
-    if (!made) return;
-    isCreating = false;
-    onnavigate(`/pages/${made.id}`);
+  // --- The cover (E-18, scene pcover) ------------------------------------------------------------
+
+  let isPickingCover = $state(false);
+  async function changeCover(cover: Cover | null) {
+    if (!current) return;
+    await act(() => pages.change(current, { cover }));
+  }
+  async function addCover() {
+    isPickingCover = true;
+    await changeCover({ source: 'GRADIENT', key: 'indigo-teal', position: 50 });
+  }
+
+  // --- A new page's starts (scene pnew) -----------------------------------------------------------
+
+  let chosenStart = $state<PageStart | undefined>(undefined);
+  let ownStart = $state<{ id: string; body: string } | undefined>(undefined);
+  let isUsingStart = $state(false);
+  const offersStarts = $derived(!post && !!current && current.writable && isBlankBody(writtenBody(current)));
+  const ownTemplates = $derived(templateRows.filter((row) => row.id !== current?.id).map((row) => ({ id: row.id, title: row.title, icon: row.icon })));
+  $effect(() => {
+    if (!offersStarts) chosenStart = undefined;
+  });
+
+  /** What a start writes and shows: its title, mark, words and the pages a whole space adds. */
+  const startShown = $derived.by(() => {
+    const start = chosenStart;
+    if (!start) return undefined;
+    if (start.kind === 'shipped') {
+      const made = shippedTemplate(start.key, t);
+      return { ...made, icon: START_ICONS[start.key], lead: `${t(`app.pages.template.${start.key}.lead`)} ${t('app.pages.start_shipped')}`, subpages: [] };
+    }
+    if (start.kind === 'space') {
+      const made = shippedSpace(start.key, t);
+      return { ...made, icon: null, lead: t(`app.pages.space.${start.key}.lead`), subpages: made.subpages };
+    }
+    return { title: start.title, icon: start.icon, lead: t('app.pages.template_own_hint'), body: ownStart?.id === start.id ? ownStart.body : '', subpages: [] };
+  });
+
+  async function chooseStart(start: PageStart) {
+    chosenStart = start;
+    if (start.kind !== 'own' || ownStart?.id === start.id) return;
+    const read = await engine.refresh<Page>({ path: pagePath(start.id) });
+    if (read.status === 'ready') ownStart = { id: start.id, body: read.data.body ?? '' };
+  }
+
+  /** The start written into the page and its live document; a whole space's pages made beneath it. */
+  async function useStart() {
+    const shown = startShown;
+    if (!current || !shown || isUsingStart) return;
+    isUsingStart = true;
+    const start = chosenStart;
+    // A template of the space with pages under it starts them too (UC-DOC-05/5): the server copies
+    // them, so the new page takes the blank one's place.
+    if (start?.kind === 'own' && hasSubpages(rows, start.id)) {
+      const blank = current;
+      const title = blank.title.trim() === t('app.pages.untitled') ? shown.title : blank.title;
+      const made = await act(() => pages.create(blank.hub_id, { title, template_id: start.id, with_subpages: true, ...(blank.parent_id ? { parent_id: blank.parent_id } : {}) }));
+      if (made) {
+        await act(() => pages.trash(blank), undefined);
+        onnavigate(`/pages/${made.id}`);
+      }
+      isUsingStart = false;
+      return;
+    }
+    const change = startChange(current, t('app.pages.untitled'), shown);
+    const changed = await act(() => pages.change(current, change));
+    if (changed) {
+      replaced = { body: change.body };
+      for (const sub of shown.subpages) {
+        await act(() => pages.create(changed.hub_id, { ...sub, parent_id: changed.id }));
+      }
+      chosenStart = undefined;
+    }
+    isUsingStart = false;
   }
 
   let titleDraft = $state<string | undefined>(undefined);
@@ -267,8 +349,12 @@
 
   // --- Beside the page: comments, history, backlinks ---------------------------------------------
 
-  // The side sheet the head toggles; closed, the page has the width (user-experience.md §7.1).
-  let side = $state<'comments' | 'history' | 'backlinks' | 'access' | 'details' | undefined>(undefined);
+  // Beside the reading column from 1240 px the outline and the comments stand open (S-3, S-5);
+  // narrower, they are a sheet the head (or the phone's foot) opens. History, what links here,
+  // access and details are the side sheet the head's menu opens.
+  let side = $state<'outline' | 'comments' | 'history' | 'backlinks' | 'access' | 'details' | undefined>(undefined);
+  let outline = $state<{ id: string; label: string; level: number }[]>([]);
+  const locateHeading = (id: string) => bodyElement?.querySelector<HTMLElement>(`[data-block="${CSS.escape(id)}"]`) ?? null;
   const toggleSide = (which: NonNullable<typeof side>) => (side = side === which ? undefined : which);
   let present = $state<string[]>([]);
   let block = $state<SelectedBlock | undefined>(undefined);
@@ -371,6 +457,7 @@
 
   const nameOf = (id: string | null) => (id ? accounts.nameOf(id) : undefined) ?? t('app.people.unnamed');
   const when = (iso: string) => formatDateTime(iso, messages.locale);
+  const day = (iso: string) => formatDay(iso, messages.locale);
 
   // History (UC-DOC-06): a version opened is compared with the page as it stands.
   let comparing = $state<PageVersionRead | undefined>(undefined);
@@ -380,12 +467,15 @@
     if (state.status === 'ready') comparing = state.data;
     else if (state.status === 'failed') refusal = renderProblem(state.error, messages).message;
   }
-  const compared = $derived(comparing && current ? compareBodies(comparing.body, current.body ?? '') : []);
 
+  // The version comes back through the live document too: the editors hold the text before it and
+  // would write it back at their next save.
   async function restoreVersion(seq: number) {
-    if (!current) return;
+    if (!current || !comparing) return;
+    const body = comparing.body;
     const done = await act(() => pages.restoreVersion(current, seq), t('app.pages.version_restored', { seq: String(seq) }));
     if (done) {
+      replaced = { body };
       comparing = undefined;
       await opened?.refresh();
     }
@@ -393,6 +483,16 @@
 
   let namingSeq = $state<number | undefined>(undefined);
   let nameDraft = $state('');
+  function nameAt(seq: number) {
+    namingSeq = seq;
+    nameDraft = versionState.find((each) => each.seq === seq)?.name ?? '';
+  }
+  // Opening the history compares the version before the newest with the page as it stands.
+  $effect(() => {
+    if (side !== 'history' || comparing || versionState.length === 0) return;
+    const first = versionState[1] ?? versionState[0];
+    if (first) untrack(() => void openVersion(first.seq));
+  });
   async function nameVersion() {
     if (!current || namingSeq === undefined) return;
     const seq = namingSeq;
@@ -410,7 +510,10 @@
   );
 
   // The page's menu: what is not the head's one row, the destructive item last (§5.9).
-  const pageMenu = $derived(current ? [
+  const pageMenu = $derived(current && post ? [
+    { id: 'history', label: t('app.pages.side_history'), icon: 'clock' as const },
+    ...(current.writable ? [{ id: 'trash', label: t('app.pages.to_trash'), icon: 'trash' as const, isDestructive: true, hasSeparatorBefore: true }] : []),
+  ] : current ? [
     ...(current.writable ? [{ id: 'child', label: t('app.pages.new_child'), icon: 'plus' as const }] : []),
     ...(current.writable ? [{ id: 'copy', label: t('app.pages.copy'), icon: 'copy' as const }] : []),
     ...(current.writable ? [{ id: 'move', label: t('app.pages.move'), icon: 'arrow-right' as const }] : []),
@@ -431,23 +534,11 @@
   const spacePages = $derived(rows.map((row) => ({ id: row.id, title: row.title, parent_id: row.parent_id })));
   const hubViews = $derived(views.of(hubId).map((view) => ({ id: view.id, name: view.name })));
 
-  /** The create dialog's gallery (§5.2): *Blank* first, the hub's own templates, Hubtask's pages and spaces. */
-  interface PageStart { readonly value: string; readonly name: string; readonly summary: string; readonly mark: 'file-text' | 'copy' | 'layout-template'; readonly note?: string }
-  const templateCards = $derived<readonly PageStart[]>([
-    { value: '', name: t('app.pages.blank'), summary: t('app.pages.blank_hint'), mark: 'file-text' },
-    // A hub's own templates are its pages: offered only for a page made in that hub.
-    ...(isElsewhere ? [] : templateRows.map((row) => ({ value: `own:${row.id}`, name: row.title, summary: t('app.pages.template_own_hint'), mark: 'copy' as const }))),
-    ...SHIPPED_TEMPLATES.map((key) => ({ value: `shipped:${key}`, name: t(`app.pages.template.${key}.title`), summary: t(`app.pages.template.${key}.lead`), mark: 'file-text' as const })),
-    ...SHIPPED_SPACES.map((key) => ({
-      value: `space:${key}`, name: t(`app.pages.space.${key}.title`), summary: t(`app.pages.space.${key}.lead`), mark: 'layout-template' as const,
-      note: t('app.pages.space_pages', { count: shippedSpace(key, t).subpages.length }),
-    })),
-  ]);
-
   // --- A space with drafts (UC-DOC-15) -----------------------------------------------------------
 
   const pageDraft = $derived(current ? draftStateOf(current) : 'live');
-  let discarded = $state<{ body: string } | undefined>(undefined);
+  /** A body that replaces the live document's: the published one after a discarded draft, a version brought back. */
+  let replaced = $state<{ body: string } | undefined>(undefined);
 
   async function release() {
     if (!current) return;
@@ -459,7 +550,7 @@
     const published = current.body ?? '';
     // A thrown-away draft answers nothing; a refusal is what says it failed.
     await act(() => pages.discardDraft(current), t('app.pages.draft_discarded'));
-    if (refusal === undefined) discarded = { body: published };
+    if (refusal === undefined) replaced = { body: published };
   }
 
 </script>
@@ -547,130 +638,195 @@
       <Spinner label={t('app.pages.loading')} />
     {:else}
       {#key current.id}
-        <Stack gap="150">
-          <!-- The trail close above the title, as on every other head (PageHeader). -->
-          <div class="heading">
-            <!-- The trail: the hub, the pages above, this one (UC-DOC-01 check 6). -->
+        {#if side === 'history'}
+          <PageHistory title={current.title} body={current.body ?? ''} changedBy={nameOf(current.updated_by)} changedAt={current.updated_at}
+            versions={versionState} chosen={comparing} writable={current.writable} wide={viewport.isLarge} {nameOf} {when}
+            onchoose={openVersion} onrestore={restoreVersion} onname={nameAt} onclose={() => (side = undefined)} />
+        {/if}
+        <!-- Kept while the history stands in its place: its live document is where a version comes back. -->
+        <div class="reading-page" data-page-reading hidden={side === 'history'}>
+          <!-- One row on top: only the path and the people (pread 1); the title follows once, under it. -->
+          <div class="top-row" data-page-head>
             <Breadcrumb
               label={t('app.pages.breadcrumb')}
               expandLabel={t('app.pages.breadcrumb_more')}
               mark={placeMark}
               trail={[
                 ...(hub ? [{ id: hub.id, label: hub.name, href: `/hubs/${hub.id}` }] : []),
+                ...(post ? [{ id: 'posts', label: post.trail.label, href: post.trail.href }] : []),
                 ...current.ancestors.map((above) => ({ id: above.id, label: above.title, href: `/pages/${above.id}` })),
                 { id: current.id, label: current.title },
               ]}
             />
-            <!-- The head's one row (user-experience.md §7.1): the title once, who else is here, the
-                 comments' toggle, sharing, and the rest in the page's menu. -->
-            <div class="head" data-page-head>
-              <div class="title-line">
-                {#if current.writable}
-                  <!-- A textarea, as an entry's title is, so a long title wraps; Enter saves it. The
-                       heading is read, the field is what is seen: the title appears once. -->
-                  <VisuallyHidden as="h1">{current.title}</VisuallyHidden>
-                  <textarea
-                    class="title"
-                    rows="1"
-                    aria-label={t('app.pages.page_title')}
-                    value={titleDraft ?? current.title}
-                    oninput={(event) => (titleDraft = (event.currentTarget as HTMLTextAreaElement).value.replace(/\n/gu, ' '))}
-                    onblur={rename}
-                    onkeydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); (event.currentTarget as HTMLTextAreaElement).blur(); } }}
-                  ></textarea>
-                {:else}
-                  <h1 class="title">{current.title}</h1>
-                {/if}
-                <StarToggle kind="PAGE" id={current.id} name={current.title} />
-              </div>
-              <Inline gap="100" align="center">
-                {#if present.length > 0}
-                  <span class="here" data-page-here>
-                    <AvatarGroup
-                      people={present.map((name) => ({ name }))}
-                      max={3}
-                      size="sm"
-                      overflowLabel={t('app.pages.here_more', { count: Math.max(0, present.length - 3) })}
-                    />
-                    <VisuallyHidden>{t('app.pages.here')}: {present.join(', ')}</VisuallyHidden>
-                  </span>
-                {/if}
-                <Button
-                  size="sm"
-                  tone="secondary"
-                  icon="message-square"
-                  aria-pressed={side === 'comments'}
-                  data-page-comments
-                  onclick={() => toggleSide('comments')}
-                >{t('app.pages.side_comments', { count: String(openThreads) })}</Button>
-                {#if !current.shared && hubId}
-                  <Button size="sm" tone="secondary" icon="users" aria-pressed={side === 'access'} data-page-share onclick={() => toggleSide('access')}>{t('app.pages.share')}</Button>
-                {/if}
-                <Menu label={t('app.pages.page_menu')} items={pageMenu} onselect={choose}>
-                  {#snippet trigger(props)}
-                    <IconButton icon="ellipsis" label={t('app.pages.page_menu')} size="sm" tone="secondary" data-page-menu {...props} />
-                  {/snippet}
-                </Menu>
-              </Inline>
-            </div>
-          </div>
-          {#if current.template || current.restricted || current.shared || current.due_for_review || current.verified_until}
-            <Inline gap="050" isWrapping>
-              {#if current.template}<Badge size="sm">{t('app.pages.is_template')}</Badge>{/if}
-              {#if current.restricted}<Badge size="sm" icon="lock">{t('app.pages.access_restricted_badge')}</Badge>{/if}
-              {#if current.shared}<Badge size="sm" tone="info">{t('app.pages.shared_with_you')}</Badge>{/if}
-              {#if current.due_for_review}
-                <Badge tone="warning" size="sm">{t('app.pages.due_for_review')}</Badge>
-              {:else if current.verified_until}
-                <Badge tone="success" size="sm">{t('app.pages.verified_until', { date: when(current.verified_until) })}</Badge>
+            <Inline gap="100" align="center">
+              {#if present.length > 0}
+                <span class="here" data-page-here>
+                  <AvatarGroup
+                    people={present.map((name) => ({ name }))}
+                    max={3}
+                    size="sm"
+                    overflowLabel={t('app.pages.here_more', { count: Math.max(0, present.length - 3) })}
+                  />
+                  <VisuallyHidden>{t('app.pages.here')}: {present.join(', ')}</VisuallyHidden>
+                </span>
               {/if}
+              {#if !viewport.isLarge && !viewport.isCompact && outline.length > 0}
+                <IconButton size="sm" tone="secondary" icon="list" label={t('app.pages.outline')} aria-pressed={side === 'outline'} data-page-outline-open onclick={() => toggleSide('outline')} />
+              {/if}
+              <Button
+                size="sm"
+                tone="subtle"
+                icon="message-square"
+                aria-pressed={!viewport.isLarge && side === 'comments'}
+                data-page-comments
+                onclick={() => (viewport.isLarge ? document.querySelector<HTMLElement>('[data-page-comment-new] textarea')?.focus() : toggleSide('comments'))}
+              >{String(openThreads)}<VisuallyHidden>{` ${t('app.pages.comments_open', { count: String(openThreads) })}`}</VisuallyHidden></Button>
+              {#if post?.acts}{@render post.acts()}{/if}
+              {#if !post && !current.shared && hubId}
+                <Button size="sm" tone="secondary" icon="users" aria-pressed={side === 'access'} data-page-share onclick={() => toggleSide('access')}>{t('app.pages.share')}</Button>
+              {/if}
+              {#if !post}<StarToggle kind="PAGE" id={current.id} name={current.title} />{/if}
+              <Menu label={t('app.pages.page_menu')} items={pageMenu} onselect={choose}>
+                {#snippet trigger(props)}
+                  <IconButton icon="ellipsis" label={t('app.pages.page_menu')} size="sm" tone="secondary" data-page-menu {...props} />
+                {/snippet}
+              </Menu>
             </Inline>
+          </div>
+
+          {#if current.cover}
+            {#key current.id}<PageCover pageId={current.id} cover={current.cover} isWritable={current.writable} onchange={changeCover} bind:isPicking={isPickingCover} />{/key}
           {/if}
-          {#key current.id}<PageLabels page={current} onchoose={(label) => { contentsAsk.label = label; onnavigate(`/hubs/${hubId}/contents`); }} />{/key}
-          {#if current.writable && (pageDraft === 'unpublished' || pageDraft === 'draft')}
-            <Banner tone="info">
-              {t(pageDraft === 'unpublished' ? 'app.pages.unpublished_hint' : 'app.pages.draft_hint')}
-              {#snippet action()}
-                <Inline gap="050">
-                  <Button size="sm" tone="primary" onclick={release}>{t('app.pages.release')}</Button>
-                  {#if pageDraft === 'draft'}<Button size="sm" tone="subtle" onclick={discard}>{t('app.pages.discard_draft')}</Button>{/if}
-                </Inline>
-              {/snippet}
-            </Banner>
-          {:else if current.writable && pageDraft === 'published'}
-            <p class="quiet">{t('app.pages.published_hint')}</p>
-          {/if}
+          <div class="reader" class:with-beside={viewport.isLarge}>
+            <article class="column" class:with-gutter={current.writable && !viewport.isCompact} class:covered={!!current.cover} aria-labelledby="page-title">
+              {#if !post && current.writable && (pageDraft === 'unpublished' || pageDraft === 'draft')}
+                <!-- The drafts band (scene pnew 1): what only its writer sees, with publishing beside it. -->
+                <Banner tone="warning" icon="lock">
+                  <span data-page-draft-band><strong>{t('app.pages.draft_word')}</strong> {t(pageDraft === 'unpublished' ? 'app.pages.unpublished_band' : 'app.pages.draft_hint')}</span>
+                  {#snippet action()}
+                    <Inline gap="050">
+                      <Button size="sm" tone="primary" onclick={release}>{t('app.pages.release')}</Button>
+                      <Button size="sm" tone="subtle" onclick={pageDraft === 'draft' ? discard : trash}>{t('app.pages.discard')}</Button>
+                    </Inline>
+                  {/snippet}
+                </Banner>
+              {/if}
+              {#if current.writable && !current.cover}
+                <div class="page-adds"><Button size="sm" tone="subtle" icon="image" data-page-cover-add onclick={addCover}>{t('app.pages.cover_add')}</Button></div>
+              {/if}
+              {#if current.icon}<span class="icon" aria-hidden="true">{current.icon}</span>{/if}
+              {#if post?.kicker}{@render post.kicker()}{/if}
+              {#if current.writable}
+                <!-- A textarea, as an entry's title is, so a long title wraps; Enter saves it. The
+                     heading is read, the field is what is seen: the title appears once. -->
+                <VisuallyHidden as="h1" id="page-title">{current.title}</VisuallyHidden>
+                <textarea
+                  class="title"
+                  rows="1"
+                  aria-label={t('app.pages.page_title')}
+                  value={titleDraft ?? current.title}
+                  oninput={(event) => (titleDraft = (event.currentTarget as HTMLTextAreaElement).value.replace(/\n/gu, ' '))}
+                  onblur={rename}
+                  onkeydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); (event.currentTarget as HTMLTextAreaElement).blur(); } }}
+                ></textarea>
+              {:else}
+                <h1 class="title" id="page-title">{current.title}</h1>
+              {/if}
+              {#if post}
+                {@render post.head()}
+                <div class="post-labels">{#key current.id}<PageLabels page={current} onchoose={(label) => { contentsAsk.label = label; onnavigate(`/hubs/${hubId}/contents`); }} />{/key}</div>
+                {#if post.band}{@render post.band()}{/if}
+              {:else}
+              <TrustLine
+                owner={current.owner_id ? nameOf(current.owner_id) : undefined}
+                ownerRole={t('app.pages.owner_role')}
+                ownerless={t('app.pages.ownerless')}
+                verification={current.due_for_review
+                  ? { state: 'due', label: t('app.pages.due_for_review') }
+                  : current.verified_until ? { state: 'verified', label: t('app.pages.verified_until', { date: day(current.verified_until) }) } : undefined}
+                changed={t('app.pages.changed_ago', { when: formatRelative(current.updated_at, messages.locale), name: nameOf(current.updated_by) })}
+                onverification={current.writable ? () => (side = 'details') : undefined}
+              >
+                {#snippet labels()}
+                  {#if current.template}<Badge size="sm">{t('app.pages.is_template')}</Badge>{/if}
+                  {#if current.restricted}<Badge size="sm" icon="lock">{t('app.pages.access_restricted_badge')}</Badge>{/if}
+                  {#if current.shared}<Badge size="sm" tone="info">{t('app.pages.shared_with_you')}</Badge>{/if}
+                  {#key current.id}<PageLabels page={current} onchoose={(label) => { contentsAsk.label = label; onnavigate(`/hubs/${hubId}/contents`); }} />{/key}
+                {/snippet}
+              </TrustLine>
+              {/if}
+              <!-- Published with nothing waiting is said by nothing: no sentence before the page's first (M-2, §2.1). -->
+              {#if offersStarts}
+                <PageStarts own={ownTemplates} chosen={chosenStart} onchoose={chooseStart} />
+                {#if startShown && !viewport.isLarge}
+                  {@render startPreview()}
+                {/if}
+              {/if}
 
-          <div class="body-and-side" class:with-side={side !== undefined}>
-            <div class="body" bind:this={bodyElement}>
-              <PageEditor
-                page={current}
-                {spacePages}
-                views={hubViews}
-                collections={hubId ? containers.collectionsOf(hubId).map((each) => ({ id: each.id, name: each.name })) : []}
-                {onnavigate}
-                {reveal}
-                replaceWith={discarded}
-                passages={side === 'comments' ? passages : []}
-                onpassages={passagesMoved}
-                onpresent={(names) => (present = names)}
-                onblock={(seen) => {
-                  block = seen;
-                  // Words selected are a comment's passage, unless the person chooses the page.
-                  if (seen?.selected) isAtBlock = true;
-                }}
-              />
-            </div>
+              <div class="body" bind:this={bodyElement}>
+                <PageEditor
+                  page={current}
+                  {spacePages}
+                  views={hubViews}
+                  collections={hubId ? containers.collectionsOf(hubId).map((each) => ({ id: each.id, name: each.name })) : []}
+                  {onnavigate}
+                  {reveal}
+                  replaceWith={post?.replaceWith ?? replaced}
+                  passages={viewport.isLarge || side === 'comments' ? passages : []}
+                  onpassages={passagesMoved}
+                  onpresent={(names) => (present = names)}
+                  onheadings={(seen) => (outline = seen)}
+                  oncomment={() => {
+                    isAtBlock = true;
+                    if (viewport.isLarge) document.querySelector<HTMLElement>('[data-page-comment-new] textarea')?.focus();
+                    else side = 'comments';
+                  }}
+                  onblock={(seen) => {
+                    block = seen;
+                    // Words selected are a comment's passage, unless the person chooses the page.
+                    if (seen?.selected) isAtBlock = true;
+                  }}
+                />
+              </div>
 
-            {#if side}
-            <aside class="side" aria-label={sideTitle} data-page-side={side}>
-              <Inline justify="between" align="center">
-                <h2 class="heading">{sideTitle}</h2>
-                <IconButton size="sm" icon="x" label={t('app.pages.side_close')} onclick={() => (side = undefined)} />
-              </Inline>
+              <!-- What links here, at the page's end (§3 knowledge): a quiet list, not a panel. -->
+              {#if post}
+                {#if post.aside && !viewport.isLarge}<div class="post-aside">{@render post.aside()}</div>{/if}
+                {@render post.foot()}
+              {:else if backlinkState.length > 0}
+                <section class="backlinks" aria-labelledby="page-backlinks" data-page-backlinks>
+                  <h2 class="caps" id="page-backlinks">{t('app.pages.links_here', { count: String(backlinkState.length) })}</h2>
+                  <ul class="hits">
+                    {#each backlinkState as link (link.source_kind + link.source_id)}
+                      <li><a href={link.page_id ? `/pages/${link.page_id}` : `/items/${link.entry_id}`}>{link.title}</a></li>
+                    {/each}
+                  </ul>
+                </section>
+              {/if}
+            </article>
 
+            {#snippet startPreview()}
+              {#if startShown}
+                <PageStartPreview
+                  title={startShown.title}
+                  icon={startShown.icon}
+                  lead={startShown.lead}
+                  body={startShown.body}
+                  subpages={startShown.subpages.length}
+                  isBusy={isUsingStart}
+                  onuse={useStart}
+                  onclose={() => (chosenStart = undefined)}
+                />
+              {/if}
+            {/snippet}
+
+            {#snippet beside()}
+              {#if post?.aside && viewport.isLarge}{@render post.aside()}{/if}
+              {#if startShown && viewport.isLarge}
+                {@render startPreview()}
+              {/if}
               {#snippet threadCard(thread: (typeof threads)[number])}
-                <article class="thread" class:resolved={thread.first.resolved}>
+                <article class="thread" class:resolved={thread.first.resolved} class:at-passage={!!thread.first.quote}>
                   {#if thread.first.quote}
                     <button type="button" class="quote" onclick={() => (reveal = thread.first.anchor ?? undefined)}>{thread.first.quote}</button>
                   {/if}
@@ -697,59 +853,85 @@
                   {/if}
                 </article>
               {/snippet}
-              {#if side === 'comments'}
-                <Stack gap="150">
-                  <Switch label={t('app.pages.show_resolved')} checked={showResolved} onchange={(event: Event) => (showResolved = (event.currentTarget as HTMLInputElement).checked)} />
-                  {#if shownThreads.length === 0}
-                    <p class="quiet">{t('app.pages.no_comments')}</p>
-                  {/if}
-                  <div class="margin" class:level={isLevel} bind:this={marginElement} style:--margin-height={isLevel ? `${margin.height}px` : undefined}>
-                    {#each passageOrder as thread (thread.first.id)}
-                      <div
-                        class="placed"
-                        bind:offsetHeight={heights[thread.first.id]}
-                        style:--thread-top={isLevel ? `${margin.tops.get(thread.first.id) ?? 0}px` : undefined}
-                      >
-                        {@render threadCard(thread)}
-                      </div>
-                    {/each}
-                  </div>
-                  {#each pageThreads as thread (thread.first.id)}
-                    {@render threadCard(thread)}
+
+              {#if outline.length > 0 && viewport.isLarge}
+                <PageOutline label={t('app.pages.outline')} headings={outline} locate={locateHeading} />
+              {/if}
+              <section class="comments" aria-labelledby="page-comments-head" data-page-margin>
+                <div class="comments-head">
+                  <h2 class="caps" id="page-comments-head">{t('app.pages.comments_count', { count: String(openThreads) })}</h2>
+                  <span class="which" role="group" aria-label={t('app.pages.comments_which')}>
+                    <button type="button" aria-pressed={!showResolved} onclick={() => (showResolved = false)}>{t('app.pages.comments_open_tab')}</button>
+                    <button type="button" aria-pressed={showResolved} data-page-resolved onclick={() => (showResolved = true)}>{t('app.pages.comments_resolved_tab')}</button>
+                  </span>
+                </div>
+                <!-- Whole-page comments on top of the same column (S-5), the passages' beside them. -->
+                {#each pageThreads as thread (thread.first.id)}
+                  {@render threadCard(thread)}
+                {/each}
+                <div class="margin" class:level={isLevel} bind:this={marginElement} style:--margin-height={isLevel ? `${margin.height}px` : undefined}>
+                  {#each passageOrder as thread (thread.first.id)}
+                    <div
+                      class="placed"
+                      bind:offsetHeight={heights[thread.first.id]}
+                      style:--thread-top={isLevel ? `${margin.tops.get(thread.first.id) ?? 0}px` : undefined}
+                    >
+                      {@render threadCard(thread)}
+                    </div>
                   {/each}
-                  <Textarea label={t('app.pages.comment_new')} rows={3} bind:value={commentDraft} />
+                </div>
+                {#if shownThreads.length === 0}
+                  <p class="quiet">{showResolved ? t('app.pages.no_resolved') : t('app.pages.no_comments')}</p>
+                {/if}
+                <!-- Writing at the column's foot. -->
+                <div class="write" data-page-comment-new>
+                  <Textarea label={t('app.pages.comment_on_page')} isLabelHidden placeholder={t('app.pages.comment_on_page')} rows={2} bind:value={commentDraft} />
                   {#if block}
                     <Switch label={t('app.pages.comment_at_block', { words: (block.selected ?? block.text).slice(0, 60) })} checked={isAtBlock} onchange={(event: Event) => (isAtBlock = (event.currentTarget as HTMLInputElement).checked)} />
                   {/if}
-                  <Button size="sm" disabledReason={commentDraft.trim() === '' ? t('app.pages.comment_needs_words') : undefined} onclick={addComment}>{t('app.pages.comment_send')}</Button>
-                </Stack>
-              {:else if side === 'history'}
-                <Stack gap="100">
-                  <ol class="versions">
-                    {#each versionState as version (version.seq)}
-                      <li>
-                        <button type="button" class="version" class:chosen={comparing?.seq === version.seq} onclick={() => openVersion(version.seq)}>
-                          <span class="seq">{version.name ?? t('app.pages.version', { seq: String(version.seq) })}</span>
-                          <span class="meta">{nameOf(version.author_id)} · {when(version.created_at)}{version.restored_from ? ` · ${t('app.pages.version_restored_from', { seq: String(version.restored_from) })}` : ''}</span>
-                        </button>
-                        {#if current.writable}
-                          <IconButton size="sm" icon="pencil" label={t('app.pages.version_name')} onclick={() => { namingSeq = version.seq; nameDraft = version.name ?? ''; }} />
-                        {/if}
-                      </li>
-                    {:else}
-                      <li class="quiet">{t('app.pages.no_versions')}</li>
-                    {/each}
-                  </ol>
-                  {#if comparing}
-                    <h3 class="heading">{t('app.pages.compare', { seq: String(comparing.seq) })}</h3>
-                    <pre class="compare">{#each compared as line, at (at)}<span class={`line ${line.kind}`}>{line.kind === 'added' ? '+ ' : line.kind === 'removed' ? '- ' : '  '}{line.text}
-</span>{/each}</pre>
-                    {#if current.writable}
-                      <Button size="sm" tone="secondary" icon="rotate-ccw" onclick={() => restoreVersion(comparing!.seq)}>{t('app.pages.version_restore')}</Button>
-                    {/if}
+                  {#if commentDraft.trim() !== ''}
+                    <Button size="sm" onclick={addComment}>{t('app.pages.comment_send')}</Button>
                   {/if}
-                </Stack>
-              {:else if side === 'backlinks'}
+                </div>
+              </section>
+            {/snippet}
+
+            {#if viewport.isLarge}
+              <aside class="beside" aria-label={t('app.pages.beside')}>{@render beside()}</aside>
+            {:else}
+              <Sheet
+                title={side === 'outline' ? t('app.pages.outline') : t('app.pages.comments_count', { count: String(openThreads) })}
+                closeLabel={t('app.pages.side_close')}
+                isOpen={side === 'outline' || side === 'comments'}
+                onClose={() => (side = undefined)}
+              >
+                {#if side === 'outline'}
+                  <PageOutline label={t('app.pages.outline')} headings={outline} locate={locateHeading} onselect={() => (side = undefined)} />
+                {:else}
+                  {@render beside()}
+                {/if}
+              </Sheet>
+            {/if}
+          </div>
+
+          {#if viewport.isCompact}
+            <!-- The phone: reading first, the rest at the foot (§7). -->
+            <nav class="foot" aria-label={t('app.pages.foot')} data-page-foot>
+              <Button size="sm" tone="subtle" icon="list" disabledReason={outline.length === 0 ? t('app.pages.outline_empty') : undefined} onclick={() => toggleSide('outline')}>{t('app.pages.foot_contents')}</Button>
+              <Button size="sm" tone="subtle" icon="message-square" onclick={() => toggleSide('comments')}>{t('app.pages.foot_comments', { count: String(openThreads) })}</Button>
+              {#if current.writable}
+                <Button size="sm" tone="subtle" icon="pencil" onclick={() => bodyElement?.querySelector<HTMLElement>('[contenteditable="true"]')?.focus()}>{t('app.pages.foot_edit')}</Button>
+              {/if}
+            </nav>
+          {/if}
+
+          {#if side === 'backlinks' || side === 'access' || side === 'details'}
+            <aside class="side" aria-label={sideTitle} data-page-side={side}>
+              <Inline justify="between" align="center">
+                <h2 class="heading">{sideTitle}</h2>
+                <IconButton size="sm" icon="x" label={t('app.pages.side_close')} onclick={() => (side = undefined)} />
+              </Inline>
+              {#if side === 'backlinks'}
                 <ul class="hits">
                   {#each backlinkState as link (link.source_kind + link.source_id)}
                     <li>
@@ -796,54 +978,21 @@
                 </Stack>
               {/if}
             </aside>
-            {/if}
-          </div>
-        </Stack>
+          {/if}
+        </div>
       {/key}
     {/if}
   </section>
 </div>
 </WorkPage>
 
-{#if isCreating}
-  <CreateDialog
-    bind:isOpen={isCreating}
-    title={draftParent ? t('app.pages.new_child') : t('app.pages.new')}
-    cancelLabel={t('app.pages.cancel')}
-    nameLabel={t('app.pages.page_title')}
-    bind:name={draftTitle}
-    isWide
-    place={draftParent ? undefined : { current: draftHub, fallback: hub?.name, places: placesToMake.list, onchoose: (id) => {
-      draftHub = id;
-      if (draftTemplate.startsWith('own:') && id !== hubId) draftTemplate = '';
-    } }}
-    primary={{ label: t('app.pages.create'), busyLabel: busy ? t('app.pages.creating') : undefined, onclick: () => void create() }}
-  >
-    {#snippet gallery()}
-      <TemplateGallery label={t('app.pages.start_from')} isLabelHidden>
-        {#each templateCards as card (card.value)}
-          <TemplateCard name={card.name} summary={card.summary} mark={card.mark} note={card.note} isChosen={draftTemplate === card.value} isCompact data-page-start={card.value || 'blank'}>
-            {#snippet action()}
-              <Button size="sm" tone={draftTemplate === card.value ? 'primary' : 'secondary'} icon={draftTemplate === card.value ? 'check' : undefined} aria-pressed={draftTemplate === card.value} onclick={() => (draftTemplate = card.value)}>
-                {t('app.pages.template_pick')}<VisuallyHidden>{` ${card.name}`}</VisuallyHidden>
-              </Button>
-            {/snippet}
-          </TemplateCard>
-        {/each}
-      </TemplateGallery>
-    {/snippet}
-    {#if draftOffersSubpages}
-      <Switch label={t('app.pages.with_subpages')} bind:checked={draftWithSubpages} />
-    {/if}
-  </CreateDialog>
-{/if}
 
 {#if isMoving && current}
-  <Dialog size="s" bind:isOpen={isMoving} title={t('app.pages.move_title', { title: current.title })} dismissLabel={t('app.pages.cancel')}>
+  <Dialog size="s" bind:isOpen={isMoving} title={t('app.pages.move_title', { title: current.title })} dismissLabel={t('app.pages.cancel')}
+    primary={{ label: t('app.pages.move'), onclick: move }}>
     <Select label={t('app.pages.move_under')} options={moveOptions} bind:value={moveParent} />
     {#snippet actions()}
-      <Button tone="subtle" onclick={() => (isMoving = false)}>{t('app.pages.cancel')}</Button>
-      <Button tone="primary" onclick={move}>{t('app.pages.move')}</Button>
+      <Button tone="secondary" onclick={() => (isMoving = false)}>{t('app.pages.cancel')}</Button>
     {/snippet}
   </Dialog>
 {/if}
@@ -859,23 +1008,18 @@
 {/if}
 
 <style>
+  .post-labels { margin-block: var(--sp-100); }
+  .post-aside { margin-block-start: var(--sp-400); }
   .space {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: var(--sp-200);
   }
   .start { display: grid; gap: var(--sp-200); }
-  .head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--sp-100);
-  }
   .heading { display: grid; gap: calc(var(--sp-050) + var(--sp-025)); }
-  .title-line { display: flex; flex: 1 1 24ch; align-items: center; gap: var(--sp-100); min-inline-size: 0; }
+  /* A side section's name on the scale, not the browser's h3 step (16.38 px). */
+  h3.heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .here { display: inline-flex; }
-  .versions { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }
   .excerpt, .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
   .quiet { margin: 0; color: var(--text-secondary); }
   .refusal { margin: 0; color: var(--text-danger); }
@@ -900,14 +1044,95 @@
   textarea.title { resize: none; overflow: hidden; field-sizing: content; font-family: var(--font-display); }
   textarea.title:hover { border-color: var(--border-subtle); }
   textarea.title:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
-  .body-and-side { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-200); }
-  /* design-system-lint-ignore: `primitive.breakpoint.large` (1240px); a media query cannot read a custom property. */
-  @media (width >= 1240px) {
-    .body-and-side.with-side { grid-template-columns: minmax(0, 1fr) minmax(28ch, 40ch); }
+  .reading-page[hidden] { display: none; }
+  .reading-page { display: grid; gap: var(--sp-200); }
+  .top-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-100);
+  }
+  /* The reading column and, from 1240 px, the outline and the comments beside it (S-1, S-3, S-5). */
+  .reader { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-400); align-items: start; }
+  .reader.with-beside { grid-template-columns: minmax(0, 1fr) var(--layout-rail); }
+  .column {
+    display: grid;
+    gap: var(--sp-100);
+    inline-size: 100%;
+    max-inline-size: var(--layout-reading);
+    min-inline-size: 0;
+    justify-self: center;
+  }
+  /* "+" and the handle stand in a gutter of their own before the text, never at the frame's edge (pwrite 3). */
+  .column.with-gutter {
+    box-sizing: border-box;
+    max-inline-size: calc(var(--layout-reading) + var(--sp-1000));
+    padding-inline-start: var(--sp-1000);
+  }
+  .icon { font-size: var(--fs-700); line-height: var(--lh-tight); }
+  .column .title { font-size: var(--fs-600); }
+  .beside {
+    position: sticky;
+    inset-block-start: var(--sp-200);
+    display: grid;
+    gap: var(--sp-300);
+    max-block-size: calc(100dvh - var(--sp-400));
+    overflow-y: auto;
+  }
+  .comments { display: grid; gap: var(--sp-150); }
+  .comments-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-100); }
+  .caps {
+    margin: 0;
+    color: var(--text-subtle);
+    font-size: var(--fs-065);
+    font-weight: var(--fw-semibold);
+    /* design-system-lint-ignore: tracking in em follows the type step it spaces */
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .which { display: inline-flex; gap: var(--sp-050); font-size: var(--fs-075); }
+  .which button {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    font: inherit;
+    cursor: pointer;
+  }
+  .which button[aria-pressed='true'] { color: var(--text-primary); font-weight: var(--fw-semibold); }
+  .which button:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+  .write {
+    display: grid;
+    gap: var(--sp-050);
+    padding: var(--sp-150);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-inline-start: var(--bw-thick) solid var(--accent-primary);
+    border-radius: var(--r-md);
+    background: var(--bg-surface);
+    box-shadow: var(--shadow-raised);
+  }
+  .backlinks {
+    display: grid;
+    gap: var(--sp-100);
+    margin-block-start: var(--sp-400);
+    padding-block-start: var(--sp-200);
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
+  }
+  .hits { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }
+  .foot {
+    position: sticky;
+    inset-block-end: 0;
+    display: flex;
+    justify-content: space-around;
+    padding-block: var(--sp-050);
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
+    background: var(--bg-canvas);
   }
   .body { display: grid; gap: var(--sp-100); min-inline-size: 0; }
   .side {
     display: grid;
+    max-inline-size: var(--layout-reading);
     gap: var(--sp-150);
     align-content: start;
     padding: var(--sp-150);
@@ -915,56 +1140,50 @@
     border-radius: var(--r-lg);
     background: var(--bg-surface);
   }
+  /* A thread's card as the margin draws it (pwrite): a raised card, the passage's mark at its start. */
   .thread {
     display: grid;
     gap: var(--sp-050);
-    padding: var(--sp-100);
+    padding: var(--sp-150);
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-md);
     background: var(--bg-surface);
+    box-shadow: var(--shadow-raised);
+    font-size: var(--fs-100);
   }
+  .thread.at-passage { border-inline-start: var(--bw-thick) solid var(--accent-primary); }
   .thread.resolved { color: var(--text-secondary); }
   .margin { position: relative; display: grid; row-gap: var(--sp-100); }
   .margin.level { display: block; min-block-size: var(--margin-height); }
   .margin.level > .placed { position: absolute; inset-inline: 0; inset-block-start: var(--thread-top); }
   .quote {
     text-align: start;
-    padding-inline-start: var(--sp-100);
+    padding: 0;
     border: none;
-    border-inline-start: var(--bw-thick) solid var(--border-default);
     background: none;
     color: var(--text-secondary);
     font: inherit;
+    font-style: italic;
     cursor: pointer;
   }
+  .quote::before { content: open-quote; }
+  .quote::after { content: close-quote; }
   .comment .text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-  .versions li { display: flex; align-items: center; gap: var(--sp-050); }
-  .version {
-    flex: 1 1 auto;
-    display: grid;
-    text-align: start;
-    padding: var(--sp-050) var(--sp-100);
-    border: var(--bw-hairline) solid transparent;
-    border-radius: var(--r-sm);
-    background: none;
-    color: var(--text-primary);
-    font: inherit;
-    cursor: pointer;
+  /* Icon and title stand under the cover's picture, never on it (E-18); the icon reaches into its edge. */
+  .covered .icon { position: relative; margin-block-start: calc(-1 * var(--sp-600)); }
+  .page-adds { display: flex; gap: var(--sp-050); margin-block-end: var(--sp-050); }
+  /* While reading (scene pread) nothing to make stands above the first words: with a pointer the add
+     shows where the head is pointed at or reached by the keyboard; a touch screen always shows it. */
+  @media (hover: hover) {
+    .column:not(:hover) .page-adds:not(:focus-within) { opacity: 0; }
   }
-  .version:hover { background: var(--bg-surface-hover); }
-  .version.chosen { border-color: var(--border-default); background: var(--bg-surface-sunken); }
-  .seq { font-weight: var(--fw-medium); }
-  .compare {
-    margin: 0;
-    max-block-size: 60vh;
-    overflow: auto;
-    padding: var(--sp-100);
-    border-radius: var(--r-md);
-    background: var(--bg-surface-sunken);
-    font-family: var(--font-mono);
-    font-size: var(--fs-075);
-    white-space: pre-wrap;
+
+  /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
+     reaches layout.target, by its own height or beyond its drawn box. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .which button { display: inline-flex; align-items: center; min-block-size: var(--layout-target); min-inline-size: var(--layout-target); justify-content: center; }
+    .which button { position: relative; }
+    .which button::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
   }
-  .line.added { color: var(--text-success); }
-  .line.removed { color: var(--text-danger); text-decoration: line-through; }
 </style>

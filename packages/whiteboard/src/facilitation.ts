@@ -180,6 +180,16 @@ export class Facilitation {
     if (timer?.left !== undefined) this.#map.set('timer', { length: timer.length, endsAt: now + timer.left });
   }
 
+  /** One more stretch for the timer, running or paused; a timer that ran out starts again with it. */
+  extendTimer(by: number, now: number): void {
+    const timer = this.timer;
+    if (!timer) return;
+    const add = Math.max(0, Math.round(by));
+    const length = Math.min(MAX_TIMER, timer.length + add);
+    if (timer.endsAt !== undefined) this.#map.set('timer', { length, endsAt: Math.min(now + MAX_TIMER, Math.max(timer.endsAt, now) + add) });
+    else this.#map.set('timer', { length, left: Math.min(MAX_TIMER, (timer.left ?? 0) + add) });
+  }
+
   stopTimer(): void {
     this.#map.delete('timer');
   }

@@ -255,6 +255,18 @@ func (q *Queries) ClearBucket(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearBucketStatus = `-- name: ClearBucketStatus :execrows
+DELETE FROM bucket_status
+`
+
+func (q *Queries) ClearBucketStatus(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearBucketStatus)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearBusinessCalendar = `-- name: ClearBusinessCalendar :execrows
 DELETE FROM business_calendar
 `
@@ -315,6 +327,18 @@ func (q *Queries) ClearCmdbAsset(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearCmdbAssetMove = `-- name: ClearCmdbAssetMove :execrows
+DELETE FROM cmdb_asset_move
+`
+
+func (q *Queries) ClearCmdbAssetMove(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearCmdbAssetMove)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearCmdbAttestation = `-- name: ClearCmdbAttestation :execrows
 DELETE FROM cmdb_attestation
 `
@@ -363,12 +387,36 @@ func (q *Queries) ClearCmdbCiGroup(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearCmdbCiHistory = `-- name: ClearCmdbCiHistory :execrows
+DELETE FROM cmdb_ci_history
+`
+
+func (q *Queries) ClearCmdbCiHistory(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearCmdbCiHistory)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearCmdbCiIdentifier = `-- name: ClearCmdbCiIdentifier :execrows
 DELETE FROM cmdb_ci_identifier
 `
 
 func (q *Queries) ClearCmdbCiIdentifier(ctx context.Context) (int64, error) {
 	result, err := q.db.Exec(ctx, clearCmdbCiIdentifier)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearCmdbCiMedia = `-- name: ClearCmdbCiMedia :execrows
+DELETE FROM cmdb_ci_media
+`
+
+func (q *Queries) ClearCmdbCiMedia(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearCmdbCiMedia)
 	if err != nil {
 		return 0, err
 	}
@@ -525,6 +573,18 @@ DELETE FROM config_draft
 
 func (q *Queries) ClearConfigDraft(ctx context.Context) (int64, error) {
 	result, err := q.db.Exec(ctx, clearConfigDraft)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearConfigGoalSet = `-- name: ClearConfigGoalSet :execrows
+DELETE FROM config_goal_set
+`
+
+func (q *Queries) ClearConfigGoalSet(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearConfigGoalSet)
 	if err != nil {
 		return 0, err
 	}
@@ -939,6 +999,18 @@ func (q *Queries) ClearMediaObject(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearMediaVersions = `-- name: ClearMediaVersions :execrows
+DELETE FROM media_version
+`
+
+func (q *Queries) ClearMediaVersions(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearMediaVersions)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearMembership = `-- name: ClearMembership :execrows
 DELETE FROM membership
 `
@@ -1185,6 +1257,78 @@ DELETE FROM portfolio_update
 
 func (q *Queries) ClearPortfolioUpdate(ctx context.Context) (int64, error) {
 	result, err := q.db.Exec(ctx, clearPortfolioUpdate)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearPost = `-- name: ClearPost :execrows
+DELETE FROM post
+`
+
+func (q *Queries) ClearPost(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPost)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearPostConfirmation = `-- name: ClearPostConfirmation :execrows
+DELETE FROM post_confirmation
+`
+
+func (q *Queries) ClearPostConfirmation(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPostConfirmation)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearPostFollow = `-- name: ClearPostFollow :execrows
+DELETE FROM post_follow
+`
+
+func (q *Queries) ClearPostFollow(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPostFollow)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearPostReaction = `-- name: ClearPostReaction :execrows
+DELETE FROM post_reaction
+`
+
+func (q *Queries) ClearPostReaction(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPostReaction)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearPostRead = `-- name: ClearPostRead :execrows
+DELETE FROM post_read
+`
+
+func (q *Queries) ClearPostRead(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPostRead)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearPostReply = `-- name: ClearPostReply :execrows
+DELETE FROM post_reply
+`
+
+func (q *Queries) ClearPostReply(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPostReply)
 	if err != nil {
 		return 0, err
 	}
@@ -1929,6 +2073,21 @@ func (q *Queries) HoldsBucket(ctx context.Context, payload []byte) (bool, error)
 	return held, err
 }
 
+const holdsBucketStatus = `-- name: HoldsBucketStatus :one
+SELECT EXISTS (
+  SELECT 1 FROM bucket_status
+  WHERE collection_id = ($1::jsonb->>'collection_id')::uuid
+    AND status = $1::jsonb->>'status'
+) AS held
+`
+
+func (q *Queries) HoldsBucketStatus(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsBucketStatus, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
 const holdsBusinessCalendar = `-- name: HoldsBusinessCalendar :one
 SELECT EXISTS (SELECT 1 FROM business_calendar WHERE id = ($1::jsonb->>'id')::uuid) AS held
 `
@@ -1984,6 +2143,17 @@ func (q *Queries) HoldsCmdbAsset(ctx context.Context, payload []byte) (bool, err
 	return held, err
 }
 
+const holdsCmdbAssetMove = `-- name: HoldsCmdbAssetMove :one
+SELECT EXISTS (SELECT 1 FROM cmdb_asset_move WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsCmdbAssetMove(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsCmdbAssetMove, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
 const holdsCmdbAttestation = `-- name: HoldsCmdbAttestation :one
 SELECT EXISTS (SELECT 1 FROM cmdb_attestation WHERE campaign_id = ($1::jsonb->>'campaign_id')::uuid AND ci_id = ($1::jsonb->>'ci_id')::uuid) AS held
 `
@@ -2028,12 +2198,38 @@ func (q *Queries) HoldsCmdbCiGroup(ctx context.Context, payload []byte) (bool, e
 	return held, err
 }
 
+const holdsCmdbCiHistory = `-- name: HoldsCmdbCiHistory :one
+SELECT EXISTS (SELECT 1 FROM cmdb_ci_history WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsCmdbCiHistory(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsCmdbCiHistory, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
 const holdsCmdbCiIdentifier = `-- name: HoldsCmdbCiIdentifier :one
 SELECT EXISTS (SELECT 1 FROM cmdb_ci_identifier WHERE ci_id = ($1::jsonb->>'ci_id')::uuid AND name = ($1::jsonb->>'name')) AS held
 `
 
 func (q *Queries) HoldsCmdbCiIdentifier(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsCmdbCiIdentifier, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsCmdbCiMedia = `-- name: HoldsCmdbCiMedia :one
+SELECT EXISTS (
+  SELECT 1 FROM cmdb_ci_media
+  WHERE ci_id = ($1::jsonb->>'ci_id')::uuid
+    AND media_id = ($1::jsonb->>'media_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsCmdbCiMedia(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsCmdbCiMedia, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -2180,6 +2376,19 @@ SELECT EXISTS (
 
 func (q *Queries) HoldsConfigDraft(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsConfigDraft, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsConfigGoalSet = `-- name: HoldsConfigGoalSet :one
+SELECT EXISTS (
+  SELECT 1 FROM config_goal_set WHERE key = $1::jsonb->>'key'
+) AS held
+`
+
+func (q *Queries) HoldsConfigGoalSet(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsConfigGoalSet, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -2581,6 +2790,21 @@ func (q *Queries) HoldsMediaObject(ctx context.Context, payload []byte) (bool, e
 	return held, err
 }
 
+const holdsMediaVersion = `-- name: HoldsMediaVersion :one
+SELECT EXISTS (
+  SELECT 1 FROM media_version
+  WHERE media_id = ($1::jsonb->>'media_id')::uuid
+    AND earlier_media_id = ($1::jsonb->>'earlier_media_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsMediaVersion(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsMediaVersion, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
 const holdsMembership = `-- name: HoldsMembership :one
 SELECT EXISTS (SELECT 1 FROM membership WHERE id = ($1::jsonb->>'id')::uuid) AS held
 `
@@ -2852,6 +3076,89 @@ SELECT EXISTS (SELECT 1 FROM portfolio_update WHERE id = ($1::jsonb->>'id')::uui
 
 func (q *Queries) HoldsPortfolioUpdate(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsPortfolioUpdate, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPost = `-- name: HoldsPost :one
+SELECT EXISTS (SELECT 1 FROM post WHERE page_id = ($1::jsonb->>'page_id')::uuid) AS held
+`
+
+func (q *Queries) HoldsPost(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPost, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPostConfirmation = `-- name: HoldsPostConfirmation :one
+SELECT EXISTS (
+  SELECT 1 FROM post_confirmation
+  WHERE page_id = ($1::jsonb->>'page_id')::uuid
+    AND account_id = ($1::jsonb->>'account_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsPostConfirmation(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPostConfirmation, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPostFollow = `-- name: HoldsPostFollow :one
+SELECT EXISTS (
+  SELECT 1 FROM post_follow
+  WHERE hub_id = ($1::jsonb->>'hub_id')::uuid
+    AND account_id = ($1::jsonb->>'account_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsPostFollow(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPostFollow, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPostReaction = `-- name: HoldsPostReaction :one
+SELECT EXISTS (
+  SELECT 1 FROM post_reaction
+  WHERE reply_id = ($1::jsonb->>'reply_id')::uuid
+    AND account_id = ($1::jsonb->>'account_id')::uuid
+    AND reaction = $1::jsonb->>'reaction'
+) AS held
+`
+
+func (q *Queries) HoldsPostReaction(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPostReaction, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPostRead = `-- name: HoldsPostRead :one
+SELECT EXISTS (
+  SELECT 1 FROM post_read
+  WHERE page_id = ($1::jsonb->>'page_id')::uuid
+    AND account_id = ($1::jsonb->>'account_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsPostRead(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPostRead, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPostReply = `-- name: HoldsPostReply :one
+SELECT EXISTS (SELECT 1 FROM post_reply WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsPostReply(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPostReply, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -3398,6 +3705,8 @@ INSERT INTO account (
   nav_hubs_order,
   nav_contents_mode,
   nav_hubs_hidden,
+  today_sections,
+  today_sections_hidden,
   redemption_token_hash,
   redemption_expires_at,
   password_set_at,
@@ -3436,6 +3745,9 @@ SELECT
   r.nav_contents_mode,
   -- An archive from before migration 0393 carries none: every hub shown.
   coalesce(r.nav_hubs_hidden, '{}'),
+  -- An archive from before migration 0396 carries none: Today in the product's own arrangement.
+  coalesce(r.today_sections, '{}'),
+  coalesce(r.today_sections_hidden, '{}'),
   r.redemption_token_hash,
   r.redemption_expires_at,
   r.password_set_at,
@@ -3473,6 +3785,8 @@ ON CONFLICT (id) DO UPDATE SET
   nav_hubs_order = EXCLUDED.nav_hubs_order,
   nav_contents_mode = EXCLUDED.nav_contents_mode,
   nav_hubs_hidden = EXCLUDED.nav_hubs_hidden,
+  today_sections = EXCLUDED.today_sections,
+  today_sections_hidden = EXCLUDED.today_sections_hidden,
   redemption_token_hash = EXCLUDED.redemption_token_hash,
   redemption_expires_at = EXCLUDED.redemption_expires_at,
   password_set_at = EXCLUDED.password_set_at,
@@ -4068,7 +4382,8 @@ INSERT INTO automation_rule (
   -- nothing by itself: a restore seeds no poller, because nothing enumerates tenants, and
   -- backup-restore.md §8.4 is unambiguous that no rule acts because of a restore.
   next_run_at,
-  key
+  key,
+  entries
 )
 SELECT
   r.id,
@@ -4096,7 +4411,9 @@ SELECT
   r.version,
   r.next_run_at,
   -- The key travels with the row (migration 0293); an archive written before carries none.
-  r.key
+  r.key,
+  -- *For which entries* (migration 0399); an archive written before means every entry.
+  coalesce(r.entries, '')
 FROM jsonb_populate_record(
   NULL::automation_rule,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -4125,7 +4442,8 @@ ON CONFLICT (id) DO UPDATE SET
   deleted_at = EXCLUDED.deleted_at,
   version = EXCLUDED.version,
   next_run_at = EXCLUDED.next_run_at,
-  key = coalesce(EXCLUDED.key, automation_rule.key)
+  key = coalesce(EXCLUDED.key, automation_rule.key),
+  entries = EXCLUDED.entries
 WHERE $2::boolean
 `
 
@@ -4190,6 +4508,31 @@ type ImportBucketParams struct {
 
 func (q *Queries) ImportBucket(ctx context.Context, arg ImportBucketParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importBucket, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importBucketStatus = `-- name: ImportBucketStatus :execrows
+INSERT INTO bucket_status (tenant_id, collection_id, bucket_id, status)
+SELECT r.tenant_id, r.collection_id, r.bucket_id, r.status
+FROM jsonb_populate_record(
+  NULL::bucket_status,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, collection_id, status) DO UPDATE SET
+  bucket_id = EXCLUDED.bucket_id
+WHERE $2::boolean
+`
+
+type ImportBucketStatusParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportBucketStatus(ctx context.Context, arg ImportBucketStatusParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importBucketStatus, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}
@@ -4370,6 +4713,37 @@ func (q *Queries) ImportCmdbAsset(ctx context.Context, arg ImportCmdbAssetParams
 	return result.RowsAffected(), nil
 }
 
+const importCmdbAssetMove = `-- name: ImportCmdbAssetMove :execrows
+INSERT INTO cmdb_asset_move (id, tenant_id, hub_id, ci_id, state, moved_at, moved_by, assigned_to, stockroom_id)
+SELECT r.id, r.tenant_id, r.hub_id, r.ci_id, r.state, r.moved_at, r.moved_by, r.assigned_to, r.stockroom_id
+FROM jsonb_populate_record(
+  NULL::cmdb_asset_move,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  hub_id = EXCLUDED.hub_id,
+  ci_id = EXCLUDED.ci_id,
+  state = EXCLUDED.state,
+  moved_at = EXCLUDED.moved_at,
+  moved_by = EXCLUDED.moved_by,
+  assigned_to = EXCLUDED.assigned_to,
+  stockroom_id = EXCLUDED.stockroom_id
+WHERE $2::boolean
+`
+
+type ImportCmdbAssetMoveParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportCmdbAssetMove(ctx context.Context, arg ImportCmdbAssetMoveParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importCmdbAssetMove, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const importCmdbAttestation = `-- name: ImportCmdbAttestation :execrows
 INSERT INTO cmdb_attestation (tenant_id, campaign_id, ci_id, owner_id, verdict, attested_by, attested_at)
 SELECT r.tenant_id, r.campaign_id, r.ci_id, r.owner_id, r.verdict, r.attested_by, r.attested_at
@@ -4431,8 +4805,8 @@ func (q *Queries) ImportCmdbCampaign(ctx context.Context, arg ImportCmdbCampaign
 }
 
 const importCmdbCi = `-- name: ImportCmdbCi :execrows
-INSERT INTO cmdb_ci (id, tenant_id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id, location_ci_id, protection, review_due, quantity, last_seen_at, merged_into, created_by, created_at, updated_by, updated_at, version)
-SELECT r.id, r.tenant_id, r.hub_id, r.class_key, r.name, r.stage, r.status, r.attributes, r.provenance, r.owner_account_id, r.owner_group_id, r.location_ci_id, r.protection, r.review_due, r.quantity, r.last_seen_at, r.merged_into, r.created_by, r.created_at, r.updated_by, r.updated_at, r.version
+INSERT INTO cmdb_ci (id, tenant_id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id, location_ci_id, protection, review_due, quantity, last_seen_at, merged_into, created_by, created_at, updated_by, updated_at, confirmed_at, confirmed_by, version)
+SELECT r.id, r.tenant_id, r.hub_id, r.class_key, r.name, r.stage, r.status, r.attributes, r.provenance, r.owner_account_id, r.owner_group_id, r.location_ci_id, r.protection, r.review_due, r.quantity, r.last_seen_at, r.merged_into, r.created_by, r.created_at, r.updated_by, r.updated_at, r.confirmed_at, r.confirmed_by, r.version
 FROM jsonb_populate_record(
   NULL::cmdb_ci,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -4454,6 +4828,8 @@ ON CONFLICT (id) DO UPDATE SET
   merged_into = EXCLUDED.merged_into,
   updated_by = EXCLUDED.updated_by,
   updated_at = EXCLUDED.updated_at,
+  confirmed_at = EXCLUDED.confirmed_at,
+  confirmed_by = EXCLUDED.confirmed_by,
   version = EXCLUDED.version
 WHERE $2::boolean
 `
@@ -4501,6 +4877,24 @@ func (q *Queries) ImportCmdbCiGroup(ctx context.Context, arg ImportCmdbCiGroupPa
 	return result.RowsAffected(), nil
 }
 
+const importCmdbCiHistory = `-- name: ImportCmdbCiHistory :execrows
+INSERT INTO cmdb_ci_history (id, tenant_id, ci_id, actor_type, actor_id, verb, change_set, occurred_at)
+SELECT r.id, r.tenant_id, r.ci_id, r.actor_type, r.actor_id, r.verb, r.change_set, r.occurred_at
+FROM jsonb_populate_record(
+  NULL::cmdb_ci_history,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO NOTHING
+`
+
+func (q *Queries) ImportCmdbCiHistory(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importCmdbCiHistory, payload)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const importCmdbCiIdentifier = `-- name: ImportCmdbCiIdentifier :execrows
 INSERT INTO cmdb_ci_identifier (tenant_id, ci_id, hub_id, name, value)
 SELECT r.tenant_id, r.ci_id, r.hub_id, r.name, r.value
@@ -4520,6 +4914,24 @@ type ImportCmdbCiIdentifierParams struct {
 
 func (q *Queries) ImportCmdbCiIdentifier(ctx context.Context, arg ImportCmdbCiIdentifierParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importCmdbCiIdentifier, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importCmdbCiMedia = `-- name: ImportCmdbCiMedia :execrows
+INSERT INTO cmdb_ci_media (tenant_id, ci_id, media_id)
+SELECT r.tenant_id, r.ci_id, r.media_id
+FROM jsonb_populate_record(
+  NULL::cmdb_ci_media,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, ci_id, media_id) DO NOTHING
+`
+
+func (q *Queries) ImportCmdbCiMedia(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importCmdbCiMedia, payload)
 	if err != nil {
 		return 0, err
 	}
@@ -4950,6 +5362,31 @@ type ImportConfigDraftParams struct {
 
 func (q *Queries) ImportConfigDraft(ctx context.Context, arg ImportConfigDraftParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importConfigDraft, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importConfigGoalSet = `-- name: ImportConfigGoalSet :execrows
+INSERT INTO config_goal_set (tenant_id, key, period_id, created_at)
+SELECT r.tenant_id, r.key, r.period_id, r.created_at
+FROM jsonb_populate_record(
+  NULL::config_goal_set,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, key) DO UPDATE SET
+  period_id = EXCLUDED.period_id, created_at = EXCLUDED.created_at
+WHERE $2::boolean
+`
+
+type ImportConfigGoalSetParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportConfigGoalSet(ctx context.Context, arg ImportConfigGoalSetParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importConfigGoalSet, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}
@@ -5397,14 +5834,14 @@ func (q *Queries) ImportCustomRoleGrant(ctx context.Context, payload []byte) (in
 }
 
 const importDashboard = `-- name: ImportDashboard :execrows
-INSERT INTO dashboard (id, tenant_id, hub_id, owner_id, name, sharing, group_ids, widgets, created_at, updated_at, updated_by, version)
-SELECT r.id, r.tenant_id, r.hub_id, r.owner_id, r.name, r.sharing, coalesce(r.group_ids, '{}'), r.widgets, r.created_at, r.updated_at, r.updated_by, r.version
+INSERT INTO dashboard (id, tenant_id, hub_id, owner_id, name, sharing, group_ids, widgets, filter, created_at, updated_at, updated_by, version)
+SELECT r.id, r.tenant_id, r.hub_id, r.owner_id, r.name, r.sharing, coalesce(r.group_ids, '{}'), r.widgets, coalesce(r.filter, ''), r.created_at, r.updated_at, r.updated_by, r.version
 FROM jsonb_populate_record(
   NULL::dashboard,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
 ) r
 ON CONFLICT (id) DO UPDATE SET
-  hub_id = EXCLUDED.hub_id, owner_id = EXCLUDED.owner_id, name = EXCLUDED.name, sharing = EXCLUDED.sharing, group_ids = EXCLUDED.group_ids, widgets = EXCLUDED.widgets, created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by, version = EXCLUDED.version
+  hub_id = EXCLUDED.hub_id, owner_id = EXCLUDED.owner_id, name = EXCLUDED.name, sharing = EXCLUDED.sharing, group_ids = EXCLUDED.group_ids, widgets = EXCLUDED.widgets, filter = EXCLUDED.filter, created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by, version = EXCLUDED.version
 WHERE $2::boolean
 `
 
@@ -6187,6 +6624,24 @@ func (q *Queries) ImportMediaObject(ctx context.Context, arg ImportMediaObjectPa
 	return result.RowsAffected(), nil
 }
 
+const importMediaVersion = `-- name: ImportMediaVersion :execrows
+INSERT INTO media_version (tenant_id, media_id, number, earlier_media_id, saved_by, saved_at)
+SELECT r.tenant_id, r.media_id, r.number, r.earlier_media_id, r.saved_by, r.saved_at
+FROM jsonb_populate_record(
+  NULL::media_version,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, media_id, number) DO NOTHING
+`
+
+func (q *Queries) ImportMediaVersion(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importMediaVersion, payload)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const importMembership = `-- name: ImportMembership :execrows
 INSERT INTO membership (
   id,
@@ -6297,14 +6752,14 @@ INSERT INTO page (
   id, tenant_id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
   owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
   created_by, created_at, updated_by, updated_at, version, restricted, daily_for,
-  language_source_id, language_variant, deleted_by_type, deleted_by_id
+  language_source_id, language_variant, deleted_by_type, deleted_by_id, cover
 )
 SELECT
   r.id, r.tenant_id, r.hub_id, r.parent_id, r.title, r.body, r.icon, r.order_key, r.template,
   r.content_language, r.owner_id, r.verified_until, r.verified_at, r.verified_by, r.archived_at,
   r.deleted_at, r.created_by, r.created_at, r.updated_by, r.updated_at, r.version,
   coalesce(r.restricted, false), r.daily_for, r.language_source_id, r.language_variant,
-  r.deleted_by_type, r.deleted_by_id
+  r.deleted_by_type, r.deleted_by_id, r.cover
 FROM jsonb_populate_record(
   NULL::page,
   ($1::jsonb - 'search_document') || jsonb_build_object('tenant_id', current_tenant_id())
@@ -6314,6 +6769,7 @@ ON CONFLICT (id) DO UPDATE SET
   title = EXCLUDED.title,
   body = EXCLUDED.body,
   icon = EXCLUDED.icon,
+  cover = EXCLUDED.cover,
   order_key = EXCLUDED.order_key,
   template = EXCLUDED.template,
   content_language = EXCLUDED.content_language,
@@ -6350,14 +6806,16 @@ func (q *Queries) ImportPage(ctx context.Context, arg ImportPageParams) (int64, 
 }
 
 const importPageArticle = `-- name: ImportPageArticle :execrows
-INSERT INTO page_article (tenant_id, page_id, collection_id, published_by, published_at, views)
-SELECT r.tenant_id, r.page_id, r.collection_id, r.published_by, r.published_at, coalesce(r.views, 0)
+INSERT INTO page_article (tenant_id, page_id, collection_id, published_by, published_at, views, with_subpages)
+SELECT r.tenant_id, r.page_id, r.collection_id, r.published_by, r.published_at, coalesce(r.views, 0),
+       coalesce(r.with_subpages, false)
 FROM jsonb_populate_record(
   NULL::page_article,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
 ) r
 ON CONFLICT (tenant_id, page_id, collection_id) DO UPDATE SET
-  published_by = EXCLUDED.published_by, published_at = EXCLUDED.published_at, views = EXCLUDED.views
+  published_by = EXCLUDED.published_by, published_at = EXCLUDED.published_at, views = EXCLUDED.views,
+  with_subpages = EXCLUDED.with_subpages
 WHERE $2::boolean
 `
 
@@ -6837,6 +7295,132 @@ type ImportPortfolioUpdateParams struct {
 
 func (q *Queries) ImportPortfolioUpdate(ctx context.Context, arg ImportPortfolioUpdateParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importPortfolioUpdate, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPost = `-- name: ImportPost :execrows
+INSERT INTO post (tenant_id, page_id, hub_id, template, publish_at, published_at, featured_until, audience,
+  group_ids, discussion, notify, confirm_by)
+SELECT r.tenant_id, r.page_id, r.hub_id, r.template, r.publish_at, r.published_at, r.featured_until, r.audience,
+  r.group_ids, r.discussion, r.notify, r.confirm_by
+FROM jsonb_populate_record(
+  NULL::post,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id) DO UPDATE SET
+  template = EXCLUDED.template, publish_at = EXCLUDED.publish_at, published_at = EXCLUDED.published_at,
+  featured_until = EXCLUDED.featured_until, audience = EXCLUDED.audience, group_ids = EXCLUDED.group_ids,
+  discussion = EXCLUDED.discussion, notify = EXCLUDED.notify, confirm_by = EXCLUDED.confirm_by
+WHERE $2::boolean
+`
+
+type ImportPostParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportPost(ctx context.Context, arg ImportPostParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importPost, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPostConfirmation = `-- name: ImportPostConfirmation :execrows
+INSERT INTO post_confirmation (tenant_id, page_id, account_id, confirmed_at)
+SELECT r.tenant_id, r.page_id, r.account_id, r.confirmed_at
+FROM jsonb_populate_record(
+  NULL::post_confirmation,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id, account_id) DO NOTHING
+`
+
+func (q *Queries) ImportPostConfirmation(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importPostConfirmation, payload)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPostFollow = `-- name: ImportPostFollow :execrows
+INSERT INTO post_follow (tenant_id, hub_id, account_id, followed_at)
+SELECT r.tenant_id, r.hub_id, r.account_id, r.followed_at
+FROM jsonb_populate_record(
+  NULL::post_follow,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, hub_id, account_id) DO NOTHING
+`
+
+func (q *Queries) ImportPostFollow(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importPostFollow, payload)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPostReaction = `-- name: ImportPostReaction :execrows
+INSERT INTO post_reaction (tenant_id, reply_id, account_id, reaction)
+SELECT r.tenant_id, r.reply_id, r.account_id, r.reaction
+FROM jsonb_populate_record(
+  NULL::post_reaction,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, reply_id, account_id, reaction) DO NOTHING
+`
+
+func (q *Queries) ImportPostReaction(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importPostReaction, payload)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPostRead = `-- name: ImportPostRead :execrows
+INSERT INTO post_read (tenant_id, page_id, account_id, read_at)
+SELECT r.tenant_id, r.page_id, r.account_id, r.read_at
+FROM jsonb_populate_record(
+  NULL::post_read,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id, account_id) DO NOTHING
+`
+
+func (q *Queries) ImportPostRead(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importPostRead, payload)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPostReply = `-- name: ImportPostReply :execrows
+INSERT INTO post_reply (id, tenant_id, page_id, parent_id, author_id, body, created_at, edited_at, deleted_at, version)
+SELECT r.id, r.tenant_id, r.page_id, r.parent_id, r.author_id, r.body, r.created_at, r.edited_at, r.deleted_at, r.version
+FROM jsonb_populate_record(
+  NULL::post_reply,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  body = EXCLUDED.body, edited_at = EXCLUDED.edited_at, deleted_at = EXCLUDED.deleted_at, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportPostReplyParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportPostReply(ctx context.Context, arg ImportPostReplyParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importPostReply, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

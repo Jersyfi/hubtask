@@ -141,7 +141,7 @@ change is a **draft** beside the shape in force, which stays in force until the 
 type, or for every type: a collection's row wins over its hub's, a type's over the row for every
 type (`work.ResolveWorkflow`); where none resolves, no workflow runs. An entry carries its
 **status** (`work_item.status`, null where none runs) and **in a workflow collection completion
-follows the status's category** (D-02): one gate (`WorkflowGate`) holds every move - `TakeStep`,
+follows the status's category** (D-02; a board's columns, §3.5a): one gate (`WorkflowGate`) holds every move - `TakeStep`,
 `CompleteWorkItem` and `ReopenWorkItem` take a step into or out of a done status the person may
 take or are refused (`workflows.step_not_offered`, `workflows.step_not_allowed`,
 `workflows.step_refused` naming each empty field and failing check, `workflows.no_step_to_done`),
@@ -738,7 +738,7 @@ stateDiagram-v2
 
 | Entity | Key fields | Rules |
 |---|---|---|
-| `Bucket` | `collectionId`, `name`, `orderKey`, `wipLimit?`, `isDoneBucket`, `colorToken?` | The "list" of the requirements. `isDoneBucket` marks the column that means finished; it is stored and reported, and the server completes nothing because of it. A colour, where set, is one of the ten label tokens, as a label's |
+| `Bucket` | `collectionId`, `name`, `orderKey`, `wipLimit?`, `isDoneBucket`, `colorToken?` | The "list" of the requirements. `isDoneBucket` marks the column that means finished: without a workflow a board has exactly one, and the server keeps it and completion together (§3.5a). A colour, where set, is one of the ten label tokens, as a label's |
 | `Label` | `collectionId`, `name`, `colorToken`, `description?` | The colour is required and is one of the ten label tokens (`LabelTokens.go`), never a colour value, so clients theme it ([ADR-0029](../adr/ADR-0029-design-system-tokens.md)) |
 | `Comment` | `itemId`, `authorId`, `body`, `editedAt?`, `parentCommentId?`, `internal` | An internal note (UC-SVC-04) is the team's: every reader of the entry reads it, a requester in the portal never does; a reply to one is internal, and the flag is fixed when written. Only the author or an admin may change it. Deletion erases the body and keeps identifier, author and timestamps, so the thread stays readable and no removed text is retained — except under a legal hold, where the row keeps the text, no read serves it, and the retention pass clears it once no hold covers it ([data-retention.md](./data-retention.md) §4) |
 | `ActivityEntry` | `itemId`, `actor{type,id}`, `verb`, `changeSet` (JSONB), `occurredAt`, `causationId` | Append-only, the source of the history; `verb` is a message code (below) |
@@ -750,7 +750,7 @@ stateDiagram-v2
 | `Reminder` | `itemId`, `offsetSpec` (`REL:-PT1H` / `ABS:<ts>`), `channels[]`, `recipients[]`, `state` | Predefined (relative presets) and custom |
 | `RecurrenceRule` | `rrule` (RFC 5545), `timeZone`, `mode` (`ON_SCHEDULE`\|`ON_COMPLETION`), `horizonDays`, `endSpec` | See [arc42.md](./arc42.md) §6.3 |
 | `Template` | `scope`, `name`, `rootType`, `nodes[]` (titles, notes, a relative due date as an ISO-8601 duration such as `P3D`, a fixed `assigneeId` per node) | Instantiation produces an item tree. The tree is validated against the capability profiles when defined, not when instantiated, and holds at most `max_template_nodes` nodes |
-| `SavedView` | `scope`, `name`, `layout` (`LIST_COLLAPSED`,`LIST_EXPANDED`,`KANBAN`,`TIMELINE`), `query`, `grouping`, `visibleFields`, `sharing` | `layout` is a hint; the server does not interpret it |
+| `SavedView` | `scope`, `name`, `layout` (`LIST_COLLAPSED`,`LIST_EXPANDED`,`KANBAN`,`TIMELINE`,`CALENDAR`), `query`, `grouping`, `visibleFields`, `sharing` | `layout` is a hint; the server does not interpret it. `grouping` may also name `lanes_by`, a board's lanes as a second grouping held to the first's rule, and `date_field`, the date a calendar places entries by, refused unless it is a date (`views.date_field_not_a_date`); a saved search is its query line, read by `POST /search:all` over every kind |
 | `JumbleEntry` | `tenantId`, `channel` (`EMAIL`,`WEBHOOK`,`QUICK_CAPTURE`,`API`), `rawSubject`, `rawBody`, `attachments[]`, `sender`, `status` (`NEW`,`PROCESSED`,`DISMISSED`), `suggestion` (JSONB) | Conversion produces a `WorkItem` and sets `PROCESSED` |
 | `AutoAssignPolicy` | `scope`, `strategy`, `candidates[]` (accounts/groups), `state` (for round robin), `enabled` | See §3.6 |
 | `AutomationRule` | See [automation.md](./automation.md) | |
@@ -778,6 +778,76 @@ Rules of the history:
 * A container has no `ActivityEntry` (it is keyed on `itemId`, read only by
   `/items/{id}/activity`); what a hub or a collection changed is in the audit trail and the change
   log.
+
+### 3.5a Lists, boards and workflows
+
+The owner's decision of 2026-11-12 (ADR-0103). Each entry type in a collection stands at one of
+three levels, **derived from what the collection has and never stored** (`work.StateModeOf`):
+
+| Level | `StateMode` | What decides where an entry stands |
+|---|---|---|
+| L0 | `NONE` | Completion alone: open or done. |
+| L1 | `COLUMNS` | The board's columns (tasks only, I-W6). **Exactly one done column**, and the server keeps column and completion together through every door: entering the done column completes, leaving it reopens; completing moves into it, reopening out of it into the first column (`Board.Coupled`). An entry without a column reads as the first column when open and the done column when completed. Deleting the done column names its successor. |
+| L2 | `WORKFLOW` | The status (D-02). Each column shows one or more statuses (`bucket_status`), a status at most one column per board; a column is done iff all its statuses are DONE. A status no column shows stands in the virtual column *Ohne Spalte*. The column follows the status on every step and is never set by hand (`board.step_required`). |
+
+**A board whose entry types run their own workflows** - a hub running one workflow for stories and
+another for bugs - shows the statuses of all of them: the board's shape is the workflows in force
+for every task-level type on it, joined by status key (`work.BoardShape`, `Workflows.OnBoard`), so
+a status key stands in at most one column whichever workflow it comes from, and where two
+workflows share a key the first one's category decides. A change of the scheme for one type
+therefore reaches the boards that type stands on and takes their `columns`.
+
+A **drop** onto a column (`Board.PlanDrop`) moves at L1; at L2 it takes the one step the person may
+take into a status of the column, offers the choice among several, or is refused with a reason
+(`board.no_step`, `board.step_blocked`, `board.column_without_status`). A mapping is proposed by
+`work.DefaultMapping`: the same name first, then the done column takes the DONE statuses, the first
+column the initial one, the next empty column the first IN_PROGRESS; the rest stay unmapped with a
+suggestion. Switching levels always previews:
+
+* **A workflow comes or goes** (`PreviewWorkflowScheme`, `SetWorkflowScheme`): the preview answers
+  per board reached its level before and after, its columns with the statuses each would show, the
+  unmapped statuses with a suggested column, and how many entries change column, column-only moves
+  counted apart (`work.PlanBoardChange`). The set takes the columns chosen (`columns`), else the
+  proposal - a board whose statuses the new workflow keeps keeps its mapping -, writes the mapping
+  before the statuses move and places every entry by status after. When the workflow goes (L2 →
+  L1) the columns and completion stay, status and mapping are cleared, the done column is the one
+  marked, else the rightmost showing only done statuses, else the rightmost; completed entries go
+  into it, open ones out of it, and open ones in *Ohne Spalte* into the first column.
+* ***Workflow aus diesen Spalten*** (`MakeBoardWorkflow`, L1 → L2): a workflow of the hub with one
+  status per column - the first column's initial (to do), the done column's done, the rest in
+  progress, every step free -, run for the collection's tasks, each column showing its own status,
+  every entry taking its column's status; one transaction, a dry run as the preview.
+* **List ↔ board** (`SwitchBoard`, L0 ↔ L1): *Als Board anzeigen* creates an open and a done column
+  in the workspace's language, completed entries in the done one; back to a list soft-deletes the
+  columns, the done column last, and keeps completion. Both are refused while a workflow runs for
+  tasks (`board.workflow_runs`) and where the tasks already stand so (`board.level_unchanged`).
+
+A **template** says the same two things apart. A type's `workflow` flag says a workflow *runs* for
+it, and then the hub's scheme must name one; a workflow the template brings without a scheme is
+*offered*: installed, the workflows module on, chosen later by somebody. *Einkaufen* (`shopping@3`)
+is the case: its three statuses are offered, its type's flag is off, and a new shopping hub is a
+list (L0).
+
+An entry **arriving** on a board - moved from another collection, imported - takes the state of the
+column it is put in, and a completed one put in none goes into the done column (`Board.Arrived`); a
+**copy** or an entry from a template is open, so it stands outside the done column (`Board.Copied`);
+under a workflow both stand in the column of their status. **Marking** a column done takes the mark
+off the others; the only done column cannot be cleared (`Board.MarkDone`). Done column and
+completion move at once: the completed entries of the old done column go with the mark into the new
+one, and the open entries standing in the new one are completed. **Deleting** the done column of a
+board without a workflow asks which column means done instead: the deletion names it
+(`new_done_bucket_id`) or is refused with `buckets.done_successor_required`, the rightmost column
+left as the suggestion (`Board.ChooseDoneSuccessor`); the deleted column's entries go there and its
+open entries are completed. Under a mapping the suggestion is taken and the entries go to *Ohne
+Spalte*; an open column's go to the first open column (`Board.TargetAfterDeleting`). A board made
+before this model is not migrated to it: the owner accepted the break on 2026-11-15, nobody but the
+owner using Hubtask yet.
+
+A **completion in bulk** - the mark moving - writes each entry's history (`item.completed`, by
+the person who moved the mark, its `cause` `DONE_COLUMN_MOVED`) and its change for offline
+clients, but announces no completion event: nobody completed these entries by hand, so no
+notification goes out and no rule or automation runs - for hundreds of old entries both would be
+noise, and a rule firing on a moved mark would act on work nobody touched.
 
 ### 3.6 Automatic assignment
 
@@ -994,6 +1064,26 @@ the space goes back to the live document once no draft waits. A template's subpa
 when a page is started from it with them, and a tree of at most 100 pages is written in one write
 (UC-DOC-05 checks 5 and 6), so a space template is a page with pages under it.
 
+A page may carry a **cover** (`page.cover`, UC-DOC-16): a gradient or a gallery picture named by a
+key the clients draw - the domain holds only its shape, so an unknown key draws as no cover -, or an
+uploaded picture with how far down it is shown (0 to 100) and, for a picture from an image library,
+who made it. The library is the workspace's choice (`knowledge.cover_images`, off by default; the
+installation and a plan may set and lock it), asked by the server alone (security.md, the outbound
+rules).
+
+A **`Post`** is a page with a date (`post`, UC-DOC-17, UC-DOC-18): the page holds its words, cover,
+icon and labels; the post adds a template (announcement, release note, monthly review, welcome),
+when it goes out, how long it stays on top, an audience and whether it is discussed, followers are
+told and readers asked to confirm by a day. It stands as a draft (no moment, its writers only),
+scheduled (a moment ahead, its writers only; a `POST_PUBLISH` durable timer publishes it) or
+published. The audience only narrows: the hub's readers, or those of them in up to twenty groups -
+nobody reads a post who may not read its hub (`Post.Sees`). Who has seen a post (`post_read`) and who
+confirmed it (`post_confirmation`) are kept with the post and shown to its writers alone; a writer
+may remind those who have not confirmed while some have not. The discussion is replies one level
+deep (`post_reply`) with four fixed reactions (`post_reaction`); a person follows a hub's posts
+(`post_follow`) to be told when one that asks for it is published for them. Seeing, confirming and reacting write no audit
+entry (rule 10).
+
 ### 3.9 Whiteboards (context: Whiteboard, M4)
 
 A hub holds `Board`s (at most 1,000 outside the trash), judged at the hub as its pages are: READ to
@@ -1035,60 +1125,76 @@ comment names a person by a link to the address `hubtask:person/<account>` - at 
 reads the board's hub is told by a COMMENT notification whose subject is the board
 (`notification.whiteboard_id`); a rewrite tells only the people it adds.
 
-### 3.10 Configuration items (context: Assets, M6)
+### 3.10 Objects: the inventory (context: Assets, M6)
+
+The inventory is an object database, not merely an inventory tool: it maps any structure as related
+objects - hardware, software, services, contracts, locations, people's equipment, anything a process
+needs - so that processes can be automated over connected information (the owner's decision of
+2026-11-14, `docs/backlog/work-surface/build-plan.md`). Its words: an *object* is a `CI`, an *object
+type* a `Class`, and an object's *register record* (cost, supplier, warranty, disposal) an `Asset`;
+the code keeps those identifiers and `cmdb`. In IT operations objects are also called configuration
+items (ITIL).
 
 A hub holds an inventory of `CI`s (at most 20,000, `MaxCIsPerHub`; health, software and the service
 map read it whole in each request - at the bound measured at P95 257, 171 and 583 ms with eight
 callers, 753 MiB resident at peak, [C1](../evidence/cmdb-ceiling-2026-11-05.md)), judged at the hub as its pages are: READ to
-read, WRITE_ITEMS to write. A CI is of a `Class` with single inheritance - the hierarchy Hubtask
+read, WRITE_ITEMS to write. An object is of a `Class` with single inheritance - the hierarchy Hubtask
 ships (hardware, computers, network and storage devices, virtual machines, virtualisation
 clusters, cloud resources, container clusters, database instances, software, the service model of business and technical
 services with their offerings and application services, locations, contracts, business processes,
-information objects) is declared in the domain and never stored, and a workspace's own classes sit
-beneath it. A class declares typed attributes (text, number, boolean, date, choice, URL, group,
+information objects) is declared in the domain and never stored, and a workspace's own object types sit
+beneath it. An object type declares typed attributes (text, number, boolean, date, choice, URL, group,
 account; optional, recommended or required; identifying or not), ordered identifier rules, the
-relations a CI of it is an orphan without and its staleness period; a class inherits all of it,
-its own rules tried before its ancestors'. A CI carries its attributes with their `provenance`
-(source, run, moment), a lifecycle (stage and status, the same for every class), and the compliance
-fields: an owner (a person or a group), a location (a CI of a location class), a protection need
+relations an object of it is an orphan without and its staleness period; an object type inherits all of it,
+its own rules tried before its ancestors'. An object carries its attributes with their `provenance`
+(source, run, moment), a lifecycle (stage and status, the same for every object type), and the compliance
+fields: an owner (a person or a group), a location (an object of a location object type), a protection need
 for confidentiality, integrity and availability, a review date and a quantity of alike objects.
-A CI is not an entry: it has no level, completion or collection, and it is pointed at by its
-identifier. A `Relation` joins two CIs of one hub by a `RelationType` whose `impact` says which end
-suffers when the other fails; impact analysis walks it, and a CI's effective protection need is the
+An object is not an entry: it has no level, completion or collection, and it is pointed at by its
+identifier. A `Relation` joins two objects of one hub by a `RelationType` whose `impact` says which end
+suffers when the other fails; impact analysis walks it, and an object's effective protection need is the
 highest of its own and that of everything that suffers when it fails (the maximum principle), save
-a dimension fixed with a reason. Every write of a CI - a person's (source `manual`), a payload's,
+a dimension fixed with a reason. Every write of an object - a person's (source `manual`), a payload's,
 a file's - goes through one reconciliation: an item is identified by its source's own key, then by
-its class's rules among the CIs of the rule's class and its descendants; it is created, updated
+its object type's rules among the objects of the rule's object type and its descendants; it is created, updated
 under the sources' precedence (a lower rank number wins an attribute, until its writer has gone
-silent for the class's staleness period), held for review (`Hold`) when nothing identifies it or the
+silent for the object type's staleness period), held for review (`Hold`) when nothing identifies it or the
 source may not create it, or opens a `Duplicate` when it matches several. A `Run` keeps every
 decision by attribute name, never value. Merging a duplicate keeps the survivor and retires the
-others as merged; no use case deletes a CI.
+others as merged; no use case deletes an object.
 
-A `Connector` is a program a hub's CIs come from or that posts alerts to it (GLPI, NetBox or Nautobot,
+A `Connector` is a program a hub's objects come from or that posts alerts to it (GLPI, NetBox or Nautobot,
 Intune, Entra ID, Hetzner Cloud, OpenStack pulled; a GLPI Agent posting its inventory; Alertmanager, Zabbix,
 Checkmk posting alerts). It writes as one of the
-workspace's sources of kind `CONNECTOR`, so the source's rank and classes decide what it may change;
+workspace's sources of kind `CONNECTOR`, so the source's rank and object types decide what it may change;
 it names every address it calls (an https base address, an identity provider's authority, further
 hosts it allows), holds a sealed credential nobody can read back, a cursor where its last walk
 ended, a period and its last run's outcome by message code. A pull is pages through the same
 reconciliation; a scheduled one acts with the rights of the person who last defined the connector.
-An `Alert` is one problem per intake and key - firing, resolved, reopened - bound to the CI its
+An `Alert` is one problem per intake and key - firing, resolved, reopened - bound to the object its
 host names and to the entry opened for it; a pull keeps one more about its own runs, firing while
 they fail or fetch nothing. A connector is switched off, never deleted.
 
-What vouches for an inventory (migration 0274): an entry names up to fifty CIs as **affected**
+What vouches for an inventory (migration 0274): an entry names up to fifty objects as **affected**
 (`Affected`) - its readers see the services their failure reaches, the other open entries on them,
-and a **collision** with an entry planned on the same or a reached CI in an overlapping start-to-due
-window (UC-AST-09). A **campaign** fixes, when it starts, the active CIs of its classes due for review
-and asks each one's owning person; a confirmed CI's review moves by the campaign's period, a
-disputed one falls due that day (UC-AST-10). A **group** is a hub's set of CIs defined by a filter on
-class, stage, name and attribute values, never by listing; standing for a service, its members are
-what the service rests on in the layered service map (UC-AST-11). An **asset** is a CI's financial
-record, one per CI, moving requested → ordered → in stock → deployed → retired → disposed - the CI's
+and a **collision** with an entry planned on the same or a reached object in an overlapping start-to-due
+window (UC-AST-09). A **campaign** fixes, when it starts, the active objects of its object types due for review
+and asks each one's owning person; a confirmed object's review moves by the campaign's period, a
+disputed one falls due that day (UC-AST-10). A **group** is a hub's set of objects defined by a filter on
+object type, stage, name and attribute values, never by listing; standing for a service, its members are
+what the service rests on in the layered service map (UC-AST-11). A **register record** (`Asset`) is an object's financial
+record, one per object, moving requested → ordered → in stock → deployed → retired → disposed - the object's
 stage follows, and disposal needs its method and a certificate's reference (UC-AST-12). Software is
 counted by its folded publisher and product, a workspace's **alias** naming what folding misses
 (UC-AST-13).
+
+An object keeps its **history** (`cmdb_ci_history`, UC-AST-01): one step per change - created, an
+attribute changed, its stage, a relation made or ended, confirmed or attested, merged (on the
+survivor too), its register record moved to another object, a file attached or removed - with who
+did it (a person, a service account, an automation, an agent or the system) and when; of a field it
+keeps the values where they are the object's own vocabulary or an identifier, and of an attribute
+only that it changed. It holds **files**
+(`cmdb_ci_media`) judged at its hub, read by whoever reads the object and kept with it.
 
 ### 3.11 Goals, portfolios and dashboards (context: Goal, M8)
 
@@ -1118,7 +1224,11 @@ grid run a saved summary view, a stored `POST /items:aggregate` document or goal
 their numbers are computed when read, for the reader, never stored. A bar, line or table widget
 may carry a second summary (`Compare`, resolved beside created) and draw each period as its running
 total of a `COUNT` or `SUM` (`Cumulative`); with both, the figures answer what is left between
-them, exactly (`goal.RunningTotals`, `goal.Remaining`).
+them, exactly (`goal.RunningTotals`, `goal.Remaining`). Beside the seven charts a widget may be a
+`LIST` - a query's first ten hits as entries - or a `TEXT` of at most 2,000 characters that runs
+nothing. A dashboard's **filter** is a Hubtask query (api-guidelines.md §3.1) every query widget
+inherits: its top-level conditions are AND-ed with the widget's own, except on the fields a widget
+releases, and the result is read by the one parser and bound like any filter (`goal.inherited`).
 
 ---
 

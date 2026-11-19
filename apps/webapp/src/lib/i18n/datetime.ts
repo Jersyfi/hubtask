@@ -39,11 +39,25 @@ export function formatTime(iso: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, { timeStyle: 'short' }).format(at);
 }
 
+/** The time of day of an instant on a zone's clock, as the locale writes it short - "09:40", "9:40 AM". */
+export function formatClock(iso: string, locale: string, zone: string): string {
+  const at = Date.parse(iso);
+  if (Number.isNaN(at)) return iso;
+  return new Intl.DateTimeFormat(locale, { timeZone: zone, timeStyle: 'short' }).format(at);
+}
+
 /** The reader's day of an instant in full - "14 October 2026" - where a sentence names the day. */
 export function formatLongDay(iso: string, locale: string): string {
   const at = Date.parse(iso);
   if (Number.isNaN(at)) return iso;
   return new Intl.DateTimeFormat(locale, { dateStyle: 'long' }).format(at);
+}
+
+/** A month as a heading names it - "November 2026" - from a month (`2026-11`) or an instant. */
+export function formatMonth(month: string, locale: string): string {
+  const at = Date.parse(month.length === 7 ? `${month}-15T12:00:00Z` : month);
+  if (Number.isNaN(at)) return month;
+  return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(at);
 }
 
 /**
@@ -59,6 +73,13 @@ export function formatPlainDay(date: string | null | undefined, locale: string):
 }
 
 /** A calendar day as a short line says it - "Nov 21" -, without its year; read on UTC's clock as `formatPlainDay`. */
+/** A plain date's weekday, short - "Mo" -, for a week's columns. */
+export function formatWeekdayShort(date: string, locale: string): string {
+  const at = Date.parse(`${date}T00:00:00Z`);
+  if (Number.isNaN(at)) return date;
+  return new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(at).replace(/\.$/u, '');
+}
+
 export function formatShortDay(date: string, locale: string): string {
   const at = Date.parse(`${date}T00:00:00Z`);
   if (Number.isNaN(at)) return date;

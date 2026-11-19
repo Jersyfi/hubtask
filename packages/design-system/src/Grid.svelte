@@ -26,12 +26,12 @@
     children?: Snippet;
   }
 
-  const { as = 'div', columns = { compact: 1 }, gap = '200', children, ...rest }: Props = $props();
+  // A caller's class joins the grid's own: spread after it, it would replace `grid` and drop the columns.
+  const { as = 'div', columns = { compact: 1 }, gap = '200', children, class: extra, ...rest }: Props = $props();
 </script>
 
 <svelte:element
   this={as}
-  class="grid"
   data-gap={gap}
   data-compact={columns.compact ?? 1}
   data-medium={columns.medium}
@@ -39,6 +39,7 @@
   data-large={columns.large}
   data-xlarge={columns.xlarge}
   {...rest}
+  class={['grid', extra]}
 >
   {@render children?.()}
 </svelte:element>

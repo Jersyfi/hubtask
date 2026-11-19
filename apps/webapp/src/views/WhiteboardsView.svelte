@@ -3,16 +3,19 @@
 <script lang="ts">
   // One whiteboard drawn full-bleed (M4, UC-CNV-01 … UC-CNV-03; user-experience.md §7.2): renamed,
   // put in the trash and brought back from here. A hub's boards are listed and made in *All
-  // contents* (the navigation concept §2.4), so this view opens one board only.
+  // contents* (the navigation concept §2.4), so this view opens one board only; a new one is made at
+  // once and opens here with its templates as a sheet (scene wnew).
   //
   // **What the reader may never do is not drawn** (P-05): the board's own `writable` says whether
   // its menu offers a write.
   import { untrack } from 'svelte';
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
-  import { Button, Dialog, Input, Spinner } from '@hubtask/design-system/components';
+  import { Button, Dialog, Input, ProductTile, Spinner, VisuallyHidden } from '@hubtask/design-system/components';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import type { Whiteboard, WhiteboardRead } from '@hubtask/sync-engine';
 
+  import { actor } from '../lib/data/account.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
   import { boardPath, whiteboards } from '../lib/data/whiteboards.svelte.ts';
@@ -21,19 +24,30 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import BoardCanvas from '../lib/whiteboards/BoardCanvas.svelte';
+  import type { BoardStart } from '../lib/whiteboards/BoardTemplates.svelte';
+  import { noteBoardOpened } from '../lib/whiteboards/opened.ts';
   import StarToggle from '../lib/workspace/StarToggle.svelte';
 
   interface Props {
     boardId: string;
+    /** A board just made (`?new=1`): it opens with the templates as a sheet (scene wnew). */
+    isNew?: boolean;
+    /** A thread to open at once (`?comment=`), from the home's comments to the reader. */
+    thread?: string;
     onnavigate: (path: string) => void;
   }
 
-  const { boardId, onnavigate }: Props = $props();
+  const { boardId, isNew = false, thread, onnavigate }: Props = $props();
 
   const opened = untrack(() => resource<WhiteboardRead>(boardPath(boardId)));
   const current = $derived(opened.state.status === 'ready' ? opened.state.data : undefined);
   const openRefusal = $derived(opened.state.status === 'failed' ? renderProblem(opened.state.error, messages).message : undefined);
   const hubId = $derived(current?.hub_id ?? '');
+  // The whiteboards' home continues what was opened here last (scene whome).
+  $effect(() => {
+    const seen = current?.id;
+    if (seen) untrack(() => noteBoardOpened(actor.account?.id, seen, Date.now()));
+  });
   // The sidebar shows this hub's level; the route names only the board (`levelOf`).
   $effect(() => frame.locate(hubId || undefined));
   const hub = $derived(hubId ? containers.find(hubId) : undefined);
@@ -70,6 +84,13 @@
     if (done) onnavigate(boardsOf(board.hub_id));
   }
 
+  /** A board made untitled takes its template's name, until a person names it (scene wnew). */
+  async function begun(choice: BoardStart) {
+    const board = current;
+    if (!board || choice === 'BLANK' || board.title !== t('app.create.untitled', { kind: 'whiteboard' })) return;
+    await act(() => whiteboards.rename(board, t(`app.whiteboards.start_${choice.toLowerCase()}`)));
+  }
+
   const collections = $derived(hubId ? containers.collectionsOf(hubId).map((each) => ({ id: each.id, name: each.name, settings: each.structure?.settings })) : []);
   const boardMenu = $derived(
     current?.writable
@@ -99,13 +120,18 @@
   </div>
 {:else}
   {#key current.id}
-    <BoardCanvas board={current} {collections} {onnavigate} {boardMenu}>
+    <BoardCanvas board={current} {collections} {onnavigate} {boardMenu} {isNew} {thread} onbegin={(choice) => void begun(choice)} back={hub ? boardsOf(hub.id) : '/whiteboards'}>
       {#snippet heading()}
-        <div class="trail">
-          {#if hub}<a class="hub" href={boardsOf(hub.id)}>{hub.name}</a><span class="sep" aria-hidden="true">/</span>{/if}
-          <h1 class="board-title" title={current.title}>{current.title}</h1>
-          <StarToggle kind="WHITEBOARD" id={current.id} name={current.title} />
-        </div>
+        {#if viewport.isCompact}
+          <!-- The bar draws the name and the star on a phone; the heading is read, not drawn twice. -->
+          <VisuallyHidden><h1>{current.title}</h1></VisuallyHidden>
+        {:else}
+          <div class="trail">
+            <ProductTile icon="layout-template" product="whiteboards" size="sm" />
+            <h1 class="board-title" title={current.title}>{current.title}</h1>
+            <StarToggle kind="WHITEBOARD" id={current.id} name={current.title} />
+          </div>
+        {/if}
       {/snippet}
     </BoardCanvas>
   {/key}
@@ -124,12 +150,6 @@
 <style>
   .waiting { display: grid; gap: var(--sp-150); padding: var(--sp-300); }
   .title { margin: 0; font-size: var(--fs-400); font-weight: var(--fw-semibold); }
-  .trail { display: flex; align-items: baseline; gap: var(--sp-050); min-inline-size: 0; }
-  .hub { flex: 0 1 auto; overflow: hidden; color: var(--text-secondary); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
-  .sep { color: var(--text-subtle); font-size: var(--fs-075); }
-  .board-title { margin: 0; overflow: hidden; font-size: var(--fs-200); font-weight: var(--fw-semibold); text-overflow: ellipsis; white-space: nowrap; }
-  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
-  @media (width < 600px) {
-    .hub, .sep { display: none; }
-  }
+  .trail { display: flex; align-items: center; gap: var(--sp-050); min-inline-size: 0; }
+  .board-title { margin: 0; overflow: hidden; font-size: var(--fs-100); font-weight: var(--fw-semibold); text-overflow: ellipsis; white-space: nowrap; }
 </style>

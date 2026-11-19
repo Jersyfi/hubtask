@@ -315,7 +315,8 @@ LIMIT sqlc.arg('row_limit');
 -- name: FindAccount :one
 SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at, avatar_media_id, products_seen,
-  nav_products, nav_products_hidden, nav_hubs_order, nav_contents_mode, nav_hubs_hidden
+  nav_products, nav_products_hidden, nav_hubs_order, nav_contents_mode, nav_hubs_hidden,
+  today_sections, today_sections_hidden
 FROM account
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 
@@ -413,6 +414,8 @@ UPDATE account SET
   nav_hubs_order = sqlc.narg('nav_hubs_order'),
   nav_contents_mode = sqlc.narg('nav_contents_mode'),
   nav_hubs_hidden = sqlc.arg('nav_hubs_hidden')::uuid[],
+  today_sections = sqlc.arg('today_sections')::text[],
+  today_sections_hidden = sqlc.arg('today_sections_hidden')::text[],
   updated_at = sqlc.arg('updated_at')
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 
@@ -473,6 +476,20 @@ WHERE group_id = sqlc.arg('group_id') AND account_id = sqlc.arg('account_id');
 
 -- name: GroupMembers :many
 SELECT account_id FROM account_group_member WHERE group_id = sqlc.arg('group_id');
+
+-- name: PeopleOfGroupsOf :many
+-- Everybody in a group the account is in, the account among them: the query's `my-groups`.
+SELECT DISTINCT other.account_id
+FROM account_group_member mine
+JOIN account_group_member other ON other.tenant_id = mine.tenant_id AND other.group_id = mine.group_id
+WHERE mine.tenant_id = current_tenant_id() AND mine.account_id = sqlc.arg('account_id')
+ORDER BY other.account_id
+LIMIT sqlc.arg('max_rows');
+
+-- name: GroupNamed :one
+-- The group a query names by its name, case-insensitive (`members("Support")`); the name is a
+-- bound value, compared with the unique index's own expression.
+SELECT id FROM account_group WHERE tenant_id = current_tenant_id() AND lower(name) = lower(sqlc.arg('name')::text);
 
 -- ============================= Directory ==============================
 -- What a directory provisions over SCIM (UC-ID-28): the identifier it knows a person or a group

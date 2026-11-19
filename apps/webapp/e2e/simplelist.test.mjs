@@ -21,6 +21,7 @@ import { chromium } from 'playwright';
 
 import { ACCOUNT, GROCERIES, GROCERY_ITEMS, GROCERY_LABELS, PAGE, pushed, resetGroceries, signedIn } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { unfoldFields } from './reveal.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -79,9 +80,11 @@ async function finger(page, rowId, moves, holdMs = 0) {
   );
 }
 
-/** Capture, from the bottom bar's ＋: pointed at the list the phone stands in. */
+/** Create, from the bottom bar's ＋: pointed at the list the phone stands in. */
 async function captureField(page) {
-  await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Capture' }).tap();
+  await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Create' }).tap();
+  // The ＋ opens Create (UC-WRK-46 check 1); its entry is capture.
+  await page.locator('dialog[open] .tilebutton[data-kind="entry"]').tap();
   const field = page.getByRole('dialog', { name: 'Capture' }).getByRole('textbox', { name: 'What do you want to remember?' });
   await field.waitFor({ timeout: 5_000 });
   return field;
@@ -216,10 +219,10 @@ test('an entry under Recently comes back as the same entry, no new one (check 4)
 test('the entry page shows and changes the amount where the list offers one (check 2)', async () => {
   const { page, writes, context } = await phone();
   await page.goto(`${served.origin}/items/${idOf('milk')}`);
-  const row = page.locator('[data-detail="amount"]');
-  await row.waitFor({ state: 'attached' });
-  // On a phone the details are folded under the head.
-  await page.locator('summary.details-summary').click();
+  await page.locator('[data-detail="amount"]').first().waitFor({ state: 'attached' });
+  // On a phone the details are the sheet behind *All properties* (§7).
+  await page.getByRole('button', { name: /^All properties/ }).click();
+  const row = page.getByRole('dialog').locator('[data-detail="amount"]');
   assert.match(await row.innerText(), /2/);
   await row.click();
   const field = page.getByRole('textbox', { name: 'Amount', exact: true });
@@ -229,8 +232,11 @@ test('the entry page shows and changes the amount where the list offers one (che
   assert.ok(writes.some((write) => write.method === 'PATCH' && write.path.endsWith(idOf('milk')) && write.body?.amount === '3'));
 
   // A collection that does not offer an amount draws no such row.
+  // Its empty fields wait under the folded More fields; unfolded, an amount is still not among them.
   await page.goto(`${served.origin}/items/01a0e2e0-0000-7000-8000-000000000033`);
-  await page.locator('[data-detail]').first().waitFor({ state: 'attached' });
+  await page.getByRole('button', { name: /^All properties/ }).click();
+  await unfoldFields(page);
+  await page.getByRole('dialog').locator('[data-detail]').first().waitFor({ state: 'attached' });
   assert.equal(await page.locator('[data-detail="amount"]').count(), 0);
   await context.close();
 });
@@ -337,8 +343,10 @@ test('offline, ticks and captures wait and are sent when the network returns (ch
   isOffline = false;
   await context.setOffline(false);
   await page.waitForFunction(() => document.querySelector('.trigger')?.getAttribute('data-connection') !== 'offline', null, { timeout: 10_000 });
-  await page.waitForTimeout(2_000);
-  const mutations = pushed.flatMap((push) => push.mutations ?? []);
+  // The queue is sent after the connection returns, at the engine's pace: wait for both writes.
+  const sent = () => pushed.flatMap((push) => push.mutations ?? []);
+  for (let waited = 0; waited < 15_000 && sent().length < 2; waited += 250) await page.waitForTimeout(250);
+  const mutations = sent();
   assert.ok(
     mutations.some((mutation) => mutation.kind === 'ITEM_PATCH' && mutation.item_id === idOf('bread')),
     `no tick was pushed: ${JSON.stringify(mutations)}`,

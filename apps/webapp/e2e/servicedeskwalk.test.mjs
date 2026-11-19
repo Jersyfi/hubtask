@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, COLLECTION, DEFAULT_STRUCTURE, HUB, ITEMS, OTHER, PAGE, WORKSPACE } from './fixture.mjs';
@@ -37,7 +37,7 @@ function deskBackend() {
   });
   const approval = (item, number) => ({
     id: id(), item_id: item.id, item_title: item.title, item_number: number, on_behalf_of: null, workflow: 'requests', step: 'approve',
-    item_version: 1, state: 'PENDING', current_level: 1,
+    step_name: 'Get the manager\'s yes', item_version: 1, state: 'PENDING', current_level: 1,
     levels: [{ rule: 'ANY', count: 1, approvers: [ACCOUNT.id], roles: [], needed: 1 }],
     decisions: [], requested_by: OTHER.id, requested_at: at(-3 * HOUR), decided_at: null, due_at: at(21 * HOUR), may_decide: true, version: 1,
   });
@@ -109,8 +109,7 @@ function deskBackend() {
 }
 
 test('chromium: service desk - a calendar and a policy defined, a request\'s promised times read, approvals decided - without an error', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const backend = deskBackend();
   const walk = await productWalk(browser, { modules: ['SERVICE_DESK', 'WORKFLOWS'], answer: backend });
   t.after(walk.close);
@@ -152,32 +151,37 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
   assert.equal(backend.policies[0]?.goals.find((goal) => goal.kind === 'FIRST_RESPONSE')?.minutes, 240);
 
   await page.goto(`${served.origin}/items/${REQUEST.id}`);
-  const promised = page.getByRole('list', { name: 'Promised times' });
+  // The concept's ticket (ET-1): the promised times are the rail's first section.
+  const promised = page.locator('[data-entry-sla]');
   await promised.waitFor({ timeout: 5_000 });
   assert.match(await promised.innerText(), /First reply/);
-  // §5.6: a desk entry's promised times sit under the head, above the notes.
-  assert.equal(await promised.evaluate((node) => {
-    const notes = document.querySelector('[aria-label="Notes"]');
-    return notes !== null && Boolean(node.compareDocumentPosition(notes) & Node.DOCUMENT_POSITION_FOLLOWING);
-  }), true, 'the promised times stand above the notes');
+  assert.equal(await page.getByRole('complementary', { name: 'Details' }).locator('section').first().getByText('Deadlines', { exact: true }).count(), 1, 'the deadlines are not the rail\'s first section');
   const requester = page.getByRole('region', { name: 'Requester' });
   await requester.getByText('Acme Plumbing').waitFor({ timeout: 5_000 });
   assert.match(await requester.innerText(), new RegExp(OTHER.display_name));
-  // §5.10: the other requests are the design system's rows, not the browser's blue underline.
+  // The other requests are one line, by their keys (deskentry.d), each a link named with its title -
+  // never the browser's blue underline (§5.10).
   const other = requester.getByRole('link', { name: OTHER_REQUEST.title });
   await other.waitFor({ timeout: 5_000 });
   assert.equal(await other.getAttribute('href'), `/items/${OTHER_REQUEST.id}`);
+  assert.equal((await other.innerText()).trim(), `KITCHEN-${OTHER_REQUEST.number}`, 'the other request is not named by its key');
   assert.equal(await requester.getByRole('link', { name: REQUEST.title }).count(), 0, 'the entry itself is listed among the others');
-  const drawn = await other.evaluate((node) => ({ line: getComputedStyle(node).textDecorationLine, color: getComputedStyle(node).color, row: node.closest('.row') !== null }));
-  assert.equal(drawn.row, true, 'the other request is not a ListRow');
+  const line = requester.locator('[data-requester-open]');
+  assert.match((await line.innerText()).trim(), new RegExp(`^\\d+ other open requests?: KITCHEN-${OTHER_REQUEST.number}`));
+  assert.equal(await requester.getByRole('listitem').filter({ has: other }).count(), 0, 'the other requests are rows, not one line');
+  const drawn = await other.evaluate((node) => ({ line: getComputedStyle(node).textDecorationLine, color: getComputedStyle(node).color }));
   assert.equal(drawn.line, 'none', 'the other request is underlined as a browser link');
   assert.notEqual(drawn.color, 'rgb(0, 0, 238)', 'the other request is the browser\'s blue');
   const beside = page.locator('[data-approval]');
   await beside.waitFor({ timeout: 5_000 });
   assert.match(await beside.innerText(), /Waiting[\s\S]*Mara Lind asked on [\s\S]*Level 1/);
+  // The team reads the step by the workflow's name for it, never its key (P-12).
+  assert.match(await beside.innerText(), /to take “Get the manager's yes”/);
+  assert.doesNotMatch(await beside.innerText(), /“approve”/);
 
   await page.goto(`${served.origin}/approvals`);
   const first = page.locator('article').filter({ hasText: REQUEST.title });
+  await first.getByText('to take “Get the manager\'s yes”', { exact: false }).waitFor({ timeout: 5_000 });
   await first.getByRole('button', { name: 'Approve' }).click();
   // Decided, it leaves the list: only what still waits for the reader's yes is listed.
   await first.waitFor({ state: 'detached', timeout: 5_000 });
@@ -213,8 +217,7 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
 // user-experience.md §5.12: on a phone a requester's other request with a long title wraps
 // inside the panel rather than widening the page.
 test('chromium: service desk - 390 px, a requester\'s long other request scrolls nothing sideways', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const desk = deskBackend();
   const long = { ...OTHER_REQUEST, title: 'Drucker im zweiten Obergeschoss druckt seit Montag nur noch leere Seiten und meldet einen Papierstau im Fach drei' };
   const answer = (method, path, query, body) => (path === '/search' && method === 'POST' && JSON.stringify(body?.filter ?? {}).includes('created_by')
@@ -225,14 +228,25 @@ test('chromium: service desk - 390 px, a requester\'s long other request scrolls
   const { page } = walk;
 
   await page.goto(`${served.origin}/items/${REQUEST.id}`);
-  await page.getByRole('region', { name: 'Requester' }).getByRole('link', { name: long.title }).waitFor({ timeout: 10_000 });
+  // The `deskentry` phone scene: the conversation first among four marks, none cut off; no copy
+  // icons under the head - the link's and the key's copy are rows of the bar's ⋯.
+  const marks = page.getByRole('navigation', { name: /^Sections of / });
+  await marks.waitFor({ timeout: 10_000 });
+  const labels = await marks.getByRole('link').allInnerTexts();
+  assert.ok(labels.length <= 4 && /^Conversation/u.test(labels[0]), `the marks are ${labels.join(' · ')}`);
+  const cut = await marks.evaluate((nav) => [...nav.querySelectorAll('a')].filter((a) => a.getBoundingClientRect().right > innerWidth + 1).map((a) => a.textContent));
+  assert.deepEqual(cut, [], 'a mark is cut off');
+  const icons = await page.locator('[data-copy-link]').evaluateAll((all) => all.filter((each) => each.getClientRects().length > 0).length);
+  assert.equal(icons, 0, 'a copy icon stands under the head');
+  // On a phone the rail is the sheet behind *All properties* (§7).
+  await page.getByRole('button', { name: /^All properties/ }).click();
+  await page.getByRole('dialog').getByRole('region', { name: 'Requester' }).getByRole('link', { name: long.title }).waitFor({ timeout: 10_000 });
   const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   assert.ok(wide <= 0, `the page scrolls ${wide} px sideways`);
 });
 
 test('chromium: service desk - an empty section starts from the ITIL defaults through the template\'s plan', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const backend = deskBackend();
   const itil = {
     key: 'itil_service_desk', version: 6, name: 'itil_service_desk', origin: 'HUBTASK', provenance: 'itil_service_desk@6', created_at: '2026-09-01T00:00:00Z',
@@ -265,12 +279,11 @@ test('chromium: service desk - an empty section starts from the ITIL defaults th
   assert.deepEqual(walk.errors(), []);
 });
 
-// A desk entry's detail by type (user-experience.md §5.6): its triage fields directly under the head,
-// above the notes and not folded among the details; no done checkbox where its workflow decides
-// completion; who raised it before what sits under it.
+// A desk entry's detail by type (the work surface's ticket, ET-1/ET-6): its triage fields in the rail
+// as *Classification*, not folded among the details; no done checkbox where its workflow decides
+// completion; who raised it in the rail after the details.
 test('chromium: service desk - a request shows its triage under the head, no done checkbox, the requester before its parts', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const desk = deskBackend();
   const form = {
     sections: [{ key: 'request', name: 'Request' }, { key: 'triage', name: 'Triage' }],
@@ -302,14 +315,198 @@ test('chromium: service desk - a request shows its triage under the head, no don
   const triage = page.locator('[data-entry-triage]');
   await triage.waitFor({ timeout: 10_000 });
   assert.equal(await triage.getByText('Priority').count(), 1, 'the priority is not among the triage fields');
-  assert.equal(await page.locator('aside.details').getByText('Priority').count(), 0, 'the priority is still among the details');
+  assert.equal(await page.locator('[data-details]').getByText('Priority').count(), 0, 'the priority is still among the details');
   const before = (first, second) => page.evaluate(([a, b]) => {
     const x = document.querySelector(a);
     const y = document.querySelector(b);
     return Boolean(x && y && x.compareDocumentPosition(y) & Node.DOCUMENT_POSITION_FOLLOWING);
   }, [first, second]);
-  assert.ok(await before('[data-entry-triage]', '.notes-field'), 'the triage is not above the notes');
+  // The concept's ticket (ET-1, ET-6): *Classification* in the rail above the details, the requester after them.
+  assert.ok(await before('[data-entry-triage]', '[data-details]'), 'the triage is not above the details');
   assert.equal(await page.locator('.head').getByRole('checkbox').count(), 0, 'a done checkbox is drawn where the workflow decides');
   await page.locator('[data-requester-panel]').waitFor({ timeout: 10_000 });
-  assert.ok(await before('[data-requester-panel]', '[data-tour="levels"]'), 'what sits under it comes before who raised it');
+  assert.ok(await before('[data-details]', '[data-requester-panel]'), 'the requester stands before the details');
+});
+
+// UC-SVC-06 (ET-7): the reply offers the desk's snippets - by its button and by "/" - and its macros, each saying what it
+// does; a snippet is rendered for the ticket and inserted, a macro presses the rule with the trigger *by hand*.
+test('chromium: service desk - the reply inserts a snippet by its button and by /, and presses a macro that says what it does', async (t) => {
+  const browser = await sharedChromium(t);
+  const desk = deskBackend();
+  const runner = '01a0e2e0-0000-7000-8000-000000002901';
+  const macro = {
+    id: '01a0e2e0-0000-7000-8000-000000002910', name: 'Ask for details', enabled: true, scope: { type: 'TENANT' }, run_as: runner,
+    trigger: { kind: 'MANUAL' }, conditions: [], actions: [{ kind: 'ADD_COMMENT', params: { body: 'More, please' } }],
+    throttle: { max_runs_per_hour: 100 }, on_error: 'CONTINUE', failure_count: 0, version: 1, created_by: runner,
+    created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z', findings: [],
+  };
+  const event = { ...macro, id: '01a0e2e0-0000-7000-8000-000000002911', name: 'Escalate', trigger: { kind: 'EVENT', event_type: 'de.hubtask.work.item.overdue.v1' } };
+  const asked = { rendered: 0, pressed: [] };
+  const answer = (method, path, query, body) => {
+    if (path === '/entry-types' && method === 'GET') {
+      return { json: { data: [{ key: 'request', level: 'TASK', name: 'Request', system: false, position: 1, archived: false, completable: true, workflow: true, record: false, schedulable: true, estimable: false, allowed_children: [], form: { channels: [{ channel: 'PORTAL' }] }, version: 1 }] } };
+    }
+    if (path === `/items/${REQUEST.id}` && method === 'GET') return { json: { ...REQUEST, created_by: OTHER.id, entry_type: 'request' } };
+    if (path === '/reply-templates' && method === 'GET') return { json: { data: [{ key: 'greeting', name: 'Greeting', body: 'Hello {{requester.name}}', version: 1 }] } };
+    if (path === `/items/${REQUEST.id}/reply-templates/greeting` && method === 'GET') {
+      asked.rendered += 1;
+      return { json: { key: 'greeting', body: 'Hello Olivia, thank you for writing.' } };
+    }
+    if (path === '/automation/rules' && method === 'GET') return { json: { data: [macro, event], page: { has_more: false, next_cursor: null } } };
+    if (path === `/automation/rules/${macro.id}:trigger` && method === 'POST') {
+      asked.pressed.push(body?.item_id);
+      return { status: 202, json: { run_id: '01a0e2e0-0000-7000-8000-000000002920' } };
+    }
+    return desk(method, path, query, body);
+  };
+  const walk = await productWalk(browser, { modules: ['SERVICE_DESK', 'WORKFLOWS'], answer });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/items/${REQUEST.id}`);
+  const composer = page.locator('[data-composer]');
+  // At rest the reply is one line; its bar comes forward with the focus (§6.9).
+  await composer.getByRole('textbox').first().click();
+  const snippets = composer.getByRole('button', { name: 'Snippets', exact: true });
+  await snippets.waitFor({ timeout: 10_000 });
+  await snippets.click();
+  await page.getByRole('menuitem', { name: /Greeting/ }).click();
+  await composer.getByText('Hello Olivia, thank you for writing.').waitFor({ timeout: 10_000 });
+
+  // "/" at the start of a line opens the same snippets.
+  const editor = composer.getByRole('textbox').first();
+  await editor.click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('/');
+  await page.getByRole('menuitem', { name: /Greeting/ }).waitFor({ timeout: 5_000 });
+  await page.keyboard.press('Escape');
+
+  // The macro menu lists only the rules pressed by hand, each with what it does.
+  await composer.getByRole('button', { name: 'Macros', exact: true }).click();
+  const item = page.getByRole('menuitem', { name: /Ask for details/ });
+  await item.waitFor({ timeout: 5_000 });
+  assert.match(await item.innerText(), /does: /, 'the macro does not say what it does');
+  assert.equal(await page.getByRole('menuitem', { name: /Escalate/ }).count(), 0, 'a rule with an event trigger is offered as a macro');
+  await item.click();
+  await page.getByText('The macro runs on this entry.').first().waitFor({ timeout: 5_000 });
+  assert.deepEqual(asked.pressed, [REQUEST.id], 'the macro was not pressed on this entry');
+  assert.ok(asked.rendered >= 1, 'the snippet was not rendered for the ticket');
+});
+
+// The ticket's rail as the scene draws it (ET-1, ET-6), read in German: the triage's values in the
+// reader's words, the priority saying it follows impact × urgency, the responding group by its name
+// for whoever may read the entry, and each deadline by what is left or how long it is overdue, its
+// policy and its group by name, its urgency in a word and a mark beside the colour.
+test('chromium: service desk - a ticket\'s rail names its triage and deadlines in the reader\'s words', async (t) => {
+  const browser = await sharedChromium(t);
+  const desk = deskBackend();
+  const MINUTE = 60_000;
+  const at = (offset) => new Date(Date.now() + offset).toISOString();
+  const GROUP = '01a0e2e0-0000-7000-8000-00000000f0a1';
+  const form = {
+    sections: [{ key: 'request', name: 'Request' }, { key: 'triage', name: 'Triage' }],
+    fields: [
+      { key: 'title', section: 'request', required: true }, { key: 'custom_fields.impact', section: 'triage' },
+      { key: 'custom_fields.urgency', section: 'triage' }, { key: 'custom_fields.priority', section: 'triage' },
+      { key: 'custom_fields.responding_group', section: 'triage' },
+    ],
+    channels: [{ channel: 'PORTAL' }],
+  };
+  const fieldId = ids('0000ff');
+  const field = (key, name, kind, options = []) => ({ id: fieldId(), collection_id: null, hub_id: null, key, name, kind, options, is_required: false, restricted: false, read_restricted: false, applies_to: ['TASK'] });
+  const goal = (kind, policy, group, standing, due, breached = null) => ({
+    goal: 'RESOLUTION', kind, policy_key: policy, assignee_group: group, standing, target_seconds: 14_400,
+    armed_at: at(-3 * HOUR), due_at: due, at_risk_at: null, met_at: null, breached_at: breached,
+  });
+  const answer = (method, path, query, body) => {
+    if (path === '/accounts/me' && method === 'GET') return { json: { ...ACCOUNT, locale: 'de' } };
+    if (path === '/entry-types' && method === 'GET') {
+      return { json: { data: [{ key: 'request', level: 'TASK', name: 'Request', system: false, position: 1, archived: false, completable: true, workflow: true, record: false, schedulable: true, estimable: false, allowed_children: [], form, version: 1 }] } };
+    }
+    if (path === '/entry-types/request/form:evaluate' && method === 'POST') return { json: { fields: {} } };
+    // A ticket's head (deskentry.d): the step that resolves as the primary, the one that waits beside it.
+    const statuses = [
+      { key: 'new', name: 'New', category: 'TODO', color_token: 'slate' }, { key: 'waiting', name: 'Waiting', category: 'IN_PROGRESS', color_token: 'amber' },
+      { key: 'resolved', name: 'Resolved', category: 'DONE', color_token: 'green' },
+    ];
+    if (path === `/items/${REQUEST.id}/steps` && method === 'GET') {
+      return { json: {
+        workflow: 'requests', status: 'new', picture: { statuses, initial: 'new', steps: [] }, blocked: [], done_route: [{ key: 'resolve', name: 'Lösen', to: 'resolved' }],
+        steps: [{ key: 'wait', name: 'Auf anfragende Person warten', to: 'waiting', asks: [], allowed: true }, { key: 'resolve', name: 'Lösen', to: 'resolved', asks: [], allowed: true }],
+      } };
+    }
+    // Two replies to the requester and one note for the team: the conversation's tabs count each.
+    if (path === `/items/${REQUEST.id}/comments` && method === 'GET') {
+      const post = (n, internal) => ({ id: `01a0e2e0-0000-7000-8000-00000000cd0${n}`, item_id: REQUEST.id, author_id: n === 3 ? ACCOUNT.id : OTHER.id, body: `Post ${n}`, parent_comment_id: null, internal, created_at: `2026-11-10T0${n}:00:00Z`, edited_at: null, deleted_at: null, version: 1 });
+      return { json: { data: [post(1, false), post(2, true), post(3, false)], page: { has_more: false, next_cursor: null } } };
+    }
+    if (path === '/workflows' && method === 'GET') {
+      const shape = { statuses, initial: 'new', steps: [] };
+      return { json: { data: [{ key: 'requests', system: false, name: 'Requests', published: shape, draft: null, published_at: '2026-10-30T09:00:00Z', version: 1 }], scheme: [{ container_id: COLLECTION.id, entry_type: null, workflow: 'requests' }] } };
+    }
+    if (path === '/custom-fields' && method === 'GET') {
+      return { json: [field('impact', 'Auswirkung', 'SELECT', ['High', 'Medium', 'Low']), field('urgency', 'Dringlichkeit', 'SELECT', ['High', 'Medium', 'Low']), field('priority', 'Priorität', 'SELECT', ['P1', 'P2', 'P3', 'P4']), field('responding_group', 'Zuständige Gruppe', 'GROUP')] };
+    }
+    if (path === '/groups' && method === 'GET') return { json: { data: [{ id: GROUP, name: 'Plattform-Team', version: 1 }], page: { next_cursor: null, has_more: false, total: 1 } } };
+    if (path === '/sla-policies' && method === 'GET') {
+      const policy = (key, name, group) => ({ key, name, calendar: null, entry_types: ['request'], organisations: [], priority_field: 'priority', assignee_group: group, goals: [], position: 0, enabled: true, version: 1 });
+      return { json: { data: [policy('incidents', 'Störungen', null), policy('ola_plattform', 'Team Plattform', GROUP)] } };
+    }
+    if (path === `/items/${REQUEST.id}/sla` && method === 'GET') {
+      return { json: { data: [goal('SLA', 'incidents', null, 'RUNNING', at(130 * MINUTE)), goal('OLA', 'ola_plattform', GROUP, 'BREACHED', at(-20 * MINUTE), at(-20 * MINUTE))] } };
+    }
+    if (path === `/items/${REQUEST.id}` && method === 'GET') {
+      return { json: { ...REQUEST, created_by: OTHER.id, entry_type: 'request', status: 'new', custom_fields: { impact: 'High', urgency: 'Medium', priority: 'P2', responding_group: GROUP } } };
+    }
+    return desk(method, path, query, body);
+  };
+  const walk = await productWalk(browser, { modules: ['SERVICE_DESK', 'WORKFLOWS'], answer });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/items/${REQUEST.id}`);
+  const triage = page.locator('[data-entry-triage]');
+  await triage.getByText('Plattform-Team').waitFor({ timeout: 10_000 });
+  const said = await triage.innerText();
+  assert.match(said, /Auswirkung\s*Hoch/, 'the impact is not in the reader\'s words');
+  assert.match(said, /Dringlichkeit\s*Mittel/, 'the urgency is not in the reader\'s words');
+  assert.doesNotMatch(said, /\bHigh\b|\bMedium\b/, 'a stored English option shows');
+  assert.equal(await triage.locator('[data-detail="field-priority"] [data-detail-note]').innerText(), 'aus Auswirkung × Dringlichkeit');
+  assert.doesNotMatch(said, /Für dich nicht sichtbar/, 'the responding group reads as out of sight to who may read the entry');
+
+  const deadlines = page.locator('[data-entry-sla]');
+  await deadlines.getByText('Plattform-Team · OLA').waitFor({ timeout: 10_000 });
+  const rows = deadlines.locator('.deadline');
+  assert.equal(await rows.count(), 2);
+  // The breached OLA first, in its tone with a mark and a word; the running SLA by what is left.
+  const breached = rows.nth(0);
+  assert.equal(await breached.getAttribute('data-tone'), 'danger');
+  assert.match(await breached.locator('.words').innerText(), /^seit 20 Min\. überfällig$/);
+  assert.equal(await breached.locator('.words svg').count(), 1, 'the breach is a colour alone');
+  assert.match(await breached.locator('.due').innerText(), /^war fällig /);
+  const running = rows.nth(1);
+  assert.match(await running.innerText(), /Störungen · SLA/);
+  assert.match(await running.locator('.words').innerText(), /^noch 2 Std\. 10 Min\.$/);
+  assert.match(await running.locator('.due').innerText(), /^bis /);
+  assert.doesNotMatch(await deadlines.innerText(), /incidents|ola_plattform/, 'a policy shows by its key');
+
+  // The head (deskentry.d): *Resolve* the primary, *wait for the requester* beside it, the priority among its facts.
+  const head = page.locator('[data-tour="entry"]');
+  await head.getByRole('button', { name: 'Lösen', exact: true }).waitFor({ timeout: 10_000 });
+  assert.ok(await head.getByRole('button', { name: 'Auf anfragende Person warten' }).isVisible(), 'the step that waits is not beside the primary');
+  assert.match(await head.locator('[data-head-priority]').innerText(), /P2/, 'the priority is not in the head');
+  // The conversation's tabs say how many each holds (§6.9).
+  const tabs = (await page.locator('#entry-conversation').getByRole('tab').allInnerTexts()).map((text) => text.replace(/\s+/g, ' ').trim());
+  assert.deepEqual(tabs.slice(1, 3), ['Antworten 2', 'Interne Notizen 1']);
+
+  // The reader's own post: *Antworten ···* (deskentry.d) - edit and remove wait in the ⋯, not as text buttons.
+  const own = page.locator('#entry-conversation article').filter({ hasText: 'Post 3' }).first();
+  await own.waitFor({ timeout: 10_000 });
+  assert.equal(await own.getByRole('button', { name: 'Antworten', exact: true }).count(), 1, 'the post offers no reply');
+  assert.equal(await own.getByRole('button', { name: /^(Bearbeiten|Entfernen)$/ }).count(), 0, 'edit and remove are text buttons beside the reply');
+  await own.getByRole('button', { name: 'Mehr zu diesem Kommentar' }).click();
+  const acts = page.getByRole('menu', { name: 'Mehr zu diesem Kommentar' });
+  assert.deepEqual((await acts.getByRole('menuitem').allInnerTexts()).map((text) => text.trim()), ['Bearbeiten', 'Entfernen']);
+  await page.keyboard.press('Escape');
 });

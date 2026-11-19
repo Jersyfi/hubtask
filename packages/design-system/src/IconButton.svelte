@@ -76,6 +76,8 @@
 <style>
   .icon-button {
     display: inline-flex;
+    /* Never squeezed by a crowded row: its size is its target (§7). */
+    flex: none;
     align-items: center;
     justify-content: center;
     border: var(--bw-hairline) solid transparent;
@@ -118,6 +120,16 @@
   }
 
   .icon-button[data-tone='danger'] { color: var(--text-danger); }
+
+  /* The one selected look of a toggle - a board's chosen tool, a pressed format - whatever its
+     tone: the chips' subtle tint with the accent's edge, never the primary's fill, which means
+     "the next step" (WB-2). The edge keeps it apart without the tint (rule 3). */
+  .icon-button[aria-pressed='true'] {
+    border-color: var(--accent-primary);
+    background: var(--accent-primary-subtle);
+    color: var(--text-brand);
+  }
+  .icon-button[aria-pressed='true']:hover:not([aria-disabled='true']) { background: var(--accent-primary-subtle); color: var(--text-brand); }
 
   .icon-button[aria-disabled='true'] {
     background: var(--bg-surface-sunken);

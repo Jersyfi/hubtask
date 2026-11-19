@@ -446,6 +446,7 @@ func (CmdbRepository) UpdateCI(ctx context.Context, ci cmdb.CI, expected int) er
 		LocationCiID: k.opt(ci.Compliance.Location), Protection: cols.protection, ReviewDue: cols.reviewDue,
 		Quantity: int32(ci.Compliance.Quantity), LastSeenAt: optionalTimestamp(ci.LastSeen), //nolint:gosec // bounded by the domain
 		MergedInto: k.opt(ci.MergedInto), UpdatedBy: k.of(ci.UpdatedBy), UpdatedAt: timestampOf(ci.UpdatedAt),
+		ConfirmedAt: optionalTimestamp(ci.ConfirmedAt), ConfirmedBy: k.opt(ci.ConfirmedBy),
 		ExpectedVersion: int32(expected), //nolint:gosec // a row's version
 	}
 	if k.err != nil {
@@ -468,7 +469,8 @@ func cmdbCIFrom(r sqlc.FindCmdbCiRow) (cmdb.CI, error) {
 		ID: k.of(r.ID), HubID: k.of(r.HubID), Class: r.ClassKey, Name: r.Name, Stage: cmdb.Stage(r.Stage),
 		Status: cmdb.Status(r.Status), LastSeen: optionalTime(r.LastSeenAt), MergedInto: k.of(r.MergedInto),
 		CreatedBy: k.of(r.CreatedBy), CreatedAt: timeFrom(r.CreatedAt), UpdatedBy: k.of(r.UpdatedBy),
-		UpdatedAt: timeFrom(r.UpdatedAt), Version: int(r.Version),
+		UpdatedAt: timeFrom(r.UpdatedAt), ConfirmedAt: optionalTime(r.ConfirmedAt), ConfirmedBy: k.of(r.ConfirmedBy),
+		Version: int(r.Version),
 		Compliance: cmdb.Compliance{
 			OwnerAccount: k.of(r.OwnerAccountID), OwnerGroup: k.of(r.OwnerGroupID), Location: k.of(r.LocationCiID),
 			Quantity: int(r.Quantity),

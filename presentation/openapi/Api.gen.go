@@ -1393,6 +1393,21 @@ func (e ApprovalState) Valid() bool {
 	}
 }
 
+// Defines values for AskedQuerySource.
+const (
+	AskedQuerySourceAI AskedQuerySource = "AI"
+)
+
+// Valid indicates whether the value is a known member of the AskedQuerySource enum.
+func (e AskedQuerySource) Valid() bool {
+	switch e {
+	case AskedQuerySourceAI:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditActorType.
 const (
 	AuditActorTypeAIAGENT        AuditActorType = "AI_AGENT"
@@ -2008,6 +2023,45 @@ func (e BackupTargetKind) Valid() bool {
 	}
 }
 
+// Defines values for BlockedStepReason.
+const (
+	WorkflowsStepConditionUnmet BlockedStepReason = "workflows.step_condition_unmet"
+	WorkflowsStepWhoUnmet       BlockedStepReason = "workflows.step_who_unmet"
+)
+
+// Valid indicates whether the value is a known member of the BlockedStepReason enum.
+func (e BlockedStepReason) Valid() bool {
+	switch e {
+	case WorkflowsStepConditionUnmet:
+		return true
+	case WorkflowsStepWhoUnmet:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BoardWorkflowStatusesCategory.
+const (
+	BoardWorkflowStatusesCategoryDONE       BoardWorkflowStatusesCategory = "DONE"
+	BoardWorkflowStatusesCategoryINPROGRESS BoardWorkflowStatusesCategory = "IN_PROGRESS"
+	BoardWorkflowStatusesCategoryTODO       BoardWorkflowStatusesCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the BoardWorkflowStatusesCategory enum.
+func (e BoardWorkflowStatusesCategory) Valid() bool {
+	switch e {
+	case BoardWorkflowStatusesCategoryDONE:
+		return true
+	case BoardWorkflowStatusesCategoryINPROGRESS:
+		return true
+	case BoardWorkflowStatusesCategoryTODO:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BulkOperationOp.
 const (
 	ADDLABEL     BulkOperationOp = "ADD_LABEL"
@@ -2482,6 +2536,36 @@ func (e CiAssetRegisterState) Valid() bool {
 	}
 }
 
+// Defines values for CiAssetStepState.
+const (
+	CiAssetStepStateDEPLOYED  CiAssetStepState = "DEPLOYED"
+	CiAssetStepStateDISPOSED  CiAssetStepState = "DISPOSED"
+	CiAssetStepStateINSTOCK   CiAssetStepState = "IN_STOCK"
+	CiAssetStepStateORDERED   CiAssetStepState = "ORDERED"
+	CiAssetStepStateREQUESTED CiAssetStepState = "REQUESTED"
+	CiAssetStepStateRETIRED   CiAssetStepState = "RETIRED"
+)
+
+// Valid indicates whether the value is a known member of the CiAssetStepState enum.
+func (e CiAssetStepState) Valid() bool {
+	switch e {
+	case CiAssetStepStateDEPLOYED:
+		return true
+	case CiAssetStepStateDISPOSED:
+		return true
+	case CiAssetStepStateINSTOCK:
+		return true
+	case CiAssetStepStateORDERED:
+		return true
+	case CiAssetStepStateREQUESTED:
+		return true
+	case CiAssetStepStateRETIRED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CiAttestVerdict.
 const (
 	CiAttestVerdictCONFIRMED CiAttestVerdict = "CONFIRMED"
@@ -2911,6 +2995,33 @@ func (e CiGroupFilterStages) Valid() bool {
 	}
 }
 
+// Defines values for CiHistoryStepActorType.
+const (
+	CiHistoryStepActorTypeAIAGENT        CiHistoryStepActorType = "AI_AGENT"
+	CiHistoryStepActorTypeAUTOMATION     CiHistoryStepActorType = "AUTOMATION"
+	CiHistoryStepActorTypeSERVICEACCOUNT CiHistoryStepActorType = "SERVICE_ACCOUNT"
+	CiHistoryStepActorTypeSYSTEM         CiHistoryStepActorType = "SYSTEM"
+	CiHistoryStepActorTypeUSER           CiHistoryStepActorType = "USER"
+)
+
+// Valid indicates whether the value is a known member of the CiHistoryStepActorType enum.
+func (e CiHistoryStepActorType) Valid() bool {
+	switch e {
+	case CiHistoryStepActorTypeAIAGENT:
+		return true
+	case CiHistoryStepActorTypeAUTOMATION:
+		return true
+	case CiHistoryStepActorTypeSERVICEACCOUNT:
+		return true
+	case CiHistoryStepActorTypeSYSTEM:
+		return true
+	case CiHistoryStepActorTypeUSER:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CiImpactDirection.
 const (
 	CiImpactDirectionDOWNSTREAM CiImpactDirection = "DOWNSTREAM"
@@ -3196,6 +3307,24 @@ func (e CiSourceDefineKind) Valid() bool {
 	case CiSourceDefineKindCONNECTOR:
 		return true
 	case CiSourceDefineKindFILE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiWorkEntryReason.
+const (
+	BENEATH CiWorkEntryReason = "BENEATH"
+	NAMES   CiWorkEntryReason = "NAMES"
+)
+
+// Valid indicates whether the value is a known member of the CiWorkEntryReason enum.
+func (e CiWorkEntryReason) Valid() bool {
+	switch e {
+	case BENEATH:
+		return true
+	case NAMES:
 		return true
 	default:
 		return false
@@ -3925,6 +4054,45 @@ func (e CoverKind) Valid() bool {
 	}
 }
 
+// Defines values for CoverImageFetchedContentType.
+const (
+	Imagejpeg CoverImageFetchedContentType = "image/jpeg"
+	Imagepng  CoverImageFetchedContentType = "image/png"
+	Imagewebp CoverImageFetchedContentType = "image/webp"
+)
+
+// Valid indicates whether the value is a known member of the CoverImageFetchedContentType enum.
+func (e CoverImageFetchedContentType) Valid() bool {
+	switch e {
+	case Imagejpeg:
+		return true
+	case Imagepng:
+		return true
+	case Imagewebp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CoverImagesPolicyLibrary.
+const (
+	CoverImagesPolicyLibraryOFF         CoverImagesPolicyLibrary = "OFF"
+	CoverImagesPolicyLibraryOPENLIBRARY CoverImagesPolicyLibrary = "OPEN_LIBRARY"
+)
+
+// Valid indicates whether the value is a known member of the CoverImagesPolicyLibrary enum.
+func (e CoverImagesPolicyLibrary) Valid() bool {
+	switch e {
+	case CoverImagesPolicyLibraryOFF:
+		return true
+	case CoverImagesPolicyLibraryOPENLIBRARY:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CoverInputKind.
 const (
 	CoverInputKindCOLOR CoverInputKind = "COLOR"
@@ -4142,11 +4310,13 @@ func (e DashboardDigestWriteCadence) Valid() bool {
 const (
 	DashboardWidgetChartBAR      DashboardWidgetChart = "BAR"
 	DashboardWidgetChartLINE     DashboardWidgetChart = "LINE"
+	DashboardWidgetChartLIST     DashboardWidgetChart = "LIST"
 	DashboardWidgetChartMATRIX   DashboardWidgetChart = "MATRIX"
 	DashboardWidgetChartNUMBER   DashboardWidgetChart = "NUMBER"
 	DashboardWidgetChartPIE      DashboardWidgetChart = "PIE"
 	DashboardWidgetChartPROGRESS DashboardWidgetChart = "PROGRESS"
 	DashboardWidgetChartTABLE    DashboardWidgetChart = "TABLE"
+	DashboardWidgetChartTEXT     DashboardWidgetChart = "TEXT"
 )
 
 // Valid indicates whether the value is a known member of the DashboardWidgetChart enum.
@@ -4155,6 +4325,8 @@ func (e DashboardWidgetChart) Valid() bool {
 	case DashboardWidgetChartBAR:
 		return true
 	case DashboardWidgetChartLINE:
+		return true
+	case DashboardWidgetChartLIST:
 		return true
 	case DashboardWidgetChartMATRIX:
 		return true
@@ -4166,6 +4338,8 @@ func (e DashboardWidgetChart) Valid() bool {
 		return true
 	case DashboardWidgetChartTABLE:
 		return true
+	case DashboardWidgetChartTEXT:
+		return true
 	default:
 		return false
 	}
@@ -4175,6 +4349,7 @@ func (e DashboardWidgetChart) Valid() bool {
 const (
 	DashboardWidgetSourceGOALS DashboardWidgetSource = "GOALS"
 	DashboardWidgetSourceQUERY DashboardWidgetSource = "QUERY"
+	DashboardWidgetSourceTEXT  DashboardWidgetSource = "TEXT"
 	DashboardWidgetSourceVIEW  DashboardWidgetSource = "VIEW"
 )
 
@@ -4184,6 +4359,8 @@ func (e DashboardWidgetSource) Valid() bool {
 	case DashboardWidgetSourceGOALS:
 		return true
 	case DashboardWidgetSourceQUERY:
+		return true
+	case DashboardWidgetSourceTEXT:
 		return true
 	case DashboardWidgetSourceVIEW:
 		return true
@@ -4196,11 +4373,13 @@ func (e DashboardWidgetSource) Valid() bool {
 const (
 	DashboardWidgetWriteChartBAR      DashboardWidgetWriteChart = "BAR"
 	DashboardWidgetWriteChartLINE     DashboardWidgetWriteChart = "LINE"
+	DashboardWidgetWriteChartLIST     DashboardWidgetWriteChart = "LIST"
 	DashboardWidgetWriteChartMATRIX   DashboardWidgetWriteChart = "MATRIX"
 	DashboardWidgetWriteChartNUMBER   DashboardWidgetWriteChart = "NUMBER"
 	DashboardWidgetWriteChartPIE      DashboardWidgetWriteChart = "PIE"
 	DashboardWidgetWriteChartPROGRESS DashboardWidgetWriteChart = "PROGRESS"
 	DashboardWidgetWriteChartTABLE    DashboardWidgetWriteChart = "TABLE"
+	DashboardWidgetWriteChartTEXT     DashboardWidgetWriteChart = "TEXT"
 )
 
 // Valid indicates whether the value is a known member of the DashboardWidgetWriteChart enum.
@@ -4209,6 +4388,8 @@ func (e DashboardWidgetWriteChart) Valid() bool {
 	case DashboardWidgetWriteChartBAR:
 		return true
 	case DashboardWidgetWriteChartLINE:
+		return true
+	case DashboardWidgetWriteChartLIST:
 		return true
 	case DashboardWidgetWriteChartMATRIX:
 		return true
@@ -4220,6 +4401,8 @@ func (e DashboardWidgetWriteChart) Valid() bool {
 		return true
 	case DashboardWidgetWriteChartTABLE:
 		return true
+	case DashboardWidgetWriteChartTEXT:
+		return true
 	default:
 		return false
 	}
@@ -4229,6 +4412,7 @@ func (e DashboardWidgetWriteChart) Valid() bool {
 const (
 	DashboardWidgetWriteSourceGOALS DashboardWidgetWriteSource = "GOALS"
 	DashboardWidgetWriteSourceQUERY DashboardWidgetWriteSource = "QUERY"
+	DashboardWidgetWriteSourceTEXT  DashboardWidgetWriteSource = "TEXT"
 	DashboardWidgetWriteSourceVIEW  DashboardWidgetWriteSource = "VIEW"
 )
 
@@ -4238,6 +4422,8 @@ func (e DashboardWidgetWriteSource) Valid() bool {
 	case DashboardWidgetWriteSourceGOALS:
 		return true
 	case DashboardWidgetWriteSourceQUERY:
+		return true
+	case DashboardWidgetWriteSourceTEXT:
 		return true
 	case DashboardWidgetWriteSourceVIEW:
 		return true
@@ -4411,6 +4597,45 @@ func (e DeadLetterState) Valid() bool {
 	}
 }
 
+// Defines values for DeadlinesKeptDataGoal.
+const (
+	DeadlinesKeptDataGoalFIRSTRESPONSE DeadlinesKeptDataGoal = "FIRST_RESPONSE"
+	DeadlinesKeptDataGoalNEXTRESPONSE  DeadlinesKeptDataGoal = "NEXT_RESPONSE"
+	DeadlinesKeptDataGoalRESOLUTION    DeadlinesKeptDataGoal = "RESOLUTION"
+)
+
+// Valid indicates whether the value is a known member of the DeadlinesKeptDataGoal enum.
+func (e DeadlinesKeptDataGoal) Valid() bool {
+	switch e {
+	case DeadlinesKeptDataGoalFIRSTRESPONSE:
+		return true
+	case DeadlinesKeptDataGoalNEXTRESPONSE:
+		return true
+	case DeadlinesKeptDataGoalRESOLUTION:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeadlinesKeptDataKind.
+const (
+	DeadlinesKeptDataKindOLA DeadlinesKeptDataKind = "OLA"
+	DeadlinesKeptDataKindSLA DeadlinesKeptDataKind = "SLA"
+)
+
+// Valid indicates whether the value is a known member of the DeadlinesKeptDataKind enum.
+func (e DeadlinesKeptDataKind) Valid() bool {
+	switch e {
+	case DeadlinesKeptDataKindOLA:
+		return true
+	case DeadlinesKeptDataKindSLA:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DependencyHealthCircuitState.
 const (
 	DependencyHealthCircuitStateClosed      DependencyHealthCircuitState = "closed"
@@ -4450,6 +4675,54 @@ func (e DeprecatedFieldIn) Valid() bool {
 	case Operation:
 		return true
 	case Query:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DocumentServerKind.
+const (
+	DocumentServerKindCOLLABORAONLINE DocumentServerKind = "COLLABORA_ONLINE"
+	DocumentServerKindEUROOFFICE      DocumentServerKind = "EURO_OFFICE"
+	DocumentServerKindMICROSOFT365    DocumentServerKind = "MICROSOFT_365"
+	DocumentServerKindNONE            DocumentServerKind = "NONE"
+	DocumentServerKindONLYOFFICE      DocumentServerKind = "ONLYOFFICE"
+)
+
+// Valid indicates whether the value is a known member of the DocumentServerKind enum.
+func (e DocumentServerKind) Valid() bool {
+	switch e {
+	case DocumentServerKindCOLLABORAONLINE:
+		return true
+	case DocumentServerKindEUROOFFICE:
+		return true
+	case DocumentServerKindMICROSOFT365:
+		return true
+	case DocumentServerKindNONE:
+		return true
+	case DocumentServerKindONLYOFFICE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DropAnswerOutcome.
+const (
+	DropAnswerOutcomeCHOOSE    DropAnswerOutcome = "CHOOSE"
+	DropAnswerOutcomeMOVED     DropAnswerOutcome = "MOVED"
+	DropAnswerOutcomeSTEPTAKEN DropAnswerOutcome = "STEP_TAKEN"
+)
+
+// Valid indicates whether the value is a known member of the DropAnswerOutcome enum.
+func (e DropAnswerOutcome) Valid() bool {
+	switch e {
+	case DropAnswerOutcomeCHOOSE:
+		return true
+	case DropAnswerOutcomeMOVED:
+		return true
+	case DropAnswerOutcomeSTEPTAKEN:
 		return true
 	default:
 		return false
@@ -4840,6 +5113,27 @@ func (e EntrySlaGoalStanding) Valid() bool {
 	}
 }
 
+// Defines values for EntryStepsStateMode.
+const (
+	EntryStepsStateModeCOLUMNS  EntryStepsStateMode = "COLUMNS"
+	EntryStepsStateModeNONE     EntryStepsStateMode = "NONE"
+	EntryStepsStateModeWORKFLOW EntryStepsStateMode = "WORKFLOW"
+)
+
+// Valid indicates whether the value is a known member of the EntryStepsStateMode enum.
+func (e EntryStepsStateMode) Valid() bool {
+	switch e {
+	case EntryStepsStateModeCOLUMNS:
+		return true
+	case EntryStepsStateModeNONE:
+		return true
+	case EntryStepsStateModeWORKFLOW:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ErasureKeptHoldScopeKind.
 const (
 	ErasureKeptHoldScopeKindACCOUNT   ErasureKeptHoldScopeKind = "ACCOUNT"
@@ -4906,6 +5200,7 @@ const (
 	ErasureLineKindPAGEDRAFTS         ErasureLineKind = "PAGE_DRAFTS"
 	ErasureLineKindPERSONALRULES      ErasureLineKind = "PERSONAL_RULES"
 	ErasureLineKindPORTFOLIOUPDATES   ErasureLineKind = "PORTFOLIO_UPDATES"
+	ErasureLineKindPOSTREPLIES        ErasureLineKind = "POST_REPLIES"
 	ErasureLineKindTIME               ErasureLineKind = "TIME"
 	ErasureLineKindWHITEBOARDCOMMENTS ErasureLineKind = "WHITEBOARD_COMMENTS"
 )
@@ -4944,6 +5239,8 @@ func (e ErasureLineKind) Valid() bool {
 	case ErasureLineKindPERSONALRULES:
 		return true
 	case ErasureLineKindPORTFOLIOUPDATES:
+		return true
+	case ErasureLineKindPOSTREPLIES:
 		return true
 	case ErasureLineKindTIME:
 		return true
@@ -5275,6 +5572,33 @@ func (e GlanceLineKind) Valid() bool {
 	case GlanceLineKindENTRY:
 		return true
 	case GlanceLineKindPAGE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GoalLinkedEntriesStatusCategory.
+const (
+	GoalLinkedEntriesStatusCategoryBACKLOG     GoalLinkedEntriesStatusCategory = "BACKLOG"
+	GoalLinkedEntriesStatusCategoryDONE        GoalLinkedEntriesStatusCategory = "DONE"
+	GoalLinkedEntriesStatusCategoryINPROGRESS  GoalLinkedEntriesStatusCategory = "IN_PROGRESS"
+	GoalLinkedEntriesStatusCategoryLessThannil GoalLinkedEntriesStatusCategory = "<nil>"
+	GoalLinkedEntriesStatusCategoryTODO        GoalLinkedEntriesStatusCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the GoalLinkedEntriesStatusCategory enum.
+func (e GoalLinkedEntriesStatusCategory) Valid() bool {
+	switch e {
+	case GoalLinkedEntriesStatusCategoryBACKLOG:
+		return true
+	case GoalLinkedEntriesStatusCategoryDONE:
+		return true
+	case GoalLinkedEntriesStatusCategoryINPROGRESS:
+		return true
+	case GoalLinkedEntriesStatusCategoryLessThannil:
+		return true
+	case GoalLinkedEntriesStatusCategoryTODO:
 		return true
 	default:
 		return false
@@ -5836,11 +6160,13 @@ func (e InstanceSettingsPlanAppliedThrough) Valid() bool {
 // Defines values for InvitationDeliveryCategory.
 const (
 	InvitationDeliveryCategoryASSIGNMENT      InvitationDeliveryCategory = "ASSIGNMENT"
+	InvitationDeliveryCategoryATTESTATION     InvitationDeliveryCategory = "ATTESTATION"
 	InvitationDeliveryCategoryCOMMENT         InvitationDeliveryCategory = "COMMENT"
 	InvitationDeliveryCategoryEMERGENCYACCESS InvitationDeliveryCategory = "EMERGENCY_ACCESS"
 	InvitationDeliveryCategoryINTEGRATION     InvitationDeliveryCategory = "INTEGRATION"
 	InvitationDeliveryCategoryINVITATION      InvitationDeliveryCategory = "INVITATION"
 	InvitationDeliveryCategoryMEMBERSHIP      InvitationDeliveryCategory = "MEMBERSHIP"
+	InvitationDeliveryCategoryPOST            InvitationDeliveryCategory = "POST"
 	InvitationDeliveryCategoryREMINDER        InvitationDeliveryCategory = "REMINDER"
 	InvitationDeliveryCategoryREQUESTREPLY    InvitationDeliveryCategory = "REQUEST_REPLY"
 	InvitationDeliveryCategoryRETENTION       InvitationDeliveryCategory = "RETENTION"
@@ -5852,6 +6178,8 @@ func (e InvitationDeliveryCategory) Valid() bool {
 	switch e {
 	case InvitationDeliveryCategoryASSIGNMENT:
 		return true
+	case InvitationDeliveryCategoryATTESTATION:
+		return true
 	case InvitationDeliveryCategoryCOMMENT:
 		return true
 	case InvitationDeliveryCategoryEMERGENCYACCESS:
@@ -5861,6 +6189,8 @@ func (e InvitationDeliveryCategory) Valid() bool {
 	case InvitationDeliveryCategoryINVITATION:
 		return true
 	case InvitationDeliveryCategoryMEMBERSHIP:
+		return true
+	case InvitationDeliveryCategoryPOST:
 		return true
 	case InvitationDeliveryCategoryREMINDER:
 		return true
@@ -6132,22 +6462,22 @@ func (e ItemAggregateQueryAggregateFunction) Valid() bool {
 
 // Defines values for ItemAggregateQueryAggregateSource.
 const (
-	Entries ItemAggregateQueryAggregateSource = "entries"
-	Links   ItemAggregateQueryAggregateSource = "links"
-	Pages   ItemAggregateQueryAggregateSource = "pages"
-	Time    ItemAggregateQueryAggregateSource = "time"
+	ItemAggregateQueryAggregateSourceEntries ItemAggregateQueryAggregateSource = "entries"
+	ItemAggregateQueryAggregateSourceLinks   ItemAggregateQueryAggregateSource = "links"
+	ItemAggregateQueryAggregateSourcePages   ItemAggregateQueryAggregateSource = "pages"
+	ItemAggregateQueryAggregateSourceTime    ItemAggregateQueryAggregateSource = "time"
 )
 
 // Valid indicates whether the value is a known member of the ItemAggregateQueryAggregateSource enum.
 func (e ItemAggregateQueryAggregateSource) Valid() bool {
 	switch e {
-	case Entries:
+	case ItemAggregateQueryAggregateSourceEntries:
 		return true
-	case Links:
+	case ItemAggregateQueryAggregateSourceLinks:
 		return true
-	case Pages:
+	case ItemAggregateQueryAggregateSourcePages:
 		return true
-	case Time:
+	case ItemAggregateQueryAggregateSourceTime:
 		return true
 	default:
 		return false
@@ -7354,6 +7684,27 @@ func (e PageBacklinkListDataStrength) Valid() bool {
 	}
 }
 
+// Defines values for PageCoverSource.
+const (
+	PageCoverSourceGALLERY  PageCoverSource = "GALLERY"
+	PageCoverSourceGRADIENT PageCoverSource = "GRADIENT"
+	PageCoverSourceIMAGE    PageCoverSource = "IMAGE"
+)
+
+// Valid indicates whether the value is a known member of the PageCoverSource enum.
+func (e PageCoverSource) Valid() bool {
+	switch e {
+	case PageCoverSourceGALLERY:
+		return true
+	case PageCoverSourceGRADIENT:
+		return true
+	case PageCoverSourceIMAGE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PageExportFilesEncoding.
 const (
 	PageExportFilesEncodingBASE64 PageExportFilesEncoding = "BASE64"
@@ -7876,6 +8227,87 @@ func (e PolicySource) Valid() bool {
 	}
 }
 
+// Defines values for PortalMergedRequestStatusCategory.
+const (
+	PortalMergedRequestStatusCategoryBACKLOG     PortalMergedRequestStatusCategory = "BACKLOG"
+	PortalMergedRequestStatusCategoryDONE        PortalMergedRequestStatusCategory = "DONE"
+	PortalMergedRequestStatusCategoryINPROGRESS  PortalMergedRequestStatusCategory = "IN_PROGRESS"
+	PortalMergedRequestStatusCategoryLessThannil PortalMergedRequestStatusCategory = "<nil>"
+	PortalMergedRequestStatusCategoryTODO        PortalMergedRequestStatusCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the PortalMergedRequestStatusCategory enum.
+func (e PortalMergedRequestStatusCategory) Valid() bool {
+	switch e {
+	case PortalMergedRequestStatusCategoryBACKLOG:
+		return true
+	case PortalMergedRequestStatusCategoryDONE:
+		return true
+	case PortalMergedRequestStatusCategoryINPROGRESS:
+		return true
+	case PortalMergedRequestStatusCategoryLessThannil:
+		return true
+	case PortalMergedRequestStatusCategoryTODO:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PortalRequestStatusCategory.
+const (
+	PortalRequestStatusCategoryBACKLOG     PortalRequestStatusCategory = "BACKLOG"
+	PortalRequestStatusCategoryDONE        PortalRequestStatusCategory = "DONE"
+	PortalRequestStatusCategoryINPROGRESS  PortalRequestStatusCategory = "IN_PROGRESS"
+	PortalRequestStatusCategoryLessThannil PortalRequestStatusCategory = "<nil>"
+	PortalRequestStatusCategoryTODO        PortalRequestStatusCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the PortalRequestStatusCategory enum.
+func (e PortalRequestStatusCategory) Valid() bool {
+	switch e {
+	case PortalRequestStatusCategoryBACKLOG:
+		return true
+	case PortalRequestStatusCategoryDONE:
+		return true
+	case PortalRequestStatusCategoryINPROGRESS:
+		return true
+	case PortalRequestStatusCategoryLessThannil:
+		return true
+	case PortalRequestStatusCategoryTODO:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PortalRequestDetailStatusCategory.
+const (
+	PortalRequestDetailStatusCategoryBACKLOG     PortalRequestDetailStatusCategory = "BACKLOG"
+	PortalRequestDetailStatusCategoryDONE        PortalRequestDetailStatusCategory = "DONE"
+	PortalRequestDetailStatusCategoryINPROGRESS  PortalRequestDetailStatusCategory = "IN_PROGRESS"
+	PortalRequestDetailStatusCategoryLessThannil PortalRequestDetailStatusCategory = "<nil>"
+	PortalRequestDetailStatusCategoryTODO        PortalRequestDetailStatusCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the PortalRequestDetailStatusCategory enum.
+func (e PortalRequestDetailStatusCategory) Valid() bool {
+	switch e {
+	case PortalRequestDetailStatusCategoryBACKLOG:
+		return true
+	case PortalRequestDetailStatusCategoryDONE:
+		return true
+	case PortalRequestDetailStatusCategoryINPROGRESS:
+		return true
+	case PortalRequestDetailStatusCategoryLessThannil:
+		return true
+	case PortalRequestDetailStatusCategoryTODO:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PortfolioItemsKind.
 const (
 	PortfolioItemsKindCOLLECTION PortfolioItemsKind = "COLLECTION"
@@ -8005,6 +8437,186 @@ func (e PortfolioWriteStatus) Valid() bool {
 	case PortfolioWriteStatusOFFTRACK:
 		return true
 	case PortfolioWriteStatusONTRACK:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAudience.
+const (
+	PostAudienceGROUPS PostAudience = "GROUPS"
+	PostAudienceHUB    PostAudience = "HUB"
+)
+
+// Valid indicates whether the value is a known member of the PostAudience enum.
+func (e PostAudience) Valid() bool {
+	switch e {
+	case PostAudienceGROUPS:
+		return true
+	case PostAudienceHUB:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostState.
+const (
+	PostStateDRAFT     PostState = "DRAFT"
+	PostStatePUBLISHED PostState = "PUBLISHED"
+	PostStateSCHEDULED PostState = "SCHEDULED"
+)
+
+// Valid indicates whether the value is a known member of the PostState enum.
+func (e PostState) Valid() bool {
+	switch e {
+	case PostStateDRAFT:
+		return true
+	case PostStatePUBLISHED:
+		return true
+	case PostStateSCHEDULED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostTemplate.
+const (
+	PostTemplateANNOUNCEMENT  PostTemplate = "ANNOUNCEMENT"
+	PostTemplateLessThannil   PostTemplate = "<nil>"
+	PostTemplateMONTHLYREVIEW PostTemplate = "MONTHLY_REVIEW"
+	PostTemplateRELEASENOTE   PostTemplate = "RELEASE_NOTE"
+	PostTemplateWELCOME       PostTemplate = "WELCOME"
+)
+
+// Valid indicates whether the value is a known member of the PostTemplate enum.
+func (e PostTemplate) Valid() bool {
+	switch e {
+	case PostTemplateANNOUNCEMENT:
+		return true
+	case PostTemplateLessThannil:
+		return true
+	case PostTemplateMONTHLYREVIEW:
+		return true
+	case PostTemplateRELEASENOTE:
+		return true
+	case PostTemplateWELCOME:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostCreateAudience.
+const (
+	PostCreateAudienceGROUPS PostCreateAudience = "GROUPS"
+	PostCreateAudienceHUB    PostCreateAudience = "HUB"
+)
+
+// Valid indicates whether the value is a known member of the PostCreateAudience enum.
+func (e PostCreateAudience) Valid() bool {
+	switch e {
+	case PostCreateAudienceGROUPS:
+		return true
+	case PostCreateAudienceHUB:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostCreateTemplate.
+const (
+	PostCreateTemplateANNOUNCEMENT  PostCreateTemplate = "ANNOUNCEMENT"
+	PostCreateTemplateLessThannil   PostCreateTemplate = "<nil>"
+	PostCreateTemplateMONTHLYREVIEW PostCreateTemplate = "MONTHLY_REVIEW"
+	PostCreateTemplateRELEASENOTE   PostCreateTemplate = "RELEASE_NOTE"
+	PostCreateTemplateWELCOME       PostCreateTemplate = "WELCOME"
+)
+
+// Valid indicates whether the value is a known member of the PostCreateTemplate enum.
+func (e PostCreateTemplate) Valid() bool {
+	switch e {
+	case PostCreateTemplateANNOUNCEMENT:
+		return true
+	case PostCreateTemplateLessThannil:
+		return true
+	case PostCreateTemplateMONTHLYREVIEW:
+		return true
+	case PostCreateTemplateRELEASENOTE:
+		return true
+	case PostCreateTemplateWELCOME:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostReplyReactionsReaction.
+const (
+	AGREE     PostReplyReactionsReaction = "AGREE"
+	CELEBRATE PostReplyReactionsReaction = "CELEBRATE"
+	IDEA      PostReplyReactionsReaction = "IDEA"
+	THANKS    PostReplyReactionsReaction = "THANKS"
+)
+
+// Valid indicates whether the value is a known member of the PostReplyReactionsReaction enum.
+func (e PostReplyReactionsReaction) Valid() bool {
+	switch e {
+	case AGREE:
+		return true
+	case CELEBRATE:
+		return true
+	case IDEA:
+		return true
+	case THANKS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostSettingsAudience.
+const (
+	PostSettingsAudienceGROUPS PostSettingsAudience = "GROUPS"
+	PostSettingsAudienceHUB    PostSettingsAudience = "HUB"
+)
+
+// Valid indicates whether the value is a known member of the PostSettingsAudience enum.
+func (e PostSettingsAudience) Valid() bool {
+	switch e {
+	case PostSettingsAudienceGROUPS:
+		return true
+	case PostSettingsAudienceHUB:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostSettingsTemplate.
+const (
+	PostSettingsTemplateANNOUNCEMENT  PostSettingsTemplate = "ANNOUNCEMENT"
+	PostSettingsTemplateLessThannil   PostSettingsTemplate = "<nil>"
+	PostSettingsTemplateMONTHLYREVIEW PostSettingsTemplate = "MONTHLY_REVIEW"
+	PostSettingsTemplateRELEASENOTE   PostSettingsTemplate = "RELEASE_NOTE"
+	PostSettingsTemplateWELCOME       PostSettingsTemplate = "WELCOME"
+)
+
+// Valid indicates whether the value is a known member of the PostSettingsTemplate enum.
+func (e PostSettingsTemplate) Valid() bool {
+	switch e {
+	case PostSettingsTemplateANNOUNCEMENT:
+		return true
+	case PostSettingsTemplateLessThannil:
+		return true
+	case PostSettingsTemplateMONTHLYREVIEW:
+		return true
+	case PostSettingsTemplateRELEASENOTE:
+		return true
+	case PostSettingsTemplateWELCOME:
 		return true
 	default:
 		return false
@@ -8191,6 +8803,60 @@ func (e QueryFieldKind) Valid() bool {
 	}
 }
 
+// Defines values for QueryKeyValue.
+const (
+	QueryKeyValueChoice   QueryKeyValue = "choice"
+	QueryKeyValueCustom   QueryKeyValue = "custom"
+	QueryKeyValueFlag     QueryKeyValue = "flag"
+	QueryKeyValueKind     QueryKeyValue = "kind"
+	QueryKeyValueLabel    QueryKeyValue = "label"
+	QueryKeyValueNumber   QueryKeyValue = "number"
+	QueryKeyValuePerson   QueryKeyValue = "person"
+	QueryKeyValuePlace    QueryKeyValue = "place"
+	QueryKeyValueRelation QueryKeyValue = "relation"
+	QueryKeyValueSort     QueryKeyValue = "sort"
+	QueryKeyValueState    QueryKeyValue = "state"
+	QueryKeyValueText     QueryKeyValue = "text"
+	QueryKeyValueTime     QueryKeyValue = "time"
+	QueryKeyValueWords    QueryKeyValue = "words"
+)
+
+// Valid indicates whether the value is a known member of the QueryKeyValue enum.
+func (e QueryKeyValue) Valid() bool {
+	switch e {
+	case QueryKeyValueChoice:
+		return true
+	case QueryKeyValueCustom:
+		return true
+	case QueryKeyValueFlag:
+		return true
+	case QueryKeyValueKind:
+		return true
+	case QueryKeyValueLabel:
+		return true
+	case QueryKeyValueNumber:
+		return true
+	case QueryKeyValuePerson:
+		return true
+	case QueryKeyValuePlace:
+		return true
+	case QueryKeyValueRelation:
+		return true
+	case QueryKeyValueSort:
+		return true
+	case QueryKeyValueState:
+		return true
+	case QueryKeyValueText:
+		return true
+	case QueryKeyValueTime:
+		return true
+	case QueryKeyValueWords:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for QuotaSource.
 const (
 	QuotaSourceDEFAULT   QuotaSource = "DEFAULT"
@@ -8344,6 +9010,33 @@ func (e ReferenceStrength) Valid() bool {
 	}
 }
 
+// Defines values for ReferenceTargetStatusCategory.
+const (
+	ReferenceTargetStatusCategoryBACKLOG     ReferenceTargetStatusCategory = "BACKLOG"
+	ReferenceTargetStatusCategoryDONE        ReferenceTargetStatusCategory = "DONE"
+	ReferenceTargetStatusCategoryINPROGRESS  ReferenceTargetStatusCategory = "IN_PROGRESS"
+	ReferenceTargetStatusCategoryLessThannil ReferenceTargetStatusCategory = "<nil>"
+	ReferenceTargetStatusCategoryTODO        ReferenceTargetStatusCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the ReferenceTargetStatusCategory enum.
+func (e ReferenceTargetStatusCategory) Valid() bool {
+	switch e {
+	case ReferenceTargetStatusCategoryBACKLOG:
+		return true
+	case ReferenceTargetStatusCategoryDONE:
+		return true
+	case ReferenceTargetStatusCategoryINPROGRESS:
+		return true
+	case ReferenceTargetStatusCategoryLessThannil:
+		return true
+	case ReferenceTargetStatusCategoryTODO:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ReleaseState.
 const (
 	ReleaseStatePLANNED  ReleaseState = "PLANNED"
@@ -8362,6 +9055,33 @@ func (e ReleaseState) Valid() bool {
 	}
 }
 
+// Defines values for ReleaseDetailEntriesStatusCategory.
+const (
+	ReleaseDetailEntriesStatusCategoryBACKLOG     ReleaseDetailEntriesStatusCategory = "BACKLOG"
+	ReleaseDetailEntriesStatusCategoryDONE        ReleaseDetailEntriesStatusCategory = "DONE"
+	ReleaseDetailEntriesStatusCategoryINPROGRESS  ReleaseDetailEntriesStatusCategory = "IN_PROGRESS"
+	ReleaseDetailEntriesStatusCategoryLessThannil ReleaseDetailEntriesStatusCategory = "<nil>"
+	ReleaseDetailEntriesStatusCategoryTODO        ReleaseDetailEntriesStatusCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the ReleaseDetailEntriesStatusCategory enum.
+func (e ReleaseDetailEntriesStatusCategory) Valid() bool {
+	switch e {
+	case ReleaseDetailEntriesStatusCategoryBACKLOG:
+		return true
+	case ReleaseDetailEntriesStatusCategoryDONE:
+		return true
+	case ReleaseDetailEntriesStatusCategoryINPROGRESS:
+		return true
+	case ReleaseDetailEntriesStatusCategoryLessThannil:
+		return true
+	case ReleaseDetailEntriesStatusCategoryTODO:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ReleaseDetailState.
 const (
 	ReleaseDetailStatePLANNED  ReleaseDetailState = "PLANNED"
@@ -8374,6 +9094,24 @@ func (e ReleaseDetailState) Valid() bool {
 	case ReleaseDetailStatePLANNED:
 		return true
 	case ReleaseDetailStateRELEASED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReleaseListItemState.
+const (
+	ReleaseListItemStatePLANNED  ReleaseListItemState = "PLANNED"
+	ReleaseListItemStateRELEASED ReleaseListItemState = "RELEASED"
+)
+
+// Valid indicates whether the value is a known member of the ReleaseListItemState enum.
+func (e ReleaseListItemState) Valid() bool {
+	switch e {
+	case ReleaseListItemStatePLANNED:
+		return true
+	case ReleaseListItemStateRELEASED:
 		return true
 	default:
 		return false
@@ -9088,6 +9826,81 @@ func (e SavedViewShareSharing) Valid() bool {
 	}
 }
 
+// Defines values for SearchAllHitOnKind.
+const (
+	SearchAllHitOnKindENTRY      SearchAllHitOnKind = "ENTRY"
+	SearchAllHitOnKindPAGE       SearchAllHitOnKind = "PAGE"
+	SearchAllHitOnKindWHITEBOARD SearchAllHitOnKind = "WHITEBOARD"
+)
+
+// Valid indicates whether the value is a known member of the SearchAllHitOnKind enum.
+func (e SearchAllHitOnKind) Valid() bool {
+	switch e {
+	case SearchAllHitOnKindENTRY:
+		return true
+	case SearchAllHitOnKindPAGE:
+		return true
+	case SearchAllHitOnKindWHITEBOARD:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SearchKind.
+const (
+	SearchKindASSET      SearchKind = "ASSET"
+	SearchKindCOMMENT    SearchKind = "COMMENT"
+	SearchKindDASHBOARD  SearchKind = "DASHBOARD"
+	SearchKindENTRY      SearchKind = "ENTRY"
+	SearchKindFILE       SearchKind = "FILE"
+	SearchKindGOAL       SearchKind = "GOAL"
+	SearchKindPAGE       SearchKind = "PAGE"
+	SearchKindPERSON     SearchKind = "PERSON"
+	SearchKindPORTFOLIO  SearchKind = "PORTFOLIO"
+	SearchKindPOST       SearchKind = "POST"
+	SearchKindRELEASE    SearchKind = "RELEASE"
+	SearchKindSPRINT     SearchKind = "SPRINT"
+	SearchKindTICKET     SearchKind = "TICKET"
+	SearchKindWHITEBOARD SearchKind = "WHITEBOARD"
+)
+
+// Valid indicates whether the value is a known member of the SearchKind enum.
+func (e SearchKind) Valid() bool {
+	switch e {
+	case SearchKindASSET:
+		return true
+	case SearchKindCOMMENT:
+		return true
+	case SearchKindDASHBOARD:
+		return true
+	case SearchKindENTRY:
+		return true
+	case SearchKindFILE:
+		return true
+	case SearchKindGOAL:
+		return true
+	case SearchKindPAGE:
+		return true
+	case SearchKindPERSON:
+		return true
+	case SearchKindPORTFOLIO:
+		return true
+	case SearchKindPOST:
+		return true
+	case SearchKindRELEASE:
+		return true
+	case SearchKindSPRINT:
+		return true
+	case SearchKindTICKET:
+		return true
+	case SearchKindWHITEBOARD:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SearchMode.
 const (
 	AUTO    SearchMode = "AUTO"
@@ -9583,6 +10396,27 @@ func (e StarterSetHubPreset) Valid() bool {
 	}
 }
 
+// Defines values for StateMode.
+const (
+	StateModeCOLUMNS  StateMode = "COLUMNS"
+	StateModeNONE     StateMode = "NONE"
+	StateModeWORKFLOW StateMode = "WORKFLOW"
+)
+
+// Valid indicates whether the value is a known member of the StateMode enum.
+func (e StateMode) Valid() bool {
+	switch e {
+	case StateModeCOLUMNS:
+		return true
+	case StateModeNONE:
+		return true
+	case StateModeWORKFLOW:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StepUpGrantMethod.
 const (
 	StepUpGrantMethodPASSKEY  StepUpGrantMethod = "PASSKEY"
@@ -9723,6 +10557,7 @@ func (e StructureLockOrigin) Valid() bool {
 
 // Defines values for StructurePreviewViews.
 const (
+	StructurePreviewViewsCALENDAR      StructurePreviewViews = "CALENDAR"
 	StructurePreviewViewsKANBAN        StructurePreviewViews = "KANBAN"
 	StructurePreviewViewsLISTCOLLAPSED StructurePreviewViews = "LIST_COLLAPSED"
 	StructurePreviewViewsLISTEXPANDED  StructurePreviewViews = "LIST_EXPANDED"
@@ -9732,6 +10567,8 @@ const (
 // Valid indicates whether the value is a known member of the StructurePreviewViews enum.
 func (e StructurePreviewViews) Valid() bool {
 	switch e {
+	case StructurePreviewViewsCALENDAR:
+		return true
 	case StructurePreviewViewsKANBAN:
 		return true
 	case StructurePreviewViewsLISTCOLLAPSED:
@@ -9849,6 +10686,7 @@ func (e StructureSettingsCelebration) Valid() bool {
 
 // Defines values for StructureViewsDefault.
 const (
+	StructureViewsDefaultCALENDAR      StructureViewsDefault = "CALENDAR"
 	StructureViewsDefaultKANBAN        StructureViewsDefault = "KANBAN"
 	StructureViewsDefaultLISTCOLLAPSED StructureViewsDefault = "LIST_COLLAPSED"
 	StructureViewsDefaultLISTEXPANDED  StructureViewsDefault = "LIST_EXPANDED"
@@ -9858,6 +10696,8 @@ const (
 // Valid indicates whether the value is a known member of the StructureViewsDefault enum.
 func (e StructureViewsDefault) Valid() bool {
 	switch e {
+	case StructureViewsDefaultCALENDAR:
+		return true
 	case StructureViewsDefaultKANBAN:
 		return true
 	case StructureViewsDefaultLISTCOLLAPSED:
@@ -9873,6 +10713,7 @@ func (e StructureViewsDefault) Valid() bool {
 
 // Defines values for StructureViewsOffered.
 const (
+	StructureViewsOfferedCALENDAR      StructureViewsOffered = "CALENDAR"
 	StructureViewsOfferedKANBAN        StructureViewsOffered = "KANBAN"
 	StructureViewsOfferedLISTCOLLAPSED StructureViewsOffered = "LIST_COLLAPSED"
 	StructureViewsOfferedLISTEXPANDED  StructureViewsOffered = "LIST_EXPANDED"
@@ -9882,6 +10723,8 @@ const (
 // Valid indicates whether the value is a known member of the StructureViewsOffered enum.
 func (e StructureViewsOffered) Valid() bool {
 	switch e {
+	case StructureViewsOfferedCALENDAR:
+		return true
 	case StructureViewsOfferedKANBAN:
 		return true
 	case StructureViewsOfferedLISTCOLLAPSED:
@@ -10372,6 +11215,45 @@ func (e TimesheetWeekState) Valid() bool {
 	case TimesheetWeekStateREJECTED:
 		return true
 	case TimesheetWeekStateSUBMITTED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TodaySection.
+const (
+	TodaySectionAPPROVALS   TodaySection = "APPROVALS"
+	TodaySectionCOLLECTIONS TodaySection = "COLLECTIONS"
+	TodaySectionDUETODAY    TodaySection = "DUE_TODAY"
+	TodaySectionINBOX       TodaySection = "INBOX"
+	TodaySectionNEWS        TodaySection = "NEWS"
+	TodaySectionOVERDUE     TodaySection = "OVERDUE"
+	TodaySectionRECENT      TodaySection = "RECENT"
+	TodaySectionREPLY       TodaySection = "REPLY"
+	TodaySectionTIME        TodaySection = "TIME"
+)
+
+// Valid indicates whether the value is a known member of the TodaySection enum.
+func (e TodaySection) Valid() bool {
+	switch e {
+	case TodaySectionAPPROVALS:
+		return true
+	case TodaySectionCOLLECTIONS:
+		return true
+	case TodaySectionDUETODAY:
+		return true
+	case TodaySectionINBOX:
+		return true
+	case TodaySectionNEWS:
+		return true
+	case TodaySectionOVERDUE:
+		return true
+	case TodaySectionRECENT:
+		return true
+	case TodaySectionREPLY:
+		return true
+	case TodaySectionTIME:
 		return true
 	default:
 		return false
@@ -11473,6 +12355,24 @@ func (e ListConfigProposalsParamsState) Valid() bool {
 	}
 }
 
+// Defines values for SwitchBoardJSONBodyTo.
+const (
+	SwitchBoardJSONBodyToCOLUMNS SwitchBoardJSONBodyTo = "COLUMNS"
+	SwitchBoardJSONBodyToNONE    SwitchBoardJSONBodyTo = "NONE"
+)
+
+// Valid indicates whether the value is a known member of the SwitchBoardJSONBodyTo enum.
+func (e SwitchBoardJSONBodyTo) Valid() bool {
+	switch e {
+	case SwitchBoardJSONBodyToCOLUMNS:
+		return true
+	case SwitchBoardJSONBodyToNONE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CheckInGoalJSONBodyStatus.
 const (
 	CheckInGoalJSONBodyStatusATRISK   CheckInGoalJSONBodyStatus = "AT_RISK"
@@ -11542,6 +12442,30 @@ func (e ListCiAlertsParamsStatus) Valid() bool {
 	case ListCiAlertsParamsStatusFIRING:
 		return true
 	case ListCiAlertsParamsStatusRESOLVED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListHubPostsParamsFilter.
+const (
+	ListHubPostsParamsFilterALL       ListHubPostsParamsFilter = "ALL"
+	ListHubPostsParamsFilterMINE      ListHubPostsParamsFilter = "MINE"
+	ListHubPostsParamsFilterSCHEDULED ListHubPostsParamsFilter = "SCHEDULED"
+	ListHubPostsParamsFilterUNREAD    ListHubPostsParamsFilter = "UNREAD"
+)
+
+// Valid indicates whether the value is a known member of the ListHubPostsParamsFilter enum.
+func (e ListHubPostsParamsFilter) Valid() bool {
+	switch e {
+	case ListHubPostsParamsFilterALL:
+		return true
+	case ListHubPostsParamsFilterMINE:
+		return true
+	case ListHubPostsParamsFilterSCHEDULED:
+		return true
+	case ListHubPostsParamsFilterUNREAD:
 		return true
 	default:
 		return false
@@ -11749,6 +12673,24 @@ func (e SetDependencyTimingJSONBodyDependencyKind) Valid() bool {
 	}
 }
 
+// Defines values for SetCoverImagesPolicyJSONBodyLibrary.
+const (
+	SetCoverImagesPolicyJSONBodyLibraryOFF         SetCoverImagesPolicyJSONBodyLibrary = "OFF"
+	SetCoverImagesPolicyJSONBodyLibraryOPENLIBRARY SetCoverImagesPolicyJSONBodyLibrary = "OPEN_LIBRARY"
+)
+
+// Valid indicates whether the value is a known member of the SetCoverImagesPolicyJSONBodyLibrary enum.
+func (e SetCoverImagesPolicyJSONBodyLibrary) Valid() bool {
+	switch e {
+	case SetCoverImagesPolicyJSONBodyLibraryOFF:
+		return true
+	case SetCoverImagesPolicyJSONBodyLibraryOPENLIBRARY:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ReportPortfolioStatusJSONBodyStatus.
 const (
 	ReportPortfolioStatusJSONBodyStatusATRISK   ReportPortfolioStatusJSONBodyStatus = "AT_RISK"
@@ -11772,16 +12714,16 @@ func (e ReportPortfolioStatusJSONBodyStatus) Valid() bool {
 
 // Defines values for ListMyRequestsParamsScope.
 const (
-	MINE         ListMyRequestsParamsScope = "MINE"
-	ORGANISATION ListMyRequestsParamsScope = "ORGANISATION"
+	ListMyRequestsParamsScopeMINE         ListMyRequestsParamsScope = "MINE"
+	ListMyRequestsParamsScopeORGANISATION ListMyRequestsParamsScope = "ORGANISATION"
 )
 
 // Valid indicates whether the value is a known member of the ListMyRequestsParamsScope enum.
 func (e ListMyRequestsParamsScope) Valid() bool {
 	switch e {
-	case MINE:
+	case ListMyRequestsParamsScopeMINE:
 		return true
-	case ORGANISATION:
+	case ListMyRequestsParamsScopeORGANISATION:
 		return true
 	default:
 		return false
@@ -12259,9 +13201,15 @@ type Account struct {
 	// `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
 	// stays so that the workspace's own content is still readable, and everything of the
 	// person's in it is gone.
-	Status    AccountStatus     `json:"status"`
-	TimeZone  *string           `json:"time_zone,omitempty"`
-	WeekStart *AccountWeekStart `json:"week_start,omitempty"`
+	Status   AccountStatus `json:"status"`
+	TimeZone *string       `json:"time_zone,omitempty"`
+
+	// TodaySections The order the person gave *Today*'s cards and tiles. Absent or empty: the product's own order; a section not named keeps its own place after those named.
+	TodaySections *[]TodaySection `json:"today_sections,omitempty"`
+
+	// TodaySectionsHidden The cards and tiles the person hid on *Today*. Absent or empty: every section the person's roles and modules give is shown.
+	TodaySectionsHidden *[]TodaySection   `json:"today_sections_hidden,omitempty"`
+	WeekStart           *AccountWeekStart `json:"week_start,omitempty"`
 }
 
 // AccountKind defines model for Account.Kind.
@@ -12317,9 +13265,15 @@ type AccountPreferences struct {
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
 
 	// ProductsSeen The products whose first-visit mark the person has seen, written by the client as the whole list. `null` or an empty list clears it, which shows each product's mark again.
-	ProductsSeen *[]Module                    `json:"products_seen,omitempty"`
-	TimeZone     *string                      `json:"time_zone,omitempty"`
-	WeekStart    *AccountPreferencesWeekStart `json:"week_start,omitempty"`
+	ProductsSeen *[]Module `json:"products_seen,omitempty"`
+	TimeZone     *string   `json:"time_zone,omitempty"`
+
+	// TodaySections The order of *Today*'s cards and tiles, the whole list. `null` or an empty list clears it, which gives the product's own order again.
+	TodaySections *[]TodaySection `json:"today_sections,omitempty"`
+
+	// TodaySectionsHidden The cards and tiles hidden on *Today*, the whole list. `null` or an empty list clears it, which shows every section again.
+	TodaySectionsHidden *[]TodaySection              `json:"today_sections_hidden,omitempty"`
+	WeekStart           *AccountPreferencesWeekStart `json:"week_start,omitempty"`
 }
 
 // AccountPreferencesNavContentsMode How the sidebar shows a hub's contents. `null` clears it; the default is TREE.
@@ -12498,13 +13452,16 @@ type AdminTenantPage struct {
 // Agent defines model for Agent.
 type Agent struct {
 	// AccountId The service account it acts as.
-	AccountId   *openapi_types.UUID `json:"account_id"`
-	ApprovedAt  *time.Time          `json:"approved_at"`
-	ApprovedBy  *openapi_types.UUID `json:"approved_by"`
-	Budget      AgentBudget         `json:"budget"`
-	CreatedAt   time.Time           `json:"created_at"`
-	Id          openapi_types.UUID  `json:"id"`
-	Kind        AgentKind           `json:"kind"`
+	AccountId  *openapi_types.UUID `json:"account_id"`
+	ApprovedAt *time.Time          `json:"approved_at"`
+	ApprovedBy *openapi_types.UUID `json:"approved_by"`
+	Budget     AgentBudget         `json:"budget"`
+	CreatedAt  time.Time           `json:"created_at"`
+	Id         openapi_types.UUID  `json:"id"`
+	Kind       AgentKind           `json:"kind"`
+
+	// LastRunAt When its latest job started; null before its first. On a list only.
+	LastRunAt   *time.Time          `json:"last_run_at,omitempty"`
 	MinAccuracy int                 `json:"min_accuracy"`
 	ModelId     *openapi_types.UUID `json:"model_id"`
 	Name        string              `json:"name"`
@@ -12522,7 +13479,7 @@ type Agent struct {
 	SuspendedAt *time.Time          `json:"suspended_at"`
 	SuspendedBy *openapi_types.UUID `json:"suspended_by"`
 
-	// Usage What it spent; only on an agent read alone.
+	// Usage What it spent this hour and today, on a list and on an agent read alone.
 	Usage *struct {
 		ActionsThisHour *int `json:"actions_this_hour,omitempty"`
 		TokensToday     *int `json:"tokens_today,omitempty"`
@@ -13104,8 +14061,11 @@ type Approval struct {
 	RequestedBy openapi_types.UUID  `json:"requested_by"`
 	State       ApprovalState       `json:"state"`
 	Step        string              `json:"step"`
-	Version     int                 `json:"version"`
-	Workflow    string              `json:"workflow"`
+
+	// StepName The step's name as its workflow publishes it now - the step's own, else the status it leads into; null where neither is named.
+	StepName *string `json:"step_name,omitempty"`
+	Version  int     `json:"version"`
+	Workflow string  `json:"workflow"`
 }
 
 // ApprovalDecisionsVerdict defines model for Approval.Decisions.Verdict.
@@ -13168,6 +14128,27 @@ type ArticleSuggestionList struct {
 		UpdatedAt time.Time          `json:"updated_at"`
 	} `json:"data"`
 }
+
+// AskQueryRequest A question in words, in any language the provider reads.
+type AskQueryRequest struct {
+	// Question What the person wants to find, as they would say it.
+	Question string `json:"question"`
+}
+
+// AskedQuery The question as a Hubtask query, with the provenance every AI output carries. Not a record and not a result: no entry was read to write it.
+type AskedQuery struct {
+	Model         string    `json:"model"`
+	ProducedAt    time.Time `json:"produced_at"`
+	PromptId      string    `json:"prompt_id"`
+	PromptVersion string    `json:"prompt_version"`
+
+	// Query The query in the `field: value` spelling, in its canonical form.
+	Query  string           `json:"query"`
+	Source AskedQuerySource `json:"source"`
+}
+
+// AskedQuerySource defines model for AskedQuery.Source.
+type AskedQuerySource string
 
 // Assignment Who the entry is assigned to.
 type Assignment struct {
@@ -13389,6 +14370,9 @@ type AutomationRule struct {
 	// Enabled Switched off when the rule is written. `:enable` and `:disable` are what move it, so that the trail says which of the two somebody did.
 	Enabled bool `json:"enabled"`
 
+	// Entries For which entries: a query line, every name in it an identifier, that narrows the entries the rule acts on before its conditions are asked. It is read at each run as `run_as` reads, so it never reaches an entry that account may not read. Empty is every entry the trigger reaches.
+	Entries *string `json:"entries,omitempty"`
+
 	// FailureCount Consecutive failed runs. A run of them disables the rule by itself, and enabling it by hand clears the count.
 	FailureCount int `json:"failure_count"`
 
@@ -13438,6 +14422,9 @@ type AutomationRuleCreate struct {
 	Actions    []RuleAction     `json:"actions"`
 	Conditions *[]RuleCondition `json:"conditions,omitempty"`
 
+	// Entries For which entries, as a query line with identifiers for names; empty for every entry. A trigger that is about no entry (a schedule, an inbound webhook, an intake entry) takes none.
+	Entries *string `json:"entries,omitempty"`
+
 	// Key The rule's stable key in its scope. Omitted draws one from the name; one the scope already holds is refused.
 	Key     *string                      `json:"key,omitempty"`
 	Name    string                       `json:"name"`
@@ -13467,6 +14454,9 @@ type AutomationRulePage struct {
 type AutomationRuleUpdate struct {
 	Actions    *[]RuleAction    `json:"actions,omitempty"`
 	Conditions *[]RuleCondition `json:"conditions,omitempty"`
+
+	// Entries For which entries, as a query line with identifiers for names; empty for every entry. A trigger that is about no entry (a schedule, an inbound webhook, an intake entry) takes none.
+	Entries *string `json:"entries,omitempty"`
 
 	// ExpectedVersion The version last read. A mismatch is a conflict rather than an overwrite.
 	ExpectedVersion *int                         `json:"expected_version,omitempty"`
@@ -13779,6 +14769,106 @@ type BillingRateList struct {
 	Data []BillingRate `json:"data"`
 }
 
+// BlockedStep A step from the entry's status the person may not take, and who may.
+type BlockedStep struct {
+	// Groups The groups whose members may take it.
+	Groups []openapi_types.UUID `json:"groups"`
+	Key    string               `json:"key"`
+	Name   *string              `json:"name"`
+
+	// People The people the step's person fields name on this entry.
+	People []openapi_types.UUID `json:"people"`
+
+	// Permission The permission that opens it to whoever holds it.
+	Permission *string `json:"permission,omitempty"`
+
+	// Reason `workflows.step_who_unmet`: the step is limited to roles, people or groups the person is not among; `workflows.step_condition_unmet`: its condition over the entry and the person does not hold.
+	Reason BlockedStepReason `json:"reason"`
+
+	// Roles The roles that may take it.
+	Roles []string `json:"roles"`
+	To    string   `json:"to"`
+}
+
+// BlockedStepReason `workflows.step_who_unmet`: the step is limited to roles, people or groups the person is not among; `workflows.step_condition_unmet`: its condition over the entry and the person does not hold.
+type BlockedStepReason string
+
+// BoardPreview defines model for BoardPreview.
+type BoardPreview struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// ColumnOnly Of them, those whose status stays.
+	ColumnOnly int `json:"column_only"`
+	Columns    []struct {
+		BucketId openapi_types.UUID `json:"bucket_id"`
+
+		// Completes Whether an entry in it is done after.
+		Completes    bool   `json:"completes"`
+		IsDoneBucket bool   `json:"is_done_bucket"`
+		Name         string `json:"name"`
+
+		// Statuses The statuses it shows after.
+		Statuses []string `json:"statuses"`
+	} `json:"columns"`
+
+	// DoneBucketId Without a workflow after, the column that is the done column; null otherwise.
+	DoneBucketId *openapi_types.UUID `json:"done_bucket_id"`
+
+	// LevelAfter Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+	LevelAfter StateMode `json:"level_after"`
+
+	// LevelBefore Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+	LevelBefore StateMode `json:"level_before"`
+
+	// Moved Entries whose column changes.
+	Moved int `json:"moved"`
+
+	// Unmapped The statuses no column shows after (*Ohne Spalte*), each with where it would fit.
+	Unmapped []struct {
+		Status            string              `json:"status"`
+		SuggestedBucketId *openapi_types.UUID `json:"suggested_bucket_id"`
+	} `json:"unmapped"`
+}
+
+// BoardSwitch defines model for BoardSwitch.
+type BoardSwitch struct {
+	ColumnsCreated int  `json:"columns_created"`
+	ColumnsRemoved int  `json:"columns_removed"`
+	DryRun         bool `json:"dry_run"`
+
+	// EntriesPlaced Entries put into a column, or out of one.
+	EntriesPlaced int `json:"entries_placed"`
+
+	// LevelAfter Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+	LevelAfter StateMode `json:"level_after"`
+
+	// LevelBefore Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+	LevelBefore StateMode `json:"level_before"`
+}
+
+// BoardWorkflow defines model for BoardWorkflow.
+type BoardWorkflow struct {
+	DryRun bool `json:"dry_run"`
+
+	// Entries Entries that take a status.
+	Entries  int `json:"entries"`
+	Statuses []struct {
+		BucketId openapi_types.UUID            `json:"bucket_id"`
+		Category BoardWorkflowStatusesCategory `json:"category"`
+
+		// Count Entries that take this status.
+		Count int    `json:"count"`
+		Key   string `json:"key"`
+		Name  string `json:"name"`
+	} `json:"statuses"`
+
+	// Workflow The new workflow's key.
+	Workflow string `json:"workflow"`
+}
+
+// BoardWorkflowStatusesCategory defines model for BoardWorkflow.Statuses.Category.
+type BoardWorkflowStatusesCategory string
+
 // Bucket A column of a collection's board - the "list" of the requirements. It belongs to exactly one collection, and its name is unique there, compared without regard to case or accents.
 type Bucket struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
@@ -13791,6 +14881,9 @@ type Bucket struct {
 
 	// OrderKey The rank on the board - a fractional index rather than a number.
 	OrderKey string `json:"order_key"`
+
+	// Statuses Under a workflow, the statuses the column shows; empty without one. Answered where the board is listed.
+	Statuses *[]string `json:"statuses,omitempty"`
 
 	// Version The optimistic lock, returned as the ETag and sent back as If-Match.
 	Version int `json:"version"`
@@ -13814,10 +14907,13 @@ type BucketCreate struct {
 type BucketDeletion struct {
 	BucketId openapi_types.UUID `json:"bucket_id"`
 
+	// DoneBucketId The column that took the done mark where the deleted one carried it - the rightmost column left. Null otherwise.
+	DoneBucketId *openapi_types.UUID `json:"done_bucket_id,omitempty"`
+
 	// MovedItems How many entries were moved.
 	MovedItems int `json:"moved_items"`
 
-	// TargetBucketId The column the entries moved to - the leftmost remaining one. Null when this was the last column on the board, in which case the entries now carry none.
+	// TargetBucketId The column the entries moved to: the done column's successor where the done column was deleted, under a workflow mapped onto the board none (the statuses it showed are unmapped now), else the first open column left. Null where none is.
 	TargetBucketId *openapi_types.UUID `json:"target_bucket_id"`
 }
 
@@ -14103,10 +15199,11 @@ type Capabilities struct {
 	EventTypes   *[]string          `json:"event_types,omitempty"`
 
 	// Features Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering "send by email" where there is no SMTP server, or "summarise this" where no AI provider is configured, is a dead end the manifest can prevent.
-	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter`, `structure`, `structure_enforced`, `setup_open`, `mail_domain` (the operator's receiving domain is set, so a workspace's mail intake has an address there) and `encryption` (the installation holds an encryption key, so a secret a workspace keeps - a webhook's signing secret, a backup target's or a connector's credentials - can be stored; without one, a client does not offer the form that would be refused).
+	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `query_from_words`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter`, `structure`, `structure_enforced`, `setup_open`, `mail_domain` (the operator's receiving domain is set, so a workspace's mail intake has an address there) and `encryption` (the installation holds an encryption key, so a secret a workspace keeps - a webhook's signing secret, a backup target's or a connector's credentials - can be stored; without one, a client does not offer the form that would be refused).
 	// `setup_open` is `true` exactly while the installation has no workspace and nobody in its operator register: then `POST /auth/installation:set-up` is offered, and a client shows the setup in place of the sign-in.
 	// Two of them describe this version rather than its configuration, and every installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is served) and `search_filter` (`POST /search` takes a `filter`, and answers one without `words`). They are here for a client that also talks to an older server, which does not answer them: it can tell rather than probe.
 	// `structure`, a property of this version as well, says that `/presets` is served, that every container read answers its `structure` and `GET /tenant` the workspace's, and that both can be written (`PATCH /containers/{containerId}/structure`, `PATCH /tenant/structure`). It does not say that entries already obey `levels` and `fields`; a client offers only what they allow either way.
+	// `query_from_words` says that `POST /query:ask` can answer the caller: it follows `ai_suggestions`, and a client without it draws no question field beside the query.
 	// `ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both, and so does a person who keeps their own content out of AI - no AI action is offered to them. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.
 	// `natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.
 	Features *map[string]bool `json:"features,omitempty"`
@@ -14154,6 +15251,9 @@ type Capabilities struct {
 
 	// QueryFields What `POST /items:query` accepts. A client builds its filter editor from this rather than from a hard-coded list, because the set grows with the installation's features - a field whose use case this version does not have is not in it, and filtering on it is refused rather than silently matching nothing.
 	QueryFields *[]QueryField `json:"query_fields,omitempty"`
+
+	// QueryKeys The keys of the Hubtask query's `field: value` spelling, in the order a client offers them: only keys this installation answers. A client names them in its own language; the key, the value words and the examples stay English, so a saved query survives a change of language.
+	QueryKeys *[]QueryKey `json:"query_keys,omitempty"`
 
 	// RetentionDataKinds The classes of data a retention rule may name, and what this build can do to each. A client builds its rule editor from this rather than from a table compiled into it: a new kind is configurable through the API as soon as the server knows it, and a client with its own list would be the one place that still needed a code change.
 	// `actions` is empty for a kind this build names and nothing removes yet. That is not the same as a kind that does not exist, and it is why the entry is answered at all: a rule for one of those is refused with a code that says which of the two it is.
@@ -14378,7 +15478,10 @@ type CiAsset struct {
 		Certificate string              `json:"certificate"`
 		Method      string              `json:"method"`
 	} `json:"disposal"`
-	HubId         openapi_types.UUID  `json:"hub_id"`
+	HubId openapi_types.UUID `json:"hub_id"`
+
+	// Moves The steps of its life, oldest first - the state reached on being registered and at each move, when, by whom and with whom or in which stockroom. Answered by the reads and writes of one register record, not by the register's list; a register record made before the steps were kept has none, its state alone.
+	Moves         *[]CiAssetStep      `json:"moves,omitempty"`
 	Name          *string             `json:"name,omitempty"`
 	PurchasedOn   *openapi_types.Date `json:"purchased_on"`
 	RequestId     *openapi_types.UUID `json:"request_id"`
@@ -14432,6 +15535,24 @@ type CiAssetRegister struct {
 
 // CiAssetRegisterState defines model for CiAssetRegister.State.
 type CiAssetRegisterState string
+
+// CiAssetStep defines model for CiAssetStep.
+type CiAssetStep struct {
+	AssignedTo  *openapi_types.UUID `json:"assigned_to"`
+	At          time.Time           `json:"at"`
+	By          *openapi_types.UUID `json:"by"`
+	State       CiAssetStepState    `json:"state"`
+	StockroomId *openapi_types.UUID `json:"stockroom_id"`
+}
+
+// CiAssetStepState defines model for CiAssetStep.State.
+type CiAssetStepState string
+
+// CiAttachments The files one object holds. Returned by attaching and detaching rather than the object itself: neither touches the object's own row or version.
+type CiAttachments struct {
+	CiId     openapi_types.UUID   `json:"ci_id"`
+	MediaIds []openapi_types.UUID `json:"media_ids"`
+}
 
 // CiAttest defines model for CiAttest.
 type CiAttest struct {
@@ -14561,6 +15682,12 @@ type CiCampaignList struct {
 	Data []CiCampaign `json:"data"`
 }
 
+// CiCampaignReminded defines model for CiCampaignReminded.
+type CiCampaignReminded struct {
+	// Reminded How many people were reminded.
+	Reminded int `json:"reminded"`
+}
+
 // CiCampaignStart defines model for CiCampaignStart.
 type CiCampaignStart struct {
 	Classes      *[]string           `json:"classes,omitempty"`
@@ -14570,7 +15697,7 @@ type CiCampaignStart struct {
 	ReviewMonths *int                `json:"review_months,omitempty"`
 }
 
-// CiClass A configuration item class. A shipped class has no `name`: a client shows its own word for the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days` include what it inherits.
+// CiClass An object type. A shipped object type has no `name`: a client shows its own word for the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days` include what it inherits.
 type CiClass struct {
 	Abstract        *bool              `json:"abstract,omitempty"`
 	AllAttributes   []CiAttribute      `json:"all_attributes"`
@@ -14582,7 +15709,7 @@ type CiClass struct {
 	Lineage         []string           `json:"lineage"`
 	Name            *string            `json:"name,omitempty"`
 
-	// OwnStalenessDays The staleness period the class sets itself; 0 where it inherits.
+	// OwnStalenessDays The staleness period the object type sets itself; 0 where it inherits.
 	OwnStalenessDays  *int                 `json:"own_staleness_days,omitempty"`
 	Parent            string               `json:"parent"`
 	RequiredRelations []CiRequiredRelation `json:"required_relations"`
@@ -14621,7 +15748,7 @@ type CiCompliance struct {
 	OwnerAccountId *openapi_types.UUID `json:"owner_account_id,omitempty"`
 	OwnerGroupId   *openapi_types.UUID `json:"owner_group_id,omitempty"`
 
-	// Protection The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`.
+	// Protection The need a person set. A dimension in `fixed` is not raised by what depends on the object and carries a `reason`.
 	Protection *CiOwnProtection    `json:"protection,omitempty"`
 	Quantity   *int                `json:"quantity,omitempty"`
 	ReviewDue  *openapi_types.Date `json:"review_due,omitempty"`
@@ -14635,7 +15762,13 @@ type CiComplianceStage string
 // CiComplianceStatus defines model for CiCompliance.Status.
 type CiComplianceStatus string
 
-// CiConnector A program a hub's CIs are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.
+// CiConfirm defines model for CiConfirm.
+type CiConfirm struct {
+	// ReviewMonths How far the next review moves on from today; 12 when not given.
+	ReviewMonths *int `json:"review_months,omitempty"`
+}
+
+// CiConnector A program a hub's objects are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.
 type CiConnector struct {
 	AllowedHosts  []string            `json:"allowed_hosts"`
 	BaseUrl       *string             `json:"base_url,omitempty"`
@@ -14651,7 +15784,7 @@ type CiConnector struct {
 	HubId openapi_types.UUID `json:"hub_id"`
 	Id    openapi_types.UUID `json:"id"`
 
-	// Inventory An intake posted CIs rather than alerts.
+	// Inventory An intake posted objects rather than alerts.
 	Inventory *bool           `json:"inventory,omitempty"`
 	Key       string          `json:"key"`
 	Kind      CiConnectorKind `json:"kind"`
@@ -14707,7 +15840,7 @@ type CiConnectorList struct {
 
 // CiConnectorRun defines model for CiConnectorRun.
 type CiConnectorRun struct {
-	// Connector A program a hub's CIs are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.
+	// Connector A program a hub's objects are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.
 	Connector CiConnector   `json:"connector"`
 	Counts    CiRunCounts   `json:"counts"`
 	Decisions *[]CiDecision `json:"decisions,omitempty"`
@@ -14764,11 +15897,11 @@ type CiDuplicateList struct {
 
 // CiDuplicateResolve defines model for CiDuplicateResolve.
 type CiDuplicateResolve struct {
-	// SurvivorId The CI that stays; absent says the CIs are distinct.
+	// SurvivorId The object that stays; absent says the objects are distinct.
 	SurvivorId *openapi_types.UUID `json:"survivor_id,omitempty"`
 }
 
-// CiDuplicateResolved The survivor after a merge, or the duplicate's identifier when the CIs are distinct.
+// CiDuplicateResolved The survivor after a merge, or the duplicate's identifier when the objects are distinct.
 type CiDuplicateResolved struct {
 	Class   *string             `json:"class,omitempty"`
 	HubId   *openapi_types.UUID `json:"hub_id,omitempty"`
@@ -14785,7 +15918,7 @@ type CiFileImport struct {
 	DryRun  *bool              `json:"dry_run,omitempty"`
 	Format  CiFileImportFormat `json:"format"`
 
-	// Mapping How a CSV table's or a JSON array's columns become a configuration item.
+	// Mapping How a CSV table's or a JSON array's columns become an object.
 	Mapping *CiFileMapping `json:"mapping,omitempty"`
 	Source  string         `json:"source"`
 }
@@ -14793,7 +15926,7 @@ type CiFileImport struct {
 // CiFileImportFormat defines model for CiFileImport.Format.
 type CiFileImportFormat string
 
-// CiFileMapping How a CSV table's or a JSON array's columns become a configuration item.
+// CiFileMapping How a CSV table's or a JSON array's columns become an object.
 type CiFileMapping struct {
 	Class           string             `json:"class"`
 	ClassColumn     *string            `json:"class_column,omitempty"`
@@ -14810,7 +15943,7 @@ type CiGroup struct {
 	Id     openapi_types.UUID `json:"id"`
 	Key    string             `json:"key"`
 
-	// Members How many CIs it holds now.
+	// Members How many objects it holds now.
 	Members   *int                `json:"members,omitempty"`
 	Name      string              `json:"name"`
 	ServiceId *openapi_types.UUID `json:"service_id"`
@@ -14827,10 +15960,28 @@ type CiGroupDefine struct {
 
 // CiGroupFilter defines model for CiGroupFilter.
 type CiGroupFilter struct {
-	Attributes *map[string]string     `json:"attributes,omitempty"`
-	Classes    *[]string              `json:"classes,omitempty"`
-	NameHas    *string                `json:"name_has,omitempty"`
-	Stages     *[]CiGroupFilterStages `json:"stages,omitempty"`
+	Attributes *map[string]string `json:"attributes,omitempty"`
+	Classes    *[]string          `json:"classes,omitempty"`
+
+	// Locations The location is one of these location objects (or none, with no_location) - asset.location.
+	Locations *[]openapi_types.UUID `json:"locations,omitempty"`
+	NameHas   *string               `json:"name_has,omitempty"`
+
+	// NoLocation Also
+	NoLocation *bool `json:"no_location,omitempty"`
+
+	// NoOwner Also
+	NoOwner *bool `json:"no_owner,omitempty"`
+
+	// NoTag Also
+	NoTag *bool `json:"no_tag,omitempty"`
+
+	// Owners The owner is one of these people or groups (or nobody, with no_owner) - the inventory line's asset.owner.
+	Owners *[]openapi_types.UUID  `json:"owners,omitempty"`
+	Stages *[]CiGroupFilterStages `json:"stages,omitempty"`
+
+	// Tags The inventory number is one of these, compared lowered (or none, with no_tag) - asset.tag. Kept lowered.
+	Tags *[]string `json:"tags,omitempty"`
 }
 
 // CiGroupFilterStages defines model for CiGroupFilter.Stages.
@@ -14851,6 +16002,32 @@ type CiGroupMembers struct {
 	} `json:"data"`
 	Group CiGroup `json:"group"`
 }
+
+// CiHistoryPage defines model for CiHistoryPage.
+type CiHistoryPage struct {
+	Data []CiHistoryStep `json:"data"`
+	Page PageInfo        `json:"page"`
+}
+
+// CiHistoryStep One step of an object's history. Append-only: nothing edits one, and what removes one is the removal of the object it belongs to.
+type CiHistoryStep struct {
+	Actor struct {
+		Id   *openapi_types.UUID    `json:"id"`
+		Type CiHistoryStepActorType `json:"type"`
+	} `json:"actor"`
+
+	// ChangeSet What moved, keyed by field: `from` and `to` where the history keeps the values - the stage, a person, a place, an object at the other end, a file, the source that wrote - and `changed: true` for an attribute, whose value the object itself shows.
+	ChangeSet map[string]interface{} `json:"change_set"`
+	CiId      openapi_types.UUID     `json:"ci_id"`
+
+	// Code The message the client renders, from locales/*.json - activity.ci_created and the rest.
+	Code       string             `json:"code"`
+	Id         openapi_types.UUID `json:"id"`
+	OccurredAt time.Time          `json:"occurred_at"`
+}
+
+// CiHistoryStepActorType defines model for CiHistoryStep.Actor.Type.
+type CiHistoryStepActorType string
 
 // CiHold defines model for CiHold.
 type CiHold struct {
@@ -14878,7 +16055,7 @@ type CiHoldList struct {
 type CiIdentifierRule struct {
 	Attributes []string `json:"attributes"`
 
-	// Class The class that declared the rule.
+	// Class The object type that declared the rule.
 	Class *string `json:"class,omitempty"`
 }
 
@@ -14909,7 +16086,7 @@ type CiInventoryReceipt struct {
 // CiInventoryReceiptStatus defines model for CiInventoryReceipt.Status.
 type CiInventoryReceiptStatus string
 
-// CiOwnProtection The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`.
+// CiOwnProtection The need a person set. A dimension in `fixed` is not raised by what depends on the object and carries a `reason`.
 type CiOwnProtection struct {
 	A      *CiOwnProtectionA       `json:"a,omitempty"`
 	C      *CiOwnProtectionC       `json:"c,omitempty"`
@@ -15049,7 +16226,7 @@ type CiRelationTypeList struct {
 
 // CiRequiredRelation defines model for CiRequiredRelation.
 type CiRequiredRelation struct {
-	// Class The class that declared it; left out where it is defined.
+	// Class The object type that declared it; left out where it is defined.
 	Class    *string  `json:"class,omitempty"`
 	Outgoing bool     `json:"outgoing"`
 	Types    []string `json:"types"`
@@ -15108,7 +16285,7 @@ type CiSourceDefine struct {
 	Classes *[]string          `json:"classes,omitempty"`
 	Kind    CiSourceDefineKind `json:"kind"`
 
-	// Mapping How a CSV table's or a JSON array's columns become a configuration item.
+	// Mapping How a CSV table's or a JSON array's columns become an object.
 	Mapping   *CiFileMapping `json:"mapping,omitempty"`
 	MayCreate *bool          `json:"may_create,omitempty"`
 	Rank      int            `json:"rank"`
@@ -15122,7 +16299,63 @@ type CiSourceList struct {
 	Data []CiSource `json:"data"`
 }
 
-// CmdbHealth A hub's active configuration items judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate CIs, CIs without an owner and reviews overdue, per class, and the CIs found wanting with the kinds of problem; the relations a program reported and has not confirmed within the staleness period of their source's class; each service scored by the share of the CIs it rests on - itself and what its failure follows from - found wanting in nothing, worst first; and each source's conflict rate over the hub's latest twenty runs - of the attributes it reported with another value, the share a better source kept.
+// CiWork defines model for CiWork.
+type CiWork struct {
+	CiId openapi_types.UUID `json:"ci_id"`
+
+	// Data Open entries first, then at most twenty completed ones; within each, the latest named first.
+	Data []CiWorkEntry `json:"data"`
+}
+
+// CiWorkCounts defines model for CiWorkCounts.
+type CiWorkCounts struct {
+	Data []struct {
+		CiId openapi_types.UUID `json:"ci_id"`
+
+		// Open The open entries the reader may see that name the object.
+		Open int `json:"open"`
+	} `json:"data"`
+
+	// Truncated The count stopped at 5000 namings; the numbers are then too low.
+	Truncated bool `json:"truncated"`
+}
+
+// CiWorkEntry defines model for CiWorkEntry.
+type CiWorkEntry struct {
+	CollectionId openapi_types.UUID  `json:"collection_id"`
+	Completed    bool                `json:"completed"`
+	DueAt        *time.Time          `json:"due_at"`
+	EntryType    string              `json:"entry_type"`
+	HubId        *openapi_types.UUID `json:"hub_id"`
+	ItemId       openapi_types.UUID  `json:"item_id"`
+
+	// Key The entry's key, INC-128; null where the entry has no number or its collection no word.
+	Key *string `json:"key"`
+
+	// Reason NAMES, the entry names this object itself; BENEATH, it names an object whose failure this object suffers.
+	Reason  CiWorkEntryReason `json:"reason"`
+	StartAt *time.Time        `json:"start_at"`
+
+	// Status The entry's status as the workflow in force names it; null where none runs.
+	Status *struct {
+		Category *string `json:"category"`
+		Key      string  `json:"key"`
+		Name     *string `json:"name"`
+	} `json:"status"`
+	Title string `json:"title"`
+
+	// Via The nearest object beneath that the entry names; null for NAMES.
+	Via *struct {
+		CiId  openapi_types.UUID `json:"ci_id"`
+		Class string             `json:"class"`
+		Name  string             `json:"name"`
+	} `json:"via"`
+}
+
+// CiWorkEntryReason NAMES, the entry names this object itself; BENEATH, it names an object whose failure this object suffers.
+type CiWorkEntryReason string
+
+// CmdbHealth A hub's active objects judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate objects, objects without an owner and reviews overdue, per object type, and the objects found wanting with the kinds of problem; the relations a program reported and has not confirmed within the staleness period of their source's object type; each service scored by the share of the objects it rests on - itself and what its failure follows from - found wanting in nothing, worst first; and each source's conflict rate over the hub's latest twenty runs - of the attributes it reported with another value, the share a better source kept.
 type CmdbHealth struct {
 	Classes []struct {
 		Class        string  `json:"class"`
@@ -15146,7 +16379,7 @@ type CmdbHealth struct {
 	Services      []struct {
 		CiId openapi_types.UUID `json:"ci_id"`
 
-		// Cis The active CIs it rests on, itself included.
+		// Cis The active objects it rests on, itself included.
 		Cis   int    `json:"cis"`
 		Class string `json:"class"`
 		Name  string `json:"name"`
@@ -15878,12 +17111,16 @@ type ConfigVersionList struct {
 	Data []ConfigVersion `json:"data"`
 }
 
-// ConfigurationItem A configuration item in a hub. `attributes` hold its class's typed values; `provenance` names per attribute the source that last wrote it. `effective_protection` is given on a single read: the need it inherits from everything that suffers when it fails.
+// ConfigurationItem An object in a hub. `attributes` hold its object type's typed values; `provenance` names per attribute the source that last wrote it. `effective_protection` is given on a single read: the need it inherits from everything that suffers when it fails.
 type ConfigurationItem struct {
 	Attributes map[string]interface{} `json:"attributes"`
 	Class      string                 `json:"class"`
-	CreatedAt  time.Time              `json:"created_at"`
-	CreatedBy  *openapi_types.UUID    `json:"created_by,omitempty"`
+
+	// ConfirmedAt When a person last confirmed it is as recorded, by itself or in a campaign.
+	ConfirmedAt *time.Time          `json:"confirmed_at,omitempty"`
+	ConfirmedBy *openapi_types.UUID `json:"confirmed_by,omitempty"`
+	CreatedAt   time.Time           `json:"created_at"`
+	CreatedBy   *openapi_types.UUID `json:"created_by,omitempty"`
 
 	// Decision What the reconciliation did with one item and why: the rule that matched, the attributes taken, those kept and by which source, a duplicate's candidates, a hold's or refusal's reason as a message code. It names attributes, never values.
 	Decision *CiDecision `json:"decision,omitempty"`
@@ -15891,7 +17128,7 @@ type ConfigurationItem struct {
 	// EffectiveProtection A protection need per confidentiality, integrity and availability.
 	EffectiveProtection *CiProtection `json:"effective_protection,omitempty"`
 
-	// HasAsset Given on a single read: whether it has an asset record. False means `GET /cis/{ciId}/asset` answers not found.
+	// HasAsset Given on a single read: whether it has a register record. False means `GET /cis/{ciId}/asset` answers not found.
 	HasAsset       *bool               `json:"has_asset,omitempty"`
 	HubId          openapi_types.UUID  `json:"hub_id"`
 	Id             openapi_types.UUID  `json:"id"`
@@ -15902,7 +17139,7 @@ type ConfigurationItem struct {
 	OwnerAccountId *openapi_types.UUID `json:"owner_account_id,omitempty"`
 	OwnerGroupId   *openapi_types.UUID `json:"owner_group_id,omitempty"`
 
-	// Protection The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`.
+	// Protection The need a person set. A dimension in `fixed` is not raised by what depends on the object and carries a `reason`.
 	Protection CiOwnProtection         `json:"protection"`
 	Provenance map[string]CiProvenance `json:"provenance"`
 	Quantity   int                     `json:"quantity"`
@@ -16062,6 +17299,12 @@ type Container struct {
 	// Private Whether this hub is private: reached only by people holding a role on it or below it, not by the workspace's own roles - its owners and administrators included. Always false on a collection, which shares its hub's privacy.
 	Private *bool `json:"private,omitempty"`
 
+	// StateMode Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+	StateMode *StateMode `json:"state_mode,omitempty"`
+
+	// StateModes A collection's level per entry type it offers; `state_mode` is the tasks'. Answered when one collection is read, left out on a hub and in lists.
+	StateModes *map[string]StateMode `json:"state_modes,omitempty"`
+
 	// Structure How much structure this hub or collection has, setting by setting, with where each value comes from and which are locked. Answered by every read of the container, by its creation and by a change of its structure; the answer to another change may leave it out.
 	Structure *EffectiveStructure `json:"structure,omitempty"`
 	Type      ContainerType       `json:"type"`
@@ -16169,6 +17412,46 @@ type Cover struct {
 
 // CoverKind defines model for Cover.Kind.
 type CoverKind string
+
+// CoverImageFetched defines model for CoverImageFetched.
+type CoverImageFetched struct {
+	ContentBase64 []byte                       `json:"content_base64"`
+	ContentType   CoverImageFetchedContentType `json:"content_type"`
+
+	// Credit Who made the picture
+	Credit string `json:"credit"`
+}
+
+// CoverImageFetchedContentType defines model for CoverImageFetched.ContentType.
+type CoverImageFetchedContentType string
+
+// CoverImageSearch defines model for CoverImageSearch.
+type CoverImageSearch struct {
+	// Offered Whether the workspace offers an image library for covers.
+	Offered  bool `json:"offered"`
+	Pictures []struct {
+		// Creator Who made the picture
+		Creator string `json:"creator"`
+		Id      string `json:"id"`
+
+		// Preview A small rendition as a data: URL.
+		Preview string `json:"preview"`
+	} `json:"pictures"`
+}
+
+// CoverImagesPolicy defines model for CoverImagesPolicy.
+type CoverImagesPolicy struct {
+	Library CoverImagesPolicyLibrary `json:"library"`
+
+	// LockedBy The level that locked it
+	LockedBy *string `json:"locked_by,omitempty"`
+
+	// Source The level whose value is in force.
+	Source string `json:"source"`
+}
+
+// CoverImagesPolicyLibrary defines model for CoverImagesPolicy.Library.
+type CoverImagesPolicyLibrary string
 
 // CoverInput What the cover shall be: a colour token from the design system's vocabulary, or an image by its media identifier - exactly one of the two, matching the kind.
 type CoverInput struct {
@@ -16359,6 +17642,9 @@ type DailyNoteOpen struct {
 
 // Dashboard defines model for Dashboard.
 type Dashboard struct {
+	// Filter The dashboard's filter as a Hubtask query; empty without one.
+	Filter *string `json:"filter,omitempty"`
+
 	// GroupIds For GROUPS: the groups whose members see it, each where they read its place.
 	GroupIds *[]openapi_types.UUID `json:"group_ids,omitempty"`
 	HubId    *openapi_types.UUID   `json:"hub_id"`
@@ -16375,6 +17661,9 @@ type DashboardSharing string
 
 // DashboardCreate defines model for DashboardCreate.
 type DashboardCreate struct {
+	// Filter The dashboard's filter as a Hubtask query without an order, names as identifiers: every QUERY widget inherits it but for the fields it released.
+	Filter *string `json:"filter,omitempty"`
+
 	// GroupIds For GROUPS: the groups whose members see it, each where they read its place.
 	GroupIds *[]openapi_types.UUID `json:"group_ids,omitempty"`
 
@@ -16425,6 +17714,13 @@ type DashboardDigestWrite struct {
 // DashboardDigestWriteCadence defines model for DashboardDigestWrite.Cadence.
 type DashboardDigestWriteCadence string
 
+// DashboardDraft defines model for DashboardDraft.
+type DashboardDraft struct {
+	// Filter The filter as it is being edited; every QUERY widget inherits it but for the fields it released.
+	Filter  *string                `json:"filter,omitempty"`
+	Widgets []DashboardWidgetWrite `json:"widgets"`
+}
+
 // DashboardFigures defines model for DashboardFigures.
 type DashboardFigures struct {
 	ComputedAt  time.Time          `json:"computed_at"`
@@ -16437,7 +17733,7 @@ type DashboardFigures struct {
 			Truncated bool                     `json:"truncated"`
 		} `json:"compare"`
 
-		// Data A summary's rows (count, group, period, value, and running for a cumulative widget), or a GOALS widget's goals (goal_id, title, status, progress).
+		// Data A summary's rows (count, group, period, value, and running for a cumulative widget), a GOALS widget's goals (goal_id, title, status, progress), or a LIST widget's first entries as POST /items:query answers them; empty for TEXT.
 		Data []map[string]interface{} `json:"data"`
 
 		// Error The error code of a widget the caller cannot run.
@@ -16463,19 +17759,34 @@ type DashboardList struct {
 
 // DashboardWidget defines model for DashboardWidget.
 type DashboardWidget struct {
-	Chart      DashboardWidgetChart    `json:"chart"`
+	Chart DashboardWidgetChart `json:"chart"`
+
+	// Column A LIST widget's column; empty for any other.
+	Column     *string                 `json:"column,omitempty"`
 	Compare    *DashboardWidgetCompare `json:"compare"`
 	Cumulative bool                    `json:"cumulative"`
 	GoalIds    []openapi_types.UUID    `json:"goal_ids"`
 	H          int                     `json:"h"`
 	Id         openapi_types.UUID      `json:"id"`
 	Query      *map[string]interface{} `json:"query"`
-	Source     DashboardWidgetSource   `json:"source"`
-	Title      string                  `json:"title"`
-	ViewId     *openapi_types.UUID     `json:"view_id"`
-	W          int                     `json:"w"`
-	X          int                     `json:"x"`
-	Y          int                     `json:"y"`
+
+	// Released The dashboard filter's fields this widget does not inherit.
+	Released *[]string             `json:"released,omitempty"`
+	Source   DashboardWidgetSource `json:"source"`
+
+	// Target The widget's goal; null without one.
+	Target *float32 `json:"target,omitempty"`
+
+	// Text A TEXT widget's words; empty for any other.
+	Text   *string             `json:"text,omitempty"`
+	Title  string              `json:"title"`
+	ViewId *openapi_types.UUID `json:"view_id"`
+	W      int                 `json:"w"`
+
+	// WarnAt The widget's warning line; null without one.
+	WarnAt *float32 `json:"warn_at,omitempty"`
+	X      int      `json:"x"`
+	Y      int      `json:"y"`
 }
 
 // DashboardWidgetChart defines model for DashboardWidget.Chart.
@@ -16498,7 +17809,11 @@ type DashboardWidgetCompare struct {
 
 // DashboardWidgetWrite defines model for DashboardWidgetWrite.
 type DashboardWidgetWrite struct {
+	// Chart LIST shows a query's first entries, TEXT a short text with links.
 	Chart DashboardWidgetWriteChart `json:"chart"`
+
+	// Column The one field a LIST widget shows beside key and title, e.g. due_at, status, assignee_id.
+	Column *string `json:"column,omitempty"`
 
 	// Compare A second series beside the widget's own - resolved beside created -, for BAR, LINE and TABLE.
 	Compare *DashboardWidgetCompare `json:"compare,omitempty"`
@@ -16511,26 +17826,43 @@ type DashboardWidgetWrite struct {
 	H       *int                  `json:"h,omitempty"`
 	Id      *openapi_types.UUID   `json:"id,omitempty"`
 
-	// Query A POST /items:aggregate document, for QUERY.
-	Query  *map[string]interface{}    `json:"query,omitempty"`
+	// Query A POST /items:aggregate document, for QUERY; for a LIST widget a POST /items:query document (q or filter, scope, sort).
+	Query *map[string]interface{} `json:"query,omitempty"`
+
+	// Released Fields of the dashboard's filter this QUERY widget does not inherit, e.g. created_at.
+	Released *[]string `json:"released,omitempty"`
+
+	// Source TEXT for a TEXT widget, which runs nothing.
 	Source DashboardWidgetWriteSource `json:"source"`
-	Title  string                     `json:"title"`
+
+	// Target A NUMBER or LINE widget's goal, drawn beside its figure or as a line.
+	Target *float32 `json:"target,omitempty"`
+
+	// Text A TEXT widget's words: plain text, **bold** and [links](/path).
+	Text  *string `json:"text,omitempty"`
+	Title string  `json:"title"`
 
 	// ViewId A saved summary view, for VIEW.
 	ViewId *openapi_types.UUID `json:"view_id,omitempty"`
 	W      *int                `json:"w,omitempty"`
-	X      *int                `json:"x,omitempty"`
-	Y      *int                `json:"y,omitempty"`
+
+	// WarnAt A NUMBER or LINE widget's warning line, with a target; above the target, lower is better.
+	WarnAt *float32 `json:"warn_at,omitempty"`
+	X      *int     `json:"x,omitempty"`
+	Y      *int     `json:"y,omitempty"`
 }
 
-// DashboardWidgetWriteChart defines model for DashboardWidgetWrite.Chart.
+// DashboardWidgetWriteChart LIST shows a query's first entries, TEXT a short text with links.
 type DashboardWidgetWriteChart string
 
-// DashboardWidgetWriteSource defines model for DashboardWidgetWrite.Source.
+// DashboardWidgetWriteSource TEXT for a TEXT widget, which runs nothing.
 type DashboardWidgetWriteSource string
 
 // DashboardWrite defines model for DashboardWrite.
 type DashboardWrite struct {
+	// Filter The dashboard's filter as a Hubtask query without an order, names as identifiers: every QUERY widget inherits it but for the fields it released.
+	Filter *string `json:"filter,omitempty"`
+
 	// GroupIds For GROUPS: the groups whose members see it, each where they read its place.
 	GroupIds *[]openapi_types.UUID `json:"group_ids,omitempty"`
 	Name     string                `json:"name"`
@@ -16773,6 +18105,31 @@ type DeadLetterPage struct {
 	Page PageInfo     `json:"page"`
 }
 
+// DeadlinesKept defines model for DeadlinesKept.
+type DeadlinesKept struct {
+	// Data One row per kind that ended in the window, the requester's goals first, then each group's.
+	Data []struct {
+		// Ended Deadlines of the kind that were met or breached in the window.
+		Ended int                   `json:"ended"`
+		Goal  DeadlinesKeptDataGoal `json:"goal"`
+
+		// GroupId The team an OLA is the group's of; null for the requester's goals.
+		GroupId *openapi_types.UUID `json:"group_id"`
+
+		// Kept Of them, met without being breached.
+		Kept int                   `json:"kept"`
+		Kind DeadlinesKeptDataKind `json:"kind"`
+	} `json:"data"`
+	From time.Time `json:"from"`
+	To   time.Time `json:"to"`
+}
+
+// DeadlinesKeptDataGoal defines model for DeadlinesKept.Data.Goal.
+type DeadlinesKeptDataGoal string
+
+// DeadlinesKeptDataKind defines model for DeadlinesKept.Data.Kind.
+type DeadlinesKeptDataKind string
+
 // DegradedFeature defines model for DegradedFeature.
 type DegradedFeature struct {
 	Feature    string    `json:"feature"`
@@ -16876,6 +18233,39 @@ type DeviceListEntryState struct {
 	Entry       string `json:"entry"`
 	Host        string `json:"host"`
 }
+
+// DocumentServer defines model for DocumentServer.
+type DocumentServer struct {
+	Kind DocumentServerKind `json:"kind"`
+
+	// Url The server's https origin; absent for NONE.
+	Url *string `json:"url,omitempty"`
+}
+
+// DocumentServerKind defines model for DocumentServer.Kind.
+type DocumentServerKind string
+
+// DocumentServerCheck defines model for DocumentServerCheck.
+type DocumentServerCheck struct {
+	// Reached The server answered its WOPI discovery.
+	Reached bool `json:"reached"`
+}
+
+// DropAnswer defines model for DropAnswer.
+type DropAnswer struct {
+	Item    WorkItem          `json:"item"`
+	Outcome DropAnswerOutcome `json:"outcome"`
+
+	// Steps The step taken, or the steps to choose among.
+	Steps []struct {
+		Key  string  `json:"key"`
+		Name *string `json:"name"`
+		To   string  `json:"to"`
+	} `json:"steps"`
+}
+
+// DropAnswerOutcome defines model for DropAnswer.Outcome.
+type DropAnswerOutcome string
 
 // DroppedReference defines model for DroppedReference.
 type DroppedReference struct {
@@ -16993,11 +18383,11 @@ type EntryCis struct {
 		Stage   string             `json:"stage"`
 	} `json:"cis"`
 
-	// Collisions The entries planned on an affected CI, or one it reaches, in an overlapping window.
+	// Collisions The entries planned on an affected object, or one it reaches, in an overlapping window.
 	Collisions []struct {
 		CiId openapi_types.UUID `json:"ci_id"`
 
-		// Direct Both entries name the CI itself.
+		// Direct Both entries name the object itself.
 		Direct    bool               `json:"direct"`
 		DueAt     *time.Time         `json:"due_at"`
 		EntryType string             `json:"entry_type"`
@@ -17012,10 +18402,10 @@ type EntryCis struct {
 	} `json:"collisions"`
 	ItemId openapi_types.UUID `json:"item_id"`
 
-	// Related The other open entries naming an affected CI or one it reaches.
+	// Related The other open entries naming an affected object or one it reaches.
 	Related []EntryOnCi `json:"related"`
 
-	// Services The active services and offerings the affected CIs' failure reaches.
+	// Services The active services and offerings the affected objects' failure reaches.
 	Services []struct {
 		CiId  openapi_types.UUID `json:"ci_id"`
 		Class string             `json:"class"`
@@ -17275,7 +18665,7 @@ type EntryOnCi struct {
 type EntryRequester struct {
 	AccountId openapi_types.UUID `json:"account_id"`
 
-	// Assets The configuration items the requester owns that the reader may read, by name, at most 20.
+	// Assets The objects the requester owns that the reader may read, by name, at most 20.
 	Assets []struct {
 		Class string             `json:"class"`
 		HubId openapi_types.UUID `json:"hub_id"`
@@ -17341,12 +18731,46 @@ type EntrySlaList struct {
 
 // EntrySteps defines model for EntrySteps.
 type EntrySteps struct {
-	Status   *string       `json:"status"`
-	Steps    []StepVerdict `json:"steps"`
-	Workflow *string       `json:"workflow"`
+	// Blocked The steps from the status the person may not take, in the workflow's order; empty for a reader.
+	Blocked *[]BlockedStep `json:"blocked,omitempty"`
+
+	// ByDefault True where no workflow runs: the picture is the default one, every status is reachable, and completing the entry reaches done.
+	ByDefault *bool `json:"by_default,omitempty"`
+
+	// ColumnId At `COLUMNS` the column the entry reads as; null otherwise.
+	ColumnId *openapi_types.UUID `json:"column_id,omitempty"`
+
+	// Columns At `COLUMNS` the board's columns, left to right, as the entry's states; `completes` marks the done column, which completes what enters it. Empty otherwise.
+	Columns *[]struct {
+		Completes bool               `json:"completes"`
+		Id        openapi_types.UUID `json:"id"`
+		Name      string             `json:"name"`
+	} `json:"columns,omitempty"`
+
+	// DoneRoute The fewest steps from the status into a done one, whoever may take them; empty from a done status, where no step leads there, and where no workflow runs.
+	DoneRoute *[]struct {
+		Key  string  `json:"key"`
+		Name *string `json:"name"`
+		To   string  `json:"to"`
+	} `json:"done_route,omitempty"`
+
+	// MayDesign Whether the person may open the workflow in the designer.
+	MayDesign *bool `json:"may_design,omitempty"`
+
+	// Picture A workflow drawn read-only - its statuses and the steps between them, without who may take them.
+	Picture *WorkflowPicture `json:"picture,omitempty"`
+
+	// StateMode How the entry's type says where an entry stands in its collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - `columns` are the states; `WORKFLOW` the status decides.
+	StateMode *EntryStepsStateMode `json:"state_mode,omitempty"`
+	Status    *string              `json:"status"`
+	Steps     []StepVerdict        `json:"steps"`
+	Workflow  *string              `json:"workflow"`
 }
 
-// EntryType A kind of entry a workspace names on one level - a bug, a feature, a purchase, a configuration item - with its icon, its colour and the behaviours of its entries.
+// EntryStepsStateMode How the entry's type says where an entry stands in its collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - `columns` are the states; `WORKFLOW` the status decides.
+type EntryStepsStateMode string
+
+// EntryType A kind of entry a workspace names on one level - a bug, a feature, a purchase, an inventory object - with its icon, its colour and the behaviours of its entries.
 type EntryType struct {
 	// AllowedChildren The keys of the types of the level below that may sit underneath; empty allows every one.
 	AllowedChildren []string `json:"allowed_children"`
@@ -17840,7 +19264,13 @@ type Goal struct {
 		Completed    bool               `json:"completed"`
 		Id           openapi_types.UUID `json:"id"`
 		Key          *string            `json:"key"`
-		Title        string             `json:"title"`
+
+		// StatusCategory The status's category; null where no workflow runs, where `completed` says done or open.
+		StatusCategory *GoalLinkedEntriesStatusCategory `json:"status_category"`
+
+		// StatusName The entry's status as the workflow in force names it; null where no workflow runs or the status has no name of its own, which a client words by `status_category`.
+		StatusName *string `json:"status_name"`
+		Title      string  `json:"title"`
 	} `json:"linked_entries,omitempty"`
 	OwnerId  *openapi_types.UUID `json:"owner_id"`
 	ParentId *openapi_types.UUID `json:"parent_id"`
@@ -17852,6 +19282,9 @@ type Goal struct {
 	Title    string     `json:"title"`
 	Version  int        `json:"version"`
 }
+
+// GoalLinkedEntriesStatusCategory The status's category; null where no workflow runs, where `completed` says done or open.
+type GoalLinkedEntriesStatusCategory string
 
 // GoalStatus defines model for Goal.Status.
 type GoalStatus string
@@ -17924,6 +19357,27 @@ type GoalPeriodWrite struct {
 	EndOn   openapi_types.Date `json:"end_on"`
 	Name    string             `json:"name"`
 	StartOn openapi_types.Date `json:"start_on"`
+}
+
+// GoalSet defines model for GoalSet.
+type GoalSet struct {
+	EndOn    openapi_types.Date `json:"end_on"`
+	Key      string             `json:"key"`
+	Name     string             `json:"name"`
+	PeriodId openapi_types.UUID `json:"period_id"`
+	StartOn  openapi_types.Date `json:"start_on"`
+}
+
+// GoalSetGoal defines model for GoalSetGoal.
+type GoalSetGoal struct {
+	Description *string           `json:"description,omitempty"`
+	KeyResults  *[]KeyResultWrite `json:"key_results,omitempty"`
+	Title       string            `json:"title"`
+}
+
+// GoalSetList defines model for GoalSetList.
+type GoalSetList struct {
+	Data []GoalSet `json:"data"`
 }
 
 // GoalWrite defines model for GoalWrite.
@@ -18118,6 +19572,9 @@ type HubQueue struct {
 // HubQueueList defines model for HubQueueList.
 type HubQueueList struct {
 	Data []HubQueue `json:"data"`
+
+	// Desks The hub's collections that act as a desk - those offering a type the requester portal takes - over which the standard queues count; empty where the hub has none. A client names a desk by this, not by reading the entry types itself.
+	Desks *[]openapi_types.UUID `json:"desks,omitempty"`
 }
 
 // HubTemplatePage defines model for HubTemplatePage.
@@ -18781,9 +20238,15 @@ type InvitedAccount struct {
 	// `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
 	// stays so that the workspace's own content is still readable, and everything of the
 	// person's in it is gone.
-	Status    InvitedAccountStatus     `json:"status"`
-	TimeZone  *string                  `json:"time_zone,omitempty"`
-	WeekStart *InvitedAccountWeekStart `json:"week_start,omitempty"`
+	Status   InvitedAccountStatus `json:"status"`
+	TimeZone *string              `json:"time_zone,omitempty"`
+
+	// TodaySections The order the person gave *Today*'s cards and tiles. Absent or empty: the product's own order; a section not named keeps its own place after those named.
+	TodaySections *[]TodaySection `json:"today_sections,omitempty"`
+
+	// TodaySectionsHidden The cards and tiles the person hid on *Today*. Absent or empty: every section the person's roles and modules give is shown.
+	TodaySectionsHidden *[]TodaySection          `json:"today_sections_hidden,omitempty"`
+	WeekStart           *InvitedAccountWeekStart `json:"week_start,omitempty"`
 }
 
 // InvitedAccountKind defines model for InvitedAccount.Kind.
@@ -18821,7 +20284,7 @@ type ItemAggregateQuery struct {
 			WeekStart *ItemAggregateQueryAggregateBucketWeekStart `json:"week_start,omitempty"`
 		} `json:"bucket,omitempty"`
 
-		// Field The measure: `custom_fields.<key>` of a number, money or a duration, or a built-in quantity in minutes - `lead_time`, creation to completion, or `scheduled_span`, start to due; an entry missing a stamp holds none -, or `satisfaction`, the requester's score from 1 to 5 of a resolved request, which an entry nobody rated does not hold -, or from the status history: `cycle_time`, the first entry into an in-progress status to completion, `wip_age`, that entry to now for an open entry, and `time_in_status`, the current status's latest entry to now for an open entry; an entry without history holds none. For a `time` summary, `minutes` alone. Required for every function but `COUNT`, refused for `COUNT`.
+		// Field The measure: `custom_fields.<key>` of a number, money or a duration, or a built-in quantity in minutes - `lead_time`, creation to completion, or `scheduled_span`, start to due; an entry missing a stamp holds none -, or `satisfaction`, the requester's score from 1 to 5 of a resolved request, which an entry nobody rated does not hold -, or from the status history: `cycle_time`, the first entry into an in-progress status to completion, `wip_age`, that entry to now for an open entry, and `time_in_status`, the current status's latest entry to now for an open entry; an entry without history holds none -, or `slip_days`, the days an entry's due date lies after its latest baseline's (`plan.slip`), which an entry outside every baseline or without a due date does not hold. For a `time` summary, `minutes` alone. Required for every function but `COUNT`, refused for `COUNT`.
 		Field *string `json:"field,omitempty"`
 
 		// Function `P50`, `P85` and `P95` are the continuous percentiles of the measure - the median cycle time, the cycle time 85 of 100 entries stay within; an entry holding none is left out, as for `AVG`.
@@ -18843,6 +20306,9 @@ type ItemAggregateQuery struct {
 	Filter          *FilterNode `json:"filter,omitempty"`
 	IncludeArchived *bool       `json:"include_archived,omitempty"`
 	IncludeTrashed  *bool       `json:"include_trashed,omitempty"`
+
+	// Q The filter as one Hubtask query instead of `filter`, in either spelling `POST /items:query` takes - what a query line counts while somebody types (`who: me is: open` with `scope.workspace` and `COUNT`), and, grouped by a field, the values it suggests with their counts. Free words count the entries they find; a `sort:` is refused with `query.sort_not_here`, and a line sent with `filter` with `query.line_with_filter`.
+	Q *string `json:"q,omitempty"`
 
 	// Scope Where to look, exactly as `POST /items:query` takes it - or `workspace`, instead of either identifier, for every collection the caller may read (at most 2000; archived ones with `include_archived`), and every entry shared with the caller alone in a collection they do not read (at most 5000).
 	Scope struct {
@@ -18985,7 +20451,7 @@ type ItemQuery struct {
 		Size   *int    `json:"size,omitempty"`
 	} `json:"page,omitempty"`
 
-	// Q The filter and the order as one line instead of `filter` and `sort`, for example `status = open AND custom_fields.priority >= 3 ORDER BY due_at DESC`. Comparisons are `=`, `!=`, `<`, `<=`, `>`, `>=`, `~` (contains), `IN (…)`, `NOT IN (…)`, `IS EMPTY`, `IS NOT EMPTY`, `BETWEEN … AND …`, `CONTAINS`, `CONTAINS ANY (…)`, `CONTAINS ALL (…)`, `STARTS WITH` and `MATCHES`, joined by `AND`, `OR`, `NOT` and brackets; a text is quoted with `'` or `"` and a backslash escapes the next character. The line is read into the same filter and order, so the fields, operators and bounds are the same; a line that cannot be read is `query.line_malformed` with the character it stops at, and a line sent with `filter` or `sort` is `query.line_with_filter`.
+	// Q The filter and the order as one Hubtask query instead of `filter` and `sort`, in either of its two spellings. The first is `field: value` - `who: me, none is: open due: <today -label: intern sort: -updated`: a comma is or, a space and, a leading `-` not, `<`, `<=`, `>`, `>=` compare, `a..b` is a range, `( … OR … )` and `NOT` group, words without a field find entries by their words, `today`, `-7d`, `+2w`, `this-week` and `overdue` are times the server resolves, `me` and `none` are people; `GET /meta/capabilities` lists the keys under `query_keys`. A key or value it cannot read is `query.field_unknown` or `query.value_unknown` with the character it stops at (`at`) and, where one is near, a `suggestion`. The second is `status = open AND custom_fields.priority >= 3 ORDER BY due_at DESC`. Comparisons are `=`, `!=`, `<`, `<=`, `>`, `>=`, `~` (contains), `IN (…)`, `NOT IN (…)`, `IS EMPTY`, `IS NOT EMPTY`, `BETWEEN … AND …`, `CONTAINS`, `CONTAINS ANY (…)`, `CONTAINS ALL (…)`, `STARTS WITH` and `MATCHES`, joined by `AND`, `OR`, `NOT` and brackets; a text is quoted with `'` or `"` and a backslash escapes the next character. The line is read into the same filter and order, so the fields, operators and bounds are the same; a line that cannot be read is `query.line_malformed` with the character it stops at, and a line sent with `filter` or `sort` is `query.line_with_filter`.
 	Q *string `json:"q,omitempty"`
 
 	// Scope Where to look. Exactly one of `container_id` and `item_id`, and it is required: an unanchored query is a scan of the whole tenant, and the permission is checked against this scope once for the whole result.
@@ -19067,6 +20533,9 @@ type ItemSearchQuery struct {
 	//
 	// **The last word is also matched as a beginning**, so that a search answers while it is still being typed: `Ann` finds *Anna's moments*, and `Momente Chall` finds an entry holding both. Only the last word, and only where it is one plain word - a quoted phrase, an exclusion and a word followed by a space are all finished, and are matched whole. A hit on a beginning ranks below one on a whole word, because it is weaker evidence that these are the words somebody meant.
 	Q *string `json:"q,omitempty"`
+
+	// Query The search as one Hubtask query instead of `q`, `filter` and `sort`: its free words and phrases are what is looked for and ranked, every `field: value` narrows - `passkey "zweites Gerät" who: me is: open`. Either spelling `POST /items:query` takes; `GET /meta/capabilities` lists the keys under `query_keys`. A `type:` other than an entry's level is `query.kind_not_here`, and the query sent with `q`, `filter` or `sort` is `query.line_with_filter`.
+	Query *string `json:"query,omitempty"`
 
 	// Sort Only meaningful without `q`: with words there is a ranking and it is the ranking. Sent with words it is refused by `search.sort_with_words`, rather than being ignored. Without them it defaults to `due_at ASC NULLS LAST`, because a filtered workspace read with no words is a work list and a work list is ordered by when it is due. Always completed by `id ASC`, so a cursor is unambiguous.
 	Sort *[]SortTerm `json:"sort,omitempty"`
@@ -19276,7 +20745,7 @@ type KeyResultWrite struct {
 	Id   *openapi_types.UUID `json:"id,omitempty"`
 	Kind KeyResultWriteKind  `json:"kind"`
 
-	// Source VIEW takes the total of a saved summary view.
+	// Source VIEW takes a saved view's number: a summary view's total, any other view's count of what it lists.
 	Source *KeyResultWriteSource `json:"source,omitempty"`
 	Start  *float32              `json:"start,omitempty"`
 	Target *float32              `json:"target,omitempty"`
@@ -19288,7 +20757,7 @@ type KeyResultWrite struct {
 // KeyResultWriteKind defines model for KeyResultWrite.Kind.
 type KeyResultWriteKind string
 
-// KeyResultWriteSource VIEW takes the total of a saved summary view.
+// KeyResultWriteSource VIEW takes a saved view's number: a summary view's total, any other view's count of what it lists.
 type KeyResultWriteSource string
 
 // Kudos defines model for Kudos.
@@ -20013,6 +21482,22 @@ type ManagedAccountCreated struct {
 	StartPassword string `json:"start_password"`
 }
 
+// MediaEditingSession defines model for MediaEditingSession.
+type MediaEditingSession struct {
+	// AccessToken Shown once, to hand to the document server; never logged.
+	AccessToken string `json:"access_token"`
+
+	// AccessTokenTtl When the token expires, in milliseconds since the epoch - the protocol's unit.
+	AccessTokenTtl int64 `json:"access_token_ttl"`
+
+	// ActionUrl Where the browser posts the token, in a frame: the document server's editor for this kind of file, from its discovery, with the WOPI source in its query. Always on the server's own origin, which is the only one the interface's policy lets a form post to and a frame show.
+	ActionUrl string         `json:"action_url"`
+	Server    DocumentServer `json:"server"`
+
+	// WopiSrc The file's WOPI address the document server reads and saves through.
+	WopiSrc string `json:"wopi_src"`
+}
+
 // MediaObject defines model for MediaObject.
 type MediaObject struct {
 	Checksum *string `json:"checksum,omitempty"`
@@ -20025,9 +21510,18 @@ type MediaObject struct {
 	// Download Where to fetch the bytes, present on a GET once the object is READY.
 	Download *MediaTransfer `json:"download,omitempty"`
 
+	// Editable Whether this person may open the file for editing in the workspace's document server (`:edit`): an office file, a server chosen, and a right to change what holds it.
+	Editable *bool `json:"editable,omitempty"`
+
 	// FileName The name the file arrived under, for the download - never a storage path.
 	FileName *string            `json:"file_name,omitempty"`
 	Id       openapi_types.UUID `json:"id"`
+
+	// Inline Whether a browser may decode the bytes itself from the download URL: a READY image, audio or video in a format whose decoding executes nothing. Every other file is fetched and drawn by the client - a PDF page, text, a table, an archive's listing - or downloaded; none is ever opened as a document.
+	Inline *bool `json:"inline,omitempty"`
+
+	// Office Whether the file is an office document - shown as a PDF converted by the workspace's document server (`:pdf`), or as a card where there is none.
+	Office *bool `json:"office,omitempty"`
 
 	// RefCount How many covers, attachments and avatars point at the object. Zero and READY means the reconciliation job will remove it after its grace period; deletion by hand is only possible at zero.
 	RefCount int `json:"ref_count"`
@@ -20736,9 +22230,12 @@ type Page struct {
 	Body *string `json:"body,omitempty"`
 
 	// ContentLanguage The BCP-47 tag search stems the page by; null for the workspace's.
-	ContentLanguage *string            `json:"content_language"`
-	CreatedAt       time.Time          `json:"created_at"`
-	CreatedBy       openapi_types.UUID `json:"created_by"`
+	ContentLanguage *string `json:"content_language"`
+
+	// Cover The picture over the page's content; null for none. Absent in a tree's rows.
+	Cover     *PageCover         `json:"cover,omitempty"`
+	CreatedAt time.Time          `json:"created_at"`
+	CreatedBy openapi_types.UUID `json:"created_by"`
 
 	// DailyFor The day a daily note of a personal space is for.
 	DailyFor *openapi_types.Date `json:"daily_for"`
@@ -20751,6 +22248,9 @@ type Page struct {
 
 	// DueForReview Its verification has run out.
 	DueForReview bool `json:"due_for_review"`
+
+	// Excerpt The body's opening words as plain text, cut short; present in a tree's rows, where the body is not.
+	Excerpt *string `json:"excerpt,omitempty"`
 
 	// HubId The hub whose space the page is in.
 	HubId openapi_types.UUID `json:"hub_id"`
@@ -20826,6 +22326,9 @@ type PageArticle struct {
 
 	// Views Openings in the portal.
 	Views int64 `json:"views"`
+
+	// WithSubpages Shared as a space: every page under it reaches the portal too.
+	WithSubpages bool `json:"with_subpages"`
 }
 
 // PageBacklinkList defines model for PageBacklinkList.
@@ -20853,9 +22356,12 @@ type PageChange struct {
 	Archived        *bool   `json:"archived,omitempty"`
 	Body            *string `json:"body,omitempty"`
 	ContentLanguage *string `json:"content_language,omitempty"`
-	Icon            *string `json:"icon,omitempty"`
-	Template        *bool   `json:"template,omitempty"`
-	Title           *string `json:"title,omitempty"`
+
+	// Cover The picture over the page's content; null takes it away.
+	Cover    *PageCover `json:"cover,omitempty"`
+	Icon     *string    `json:"icon,omitempty"`
+	Template *bool      `json:"template,omitempty"`
+	Title    *string    `json:"title,omitempty"`
 }
 
 // PageComment defines model for PageComment.
@@ -20901,6 +22407,22 @@ type PageCommentCreate struct {
 type PageCommentList struct {
 	Data []PageComment `json:"data"`
 }
+
+// PageCover A page's cover: one of the gradients or gallery pictures the clients draw by their key, or an image of the media context by its id. A key a client does not know draws as no cover there.
+type PageCover struct {
+	// Credit Who made an image library's picture, named at the cover; only an image carries one.
+	Credit *string `json:"credit,omitempty"`
+
+	// Key A gradient's or a gallery picture's key (lowercase letters, digits, hyphens), or the image's media id.
+	Key string `json:"key"`
+
+	// Position How far down the picture is shown from: 0 its top, 100 its foot.
+	Position int             `json:"position"`
+	Source   PageCoverSource `json:"source"`
+}
+
+// PageCoverSource defines model for PageCover.Source.
+type PageCoverSource string
 
 // PageCreate defines model for PageCreate.
 type PageCreate struct {
@@ -20978,6 +22500,9 @@ type PageHitList struct {
 		Rank      float32             `json:"rank"`
 		Title     string              `json:"title"`
 		UpdatedAt time.Time           `json:"updated_at"`
+
+		// VerifiedUntil When the page's verification lapses; null for a page never verified. Among equally good hits a page verified now comes first; a past date is a page due for review.
+		VerifiedUntil *time.Time `json:"verified_until,omitempty"`
 	} `json:"data"`
 }
 
@@ -21084,9 +22609,12 @@ type PageRead struct {
 	Body string `json:"body"`
 
 	// ContentLanguage The BCP-47 tag search stems the page by; null for the workspace's.
-	ContentLanguage *string            `json:"content_language"`
-	CreatedAt       time.Time          `json:"created_at"`
-	CreatedBy       openapi_types.UUID `json:"created_by"`
+	ContentLanguage *string `json:"content_language"`
+
+	// Cover The picture over the page's content; null for none. Absent in a tree's rows.
+	Cover     *PageCover         `json:"cover,omitempty"`
+	CreatedAt time.Time          `json:"created_at"`
+	CreatedBy openapi_types.UUID `json:"created_by"`
 
 	// DailyFor The day a daily note of a personal space is for.
 	DailyFor *openapi_types.Date `json:"daily_for"`
@@ -21099,6 +22627,9 @@ type PageRead struct {
 
 	// DueForReview Its verification has run out.
 	DueForReview bool `json:"due_for_review"`
+
+	// Excerpt The body's opening words as plain text, cut short; present in a tree's rows, where the body is not.
+	Excerpt *string `json:"excerpt,omitempty"`
 
 	// HubId The hub whose space the page is in.
 	HubId openapi_types.UUID `json:"hub_id"`
@@ -21890,7 +23421,10 @@ type PlanScheduleEntry struct {
 
 	// ParentId The parent entry within the plan; null for a top-level or outside entry.
 	ParentId *openapi_types.UUID `json:"parent_id"`
-	Start    openapi_types.Date  `json:"start"`
+
+	// ReleaseId The release the entry ships with; null when none.
+	ReleaseId *openapi_types.UUID `json:"release_id,omitempty"`
+	Start     openapi_types.Date  `json:"start"`
 
 	// Summary A parent whose dates are its children's span.
 	Summary bool   `json:"summary"`
@@ -22043,6 +23577,27 @@ type PolicyLock string
 // PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 type PolicySource string
 
+// PortalKnowledge defines model for PortalKnowledge.
+type PortalKnowledge struct {
+	// Data What a service's portal shares, in the order it was shared.
+	Data []struct {
+		Icon   string             `json:"icon"`
+		PageId openapi_types.UUID `json:"page_id"`
+
+		// Pages The pages under a space a requester reads, parents before their children and in their order; empty for a single article.
+		Pages []struct {
+			Icon     string             `json:"icon"`
+			PageId   openapi_types.UUID `json:"page_id"`
+			ParentId openapi_types.UUID `json:"parent_id"`
+			Title    string             `json:"title"`
+		} `json:"pages"`
+		Title string `json:"title"`
+
+		// WithSubpages A space: `pages` holds what lies under it.
+		WithSubpages bool `json:"with_subpages"`
+	} `json:"data"`
+}
+
 // PortalMergedRequest The request a requester's own was merged into, as its requester reads it: where it stands, the team's public replies and its SLA goals - never an internal note, the team's fields or what its own requester wrote. When the caller may not raise requests where it now is, only its number is given and `readable` is false.
 type PortalMergedRequest struct {
 	// Comments The team's public replies, oldest first; at most 200, the newest.
@@ -22054,8 +23609,17 @@ type PortalMergedRequest struct {
 	Readable    bool               `json:"readable"`
 	Sla         []EntrySlaGoal     `json:"sla"`
 	Status      *string            `json:"status"`
-	Title       *string            `json:"title"`
+
+	// StatusCategory The status's category; null where no workflow runs or when not readable.
+	StatusCategory *PortalMergedRequestStatusCategory `json:"status_category,omitempty"`
+
+	// StatusName The status as the desk's workflow names it, as on PortalRequest; null when not readable.
+	StatusName *string `json:"status_name,omitempty"`
+	Title      *string `json:"title"`
 }
+
+// PortalMergedRequestStatusCategory The status's category; null where no workflow runs or when not readable.
+type PortalMergedRequestStatusCategory string
 
 // PortalOrganisation The organisation a requester belongs to, as the portal names it.
 type PortalOrganisation struct {
@@ -22086,13 +23650,28 @@ type PortalRequest struct {
 	IsCompleted  bool               `json:"is_completed"`
 
 	// IsOwn Whether the caller raised it; false for a colleague's request of their organisation.
-	IsOwn     *bool     `json:"is_own,omitempty"`
-	Notes     *string   `json:"notes"`
-	Number    int64     `json:"number"`
-	Status    *string   `json:"status"`
-	Title     string    `json:"title"`
-	UpdatedAt time.Time `json:"updated_at"`
+	IsOwn *bool `json:"is_own,omitempty"`
+
+	// LastReplyAt When the team last answered in public; null while it has not, and never for an internal note.
+	LastReplyAt *time.Time `json:"last_reply_at,omitempty"`
+
+	// NextDueAt The earliest moment the desk promised the requester to act by - its running SLA goals' next due time; null while none runs. A team's internal promise is never told.
+	NextDueAt *time.Time `json:"next_due_at,omitempty"`
+	Notes     *string    `json:"notes"`
+	Number    int64      `json:"number"`
+	Status    *string    `json:"status"`
+
+	// StatusCategory The status's category; null where no workflow runs.
+	StatusCategory *PortalRequestStatusCategory `json:"status_category,omitempty"`
+
+	// StatusName The status as the desk's workflow names it; null where no workflow runs or the status has no name of its own, which a client words by `status_category`.
+	StatusName *string   `json:"status_name,omitempty"`
+	Title      string    `json:"title"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
+
+// PortalRequestStatusCategory The status's category; null where no workflow runs.
+type PortalRequestStatusCategory string
 
 // PortalRequestDetail defines model for PortalRequestDetail.
 type PortalRequestDetail struct {
@@ -22119,18 +23698,33 @@ type PortalRequestDetail struct {
 	// IsOwn Whether the caller raised it; false for a colleague's request of their organisation.
 	IsOwn *bool `json:"is_own,omitempty"`
 
+	// LastReplyAt When the team last answered in public; null while it has not, and never for an internal note.
+	LastReplyAt *time.Time `json:"last_reply_at,omitempty"`
+
 	// MergedInto The request this one was merged into, which carries the answer from then on; null when it was not merged.
 	MergedInto *PortalMergedRequest `json:"merged_into,omitempty"`
-	Notes      *string              `json:"notes"`
-	Number     int64                `json:"number"`
+
+	// NextDueAt The earliest moment the desk promised the requester to act by - its running SLA goals' next due time; null while none runs. A team's internal promise is never told.
+	NextDueAt *time.Time `json:"next_due_at,omitempty"`
+	Notes     *string    `json:"notes"`
+	Number    int64      `json:"number"`
 
 	// Satisfaction The caller's own score of the resolved request; null while they gave none.
 	Satisfaction *RequestSatisfaction `json:"satisfaction"`
 	Sla          []EntrySlaGoal       `json:"sla"`
 	Status       *string              `json:"status"`
-	Title        string               `json:"title"`
-	UpdatedAt    time.Time            `json:"updated_at"`
+
+	// StatusCategory The status's category; null where no workflow runs.
+	StatusCategory *PortalRequestDetailStatusCategory `json:"status_category,omitempty"`
+
+	// StatusName The status as the desk's workflow names it; null where no workflow runs or the status has no name of its own, which a client words by `status_category`.
+	StatusName *string   `json:"status_name,omitempty"`
+	Title      string    `json:"title"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
+
+// PortalRequestDetailStatusCategory The status's category; null where no workflow runs.
+type PortalRequestDetailStatusCategory string
 
 // PortalRequestPage defines model for PortalRequestPage.
 type PortalRequestPage struct {
@@ -22314,6 +23908,196 @@ type PortfolioWriteItemsStatus string
 
 // PortfolioWriteStatus defines model for PortfolioWrite.Status.
 type PortfolioWriteStatus string
+
+// Post defines model for Post.
+type Post struct {
+	Audience  PostAudience `json:"audience"`
+	ConfirmBy *time.Time   `json:"confirm_by"`
+
+	// Confirmations For a writer of the hub, how the read confirmation stands.
+	Confirmations *PostConfirmations `json:"confirmations,omitempty"`
+
+	// Confirmed Whether the caller confirmed reading it.
+	Confirmed bool `json:"confirmed"`
+
+	// Cover The picture over its words, as its page carries it.
+	Cover      *PageCover          `json:"cover"`
+	CreatedAt  time.Time           `json:"created_at"`
+	CreatedBy  *openapi_types.UUID `json:"created_by"`
+	Discussion bool                `json:"discussion"`
+
+	// EveryoneInWorkspace For a writer: the audience is the hub's readers and every member of the workspace reads the hub.
+	EveryoneInWorkspace bool `json:"everyone_in_workspace"`
+
+	// Excerpt Its opening words without their marks, for a list.
+	Excerpt string `json:"excerpt"`
+
+	// Featured Whether it stands on top of the hub's posts now.
+	Featured      bool                 `json:"featured"`
+	FeaturedUntil *time.Time           `json:"featured_until"`
+	GroupIds      []openapi_types.UUID `json:"group_ids"`
+	HubId         openapi_types.UUID   `json:"hub_id"`
+	Icon          *string              `json:"icon"`
+
+	// Labels Its page's labels.
+	Labels []string `json:"labels"`
+
+	// MayWrite Whether the caller writes in the hub.
+	MayWrite bool `json:"may_write"`
+	Notify   bool `json:"notify"`
+
+	// PageId The page that holds its words.
+	PageId      openapi_types.UUID `json:"page_id"`
+	PublishAt   *time.Time         `json:"publish_at"`
+	PublishedAt *time.Time         `json:"published_at"`
+
+	// ReadingMinutes About how long reading it takes.
+	ReadingMinutes int `json:"reading_minutes"`
+
+	// ReplyCount How many replies its discussion holds.
+	ReplyCount int `json:"reply_count"`
+
+	// Seen Whether the caller has seen it.
+	Seen bool `json:"seen"`
+
+	// SeenCount How many have seen it; never who.
+	SeenCount int           `json:"seen_count"`
+	State     PostState     `json:"state"`
+	Template  *PostTemplate `json:"template"`
+	Title     string        `json:"title"`
+}
+
+// PostAudience defines model for Post.Audience.
+type PostAudience string
+
+// PostState defines model for Post.State.
+type PostState string
+
+// PostTemplate defines model for Post.Template.
+type PostTemplate string
+
+// PostConfirmations defines model for PostConfirmations.
+type PostConfirmations struct {
+	Audience  int       `json:"audience"`
+	ConfirmBy time.Time `json:"confirm_by"`
+	Confirmed int       `json:"confirmed"`
+
+	// ConfirmedIds Who confirmed it, for the post's writers.
+	ConfirmedIds *[]openapi_types.UUID `json:"confirmed_ids,omitempty"`
+	MayRemind    bool                  `json:"may_remind"`
+	Overdue      bool                  `json:"overdue"`
+}
+
+// PostCreate defines model for PostCreate.
+type PostCreate struct {
+	Audience *PostCreateAudience `json:"audience,omitempty"`
+
+	// Body Markdown; without it, the template's.
+	Body          *string               `json:"body,omitempty"`
+	ConfirmBy     *time.Time            `json:"confirm_by,omitempty"`
+	Discussion    *bool                 `json:"discussion,omitempty"`
+	FeaturedUntil *time.Time            `json:"featured_until,omitempty"`
+	GroupIds      *[]openapi_types.UUID `json:"group_ids,omitempty"`
+	Notify        *bool                 `json:"notify,omitempty"`
+	PublishAt     *time.Time            `json:"publish_at,omitempty"`
+	Template      *PostCreateTemplate   `json:"template,omitempty"`
+	Title         string                `json:"title"`
+}
+
+// PostCreateAudience defines model for PostCreate.Audience.
+type PostCreateAudience string
+
+// PostCreateTemplate defines model for PostCreate.Template.
+type PostCreateTemplate string
+
+// PostFollowing defines model for PostFollowing.
+type PostFollowing struct {
+	// Following Whether the caller follows the hub's posts.
+	Following bool `json:"following"`
+}
+
+// PostList defines model for PostList.
+type PostList struct {
+	Data []Post `json:"data"`
+
+	// Following Whether the caller follows the hub's posts and is told when one goes out.
+	Following *bool `json:"following,omitempty"`
+
+	// MayWrite Whether the caller may write posts here.
+	MayWrite bool `json:"may_write"`
+
+	// WorkspaceWide For a writer: every member of the workspace reads the hub, so its readers are everyone in the workspace.
+	WorkspaceWide bool `json:"workspace_wide"`
+}
+
+// PostReminded defines model for PostReminded.
+type PostReminded struct {
+	// Reminded How many were reminded.
+	Reminded int `json:"reminded"`
+}
+
+// PostReply defines model for PostReply.
+type PostReply struct {
+	AuthorId *openapi_types.UUID `json:"author_id"`
+
+	// Body Markdown; empty once taken back.
+	Body      string              `json:"body"`
+	CreatedAt time.Time           `json:"created_at"`
+	Deleted   bool                `json:"deleted"`
+	Id        openapi_types.UUID  `json:"id"`
+	PageId    openapi_types.UUID  `json:"page_id"`
+	ParentId  *openapi_types.UUID `json:"parent_id"`
+	Reactions []struct {
+		Count    int                        `json:"count"`
+		Mine     bool                       `json:"mine"`
+		Reaction PostReplyReactionsReaction `json:"reaction"`
+	} `json:"reactions"`
+}
+
+// PostReplyReactionsReaction defines model for PostReply.Reactions.Reaction.
+type PostReplyReactionsReaction string
+
+// PostReplyCreate defines model for PostReplyCreate.
+type PostReplyCreate struct {
+	Body string `json:"body"`
+
+	// ParentId The reply it answers.
+	ParentId *openapi_types.UUID `json:"parent_id,omitempty"`
+}
+
+// PostReplyList defines model for PostReplyList.
+type PostReplyList struct {
+	Data []PostReply `json:"data"`
+}
+
+// PostSettings defines model for PostSettings.
+type PostSettings struct {
+	// Audience The hub's readers, or those of them in the groups named.
+	Audience *PostSettingsAudience `json:"audience,omitempty"`
+
+	// ConfirmBy Asks its audience to confirm they read it by then.
+	ConfirmBy *time.Time `json:"confirm_by,omitempty"`
+
+	// Discussion Whether the discussion under it is open.
+	Discussion *bool `json:"discussion,omitempty"`
+
+	// FeaturedUntil Keeps it on top of the hub's posts until then.
+	FeaturedUntil *time.Time            `json:"featured_until,omitempty"`
+	GroupIds      *[]openapi_types.UUID `json:"group_ids,omitempty"`
+
+	// Notify Whether the hub's followers are told once it is published.
+	Notify *bool `json:"notify,omitempty"`
+
+	// PublishAt When it goes out: now or earlier publishes at once, ahead schedules it, none keeps a draft.
+	PublishAt *time.Time            `json:"publish_at,omitempty"`
+	Template  *PostSettingsTemplate `json:"template,omitempty"`
+}
+
+// PostSettingsAudience The hub's readers, or those of them in the groups named.
+type PostSettingsAudience string
+
+// PostSettingsTemplate defines model for PostSettings.Template.
+type PostSettingsTemplate string
 
 // Preset A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. One of Hubtask's carries its stable `key`, which a client translates; a saved one - the installation's, the workspace's or the caller's own - its `id`, the `name` given it and its `version`.
 type Preset struct {
@@ -22719,6 +24503,32 @@ type QueryField struct {
 // QueryFieldKind What a value for this field looks like. `text` is free text a full-text operator reads, `id_set` a relation an entry has several of.
 type QueryFieldKind string
 
+// QueryKey One key of the Hubtask query's `field: value` spelling.
+type QueryKey struct {
+	Examples []string `json:"examples"`
+
+	// Field The `query_fields` field the key compares; absent for `is`, `type` and `sort`, which choose a state, the kinds or the order. A key of one kind other than entries (`asset.`, `page.`, `goal.`) names itself: it is answered by that kind's search in `POST /search:all` and refused by a query of entries.
+	Field *string `json:"field,omitempty"`
+
+	// Key What is typed before the colon: `who`, `desk.standing`; `cf.` is the prefix of the custom fields, followed by a custom field's key.
+	Key string `json:"key"`
+
+	// Kinds The kinds of object the key asks about.
+	Kinds []string `json:"kinds"`
+
+	// Product The product the key's prefix belongs to (`desk`, `plan`, `time`, `asset`, `page`, `goal`, `cf`); absent for the keys of every kind.
+	Product *string `json:"product,omitempty"`
+
+	// Value What kind of value the key takes, which decides the suggestions a client offers.
+	Value QueryKeyValue `json:"value"`
+
+	// Values The words a key with a closed list takes; empty for the others.
+	Values []string `json:"values"`
+}
+
+// QueryKeyValue What kind of value the key takes, which decides the suggestions a client offers.
+type QueryKeyValue string
+
 // QuotaSource Which level set the ceiling in force: Hubtask's default for the mode, the installation, the workspace's plan, the operator's exception for this one workspace, or - for the workspace's own AI budget only - the workspace itself.
 type QuotaSource string
 
@@ -22822,11 +24632,14 @@ type ReferenceStrength string
 
 // ReferenceTarget What a reference shows the reader. Where the reader may not see the object, or it is not there, only `kind`, `id`, `anchor` and `available: false` are present.
 type ReferenceTarget struct {
-	Anchor    *string `json:"anchor"`
-	Archived  *bool   `json:"archived,omitempty"`
-	Available bool    `json:"available"`
+	Anchor   *string `json:"anchor"`
+	Archived *bool   `json:"archived,omitempty"`
 
-	// CiClass A configuration item's class.
+	// AssigneeId The account an entry is on; null where nobody is.
+	AssigneeId *openapi_types.UUID `json:"assignee_id,omitempty"`
+	Available  bool                `json:"available"`
+
+	// CiClass An object's object type.
 	CiClass      *string             `json:"ci_class,omitempty"`
 	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
 	Completed    *bool               `json:"completed,omitempty"`
@@ -22839,7 +24652,7 @@ type ReferenceTarget struct {
 	ElementCount *int    `json:"element_count,omitempty"`
 	EntryType    *string `json:"entry_type,omitempty"`
 
-	// HubId The hub a page, a whiteboard, a configuration item, or a goal or dashboard of a hub is in.
+	// HubId The hub a page, a whiteboard, an object, or a goal or dashboard of a hub is in.
 	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
 
 	// Icon A page's icon.
@@ -22859,16 +24672,25 @@ type ReferenceTarget struct {
 	Level  *ItemType `json:"level,omitempty"`
 	Number *int64    `json:"number,omitempty"`
 
-	// Stage A configuration item's lifecycle stage.
+	// Stage An object's lifecycle stage.
 	Stage   *string    `json:"stage,omitempty"`
 	StartAt *time.Time `json:"start_at,omitempty"`
 
 	// Status A goal's status.
 	Status *string `json:"status,omitempty"`
 
-	// Title The entry's, page's or goal's title, the container's, view's, dashboard's or configuration item's name.
+	// StatusCategory An entry's status's category; null where no workflow runs, where `completed` says done or to do.
+	StatusCategory *ReferenceTargetStatusCategory `json:"status_category,omitempty"`
+
+	// StatusName An entry's status as the workflow in force names it; null where no workflow runs or the status has no name of its own, which a client words by `status_category`.
+	StatusName *string `json:"status_name,omitempty"`
+
+	// Title The entry's, page's or goal's title, the container's, view's, dashboard's or object's name.
 	Title *string `json:"title,omitempty"`
 }
+
+// ReferenceTargetStatusCategory An entry's status's category; null where no workflow runs, where `completed` says done or to do.
+type ReferenceTargetStatusCategory string
 
 // Release defines model for Release.
 type Release struct {
@@ -22899,7 +24721,16 @@ type ReleaseDetail struct {
 		CollectionId openapi_types.UUID `json:"collection_id"`
 		Done         bool               `json:"done"`
 		ItemId       openapi_types.UUID `json:"item_id"`
-		Title        string             `json:"title"`
+
+		// Key The entry's key (`WEB-128`), where its collection gives one.
+		Key *string `json:"key"`
+
+		// StatusCategory The status's category; null where no workflow runs, where `done` says done or open.
+		StatusCategory *ReleaseDetailEntriesStatusCategory `json:"status_category"`
+
+		// StatusName The entry's status as the workflow in force names it; null where no workflow runs or the status has no name of its own, which a client words by `status_category`.
+		StatusName *string `json:"status_name"`
+		Title      string  `json:"title"`
 
 		// TypeName The name of the entry's type; empty without one.
 		TypeName string `json:"type_name"`
@@ -22919,13 +24750,42 @@ type ReleaseDetail struct {
 	Version    int                `json:"version"`
 }
 
+// ReleaseDetailEntriesStatusCategory The status's category; null where no workflow runs, where `done` says done or open.
+type ReleaseDetailEntriesStatusCategory string
+
 // ReleaseDetailState defines model for ReleaseDetail.State.
 type ReleaseDetailState string
 
 // ReleaseList defines model for ReleaseList.
 type ReleaseList struct {
-	Data []Release `json:"data"`
+	Data []ReleaseListItem `json:"data"`
 }
+
+// ReleaseListItem defines model for ReleaseListItem.
+type ReleaseListItem struct {
+	Description string `json:"description"`
+
+	// DoneCount Its entries the reader may see that are done.
+	DoneCount int                `json:"done_count"`
+	HubId     openapi_types.UUID `json:"hub_id"`
+	Id        openapi_types.UUID `json:"id"`
+	Name      string             `json:"name"`
+
+	// NotesPageId The page its notes were written to.
+	NotesPageId *openapi_types.UUID `json:"notes_page_id"`
+
+	// OpenCount Its entries the reader may see that are still open.
+	OpenCount int `json:"open_count"`
+
+	// ReleaseOn The day it is meant to go out.
+	ReleaseOn  openapi_types.Date   `json:"release_on"`
+	ReleasedAt *time.Time           `json:"released_at"`
+	State      ReleaseListItemState `json:"state"`
+	Version    int                  `json:"version"`
+}
+
+// ReleaseListItemState defines model for ReleaseListItem.State.
+type ReleaseListItemState string
 
 // Reminder defines model for Reminder.
 type Reminder struct {
@@ -23603,9 +25463,11 @@ type SatisfactionLinkAnswer struct {
 
 // SavedView A saved query with the layout it is drawn in. The server stores the query, validates it against the same catalogue as POST /items:query, and interprets neither the layout nor the visible fields - both are the client's vocabulary, echoed back exactly as stored.
 type SavedView struct {
-	CreatedAt *time.Time             `json:"created_at,omitempty"`
-	Grouping  map[string]interface{} `json:"grouping"`
-	Id        openapi_types.UUID     `json:"id"`
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+
+	// Grouping The client's grouping hint, stored whole. Three keys are checked against the field catalogue: `field`, what the list groups by and the board's columns follow, a field one can group by; `lanes_by`, the board's lanes, a second such field; `date_field`, the timestamp a CALENDAR layout places the entries on (`due_at`, `start_at`, …). Any other key is stored and echoed.
+	Grouping map[string]interface{} `json:"grouping"`
+	Id       openapi_types.UUID     `json:"id"`
 
 	// Key The view's stable key where it lives, by which the configuration document names it: unique in its scope, drawn from the name when the writer named none, kept by a rename.
 	Key string `json:"key"`
@@ -23646,6 +25508,7 @@ type SavedViewSharing string
 
 // SavedViewCreate defines model for SavedViewCreate.
 type SavedViewCreate struct {
+	// Grouping The client's grouping hint, stored whole. Three keys are checked against the field catalogue: `field`, what the list groups by and the board's columns follow, a field one can group by; `lanes_by`, the board's lanes, a second such field; `date_field`, the timestamp a CALENDAR layout places the entries on (`due_at`, `start_at`, …). Any other key is stored and echoed.
 	Grouping *map[string]interface{} `json:"grouping,omitempty"`
 
 	// Key The view's stable key in its scope. Omitted draws one from the name; one the scope already holds is refused.
@@ -23653,7 +25516,7 @@ type SavedViewCreate struct {
 	Layout string  `json:"layout"`
 	Name   string  `json:"name"`
 
-	// Query The query, anchored, in the use case's input shape - `scope_container_id`, not a nested `scope` object. See `SavedView.query`; both shapes are refused here rather than at the first export.
+	// Query The query, anchored, in the use case's input shape - `scope_container_id`, not a nested `scope` object. See `SavedView.query`; both shapes are refused here rather than at the first export. A search saved as a view holds its line as `q`, the Hubtask query `POST /search:all` takes, read here by the same parser and refused where it does not read.
 	Query map[string]interface{} `json:"query"`
 
 	// Queue Marks a HUB-scoped view as one of the hub's queues; any other scope is refused as `views.queue_hub_only`. Omitted is false.
@@ -23687,6 +25550,7 @@ type SavedViewShareSharing string
 
 // SavedViewUpdate JSON Merge Patch; a field that is not sent is left alone. The scope and the sharing are not here - where a view lives is decided at creation, and sharing is :share.
 type SavedViewUpdate struct {
+	// Grouping The client's grouping hint, stored whole. Three keys are checked against the field catalogue: `field`, what the list groups by and the board's columns follow, a field one can group by; `lanes_by`, the board's lanes, a second such field; `date_field`, the timestamp a CALENDAR layout places the entries on (`due_at`, `start_at`, …). Any other key is stored and echoed.
 	Grouping *map[string]interface{} `json:"grouping,omitempty"`
 	Layout   *string                 `json:"layout,omitempty"`
 	Name     *string                 `json:"name,omitempty"`
@@ -23771,6 +25635,85 @@ type ScimUser struct {
 	AdditionalProperties map[string]interface{} `json:"-"`
 }
 
+// SearchAllAnswer defines model for SearchAllAnswer.
+type SearchAllAnswer struct {
+	Data   []SearchAllHit `json:"data"`
+	Facets []SearchFacet  `json:"facets"`
+}
+
+// SearchAllHit One object as a hit row draws it.
+type SearchAllHit struct {
+	// AuthorId The account that made it; for entries, tickets, pages and posts, null for the other kinds.
+	AuthorId *openapi_types.UUID `json:"author_id"`
+
+	// CollectionId An entry's or a sprint's collection, or that of the entry a comment or file is on.
+	CollectionId *openapi_types.UUID `json:"collection_id"`
+
+	// CreatedAt When it was made, for a post when it was published; for entries, tickets, pages and posts, null for the other kinds.
+	CreatedAt *time.Time `json:"created_at"`
+
+	// HubId The hub it stands in; null for the workspace's own, for portfolios and for people.
+	HubId *openapi_types.UUID `json:"hub_id"`
+	Id    openapi_types.UUID  `json:"id"`
+
+	// Key An entry's or a ticket's key where its collection has a handle or a key prefix.
+	Key  *string    `json:"key"`
+	Kind SearchKind `json:"kind"`
+
+	// On What a comment or a file belongs to; null for every other kind.
+	On *struct {
+		Id   openapi_types.UUID `json:"id"`
+		Kind SearchAllHitOnKind `json:"kind"`
+	} `json:"on"`
+
+	// Snippet The passage that matched, the words found between « and »; for pages, posts, comments, and entries and tickets whose notes hold a word asked for.
+	Snippet *string `json:"snippet"`
+
+	// State An entry's or a ticket's OPEN or DONE, a page's VERIFIED or REVIEW_DUE (null when never verified), a goal's or a portfolio's status, a release's or a sprint's state, an inventory object's stage, a dashboard's sharing, a person's account status.
+	State *string `json:"state"`
+
+	// Status An entry's or a ticket's workflow status key, which the client names as its board and list do; null where the entry stands in no workflow and for every other kind.
+	Status *string `json:"status"`
+
+	// Tile What its tile shows: an entry's or a ticket's level (TASK, WORK_PACKAGE, ACTIVITY), a page's or a post's icon, an inventory object's object type key, a file's media type, a person's account kind.
+	Tile *string `json:"tile"`
+
+	// Title The title, a name, a file name, or for a comment the title of what it is on.
+	Title     string     `json:"title"`
+	UpdatedAt *time.Time `json:"updated_at"`
+}
+
+// SearchAllHitOnKind defines model for SearchAllHit.On.Kind.
+type SearchAllHitOnKind string
+
+// SearchAllRequest defines model for SearchAllRequest.
+type SearchAllRequest struct {
+	// HubId Only this hub's objects; people are not narrowed.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+
+	// Kinds The kinds to search, in the order the answer groups them; omitted is every kind. `TICKET` is the entries of the collections that act as a service desk; where it is asked, `ENTRY` holds the other entries, and where it is not, every entry.
+	Kinds *[]SearchKind `json:"kinds,omitempty"`
+
+	// Q The search as one Hubtask query: every free word must occur, every key narrows. A key of one kind (`asset.class`, `asset.stage`, `asset.owner`, `asset.location`, `asset.tag`, `page.verified`, `page.owner`, `goal.state`) keeps the search to that kind and a key of entries to entries, the other kinds counting none; `type:` chooses kinds; keys alone need no words. Keys of two kinds, or keys of one kind bracketed together, are refused (`query.kinds_mixed`, `query.kind_filter_grouped`). A `q` that is one ticket key, `SA-12`, finds that entry first wherever the caller may read it.
+	Q string `json:"q"`
+
+	// Size At most this many hits per kind.
+	Size *int `json:"size,omitempty"`
+}
+
+// SearchFacet defines model for SearchFacet.
+type SearchFacet struct {
+	// Count The hits of this kind the caller may read.
+	Count int        `json:"count"`
+	Kind  SearchKind `json:"kind"`
+
+	// More True when there may be more than count.
+	More bool `json:"more"`
+}
+
+// SearchKind defines model for SearchKind.
+type SearchKind string
+
 // SearchMode How much of the search to use.
 // `AUTO` is the default and searches by words and, where the installation has it, by meaning. `LEXICAL` searches by words only: it asks no provider, spends no budget and waits on nothing, which is what a caller in a loop - an automation, an import, a client's own type-ahead - wants. There is deliberately no `SEMANTIC`: an installation may not have it, and a mode the server cannot promise is a mode that would have to fail.
 type SearchMode string
@@ -23809,7 +25752,7 @@ type ServiceMap struct {
 		Stage string `json:"stage"`
 	} `json:"nodes"`
 
-	// Truncated The map stopped at 2000 CIs.
+	// Truncated The map stopped at 2000 objects.
 	Truncated bool `json:"truncated"`
 }
 
@@ -24505,6 +26448,9 @@ type StarterSet struct {
 // StarterSetHubPreset The preset the hub starts from; required without `template`. With one and none given, the hub starts from the workspace's default and takes the template's hub part.
 type StarterSetHubPreset string
 
+// StateMode Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+type StateMode string
+
 // StepUpGrant defines model for StepUpGrant.
 type StepUpGrant struct {
 	ExpiresAt time.Time `json:"expires_at"`
@@ -24548,9 +26494,12 @@ type StepUpRequest struct {
 // StepVerdict defines model for StepVerdict.
 type StepVerdict struct {
 	// Allowed Whether the person may take it.
-	Allowed bool     `json:"allowed"`
-	Asks    []string `json:"asks"`
-	Checks  []struct {
+	Allowed bool `json:"allowed"`
+
+	// ApprovalLevels How many levels of approval taking it opens; 0 moves the entry at once.
+	ApprovalLevels *int     `json:"approval_levels,omitempty"`
+	Asks           []string `json:"asks"`
+	Checks         []struct {
 		Holds   bool    `json:"holds"`
 		Key     string  `json:"key"`
 		Message *string `json:"message,omitempty"`
@@ -25579,6 +27528,9 @@ type TimesheetWeek struct {
 // TimesheetWeekState defines model for TimesheetWeek.State.
 type TimesheetWeekState string
 
+// TodaySection A card or a tile of *Today* a person may hide and order: the cards overdue, due today, needs your reply, time today and waits for your yes; the tiles your collections, new for you (the posts not read yet), inbox and recently opened.
+type TodaySection string
+
 // TotpConfirmation defines model for TotpConfirmation.
 type TotpConfirmation struct {
 	Code string `json:"code"`
@@ -25680,6 +27632,11 @@ type TriggerEvent map[string]interface{}
 type TriggerEventPage struct {
 	Data []TriggerEvent `json:"data"`
 	Page PageInfo       `json:"page"`
+}
+
+// UnreadPostList defines model for UnreadPostList.
+type UnreadPostList struct {
+	Data []Post `json:"data"`
 }
 
 // UsageDay defines model for UsageDay.
@@ -26329,6 +28286,21 @@ type WhiteboardVersionRead struct {
 	Title        string              `json:"title"`
 }
 
+// WopiFileInfo defines model for WopiFileInfo.
+type WopiFileInfo struct {
+	BaseFileName            string `json:"BaseFileName"`
+	OwnerId                 string `json:"OwnerId"`
+	ReadOnly                *bool  `json:"ReadOnly,omitempty"`
+	Size                    int64  `json:"Size"`
+	SupportsGetLock         *bool  `json:"SupportsGetLock,omitempty"`
+	SupportsLocks           *bool  `json:"SupportsLocks,omitempty"`
+	SupportsUpdate          *bool  `json:"SupportsUpdate,omitempty"`
+	UserCanNotWriteRelative *bool  `json:"UserCanNotWriteRelative,omitempty"`
+	UserCanWrite            *bool  `json:"UserCanWrite,omitempty"`
+	UserId                  string `json:"UserId"`
+	Version                 string `json:"Version"`
+}
+
 // WorkItem defines model for WorkItem.
 type WorkItem struct {
 	// Amount How much of it - "2", "1 kg" - beside the title rather than in it. Up to 40 characters on one line, trimmed; empty or null is none. Only where the collection's structure in force carries AMOUNT for the entry's type (`structure.settings.fields`); elsewhere `capability_not_supported`. Nothing sums it or reads a unit out of it.
@@ -26563,10 +28535,31 @@ type WorkflowList struct {
 	} `json:"scheme"`
 }
 
+// WorkflowPicture A workflow drawn read-only - its statuses and the steps between them, without who may take them.
+type WorkflowPicture struct {
+	Initial  string           `json:"initial"`
+	Statuses []WorkflowStatus `json:"statuses"`
+	Steps    []struct {
+		// Approval Whether taking it waits for an approval.
+		Approval bool `json:"approval"`
+
+		// From Empty is any status but its target.
+		From []string `json:"from"`
+		Key  string   `json:"key"`
+
+		// Limited Whether only some people may take it.
+		Limited bool    `json:"limited"`
+		Name    *string `json:"name"`
+		To      string  `json:"to"`
+	} `json:"steps"`
+}
+
 // WorkflowPreview defines model for WorkflowPreview.
 type WorkflowPreview struct {
-	ColumnsAfter  []string `json:"columns_after"`
-	ColumnsBefore []string `json:"columns_before"`
+	// Boards Per collection reached that has board columns: its level before and after, its columns with the statuses each would show, the statuses no column would show with a suggested column, and how many entries change column.
+	Boards        *[]BoardPreview `json:"boards,omitempty"`
+	ColumnsAfter  []string        `json:"columns_after"`
+	ColumnsBefore []string        `json:"columns_before"`
 
 	// Entries How many entries move.
 	Entries int `json:"entries"`
@@ -26599,6 +28592,12 @@ type WorkflowPublishPreview struct {
 
 // WorkflowSchemeChange defines model for WorkflowSchemeChange.
 type WorkflowSchemeChange struct {
+	// Columns The statuses each board column shows under the workflow. A board shows the statuses of every workflow its entry types run, so a change for one type reaches the boards whose types it touches and takes their columns too. A board one of whose columns is named here takes exactly this mapping; every other board the proposal of the preview (`boards`). Ignored where the workflow leaves.
+	Columns *[]struct {
+		BucketId openapi_types.UUID `json:"bucket_id"`
+		Statuses []string           `json:"statuses"`
+	} `json:"columns,omitempty"`
+
 	// Confirm True once the person has seen the preview.
 	Confirm     *bool              `json:"confirm,omitempty"`
 	ContainerId openapi_types.UUID `json:"container_id"`
@@ -27225,6 +29224,9 @@ type WeekOfTimesheet = openapi_types.Date
 // WhiteboardId defines model for WhiteboardId.
 type WhiteboardId = openapi_types.UUID
 
+// WopiAccessToken defines model for WopiAccessToken.
+type WopiAccessToken = string
+
 // ScimError A SCIM error (RFC 7644 section 3.12): the status, a `scimType` where the RFC names one, and as `detail` the message code - never a sentence.
 type ScimError = ScimErrorBody
 
@@ -27567,7 +29569,7 @@ type RunAgentEvaluationJSONBody struct {
 	// CollectionId The collection whose labels a ticket triage chooses from; without it no labels are answered.
 	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
 
-	// HubId The hub whose CIs a CI suggestion or a triage matches; required for those two.
+	// HubId The hub whose objects an object suggestion or a triage matches; required for those two.
 	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
 }
 
@@ -27874,10 +29876,22 @@ type MoveCiAssetParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ListCiAttachmentsParams defines parameters for ListCiAttachments.
+type ListCiAttachmentsParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+}
+
 // SetCiComplianceParams defines parameters for SetCiCompliance.
 type SetCiComplianceParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ListCiHistoryParams defines parameters for ListCiHistory.
+type ListCiHistoryParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
 }
 
 // ReadCiImpactParams defines parameters for ReadCiImpact.
@@ -28084,8 +30098,28 @@ type RenameContainerParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SwitchBoardJSONBody defines parameters for SwitchBoard.
+type SwitchBoardJSONBody struct {
+	DryRun *bool                 `json:"dry_run,omitempty"`
+	To     SwitchBoardJSONBodyTo `json:"to"`
+}
+
+// SwitchBoardJSONBodyTo defines parameters for SwitchBoard.
+type SwitchBoardJSONBodyTo string
+
+// MakeBoardWorkflowJSONBody defines parameters for MakeBoardWorkflow.
+type MakeBoardWorkflowJSONBody struct {
+	DryRun *bool `json:"dry_run,omitempty"`
+
+	// Name The workflow's name; the collection's by default.
+	Name *string `json:"name,omitempty"`
+}
+
 // DeleteBucketParams defines parameters for DeleteBucket.
 type DeleteBucketParams struct {
+	// NewDoneBucketId Where the done column is deleted: the column that takes the done mark and its entries. Its open entries are completed with the mark. Read only when the done column goes.
+	NewDoneBucketId *openapi_types.UUID `form:"new_done_bucket_id,omitempty" json:"new_done_bucket_id,omitempty"`
+
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
@@ -28304,6 +30338,11 @@ type UpdateDashboardParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ReadMyDeadlinesKeptParams defines parameters for ReadMyDeadlinesKept.
+type ReadMyDeadlinesKeptParams struct {
+	Days *int `form:"days,omitempty" json:"days,omitempty"`
+}
+
 // RemoveLdapDirectoryParams defines parameters for RemoveLdapDirectory.
 type RemoveLdapDirectoryParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -28363,6 +30402,17 @@ type CloseGoalPeriodJSONBody struct {
 type CloseGoalPeriodParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// AddGoalSetJSONBody defines parameters for AddGoalSet.
+type AddGoalSetJSONBody struct {
+	EndOn openapi_types.Date `json:"end_on"`
+
+	// Goals The workspace's goals of the period, each written as creating a goal writes it.
+	Goals   *[]GoalSetGoal     `json:"goals,omitempty"`
+	Key     string             `json:"key"`
+	Name    string             `json:"name"`
+	StartOn openapi_types.Date `json:"start_on"`
 }
 
 // ListGoalsParams defines parameters for ListGoals.
@@ -28476,6 +30526,12 @@ type ListCiDuplicatesParams struct {
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// DeleteCiGroupParams defines parameters for DeleteCiGroup.
+type DeleteCiGroupParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // DefineCiGroupParams defines parameters for DefineCiGroup.
 type DefineCiGroupParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -28516,6 +30572,14 @@ type ListPagesParams struct {
 	IncludeArchived *bool `form:"include_archived,omitempty" json:"include_archived,omitempty"`
 	Templates       *bool `form:"templates,omitempty" json:"templates,omitempty"`
 }
+
+// ListHubPostsParams defines parameters for ListHubPosts.
+type ListHubPostsParams struct {
+	Filter *ListHubPostsParamsFilter `form:"filter,omitempty" json:"filter,omitempty"`
+}
+
+// ListHubPostsParamsFilter defines parameters for ListHubPosts.
+type ListHubPostsParamsFilter string
 
 // ListReleasesParams defines parameters for ListReleases.
 type ListReleasesParams struct {
@@ -28921,6 +30985,18 @@ type SuggestDecompositionParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// DropItemOnColumnJSONBody defines parameters for DropItemOnColumn.
+type DropItemOnColumnJSONBody struct {
+	BucketId *openapi_types.UUID `json:"bucket_id,omitempty"`
+	Step     *string             `json:"step,omitempty"`
+}
+
+// DropItemOnColumnParams defines parameters for DropItemOnColumn.
+type DropItemOnColumnParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // DuplicateWorkItemJSONBody defines parameters for DuplicateWorkItem.
 type DuplicateWorkItemJSONBody struct {
 	// IncludeSubtree Whether everything below the entry is copied with it. Omitted copies the entry alone, and its children stay where they are.
@@ -29229,6 +31305,9 @@ type UploadMediaContentParams struct {
 	Token string `form:"token" json:"token"`
 }
 
+// ConvertMediaToPdfJSONBody defines parameters for ConvertMediaToPdf.
+type ConvertMediaToPdfJSONBody = map[string]interface{}
+
 // ListMembershipsParams defines parameters for ListMemberships.
 type ListMembershipsParams struct {
 	ScopeType MembershipScope `form:"scope_type" json:"scope_type"`
@@ -29262,8 +31341,9 @@ type RegisterOauthClientParams struct {
 
 // GetDataFeedEntriesParams defines parameters for GetDataFeedEntries.
 type GetDataFeedEntriesParams struct {
-	Top  *int `form:"$top,omitempty" json:"$top,omitempty"`
-	Skip *int `form:"$skip,omitempty" json:"$skip,omitempty"`
+	Filter *string `form:"$filter,omitempty" json:"$filter,omitempty"`
+	Top    *int    `form:"$top,omitempty" json:"$top,omitempty"`
+	Skip   *int    `form:"$skip,omitempty" json:"$skip,omitempty"`
 }
 
 // ChangePageCommentParams defines parameters for ChangePageComment.
@@ -29281,6 +31361,14 @@ type UpdatePageParams struct {
 // PublishPageToPortalJSONBody defines parameters for PublishPageToPortal.
 type PublishPageToPortalJSONBody struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// WithSubpages Share the page with everything under it, as a knowledge space.
+	WithSubpages *bool `json:"with_subpages,omitempty"`
+}
+
+// SearchCoverImagesParams defines parameters for SearchCoverImages.
+type SearchCoverImagesParams struct {
+	Query *string `form:"query,omitempty" json:"query,omitempty"`
 }
 
 // ListPageVersionsParams defines parameters for ListPageVersions.
@@ -29320,6 +31408,14 @@ type PublishPageParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
+
+// SetCoverImagesPolicyJSONBody defines parameters for SetCoverImagesPolicy.
+type SetCoverImagesPolicyJSONBody struct {
+	Library SetCoverImagesPolicyJSONBodyLibrary `json:"library"`
+}
+
+// SetCoverImagesPolicyJSONBodyLibrary defines parameters for SetCoverImagesPolicy.
+type SetCoverImagesPolicyJSONBodyLibrary string
 
 // SetPublicLinksPolicyJSONBody defines parameters for SetPublicLinksPolicy.
 type SetPublicLinksPolicyJSONBody struct {
@@ -29427,6 +31523,11 @@ type ReadWorkloadParams struct {
 type SetWorkspaceToleranceJSONBody struct {
 	Lock              *bool `json:"lock,omitempty"`
 	TimeToleranceDays *int  `json:"time_tolerance_days,omitempty"`
+}
+
+// ListPortalKnowledgeParams defines parameters for ListPortalKnowledge.
+type ListPortalKnowledgeParams struct {
+	CollectionId CollectionId `form:"collection_id" json:"collection_id"`
 }
 
 // DeletePortfolioParams defines parameters for DeletePortfolio.
@@ -30184,6 +32285,30 @@ type MoveWhiteboardParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// CheckWopiFileInfoParams defines parameters for CheckWopiFileInfo.
+type CheckWopiFileInfoParams struct {
+	// AccessToken The WOPI access token: one person, one file, read or write, for a short while. The protocol carries it in the query; it is never logged.
+	AccessToken WopiAccessToken `form:"access_token" json:"access_token"`
+}
+
+// LockWopiFileParams defines parameters for LockWopiFile.
+type LockWopiFileParams struct {
+	// AccessToken The WOPI access token: one person, one file, read or write, for a short while. The protocol carries it in the query; it is never logged.
+	AccessToken WopiAccessToken `form:"access_token" json:"access_token"`
+}
+
+// GetWopiFileParams defines parameters for GetWopiFile.
+type GetWopiFileParams struct {
+	// AccessToken The WOPI access token: one person, one file, read or write, for a short while. The protocol carries it in the query; it is never logged.
+	AccessToken WopiAccessToken `form:"access_token" json:"access_token"`
+}
+
+// PutWopiFileParams defines parameters for PutWopiFile.
+type PutWopiFileParams struct {
+	// AccessToken The WOPI access token: one person, one file, read or write, for a short while. The protocol carries it in the query; it is never logged.
+	AccessToken WopiAccessToken `form:"access_token" json:"access_token"`
+}
+
 // SaveWorkflowDraftParams defines parameters for SaveWorkflowDraft.
 type SaveWorkflowDraftParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -30562,6 +32687,9 @@ type MoveCiAssetJSONRequestBody = CiAssetMove
 // SetCiComplianceJSONRequestBody defines body for SetCiCompliance for application/json ContentType.
 type SetCiComplianceJSONRequestBody = CiCompliance
 
+// ConfirmCiJSONRequestBody defines body for ConfirmCi for application/json ContentType.
+type ConfirmCiJSONRequestBody = CiConfirm
+
 // SetCiConnectorCredentialJSONRequestBody defines body for SetCiConnectorCredential for application/json ContentType.
 type SetCiConnectorCredentialJSONRequestBody = CiConnectorCredential
 
@@ -30633,6 +32761,12 @@ type CreateContainerJSONRequestBody = ContainerCreate
 
 // RenameContainerApplicationMergePatchPlusJSONRequestBody defines body for RenameContainer for application/merge-patch+json ContentType.
 type RenameContainerApplicationMergePatchPlusJSONRequestBody = ContainerUpdate
+
+// SwitchBoardJSONRequestBody defines body for SwitchBoard for application/json ContentType.
+type SwitchBoardJSONRequestBody SwitchBoardJSONBody
+
+// MakeBoardWorkflowJSONRequestBody defines body for MakeBoardWorkflow for application/json ContentType.
+type MakeBoardWorkflowJSONRequestBody MakeBoardWorkflowJSONBody
 
 // CreateBucketJSONRequestBody defines body for CreateBucket for application/json ContentType.
 type CreateBucketJSONRequestBody = BucketCreate
@@ -30706,6 +32840,9 @@ type UpdateDashboardJSONRequestBody = DashboardWrite
 // SetDashboardDigestJSONRequestBody defines body for SetDashboardDigest for application/json ContentType.
 type SetDashboardDigestJSONRequestBody = DashboardDigestWrite
 
+// DraftDashboardFiguresJSONRequestBody defines body for DraftDashboardFigures for application/json ContentType.
+type DraftDashboardFiguresJSONRequestBody = DashboardDraft
+
 // ConfigureLdapDirectoryJSONRequestBody defines body for ConfigureLdapDirectory for application/json ContentType.
 type ConfigureLdapDirectoryJSONRequestBody = LdapDirectoryConfiguration
 
@@ -30738,6 +32875,9 @@ type ChangeGoalPeriodJSONRequestBody = GoalPeriodWrite
 
 // CloseGoalPeriodJSONRequestBody defines body for CloseGoalPeriod for application/json ContentType.
 type CloseGoalPeriodJSONRequestBody CloseGoalPeriodJSONBody
+
+// AddGoalSetJSONRequestBody defines body for AddGoalSet for application/json ContentType.
+type AddGoalSetJSONRequestBody AddGoalSetJSONBody
 
 // CreateGoalJSONRequestBody defines body for CreateGoal for application/json ContentType.
 type CreateGoalJSONRequestBody = GoalCreate
@@ -30789,6 +32929,12 @@ type SetSpaceDraftsJSONRequestBody SetSpaceDraftsJSONBody
 
 // CreatePageJSONRequestBody defines body for CreatePage for application/json ContentType.
 type CreatePageJSONRequestBody = PageCreate
+
+// CreatePostJSONRequestBody defines body for CreatePost for application/json ContentType.
+type CreatePostJSONRequestBody = PostCreate
+
+// FollowHubPostsJSONRequestBody defines body for FollowHubPosts for application/json ContentType.
+type FollowHubPostsJSONRequestBody = PostFollowing
 
 // CreateReleaseJSONRequestBody defines body for CreateRelease for application/json ContentType.
 type CreateReleaseJSONRequestBody CreateReleaseJSONBody
@@ -30904,6 +33050,9 @@ type AiClassifyJSONRequestBody = AiAsk
 // CompleteWorkItemJSONRequestBody defines body for CompleteWorkItem for application/json ContentType.
 type CompleteWorkItemJSONRequestBody CompleteWorkItemJSONBody
 
+// DropItemOnColumnJSONRequestBody defines body for DropItemOnColumn for application/json ContentType.
+type DropItemOnColumnJSONRequestBody DropItemOnColumnJSONBody
+
 // DuplicateWorkItemJSONRequestBody defines body for DuplicateWorkItem for application/json ContentType.
 type DuplicateWorkItemJSONRequestBody DuplicateWorkItemJSONBody
 
@@ -31006,6 +33155,15 @@ type SaveMailSettingsJSONRequestBody = MailSettings
 // RequestMediaUploadJSONRequestBody defines body for RequestMediaUpload for application/json ContentType.
 type RequestMediaUploadJSONRequestBody = MediaUploadRequest
 
+// ConvertMediaToPdfJSONRequestBody defines body for ConvertMediaToPdf for application/json ContentType.
+type ConvertMediaToPdfJSONRequestBody = ConvertMediaToPdfJSONBody
+
+// SetDocumentServerJSONRequestBody defines body for SetDocumentServer for application/json ContentType.
+type SetDocumentServerJSONRequestBody = DocumentServer
+
+// CheckDocumentServerJSONRequestBody defines body for CheckDocumentServer for application/json ContentType.
+type CheckDocumentServerJSONRequestBody = DocumentServer
+
 // GrantMembershipJSONRequestBody defines body for GrantMembership for application/json ContentType.
 type GrantMembershipJSONRequestBody = MembershipGrant
 
@@ -31063,6 +33221,9 @@ type RestrictPageJSONRequestBody = PageRestrict
 // VerifyPageJSONRequestBody defines body for VerifyPage for application/json ContentType.
 type VerifyPageJSONRequestBody = PageVerify
 
+// SetCoverImagesPolicyJSONRequestBody defines body for SetCoverImagesPolicy for application/json ContentType.
+type SetCoverImagesPolicyJSONRequestBody SetCoverImagesPolicyJSONBody
+
 // SetPublicLinksPolicyJSONRequestBody defines body for SetPublicLinksPolicy for application/json ContentType.
 type SetPublicLinksPolicyJSONRequestBody SetPublicLinksPolicyJSONBody
 
@@ -31105,6 +33266,12 @@ type ReportPortfolioStatusJSONRequestBody ReportPortfolioStatusJSONBody
 // SetPublicRoadmapsPolicyJSONRequestBody defines body for SetPublicRoadmapsPolicy for application/json ContentType.
 type SetPublicRoadmapsPolicyJSONRequestBody SetPublicRoadmapsPolicyJSONBody
 
+// SetPostSettingsJSONRequestBody defines body for SetPostSettings for application/json ContentType.
+type SetPostSettingsJSONRequestBody = PostSettings
+
+// AddPostReplyJSONRequestBody defines body for AddPostReply for application/json ContentType.
+type AddPostReplyJSONRequestBody = PostReplyCreate
+
 // SavePresetJSONRequestBody defines body for SavePreset for application/json ContentType.
 type SavePresetJSONRequestBody = PresetCreate
 
@@ -31137,6 +33304,9 @@ type SubmitPublicFormJSONRequestBody = PublicFormSubmission
 
 // AnswerSatisfactionLinkJSONRequestBody defines body for AnswerSatisfactionLink for application/json ContentType.
 type AnswerSatisfactionLinkJSONRequestBody = SatisfactionLinkAnswer
+
+// AskQueryJSONRequestBody defines body for AskQuery for application/json ContentType.
+type AskQueryJSONRequestBody = AskQueryRequest
 
 // ResolveReferencesJSONRequestBody defines body for ResolveReferences for application/json ContentType.
 type ResolveReferencesJSONRequestBody ResolveReferencesJSONBody
@@ -31224,6 +33394,9 @@ type ReplaceScimUserApplicationScimPlusJSONRequestBody = ScimUser
 
 // SearchItemsJSONRequestBody defines body for SearchItems for application/json ContentType.
 type SearchItemsJSONRequestBody = ItemSearchQuery
+
+// SearchAllJSONRequestBody defines body for SearchAll for application/json ContentType.
+type SearchAllJSONRequestBody = SearchAllRequest
 
 // DefineSlaPolicyJSONRequestBody defines body for DefineSlaPolicy for application/json ContentType.
 type DefineSlaPolicyJSONRequestBody = SlaPolicyDefine
@@ -32517,25 +34690,28 @@ type ServerInterface interface {
 	// DeliverChat A chat platform posts what was said to its bot
 	// (POST /chat-intake/{tenantId}/{botId})
 	DeliverChat(w http.ResponseWriter, r *http.Request, tenantId openapi_types.UUID, botId openapi_types.UUID)
-	// ReadCiCampaign A certification campaign with every CI asked
+	// ReadCiCampaign A certification campaign with every object asked
 	// (GET /ci-campaigns/{campaignId})
 	ReadCiCampaign(w http.ResponseWriter, r *http.Request, campaignId openapi_types.UUID)
-	// AttestCi Answer a campaign's question about a configuration item
+	// AttestCi Answer a campaign's question about an object
 	// (PUT /ci-campaigns/{campaignId}/cis/{ciId})
 	AttestCi(w http.ResponseWriter, r *http.Request, campaignId openapi_types.UUID, ciId openapi_types.UUID)
 	// CloseCiCampaign Stop a campaign taking answers
 	// (POST /ci-campaigns/{campaignId}:close)
 	CloseCiCampaign(w http.ResponseWriter, r *http.Request, campaignId openapi_types.UUID, params CloseCiCampaignParams)
+	// RemindCiCampaign Remind the owners who have not answered yet
+	// (POST /ci-campaigns/{campaignId}:remind)
+	RemindCiCampaign(w http.ResponseWriter, r *http.Request, campaignId openapi_types.UUID)
 	// ResolveCiDuplicate Merge a duplicate or call it distinct
 	// (POST /ci-duplicates/{duplicateId}:resolve)
 	ResolveCiDuplicate(w http.ResponseWriter, r *http.Request, duplicateId openapi_types.UUID)
-	// ListCiGroupMembers The configuration items a group holds now
+	// ListCiGroupMembers The objects a group holds now
 	// (GET /ci-groups/{groupId}/members)
 	ListCiGroupMembers(w http.ResponseWriter, r *http.Request, groupId openapi_types.UUID)
 	// DismissCiHold Close a held item
 	// (POST /ci-holds/{holdId}:dismiss)
 	DismissCiHold(w http.ResponseWriter, r *http.Request, holdId openapi_types.UUID)
-	// RelateCis Join two configuration items
+	// RelateCis Join two objects
 	// (POST /ci-relations)
 	RelateCis(w http.ResponseWriter, r *http.Request)
 	// UnrelateCis Remove a relation
@@ -32544,30 +34720,48 @@ type ServerInterface interface {
 	// ReadCiRun One reconciliation run with its decisions
 	// (GET /ci-runs/{runId})
 	ReadCiRun(w http.ResponseWriter, r *http.Request, runId openapi_types.UUID)
-	// ReadCi Read a configuration item
+	// ReadCi Read an object
 	// (GET /cis/{ciId})
 	ReadCi(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID)
-	// UpdateCi Change a configuration item by hand
+	// UpdateCi Change an object by hand
 	// (PATCH /cis/{ciId})
 	UpdateCi(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params UpdateCiParams)
-	// ReadCiAsset A configuration item's asset record
+	// ReadCiAsset An object's register record
 	// (GET /cis/{ciId}/asset)
 	ReadCiAsset(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID)
-	// RegisterCiAsset Write a configuration item's asset record
+	// RegisterCiAsset Write an object's register record
 	// (PUT /cis/{ciId}/asset)
 	RegisterCiAsset(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params RegisterCiAssetParams)
-	// MoveCiAsset Move an asset through its life
+	// MoveCiAsset Move a register record through its life
 	// (POST /cis/{ciId}/asset:move)
 	MoveCiAsset(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params MoveCiAssetParams)
-	// ListCiBacklinks What points at a configuration item
+	// ListCiAttachments An object's files
+	// (GET /cis/{ciId}/attachments)
+	ListCiAttachments(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params ListCiAttachmentsParams)
+	// DetachCiMedia Take a file off an object
+	// (DELETE /cis/{ciId}/attachments/{mediaId})
+	DetachCiMedia(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, mediaId MediaId)
+	// AttachCiMedia Put a file on an object
+	// (PUT /cis/{ciId}/attachments/{mediaId})
+	AttachCiMedia(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, mediaId MediaId)
+	// ListCiBacklinks What points at an object
 	// (GET /cis/{ciId}/backlinks)
 	ListCiBacklinks(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID)
-	// SetCiCompliance Set a configuration item's lifecycle and compliance fields
+	// SetCiCompliance Set an object's lifecycle and compliance fields
 	// (PUT /cis/{ciId}/compliance)
 	SetCiCompliance(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params SetCiComplianceParams)
-	// ReadCiImpact What a configuration item's failure reaches
+	// ListCiHistory An object's history
+	// (GET /cis/{ciId}/history)
+	ListCiHistory(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params ListCiHistoryParams)
+	// ReadCiImpact What an object's failure reaches
 	// (GET /cis/{ciId}/impact)
 	ReadCiImpact(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params ReadCiImpactParams)
+	// ListCiWork The entries an object is part of
+	// (GET /cis/{ciId}/work)
+	ListCiWork(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID)
+	// ConfirmCi Confirm an object is as recorded
+	// (POST /cis/{ciId}:confirm)
+	ConfirmCi(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID)
 	// SetCiConnectorCredential Set a connector's credential
 	// (PUT /cmdb-connectors/{connectorId}/credential)
 	SetCiConnectorCredential(w http.ResponseWriter, r *http.Request, connectorId openapi_types.UUID)
@@ -32577,22 +34771,22 @@ type ServerInterface interface {
 	// DeliverCiAlerts Post alerts to an intake
 	// (POST /cmdb/alert-intake/{tenantId}/{connectorId})
 	DeliverCiAlerts(w http.ResponseWriter, r *http.Request, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params DeliverCiAlertsParams)
-	// ListCiClasses The configuration item classes
+	// ListCiClasses The object types
 	// (GET /cmdb/classes)
 	ListCiClasses(w http.ResponseWriter, r *http.Request)
-	// DefineCiClass Add or change a class of the workspace's own
+	// DefineCiClass Add or change an object type of the workspace's own
 	// (PUT /cmdb/classes/{classKey})
 	DefineCiClass(w http.ResponseWriter, r *http.Request, classKey string, params DefineCiClassParams)
 	// DeliverCiInventory Post a GLPI Agent's inventory
 	// (POST /cmdb/inventory-intake/{tenantId}/{connectorId})
 	DeliverCiInventory(w http.ResponseWriter, r *http.Request, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params DeliverCiInventoryParams)
-	// ListCiRelationTypes The relation types between configuration items
+	// ListCiRelationTypes The relation types between objects
 	// (GET /cmdb/relation-types)
 	ListCiRelationTypes(w http.ResponseWriter, r *http.Request)
 	// DefineCiRelationType Add or change a relation type of the workspace's own
 	// (PUT /cmdb/relation-types/{typeKey})
 	DefineCiRelationType(w http.ResponseWriter, r *http.Request, typeKey string, params DefineCiRelationTypeParams)
-	// ListCiSources The sources configuration items come from
+	// ListCiSources The sources objects come from
 	// (GET /cmdb/sources)
 	ListCiSources(w http.ResponseWriter, r *http.Request)
 	// DefineCiSource Add or change a source
@@ -32709,6 +34903,12 @@ type ServerInterface interface {
 
 	// (PATCH /containers/{containerId})
 	RenameContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params RenameContainerParams)
+	// SwitchBoard Show a collection's tasks as a board, or as a list again
+	// (POST /containers/{containerId}/board:switch)
+	SwitchBoard(w http.ResponseWriter, r *http.Request, containerId ContainerId)
+	// MakeBoardWorkflow Make a workflow from a board's columns
+	// (POST /containers/{containerId}/board:workflow)
+	MakeBoardWorkflow(w http.ResponseWriter, r *http.Request, containerId ContainerId)
 
 	// (GET /containers/{containerId}/buckets)
 	ListBuckets(w http.ResponseWriter, r *http.Request, containerId ContainerId)
@@ -32847,6 +35047,12 @@ type ServerInterface interface {
 	// ReadDashboardFigures A dashboard's numbers, for the caller
 	// (GET /dashboards/{dashboardId}/figures)
 	ReadDashboardFigures(w http.ResponseWriter, r *http.Request, dashboardId DashboardId)
+	// DraftDashboardFigures A dashboard's numbers for a definition not saved yet
+	// (POST /dashboards/{dashboardId}/figures:draft)
+	DraftDashboardFigures(w http.ResponseWriter, r *http.Request, dashboardId DashboardId)
+	// ReadMyDeadlinesKept How many of the deadlines on my own tickets I kept
+	// (GET /deadlines-kept)
+	ReadMyDeadlinesKept(w http.ResponseWriter, r *http.Request, params ReadMyDeadlinesKeptParams)
 	// RemoveLdapDirectory Stop synchronising from the LDAP directory
 	// (DELETE /directory/ldap)
 	RemoveLdapDirectory(w http.ResponseWriter, r *http.Request, params RemoveLdapDirectoryParams)
@@ -32901,6 +35107,12 @@ type ServerInterface interface {
 	// CloseGoalPeriod Close a goal period and grade its goals
 	// (POST /goal-periods/{periodId}:close)
 	CloseGoalPeriod(w http.ResponseWriter, r *http.Request, periodId openapi_types.UUID, params CloseGoalPeriodParams)
+	// ListGoalSets The goal periods a template brought
+	// (GET /goal-sets)
+	ListGoalSets(w http.ResponseWriter, r *http.Request)
+	// AddGoalSet Add a template's goal set
+	// (POST /goal-sets)
+	AddGoalSet(w http.ResponseWriter, r *http.Request)
 	// ListGoals The goals the caller may read
 	// (GET /goals)
 	ListGoals(w http.ResponseWriter, r *http.Request, params ListGoalsParams)
@@ -32943,7 +35155,7 @@ type ServerInterface interface {
 	// UpdateGroup Rename a group or change its description
 	// (PATCH /groups/{groupId})
 	UpdateGroup(w http.ResponseWriter, r *http.Request, groupId GroupId, params UpdateGroupParams)
-	// ListCiAssets A hub's asset register
+	// ListCiAssets A hub's register records
 	// (GET /hubs/{hubId}/assets)
 	ListCiAssets(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCiAssetsParams)
 	// ListHubCalendars A hub's own business calendars
@@ -32967,16 +35179,19 @@ type ServerInterface interface {
 	// ListCiCampaigns A hub's certification campaigns
 	// (GET /hubs/{hubId}/ci-campaigns)
 	ListCiCampaigns(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCiCampaignsParams)
-	// StartCiCampaign Ask the owners of a hub's CIs to attest them
+	// StartCiCampaign Ask the owners of a hub's objects to attest them
 	// (POST /hubs/{hubId}/ci-campaigns)
 	StartCiCampaign(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
 	// ListCiDuplicates Open duplicates
 	// (GET /hubs/{hubId}/ci-duplicates)
 	ListCiDuplicates(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCiDuplicatesParams)
-	// ListCiGroups A hub's CI groups
+	// ListCiGroups A hub's object groups
 	// (GET /hubs/{hubId}/ci-groups)
 	ListCiGroups(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
-	// DefineCiGroup Define or change a CI group by its key
+	// DeleteCiGroup Delete an object group by its key
+	// (DELETE /hubs/{hubId}/ci-groups/{groupKey})
+	DeleteCiGroup(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, groupKey string, params DeleteCiGroupParams)
+	// DefineCiGroup Define or change an object group by its key
 	// (PUT /hubs/{hubId}/ci-groups/{groupKey})
 	DefineCiGroup(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, groupKey string, params DefineCiGroupParams)
 	// ListCiHolds Items held for review
@@ -32985,13 +35200,16 @@ type ServerInterface interface {
 	// ListCiRuns A hub's reconciliation runs
 	// (GET /hubs/{hubId}/ci-runs)
 	ListCiRuns(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCiRunsParams)
-	// ListCis A hub's configuration items
+	// ListHubCiWork How many open entries name each object of a hub
+	// (GET /hubs/{hubId}/ci-work)
+	ListHubCiWork(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// ListCis A hub's objects
 	// (GET /hubs/{hubId}/cis)
 	ListCis(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCisParams)
-	// CreateCi Make a configuration item by hand
+	// CreateCi Make an object by hand
 	// (POST /hubs/{hubId}/cis)
 	CreateCi(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
-	// ImportCiFile Import a file of configuration items
+	// ImportCiFile Import a file of objects
 	// (POST /hubs/{hubId}/cis:import)
 	ImportCiFile(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
 	// ReconcileCis Reconcile a source's payload
@@ -33027,6 +35245,15 @@ type ServerInterface interface {
 	// CreatePage Write a new page
 	// (POST /hubs/{hubId}/pages)
 	CreatePage(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// ListHubPosts A hub's posts
+	// (GET /hubs/{hubId}/posts)
+	ListHubPosts(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListHubPostsParams)
+	// CreatePost Write a new post
+	// (POST /hubs/{hubId}/posts)
+	CreatePost(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// FollowHubPosts Follow a hub's posts
+	// (PUT /hubs/{hubId}/posts/following)
+	FollowHubPosts(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
 	// ListHubQueues A hub's queues with their counts
 	// (GET /hubs/{hubId}/queues)
 	ListHubQueues(w http.ResponseWriter, r *http.Request, hubId HubId)
@@ -33200,13 +35427,13 @@ type ServerInterface interface {
 
 	// (PUT /items/{itemId}/attachments/{mediaId})
 	AttachMedia(w http.ResponseWriter, r *http.Request, itemId ItemId, mediaId MediaId)
-	// ListEntryCis The configuration items an entry names as affected
+	// ListEntryCis The objects an entry names as affected
 	// (GET /items/{itemId}/cis)
 	ListEntryCis(w http.ResponseWriter, r *http.Request, itemId openapi_types.UUID)
-	// UnaffectEntryCi Remove a configuration item from an entry's affected ones
+	// UnaffectEntryCi Remove an object from an entry's affected ones
 	// (DELETE /items/{itemId}/cis/{ciId})
 	UnaffectEntryCi(w http.ResponseWriter, r *http.Request, itemId openapi_types.UUID, ciId openapi_types.UUID)
-	// AffectEntryCi Name a configuration item as affected by an entry
+	// AffectEntryCi Name an object as affected by an entry
 	// (PUT /items/{itemId}/cis/{ciId})
 	AffectEntryCi(w http.ResponseWriter, r *http.Request, itemId openapi_types.UUID, ciId openapi_types.UUID)
 	// ListEntryCodeLinks An entry's commits, branches and pull requests
@@ -33344,6 +35571,9 @@ type ServerInterface interface {
 	// SuggestDecomposition Ask AI what work sits under this entry
 	// (POST /items/{itemId}:decompose)
 	SuggestDecomposition(w http.ResponseWriter, r *http.Request, itemId ItemId, params SuggestDecompositionParams)
+	// DropItemOnColumn Drop an entry onto a board's column
+	// (POST /items/{itemId}:drop)
+	DropItemOnColumn(w http.ResponseWriter, r *http.Request, itemId ItemId, params DropItemOnColumnParams)
 
 	// (POST /items/{itemId}:duplicate)
 	DuplicateWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params DuplicateWorkItemParams)
@@ -33536,6 +35766,21 @@ type ServerInterface interface {
 
 	// (PUT /media/{mediaId}:content)
 	UploadMediaContent(w http.ResponseWriter, r *http.Request, mediaId MediaId, params UploadMediaContentParams)
+
+	// (POST /media/{mediaId}:edit)
+	StartMediaEditing(w http.ResponseWriter, r *http.Request, mediaId MediaId)
+
+	// (POST /media/{mediaId}:pdf)
+	ConvertMediaToPdf(w http.ResponseWriter, r *http.Request, mediaId MediaId)
+	// ReadDocumentServer The workspace's document server
+	// (GET /media:document-server)
+	ReadDocumentServer(w http.ResponseWriter, r *http.Request)
+	// SetDocumentServer Choose the workspace's document server
+	// (PUT /media:document-server)
+	SetDocumentServer(w http.ResponseWriter, r *http.Request)
+	// CheckDocumentServer Test a document server before choosing it
+	// (POST /media:document-server-check)
+	CheckDocumentServer(w http.ResponseWriter, r *http.Request)
 	// ListMemberships Who holds a role at a scope
 	// (GET /memberships)
 	ListMemberships(w http.ResponseWriter, r *http.Request, params ListMembershipsParams)
@@ -33620,6 +35865,12 @@ type ServerInterface interface {
 	// AddPageComment Comment on a page
 	// (POST /pages/{pageId}/comments)
 	AddPageComment(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// SearchCoverImages Search an image library for a page's cover
+	// (GET /pages/{pageId}/cover-images)
+	SearchCoverImages(w http.ResponseWriter, r *http.Request, pageId PageId, params SearchCoverImagesParams)
+	// FetchCoverImage Fetch an image library's picture for a page's cover
+	// (POST /pages/{pageId}/cover-images/{pictureId}:fetch)
+	FetchCoverImage(w http.ResponseWriter, r *http.Request, pageId PageId, pictureId string)
 	// DiscardPageDraft Throw a page's draft away
 	// (DELETE /pages/{pageId}/draft)
 	DiscardPageDraft(w http.ResponseWriter, r *http.Request, pageId PageId)
@@ -33686,6 +35937,12 @@ type ServerInterface interface {
 	// VerifyPage Mark a page as checked
 	// (POST /pages/{pageId}:verify)
 	VerifyPage(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// ReadCoverImagesPolicy Which image library covers may take pictures from
+	// (GET /pages:cover-images)
+	ReadCoverImagesPolicy(w http.ResponseWriter, r *http.Request)
+	// SetCoverImagesPolicy Offer an image library for covers, or none
+	// (PUT /pages:cover-images)
+	SetCoverImagesPolicy(w http.ResponseWriter, r *http.Request)
 	// ReadPersonalSpace My own notes' space
 	// (GET /pages:personal)
 	ReadPersonalSpace(w http.ResponseWriter, r *http.Request)
@@ -33755,6 +36012,9 @@ type ServerInterface interface {
 	// SetWorkspaceTolerance Set the time tolerance every plan inherits
 	// (PUT /plans:tolerance)
 	SetWorkspaceTolerance(w http.ResponseWriter, r *http.Request)
+	// ListPortalKnowledge What a service's portal shares of the knowledge base
+	// (GET /portal-knowledge)
+	ListPortalKnowledge(w http.ResponseWriter, r *http.Request, params ListPortalKnowledgeParams)
 	// ListPortfolios The portfolios
 	// (GET /portfolios)
 	ListPortfolios(w http.ResponseWriter, r *http.Request)
@@ -33794,6 +36054,45 @@ type ServerInterface interface {
 	// SetPublicRoadmapsPolicy Allow public links to roadmaps, or not
 	// (PUT /portfolios:public-links)
 	SetPublicRoadmapsPolicy(w http.ResponseWriter, r *http.Request)
+	// ListUnreadPosts The posts new for the caller
+	// (GET /posts)
+	ListUnreadPosts(w http.ResponseWriter, r *http.Request)
+	// ReadPost Read a post
+	// (GET /posts/{pageId})
+	ReadPost(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// SetPostSettings Schedule, feature or narrow a post
+	// (PUT /posts/{pageId})
+	SetPostSettings(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// ReadPostConfirmations Who confirmed a post
+	// (GET /posts/{pageId}/confirmations)
+	ReadPostConfirmations(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// ListPostReplies A post's discussion
+	// (GET /posts/{pageId}/replies)
+	ListPostReplies(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// AddPostReply Reply in a post's discussion
+	// (POST /posts/{pageId}/replies)
+	AddPostReply(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// DeletePostReply Take a reply back
+	// (DELETE /posts/{pageId}/replies/{replyId})
+	DeletePostReply(w http.ResponseWriter, r *http.Request, pageId PageId, replyId openapi_types.UUID)
+	// UnreactToPostReply Take a reaction back
+	// (DELETE /posts/{pageId}/replies/{replyId}/reactions/{reaction})
+	UnreactToPostReply(w http.ResponseWriter, r *http.Request, pageId PageId, replyId openapi_types.UUID, reaction string)
+	// ReactToPostReply React to a reply
+	// (PUT /posts/{pageId}/replies/{replyId}/reactions/{reaction})
+	ReactToPostReply(w http.ResponseWriter, r *http.Request, pageId PageId, replyId openapi_types.UUID, reaction string)
+	// ConfirmPost Confirm having read a post
+	// (POST /posts/{pageId}:confirm)
+	ConfirmPost(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// PublishPost Publish a post now
+	// (POST /posts/{pageId}:publish)
+	PublishPost(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// RemindPost Remind those who have not confirmed a post
+	// (POST /posts/{pageId}:remind)
+	RemindPost(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// MarkPostSeen Mark a post seen
+	// (POST /posts/{pageId}:seen)
+	MarkPostSeen(w http.ResponseWriter, r *http.Request, pageId PageId)
 	// ListPresets The presets a hub or collection can start from
 	// (GET /presets)
 	ListPresets(w http.ResponseWriter, r *http.Request)
@@ -33869,6 +36168,9 @@ type ServerInterface interface {
 	// AnswerSatisfactionLink Say how satisfied you were, by the link of a resolution mail
 	// (POST /public/satisfaction/{token})
 	AnswerSatisfactionLink(w http.ResponseWriter, r *http.Request, token string)
+	// AskQuery Write a Hubtask query from a question in words
+	// (POST /query:ask)
+	AskQuery(w http.ResponseWriter, r *http.Request)
 	// ReadQuotas The workspace's quota standing
 	// (GET /quotas)
 	ReadQuotas(w http.ResponseWriter, r *http.Request)
@@ -34022,6 +36324,9 @@ type ServerInterface interface {
 	// SearchItems Full-text search over the entries a caller may see
 	// (POST /search)
 	SearchItems(w http.ResponseWriter, r *http.Request)
+	// SearchAll One search over every kind of object the caller may read
+	// (POST /search:all)
+	SearchAll(w http.ResponseWriter, r *http.Request)
 	// ReindexSearch Bring the workspace's search documents current
 	// (POST /search:reindex)
 	ReindexSearch(w http.ResponseWriter, r *http.Request)
@@ -34358,6 +36663,18 @@ type ServerInterface interface {
 	// RestoreWhiteboard Bring a whiteboard back from the trash
 	// (POST /whiteboards/{whiteboardId}:restore)
 	RestoreWhiteboard(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId)
+
+	// (GET /wopi/files/{mediaId})
+	CheckWopiFileInfo(w http.ResponseWriter, r *http.Request, mediaId MediaId, params CheckWopiFileInfoParams)
+
+	// (POST /wopi/files/{mediaId})
+	LockWopiFile(w http.ResponseWriter, r *http.Request, mediaId MediaId, params LockWopiFileParams)
+
+	// (GET /wopi/files/{mediaId}/contents)
+	GetWopiFile(w http.ResponseWriter, r *http.Request, mediaId MediaId, params GetWopiFileParams)
+
+	// (POST /wopi/files/{mediaId}/contents)
+	PutWopiFile(w http.ResponseWriter, r *http.Request, mediaId MediaId, params PutWopiFileParams)
 	// SetWorkflowScheme Use a workflow in a hub or collection
 	// (PUT /workflow-scheme)
 	SetWorkflowScheme(w http.ResponseWriter, r *http.Request)
@@ -41304,6 +43621,32 @@ func (siw *ServerInterfaceWrapper) CloseCiCampaign(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// RemindCiCampaign operation middleware
+func (siw *ServerInterfaceWrapper) RemindCiCampaign(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "campaignId" -------------
+	var campaignId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "campaignId", r.PathValue("campaignId"), &campaignId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "campaignId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemindCiCampaign(w, r, campaignId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ResolveCiDuplicate operation middleware
 func (siw *ServerInterfaceWrapper) ResolveCiDuplicate(w http.ResponseWriter, r *http.Request) {
 
@@ -41650,6 +43993,131 @@ func (siw *ServerInterfaceWrapper) MoveCiAsset(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// ListCiAttachments operation middleware
+func (siw *ServerInterfaceWrapper) ListCiAttachments(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ciId" -------------
+	var ciId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ciId", r.PathValue("ciId"), &ciId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ciId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListCiAttachmentsParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCiAttachments(w, r, ciId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DetachCiMedia operation middleware
+func (siw *ServerInterfaceWrapper) DetachCiMedia(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ciId" -------------
+	var ciId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ciId", r.PathValue("ciId"), &ciId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ciId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DetachCiMedia(w, r, ciId, mediaId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AttachCiMedia operation middleware
+func (siw *ServerInterfaceWrapper) AttachCiMedia(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ciId" -------------
+	var ciId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ciId", r.PathValue("ciId"), &ciId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ciId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AttachCiMedia(w, r, ciId, mediaId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListCiBacklinks operation middleware
 func (siw *ServerInterfaceWrapper) ListCiBacklinks(w http.ResponseWriter, r *http.Request) {
 
@@ -41726,6 +44194,61 @@ func (siw *ServerInterfaceWrapper) SetCiCompliance(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// ListCiHistory operation middleware
+func (siw *ServerInterfaceWrapper) ListCiHistory(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ciId" -------------
+	var ciId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ciId", r.PathValue("ciId"), &ciId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ciId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListCiHistoryParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCiHistory(w, r, ciId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReadCiImpact operation middleware
 func (siw *ServerInterfaceWrapper) ReadCiImpact(w http.ResponseWriter, r *http.Request) {
 
@@ -41772,6 +44295,58 @@ func (siw *ServerInterfaceWrapper) ReadCiImpact(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReadCiImpact(w, r, ciId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListCiWork operation middleware
+func (siw *ServerInterfaceWrapper) ListCiWork(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ciId" -------------
+	var ciId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ciId", r.PathValue("ciId"), &ciId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ciId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCiWork(w, r, ciId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfirmCi operation middleware
+func (siw *ServerInterfaceWrapper) ConfirmCi(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ciId" -------------
+	var ciId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ciId", r.PathValue("ciId"), &ciId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ciId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfirmCi(w, r, ciId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -43651,6 +46226,58 @@ func (siw *ServerInterfaceWrapper) RenameContainer(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// SwitchBoard operation middleware
+func (siw *ServerInterfaceWrapper) SwitchBoard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SwitchBoard(w, r, containerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MakeBoardWorkflow operation middleware
+func (siw *ServerInterfaceWrapper) MakeBoardWorkflow(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MakeBoardWorkflow(w, r, containerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListBuckets operation middleware
 func (siw *ServerInterfaceWrapper) ListBuckets(w http.ResponseWriter, r *http.Request) {
 
@@ -43729,6 +46356,19 @@ func (siw *ServerInterfaceWrapper) DeleteBucket(w http.ResponseWriter, r *http.R
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params DeleteBucketParams
+
+	// ------------- Optional query parameter "new_done_bucket_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "new_done_bucket_id", r.URL.Query(), &params.NewDoneBucketId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "new_done_bucket_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "new_done_bucket_id", Err: err})
+		}
+		return
+	}
 
 	headers := r.Header
 
@@ -45518,6 +48158,65 @@ func (siw *ServerInterfaceWrapper) ReadDashboardFigures(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r)
 }
 
+// DraftDashboardFigures operation middleware
+func (siw *ServerInterfaceWrapper) DraftDashboardFigures(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "dashboardId" -------------
+	var dashboardId DashboardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "dashboardId", r.PathValue("dashboardId"), &dashboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dashboardId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DraftDashboardFigures(w, r, dashboardId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadMyDeadlinesKept operation middleware
+func (siw *ServerInterfaceWrapper) ReadMyDeadlinesKept(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReadMyDeadlinesKeptParams
+
+	// ------------- Optional query parameter "days" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "days", r.URL.Query(), &params.Days, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "days"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "days", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadMyDeadlinesKept(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RemoveLdapDirectory operation middleware
 func (siw *ServerInterfaceWrapper) RemoveLdapDirectory(w http.ResponseWriter, r *http.Request) {
 
@@ -46066,6 +48765,34 @@ func (siw *ServerInterfaceWrapper) CloseGoalPeriod(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CloseGoalPeriod(w, r, periodId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListGoalSets operation middleware
+func (siw *ServerInterfaceWrapper) ListGoalSets(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListGoalSets(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddGoalSet operation middleware
+func (siw *ServerInterfaceWrapper) AddGoalSet(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddGoalSet(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -47076,6 +49803,65 @@ func (siw *ServerInterfaceWrapper) ListCiGroups(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteCiGroup operation middleware
+func (siw *ServerInterfaceWrapper) DeleteCiGroup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "groupKey" -------------
+	var groupKey string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "groupKey", r.PathValue("groupKey"), &groupKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupKey", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteCiGroupParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteCiGroup(w, r, hubId, groupKey, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DefineCiGroup operation middleware
 func (siw *ServerInterfaceWrapper) DefineCiGroup(w http.ResponseWriter, r *http.Request) {
 
@@ -47210,6 +49996,32 @@ func (siw *ServerInterfaceWrapper) ListCiRuns(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListCiRuns(w, r, hubId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListHubCiWork operation middleware
+func (siw *ServerInterfaceWrapper) ListHubCiWork(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListHubCiWork(w, r, hubId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -47691,6 +50503,100 @@ func (siw *ServerInterfaceWrapper) CreatePage(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreatePage(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListHubPosts operation middleware
+func (siw *ServerInterfaceWrapper) ListHubPosts(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListHubPostsParams
+
+	// ------------- Optional query parameter "filter" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "filter", r.URL.Query(), &params.Filter, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "filter"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "filter", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListHubPosts(w, r, hubId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreatePost operation middleware
+func (siw *ServerInterfaceWrapper) CreatePost(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreatePost(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// FollowHubPosts operation middleware
+func (siw *ServerInterfaceWrapper) FollowHubPosts(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.FollowHubPosts(w, r, hubId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -51697,6 +54603,56 @@ func (siw *ServerInterfaceWrapper) SuggestDecomposition(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r)
 }
 
+// DropItemOnColumn operation middleware
+func (siw *ServerInterfaceWrapper) DropItemOnColumn(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DropItemOnColumnParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DropItemOnColumn(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DuplicateWorkItem operation middleware
 func (siw *ServerInterfaceWrapper) DuplicateWorkItem(w http.ResponseWriter, r *http.Request) {
 
@@ -53996,6 +56952,100 @@ func (siw *ServerInterfaceWrapper) UploadMediaContent(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// StartMediaEditing operation middleware
+func (siw *ServerInterfaceWrapper) StartMediaEditing(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartMediaEditing(w, r, mediaId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConvertMediaToPdf operation middleware
+func (siw *ServerInterfaceWrapper) ConvertMediaToPdf(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConvertMediaToPdf(w, r, mediaId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadDocumentServer operation middleware
+func (siw *ServerInterfaceWrapper) ReadDocumentServer(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadDocumentServer(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetDocumentServer operation middleware
+func (siw *ServerInterfaceWrapper) SetDocumentServer(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetDocumentServer(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CheckDocumentServer operation middleware
+func (siw *ServerInterfaceWrapper) CheckDocumentServer(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CheckDocumentServer(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListMemberships operation middleware
 func (siw *ServerInterfaceWrapper) ListMemberships(w http.ResponseWriter, r *http.Request) {
 
@@ -54465,6 +57515,19 @@ func (siw *ServerInterfaceWrapper) GetDataFeedEntries(w http.ResponseWriter, r *
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetDataFeedEntriesParams
 
+	// ------------- Optional query parameter "$filter" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "$filter", r.URL.Query(), &params.Filter, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "$filter"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "$filter", Err: err})
+		}
+		return
+	}
+
 	// ------------- Optional query parameter "$top" -------------
 
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "$top", r.URL.Query(), &params.Top, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
@@ -54836,6 +57899,83 @@ func (siw *ServerInterfaceWrapper) AddPageComment(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AddPageComment(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SearchCoverImages operation middleware
+func (siw *ServerInterfaceWrapper) SearchCoverImages(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchCoverImagesParams
+
+	// ------------- Optional query parameter "query" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "query", r.URL.Query(), &params.Query, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "query"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "query", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SearchCoverImages(w, r, pageId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// FetchCoverImage operation middleware
+func (siw *ServerInterfaceWrapper) FetchCoverImage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "pictureId" -------------
+	var pictureId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pictureId", r.PathValue("pictureId"), &pictureId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pictureId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.FetchCoverImage(w, r, pageId, pictureId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -55545,6 +58685,34 @@ func (siw *ServerInterfaceWrapper) VerifyPage(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.VerifyPage(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadCoverImagesPolicy operation middleware
+func (siw *ServerInterfaceWrapper) ReadCoverImagesPolicy(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadCoverImagesPolicy(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetCoverImagesPolicy operation middleware
+func (siw *ServerInterfaceWrapper) SetCoverImagesPolicy(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetCoverImagesPolicy(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -56272,6 +59440,39 @@ func (siw *ServerInterfaceWrapper) SetWorkspaceTolerance(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
+// ListPortalKnowledge operation middleware
+func (siw *ServerInterfaceWrapper) ListPortalKnowledge(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListPortalKnowledgeParams
+
+	// ------------- Required query parameter "collection_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "collection_id", r.URL.Query(), &params.CollectionId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "collection_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collection_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPortalKnowledge(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListPortfolios operation middleware
 func (siw *ServerInterfaceWrapper) ListPortfolios(w http.ResponseWriter, r *http.Request) {
 
@@ -56617,6 +59818,377 @@ func (siw *ServerInterfaceWrapper) SetPublicRoadmapsPolicy(w http.ResponseWriter
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SetPublicRoadmapsPolicy(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListUnreadPosts operation middleware
+func (siw *ServerInterfaceWrapper) ListUnreadPosts(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListUnreadPosts(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadPost operation middleware
+func (siw *ServerInterfaceWrapper) ReadPost(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadPost(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetPostSettings operation middleware
+func (siw *ServerInterfaceWrapper) SetPostSettings(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetPostSettings(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadPostConfirmations operation middleware
+func (siw *ServerInterfaceWrapper) ReadPostConfirmations(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadPostConfirmations(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPostReplies operation middleware
+func (siw *ServerInterfaceWrapper) ListPostReplies(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPostReplies(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddPostReply operation middleware
+func (siw *ServerInterfaceWrapper) AddPostReply(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddPostReply(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeletePostReply operation middleware
+func (siw *ServerInterfaceWrapper) DeletePostReply(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "replyId" -------------
+	var replyId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "replyId", r.PathValue("replyId"), &replyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "replyId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeletePostReply(w, r, pageId, replyId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UnreactToPostReply operation middleware
+func (siw *ServerInterfaceWrapper) UnreactToPostReply(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "replyId" -------------
+	var replyId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "replyId", r.PathValue("replyId"), &replyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "replyId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "reaction" -------------
+	var reaction string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "reaction", r.PathValue("reaction"), &reaction, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "reaction", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UnreactToPostReply(w, r, pageId, replyId, reaction)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReactToPostReply operation middleware
+func (siw *ServerInterfaceWrapper) ReactToPostReply(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "replyId" -------------
+	var replyId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "replyId", r.PathValue("replyId"), &replyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "replyId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "reaction" -------------
+	var reaction string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "reaction", r.PathValue("reaction"), &reaction, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "reaction", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReactToPostReply(w, r, pageId, replyId, reaction)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfirmPost operation middleware
+func (siw *ServerInterfaceWrapper) ConfirmPost(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfirmPost(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PublishPost operation middleware
+func (siw *ServerInterfaceWrapper) PublishPost(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PublishPost(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemindPost operation middleware
+func (siw *ServerInterfaceWrapper) RemindPost(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemindPost(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MarkPostSeen operation middleware
+func (siw *ServerInterfaceWrapper) MarkPostSeen(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MarkPostSeen(w, r, pageId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -57390,6 +60962,20 @@ func (siw *ServerInterfaceWrapper) AnswerSatisfactionLink(w http.ResponseWriter,
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AnswerSatisfactionLink(w, r, token)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AskQuery operation middleware
+func (siw *ServerInterfaceWrapper) AskQuery(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AskQuery(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -58914,6 +62500,20 @@ func (siw *ServerInterfaceWrapper) SearchItems(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SearchItems(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SearchAll operation middleware
+func (siw *ServerInterfaceWrapper) SearchAll(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SearchAll(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -62556,6 +66156,174 @@ func (siw *ServerInterfaceWrapper) RestoreWhiteboard(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// CheckWopiFileInfo operation middleware
+func (siw *ServerInterfaceWrapper) CheckWopiFileInfo(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CheckWopiFileInfoParams
+
+	// ------------- Required query parameter "access_token" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "access_token", r.URL.Query(), &params.AccessToken, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "access_token"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "access_token", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CheckWopiFileInfo(w, r, mediaId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// LockWopiFile operation middleware
+func (siw *ServerInterfaceWrapper) LockWopiFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params LockWopiFileParams
+
+	// ------------- Required query parameter "access_token" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "access_token", r.URL.Query(), &params.AccessToken, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "access_token"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "access_token", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.LockWopiFile(w, r, mediaId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetWopiFile operation middleware
+func (siw *ServerInterfaceWrapper) GetWopiFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetWopiFileParams
+
+	// ------------- Required query parameter "access_token" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "access_token", r.URL.Query(), &params.AccessToken, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "access_token"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "access_token", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetWopiFile(w, r, mediaId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutWopiFile operation middleware
+func (siw *ServerInterfaceWrapper) PutWopiFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PutWopiFileParams
+
+	// ------------- Required query parameter "access_token" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "access_token", r.URL.Query(), &params.AccessToken, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "access_token"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "access_token", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutWopiFile(w, r, mediaId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // SetWorkflowScheme operation middleware
 func (siw *ServerInterfaceWrapper) SetWorkflowScheme(w http.ResponseWriter, r *http.Request) {
 
@@ -63013,6 +66781,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/dashboards/{dashboardId}", wrapper.ReadDashboard)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/dashboards/{dashboardId}", wrapper.UpdateDashboard)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/dashboards/{dashboardId}/figures", wrapper.ReadDashboardFigures)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/dashboards/{dashboardId}/figures:draft", wrapper.DraftDashboardFigures)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/dashboards/{dashboardId}/digest", wrapper.DeleteDashboardDigest)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/dashboards/{dashboardId}/digest", wrapper.ReadDashboardDigest)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/dashboards/{dashboardId}/digest", wrapper.SetDashboardDigest)
@@ -63098,6 +66867,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/sla-policies/{policyKey}", wrapper.DefineSlaPolicy)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sla-policies/{policyKey}:copy-here", wrapper.CopySlaPolicyHere)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sla-report", wrapper.ReportSla)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/deadlines-kept", wrapper.ReadMyDeadlinesKept)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/requester", wrapper.ReadEntryRequester)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/sla", wrapper.ReadEntrySla)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/requester-organisations", wrapper.ListRequesterOrganisations)
@@ -63115,6 +66885,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/approval-delegation", wrapper.SetApprovalDelegation)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/request-catalogue", wrapper.ListRequestCatalogue)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/articles", wrapper.SuggestArticles)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/portal-knowledge", wrapper.ListPortalKnowledge)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/articles/{pageId}", wrapper.ReadArticle)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/articles/{pageId}:rate", wrapper.RateArticle)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/requests", wrapper.ListMyRequests)
@@ -63164,9 +66935,15 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/cmdb-health", wrapper.ReadCmdbHealth)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}", wrapper.ReadCi)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/cis/{ciId}", wrapper.UpdateCi)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/cis/{ciId}:confirm", wrapper.ConfirmCi)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/cis/{ciId}/compliance", wrapper.SetCiCompliance)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}/impact", wrapper.ReadCiImpact)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}/backlinks", wrapper.ListCiBacklinks)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}/work", wrapper.ListCiWork)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}/attachments", wrapper.ListCiAttachments)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/cis/{ciId}/attachments/{mediaId}", wrapper.DetachCiMedia)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/cis/{ciId}/attachments/{mediaId}", wrapper.AttachCiMedia)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}/history", wrapper.ListCiHistory)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/cis", wrapper.ListEntryCis)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/cis/{ciId}", wrapper.UnaffectEntryCi)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/cis/{ciId}", wrapper.AffectEntryCi)
@@ -63174,8 +66951,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/ci-campaigns", wrapper.StartCiCampaign)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ci-campaigns/{campaignId}", wrapper.ReadCiCampaign)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/ci-campaigns/{campaignId}:close", wrapper.CloseCiCampaign)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/ci-campaigns/{campaignId}:remind", wrapper.RemindCiCampaign)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ci-campaigns/{campaignId}/cis/{ciId}", wrapper.AttestCi)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/ci-work", wrapper.ListHubCiWork)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/ci-groups", wrapper.ListCiGroups)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/hubs/{hubId}/ci-groups/{groupKey}", wrapper.DeleteCiGroup)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/hubs/{hubId}/ci-groups/{groupKey}", wrapper.DefineCiGroup)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ci-groups/{groupId}/members", wrapper.ListCiGroupMembers)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/service-map", wrapper.ReadServiceMap)
@@ -63584,6 +67364,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workflow-scheme:preview", wrapper.PreviewWorkflowScheme)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/steps", wrapper.ListEntrySteps)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:step", wrapper.TakeStep)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:drop", wrapper.DropItemOnColumn)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/entry-type", wrapper.SetItemEntryType)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/link-types", wrapper.ListLinkTypes)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/link-types", wrapper.CreateLinkType)
@@ -63654,7 +67435,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search", wrapper.SearchItems)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/glance/open-entries", wrapper.ListMyOpenEntries)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/glance:search", wrapper.SearchEverywhere)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search:all", wrapper.SearchAll)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/query:ask", wrapper.AskQuery)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search:reindex", wrapper.ReindexSearch)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/board:switch", wrapper.SwitchBoard)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/board:workflow", wrapper.MakeBoardWorkflow)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:complete", wrapper.CompleteWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:reopen", wrapper.ReopenWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:assign", wrapper.AssignWorkItem)
@@ -63723,6 +67508,15 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/media/{mediaId}:confirm", wrapper.ConfirmMediaUpload)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/media/{mediaId}:content", wrapper.DownloadMediaContent)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/media/{mediaId}:content", wrapper.UploadMediaContent)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/media/{mediaId}:pdf", wrapper.ConvertMediaToPdf)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/media/{mediaId}:edit", wrapper.StartMediaEditing)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/media:document-server", wrapper.ReadDocumentServer)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/media:document-server", wrapper.SetDocumentServer)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/media:document-server-check", wrapper.CheckDocumentServer)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/wopi/files/{mediaId}", wrapper.CheckWopiFileInfo)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/wopi/files/{mediaId}", wrapper.LockWopiFile)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/wopi/files/{mediaId}/contents", wrapper.GetWopiFile)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/wopi/files/{mediaId}/contents", wrapper.PutWopiFile)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/stream", wrapper.StreamChanges)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/realtime/probe", wrapper.ProbeRealtime)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/realtime/documents/{kind}/{documentId}", wrapper.OpenRealtimeDocument)
@@ -63735,6 +67529,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/sample-entries", wrapper.AddSampleEntry)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/template-pages", wrapper.ListHubTemplatePages)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/template-pages", wrapper.AddHubTemplatePage)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/goal-sets", wrapper.ListGoalSets)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/goal-sets", wrapper.AddGoalSet)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/sample-entries:remove", wrapper.RemoveSampleEntries)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/trashed-pages", wrapper.ListTrashedPages)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}", wrapper.TrashPage)
@@ -63752,6 +67548,22 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/comments", wrapper.AddPageComment)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/page-comments/{commentId}", wrapper.DeletePageComment)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/page-comments/{commentId}", wrapper.ChangePageComment)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/posts", wrapper.ListHubPosts)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/posts", wrapper.CreatePost)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/hubs/{hubId}/posts/following", wrapper.FollowHubPosts)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/posts", wrapper.ListUnreadPosts)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/posts/{pageId}", wrapper.ReadPost)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/posts/{pageId}", wrapper.SetPostSettings)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/posts/{pageId}:publish", wrapper.PublishPost)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/posts/{pageId}:seen", wrapper.MarkPostSeen)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/posts/{pageId}:confirm", wrapper.ConfirmPost)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/posts/{pageId}/confirmations", wrapper.ReadPostConfirmations)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/posts/{pageId}:remind", wrapper.RemindPost)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/posts/{pageId}/replies", wrapper.ListPostReplies)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/posts/{pageId}/replies", wrapper.AddPostReply)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/posts/{pageId}/replies/{replyId}", wrapper.DeletePostReply)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/posts/{pageId}/replies/{replyId}/reactions/{reaction}", wrapper.UnreactToPostReply)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/posts/{pageId}/replies/{replyId}/reactions/{reaction}", wrapper.ReactToPostReply)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}/backlinks", wrapper.ListPageBacklinks)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}/labels", wrapper.ListPageLabels)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}:label", wrapper.SetPageLabels)
@@ -63766,6 +67578,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}/public-link", wrapper.DeletePagePublicLink)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/public-link", wrapper.CreatePagePublicLink)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/media", wrapper.AttachPageMedia)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}/cover-images", wrapper.SearchCoverImages)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/cover-images/{pictureId}:fetch", wrapper.FetchCoverImage)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages:cover-images", wrapper.ReadCoverImagesPolicy)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/pages:cover-images", wrapper.SetCoverImagesPolicy)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/articles", wrapper.PublishPageToPortal)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}/articles/{collectionId}", wrapper.UnpublishPageFromPortal)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}/language-variants", wrapper.ListPageLanguageVariants)

@@ -396,8 +396,12 @@ func (r EntryLinkRepository) Entries(ctx context.Context, ids []shared.ID) ([]re
 		if err != nil {
 			return nil, err
 		}
+		assignee, err := optionalID(row.AssigneeID)
+		if err != nil {
+			return nil, err
+		}
 		summary := repository.EntrySummary{
-			ID: id, CollectionID: collection, HubID: hub, Level: work.ItemType(row.Level),
+			ID: id, CollectionID: collection, HubID: hub, AssigneeID: assignee, Level: work.ItemType(row.Level),
 			Title: row.Title, Completed: row.IsCompleted, StartAt: optionalTime(row.StartAt),
 			DueAt: optionalTime(row.DueAt), Archived: row.ArchivedAt.Valid,
 		}

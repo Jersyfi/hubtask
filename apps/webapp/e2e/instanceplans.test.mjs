@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { MANIFEST, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -117,8 +117,7 @@ async function openInstance(browser, { manifest = MULTI, level = LEVEL, answer =
 }
 
 test('chromium: the plans list says how many workspaces each holds, what each leaves out, and who is on none', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await openInstance(browser);
   t.after(close);
 
@@ -132,8 +131,7 @@ test('chromium: the plans list says how many workspaces each holds, what each le
 });
 
 test('chromium: an operator creates a plan with a short name that stays, and lands in its editor', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await openInstance(browser, {
     answer: (route, request, path, sent) => {
       if (path === '/admin/plans' && request.method() === 'POST') {
@@ -164,8 +162,7 @@ test('chromium: an operator creates a plan with a short name that stays, and lan
 });
 
 test('chromium: a single installation offers no plans', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await openInstance(browser, { manifest: MANIFEST });
   t.after(close);
 
@@ -176,8 +173,7 @@ test('chromium: a single installation offers no plans', async (t) => {
 });
 
 test('chromium: the plan editor draws the installation\'s levels, and a save names how many workspaces it reaches', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await openInstance(browser, {
     answer: (route, request, path, sent) => {
       if (path === '/admin/plans/family' && request.method() === 'PUT') {
@@ -190,7 +186,8 @@ test('chromium: the plan editor draws the installation\'s levels, and a save nam
   t.after(close);
 
   await page.goto(`${served.origin}/instance/plans/family`);
-  await page.getByRole('heading', { name: 'Family', level: 1 }).waitFor({ timeout: 10_000 });
+  // Exact: until the plan is read, the head names it by its short name, `family`.
+  await page.getByRole('heading', { name: 'Family', exact: true, level: 1 }).waitFor({ timeout: 10_000 });
   assert.match(await page.locator('main').innerText(), /412 workspaces/);
 
   // The installation locks the request rate: its value with the chip that says whose it is
@@ -223,8 +220,7 @@ test('chromium: the plan editor draws the installation\'s levels, and a save nam
 });
 
 test('chromium: a save after somebody else saved says so and overwrites nothing', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await openInstance(browser, {
     answer: (route, request, path) => {
       if (path === '/admin/plans/business' && request.method() === 'PUT') {
@@ -243,8 +239,7 @@ test('chromium: a save after somebody else saved says so and overwrites nothing'
 });
 
 test('chromium: a plan nobody is on can be removed, and its short name is said to stay taken', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await openInstance(browser, {
     answer: (route, request, path, sent) => {
       if (path === '/admin/plans/business' && request.method() === 'DELETE') {
@@ -266,8 +261,7 @@ test('chromium: a plan nobody is on can be removed, and its short name is said t
 });
 
 test('chromium: where a file enforces the level, a plan shows its values and the file, and no control', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await openInstance(browser, { level: { ...LEVEL, is_enforced_from_file: true, source: '/etc/hubtask/instance.json' } });
   t.after(close);
 
@@ -281,8 +275,7 @@ test('chromium: where a file enforces the level, a plan shows its values and the
 });
 
 test('chromium: moving a workspace names what rests, what is over the new limit and which exceptions stay, then moves it on the version read', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const familie = TENANTS[0];
   const { page, sent, close } = await openInstance(browser, {
     answer: (route, request, path, sent) => {
@@ -334,8 +327,7 @@ test('chromium: moving a workspace names what rests, what is over the new limit 
 });
 
 test('chromium: a move somebody overtook is refused and says so', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const familie = TENANTS[0];
   const { page, close } = await openInstance(browser, {
     answer: (route, request, path) => {
@@ -358,8 +350,7 @@ test('chromium: a move somebody overtook is refused and says so', async (t) => {
 });
 
 test('chromium: a new workspace starts without a plan among several, and on the one chosen', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await openInstance(browser, {
     answer: (route, request, path, sent) => {
       if (path === '/admin/tenants' && request.method() === 'POST') {
@@ -397,8 +388,7 @@ test('chromium: a new workspace starts without a plan among several, and on the 
 });
 
 test('chromium: where the installation has one plan, a new workspace starts on it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await openInstance(browser, {
     answer: (route, request, path) =>
       path === '/admin/plans' && request.method() === 'GET' ? route.fulfill({ json: { data: [PLANS[1]] } }) : undefined,
@@ -412,8 +402,7 @@ test('chromium: where the installation has one plan, a new workspace starts on i
 });
 
 test('chromium: under a plan, an empty exception shows the plan\'s value where the installation does not lock it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await openInstance(browser);
   t.after(close);
 
@@ -451,8 +440,7 @@ const focusIsIn = (dialog) =>
   dialog.evaluate((element) => element.contains(document.activeElement) || document.activeElement === document.body);
 
 test('chromium: the plans list, the editor and the move dialog work from the keyboard', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const familie = TENANTS[0];
   const { page, sent, close } = await openInstance(browser, {
     answer: (route, request, path, sent) => {
@@ -522,8 +510,7 @@ test('chromium: the plans list, the editor and the move dialog work from the key
 });
 
 test('chromium: the move dialog closed and opened again at once stays open', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await openInstance(browser);
   t.after(close);
 
@@ -563,8 +550,7 @@ test('chromium: the move dialog closed and opened again at once stays open', asy
 });
 
 test('chromium: the editor says each refusal where it belongs', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   let creations = 0;
   const { page, close } = await openInstance(browser, {
     answer: (route, request, path) => {
@@ -629,8 +615,7 @@ test('chromium: the editor says each refusal where it belongs', async (t) => {
 });
 
 test('chromium: an unknown plan is said at the plan field when provisioning, and in the move dialog', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const familie = TENANTS[0];
   const unknown = { status: 422, json: { code: 'validation_failed', detail_code: 'admin.plan_unknown', status: 422, request_id: 'r7',
     field_errors: [{ path: '/plan', code: 'admin.plan_unknown' }] } };
@@ -665,8 +650,7 @@ test('chromium: an unknown plan is said at the plan field when provisioning, and
 });
 
 test('chromium: an earlier choice\'s late dry run is not shown under a later choice', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const familie = TENANTS[0];
   const { page, close } = await openInstance(browser, {
     answer: (route, request, path) => {
@@ -693,8 +677,7 @@ test('chromium: an earlier choice\'s late dry run is not shown under a later cho
 });
 
 test('chromium: a workspace read without a version moves without guessing one', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { version: _, ...unversioned } = TENANTS[1];
   const { page, sent, close } = await openInstance(browser, {
     answer: (route, request, path, sent) => {
@@ -718,8 +701,7 @@ test('chromium: a workspace read without a version moves without guessing one', 
 });
 
 test('chromium: a single installation shows no plan on Workspaces; an enforced one still moves and provisions on plans', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const single = await openInstance(browser, { manifest: MANIFEST });
   t.after(single.close);
   await single.page.goto(`${served.origin}/instance/workspaces`);

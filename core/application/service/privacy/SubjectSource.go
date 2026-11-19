@@ -34,7 +34,9 @@ var subjectColumns = map[string][]string{
 	"account":              {"id"},
 	"membership":           {"account_id"},
 	"account_group_member": {"account_id"},
-	"item_member":          {"account_id"},
+	// Who saved a file's version in the document server (UC-MED-06).
+	"media_version": {"saved_by"},
+	"item_member":   {"account_id"},
 	// What they were told, what they asked to be told, and what they agreed to.
 	"notification_preference": {"account_id"},
 	"account_star":            {"account_id"},
@@ -119,6 +121,12 @@ var subjectColumns = map[string][]string{
 	"page_public_link":      {"created_by"},
 	"portfolio_public_link": {"created_by"},
 	"page_draft":            {"updated_by"},
+	// The posts they saw, confirmed, replied under and reacted to (UC-DOC-18).
+	"post_read":         {"account_id"},
+	"post_confirmation": {"account_id"},
+	"post_reply":        {"author_id"},
+	"post_reaction":     {"account_id"},
+	"post_follow":       {"account_id"},
 	// The public forms they made, whose requests are filed as them.
 	"public_form": {"created_by"},
 	// The articles they published to a portal and the ones they rated.
@@ -132,7 +140,7 @@ var subjectColumns = map[string][]string{
 	"realtime_update": {"author_id"},
 	// The configuration items they made, changed or own, the relations they made, the
 	// reconciliations they ran and the holds and duplicates they closed (M6).
-	"cmdb_ci":        {"created_by", "updated_by", "owner_account_id"},
+	"cmdb_ci":        {"created_by", "updated_by", "owner_account_id", "confirmed_by"},
 	"cmdb_relation":  {"created_by"},
 	"cmdb_run":       {"actor_id"},
 	"cmdb_hold":      {"resolved_by"},
@@ -144,6 +152,8 @@ var subjectColumns = map[string][]string{
 	"cmdb_attestation":    {"owner_id", "attested_by"},
 	"cmdb_ci_group":       {"updated_by"},
 	"cmdb_asset":          {"assigned_to", "updated_by"},
+	"cmdb_asset_move":     {"assigned_to", "moved_by"},
+	"cmdb_ci_history":     {"actor_id"},
 	"cmdb_software_alias": {"updated_by"},
 	// The connectors that run with their rights (M6).
 	"cmdb_connector": {"run_as"},
@@ -180,6 +190,7 @@ var subjectEmailColumns = map[string][]string{
 var notThePersons = map[string]string{
 	"tenant":                  "the workspace itself: its name is not a person's data, and the archive needs the row to be restorable",
 	"bucket":                  "a column of a board is the workspace's shape",
+	"bucket_status":           "which statuses a column of a board shows",
 	"label":                   "the workspace's vocabulary",
 	"item_label":              "which of the workspace's labels sits on an entry",
 	"custom_field_definition": "the workspace's own fields",
@@ -201,12 +212,15 @@ var notThePersons = map[string]string{
 	"config_hub_template_use": "which template a hub took at which version, which names nobody",
 	"sample_entry":            "which entry a template brought as a sample, which names nobody; the entry itself is in the map above",
 	"sample_object":           "which object was marked as the workspace's sample content, which names nobody; each object is in the map above",
+	"config_goal_set":         "which goal period a template brought, which names nobody",
 	"template_page":           "which page a template brought, which names nobody; the page itself is in the map above",
 	"realtime_document":       "a live document's head - its last place and its snapshot's - which names nobody",
 	"realtime_snapshot":       "a compaction of many authors' updates into one state, which names nobody; each author's own updates are in the map above",
 	"whiteboard_media":        "which media object lies on which board - the file itself is in media_objects, filtered by who uploaded it",
 	"page_media":              "which media object a page holds - the file itself is in media_objects, filtered by who uploaded it",
+	"cmdb_ci_media":           "which media object an inventory object holds - the file itself is in media_objects, filtered by who uploaded it",
 	"page_label":              "a page's labels name no writer; the page they belong to is filtered by its author",
+	"post":                    "a post's date, audience and settings name no writer; its words are its page's, filtered by its author",
 	"cmdb_class":              "the workspace's own classes of configuration items",
 	"cmdb_relation_type":      "the workspace's vocabulary of relations between configuration items",
 	"cmdb_source":             "a source of the inventory is an integration of the workspace's, not a person",

@@ -111,6 +111,9 @@ type RunRule struct {
 	Dispatcher Actions
 	Scopes     Scopes
 	Conditions expression.Compiler
+	// EntryScope is POST /items:query's use case, asked as run_as whether a run's entry is among
+	// those a rule's *for which entries* lists (UC-AUT-01/13). Nil fails a run whose rule names a line.
+	EntryScope usecase.Handler
 	Entries    Entries
 	Containers Containers
 	// Reach asks, as a run starts, whether its event is in a private hub the run_as does not
@@ -487,6 +490,19 @@ func (h RunRule) decide(
 
 	if code, err := h.restricted(ctx, rule, envelope, cmd, values); err != nil || code != "" {
 		return run.Withhold(code, now), err
+	}
+
+	// *For which entries* before the conditions: an entry the line does not list is not this
+	// rule's business, so its run is skipped with no condition asked.
+	listed, failure, err := h.listed(ctx, actor, rule, values)
+	if err != nil {
+		return domain.Run{}, err
+	}
+	if failure != "" {
+		return run.Fail(failure, now), nil
+	}
+	if !listed {
+		return run.Skip(nil, now), nil
 	}
 
 	conditions, matched, err := h.evaluate(ctx, rule, values)

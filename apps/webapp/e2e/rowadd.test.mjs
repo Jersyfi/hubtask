@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Adding inside an entry from its row, and the entry beside the list. ＋ on a row opens capture
+// Adding inside an entry from its row, and the entry beside the list. ＋ on a row (on a phone, the
+// row's menu) opens capture
 // pointed under that row - its chip names the entry, and its × takes the new entry out from under
 // it - and creates the entry by its parent. In the pane, the entry's menu stands at the end of its
 // title's line rather than alone above it.
@@ -43,7 +44,15 @@ for (const width of [390, 1280]) {
       if (request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/api/v1/items')) created.push(request.postDataJSON());
     });
     const row = page.locator(`[data-row="${parent.id}"]`);
-    await reveal(row.getByRole('button', { name: `Add something inside ${parent.title}` }));
+    if (width < 600) {
+      // A phone's row draws no ＋ (work-surface concept §7): its menu - a long press, a swipe, or
+      // the keyboard's way to it - holds the add instead.
+      await row.getByRole('button', { name: `Actions for ${parent.title}` }).focus();
+      await page.keyboard.press('Enter');
+      await page.getByRole('menuitem', { name: `Add something inside ${parent.title}` }).click();
+    } else {
+      await reveal(row.getByRole('button', { name: `Add something inside ${parent.title}` }));
+    }
     const dialog = page.getByRole('dialog', { name: 'Capture' });
     const field = dialog.getByRole('textbox', { name: 'What do you want to remember?' });
     await field.waitFor({ timeout: 5_000 });
@@ -63,10 +72,10 @@ test('1280 px: in the pane, the entry menu stands at the end of the title line',
   const { page, context, failures } = await collection(1280);
   const entry = ITEMS.find((each) => !each.parent_id);
   await page.locator(`[data-row="${entry.id}"] a`).first().click();
-  const pane = page.getByRole('complementary');
+  const pane = page.getByRole('complementary', { name: entry.title });
   const menu = pane.locator('[data-opener="entry-menu"]');
   await menu.waitFor();
-  const title = await pane.getByRole('textbox', { name: 'Title' }).boundingBox();
+  const title = await pane.getByRole('heading').first().boundingBox();
   const opener = await menu.boundingBox();
   const middle = (each) => each.y + each.height / 2;
   assert.ok(Math.abs(middle(title) - middle(opener)) <= 12, `the menu at ${middle(opener)}, the title at ${middle(title)}`);

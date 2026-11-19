@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, ITEMS, OTHER } from './fixture.mjs';
@@ -61,8 +61,7 @@ function inboxBackend() {
 }
 
 test('chromium: approvals - an agent\'s held act approved in the one inbox, and the approvals paged by cursor - without an error', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const walk = await productWalk(browser, { modules: ['WORKFLOWS', 'SERVICE_DESK', 'AGENTS'], answer: inboxBackend() });
   t.after(walk.close);
   const { page } = walk;

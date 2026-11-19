@@ -5,6 +5,7 @@ package i18n
 
 import (
 	"errors"
+	"reflect"
 	"regexp"
 	"testing"
 
@@ -39,6 +40,29 @@ func TestEveryEmbeddedCatalogueLoadsAndIsWithinTheSubset(t *testing.T) {
 	}
 	if len(catalogues) < 2 {
 		t.Fatalf("%d catalogues embedded, want the source and German at least", len(catalogues))
+	}
+}
+
+// The embedded catalogues are parsed once per process: they cannot change under a running
+// binary, and every hubctl invocation and renderer builds on them - parsing and checking the
+// whole file each time made the CLI's tests outlast their timeout. A caller still gets its own
+// map, so what one caller adds to it no other caller sees.
+func TestTheEmbeddedCataloguesAreParsedOncePerProcess(t *testing.T) {
+	first, err := LoadEmbedded()
+	if err != nil {
+		t.Fatalf("loading the embedded catalogues: %v", err)
+	}
+	first["xx"] = Catalogue{}
+	second, err := LoadEmbedded()
+	if err != nil {
+		t.Fatalf("loading the embedded catalogues again: %v", err)
+	}
+
+	if reflect.ValueOf(first[SourceLocale].messages).Pointer() != reflect.ValueOf(second[SourceLocale].messages).Pointer() {
+		t.Error("the source catalogue was parsed a second time")
+	}
+	if _, leaked := second["xx"]; leaked {
+		t.Error("a catalogue one caller added to its map reached the next caller")
 	}
 }
 

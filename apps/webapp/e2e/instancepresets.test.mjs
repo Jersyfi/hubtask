@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { chooseInRow, rowMenu } from './rowmenu.mjs';
 
@@ -84,8 +84,7 @@ async function openDefaults(browser, { manifest = MULTI, isEnforced = false, wid
 }
 
 test('chromium: an operator creates, renames, starts again, makes default, locks and withdraws presets (checks 1, 3)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, written, failures, close } = await openDefaults(browser);
   t.after(close);
 
@@ -163,8 +162,7 @@ test('chromium: an operator creates, renames, starts again, makes default, locks
 });
 
 test('chromium: a file that enforces the level shows the presets and offers no control (check 1)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, written, failures, close } = await openDefaults(browser, { isEnforced: true });
   t.after(close);
 
@@ -182,8 +180,7 @@ test('chromium: a file that enforces the level shows the presets and offers no c
 });
 
 test('chromium: a single installation shows no presets of the installation and reads none (check 4)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, read, failures, close } = await openDefaults(browser, { manifest: { ...MANIFEST, tenancy_mode: 'single' } });
   t.after(close);
 

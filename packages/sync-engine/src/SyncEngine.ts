@@ -14,7 +14,7 @@
 // the reason this package can be exercised headlessly at all (ADR-0033 §2).
 
 import { TransportError } from './errors.ts';
-import type { ByteTransfer, Clock, RequestOptions, Storage, Transport } from './ports.ts';
+import type { ByteReceive, ByteTransfer, Clock, RequestOptions, Storage, Transport } from './ports.ts';
 import { systemClock } from './ports.ts';
 import type { ChangeRecord } from './schema.ts';
 import { META, Replica, collectionOf } from './replica.ts';
@@ -341,7 +341,8 @@ export interface SyncEngineOptions {
    * Called when a request meets a `401`, to exchange the refresh token for the next pair.
    *
    * `true` means a new credential is held and the request is retried **once**; `false` means the
-   * session is over and `onUnauthorized` follows. The exchange itself is the application's - this
+   * session is over and `onUnauthorized` follows; a rejection means the exchange did not happen
+   * (shed for load, not reached) - the request fails with it and the session stays. The exchange itself is the application's - this
    * package knows there is one and never what it presents - and it happens here rather than in
    * every store for a reason that is not tidiness: presenting a retired refresh token is theft as
    * far as the server is concerned and costs the whole family (`security.md` §5, T-01), so ten
@@ -940,6 +941,14 @@ export class SyncEngine {
     // Named prefixes only. `#invalidate(undefined)` means "everything", which is the right default
     // for a write and the wrong one here: the bytes changed nothing the client is holding.
     if (options.invalidates) this.#invalidate(options.invalidates);
+  }
+
+  /**
+   * receive fetches the bytes behind a download URL the server handed over - for a viewer that
+   * draws a file itself. A pass-through like `transfer`, and it invalidates nothing.
+   */
+  async receive(request: ByteReceive): Promise<Blob> {
+    return this.#transport.receive(request);
   }
 
   /**

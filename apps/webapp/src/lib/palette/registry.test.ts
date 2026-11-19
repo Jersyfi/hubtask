@@ -36,6 +36,15 @@ test('a member, whose role shapes nothing, is offered no collection and only a p
   assert.deepEqual(hub?.target, { kind: 'create', type: 'HUB', isPrivateOnly: true });
 });
 
+// UC-SVC-14 check 1 (PO-1): the search finds *Anfragen & Hilfe* where some department takes the
+// reader's requests, and nowhere else.
+test('the search leads to every department one may ask', () => {
+  const ask = frameActionOffers({ ...OWNER, mayAsk: true }, t).find((offer) => offer.id === 'frame:ask');
+  assert.deepEqual(ask?.target, { kind: 'route', path: '/portals' });
+  assert.equal(ask?.keywords, 'app.palette.words_ask');
+  assert.equal(ids({ ...OWNER, mayAsk: false }).includes('frame:ask'), false);
+});
+
 test('what is refused or not yet known is absent, not offered', () => {
   assert.deepEqual(ids({ hubCreation: undefined, mayShapeHub: false, isOnHubPage: false, mayCapture: false }), []);
   assert.deepEqual(ids({ ...OWNER, hubCreation: 'none', mayCapture: false }), ['frame:create-collection']);

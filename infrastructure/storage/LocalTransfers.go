@@ -4,7 +4,9 @@
 package storage
 
 import (
+	"context"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -29,29 +31,51 @@ func NewLocalTransfers(tokens security.MediaTokenIssuer, baseURL string) LocalTr
 
 var _ port.TransferIssuer = LocalTransfers{}
 
-func (l LocalTransfers) IssueUpload(object media.Object, expiresAt time.Time) (port.Transfer, error) {
+func (l LocalTransfers) IssueUpload(
+	ctx context.Context, object media.Object, expiresAt time.Time,
+) (port.Transfer, error) {
 	return port.Transfer{
-		URL:       l.contentURL(object, security.MediaTokenUpload, expiresAt),
+		URL:       l.contentURL(ctx, object, security.MediaTokenUpload, expiresAt),
 		Method:    http.MethodPut,
 		ExpiresAt: expiresAt,
 	}, nil
 }
 
 func (l LocalTransfers) IssueDownload(
-	object media.Object, expiresAt time.Time,
+	ctx context.Context, object media.Object, expiresAt time.Time,
 ) (port.Transfer, error) {
 	// The file name is not in the URL: the content route reads it off the record and sets the
 	// disposition itself, so there is nothing a holder could tamper with.
 	return port.Transfer{
-		URL:       l.contentURL(object, security.MediaTokenDownload, expiresAt),
+		URL:       l.contentURL(ctx, object, security.MediaTokenDownload, expiresAt),
 		Method:    http.MethodGet,
 		ExpiresAt: expiresAt,
 	}, nil
 }
 
 func (l LocalTransfers) contentURL(
-	object media.Object, purpose security.MediaTokenPurpose, expiresAt time.Time,
+	ctx context.Context, object media.Object, purpose security.MediaTokenPurpose, expiresAt time.Time,
 ) string {
-	return l.base + "/api/v1/media/" + object.ID.String() + ":content?token=" +
+	return l.origin(ctx) + "/api/v1/media/" + object.ID.String() + ":content?token=" +
 		l.tokens.Issue(purpose, object.TenantID, object.ID, expiresAt)
+}
+
+// origin is the base's scheme at the request's host: the page asking is on that host, and a
+// target on another origin is refused by its connect-src and img-src 'self' (security.md §9). The
+// scheme stays the installation's, because behind a proxy the request's own is not the browser's.
+// A host that does not parse as one keeps the installation's address.
+func (l LocalTransfers) origin(ctx context.Context) string {
+	host := port.RequestHost(ctx)
+	if host == "" || l.base == "" {
+		return l.base
+	}
+	base, err := url.Parse(l.base)
+	if err != nil || base.Scheme == "" {
+		return l.base
+	}
+	parsed, err := url.Parse(base.Scheme + "://" + host)
+	if err != nil || parsed.Host != host || parsed.User != nil {
+		return l.base
+	}
+	return base.Scheme + "://" + host
 }

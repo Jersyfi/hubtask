@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { DONE_BY_ME, DONE_BY_OTHER, FINISHED, FINISHED_HUB, OTHER, showCelebrations, signedIn } from './fixture.mjs';
@@ -39,8 +39,7 @@ async function open(browser, width, path, heading) {
 for (const width of [390, 700, 1280]) {
   test(`chromium: ${width} px — a finished collection and hub carry their milestone`, async (t) => {
     showCelebrations();
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     // The hub has five entries opened since; the collection none, so it says the day alone.
     for (const [path, name, said] of [
       [`/collections/${FINISHED.id}`, FINISHED.name, DAY],
@@ -58,8 +57,7 @@ for (const width of [390, 700, 1280]) {
 
 test('chromium: 1280 px — kudos on somebody else\'s finished entry are given and taken back', async (t) => {
   showCelebrations();
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures, kudosReads } = await open(browser, 1280, `/items/${DONE_BY_OTHER.id}`, DONE_BY_OTHER.title);
   const toggle = page.getByRole('button', { name: `Give kudos to ${OTHER.display_name} for finishing this` });
   await toggle.waitFor({ timeout: 5_000 });
@@ -83,8 +81,7 @@ test('chromium: 1280 px — kudos on somebody else\'s finished entry are given a
 
 test('chromium: 1280 px — the person who finished reads who gave kudos, never a count', async (t) => {
   showCelebrations();
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   for (const colorScheme of ['light', 'dark']) {
     const { page, context, failures } = await open(browser, 1280, `/items/${DONE_BY_ME.id}`, DONE_BY_ME.title);
     await page.emulateMedia({ colorScheme });
@@ -103,8 +100,7 @@ test('chromium: 1280 px — the person who finished reads who gave kudos, never 
 
 test('chromium: 1280 px — with celebrations off, no milestone and no kudos are read or drawn', async (t) => {
   showCelebrations({ celebrating: false });
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const visits = [
     [`/collections/${FINISHED.id}`, FINISHED.name],
     [`/hubs/${FINISHED_HUB.id}`, FINISHED_HUB.name],

@@ -63,7 +63,7 @@
         <input
           class="add"
           aria-label={t('app.pages.label_add')}
-          placeholder={t('app.pages.label_add')}
+          placeholder={t('app.pages.label_add_short')}
           bind:value={typed}
           onkeydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void add(); } }}
           onblur={() => void add()}
@@ -89,4 +89,18 @@
   .add:hover { border-color: var(--border-subtle); }
   .add:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
   .refusal { margin: 0; color: var(--text-danger); }
+
+  /* A thumb's target (§7): the add field is layout.target tall where the pointer is coarse. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .add { min-block-size: var(--layout-target); }
+  }
+
+  /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
+     reaches layout.target, by its own height or beyond its drawn box. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .choose { position: relative; }
+    .choose::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
+  }
 </style>

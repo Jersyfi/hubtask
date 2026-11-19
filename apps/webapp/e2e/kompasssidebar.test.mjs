@@ -9,7 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ALL, HOME, HUBS, IT, PD, open, served, side, texts } from './kompassstub.mjs';
 
@@ -38,8 +38,7 @@ async function choose(page, row, item) {
 }
 
 test('UC-WRK-36 check 19: a product hidden from its ⋯ goes behind More, folded, and comes back from there; one switched off is nowhere', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close } = await open(browser, { modulesOn: ALL.filter((each) => each !== 'GOALS'), prefs: { nav_products_hidden: ['GOALS'] } });
   t.after(close);
   await tree(page, 'Products').getByRole('treeitem', { name: /^Time/ }).waitFor({ timeout: 10_000 });
@@ -48,7 +47,7 @@ test('UC-WRK-36 check 19: a product hidden from its ⋯ goes behind More, folded
   await choose(page, tree(page, 'Products').getByRole('treeitem', { name: /^Time/ }), 'Hide from the sidebar');
   await page.waitForFunction(() => !document.querySelector('aside.sidenav [role="tree"][aria-label="Products"]')?.textContent?.includes('Time'));
   assert.deepEqual(written.preferences.at(-1), { nav_products_hidden: ['GOALS', 'TIME'] });
-  assert.deepEqual(await rowsOf(page, 'Products'), ['Plans', 'Pages', 'Whiteboards', 'Service desk', 'Assets', 'Agents'], 'the others kept their places');
+  assert.deepEqual(await rowsOf(page, 'Products'), ['Plans', 'Pages', 'Whiteboards', 'Service desk', 'Inventory', 'Agents'], 'the others kept their places');
   // More: folded at first, its count; opened in place, the row with its tile and ⋯ -> Show.
   const hidden = more(page, 'Products');
   const toggle = hidden.getByRole('button', { name: /^More/ });
@@ -61,15 +60,14 @@ test('UC-WRK-36 check 19: a product hidden from its ⋯ goes behind More, folded
   await choose(page, time, 'Show in the sidebar');
   await tree(page, 'Products').getByRole('treeitem', { name: /^Time/ }).waitFor();
   assert.deepEqual(written.preferences.at(-1), { nav_products_hidden: ['GOALS'] });
-  assert.deepEqual(await rowsOf(page, 'Products'), ['Plans', 'Pages', 'Whiteboards', 'Service desk', 'Assets', 'Time', 'Agents'], 'shown again where it stood');
+  assert.deepEqual(await rowsOf(page, 'Products'), ['Plans', 'Pages', 'Whiteboards', 'Service desk', 'Inventory', 'Time', 'Agents'], 'shown again where it stood');
   // The section's ⋯ list of products is gone: hiding is the row's.
   assert.equal(await side(page).getByRole('button', { name: 'Customise the sidebar' }).count(), 0);
   assert.deepEqual(failures, []);
 });
 
 test('UC-WRK-36 check 20: a hub hidden from its ⋯ goes behind More; Change position only on the workspace row', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close } = await open(browser, { modulesOn: ALL, owner: true });
   t.after(close);
   const hubs = tree(page, 'Hubs');
@@ -98,8 +96,7 @@ test('UC-WRK-36 check 20: a hub hidden from its ⋯ goes behind More; Change pos
 });
 
 test('UC-WRK-38 check 7: a hub dragged while the hubs read A-Z turns them to the shared order and lands after the hub above it; Alt+arrow turns it first', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close } = await open(browser, { modulesOn: ALL, owner: true, prefs: { nav_hubs_order: 'NAME' } });
   t.after(close);
   const hubs = tree(page, 'Hubs');
@@ -139,8 +136,7 @@ test('UC-WRK-38 check 7: a hub dragged while the hubs read A-Z turns them to the
 });
 
 test('UC-WRK-36 check 21: Starred, Products and Hubs fold by their chevron and stay folded on this device; a head that does not fold draws none', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { modulesOn: ALL, stars: [{ kind: 'HUB', id: IT.id }] });
   t.after(close);
   await tree(page, 'Hubs').getByRole('treeitem').first().waitFor({ timeout: 10_000 });
@@ -176,8 +172,7 @@ async function longPress(page, locator) {
 }
 
 test('UC-WRK-36 checks 19-20 on a phone: a long press hides a product or a hub, More opens in place and shows it again', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close } = await open(browser, { path: '/browse', modulesOn: ALL, owner: true, width: 390, height: 844, hasTouch: true, ready: (p) => p.locator('[data-phone-bar]') });
   t.after(close);
   const stack = page.locator('[data-browse-step]');

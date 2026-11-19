@@ -10,6 +10,7 @@
 import { TransportError } from '../src/errors.ts';
 import { mintUuidV7 } from '../src/device.ts';
 import type {
+  ByteReceive,
   ByteTransfer,
   Clock,
   RequestOptions,
@@ -294,6 +295,10 @@ class FakeServerTransport implements Transport {
   }
 
   async transfer(_transfer: ByteTransfer): Promise<void> {
+    throw problem(404, 'not_found');
+  }
+
+  async receive(_request: ByteReceive): Promise<Blob> {
     throw problem(404, 'not_found');
   }
 

@@ -102,7 +102,9 @@ func (r FigureReader) Count(
 	if len(requests) == 0 {
 		return figures
 	}
-	return r.countRequests(ctx, actor, uow, requests, structures, r.window(actor))
+	// Its own transactions, never the caller's: the count runs under a deadline and may go on
+	// after the read (persistence.Detaching).
+	return r.countRequests(persistence.Detached(ctx, uow), actor, uow, requests, structures, r.window(actor))
 }
 
 // window is the reader's day and week now.

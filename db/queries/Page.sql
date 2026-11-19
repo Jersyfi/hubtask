@@ -15,14 +15,14 @@ INSERT INTO page (
 -- name: FindPage :one
 SELECT id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for, cover
 FROM page
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id');
 
 -- name: FindPageForUpdate :one
 SELECT id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for, cover
 FROM page
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')
 FOR UPDATE;
@@ -36,29 +36,34 @@ UPDATE page SET
   verified_until = sqlc.narg('verified_until'), verified_at = sqlc.narg('verified_at'),
   verified_by = sqlc.narg('verified_by'), archived_at = sqlc.narg('archived_at'),
   deleted_at = sqlc.narg('deleted_at'), updated_by = sqlc.arg('updated_by'),
-  updated_at = sqlc.arg('updated_at'), version = version + 1,
+  updated_at = sqlc.arg('updated_at'), version = version + 1, cover = sqlc.narg('cover'),
   -- Who trashed it is TrashPageSubtree's to write; a page no longer trashed names nobody.
   deleted_by_type = CASE WHEN sqlc.narg('deleted_at')::timestamptz IS NULL THEN NULL ELSE deleted_by_type END,
   deleted_by_id = CASE WHEN sqlc.narg('deleted_at')::timestamptz IS NULL THEN NULL ELSE deleted_by_id END
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id') AND version = sqlc.arg('expected_version');
 
 -- name: ListHubPages :many
--- A space's tree without the bodies, at most a bound past the space's limit.
+-- A space's tree without the bodies, at most a bound past the space's limit; a body's head is
+-- read for the row's excerpt alone.
 SELECT id, hub_id, parent_id, title, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for,
+       left(body, 1000)::text AS body_head
 FROM page
-WHERE tenant_id = current_tenant_id() AND hub_id = sqlc.arg('hub_id')
+WHERE page.tenant_id = current_tenant_id() AND page.hub_id = sqlc.arg('hub_id')
   AND deleted_at IS NULL
   AND (sqlc.arg('include_archived')::boolean OR archived_at IS NULL)
   AND (NOT sqlc.arg('templates_only')::boolean OR template)
+  -- A post's page stands among the hub's posts, not in its tree.
+  AND NOT EXISTS (SELECT 1 FROM post po WHERE po.tenant_id = page.tenant_id AND po.page_id = page.id)
 ORDER BY parent_id NULLS FIRST, order_key, id
 LIMIT sqlc.arg('batch');
 
 -- name: ListTrashedHubPages :many
 SELECT id, hub_id, parent_id, title, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for,
+       left(body, 1000)::text AS body_head
 FROM page
 WHERE tenant_id = current_tenant_id() AND hub_id = sqlc.arg('hub_id') AND deleted_at IS NOT NULL
 ORDER BY deleted_at DESC, id
@@ -88,7 +93,7 @@ WITH RECURSIVE down (id, depth) AS (
 )
 SELECT p.id, p.hub_id, p.parent_id, p.title, p.body, p.icon, p.order_key, p.template, p.content_language,
        p.owner_id, p.verified_until, p.verified_at, p.verified_by, p.archived_at, p.deleted_at,
-       p.created_by, p.created_at, p.updated_by, p.updated_at, p.version, p.restricted, p.daily_for
+       p.created_by, p.created_at, p.updated_by, p.updated_at, p.version, p.restricted, p.daily_for, p.cover
 FROM page p JOIN down ON down.id = p.id
 WHERE p.tenant_id = current_tenant_id()
 ORDER BY down.depth, p.order_key, p.id
@@ -131,8 +136,10 @@ WHERE t.tenant_id = current_tenant_id() AND t.id IN (SELECT id FROM down)
 -- name: SearchPages :many
 -- The pages a text finds in the spaces named, ranked, narrowed to a label, the person who wrote a
 -- page first and a window of its last change; without a text, the pages the label or the author
--- names, newest first, with no passage. Archived and trashed pages stay out.
-SELECT p.id, p.hub_id, p.parent_id, p.title, p.icon, p.updated_at,
+-- names, newest first, with no passage. Archived and trashed pages stay out. Among equally good
+-- hits a page verified at the moment comes first: the order changes, not what is found (E-8).
+-- page.verified and page.owner narrow as the keys of one kind do (SearchKinds.sql).
+SELECT p.id, p.hub_id, p.parent_id, p.title, p.icon, p.updated_at, p.verified_until, p.created_at, p.created_by,
        (CASE WHEN sqlc.arg('text')::text = '' THEN 0
              ELSE ts_rank_cd(p.search_document, q.query) END)::float8 AS rank,
        (CASE WHEN sqlc.arg('text')::text = '' THEN ''
@@ -143,6 +150,8 @@ FROM page p,
                   || websearch_to_tsquery('simple', sqlc.arg('text')::text) AS query) q
 WHERE p.tenant_id = current_tenant_id() AND p.hub_id = ANY(sqlc.arg('hub_ids')::uuid[])
   AND p.deleted_at IS NULL AND p.archived_at IS NULL
+  -- A post is found as a post, where its audience and moment are judged, never as a page.
+  AND NOT EXISTS (SELECT 1 FROM post po WHERE po.tenant_id = p.tenant_id AND po.page_id = p.id)
   AND (sqlc.arg('text')::text = '' OR p.search_document @@ q.query)
   AND (sqlc.narg('label')::text IS NULL OR EXISTS (
         SELECT 1 FROM page_label l
@@ -150,7 +159,14 @@ WHERE p.tenant_id = current_tenant_id() AND p.hub_id = ANY(sqlc.arg('hub_ids')::
   AND (sqlc.narg('author_id')::uuid IS NULL OR p.created_by = sqlc.narg('author_id')::uuid)
   AND (sqlc.narg('updated_from')::timestamptz IS NULL OR p.updated_at >= sqlc.narg('updated_from')::timestamptz)
   AND (sqlc.narg('updated_to')::timestamptz IS NULL OR p.updated_at < sqlc.narg('updated_to')::timestamptz)
-ORDER BY rank DESC, p.updated_at DESC, p.id
+  AND (sqlc.narg('verified')::boolean IS NULL
+       OR (p.verified_until IS NOT NULL AND p.verified_until > sqlc.arg('at')::timestamptz) = sqlc.narg('verified')::boolean)
+  AND (sqlc.narg('owner_negated')::boolean IS NULL
+       OR (coalesce(p.owner_id = ANY(sqlc.arg('owner_values')::uuid[]), false)
+           OR (sqlc.arg('owner_none')::boolean AND p.owner_id IS NULL))
+          <> sqlc.narg('owner_negated')::boolean)
+ORDER BY rank DESC, (p.verified_until IS NOT NULL AND p.verified_until > sqlc.arg('at')::timestamptz) DESC,
+         p.updated_at DESC, p.id
 LIMIT sqlc.arg('batch');
 
 -- name: PageLabels :many
@@ -364,9 +380,12 @@ WHERE token_hash = sqlc.arg('token_hash');
 DELETE FROM page_public_link WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id');
 
 -- name: PublishPageArticle :execrows
-INSERT INTO page_article (tenant_id, page_id, collection_id, published_by, published_at)
-VALUES (current_tenant_id(), sqlc.arg('page_id'), sqlc.arg('collection_id'), sqlc.arg('published_by'), sqlc.arg('at'))
-ON CONFLICT (tenant_id, page_id, collection_id) DO NOTHING;
+-- Publishing again the same way changes nothing; the other way changes only whether it is a space.
+INSERT INTO page_article (tenant_id, page_id, collection_id, published_by, published_at, with_subpages)
+VALUES (current_tenant_id(), sqlc.arg('page_id'), sqlc.arg('collection_id'), sqlc.arg('published_by'), sqlc.arg('at'),
+        sqlc.arg('with_subpages'))
+ON CONFLICT (tenant_id, page_id, collection_id) DO UPDATE SET with_subpages = EXCLUDED.with_subpages
+WHERE page_article.with_subpages IS DISTINCT FROM EXCLUDED.with_subpages;
 
 -- name: UnpublishPageArticle :execrows
 DELETE FROM page_article
@@ -374,33 +393,91 @@ WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id') AND coll
 
 -- name: PageArticles :many
 -- Where a page is published, with what its readers made of it.
-SELECT a.collection_id, a.published_by, a.published_at, a.views,
+SELECT a.collection_id, a.published_by, a.published_at, a.views, a.with_subpages,
        count(r.account_id) FILTER (WHERE r.helpful)::bigint AS helpful,
        count(r.account_id) FILTER (WHERE NOT r.helpful)::bigint AS unhelpful
 FROM page_article a
 LEFT JOIN page_article_rating r
   ON r.tenant_id = a.tenant_id AND r.page_id = a.page_id AND r.collection_id = a.collection_id
 WHERE a.tenant_id = current_tenant_id() AND a.page_id = sqlc.arg('page_id')
-GROUP BY a.collection_id, a.published_by, a.published_at, a.views
+GROUP BY a.collection_id, a.published_by, a.published_at, a.views, a.with_subpages
 ORDER BY a.published_at, a.collection_id;
 
--- name: IsPageArticle :one
-SELECT EXISTS (
-  SELECT 1 FROM page_article
-  WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id') AND collection_id = sqlc.arg('collection_id')
-) AS held;
+-- name: PageArticleSource :many
+-- The publication a page is read through in a service: the page itself where it is published,
+-- else the nearest page above it shared as a space; none for neither. Its openings and ratings
+-- are the publication's.
+WITH RECURSIVE up (id, parent_id, depth) AS (
+  SELECT p.id, p.parent_id, 0 FROM page p
+  WHERE p.tenant_id = current_tenant_id() AND p.id = sqlc.arg('page_id')
+  UNION ALL
+  SELECT p.id, p.parent_id, up.depth + 1 FROM page p
+  JOIN up ON p.tenant_id = current_tenant_id() AND p.id = up.parent_id
+  WHERE up.depth < 16
+)
+SELECT a.page_id FROM up
+JOIN page_article a ON a.tenant_id = current_tenant_id() AND a.page_id = up.id
+  AND a.collection_id = sqlc.arg('collection_id')
+WHERE up.depth = 0 OR a.with_subpages
+ORDER BY up.depth
+LIMIT 1;
 
--- name: SearchPageArticles :many
--- The live articles of one service a text finds, ranked; with no text, the most read. A page
--- behind a restriction is never an article a requester reads. Each article is offered in the
--- first of `languages` (lower case, preferred first) a live, unrestricted variant of its page is
--- written in, else as the page itself, and is found by the words of the text it is offered in.
-WITH articles AS (
-  SELECT a.page_id, a.views
+-- name: PortalKnowledge :many
+-- What a service's portal shares: each publication, and under a space every live page a
+-- requester reads, parents before children in their order. A page behind a restriction or
+-- archived is left out with everything under it; language variants are read in their source's
+-- place, never listed. At most 500 pages under one space.
+WITH RECURSIVE reach (root_id, page_id, parent_id, depth, path) AS (
+  SELECT a.page_id, a.page_id, NULL::uuid, 0, ARRAY[]::text[]
   FROM page_article a
   JOIN page s ON s.tenant_id = a.tenant_id AND s.id = a.page_id
   WHERE a.tenant_id = current_tenant_id() AND a.collection_id = sqlc.arg('collection_id')
     AND s.deleted_at IS NULL AND s.archived_at IS NULL AND NOT page_behind_restriction(s.id)
+  UNION ALL
+  SELECT r.root_id, c.id, c.parent_id, r.depth + 1, r.path || (c.order_key || c.id::text)
+  FROM reach r
+  JOIN page_article a ON a.tenant_id = current_tenant_id() AND a.page_id = r.root_id
+    AND a.collection_id = sqlc.arg('collection_id') AND a.with_subpages
+  JOIN page c ON c.tenant_id = current_tenant_id() AND c.parent_id = r.page_id
+    AND c.deleted_at IS NULL AND c.archived_at IS NULL AND NOT c.restricted
+    AND c.language_source_id IS NULL AND NOT c.template
+  WHERE r.depth < 16
+), ranked AS (
+  SELECT r.*, row_number() OVER (PARTITION BY r.root_id ORDER BY r.path) AS place
+  FROM reach r
+)
+SELECT r.root_id, r.page_id, r.parent_id, p.title, p.icon, a.with_subpages, r.depth
+FROM ranked r
+JOIN page p ON p.tenant_id = current_tenant_id() AND p.id = r.page_id
+JOIN page_article a ON a.tenant_id = current_tenant_id() AND a.page_id = r.root_id
+  AND a.collection_id = sqlc.arg('collection_id')
+WHERE r.place <= 501
+ORDER BY a.published_at, r.root_id, r.path;
+
+-- name: SearchPageArticles :many
+-- The live articles of one service a text finds, ranked - the pages under a space among them;
+-- with no text, the most read. A page behind a restriction is never an article a requester
+-- reads. Each article is offered in the first of `languages` (lower case, preferred first) a
+-- live, unrestricted variant of its page is written in, else as the page itself, and is found by
+-- the words of the text it is offered in.
+WITH RECURSIVE reach (page_id, views, spread, depth) AS (
+  SELECT a.page_id, a.views, a.with_subpages, 0
+  FROM page_article a
+  WHERE a.tenant_id = current_tenant_id() AND a.collection_id = sqlc.arg('collection_id')
+  UNION ALL
+  -- Under a space (PO-4): live pages, stopping at one restricted or archived.
+  SELECT c.id, 0::bigint, true, r.depth + 1
+  FROM reach r
+  JOIN page c ON c.tenant_id = current_tenant_id() AND c.parent_id = r.page_id
+    AND c.deleted_at IS NULL AND c.archived_at IS NULL AND NOT c.restricted
+    AND c.language_source_id IS NULL AND NOT c.template
+  WHERE r.spread AND r.depth < 16
+), articles AS (
+  SELECT DISTINCT ON (r.page_id) r.page_id, r.views
+  FROM reach r
+  JOIN page s ON s.tenant_id = current_tenant_id() AND s.id = r.page_id
+  WHERE s.deleted_at IS NULL AND s.archived_at IS NULL AND NOT page_behind_restriction(s.id)
+  ORDER BY r.page_id, r.views DESC
 ), chosen AS (
   SELECT DISTINCT ON (r.page_id) r.page_id AS article_id, r.views, p.title, p.icon, p.updated_at,
          p.body, p.content_language, p.search_document,

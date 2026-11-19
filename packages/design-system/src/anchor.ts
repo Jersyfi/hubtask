@@ -118,6 +118,8 @@ export interface AnchorOptions {
   readonly placement: Placement;
   /** A surface that must keep its size: never shrunk, put over the page where no side fits. */
   readonly standalone?: boolean;
+  /** An overlay already in the top layer - a modal dialog - is tied, not raised a second time. */
+  readonly isInTopLayer?: boolean;
 }
 
 /**
@@ -165,7 +167,7 @@ export function raiseToTopLayer(overlay: HTMLElement): () => void {
  * Ties an overlay to its trigger and returns the function that unties it: two declarations and no
  * listeners, the flip done by the engine during layout rather than a frame after it.
  */
-export function anchorTo(trigger: HTMLElement, overlay: HTMLElement, { placement, standalone = false }: AnchorOptions): () => void {
+export function anchorTo(trigger: HTMLElement, overlay: HTMLElement, { placement, standalone = false, isInTopLayer = false }: AnchorOptions): () => void {
   const id = `hbt-anchor-${++sequence}`;
   trigger.dataset.hbtAnchor = id;
   overlay.dataset.hbtAnchored = id;
@@ -173,7 +175,7 @@ export function anchorTo(trigger: HTMLElement, overlay: HTMLElement, { placement
   const target = stylesheet();
   const anchorRule = ruleFor(target, `[data-hbt-anchor='${id}']`);
   const overlayRule = ruleFor(target, `[data-hbt-anchored='${id}']`);
-  const lower = raiseToTopLayer(overlay);
+  const lower = isInTopLayer ? () => {} : raiseToTopLayer(overlay);
 
   // The user agent gives a `[popover]` element `inset: 0` and centres it with `margin: auto`; the
   // rule below says where the overlay goes, so it has to say that it means it.
@@ -227,5 +229,120 @@ export function spotlightTo(target: HTMLElement, cutout: HTMLElement): () => voi
     drop(sheet, cutoutRule);
     delete target.dataset.hbtSpotlit;
     delete cutout.dataset.hbtSpotlight;
+  };
+}
+
+/** A box in the viewport, as `getBoundingClientRect` answers it. */
+export interface Box {
+  readonly top: number;
+  readonly left: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+/** Where a container's content box starts in the viewport, and how far it is scrolled. */
+export interface Frame extends Box {
+  readonly borderTop: number;
+  readonly borderLeft: number;
+  readonly scrollTop: number;
+  readonly scrollLeft: number;
+  readonly clientWidth: number;
+}
+
+/** A box inside a container, in logical terms: what the phantom's rule is written in. */
+export interface PlacedBox {
+  readonly blockStart: number;
+  readonly inlineStart: number;
+  readonly inlineSize: number;
+  readonly blockSize: number;
+}
+
+/**
+ * A viewport box read inside a container's padding box, logically. In a right-to-left container
+ * the inline start is the right edge, measured from the container's own right edge.
+ */
+export function boxWithin(box: Box, frame: Frame, dir: 'ltr' | 'rtl' = 'ltr'): PlacedBox {
+  const blockStart = box.top - frame.top - frame.borderTop + frame.scrollTop;
+  const fromLeft = box.left - frame.left - frame.borderLeft + frame.scrollLeft;
+  const inlineStart = dir === 'rtl' ? frame.clientWidth - (fromLeft + box.width) : fromLeft;
+  return { blockStart, inlineStart, inlineSize: box.width, blockSize: box.height };
+}
+
+export interface RectAnchor {
+  /** The element an overlay is anchored to with `anchorTo`. */
+  readonly element: HTMLElement;
+  /** Moves the anchor over a viewport box, or takes it away (`undefined`). */
+  place(box: Box | undefined): void;
+  release(): void;
+}
+
+/** How many box anchors each container holds. */
+let hosting: WeakMap<HTMLElement, number> | undefined;
+
+/**
+ * An anchor for what is no element: a text selection or one line of an editor. Anchor positioning
+ * needs an element, so an empty, hidden one is laid over the box inside a container, and the
+ * overlay is tied to it as to any trigger. The container scrolls the phantom with the content, so
+ * the overlay follows the text without a listener; only a new box (the selection changed) is
+ * measured again, by the caller, and handed to `place`.
+ *
+ * The box is a rule in the constructed stylesheet, like every per-instance value here: no inline
+ * style. The container is made the phantom's containing block by a rule as well; it must not be
+ * an element whose children another library owns (an editor's own root). The phantom is empty
+ * rather than hidden: an overlay whose anchor has `visibility: hidden` is not drawn
+ * (`position-visibility: anchors-visible`, the engines' default).
+ */
+export function rectAnchor(container: HTMLElement): RectAnchor {
+  const id = `hbt-rect-${++sequence}`;
+  const target = stylesheet();
+  const boxRule = ruleFor(target, `[data-hbt-rect='${id}']`);
+  // Several anchors share a container (the bar, the handle, the panel): it is counted, not named,
+  // or the first to go would take the containing block from the others.
+  if (!hosting) {
+    hosting = new WeakMap();
+    target.insertRule(`[data-hbt-rect-host] { position: relative; }`, target.cssRules.length);
+  }
+  const held = (hosting.get(container) ?? 0) + 1;
+  hosting.set(container, held);
+  boxRule.style.setProperty('position', 'absolute');
+  boxRule.style.setProperty('pointer-events', 'none');
+  boxRule.style.setProperty('display', 'none');
+
+  const phantom = document.createElement('span');
+  phantom.setAttribute('aria-hidden', 'true');
+  phantom.dataset.hbtRect = id;
+  container.dataset.hbtRectHost = '';
+  container.append(phantom);
+
+  return {
+    element: phantom,
+    place(box) {
+      if (!box) {
+        boxRule.style.setProperty('display', 'none');
+        return;
+      }
+      const outer = container.getBoundingClientRect();
+      const placed = boxWithin(
+        box,
+        {
+          top: outer.top, left: outer.left, width: outer.width, height: outer.height,
+          borderTop: container.clientTop, borderLeft: container.clientLeft,
+          scrollTop: container.scrollTop, scrollLeft: container.scrollLeft, clientWidth: container.clientWidth,
+        },
+        getComputedStyle(container).direction === 'rtl' ? 'rtl' : 'ltr',
+      );
+      boxRule.style.setProperty('display', 'block');
+      boxRule.style.setProperty('inset-block-start', `${placed.blockStart}px`);
+      boxRule.style.setProperty('inset-inline-start', `${placed.inlineStart}px`);
+      boxRule.style.setProperty('inline-size', `${placed.inlineSize}px`);
+      boxRule.style.setProperty('block-size', `${placed.blockSize}px`);
+    },
+    release() {
+      phantom.remove();
+      drop(target, boxRule);
+      const left = (hosting?.get(container) ?? 1) - 1;
+      hosting?.set(container, left);
+      if (left === 0) delete container.dataset.hbtRectHost;
+    },
   };
 }

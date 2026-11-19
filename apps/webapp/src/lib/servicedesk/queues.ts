@@ -9,10 +9,8 @@
  * order and the count of, and a hub the reader may not read is refused rather than left out.
  */
 
-import type { EntryType } from '@hubtask/sync-engine';
+import type { HubQueueList, ResourceState } from '@hubtask/sync-engine';
 
-import { entryTypesOffered } from '../data/entrytypes.ts';
-import { actsAsDesk } from '../portal/portal.ts';
 
 export const DESK_QUEUES = ['mine', 'unassigned', 'breaching', 'open'] as const;
 export type DeskQueue = (typeof DESK_QUEUES)[number];
@@ -59,14 +57,23 @@ export function queueTotal(totals: Readonly<Record<string, number | null | undef
   return sum;
 }
 
-/** A hub's collections that act as a desk (UC-SVC-05): those offering a type the portal takes. */
-export function desksOf(
-  collections: readonly { readonly id: string; readonly parent_id?: string | null; readonly structure?: { readonly settings?: { entry_types?: Record<string, readonly string[]> } } | null }[],
-  types: readonly EntryType[],
-): string[] {
-  return collections
-    .filter((collection) => actsAsDesk(types, entryTypesOffered(collection.structure?.settings ?? undefined, 'TASK'), collection.parent_id))
-    .map((collection) => collection.id);
+/**
+ * The desks of each hub as the server names them (`desks` of `GET /hubs/{id}/queues`); undefined
+ * until every hub has answered. The home asks the server rather than its own reading of the entry
+ * types, which said "no desk takes requests" beside a desk with open requests (concept §10). A hub
+ * that refused the read names none.
+ */
+export function desksAnswered(
+  answers: Readonly<Record<string, ResourceState<HubQueueList> | undefined>>,
+  hubIds: readonly string[],
+): Record<string, string[]> | undefined {
+  const out: Record<string, string[]> = {};
+  for (const hubId of hubIds) {
+    const answer = answers[hubId];
+    if (answer === undefined || answer.status === 'idle' || answer.status === 'loading') return undefined;
+    out[hubId] = answer.status === 'ready' ? [...(answer.data.desks ?? [])] : [];
+  }
+  return out;
 }
 
 /**
@@ -79,4 +86,31 @@ export function priorityOf(item: { readonly custom_fields?: Record<string, unkno
     if (typeof value === 'string' && value !== '') return value;
   }
   return undefined;
+}
+
+const PRIORITY_WORDS: Readonly<Record<string, 1 | 2 | 3 | 4>> = { highest: 1, critical: 1, urgent: 1, high: 2, medium: 3, normal: 3, low: 4, lowest: 4 };
+
+/** A priority's level for its mark: by the number it carries (*P2*), else by its word; else medium. */
+export function priorityLevel(value: string): 1 | 2 | 3 | 4 {
+  const number = /[1-4]/u.exec(value)?.[0];
+  if (number) return Number(number) as 1 | 2 | 3 | 4;
+  return PRIORITY_WORDS[value.trim().toLowerCase()] ?? 3;
+}
+
+/** A status group's badge tone by its category: done reads as success, work in hand as info. */
+export function groupTone(category: string | undefined): 'success' | 'info' | 'neutral' {
+  return category === 'DONE' ? 'success' : category === 'IN_PROGRESS' ? 'info' : 'neutral';
+}
+
+/**
+ * The rows by their status as a queue's groups (WB-4): a group stands where its first row stood,
+ * so the group of what breaks first leads, and each keeps the server's order inside it.
+ */
+export function groupedByStatus<T>(rows: readonly T[], statusOf: (row: T) => string): T[] {
+  const groups = new Map<string, T[]>();
+  for (const row of rows) {
+    const status = statusOf(row);
+    groups.set(status, [...(groups.get(status) ?? []), row]);
+  }
+  return [...groups.values()].flat();
 }

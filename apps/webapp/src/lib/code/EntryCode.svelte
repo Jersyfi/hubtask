@@ -7,7 +7,7 @@
   // them. A link opens the forge's own page in a new tab; nothing here writes.
 
   import { untrack } from 'svelte';
-  import { Badge, Icon } from '@hubtask/design-system/components';
+  import { Badge } from '@hubtask/design-system/components';
   import type { CodeLinkList } from '@hubtask/sync-engine';
 
   import { codeGroups, codeHref, codeLinksPath, codeRef, codeTone } from '../data/code.ts';
@@ -28,8 +28,7 @@
 </script>
 
 {#if links.length > 0}
-  <section class="code" aria-labelledby="entry-code-head" data-entry-code>
-    <h3 id="entry-code-head" class="head"><Icon name="git-branch" size="sm" />{t('app.code.title')}</h3>
+  <div class="code" data-entry-code>
     {#each groups as group (group.kind)}
       <ul class="rows" aria-label={t(`app.code.kind.${group.kind}`)}>
         {#each group.links as link (link.id)}
@@ -52,12 +51,11 @@
         {/each}
       </ul>
     {/each}
-  </section>
+  </div>
 {/if}
 
 <style>
   .code { display: grid; gap: var(--sp-100); }
-  .head { display: inline-flex; align-items: center; gap: var(--sp-050); margin: 0; font-size: var(--fs-100); }
   .rows { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }
   .row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-100); }
   .what { display: grid; gap: var(--sp-025); min-width: 0; overflow-wrap: anywhere; }

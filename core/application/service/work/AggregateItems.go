@@ -81,7 +81,7 @@ func (h AggregateItems) Execute(
 	if aggregation.CountsPages() {
 		return h.pages(ctx, actor, spec, aggregation)
 	}
-	resolved, err := q.resolvePlaceholders(actor, spec)
+	resolved, err := q.resolvePlaceholders(ctx, actor, spec)
 	if err != nil {
 		return repository.ItemAggregateResult{}, err
 	}
@@ -122,6 +122,11 @@ func (h AggregateItems) Execute(
 	}
 	if aggregation.CountsTime() {
 		if aggregation.Sight, err = h.timeSight(ctx, actor, anchor, collections, aggregation); err != nil {
+			return repository.ItemAggregateResult{}, err
+		}
+	}
+	if needs := view.NeedsOf(resolved.Filter); needs.Time || needs.Critical {
+		if resolved.Filter, err = h.asked(ctx, actor, resolved.Filter, anchor, collections, needs); err != nil {
 			return repository.ItemAggregateResult{}, err
 		}
 	}
@@ -267,47 +272,46 @@ func (h AggregateItems) timeSight(
 	if !actor.IsAuthenticated() || actor.AccountID.IsZero() {
 		return view.TimeSight{}, shared.ErrUnauthenticated.WithDetail("access.credential_required")
 	}
-	sight := view.TimeSight{Reader: actor.AccountID, Shown: []shared.ID{}}
-	if h.Time == nil {
-		return sight, nil
-	}
-	if anchor.Kind == repository.AnchorHub {
-		err := h.Query.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-			page := repository.Page{Size: 200}
-			for {
-				read, err := h.Query.Containers.List(ctx, repository.ContainerQuery{
-					ParentID: anchor.HubID, Type: domain.ContainerCollection, IncludeArchived: true, Page: page,
-				})
-				if err != nil {
-					return err
-				}
-				collections = append(collections, read.Containers...)
-				if len(collections) > MaxSummaryCollections || !read.Info.HasMore {
-					return nil
-				}
-				page.Cursor = read.Info.NextCursor
-			}
-		})
-		if err != nil {
-			return view.TimeSight{}, err
-		}
-	}
-	shown, sumsOnly, err := h.Time.Reach(ctx, actor, collections)
+	sight, err := timeSightOf(ctx, actor, h.Query, h.Time, anchor, collections)
 	if err != nil {
 		return view.TimeSight{}, err
 	}
-	for i, collection := range collections {
-		if i < len(shown) && shown[i] {
-			sight.Shown = append(sight.Shown, collection.ID)
-		}
-	}
-	if sumsOnly && len(sight.Shown) > 0 {
-		if aggregation.TimeGroup == view.TimeByPerson {
-			return view.TimeSight{}, shared.ErrForbidden.WithDetail("time.aggregated_only")
-		}
-		sight.Withhold = true
+	if sight.Withhold && aggregation.TimeGroup == view.TimeByPerson {
+		return view.TimeSight{}, shared.ErrForbidden.WithDetail("time.aggregated_only")
 	}
 	return sight, nil
+}
+
+// asked answers time.logged and plan.critical for a summary: the time over the summary's own
+// collections, the critical path of the hub or collection it reaches (a workspace is no plan).
+func (h AggregateItems) asked(
+	ctx context.Context, actor appshared.ActorContext, filter *view.Node, anchor repository.Anchor,
+	collections []domain.Container, needs view.Needs,
+) (*view.Node, error) {
+	var asked view.Asked
+	if needs.Time {
+		sight, err := timeSightOf(ctx, actor, h.Query, h.Time, anchor, collections)
+		if err != nil {
+			return nil, err
+		}
+		asked.Sight = sight
+	}
+	if needs.Critical {
+		if h.Query.Critical == nil || (anchor.Kind != repository.AnchorHub && anchor.Kind != repository.AnchorCollection) {
+			return nil, shared.ErrValidation.WithDetail("query.critical_needs_plan")
+		}
+		plan := anchor.CollectionID
+		if anchor.Kind == repository.AnchorHub {
+			plan = anchor.HubID
+		}
+		critical, err := h.Query.Critical.Critical(ctx, actor, plan)
+		if err != nil {
+			return nil, err
+		}
+		asked.Critical = critical
+	}
+	answered := filter.Answer(asked)
+	return &answered, nil
 }
 
 // sharedReached keeps the entries shared with the actor alone that lie in a live collection the
@@ -459,7 +463,7 @@ func (h AggregateItems) Descriptor() usecase.Descriptor {
 	for _, field := range query.Input {
 		switch field.Name {
 		case "scope_container_id", "scope_item_id", "include_descendants", "filter",
-			"include_archived", "include_trashed":
+			"include_archived", "include_trashed", "q":
 			input = append(input, field)
 		}
 	}
@@ -542,7 +546,19 @@ func summaryOf(in usecase.Input) (view.Spec, view.Aggregation, error) {
 	if err != nil {
 		return view.Spec{}, view.Aggregation{}, err
 	}
-	filter, err := view.ParseFilter(in["filter"], "/filter")
+	filterOf, filterPath := in["filter"], "/filter"
+	line, err := queryLineOf(in, "q", true)
+	if err != nil {
+		return view.Spec{}, view.Aggregation{}, err
+	}
+	if line.present {
+		if line.sort != nil {
+			return view.Spec{}, view.Aggregation{}, shared.ErrValidation.WithDetail("query.sort_not_here").
+				WithFields(shared.FieldError{Path: "/q", Code: "query.sort_not_here"})
+		}
+		filterOf, filterPath = line.filter, "/q"
+	}
+	filter, err := view.ParseFilter(filterOf, filterPath)
 	if err != nil {
 		return view.Spec{}, view.Aggregation{}, err
 	}
@@ -552,7 +568,8 @@ func summaryOf(in usecase.Input) (view.Spec, view.Aggregation, error) {
 	}
 	return view.Spec{
 		Scope: scope, Filter: filter,
-		IncludeArchived: in.Bool("include_archived"), IncludeTrashed: in.Bool("include_trashed"),
+		IncludeArchived: in.Bool("include_archived") || line.archived,
+		IncludeTrashed:  in.Bool("include_trashed") || line.trashed,
 	}, aggregation, nil
 }
 

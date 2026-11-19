@@ -12,6 +12,8 @@
 
   interface Props {
     head: PageHead;
+    /** A product home's own head instead of `PageHeader`: its `ProductBand` (WB-2, WB-5). */
+    top?: Snippet;
     /** The one strip: `Tabs` or `ViewBar` of the sibling lists (People · Groups · Roles). */
     strip?: Snippet;
     /** The page's one sentence of what it is for: under the head and the strip, above the `FilterBar`. */
@@ -26,10 +28,10 @@
     children: Snippet;
   }
 
-  const { head, strip, intro, filters, bulk, refused, children }: Props = $props();
+  const { head, top, strip, intro, filters, bulk, refused, children }: Props = $props();
 </script>
 
-<PageFrame kind="list" {head} isHeadHidden={bulk !== undefined} {refused}>
+<PageFrame kind="list" {head} {top} isHeadHidden={bulk !== undefined} {refused}>
   {#if bulk}{@render bulk()}{/if}
   {#if strip}{@render strip()}{/if}
   {#if intro}{@render intro()}{/if}

@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, ADMIN_GRANTS, HUB, INVITED, ITEMS, MANIFEST, OWNER_GRANTS, PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -85,8 +85,7 @@ async function share(page) {
 }
 
 test('chromium: a reader managing one hub may give roles there, and is not offered an invitation the server refuses', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, 'hub');
   t.after(close);
 
@@ -99,8 +98,7 @@ test('chromium: a reader managing one hub may give roles there, and is not offer
 
 // #1412: somebody invited to one hub is renewed where they are shown - here, by mail and by link.
 test('chromium: an invitation limited to a hub is sent again from the dialog', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const sent = {};
   const { page, failures, close } = await open(browser, 'workspace', { mail: true, sent });
   t.after(close);
@@ -113,8 +111,7 @@ test('chromium: an invitation limited to a hub is sent again from the dialog', a
 });
 
 test('chromium: without mail, the renewed invitation is a new link shown once', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const sent = {};
   const { page, failures, close } = await open(browser, 'workspace', { mail: false, sent });
   t.after(close);
@@ -127,8 +124,7 @@ test('chromium: without mail, the renewed invitation is a new link shown once', 
 });
 
 test('chromium: a reader managing the workspace is offered the invitation here', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, 'workspace');
   t.after(close);
 

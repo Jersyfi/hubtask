@@ -1041,6 +1041,30 @@ func (pending) DownloadMediaContent(w http.ResponseWriter, r *http.Request, _ op
 	notAvailable(w, r)
 }
 
+func (pending) StartMediaEditing(w http.ResponseWriter, r *http.Request, _ openapi.MediaId) {
+	notAvailable(w, r)
+}
+
+func (pending) ConvertMediaToPdf(w http.ResponseWriter, r *http.Request, _ openapi.MediaId) {
+	notAvailable(w, r)
+}
+
+func (pending) CheckWopiFileInfo(w http.ResponseWriter, r *http.Request, _ openapi.MediaId, _ openapi.CheckWopiFileInfoParams) {
+	notAvailable(w, r)
+}
+
+func (pending) LockWopiFile(w http.ResponseWriter, r *http.Request, _ openapi.MediaId, _ openapi.LockWopiFileParams) {
+	notAvailable(w, r)
+}
+
+func (pending) GetWopiFile(w http.ResponseWriter, r *http.Request, _ openapi.MediaId, _ openapi.GetWopiFileParams) {
+	notAvailable(w, r)
+}
+
+func (pending) PutWopiFile(w http.ResponseWriter, r *http.Request, _ openapi.MediaId, _ openapi.PutWopiFileParams) {
+	notAvailable(w, r)
+}
+
 func (pending) DownloadWorkspaceArchive(w http.ResponseWriter, r *http.Request, _ openapi.DownloadWorkspaceArchiveParams) {
 	notAvailable(w, r)
 }
@@ -1203,6 +1227,12 @@ func (pending) QueryItems(w http.ResponseWriter, r *http.Request) { notAvailable
 func (pending) SearchItems(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) ReindexSearch(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) SwitchBoard(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
+	notAvailable(w, r)
+}
+func (pending) MakeBoardWorkflow(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
+	notAvailable(w, r)
+}
 
 // BulkUpdateWorkItems and DuplicateWorkItem are overridden by RestController, for the reason given
 // at CreateContainer.
@@ -1487,6 +1517,10 @@ func (pending) AiClassify(w http.ResponseWriter, r *http.Request, _ openapi.Item
 }
 
 func (pending) AiTranslate(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) AskQuery(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
@@ -1926,6 +1960,10 @@ func (pending) PreviewWorkflowScheme(w http.ResponseWriter, r *http.Request) { n
 func (pending) ListEntrySteps(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
 	notAvailable(w, r)
 }
+func (pending) DropItemOnColumn(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.DropItemOnColumnParams) {
+	notAvailable(w, r)
+}
+
 func (pending) TakeStep(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.TakeStepParams) {
 	notAvailable(w, r)
 }
@@ -2320,6 +2358,9 @@ func (pending) DefineSlaPolicy(w http.ResponseWriter, r *http.Request, _ string,
 func (pending) ReportSla(w http.ResponseWriter, r *http.Request, _ openapi.ReportSlaParams) {
 	notAvailable(w, r)
 }
+func (pending) ReadMyDeadlinesKept(w http.ResponseWriter, r *http.Request, _ openapi.ReadMyDeadlinesKeptParams) {
+	notAvailable(w, r)
+}
 func (pending) GetDeskLogo(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
 	notAvailable(w, r)
 }
@@ -2348,6 +2389,9 @@ func (pending) ListMyOpenEntries(w http.ResponseWriter, r *http.Request, _ opena
 	notAvailable(w, r)
 }
 func (pending) SearchEverywhere(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) SearchAll(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 func (pending) CommentOnMyRequest(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.CommentOnMyRequestParams) {
@@ -2689,6 +2733,10 @@ func (pending) ReadDashboardFigures(w http.ResponseWriter, r *http.Request, _ op
 	notAvailable(w, r)
 }
 
+func (pending) DraftDashboardFigures(w http.ResponseWriter, r *http.Request, _ openapi.DashboardId) {
+	notAvailable(w, r)
+}
+
 func (pending) ReadDashboardDigest(w http.ResponseWriter, r *http.Request, _ openapi.DashboardId) {
 	notAvailable(w, r)
 }
@@ -2894,6 +2942,9 @@ func (pending) DeletePagePublicLink(w http.ResponseWriter, r *http.Request, _ op
 }
 
 func (pending) ReadPublicLinksPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) ReadDocumentServer(w http.ResponseWriter, r *http.Request)    { notAvailable(w, r) }
+func (pending) SetDocumentServer(w http.ResponseWriter, r *http.Request)     { notAvailable(w, r) }
+func (pending) CheckDocumentServer(w http.ResponseWriter, r *http.Request)   { notAvailable(w, r) }
 
 func (pending) SetPublicLinksPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
@@ -2967,6 +3018,10 @@ func (pending) UnlinkPageLanguageVariant(w http.ResponseWriter, r *http.Request,
 	notAvailable(w, r)
 }
 
+func (pending) ListPortalKnowledge(w http.ResponseWriter, r *http.Request, _ openapi.ListPortalKnowledgeParams) {
+	notAvailable(w, r)
+}
+
 func (pending) SuggestArticles(w http.ResponseWriter, r *http.Request, _ openapi.SuggestArticlesParams) {
 	notAvailable(w, r)
 }
@@ -2999,6 +3054,18 @@ func (pending) DefineCiGroup(w http.ResponseWriter, r *http.Request, _ openapi_t
 	notAvailable(w, r)
 }
 
+func (pending) DeleteCiGroup(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ string, _ openapi.DeleteCiGroupParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ConfirmCi(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) RemindCiCampaign(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
 func (pending) DefineSoftwareAlias(w http.ResponseWriter, r *http.Request, _ openapi.DefineSoftwareAliasParams) {
 	notAvailable(w, r)
 }
@@ -3020,6 +3087,30 @@ func (pending) ListCiGroups(w http.ResponseWriter, r *http.Request, _ openapi_ty
 }
 
 func (pending) ListEntryCis(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiWork(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiAttachments(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListCiAttachmentsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiHistory(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListCiHistoryParams) {
+	notAvailable(w, r)
+}
+
+func (pending) AttachCiMedia(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.MediaId) {
+	notAvailable(w, r)
+}
+
+func (pending) DetachCiMedia(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.MediaId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListHubCiWork(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
 	notAvailable(w, r)
 }
 
@@ -3289,6 +3380,14 @@ func (pending) AddHubTemplatePage(w http.ResponseWriter, r *http.Request, _ open
 	notAvailable(w, r)
 }
 
+func (pending) ListGoalSets(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) AddGoalSet(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
 func (pending) ListDeadLetters(w http.ResponseWriter, r *http.Request, _ openapi.ListDeadLettersParams) {
 	notAvailable(w, r)
 }
@@ -3329,5 +3428,61 @@ func (pending) MakeOwnDomainMain(w http.ResponseWriter, r *http.Request, _ opena
 }
 
 func (pending) SwitchBackFromOwnDomain(w http.ResponseWriter, r *http.Request, _ openapi.SwitchBackFromOwnDomainParams) {
+	notAvailable(w, r)
+}
+
+// The image library for covers (UC-DOC-16 check 5).
+func (pending) SearchCoverImages(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ openapi.SearchCoverImagesParams) {
+	notAvailable(w, r)
+}
+func (pending) FetchCoverImage(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ string) {
+	notAvailable(w, r)
+}
+func (pending) ReadCoverImagesPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) SetCoverImagesPolicy(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }
+
+// Posts (work-surface concept E-15).
+func (pending) ListHubPosts(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListHubPostsParams) {
+	notAvailable(w, r)
+}
+func (pending) FollowHubPosts(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+func (pending) CreatePost(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+func (pending) ListUnreadPosts(w http.ResponseWriter, r *http.Request)            { notAvailable(w, r) }
+func (pending) ReadPost(w http.ResponseWriter, r *http.Request, _ openapi.PageId) { notAvailable(w, r) }
+func (pending) SetPostSettings(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+func (pending) ReadPostConfirmations(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+func (pending) ListPostReplies(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+func (pending) AddPostReply(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+func (pending) DeletePostReply(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+func (pending) UnreactToPostReply(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ openapi_types.UUID, _ string) {
+	notAvailable(w, r)
+}
+func (pending) ReactToPostReply(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ openapi_types.UUID, _ string) {
+	notAvailable(w, r)
+}
+func (pending) ConfirmPost(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+func (pending) PublishPost(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+func (pending) RemindPost(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+func (pending) MarkPostSeen(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
 	notAvailable(w, r)
 }

@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { AI_OBJECTION, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -55,8 +55,7 @@ async function open(browser, position) {
 }
 
 test('chromium: the profile offers Keep my content out of AI, and it records both ways', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser, offered);
   t.after(close);
 
@@ -72,8 +71,7 @@ test('chromium: the profile offers Keep my content out of AI, and it records bot
 });
 
 test('chromium: where there is nothing to choose, the profile shows nothing', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, AI_OBJECTION);
   t.after(close);
 
@@ -89,8 +87,7 @@ test('chromium: where there is nothing to choose, the profile shows nothing', as
 });
 
 test('chromium: where AI is part of everybody\'s work, the basis instead of a switch, and the notice once', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser, partOfWork);
   t.after(close);
 

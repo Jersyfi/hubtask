@@ -356,3 +356,105 @@ SELECT
      WHERE a.item_id = w.id AND o.deleted_at IS NULL)::integer AS attachments
 FROM work_item w
 WHERE w.id = ANY(sqlc.arg('item_ids')::uuid[]);
+
+-- name: ListBucketStatuses :many
+-- A board's mapping of columns to statuses, left to right and in each column by status; a
+-- deleted column's rows are gone with it or are left out here.
+SELECT s.bucket_id, s.status
+FROM bucket_status s
+JOIN bucket b ON b.id = s.bucket_id AND b.deleted_at IS NULL
+WHERE s.collection_id = sqlc.arg('collection_id')::uuid
+ORDER BY b.order_key COLLATE "C", b.id, s.status;
+
+-- name: ClearBucketStatuses :execrows
+-- A board's whole mapping, before it is written again or when the board leaves its workflow.
+DELETE FROM bucket_status WHERE collection_id = sqlc.arg('collection_id')::uuid;
+
+-- name: InsertBucketStatus :execrows
+-- One row of a mapping. The column must be of the same board, which the join refuses otherwise:
+-- nothing is written, and the caller's count tells.
+INSERT INTO bucket_status (tenant_id, collection_id, bucket_id, status)
+SELECT b.tenant_id, b.collection_id, b.id, sqlc.arg('status')::text
+FROM bucket b
+WHERE b.id = sqlc.arg('bucket_id')::uuid AND b.collection_id = sqlc.arg('collection_id')::uuid
+  AND b.deleted_at IS NULL;
+
+-- name: PlaceWorkItemsByStatus :many
+-- The column follows the status under a workflow (domain-model.md §3.5a): the top-level tasks of a
+-- collection in one status go into the column showing it - null for *Ohne Spalte*. Only rows whose
+-- column changes are written, so a second pass spends no version.
+UPDATE work_item wi SET
+  bucket_id  = sqlc.narg('bucket_id')::uuid,
+  updated_at = sqlc.arg('updated_at'),
+  version    = wi.version + 1
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = sqlc.arg('collection_id')::uuid
+  AND wi.type = 'TASK' AND wi.parent_id IS NULL
+  AND wi.status = sqlc.arg('status')::text
+  AND wi.bucket_id IS DISTINCT FROM sqlc.narg('bucket_id')::uuid
+RETURNING wi.id, wi.version;
+
+-- name: PlaceWorkItemsByCompletion :many
+-- Without a workflow the column follows completion (domain-model.md §3.5a): the top-level tasks of
+-- a collection that carry no status, of one completion and - where from_bucket is given - in that
+-- column, go into a column. Only rows whose column changes are written.
+UPDATE work_item wi SET
+  bucket_id  = sqlc.narg('bucket_id')::uuid,
+  updated_at = sqlc.arg('updated_at'),
+  version    = wi.version + 1
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = sqlc.arg('collection_id')::uuid
+  AND wi.type = 'TASK' AND wi.parent_id IS NULL AND wi.status IS NULL
+  AND wi.is_completed = sqlc.arg('is_completed')::boolean
+  AND (sqlc.narg('from_bucket')::uuid IS NULL OR wi.bucket_id = sqlc.narg('from_bucket')::uuid)
+  AND wi.bucket_id IS DISTINCT FROM sqlc.narg('bucket_id')::uuid
+RETURNING wi.id, wi.version;
+
+-- name: PlaceUnplacedWorkItems :many
+-- A board's tasks without a status and without a column, of one completion, go into a column:
+-- open ones into the first when a workflow leaves or a list becomes a board (domain-model.md §3.5a).
+UPDATE work_item wi SET
+  bucket_id  = sqlc.arg('bucket_id')::uuid,
+  updated_at = sqlc.arg('updated_at'),
+  version    = wi.version + 1
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = sqlc.arg('collection_id')::uuid
+  AND wi.type = 'TASK' AND wi.parent_id IS NULL AND wi.status IS NULL AND wi.bucket_id IS NULL
+  AND wi.is_completed = sqlc.arg('is_completed')::boolean
+RETURNING wi.id, wi.version;
+
+-- name: CountBoardCells :many
+-- A board's top-level tasks counted by status, column and completion: what a change of its
+-- workflow moves (work.PlanBoardChange). Trashed entries count, as they move.
+SELECT coalesce(wi.status, '')::text AS status, wi.bucket_id, wi.is_completed, count(*)::int AS count
+FROM work_item wi
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = sqlc.arg('collection_id')::uuid
+  AND wi.type = 'TASK' AND wi.parent_id IS NULL
+GROUP BY 1, 2, 3
+ORDER BY 1, 2, 3;
+
+-- name: SetWorkItemStatusInColumn :many
+-- A workflow made from a board's columns: the top-level tasks without a status standing in a
+-- column - or, with no column given, of one completion standing in none - take a status.
+UPDATE work_item wi SET
+  status     = sqlc.arg('status')::text,
+  updated_at = sqlc.arg('updated_at'),
+  version    = wi.version + 1
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = sqlc.arg('collection_id')::uuid
+  AND wi.type = 'TASK' AND wi.parent_id IS NULL AND wi.status IS NULL
+  AND ((sqlc.narg('bucket_id')::uuid IS NOT NULL AND wi.bucket_id = sqlc.narg('bucket_id')::uuid)
+    OR (sqlc.narg('bucket_id')::uuid IS NULL AND wi.bucket_id IS NULL
+        AND wi.is_completed = sqlc.arg('is_completed')::boolean))
+RETURNING wi.id, wi.version;
+
+-- name: CompleteWorkItemsInColumn :many
+-- Open top-level tasks without a status standing in a board's done column are completed - the
+-- done mark moved onto their column (domain-model.md §3.5a).
+UPDATE work_item wi SET
+  completion_count = wi.completion_count + 1,
+  is_completed = true,
+  completed_at = sqlc.arg('at'),
+  completed_by = sqlc.arg('completed_by')::uuid,
+  updated_at   = sqlc.arg('at'),
+  version      = wi.version + 1
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = sqlc.arg('collection_id')::uuid
+  AND wi.bucket_id = sqlc.arg('bucket_id')::uuid
+  AND wi.type = 'TASK' AND wi.parent_id IS NULL AND wi.status IS NULL AND NOT wi.is_completed
+RETURNING wi.id, wi.version;

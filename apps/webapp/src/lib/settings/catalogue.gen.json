@@ -1789,6 +1789,36 @@
       ]
     },
     {
+      "key": "knowledge.cover_images",
+      "kind": "CHOICE",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "REPLACE",
+      "options": [
+        "OPEN_LIBRARY",
+        "OFF"
+      ],
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
       "key": "knowledge.drafts",
       "kind": "FLAG",
       "levels": [
@@ -2054,6 +2084,38 @@
     },
     {
       "key": "notifications.sla",
+      "kind": "FLAG",
+      "levels": [
+        "PERSON"
+      ],
+      "lockable": false,
+      "may": "REPLACE",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "PERSON",
+          "permission": "SELF"
+        }
+      ]
+    },
+    {
+      "key": "notifications.post",
+      "kind": "FLAG",
+      "levels": [
+        "PERSON"
+      ],
+      "lockable": false,
+      "may": "REPLACE",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "PERSON",
+          "permission": "SELF"
+        }
+      ]
+    },
+    {
+      "key": "notifications.attestation",
       "kind": "FLAG",
       "levels": [
         "PERSON"

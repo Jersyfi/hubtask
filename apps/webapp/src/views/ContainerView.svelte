@@ -12,21 +12,22 @@
   // makes a deep link land with a correct trail: ADR-0028's `index.html` fallback exists so a deep
   // link survives a reload, and a trail assembled from navigation history would be empty after one.
   import { placeMark } from '../lib/workspace/PlaceMark.svelte';
+  import ContainerMark from '../lib/workspace/ContainerMark.svelte';
   import StarToggle from '../lib/workspace/StarToggle.svelte';
 
   import {
     Button,
     DetailPane,
     Dialog,
-    Drawer,
+    DensitySwitch,
     EmptyState,
     Icon,
     IconButton,
-    Menu,
     PageHeader,
     ReadOnlyNotice,
     Skeleton,
     WorkPage,
+    type ListDensity,
     type MenuItem,
     type PageAction,
   } from '@hubtask/design-system/components';
@@ -44,21 +45,27 @@
   import ViewsPanel from '../lib/entries/ViewsPanel.svelte';
   import ExportDialog from '../lib/entries/ExportDialog.svelte';
   import FeedsDialog from '../lib/entries/FeedsDialog.svelte';
-  import TimelineView from '../lib/entries/TimelineView.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
   import CollectionMoveDialog from '../lib/workspace/CollectionMoveDialog.svelte';
-  import QueryPanel from '../lib/entries/QueryPanel.svelte';
+  import ViewPanel from '../lib/entries/ViewPanel.svelte';
+  import QueryStrip from '../lib/entries/QueryStrip.svelte';
+  import QueryChips from '../lib/entries/QueryChips.svelte';
+  import { namesPlan, planNames } from '../lib/data/planNames.svelte.ts';
+  import CalendarView from '../lib/entries/CalendarView.svelte';
+  import { changedParts, groupingOf, lineOf, personNamed, readQuery, type Names, type ViewSetup } from '../lib/data/viewquery.ts';
+  import { labels as labelStore } from '../lib/data/labels.svelte.ts';
+  import { engine } from '../lib/data/engine.ts';
+  import { READER_KEYS, segments, valuesRequest, type CountedValue, type QueryKey } from '@hubtask/query';
+  import { VIEW_SCOPES, queryDocumentOf, scopeIdOf, type ViewScope } from '../lib/data/views.ts';
   import PlacePeople from '../lib/workspace/PlacePeople.svelte';
   import EmergencyNotice from '../lib/workspace/EmergencyNotice.svelte';
   import { actor } from '../lib/data/account.svelte.ts';
   import { deviceStore, openingLayout, rememberLayout } from '../lib/entries/layoutmemory.ts';
   import {
-    defaultArrangement,
     offeredFields,
     offeredGroupings,
     openingArrangement,
     rememberArrangement,
-    toggleField,
     type DonePlacement,
     type ListArrangement,
     type ListField,
@@ -75,7 +82,7 @@
   import { actsAsDesk } from '../lib/portal/portal.ts';
   import { runsSprints } from '../lib/data/sprints.svelte.ts';
   import { modules, modulesHere } from '../lib/data/modules.svelte.ts';
-  import { offeredByProfile, sortableFields } from '../lib/data/query.ts';
+  import { bothOf, groupOf, groupableFields, offeredByProfile, sortableFields } from '../lib/data/query.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { templates } from '../lib/data/templates.svelte.ts';
   import { feeds, views as savedViews } from '../lib/data/views.svelte.ts';
@@ -83,6 +90,7 @@
   import { captureRulesOf } from '../lib/entries/capture.ts';
   import { queryFieldsFor } from '../lib/data/customfields.ts';
   import { people } from '../lib/data/people.svelte.ts';
+  import { takeOver } from '../lib/data/listhandoff.ts';
   import { selection } from '../lib/data/selection.svelte.ts';
   import { live } from '../lib/data/live.svelte.ts';
   import { suggestions } from '../lib/data/suggestions.svelte.ts';
@@ -90,6 +98,8 @@
   import { byItem } from '../lib/data/bulk.ts';
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
   import PositionDialog from '../lib/workspace/PositionDialog.svelte';
+  import BoardLevelDialog from '../lib/entries/BoardLevelDialog.svelte';
+  import type { LevelSwitch } from '../lib/entries/boardlevel.ts';
   import { offerUndo } from '../lib/entries/undo.svelte.ts';
   import { placeMenu } from '../lib/workspace/placeMenu.ts';
   import { collectionViews } from '../lib/workspace/placeViews.ts';
@@ -100,7 +110,7 @@
   import HubActivity from '../lib/workspace/HubActivity.svelte';
   import { ownsHub, privacyAction, shutOut } from '../lib/workspace/privacy.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
-  import { boardShapeIn, workflows, workflowsIn } from '../lib/data/workflows.svelte.ts';
+  import { boardShapeIn, workflowFor, workflows, workflowsIn } from '../lib/data/workflows.svelte.ts';
   import ItemView from './ItemView.svelte';
 
   import { announcer } from '../lib/announce.svelte.ts';
@@ -110,6 +120,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { device } from '../lib/device.svelte.ts';
   import { capture } from '../lib/capture/capture.svelte.ts';
+  import { create } from '../lib/create/create.svelte.ts';
 
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
@@ -122,6 +133,7 @@
     BulkOperation,
     BulkResult,
     SavedView,
+    StateMode,
     TransportError,
     WorkItem,
   } from '@hubtask/sync-engine';
@@ -145,9 +157,10 @@
     /** A saved view the address opens (`?view=`), a view of the bar too. */
     viewAsked?: string;
     onnavigate: (path: string) => void;
+    onreplace?: (path: string) => void;
   }
 
-  const { id: idAsked, openItemId, layoutAsked, viewAsked, onnavigate }: Props = $props();
+  const { id: idAsked, openItemId, layoutAsked, viewAsked, onnavigate, onreplace = onnavigate }: Props = $props();
   // The id as a derived value: `LazyView` spreads a new props object on every change of address,
   // and an effect reading the prop itself would re-run on a `?layout=` or `?item=` - its cleanup
   // emptying the selection the screen keeps across its views (design-system.md §11.9).
@@ -156,8 +169,10 @@
   /** The open entry, for the pane's head: read by the view inside; this only needs its words. */
   const openItem = $derived(openItemId ? items.find(openItemId) : undefined);
 
+  /** The address the pane opens over: the collection's, or its *Timeline*'s. */
+  const screenPath = $derived(`/collections/${id}`);
   function openBeside(itemId: string) {
-    onnavigate(`/collections/${id}?item=${encodeURIComponent(itemId)}`);
+    onnavigate(`${screenPath}?item=${encodeURIComponent(itemId)}`);
   }
 
   /**
@@ -189,7 +204,7 @@
    */
   function closePane() {
     const rowId = openItemId;
-    onnavigate(`/collections/${id}`);
+    onnavigate(screenPath);
     queueMicrotask(() => {
       if (document.activeElement && document.activeElement !== document.body) return;
       document.querySelector<HTMLElement>(`[data-row="${rowId}"] a`)?.focus();
@@ -233,8 +248,21 @@
   const modulesOn = $derived(modulesHere(manifest.value?.modules_on, placeModules));
   const placeManifest = $derived(manifest.value ? { ...manifest.value, modules_on: modulesOn } : undefined);
 
-  // The workflow the collection runs for its tasks, where it runs one: the board is then one
-  // column per status (UC-FLW-03 check 2), and the head names it with a link to where it is
+  /** The collection's level for its tasks: a list, board columns or a workflow (build-plan §5). */
+  let stateMode = $state<StateMode | undefined>(undefined);
+  /** Each entry type's own level, from the same read: the replica's record carries neither. */
+  let stateModes = $state<Readonly<Record<string, StateMode>> | undefined>(undefined);
+  $effect(() => {
+    const wanted = id;
+    if (container?.type !== 'COLLECTION') return;
+    return untrack(() => containers.levelOf(wanted, (level, byType) => {
+      stateMode = level;
+      stateModes = byType;
+    }));
+  });
+
+  // The workflow the collection runs for its tasks, where it runs one: the board's columns then
+  // show its statuses (build-plan §5), and the head names it with a link to where it is
   // defined (UC-FLW-02 check 5). Read only where the module is on: elsewhere the server refuses the
   // read, and every collection would log the refusal (run R3 at 10⁷ entries).
   const workflowsOn = $derived(typesShown(placeManifest));
@@ -250,6 +278,13 @@
   const boardShape = $derived(
     container?.type === 'COLLECTION' ? boardShapeIn(workflows.list, container.id, container.parent_id ?? undefined) : undefined,
   );
+  /** An entry type's own level and workflow (build-plan §5): the server answers it per type. */
+  function levelOfType(entryType: string) {
+    const mode = stateModes?.[entryType];
+    if (!container || !mode || mode === stateMode) return undefined;
+    const runs = mode === 'WORKFLOW' ? workflowFor(workflows.list, container.id, container.parent_id ?? undefined, entryType)?.published ?? undefined : undefined;
+    return { mode, workflow: runs };
+  }
 
   /** What this collection offers: the installation's answers, narrowed to its structure in force. */
   const offer = $derived(offerIn(container?.structure?.settings));
@@ -266,9 +301,10 @@
    * the list is offered; everything this client draws while the manifest is not yet read.
    */
   const choosable = $derived(
-    offeredLayouts.length === 0
+    (offeredLayouts.length === 0
       ? DRAWABLE
-      : DRAWABLE.filter((each) => offeredLayouts.includes(each) || (isListLayout(each) && offeredLayouts.some(isListLayout))),
+      : DRAWABLE.filter((each) => offeredLayouts.includes(each) || (isListLayout(each) && offeredLayouts.some(isListLayout))))
+      .filter((each) => each !== 'TIMELINE'),
   );
 
   /** What the collection offers and opens with, as one key, so a re-read that changes neither leaves the layout alone. */
@@ -295,6 +331,13 @@
     });
   });
 
+  /** The collection's *Timeline* address, keeping a saved view the reader is in. */
+  const timelinePath = (viewId: string | undefined) => `/collections/${idAsked}/timeline${viewId ? `?view=${encodeURIComponent(viewId)}` : ''}`;
+  // `?layout=timeline` of old links and bookmarks: the timeline's own address now.
+  $effect(() => {
+    if (layoutAsked === 'timeline') untrack(() => onreplace(timelinePath(viewAsked)));
+  });
+
   // A view of the bar the address names wins over the remembered layout, once what may be chosen is read.
   $effect(() => {
     const asked = layoutOfView(layoutAsked, listLayout);
@@ -314,7 +357,9 @@
   function keepingOpen(path: string): string {
     const open = new URLSearchParams(location.search).get('item');
     const url = new URL(path, location.origin);
-    if (!open || url.pathname !== location.pathname) return path;
+    // The collection's screen and its *Timeline* draw the same pane (§6.3).
+    const sameScreen = [`/collections/${id}`, `/collections/${id}/timeline`];
+    if (!open || !sameScreen.includes(url.pathname) || !sameScreen.includes(location.pathname)) return path;
     url.searchParams.set('item', open);
     return `${url.pathname}${url.search}`;
   }
@@ -323,7 +368,14 @@
   let lastList = $state<string | undefined>(undefined);
 
   /** A layout the person chose: drawn, and kept for them on this device. */
-  function chooseLayout(chosen: string) {
+  function chooseLayout(chosen: string, isOpening = false) {
+    // The timeline is its own address, and the list and the board are the collection's (§6.3).
+    // A saved view opening in the other one replaces the address, so *Back* does not bounce.
+    const go = isOpening ? onreplace : onnavigate;
+    if (chosen === 'TIMELINE') {
+      go(timelinePath(viewAsked));
+      return;
+    }
     layout = chosen;
     if (isListLayout(chosen)) lastList = chosen;
     rememberLayout(deviceStore(), actor.account?.id, id, chosen);
@@ -485,6 +537,9 @@
       carriesPeople: carriedHere('ASSIGNMENT') || carriedHere('MEMBERS'),
       carriesLabels: carriedHere('LABELS'),
       showsTypes: typesShown(placeManifest),
+      isDesk: isDesk && modulesOn.includes('SERVICE_DESK'),
+      runsWorkflow: stateMode === 'WORKFLOW' || workflowsHere.length > 0,
+      customKeys: customFieldFilters.map((field) => field.field.slice('custom_fields.'.length)),
     };
   });
   /** The arrangement in force: what the device kept for this collection, else the template's. */
@@ -503,33 +558,6 @@
   function arrange(next: ListArrangement) {
     arrangement = next;
     rememberArrangement(deviceStore(), actor.account?.id, id, next);
-  }
-  /** *Fields* (L3): every field the collection offers, ticked where it stands as a column. */
-  const fieldsMenu = $derived<MenuItem[]>(
-    listOffer && arrangement
-      ? offeredFields(listOffer).map((field) => ({ id: field, label: t(`app.list.col_${field}`), icon: arrangement?.fields.includes(field) ? ('check' as const) : undefined }))
-      : [],
-  );
-  /** *Group* (L4, L5): by which value, and where what is done goes. */
-  const groupMenu = $derived<MenuItem[]>(
-    listOffer && arrangement
-      ? [
-          ...offeredGroupings(listOffer).map((grouping) => ({ id: `group:${grouping}`, label: t(`app.list.group_${grouping}`), icon: arrangement?.grouping === grouping ? ('check' as const) : undefined })),
-          ...(['inline', 'bottom', 'hidden'] as const).map((done, index) => ({
-            id: `done:${done}`,
-            label: t(`app.list.done_${done}`),
-            icon: arrangement?.done === done ? ('check' as const) : undefined,
-            hasSeparatorBefore: index === 0,
-          })),
-          { id: 'reset', label: t('app.list.reset'), hasSeparatorBefore: true },
-        ]
-      : [],
-  );
-  function choseGroup(chosen: string) {
-    if (!arrangement || !listOffer) return;
-    if (chosen === 'reset') arrange(defaultArrangement(listOffer));
-    else if (chosen.startsWith('group:')) arrange({ ...arrangement, grouping: chosen.slice('group:'.length) as ListGrouping });
-    else if (chosen.startsWith('done:')) arrange({ ...arrangement, done: chosen.slice('done:'.length) as DonePlacement });
   }
   /** A column head pressed: that order, and the other direction when it already is. */
   function sortByColumn(field: string) {
@@ -657,7 +685,6 @@
   /** Which act of the *Views* menu opened the views dialog: saving, or changing one. */
   let viewsIntent = $state<'save' | 'manage'>('manage');
   /** The question of the view opened last, which the filter's controls take over. */
-  let appliedView = $state<ItemsQuery | undefined>(undefined);
   /** The collection as it is filtered, being exported without a saved view. */
   let isExportingFiltered = $state(false);
   /**
@@ -705,6 +732,29 @@
   const readOnlyNoticeId = `container-${instanceId}-read-only`;
   function structureControl<T>(control: T): T | undefined {
     return mayShape ? control : undefined;
+  }
+
+  /**
+   * The level switches (build-plan §5), for whoever may shape the collection and where it is not
+   * archived: a list offers *Als Board anzeigen*; a board without a workflow *Zurück zur Liste* and,
+   * where workflows are on, *Workflow aus diesen Spalten*. Each opens its preview first.
+   */
+  let levelAsked = $state<LevelSwitch | undefined>(undefined);
+  const levelMenu = $derived<MenuItem[]>(
+    container?.type !== 'COLLECTION' || !mayShape || isReadOnly
+      ? []
+      : stateMode === 'NONE'
+        ? [{ id: 'level:board', label: t('app.board.level.menu_board'), hasSeparatorBefore: true }]
+        : stateMode === 'COLUMNS'
+          ? [
+              { id: 'level:list', label: t('app.board.level.menu_list'), hasSeparatorBefore: true },
+              ...(workflowsOn ? [{ id: 'level:workflow', label: t('app.board.level.menu_workflow') }] : []),
+            ]
+          : [],
+  );
+  function levelSwitched(asked: LevelSwitch) {
+    if (asked === 'board' && offeredLayouts.includes('KANBAN')) chooseLayout('KANBAN');
+    if (asked === 'list') chooseLayout(listLayout);
   }
 
   let isTrashing = $state(false);
@@ -781,37 +831,17 @@
   let isCreatingCollection = $state(false);
 
   /**
-   * *New ▾* in a hub's head (the navigation concept's mockup): what can be made here - a
-   * collection for whoever shapes the hub, a page or a whiteboard where their product is on and the
-   * reader writes. Nothing offered, no button (P-05).
+   * *New* in a hub's head opens *Create* preset to the hub (§6.12, C-1, C-2): one way to create,
+   * whose kinds follow the reader's role and the modules on here. Drawn where *Create* offers this
+   * reader something to make here - a collection for whoever shapes the hub, a page or a whiteboard
+   * where their product is on and the reader writes; nothing offered, no button (P-05).
    */
   const mayWriteHere = $derived(holds(structureRole, 'WRITE_ITEMS').status === 'permitted');
-  const newItems = $derived(
-    container?.type !== 'HUB' || readOnlyReason
-      ? []
-      : [
-          ...(mayShape ? [{ id: 'collection', label: t('app.nav.create_collection_kind'), icon: 'collection' as const }] : []),
-          ...(mayWriteHere && modulesOn.includes('KNOWLEDGE') ? [{ id: 'page', label: t('app.nav.create_page'), icon: 'file-text' as const }] : []),
-          ...(mayWriteHere && modulesOn.includes('WHITEBOARD') ? [{ id: 'whiteboard', label: t('app.nav.create_whiteboard'), icon: 'layout-template' as const }] : []),
-        ],
+  const offersNew = $derived(
+    container?.type === 'HUB' && !readOnlyReason && (mayShape || (mayWriteHere && (modulesOn.includes('KNOWLEDGE') || modulesOn.includes('WHITEBOARD')))),
   );
   const newMenu = $derived(
-    newItems.length === 0 || !container
-      ? undefined
-      : {
-          label: t('app.nav.new'),
-          icon: 'plus' as const,
-          opener: 'new-in-hub',
-          menu: {
-            label: t('app.nav.new_in', { name: container.name }),
-            items: newItems,
-            onselect: (kind: string) => {
-              if (kind === 'collection') isCreatingCollection = true;
-              else if (kind === 'page') onnavigate(`/hubs/${id}/pages?new=1`);
-              else onnavigate(`/hubs/${id}/contents?new=whiteboard`);
-            },
-          },
-        },
+    offersNew ? { label: t('app.nav.new'), icon: 'plus' as const, opener: 'new-in-hub', onclick: () => create.summon() } : undefined,
   );
 
 
@@ -836,9 +866,15 @@
   /** The list, for the head's primary action: the form is the list's, the button is the head's. */
   let list = $state<EntryList | undefined>(undefined);
 
-  /** The filter: open inline from `expanded`, in a drawer below it; the count is the panel's. */
+  /** The one panel *Ansicht* (E-21): open beside the list, a sheet on a phone. */
   let isFilterOpen = $state(false);
-  let filterCount = $state(0);
+  /** A phone's filter sheet, opened by *Filter* on the view chip's line. */
+  let isPhoneFilterOpen = $state(false);
+  /**
+   * Comfortable or compact (WB-4, E-5), a matter of this device like the theme; the switch keeps
+   * it. Only from `expanded`: below it the frame's own density (spacious on a phone) holds.
+   */
+  let listDensity = $state<ListDensity>('comfortable');
 
   /** Why an entry cannot be created here, or nothing. The gate is the list's; the words are shared. */
   const addDisabledReason = $derived(
@@ -925,6 +961,7 @@
       ? []
       : [
           ...placeMenu({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', mayShape, mayDelete, archival, privacy: privacyControl, readOnlyReason, offersPosition: container.type !== 'HUB' }, (code) => t(code)),
+          ...levelMenu,
         ],
   );
 
@@ -950,7 +987,7 @@
     if (!view || viewOpened === view.id) return;
     untrack(() => {
       viewOpened = view.id;
-      applyView(queryOf(view.query as Record<string, unknown>, view.grouping as Record<string, unknown>), view.layout, view.name, view.visible_fields ?? undefined);
+      applyView(queryOf(view.query as Record<string, unknown>, view.grouping as Record<string, unknown>), view.layout, view.name, view.visible_fields ?? undefined, view.grouping as Record<string, unknown>);
     });
   });
   const barCurrent = $derived(viewAsked ? `view:${viewAsked}` : viewOfLayout(layout));
@@ -958,7 +995,7 @@
   function choseView(id: string) {
     if (id.startsWith('open:')) {
       const view = heldViews.find((each) => `open:${each.id}` === id);
-      if (view) applyView(queryOf(view.query as Record<string, unknown>, view.grouping as Record<string, unknown>), view.layout, view.name, view.visible_fields ?? undefined);
+      if (view) applyView(queryOf(view.query as Record<string, unknown>, view.grouping as Record<string, unknown>), view.layout, view.name, view.visible_fields ?? undefined, view.grouping as Record<string, unknown>);
     } else if (id === 'save' || id === 'manage') {
       viewsIntent = id;
       isManagingViews = true;
@@ -970,20 +1007,39 @@
   }
 
   /** Opens a view: its query and its layout together - the half only a client knows what to do with is the layout. */
-  function applyView(asked: ItemsQuery, appliedLayout: string, name: string, visible?: readonly string[]) {
-    query = asked;
-    appliedView = asked;
-    chooseLayout(appliedLayout);
+  function applyView(asked: ItemsQuery, appliedLayout: string, name: string, visible?: readonly string[], grouping?: Record<string, unknown>) {
+    const spelled = lineOf(asked, names);
+    kept = spelled === undefined ? asked.filter : undefined;
+    line = spelled ?? '';
+    sortField = asked.sort?.[0]?.field ?? '';
+    sortDir = asked.sort?.[0]?.dir ?? 'ASC';
+    if (asked.group?.field) columnsBy = asked.group.field;
+    lanesBy = typeof grouping?.['lanes_by'] === 'string' ? grouping['lanes_by'] : '';
+    if (typeof grouping?.['date_field'] === 'string') dateField = grouping['date_field'];
+    showsLimits = grouping?.['limits'] !== false;
+    chooseLayout(appliedLayout, true);
+    if (arrangement && listOffer) {
+      const list = grouping?.['list'];
+      const done = grouping?.['done'];
+      arrange({
+        ...arrangement,
+        ...(typeof list === 'string' && offeredGroupings(listOffer).includes(list as ListGrouping) ? { grouping: list as ListGrouping } : {}),
+        ...(done === 'inline' || done === 'bottom' || done === 'hidden' ? { done } : {}),
+      });
+    }
     // The fields the view shows, as far as this collection offers them (concept round 2, §2).
     if (visible && visible.length > 0 && arrangement && listOffer) {
       const offered = offeredFields(listOffer);
       arrange({ ...arrangement, fields: offered.filter((field) => visible.includes(field)) });
     }
     announcer.say(t('app.views.layout_applied', { name, layout: t(`app.view.${appliedLayout}`) }));
+    baseSetup = setup;
   }
 
   function choseFromMenu(id: string) {
-    if (id === 'settings') openStructure();
+    if (id === 'select') selection.start();
+    else if (id.startsWith('level:')) levelAsked = id.slice('level:'.length) as LevelSwitch;
+    else if (id === 'settings') openStructure();
     else if (id === 'move') isMovingHub = true;
     else if (id === 'import') startImport();
     else if (id === 'position') isPositioning = true;
@@ -1045,23 +1101,234 @@
   const sortFields = $derived(
     offeredByProfile(sortableFields(manifest.value, customFieldFilters), carriedHere).map((field) => field.field),
   );
-  const sortMenu = $derived<MenuItem[]>([
-    { id: 'field:', label: t('app.query.sort_manual'), icon: sortField === '' ? 'check' : undefined },
-    ...sortFields.map((field) => ({ id: `field:${field}`, label: field, icon: sortField === field ? ('check' as const) : undefined })),
-    ...(sortField === ''
-      ? []
-      : [
-          { id: 'dir:ASC', label: t('app.query.ascending'), icon: sortDir === 'ASC' ? ('check' as const) : undefined, hasSeparatorBefore: true },
-          { id: 'dir:DESC', label: t('app.query.descending'), icon: sortDir === 'DESC' ? ('check' as const) : undefined },
-        ]),
-  ]);
-  function choseSort(id: string) {
-    if (id.startsWith('field:')) sortField = id.slice('field:'.length);
-    else if (id === 'dir:ASC' || id === 'dir:DESC') sortDir = id.slice('dir:'.length) as 'ASC' | 'DESC';
+
+  // --- The one panel *Ansicht* (E-21, scene viewcfg) ------------------------------------------
+  /** What is seen, as the Hubtask query typed (§6.11); the tree is read from it. */
+  let line = $state('');
+  /** A saved view's filter no text spells, kept whole beside the line (ADR-0102: a view keeps its tree). */
+  let kept = $state<ItemsQuery['filter']>(undefined);
+  let columnsBy = $state('bucket_id');
+  let lanesBy = $state('');
+  let dateField = $state('due_at');
+  let showsLimits = $state(true);
+  let baseSetup = $state<ViewSetup | undefined>(undefined);
+
+  /** A release or a sprint the line names, read only then (§6.11, Q-2). */
+  const planned = planNames(() => ({
+    hubId: container?.type === 'HUB' ? container.id : (container?.parent_id ?? undefined),
+    collectionIds: container?.type === 'COLLECTION' ? [container.id] : [],
+    wanted: namesPlan(line),
+  }));
+  /** Names typed into the line, looked up among what this reader already holds (ADR-0102). */
+  const names: Names = {
+    release: planned.release,
+    sprint: planned.sprint,
+    person: (name) => personNamed(name, people.candidates(containerPath), (id) => accounts.nameOf(id)),
+    label: (name) => labelStore.of(id).find((each) => each.name.toLowerCase() === name.toLowerCase())?.id,
+    collection: (name) => (container?.parent_id ? containers.collectionsOf(container.parent_id) : []).find((each) => each.name.toLowerCase() === name.toLowerCase())?.id,
+    nameOf: (field, value) =>
+      field === 'labels' ? labelStore.of(id).find((each) => each.id === value)?.name
+        : field === 'collection_id' ? containers.find(value)?.name
+          : field === 'release_id' ? planned.releaseName(value)
+            : field === 'sprint_id' ? planned.sprintName(value)
+              : accounts.nameOf(value),
+  };
+  $effect(() => {
+    const at = id;
+    if (container?.type !== 'COLLECTION') return;
+    return untrack(() => labelStore.open(at));
+  });
+
+  const lineRead = $derived(readQuery(line, names, sortField ? { field: sortField, dir: sortDir } : undefined));
+  // The read follows the line once it can be read; a line still being fixed leaves the list as it was.
+  $effect(() => {
+    const read = lineRead;
+    const grouped = layout === 'KANBAN' ? groupOf(manifest.value, columnsBy, customFieldFilters) : undefined;
+    const held = kept;
+    if (!read.ok) return;
+    untrack(() => {
+      const filter = bothOf(held, read.query.filter);
+      query = { ...(filter ? { filter } : {}), ...(read.query.sort ? { sort: read.query.sort } : {}), ...(grouped ? { group: grouped } : {}) };
+    });
+  });
+  /** The line's top-level pieces, drawn as chips over the list. */
+  const queryPieces = $derived(segments(`${line} `).pieces);
+
+  const setup = $derived<ViewSetup>({
+    layout,
+    line,
+    order: sortField ? { field: sortField, dir: sortDir } : undefined,
+    grouping: arrangement?.grouping ?? 'none',
+    done: arrangement?.done ?? 'inline',
+    fields: arrangement?.fields ?? [],
+    columnsBy,
+    lanesBy,
+    dateField,
+    limits: showsLimits,
+  });
+  function applySetup(next: ViewSetup) {
+    if (next.layout !== layout) chooseLayout(next.layout);
+    if (next.line !== line) {
+      line = next.line;
+      if (next.line.trim() === '') kept = undefined;
+    }
+    sortField = next.order?.field ?? '';
+    sortDir = next.order?.dir ?? 'ASC';
+    if (arrangement && (next.grouping !== arrangement.grouping || next.done !== arrangement.done || next.fields.join() !== arrangement.fields.join())) {
+      arrange({ fields: next.fields as readonly ListField[], grouping: next.grouping as ListGrouping, done: next.done as DonePlacement });
+    }
+    columnsBy = next.columnsBy;
+    lanesBy = next.lanesBy;
+    dateField = next.dateField;
+    showsLimits = next.limits;
+  }
+  // The tab's view is what the changes are counted against, taken when the tab changes. A layout's
+  // own tab asks nothing and orders by hand, so a line, an order or lanes carried into it from the
+  // panel stay counted as changes rather than becoming the tab's (scene viewcfg 1).
+  $effect(() => {
+    void barCurrent;
+    if (!arrangement) return;
+    untrack(() => {
+      if (!barCurrent.startsWith('view:')) baseSetup = { ...setup, line: '', order: undefined, lanesBy: '' };
+    });
+  });
+  // A line handed over in memory (a dashboard widget's *Als Liste öffnen*) is applied once the
+  // tab's view is taken, so it counts as a change to save or discard, never as the view.
+  $effect(() => {
+    const at = id;
+    if (!arrangement || !baseSetup || container?.type !== 'COLLECTION' || viewAsked) return;
+    untrack(() => {
+      const handed = takeOver(at);
+      if (handed === undefined) return;
+      kept = undefined;
+      line = handed;
+    });
+  });
+  const viewChanged = $derived(baseSetup ? changedParts(setup, baseSetup) : 0);
+  const currentView = $derived(viewAsked ? heldViews.find((each) => each.id === viewAsked) : undefined);
+  const baseName = $derived(currentView?.name ?? t(`app.view.${baseSetup?.layout ?? layout}`));
+  const mayOverwrite = $derived(currentView !== undefined && (currentView.owner_id === actor.account?.id || holds(structureRole ?? undefined, 'STRUCTURE').status === 'permitted'));
+
+  /**
+   * The layouts the panel offers (§6.2, E-21): list, outline, board, timeline, calendar - this
+   * collection's, the outline where both list layouts are (the card and *Show what is inside* are
+   * one switch), and the calendar wherever a list is.
+   */
+  const panelLayouts = $derived(
+    [
+      ...offeredLayouts.filter((each) => each !== 'CALENDAR').flatMap((each) => (isListLayout(each) && listsBoth ? ['LIST_COLLAPSED', 'LIST_EXPANDED'] : [each])),
+      ...(offeredLayouts.some(isListLayout) || offeredLayouts.includes('CALENDAR') ? ['CALENDAR'] : []),
+    ],
+  );
+  const fieldLabel = (field: string) => {
+    if (field.startsWith('custom_fields.')) return customNames[field.slice('custom_fields.'.length)] ?? field;
+    const key = Object.entries(READER_KEYS).find(([, name]) => name === field)?.[0];
+    return key && messages.has(`app.qkey.${key.replaceAll('.', '_')}`) ? t(`app.qkey.${key.replaceAll('.', '_')}`) : field;
+  };
+  const columnLabel = (field: string) => (field.startsWith('cf.') ? (customNames[field.slice(3)] ?? field.slice(3)) : t(`app.list.col_${field}`));
+  const customNames = $derived<Record<string, string>>(
+    container?.type === 'COLLECTION' ? Object.fromEntries(customFields.of(container.id).map((each) => [each.key, each.name ?? each.key])) : {},
+  );
+  const boardFields = $derived(
+    offeredByProfile(groupableFields(manifest.value, customFieldFilters), carriedHere).map((field) => ({ value: field.field, label: fieldLabel(field.field) })),
+  );
+  const dateFields = $derived(
+    (manifest.value?.query_fields ?? []).filter((field) => field.kind === 'timestamp' && field.field !== 'archived_at').map((field) => ({ value: field.field, label: fieldLabel(field.field) })),
+  );
+  const queryKeys = $derived<readonly QueryKey[]>(
+    ((manifest.value as { query_keys?: readonly QueryKey[] } | undefined)?.query_keys ?? []).filter((key) => !['asset', 'page', 'goal'].includes(key.product ?? '')),
+  );
+  /** A lane's value as it reads: a person, a label or a column by name. */
+  function laneName(field: string, value: string): string | undefined {
+    if (field === 'assignee_id' || field === 'created_by') return accounts.nameOf(value);
+    if (field === 'bucket_id') return buckets.of(id).find((each) => each.id === value)?.name;
+    return undefined;
+  }
+
+  /** The count while typing (Q-4), and a key's values with their counts (Q-3): summaries for the reader alone (Q-5). */
+  let lineCount = $state<number | undefined>(undefined);
+  $effect(() => {
+    const read = lineRead;
+    const at = id;
+    // Counted while the panel is open, and on a phone for the strip's count (scene qline 5).
+    if (!(isFilterOpen || viewport.isCompact) || !read.ok || container?.type !== 'COLLECTION') return;
+    const filter = bothOf(kept, read.query.filter);
+    return untrack(() => engine.subscribe<{ data: readonly { count: number }[] }>(
+      { path: '/items:aggregate', body: { scope: { container_id: at, include_descendants: false }, ...(filter ? { filter } : {}), aggregate: { function: 'COUNT' } } },
+      (next) => {
+        if (next.status === 'ready') lineCount = next.data.data[0]?.count ?? 0;
+      },
+    ));
+  });
+  let typingKey = $state<string | undefined>(undefined);
+  let valueCounts = $state<Record<string, readonly CountedValue[]>>({});
+  $effect(() => {
+    const key = queryKeys.find((each) => each.key === typingKey);
+    const at = id;
+    if (!key || !(isFilterOpen || viewport.isCompact)) return;
+    const body = valuesRequest(key, '', { container_id: at });
+    if (!body) return;
+    return untrack(() => engine.subscribe<{ data: readonly { count: number; group: string | null }[] }>(
+      { path: '/items:aggregate', body: { ...body, scope: { container_id: at, include_descendants: false } } },
+      (next) => {
+        if (next.status !== 'ready') return;
+        const counted = next.data.data
+          .filter((row) => row.group !== null && !key.values.includes(String(row.group)))
+          .map((row) => ({ value: String(row.group), label: key.field && key.field in { assignee_id: 1, created_by: 1 } ? (accounts.nameOf(String(row.group)) ?? String(row.group)) : String(row.group), countLabel: t('app.viewcfg.value_count', { count: String(row.count) }) }));
+        valueCounts = { ...valueCounts, [key.key]: counted };
+      },
+    ));
+  });
+
+  /** Where a view may be saved: privately always, a container where the reader shapes it. */
+  const saveScopes = $derived(
+    VIEW_SCOPES.filter((scope) => {
+      if (scope === 'ACCOUNT') return true;
+      const at = scope === 'TENANT' ? {} : scope === 'HUB' ? { hubId: container?.parent_id ?? undefined } : containerPath;
+      const held = people.roleOf(at, actor.account?.id, roleOrder());
+      return held !== undefined && holds(held ?? undefined, 'STRUCTURE').status === 'permitted';
+    }).map((scope) => ({ value: scope, label: t(`app.views.scope_${scope}`) })),
+  );
+  let isSavingView = $state(false);
+  let saveFailure = $state<string | undefined>(undefined);
+  async function savingView(work: () => Promise<unknown>) {
+    isSavingView = true;
+    saveFailure = undefined;
+    try {
+      await work();
+      announcer.say(t('app.views.saved_announced'));
+      baseSetup = setup;
+    } catch (error) {
+      saveFailure = renderProblem(error as never, messages).message;
+    } finally {
+      isSavingView = false;
+    }
+  }
+  function saveView(name: string, scope: string, sharing: 'PRIVATE' | 'SCOPE') {
+    if (!container) return;
+    const scopeId = scopeIdOf(scope as ViewScope, { collectionId: container.id, hubId: container.parent_id ?? undefined });
+    void savingView(() => savedViews.create(
+      {
+        scope_type: scope as never,
+        ...(scopeId ? { scope_id: scopeId } : {}),
+        name,
+        layout,
+        query: queryDocumentOf(query, container.id),
+        grouping: groupingOf(setup),
+        visible_fields: [...setup.fields],
+        ...(sharing === 'SCOPE' && scope !== 'ACCOUNT' ? { sharing } : {}),
+      } as never,
+      crypto.randomUUID(),
+    ));
+  }
+  function overwriteView() {
+    const view = currentView;
+    if (!view || !container) return;
+    void savingView(() => savedViews.update(view.id, { layout, query: queryDocumentOf(query, container.id), grouping: groupingOf(setup), visible_fields: [...setup.fields] } as never, view.version));
   }
 
   /** The filter's words: how many conditions hold, or the plain verb. */
-  const filterLabel = $derived(filterCount > 0 ? t('app.query.filter_count', { count: String(filterCount) }) : t('app.query.show'));
+  const filterLabel = $derived(viewChanged > 0 ? t('app.viewcfg.button_changed', { count: String(viewChanged) }) : t('app.viewcfg.button'));
   /** Whether the toolbar offers the selection mode, where a screen's verbs are (ADR-0063 decision 8). */
   const maySelect = $derived(container?.type === 'COLLECTION' && mayChangeSome);
   /** Whether the head offers the ⚙ to the place's settings: to whom the shape belongs (UC-WRK-23 checks 1, 9). */
@@ -1071,10 +1338,16 @@
    * screen offers (UC-WRK-27 check 2), wherever on the screen it stands.
    */
   const toolActs = $derived<readonly Act[]>([
-    ...(container?.type === 'COLLECTION' ? [{ id: 'page:filter', label: filterLabel, icon: 'funnel' as const, run: () => (isFilterOpen = !isFilterOpen) }] : []),
+    ...(container?.type === 'COLLECTION' ? [{ id: 'page:filter', label: filterLabel, icon: 'sliders-horizontal' as const, run: () => (isFilterOpen = !isFilterOpen) }] : []),
     ...(maySelect ? [{ id: 'page:menu-select', label: t('app.bulk.select_mode'), icon: 'square-check' as const, run: () => selection.start() }] : []),
     ...(showsSettings && !readOnlyReason ? [{ id: 'page:menu-structure', label: t('app.settings.open', { name: container?.name ?? '' }), icon: 'settings' as const, run: () => openStructure() }] : []),
   ]);
+  /** A phone's ⋯ leads with selecting, which the list's line holds from `medium` up (scene board 4). */
+  const placeItems = $derived<MenuItem[]>(
+    viewport.isCompact && maySelect
+      ? [{ id: 'select', label: t('app.bulk.select_mode'), icon: 'square-check' }, ...pageMenu.map((item, index) => (index === 0 ? { ...item, hasSeparatorBefore: true } : item))]
+      : pageMenu,
+  );
   const headMenu = $derived({
     label: t('app.workspace.actions', { name: container?.name ?? '' }),
     items: pageMenu,
@@ -1177,32 +1450,10 @@
     {#if hasMilestone && container.milestone}<ContainerMilestone milestone={container.milestone} />{/if}
   {/snippet}
   {#snippet entryTools()}
-    {#if layout !== 'KANBAN' && layout !== 'TIMELINE' && fieldsMenu.length > 0}
-      <!-- *Fields* and *Group* (concept round 2, §2): what stands beside each title, and how the
-           list is grouped - the arrangement, kept on this device for this collection. -->
-      <Menu label={t('app.list.fields_menu')} items={fieldsMenu} onselect={(field) => arrangement && arrange({ ...arrangement, fields: toggleField(arrangement.fields, field as ListField) })}>
-        {#snippet trigger(props)}
-          <Button size="sm" tone="secondary" icon="columns-3" data-opener="fields" {...props}>{t('app.list.fields')}</Button>
-        {/snippet}
-      </Menu>
-      <Menu label={t('app.list.group_menu')} items={groupMenu} onselect={choseGroup}>
-        {#snippet trigger(props)}
-          <Button size="sm" tone="secondary" icon="fold-vertical" data-opener="group" {...props}>{arrangement && arrangement.grouping !== 'none' ? t('app.list.group_named', { by: t(`app.list.group_${arrangement.grouping}`) }) : t('app.list.group')}</Button>
-        {/snippet}
-      </Menu>
+    {#if isListLayout(layout) && !viewport.isBelowExpanded}
+      <DensitySwitch label={t('app.list.density')} comfortableLabel={t('app.list.density_comfortable')} compactLabel={t('app.list.density_compact')} list="collection" bind:density={listDensity} />
     {/if}
-    <Menu label={t('app.query.sort_menu')} items={sortMenu} onselect={choseSort}>
-      {#snippet trigger(props)}
-        <Button size="sm" tone="secondary" icon="chevrons-up-down" data-opener="sort" {...props}>{sortField === '' ? t('app.query.sort') : t('app.query.sort_named', { field: sortField })}</Button>
-      {/snippet}
-    </Menu>
-    <!-- The saved views, saving, the export and the calendar subscriptions (design-system.md §11.8). -->
-    <Menu label={t('app.views.menu')} items={viewsMenu} onselect={choseView}>
-      {#snippet trigger(props)}
-        <Button size="sm" tone="secondary" icon="saved-view" data-opener="views" {...props}>{t('app.views.menu')}</Button>
-      {/snippet}
-    </Menu>
-    {#if maySelect}
+    {#if maySelect && !viewport.isCompact}
       <Button size="sm" tone="secondary" icon="square-check" data-opener="select" onclick={() => { isFilterOpen = false; selection.start(); }}>{t('app.bulk.select_mode')}</Button>
     {/if}
   {/snippet}
@@ -1246,23 +1497,39 @@
     {#snippet barTools()}
       {@render insideToggle()}
       {#if isDesk && modulesOn.includes('SERVICE_DESK')}<Button size="sm" tone="subtle" icon="external-link" onclick={() => onnavigate(`/portal/${container.id}`)}>{t('app.nav.open_portal')}</Button>{/if}
-      <Button size="sm" tone={filterCount > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
-      {#if !viewport.isBelowExpanded}{@render entryTools()}{/if}
+    {/snippet}
+    {#snippet filterTool()}
+      <Button size="sm" tone="secondary" icon="sliders-horizontal" data-opener="view" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
     {/snippet}
     {#snippet compactTools()}
       {@render insideToggle()}
-      <Button size="sm" isRound tone={filterCount > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
+      <!-- A phone (scene board 4): *Filter* on the chip's line opens the strip's sheet, and *View*
+           is reached from there; selecting is in ⋯. -->
+      {#if container.type === 'COLLECTION'}
+        <Button size="sm" tone="secondary" icon="funnel" data-opener="filter" aria-expanded={isPhoneFilterOpen} onclick={() => (isPhoneFilterOpen = true)}>{t('app.viewcfg.phone_filter', { count: String(queryPieces.length) })}</Button>
+      {/if}
     {/snippet}
+    {#snippet phoneViewRow()}
+      <button type="button" class="phone-view" data-opener="view" aria-expanded={isFilterOpen} onclick={() => { isPhoneFilterOpen = false; isFilterOpen = true; }}>
+        <Icon name="sliders-horizontal" size="sm" />
+        <span class="phone-view-name">{filterLabel}</span>
+        <span class="phone-view-hint">{t('app.viewcfg.phone_view_hint')}</span>
+        <Icon name="chevron-right" size="sm" />
+      </button>
+    {/snippet}
+  <!-- From `expanded` the panel *Ansicht* stands beside the page, which narrows (scene viewcfg). -->
+  <div class="beside-pane">
   <WorkPage>
     {#snippet top()}
     {#if container.type === 'COLLECTION'}
     <CollectionHead
       collectionId={container.id}
       current={barCurrent}
+      changed={viewChanged > 0 ? t('app.viewcfg.tab_changed', { count: String(viewChanged) }) : undefined}
       onnavigate={(path) => onnavigate(keepingOpen(path))}
       figure={container.figure || hasAi || hasMilestone ? collectionFigure : undefined}
       primary={newMenu}
-      place={{ items: pageMenu, onselect: choseFromMenu }}
+      place={{ items: placeItems, onselect: choseFromMenu }}
       add={{ label: t('app.views.menu_save'), onselect: () => choseView('save') }}
       tools={barTools}
       {compactTools}
@@ -1295,6 +1562,10 @@
       notices={headNotices}
       aside={people}
     >
+      {#snippet mark()}
+        <!-- The hub's own tile before its name (scene hub). -->
+        <span data-hub-mark><ContainerMark look={container} size="md" hasDefaultTile /></span>
+      {/snippet}
       {#snippet titleEnd()}
         <!-- ☆ right after the title (UC-WRK-37, the mockup's head): the same star as the sidebar's. -->
         <StarToggle kind="HUB" id={container.id} name={container.name} />
@@ -1349,22 +1620,23 @@
         <CollectionCards {collections} planning={modulesOn.includes('PLANNING')} />
       {/if}
       <!-- What changed last in the hub's collections (user-experience.md §7.9). -->
-      <HubActivity hubId={container.id} />
+      <HubActivity hubId={container.id} {modulesOn} />
     {:else}
       <!-- What the reader has asked of the entries. Everything offered comes from the manifest:
            `query_fields` decides what can be asked, and nothing here is a list written down. The
            panel stays mounted while it is hidden, because the conditions are its state; inline from
            `expanded`, a drawer from the bottom below it. -->
-      {#if viewport.isBelowExpanded}
-        <Drawer bind:isOpen={isFilterOpen} edge="block-end" title={t('app.query.title')} dismissLabel={t('app.dismiss')}>
-          <div class="sheet-tools">{@render entryTools()}</div>
-          <QueryPanel {layout} applied={appliedView} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} carried={carriedHere} bind:sortField bind:sortDir />
-        </Drawer>
-      {:else}
-        <div class="filter" hidden={!isFilterOpen}>
-          <QueryPanel {layout} applied={appliedView} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} carried={carriedHere} bind:sortField bind:sortDir />
-        </div>
-      {/if}
+      <!-- The line over the list (scene viewcfg): what is seen as chips, each removable, and the
+           one panel *Ansicht* beside them, with what changed against the tab's view. -->
+      <div class="list-tools" role="group" aria-label={t('app.list.tools')} data-bare={viewport.isCompact && queryPieces.length === 0 ? '' : undefined}>
+        {#if viewport.isCompact}
+          <!-- A phone: the strip with "+n" and the filter sheet (scene qline 5). -->
+          <QueryStrip {line} keys={queryKeys} total={lineCount} values={(key) => valueCounts[key] ?? []} ontyping={(key) => (typingKey = key)} onchange={(next) => { line = next; if (next.trim() === '') kept = undefined; }} bind:isSheetOpen={isPhoneFilterOpen} sheetEnd={phoneViewRow} />
+        {:else}
+          <QueryChips {line} {names} onchange={(next) => (line = next)} />
+        {/if}
+        {#if !viewport.isCompact}<span class="tools-end">{@render filterTool()}{@render entryTools()}</span>{/if}
+      </div>
 
       <!-- Above the entries, because it is about the ones below it. It draws itself only when
            something is picked, so a reader who never selects anything never sees it. -->
@@ -1381,18 +1653,8 @@
       <!-- design-system-lint-ignore: the panel's width is the person's drag, kept by the device. -->
       <div class="split" data-pane={openItemId ? '' : undefined} style:--panel-width={device.panelWidth ? `${device.panelWidth}px` : undefined}>
         <div class="entries">
-          {#if layout === 'TIMELINE'}
-            <TimelineView
-              collectionId={container.id}
-              {query}
-              {isReadOnly}
-              changeRefusal={changeRefusalOf}
-              onopen={(itemId) => (opensBeside ? openBeside(itemId) : onnavigate(`/items/${itemId}`))}
-              currentId={openItemId}
-              {onnavigate}
-              mayCreate={mayCreateHere}
-              mayShare={holds(myRole ?? undefined, 'MANAGE_MEMBERS').status === 'permitted'}
-            />
+          {#if layout === 'CALENDAR'}
+            <CalendarView collectionId={container.id} {query} dateField={dateField} onopen={(itemId) => (opensBeside ? openBeside(itemId) : onnavigate(`/items/${itemId}`))} />
           {:else if layout === 'KANBAN'}
             <Board
               collectionId={container.id}
@@ -1406,13 +1668,19 @@
               changeRefusal={changeRefusalOf}
               mayCreate={mayCreateHere}
               {mayShape}
-              statuses={boardShape}
+              level={stateMode}
+              workflow={boardShape}
+              {levelOfType}
               showsKey={arrangement?.fields.includes('key') ?? false}
+              lanesBy={lanesBy || undefined}
+              laneName={(value) => laneName(lanesBy, value)}
+              {showsLimits}
             />
           {:else}
             <!-- Read-only follows the container: an archived collection's entries are read-only with
                  it (I-C3), and the notice above says so once; the rows say nothing of their own.
                  From `large` a row opens beside the list and stays current. -->
+            <div class="density" data-density={viewport.isBelowExpanded ? undefined : listDensity}>
             <EntryList
               bind:this={list}
               collectionId={container.id}
@@ -1420,6 +1688,10 @@
               {readOnlyReason}
               {readOnlyNoticeId}
               {query}
+              onshowall={() => { line = ''; kept = undefined; }}
+              ontemplate={!readOnlyReason && templates.of(container.id).length > 0 ? () => (isUsingTemplates = true) : undefined}
+              starts={templates.of(container.id).slice(0, 3).map((each) => ({ label: each.name, description: each.description ?? undefined, onclick: () => (isUsingTemplates = true) }))}
+              onimport={mayShape && !readOnlyReason ? startImport : undefined}
               isExpanded={layout === 'LIST_EXPANDED'}
               {lastResults}
               onopen={opensBeside ? openBeside : undefined}
@@ -1437,7 +1709,13 @@
               {sortDir}
               onsort={sortByColumn}
               sortable={sortFields}
+              {stateMode}
+              workflow={boardShape}
+              {levelOfType}
+              withSla={isDesk && modulesOn.includes('SERVICE_DESK')}
+              {customNames}
             />
+            </div>
           {/if}
         </div>
         {#if openItemId}
@@ -1465,6 +1743,38 @@
       </div>
     {/if}
   </WorkPage>
+  {#if container.type !== 'HUB'}
+    <ViewPanel
+      bind:isOpen={isFilterOpen}
+      bind:setup={() => setup, applySetup}
+      base={baseSetup ?? setup}
+      baseName={baseName}
+      changed={viewChanged}
+      layouts={panelLayouts}
+      groupings={listOffer ? offeredGroupings(listOffer).map((each) => ({ value: each, label: t(`app.list.group_${each}`) })) : []}
+      sortFields={sortFields.map((field) => ({ value: field, label: fieldLabel(field) }))}
+      fields={listOffer ? offeredFields(listOffer).map((each) => ({ value: each, label: columnLabel(each), isNew: each === 'requester' || each === 'priority' || each === 'sla' || each.startsWith('cf.') })) : []}
+      boardFields={boardFields}
+      dateFields={dateFields}
+      keys={queryKeys}
+      total={lineCount}
+      values={(key) => valueCounts[key] ?? []}
+      ontyping={(key) => (typingKey = key)}
+      words={lineRead.ok ? lineRead.words : []}
+      unknown={lineRead.ok ? lineRead.unknown : []}
+      scopes={saveScopes}
+      mayShare={holds(structureRole ?? undefined, 'STRUCTURE').status === 'permitted'}
+      overwritable={currentView && mayOverwrite ? currentView.name : undefined}
+      isSaving={isSavingView}
+      failure={saveFailure}
+      onsave={saveView}
+      onoverwrite={overwriteView}
+      onexport={() => { isFilterOpen = false; isExportingFiltered = true; }}
+      onfeeds={() => { isFilterOpen = false; subscribing = undefined; isManagingFeeds = true; }}
+      onmanage={heldViews.length > 0 ? () => { isFilterOpen = false; viewsIntent = 'manage'; isManagingViews = true; } : undefined}
+    />
+  {/if}
+  </div>
 {/if}
 
 {#if container?.type === 'HUB'}
@@ -1537,6 +1847,10 @@
        and a hub composes the workspace and itself. -->
 {/if}
 
+{#if levelAsked && container}
+  <BoardLevelDialog collectionId={container.id} asked={levelAsked} onclose={() => (levelAsked = undefined)} ondone={levelSwitched} />
+{/if}
+
 {#if isTrashing && container}
   <!-- Reversible, and confirmed anyway: a hub is two hundred entries, and "one deletion" is worth
        saying before it happens rather than afterwards. The primary action is the caller's to name
@@ -1546,6 +1860,7 @@
     bind:isOpen={isTrashing}
     title={t('app.workspace.trash_confirm_title', { name: container.name })}
     dismissLabel={t('app.workspace.cancel')}
+    primary={{ label: t('app.workspace.confirm'), onclick: moveToTrash, tone: 'danger', isBusy: isTrashingNow, busyLabel: t('app.workspace.saving') }}
   >
     <p class="notice">
       {container.type === 'HUB'
@@ -1555,9 +1870,6 @@
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isTrashing = false)}>
         {t('app.workspace.cancel')}
-      </Button>
-      <Button tone="danger" isBusy={isTrashingNow} busyLabel={t('app.workspace.saving')} onclick={moveToTrash}>
-        {t('app.workspace.confirm')}
       </Button>
     {/snippet}
   </Dialog>
@@ -1573,6 +1885,7 @@
       ? t('app.workspace.shared_confirm_title', { name: container.name })
       : t('app.workspace.private_confirm_title', { name: container.name })}
     dismissLabel={t('app.workspace.cancel')}
+    primary={{ label: container.private ? t('app.workspace.make_shared') : t('app.workspace.make_private'), onclick: changePrivacy, isBusy: isChangingPrivacyNow, busyLabel: container.private ? t('app.workspace.sharing') : t('app.workspace.making_private') }}
   >
     {#if container.private}
       <p class="notice">{t('app.workspace.shared_confirm_body')}</p>
@@ -1590,13 +1903,6 @@
       <Button tone="secondary" onclick={() => (isChangingPrivacy = false)}>
         {t('app.workspace.cancel')}
       </Button>
-      <Button tone="primary"
-        isBusy={isChangingPrivacyNow}
-        busyLabel={container.private ? t('app.workspace.sharing') : t('app.workspace.making_private')}
-        onclick={changePrivacy}
-      >
-        {container.private ? t('app.workspace.make_shared') : t('app.workspace.make_private')}
-      </Button>
     {/snippet}
   </Dialog>
 {/if}
@@ -1606,22 +1912,41 @@
 {/if}
 
 <style>
+  .beside-pane { display: flex; align-items: flex-start; }
+
+  .beside-pane > :global(:first-child) { flex: 1; min-width: 0; }
+
+  .density { display: contents; }
   .split { display: flex; align-items: flex-start; gap: var(--sp-300); min-width: 0; }
 
   .entries { flex: 1; min-width: 0; }
 
 
-  .sheet-tools { display: flex; flex-wrap: wrap; gap: var(--sp-100); margin-block-end: var(--sp-200); }
 
-  .filter[hidden] { display: none; }
-
-  .filter {
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-md);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
+  .list-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
+  /* A phone with nothing asked: no line of its own, only the sheet it keeps. */
+  .list-tools[data-bare], .list-tools[data-bare] :global(.query-strip), .list-tools[data-bare] :global(.query) { display: contents; }
+  .phone-view {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-050) var(--sp-100);
+    inline-size: 100%;
+    min-block-size: var(--layout-target);
+    margin-block-end: var(--sp-200);
+    padding: var(--sp-100) 0;
+    border: 0;
+    border-block: var(--bw-hairline) solid var(--border-subtle);
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
   }
+  .phone-view:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+  .phone-view-name { font-weight: var(--fw-medium); }
+  .phone-view-hint { flex: 1; color: var(--text-secondary); font-size: var(--fs-075); }
+  .tools-end { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); margin-inline-start: auto; }
 
   .notice { margin: 0; color: var(--text-warning); font-size: var(--fs-075); max-width: 64ch; }
   /* Private is a fact about the hub, not a warning: said quietly, with the lock the tree shows. */
@@ -1631,4 +1956,7 @@
 
 
   .workflow-line { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
+  /* A line of names, not a sentence: the link style's, underlined on hover only. */
+  .workflow-line a { text-decoration: none; }
+  .workflow-line a:hover { text-decoration: underline; }
 </style>

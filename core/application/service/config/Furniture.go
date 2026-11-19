@@ -89,7 +89,7 @@ func furnitureSections(hub shared.ID) []section {
 		scopeType, scopeID = "HUB", hub.String()
 		viewsInput = usecase.Input{"container_id": scopeID}
 	}
-	ruleAttributes := []string{"name", "enabled", "run_as", "trigger", "conditions", "actions", "throttle", "on_error"}
+	ruleAttributes := []string{"name", "enabled", "run_as", "trigger", "conditions", "entries", "actions", "throttle", "on_error"}
 	return []section{
 		{
 			name: sectionViews, list: "ListSavedViews", listInput: viewsInput, rows: "data", key: "key",
@@ -141,7 +141,7 @@ func furnitureSections(hub shared.ID) []section {
 			present: func(p places, block domain.Block) domain.Block {
 				block["actions"] = mapActions(block["actions"], p.out)
 				block["conditions"] = mapConditions(block["conditions"], p.literalOut)
-				return block
+				return withoutEmptyEntries(block)
 			},
 			opsAt: func(now current, change domain.BlockChange, row map[string]any) ([]operation, error) {
 				return ruleOps(now, change, row, change.Key, scopeType, scopeID)
@@ -220,7 +220,7 @@ func ruleOps(now current, change domain.BlockChange, row map[string]any, key, sc
 			scope["id"] = scopeID
 		}
 		in := usecase.Input{"key": key, "scope": scope}
-		for _, name := range []string{"name", "run_as", "trigger", "conditions", "actions", "throttle", "on_error"} {
+		for _, name := range []string{"name", "run_as", "trigger", "conditions", "entries", "actions", "throttle", "on_error"} {
 			if value, held := after[name]; held {
 				in[name] = value
 			}
@@ -338,6 +338,16 @@ func (p places) placeRefusals(path string, block map[string]any) []shared.FieldE
 		return literal
 	})
 	return refusals
+}
+
+// withoutEmptyEntries leaves a rule's *for which entries* out of its block where it lists every
+// entry, so a document written before the line existed (migration 0399) reads as unchanged. The
+// line travels as stored: its names are identifiers of the workspace it was written in.
+func withoutEmptyEntries(block domain.Block) domain.Block {
+	if text(block["entries"]) == "" {
+		delete(block, "entries")
+	}
+	return block
 }
 
 // mapConditions renames the string literals of a rule's condition expressions through name.

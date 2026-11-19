@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { stub, forgetUnstubbed, MANIFEST } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -28,8 +28,7 @@ test.after(() => served.close());
 const HOST_KEY = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleOnlyNotARealKey nas';
 
 test('chromium: an SFTP target is sent with its host key and its user in the configuration', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const written = [];
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
@@ -117,8 +116,7 @@ async function targetForm(browser) {
 }
 
 test('chromium: a WebDAV target is sent with its address and user, the password as a credential', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { form, sent, failures, close } = await targetForm(browser);
   t.after(close);
 
@@ -140,8 +138,7 @@ test('chromium: a WebDAV target is sent with its address and user, the password 
 });
 
 test('chromium: an SFTP target can log in with a private key and its passphrase', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { form, sent, failures, close } = await targetForm(browser);
   t.after(close);
 
@@ -164,8 +161,7 @@ test('chromium: an SFTP target can log in with a private key and its passphrase'
 });
 
 test('chromium: an unprotected target is added only once its owner has accepted the risk the server names', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, form, sent, written, failures, close } = await targetForm(browser);
   t.after(close);
 
@@ -221,8 +217,7 @@ async function backupScreen(browser, targets, viewport = { width: 1280, height: 
 }
 
 test('chromium: an empty backup screen backs the workspace up every night with one press', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, written, failures, close } = await backupScreen(browser, []);
   t.after(close);
 
@@ -251,8 +246,7 @@ test('chromium: an empty backup screen backs the workspace up every night with o
 });
 
 test('chromium: where the operator keeps the backups, the screen says so and offers no target of its own', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, written, failures, close } = await backupScreen(browser, [], undefined, { backup_targets: false }, '/administration/backup/targets');
   t.after(close);
 
@@ -265,8 +259,7 @@ test('chromium: where the operator keeps the backups, the screen says so and off
 });
 
 test('chromium: archives only on this machine suggest a target elsewhere, at phone width too', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const local = { id: '01a0e2e0-0000-7000-8000-0000000007b1', name: 'Backup volume', kind: 'LOCAL', encryption_mode: 'AES256_GCM', enabled: true };
   const { page, failures, close } = await backupScreen(browser, [local], { width: 375, height: 812 }, {}, '/administration/backup/targets');
   t.after(close);

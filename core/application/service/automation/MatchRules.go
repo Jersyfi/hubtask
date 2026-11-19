@@ -137,7 +137,11 @@ func (m MatchRules) Deliver(ctx context.Context, envelope event.Envelope) error 
 		return err
 	}
 
+	changed := changedFields(envelope)
 	for _, rule := range rules {
+		if envelope.Type == event.ItemUpdated && !rule.Trigger.FiresOn(changed) {
+			continue
+		}
 		if rule.Scope.Personal() {
 			reads, err := m.ownerReads(ctx, envelope.TenantID, rule, location)
 			if err != nil {
@@ -165,6 +169,16 @@ func (m MatchRules) Deliver(ctx context.Context, envelope event.Envelope) error 
 		}
 	}
 	return nil
+}
+
+// changedFields are the fields an update's change set names; none for any other event.
+func changedFields(envelope event.Envelope) []string {
+	set, _ := envelope.Payload["change_set"].(map[string]any)
+	fields := make([]string, 0, len(set))
+	for field := range set {
+		fields = append(fields, field)
+	}
+	return fields
 }
 
 // ownerReads answers whether a person's own rule's owner may read the event's entry: asked as the

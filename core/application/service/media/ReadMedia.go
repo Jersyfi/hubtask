@@ -77,11 +77,26 @@ type GetMedia struct {
 	Containers workrepo.Containers
 	// Pages answers whether a reader reads one of the pages holding an object (UC-DOC-14); nil
 	// serves no page's pictures beyond their uploader.
-	Pages      PageReader
+	Pages PageReader
+	// CiFiles answers the hubs of the inventory objects holding an object (UC-AST-01); nil holds none.
+	CiFiles    CiHolders
 	Transfers  storage.TransferIssuer
 	Reader     Reader
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
+	// Editing answers whether the reader may open the file in the document server; nil answers
+	// no (UC-MED-06).
+	Editing Editability
+}
+
+// Editability is the WOPI host's answer to whether a reader may edit a file (WopiHost.Editable).
+type Editability interface {
+	Editable(ctx context.Context, actor appshared.ActorContext, object media.Object, served reach) (bool, error)
+}
+
+// CiHolders reads which hubs' inventory objects hold an upload.
+type CiHolders interface {
+	ReferencingCis(ctx context.Context, mediaID shared.ID) ([]shared.ID, error)
 }
 
 // MediaQuery is the input, typed.
@@ -94,6 +109,8 @@ type ViewedMedia struct {
 	// bytes worth handing out a capability for: nothing has judged them, and T-11 forbids serving
 	// what no sniff has decided the delivery of.
 	Download storage.Transfer
+	// Editable is whether the reader may open the file in the document server.
+	Editable bool
 }
 
 // Execute reads the object.
@@ -120,11 +137,17 @@ func (h GetMedia) Execute(
 
 	// After the permission question, deliberately: minting is signing, and a capability minted for
 	// somebody who turns out not to be allowed to read the object is one that was handed out.
-	download, err := h.Transfers.IssueDownload(object, h.Clock.Now().Add(DownloadWindow))
+	download, err := h.Transfers.IssueDownload(ctx, object, h.Clock.Now().Add(DownloadWindow))
 	if err != nil {
 		return ViewedMedia{}, err
 	}
-	return ViewedMedia{Object: object, Download: download}, nil
+	editable := false
+	if h.Editing != nil {
+		if editable, err = h.Editing.Editable(ctx, actor, object, served); err != nil {
+			return ViewedMedia{}, err
+		}
+	}
+	return ViewedMedia{Object: object, Download: download, Editable: editable}, nil
 }
 
 // reach is what the object serves, for the permission question: the paths of the entries it covers
@@ -192,6 +215,17 @@ func (h GetMedia) read(
 		}
 		for _, hub := range hubs {
 			served.paths = append(served.paths, []identity.Scope{identity.TenantScope(), identity.HubScope(hub)})
+		}
+		// An inventory object's file is read by whoever may read the object, judged at its hub as
+		// the object is (UC-AST-01).
+		if h.CiFiles != nil {
+			cis, err := h.CiFiles.ReferencingCis(ctx, mediaID)
+			if err != nil {
+				return err
+			}
+			for _, hub := range cis {
+				served.paths = append(served.paths, []identity.Scope{identity.TenantScope(), identity.HubScope(hub)})
+			}
 		}
 		if h.Pages != nil {
 			served.pages, err = h.Objects.ReferencingPages(ctx, mediaID)
@@ -354,6 +388,7 @@ func mediaIDRequired() error {
 // capability was minted, and there is nothing to mint here.
 func viewedOutput(viewed ViewedMedia) usecase.Output {
 	out := mediaOutput(viewed.Object)
+	out["editable"] = viewed.Editable
 	if viewed.Download.URL != "" {
 		out["download"] = transferOutput(viewed.Download)
 	}

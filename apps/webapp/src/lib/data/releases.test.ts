@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 import type { Release } from '@hubtask/sync-engine';
 
-import { releaseCandidates, releaseGroups, releaseShown, releaseTargets } from './releases.ts';
+import { releaseAxis, releaseCandidates, releaseGroups, releaseShown, releaseTargets } from './releases.ts';
 
 const release = (id: string, state: Release['state'], release_on: string): Release => ({
   id, hub_id: 'h', name: id, description: '', release_on, state, released_at: null, notes_page_id: null, version: 1,
@@ -39,4 +39,16 @@ test('the releases are grouped coming, then gone out, a past planned one marked 
   assert.deepEqual(groups.released.map((r) => r.id), ['recent', 'old']);
   assert.deepEqual([...groups.late], ['late']);
   assert.deepEqual(releaseGroups([], '2026-11-04'), { planned: [], released: [], late: new Set() });
+});
+
+test('the releases stand on an axis of months, today marked, a crowded one on the next lane (scene planrel 2)', () => {
+  const r = (id: string, release_on: string, state: 'PLANNED' | 'RELEASED' = 'PLANNED', released_at: string | null = null) =>
+    ({ id, hub_id: 'h', name: id, description: '', release_on, state, released_at, notes_page_id: null, version: 1 }) as Release;
+  const axis = releaseAxis([r('a', '2026-11-25'), r('b', '2026-10-20', 'RELEASED', '2026-10-28T10:00:00Z'), r('c', '2026-11-27')], '2026-11-12');
+  assert.deepEqual(axis.months.map((each) => each.day), ['2026-10-01', '2026-11-01']);
+  assert.equal(axis.months[0]?.at, 0);
+  assert.ok(axis.today > 0.6 && axis.today < 0.7, `today at ${axis.today}`);
+  const lane = Object.fromEntries(axis.marks.map((each) => [each.id, each.lane]));
+  assert.deepEqual(lane, { b: 0, a: 0, c: 1 }, 'two releases two days apart share no lane');
+  assert.ok((axis.marks.find((each) => each.id === 'b')?.at ?? 0) > 0.85 * (27 / 61), 'a release gone out stands at the day it went out');
 });

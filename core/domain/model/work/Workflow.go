@@ -202,6 +202,55 @@ func (s WorkflowShape) Entering(status string, completed bool) string {
 	return s.Initial
 }
 
+// RouteToDone answers the fewest steps from a status into the workflow's done status (FirstDone),
+// whoever may take them; the workflow's order breaks a tie. A shorter way into another done status
+// - a discard from any status - is not how done is reached; one is answered only where the first
+// done status is out of reach. Empty from a done status or where no step leads to done.
+func (s WorkflowShape) RouteToDone(from string) []WorkflowStep {
+	if s.Completes(from) {
+		return []WorkflowStep{}
+	}
+	if route := s.routeInto(from, func(status string) bool { return status == s.FirstDone() }); len(route) > 0 {
+		return route
+	}
+	return s.routeInto(from, s.Completes)
+}
+
+// routeInto answers the fewest steps from a status into the first status reached that is a goal,
+// passing through no done status on the way.
+func (s WorkflowShape) routeInto(from string, isGoal func(string) bool) []WorkflowStep {
+	route := []WorkflowStep{}
+	type arrival struct {
+		step WorkflowStep
+		from string
+	}
+	reached := map[string]arrival{}
+	seen := map[string]bool{from: true}
+	queue := []string{from}
+	for len(queue) > 0 {
+		at := queue[0]
+		queue = queue[1:]
+		for _, step := range s.StepsFrom(at) {
+			if seen[step.To] {
+				continue
+			}
+			seen[step.To] = true
+			reached[step.To] = arrival{step: step, from: at}
+			if !isGoal(step.To) {
+				if !s.Completes(step.To) {
+					queue = append(queue, step.To)
+				}
+				continue
+			}
+			for status := step.To; status != from; status = reached[status].from {
+				route = append([]WorkflowStep{reached[status].step}, route...)
+			}
+			return route
+		}
+	}
+	return route
+}
+
 // Columns answers the status keys in order: a board's columns in a workflow collection.
 func (s WorkflowShape) Columns() []string {
 	keys := make([]string, 0, len(s.Statuses))
@@ -319,6 +368,24 @@ func (ws Workflows) Find(key string) (Workflow, bool) {
 		}
 	}
 	return Workflow{}, false
+}
+
+// StepName answers a published step's name as the team wrote it - its own, else its target
+// status's - or "" where neither is named: a key is never shown as a name (P-12).
+func (ws Workflows) StepName(workflow, step string) string {
+	w, ok := ws.Find(workflow)
+	if !ok {
+		return ""
+	}
+	found, ok := w.Published.Step(step)
+	if !ok {
+		return ""
+	}
+	if found.Name != "" {
+		return found.Name
+	}
+	target, _ := w.Published.Status(found.To)
+	return target.Name
 }
 
 // NewWorkflowInput is what a workspace's own workflow is made of.

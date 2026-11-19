@@ -152,6 +152,7 @@ func TestMovingToTheTopLevelIsOnlyForARootType(t *testing.T) {
 // An activity moves out of its work package to the task above, and from the task into a work
 // package again - both directions of the one level a task now holds beside its work packages; out
 // of the task it may not go, because an activity is not a root.
+// UC-WRK-06 check 3: *Move inside* the work package above and *Move out* to the task.
 func TestAnActivityMovesBetweenItsTaskAndAWorkPackage(t *testing.T) {
 	task, pack, activity := moveTree()
 	hierarchy := moveHierarchy(t)

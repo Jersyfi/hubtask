@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, MANIFEST, newRows, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -54,8 +54,7 @@ async function open(browser, hasAccess) {
 }
 
 test('chromium: a person holding no access is told so, and offered no hub the server would refuse', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, false);
   t.after(close);
 
@@ -70,8 +69,7 @@ test('chromium: a person holding no access is told so, and offered no hub the se
 });
 
 test('chromium: a person holding access below the workspace sees no notice, and a private hub of their own', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, true);
   t.after(close);
 

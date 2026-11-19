@@ -9,6 +9,7 @@ package odata
 
 import (
 	"encoding/xml"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -95,6 +96,8 @@ type Page struct {
 	Skip, Top int
 	// HasTop says `$top` was asked; without it the client takes every row, page by page.
 	HasTop bool
+	// Filter is the `$filter` the rows were read with, carried on in the next link.
+	Filter string
 }
 
 func optional(t *time.Time) any {
@@ -142,6 +145,9 @@ func Entries(root string, all []Entry, page Page) map[string]any {
 		next := root + "/" + EntitySet + "?$skip=" + strconv.Itoa(skip+take)
 		if page.HasTop {
 			next += "&$top=" + strconv.Itoa(wanted-take)
+		}
+		if page.Filter != "" {
+			next += "&$filter=" + url.QueryEscape(page.Filter)
 		}
 		out["@odata.nextLink"] = next
 	}

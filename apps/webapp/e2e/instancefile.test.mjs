@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -66,8 +66,7 @@ async function open(browser, level = LEVEL) {
 }
 
 test('chromium: the file holds every decided value with its lock, and an undecided key without one', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser);
   t.after(close);
 
@@ -82,8 +81,7 @@ test('chromium: the file holds every decided value with its lock, and an undecid
 });
 
 test('chromium: while a file enforces the level, the screen names that file', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, { ...LEVEL, is_enforced_from_file: true, source: '/etc/hubtask/instance.json' });
   t.after(close);
 

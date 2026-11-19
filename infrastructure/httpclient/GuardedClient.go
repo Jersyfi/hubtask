@@ -62,20 +62,25 @@ func NewGuardedClient(cfg env.OutboundConfig, guard *Guard) *GuardedClient {
 		tracer:  noop.NewTracerProvider().Tracer(""),
 	}
 
-	dialer := &net.Dialer{
-		Timeout: cfg.ConnectTimeout,
-		// Control runs after the name is resolved and before the socket connects, with the
-		// concrete address. This is the check that survives DNS rebinding: whatever the
-		// resolver said a moment ago, this is what the connection is about to use.
-		Control: func(network, address string, _ syscall.RawConn) error {
-			return guard.CheckControl(network, address)
-		},
+	dial := func(ctx context.Context, network, address string) (net.Conn, error) {
+		host, _, _ := net.SplitHostPort(address)
+		check := guard.ControlFor(host)
+		dialer := &net.Dialer{
+			Timeout: cfg.ConnectTimeout,
+			// Control runs after the name is resolved and before the socket connects, with the
+			// concrete address. This is the check that survives DNS rebinding: whatever the
+			// resolver said a moment ago, this is what the connection is about to use.
+			Control: func(network, address string, _ syscall.RawConn) error {
+				return check(network, address)
+			},
+		}
+		return dialer.DialContext(ctx, network, address)
 	}
 
 	c.client = &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig:       tlsConfig(cfg.CARoots),
-			DialContext:           dialer.DialContext,
+			DialContext:           dial,
 			TLSHandshakeTimeout:   cfg.ConnectTimeout,
 			ResponseHeaderTimeout: cfg.Timeout,
 			ExpectContinueTimeout: time.Second,
@@ -104,6 +109,15 @@ func tlsConfig(roots []byte) *tls.Config {
 	}
 	pool.AppendCertsFromPEM(roots)
 	return &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}
+}
+
+// ForEnteredServer answers a client that may reach the document server the administration entered
+// on a private network, and only that host (Guard.ForEnteredServer). Its own transport, so that a
+// connection to the entered server is never pooled into the installation's other calls.
+func (c *GuardedClient) ForEnteredServer(host string) *GuardedClient {
+	entered := NewGuardedClient(c.cfg, c.guard.ForEnteredServer(host))
+	entered.observe, entered.now, entered.tracer = c.observe, c.now, c.tracer
+	return entered
 }
 
 // WithObserver returns a copy that reports the duration of every call. The composition root

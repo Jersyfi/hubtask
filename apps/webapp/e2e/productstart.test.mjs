@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, DEFAULT_STRUCTURE, MANIFEST, OTHER, PAGE, PERMISSIONS, forgetUnstubbed, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -37,8 +37,7 @@ const planned = {
 };
 
 test('chromium: an empty product home offers its templates, and one makes the hub with its parts at one press', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   forgetUnstubbed();
@@ -128,8 +127,7 @@ test('chromium: an empty product home offers its templates, and one makes the hu
 // UC-SVC-05, §4: a service template taken by the workspace leaves its collections as they were, so
 // the desk has hubs but no desk - and offers the templates that start one, not only *Create hub*.
 test('chromium: the desk without a desk offers its templates though hubs exist', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   forgetUnstubbed();
@@ -167,6 +165,8 @@ test('chromium: the desk without a desk offers its templates though hubs exist',
   await page.getByText('No desk takes requests yet').waitFor({ timeout: 15_000 });
   await page.getByRole('button', { name: 'ITIL service desk', exact: true }).waitFor({ timeout: 10_000 });
   assert.equal(await page.getByRole('button', { name: 'Scrum team', exact: true }).count(), 0, 'a template that does not switch the desk on is offered');
+  // UC-WRK-36 check 22: the desk's mockup draws its template cards with *Use*.
+  assert.equal(await page.locator('[data-empty-templates] .card[data-shape="stacked"] .use').count(), 1, 'the desk\'s card carries Use');
   // The product's trail reads as a hub's does: a chevron between the levels, one current level.
   const trail = page.getByRole('navigation', { name: 'Where you are among the products' }).first();
   assert.equal(await trail.locator('li').count(), 2);
@@ -178,8 +178,7 @@ test('chromium: the desk without a desk offers its templates though hubs exist',
 // §4: a product switched on at the workspace is on in its hubs at once, so the first visit is
 // decided by whether anything of it exists - an existing hub without a page still starts Pages.
 test('chromium: a product on in a hub that holds nothing of it offers its create act and its templates', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   forgetUnstubbed();
@@ -196,6 +195,7 @@ test('chromium: a product on in a hub that holds nothing of it offers its create
       return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${[...records, '{"cursor":"c-e2e"}'].join('\n')}\n` });
     }
     if (path === '/containers' && route.request().method() === 'GET') return route.fulfill({ json: { ...PAGE, data: url.searchParams.get('type') === 'HUB' ? [hub] : [] } });
+    if (path === `/hubs/${HUB}/pages` && route.request().method() === 'POST') return route.fulfill({ status: 201, json: { id: '01a0e2e0-0000-7000-8000-0000000004f9', hub_id: HUB, title: 'Untitled', parent_id: null } });
     if (path === `/hubs/${HUB}/pages`) return route.fulfill({ json: { ...PAGE, data: [] } });
     if (path === '/config/templates' && route.request().method() === 'GET') return route.fulfill({ json: { data: [KANBAN, SCRUM] } });
     if (path === '/memberships' && url.searchParams.get('scope_type') === 'HUB') {
@@ -215,18 +215,81 @@ test('chromium: a product on in a hub that holds nothing of it offers its create
   const main = page.locator('#main');
   await main.getByRole('button', { name: 'Scrum team', exact: true }).waitFor({ timeout: 10_000 });
   assert.equal(await main.getByRole('button', { name: 'New page', exact: true }).count(), 1, 'the create act is not offered once');
-  // §5.2: the act creates - the place's create dialog opens, not only its list.
+  // §5.2, S-6: the act creates - a new page opens at once, no dialog.
   await main.getByRole('button', { name: 'New page', exact: true }).click();
-  await page.waitForURL(`**/hubs/${HUB}/pages?new=1`, { timeout: 10_000 });
-  await page.getByRole('dialog', { name: 'New page' }).waitFor({ timeout: 10_000 });
+  await page.waitForURL('**/pages/01a0e2e0-0000-7000-8000-0000000004f9', { timeout: 10_000 });
+  assert.equal(await page.getByRole('dialog', { name: 'New page' }).count(), 0, 'a dialog stands before the page');
   assert.deepEqual(failures, []);
 });
 
-// §5.2: a create dialog names where it makes the object as its *In:* chip, one press to change -
-// among the hubs where the product is on and the reader may write, never one where it is off.
-test('chromium: the create dialog makes the page in the hub its place chip names', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+// Scene homeplans 4 (work-surface §6.4): the plans' first use has a project file as its side way -
+// the plan's own import, opened from the home into the collection the create act leads to first.
+test('chromium: the plans\' first use brings a project file in from the home', async (t) => {
+  const browser = await sharedChromium(t);
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  forgetUnstubbed();
+  const HUB = '01a0e2e0-0000-7000-8000-000000000501';
+  const COLLECTION = '01a0e2e0-0000-7000-8000-000000000502';
+  const hub = { id: HUB, type: 'HUB', parent_id: null, name: 'Bau', order_key: 'a1', version: 1, structure: DEFAULT_STRUCTURE };
+  const collection = { id: COLLECTION, type: 'COLLECTION', parent_id: HUB, name: 'Halle', order_key: 'a1', version: 1, structure: DEFAULT_STRUCTURE };
+  const on = ['WORKFLOWS', 'PLANNING'];
+  const imported = [];
+  await context.route('**/api/v1/**', async (route) => {
+    const url = new URL(route.request().url());
+    const path = url.pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: on } });
+    if (path === `/containers/${HUB}/modules` || path === `/containers/${COLLECTION}/modules`) return route.fulfill({ json: { modules_on: on } });
+    if (path === '/sync:snapshot') {
+      const records = [hub, collection].map((c) => JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: c.id, container_id: c.parent_id, payload: c }));
+      return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${[...records, '{"cursor":"c-e2e"}'].join('\n')}\n` });
+    }
+    if (path === '/containers' && route.request().method() === 'GET') {
+      return route.fulfill({ json: { ...PAGE, data: url.searchParams.get('type') === 'HUB' ? [hub] : [collection] } });
+    }
+    if (path === `/hubs/${HUB}/releases`) return route.fulfill({ json: { ...PAGE, data: [] } });
+    if (path === `/collections/${COLLECTION}/sprints`) return route.fulfill({ json: { ...PAGE, data: [] } });
+    if (path === `/plans/${HUB}/schedule`) {
+      return route.fulfill({ json: { zone: 'UTC', finish: null, entries: [], dependencies: [], conflicts: [], unscheduled: [], undated: [], critical_path: [] } });
+    }
+    if (path === `/collections/${COLLECTION}/plan:import`) {
+      imported.push(route.request().postDataJSON());
+      return route.fulfill({ json: { dry_run: true, tasks: 1, work_packages: 0, activities: 0, milestones: 0, dependencies: 0, flattened: 0, created: [] } });
+    }
+    if (path === '/config/templates' && route.request().method() === 'GET') return route.fulfill({ json: { data: [SCRUM] } });
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  const failures = [];
+  page.on('pageerror', (error) => failures.push(String(error)));
+  await page.goto(`${served.origin}/plans`);
+  const main = page.locator('#main');
+  const side = main.locator('[data-empty-side]');
+  await side.waitFor({ timeout: 15_000 });
+  assert.equal(await side.innerText(), 'Import a plan');
+  assert.equal(await main.getByRole('button', { name: 'Start empty', exact: true }).count(), 0, 'the plans\' side way is the import, not an empty hub');
+  await side.click();
+  const dialog = page.getByRole('dialog', { name: 'Bring in a project file' });
+  await dialog.getByText('Step 1 of 4: Where from').waitFor({ timeout: 5_000 });
+  // One collection to bring it into: nothing to choose.
+  assert.equal(await dialog.getByLabel('Into which collection').count(), 0);
+  await dialog.getByRole('button', { name: 'Choose A table (CSV)' }).click();
+  await dialog.locator('input[type="file"]').setInputFiles({ name: 'plan.csv', mimeType: 'text/csv', buffer: Buffer.from('Name\nFundament\n') });
+  await dialog.getByRole('button', { name: 'Next', exact: true }).click();
+  await dialog.getByText('Read as A table (CSV).').waitFor({ timeout: 5_000 });
+  assert.equal(imported.length, 1, 'the check was not asked of the collection the create act leads to');
+  assert.equal(imported[0].dry_run, true);
+  assert.deepEqual(failures, []);
+});
+
+// S-6 (scene phome, pnew): the pages' home's *start with a template* makes the page at once,
+// with the template's words; no dialog asks first.
+test('chromium: a page started from a template is made at once with its words', async (t) => {
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   forgetUnstubbed();
@@ -270,40 +333,20 @@ test('chromium: the create dialog makes the page in the hub its place chip names
   const page = await context.newPage();
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
-  await page.goto(`${served.origin}/hubs/${HUB}/pages?new=1`);
-  const dialog = page.getByRole('dialog', { name: 'New page' });
-  await dialog.waitFor({ timeout: 15_000 });
-  const chip = dialog.locator('[data-chip="place"]');
-  await chip.filter({ hasText: 'Allgemein' }).waitFor({ timeout: 10_000 });
-  await chip.click();
-  const choices = page.getByRole('menuitem');
-  await choices.first().waitFor({ timeout: 10_000 });
-  assert.deepEqual(await choices.allInnerTexts(), ['Allgemein', 'IT-Service-Desk'], 'the chip offers a hub where pages are off');
-  await page.getByRole('menuitem', { name: 'IT-Service-Desk' }).click();
-  await chip.filter({ hasText: 'IT-Service-Desk' }).waitFor({ timeout: 10_000 });
-  // One anatomy (§5.2): the title first, the gallery with Blank chosen, the chip, one primary.
-  const order = await dialog.evaluate((root) => ['input', '[data-page-start]', '[data-chip="place"]']
-    .map((selector) => root.querySelector(selector))
-    .every((each, i, all) => each && (i === 0 || all[i - 1].compareDocumentPosition(each) & Node.DOCUMENT_POSITION_FOLLOWING)));
-  assert.ok(order, 'the dialog does not run title, gallery, place');
-  assert.equal(await dialog.locator('[data-page-start="blank"] button').getAttribute('aria-pressed'), 'true');
-  assert.equal(await dialog.locator('select').count(), 0, 'the templates are still a select');
-  await dialog.locator('[data-page-start="shipped:meeting"] button').click();
-  assert.equal(await dialog.locator('[data-page-start="shipped:meeting"] button').getAttribute('aria-pressed'), 'true');
-  await dialog.getByLabel('Title').fill('Runbook');
-  await dialog.getByRole('button', { name: 'Write the page', exact: true }).click();
-  await page.waitForURL('**/pages/01a0e2e0-0000-7000-8000-0000000004f9', { timeout: 10_000 });
-  assert.deepEqual(made, [IT], 'the page was not made in the hub the chip names');
-  assert.equal(sent[0]?.title, 'Runbook');
-  assert.ok(typeof sent[0]?.body === 'string' && sent[0].body.length > 0, 'the chosen template\'s body was not sent');
+  await page.goto(`${served.origin}/hubs/${IT}/pages?new=1&template=meeting`);
+  await page.waitForURL('**/pages/01a0e2e0-0000-7000-8000-0000000004f9', { timeout: 15_000 });
+  assert.equal(await page.getByRole('dialog', { name: 'New page' }).count(), 0, 'a dialog stands before the page');
+  assert.deepEqual(made, [IT], 'the page was not made in the hub asked');
+  assert.equal(sent[0]?.title, 'Meeting notes');
+  assert.ok(typeof sent[0]?.body === 'string' && sent[0].body.includes('## '), 'the template\'s body was not sent');
+  assert.equal(sent[0]?.icon, '🗓️');
   assert.deepEqual(failures, []);
 });
 
 // §5.2: a hub takes its part once the workspace took the template's own. Whoever may change the
 // workspace is shown the workspace's part first in the same dialog, then the hub's - no refusal.
 test('chromium: a template the workspace has not taken is planned for the workspace first, then for the hub', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   forgetUnstubbed();
@@ -365,8 +408,7 @@ test('chromium: a template the workspace has not taken is planned for the worksp
 
 // The list says the workspace has not taken the template: no refusal is asked for first.
 test('chromium: a template the workspace has not taken is planned for the workspace first, as the list says, before any refusal', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   forgetUnstubbed();
@@ -429,8 +471,7 @@ test('chromium: a template the workspace has not taken is planned for the worksp
 // §5.2: a hub's owner who may not change the workspace is told before choosing that the workspace
 // takes the template first, and by whom - no take is offered, so no refusal follows a choice.
 test('chromium: a template the workspace has not taken names its administrators to a hub owner who may not take it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   forgetUnstubbed();
@@ -491,8 +532,7 @@ test('chromium: a template the workspace has not taken names its administrators 
 // the product's switched-off page - and a product no template starts still goes to its home,
 // whose switch then says what the product still needs (§2.8).
 test('chromium: Try it opens the hub dialog on the product\'s template', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   forgetUnstubbed();

@@ -1,0 +1,33 @@
+{
+  "key": "time_standard",
+  "version": 1,
+  "document": {
+    "modules": {
+      "time": {
+        "switch": "ON"
+      }
+    },
+    "time_work_types": {
+      "development": {
+        "name": "Development",
+        "position": 1
+      },
+      "meeting": {
+        "name": "Meeting",
+        "position": 2
+      },
+      "support": {
+        "name": "Support",
+        "position": 3
+      },
+      "training": {
+        "name": "Training",
+        "position": 4
+      },
+      "administration": {
+        "name": "Administration",
+        "position": 5
+      }
+    }
+  }
+}

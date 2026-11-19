@@ -81,6 +81,10 @@ func (b Bounded) limitFor(r *http.Request) int64 {
 	if r.Method == http.MethodPut && strings.HasSuffix(r.URL.Path, mediaContentSuffix) {
 		return b.MaxUploadBytes
 	}
+	if r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, wopiFilesPrefix) &&
+		strings.HasSuffix(r.URL.Path, wopiContentsSuffix) {
+		return b.MaxUploadBytes
+	}
 	if r.Method == http.MethodPost && (strings.Contains(r.URL.Path, mailIntakePath) ||
 		strings.HasSuffix(r.URL.Path, addressedMailPath)) && b.MaxMailBytes > 0 {
 		// Only where one is configured. A zero here falls through to the document bound rather

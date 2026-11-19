@@ -21,9 +21,15 @@
   //
   // Oldest first, because a conversation read from the bottom is a conversation read backwards.
 
+  import type { Snippet } from 'svelte';
+
   import Avatar from './Avatar.svelte';
+  import Icon from './Icon.svelte';
+  import type { IconName } from './icons/index.ts';
   import Button from './Button.svelte';
+  import IconButton from './IconButton.svelte';
   import LoadMore from './LoadMore.svelte';
+  import Menu from './Menu.svelte';
 
   /** One comment, as the thread draws it. The shape `Comment` has, narrowed to what is rendered. */
   export interface ThreadComment {
@@ -53,6 +59,21 @@
     readonly deleteDisabledReason?: string;
     /** The replies to this comment. One level: a reply carries none of its own. */
     readonly replies?: readonly Omit<ThreadComment, 'replies'>[];
+    /** Present: an internal note, drawn yellow with a lock and this word (*Internal*), never as a reply (ET-7). */
+    readonly internalLabel?: string;
+  }
+
+  /**
+   * Something that happened between the posts - a status change, a deadline met, a group changed:
+   * a quiet row in time order among the comments (*All*, work-surface concept §6.9).
+   */
+  export interface ThreadEvent {
+    readonly id: string;
+    /** The sentence, resolved: *Clara Neumann moved it to In review*. */
+    readonly text: string;
+    readonly when: string;
+    readonly at: string;
+    readonly icon?: IconName;
   }
 
   interface Props {
@@ -67,6 +88,8 @@
     editLabel: string;
     deleteLabel: string;
     replyLabel: string;
+    /** The ⋯ that holds edit and remove, beside *Reply*: *More for this comment*. */
+    moreLabel: string;
     /** Whether there is another page of comments. */
     hasMore?: boolean;
     /** What the control that fetches it is called, and what it says once a page has landed. */
@@ -79,9 +102,14 @@
     onDelete?: (id: string) => void;
     /** Absent where the reader may not comment: no reply is offered then (P-05). */
     onReply?: (id: string) => void;
+    /** Quiet rows placed among the comments by their instant. */
+    events?: readonly ThreadEvent[];
+    /** The caller's reading of a body - formatted text from the pages' editor (E-3); plain text without it. */
+    body?: Snippet<[string]>;
   }
 
   const {
+    body,
     label,
     comments,
     emptyLabel,
@@ -89,6 +117,7 @@
     editLabel,
     deleteLabel,
     replyLabel,
+    moreLabel,
     hasMore = false,
     loadMoreLabel,
     arrivedLabel,
@@ -97,15 +126,41 @@
     onEdit,
     onDelete,
     onReply,
+    events = [],
   }: Props = $props();
+
+  type Row = { kind: 'comment'; comment: ThreadComment } | { kind: 'event'; event: ThreadEvent };
+
+  // Comments keep their own order (oldest first); an event goes before the first comment written
+  // after it. Compared as instants: the history and the comments name them in different zones,
+  // and as text every event of a later hour sorted after every post.
+  const instant = (at: string): number => Date.parse(at);
+  const rows = $derived.by((): Row[] => {
+    const pending = [...events].sort((a, b) => instant(a.at) - instant(b.at));
+    const out: Row[] = [];
+    for (const comment of comments) {
+      while (pending.length > 0 && instant(pending[0]?.at ?? '') < instant(comment.at)) out.push({ kind: 'event', event: pending.shift() as ThreadEvent });
+      out.push({ kind: 'comment', comment });
+    }
+    for (const event of pending) out.push({ kind: 'event', event });
+    return out;
+  });
 </script>
 
 <section class="thread" aria-label={label}>
-  {#if comments.length === 0}
+  {#if rows.length === 0}
     <p class="empty">{emptyLabel}</p>
   {:else}
     <ol class="list">
-      {#each comments as comment (comment.id)}
+      {#each rows as each (each.kind === 'comment' ? each.comment.id : `event-${each.event.id}`)}
+        {#if each.kind === 'event'}
+          <li class="event" data-thread-event>
+            <Icon name={each.event.icon ?? 'clock'} size="sm" />
+            <span class="event-text">{each.event.text}</span>
+            <time datetime={each.event.at}>{each.event.when}</time>
+          </li>
+        {:else}
+        {@const comment = each.comment}
         <li class="entry">
           {@render row(comment, onReply !== undefined)}
           {#if comment.replies && comment.replies.length > 0}
@@ -116,17 +171,18 @@
             </ol>
           {/if}
         </li>
+        {/if}
       {/each}
     </ol>
 
     {#if hasMore && loadMoreLabel}
-      <LoadMore label={loadMoreLabel} {hasMore} {arrivedLabel} failedLabel={loadMoreFailedLabel} {onLoadMore} />
+      <LoadMore isQuiet label={loadMoreLabel} {hasMore} {arrivedLabel} failedLabel={loadMoreFailedLabel} {onLoadMore} />
     {/if}
   {/if}
 </section>
 
 {#snippet row(comment: Omit<ThreadComment, 'replies'>, canReply: boolean)}
-  <article class="comment">
+  <article class="comment" data-internal={comment.internalLabel ? '' : undefined}>
     <Avatar name={comment.authorName} src={comment.authorSrc} size="sm" />
     <div class="body">
       <p class="meta">
@@ -134,6 +190,7 @@
         <!-- The order is the content, so the instant is machine-readable rather than only drawn -
              the same decision ActivityFeed made about a step. -->
         <time datetime={comment.at}>{comment.when}</time>
+        {#if comment.internalLabel}<span class="internal"><Icon name="lock" size="sm" />{comment.internalLabel}</span>{/if}
         {#if comment.editedLabel && !comment.isRemoved}<span class="edited">{comment.editedLabel}</span>{/if}
       </p>
 
@@ -142,7 +199,7 @@
              reader guessing, and the guess "it failed to load" is the wrong one. -->
         <p class="removed">{removedLabel}</p>
       {:else}
-        <p class="text">{comment.body}</p>
+        {#if body && comment.body !== undefined}<div class="text">{@render body(comment.body)}</div>{:else}<p class="text">{comment.body}</p>{/if}
       {/if}
 
       {#if !comment.isRemoved && (canReply || comment.isChangeable !== false)}
@@ -150,19 +207,19 @@
           {#if canReply}
             <Button size="sm" tone="subtle" onclick={() => onReply?.(comment.id)}>{replyLabel}</Button>
           {/if}
+          <!-- *Reply ···* as the scene draws it: edit and remove wait in the ⋯, an unavailable one
+               there with its reason (P-05). -->
           {#if comment.isChangeable !== false}
-            <Button
-              size="sm"
-              tone="subtle"
-              disabledReason={comment.editDisabledReason}
-              onclick={() => onEdit?.(comment.id)}
-            >{editLabel}</Button>
-            <Button
-              size="sm"
-              tone="subtle"
-              disabledReason={comment.deleteDisabledReason}
-              onclick={() => onDelete?.(comment.id)}
-            >{deleteLabel}</Button>
+            <Menu
+              label={moreLabel}
+              items={[
+                { id: 'edit', label: editLabel, icon: 'pencil', disabledReason: comment.editDisabledReason },
+                { id: 'delete', label: deleteLabel, icon: 'trash', isDestructive: true, disabledReason: comment.deleteDisabledReason },
+              ]}
+              onselect={(id) => (id === 'edit' ? onEdit?.(comment.id) : onDelete?.(comment.id))}
+            >
+              {#snippet trigger(props)}<IconButton icon="ellipsis" label={moreLabel} size="sm" tone="subtle" {...props} />{/snippet}
+            </Menu>
           {/if}
         </p>
       {/if}
@@ -177,7 +234,7 @@
   .replies {
     display: flex;
     flex-direction: column;
-    gap: var(--sp-150);
+    gap: var(--sp-100);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -188,7 +245,7 @@
   /* One level, and the indent is what says so. `margin-inline-start` follows the writing
      direction, so a right-to-left thread indents the other way without a second rule. */
   .replies {
-    margin-block-start: var(--sp-150);
+    margin-block-start: var(--sp-100);
     margin-inline-start: var(--sp-400);
     border-inline-start: var(--bw-hairline) solid var(--border-subtle);
     padding-inline-start: var(--sp-150);
@@ -196,7 +253,28 @@
 
   .comment { display: flex; gap: var(--sp-100); min-width: 0; }
 
-  .body { display: flex; flex-direction: column; gap: var(--sp-025); min-width: 0; }
+  /* An internal note is never mistaken for a reply (ET-7): yellow, with a lock and its word. */
+  .comment[data-internal] {
+    padding: var(--sp-100);
+    border-radius: var(--r-md);
+    border-inline-start: var(--bw-thick) solid var(--status-warning-accent);
+    background: var(--status-warning-surface);
+  }
+
+  .internal { display: inline-flex; align-items: center; gap: var(--sp-025); color: var(--text-primary); font-weight: var(--fw-medium); }
+
+  .event {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-100);
+    padding-inline-start: var(--sp-050);
+    color: var(--text-subtle);
+    font-size: var(--fs-075);
+  }
+
+  .event-text { min-width: 0; overflow-wrap: anywhere; }
+
+  .body { display: flex; flex: 1 1 auto; flex-direction: column; gap: var(--sp-025); min-width: 0; }
 
   .meta {
     display: flex;
@@ -218,5 +296,8 @@
 
   .empty { margin: 0; padding: var(--sp-150); color: var(--text-subtle); font-size: var(--fs-075); }
 
-  .actions { display: flex; flex-wrap: wrap; gap: var(--sp-050); margin: 0; }
+  /* A compact row under the text, as the scene draws *Reply ···*: the buttons at the 24 px a target
+     needs (WCAG 2.5.8), the first one's words in line with the text above. */
+  .actions { display: flex; flex-wrap: wrap; gap: var(--sp-050); margin: 0; margin-inline-start: calc(-1 * var(--sp-150)); }
+  .actions :global(.button) { min-height: var(--sp-300); padding-block: 0; }
 </style>

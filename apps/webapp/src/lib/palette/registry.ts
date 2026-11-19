@@ -37,6 +37,8 @@ export interface Doing {
   readonly isOnHubPage: boolean;
   /** Whether the capture control is drawn (UC-WRK-26 check 1). */
   readonly mayCapture: boolean;
+  /** Whether some department takes the reader's requests: *Anfragen & Hilfe* is then found (PO-1). */
+  readonly mayAsk?: boolean;
 }
 
 /**
@@ -48,7 +50,7 @@ export function frameActionOffers(doing: Doing, t: Translate): readonly Offer[] 
   const making = t('app.palette.words_create');
   const offers: Offer[] = [];
   if (doing.mayCapture) {
-    offers.push({ kind: 'action', id: 'frame:capture', label: t('app.nav.capture'), keywords: making, shortcut: 'capture', target: { kind: 'capture' } });
+    offers.push({ kind: 'action', id: 'frame:capture', label: t('app.palette.create_anything'), keywords: making, shortcut: 'capture', target: { kind: 'capture' } });
   }
   const { hub } = doing;
   if (hub && !doing.isOnHubPage && doing.mayShapeHub && archivalOf(hub) === 'active') {
@@ -68,6 +70,12 @@ export function frameActionOffers(doing: Doing, t: Translate): readonly Offer[] 
       label: t(isPrivateOnly ? 'app.workspace.create_private_hub' : 'app.workspace.create_hub'),
       keywords: making,
       target: { kind: 'create', type: 'HUB', isPrivateOnly },
+    });
+  }
+  if (doing.mayAsk) {
+    offers.push({
+      kind: 'action', id: 'frame:ask', label: t('app.portal_dir.title'), keywords: t('app.palette.words_ask'),
+      target: { kind: 'route', path: '/portals' },
     });
   }
   return offers;

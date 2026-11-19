@@ -106,6 +106,28 @@ func (CmdbAssuranceRepository) AffectedOf(ctx context.Context, itemID shared.ID)
 	return out, nil
 }
 
+func (CmdbAssuranceRepository) OpenWorkOfHub(ctx context.Context, hubID shared.ID, limit int) ([]repository.OpenWork, error) {
+	q, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var k cmdbKeys
+	hub := k.of(hubID)
+	if k.err != nil {
+		return nil, k.err
+	}
+	rows, err := q.ListCmdbOpenWorkOfHub(ctx, sqlc.ListCmdbOpenWorkOfHubParams{HubID: hub, Batch: int32(limit)}) //nolint:gosec // bounded by the caller
+	if err != nil {
+		return nil, cmdbFailed("listing the open entries on a hub's CIs", err)
+	}
+	out := make([]repository.OpenWork, 0, len(rows))
+	var ids cmdbIDs
+	for _, r := range rows {
+		out = append(out, repository.OpenWork{CIID: ids.of(r.CiID), ItemID: ids.of(r.ItemID), CollectionID: ids.of(r.CollectionID), HubID: ids.of(r.HubID)})
+	}
+	return out, ids.err
+}
+
 func (CmdbAssuranceRepository) AffectingAny(ctx context.Context, ciIDs []shared.ID, limit int) ([]cmdb.Affected, error) {
 	q, err := queriesFrom(ctx)
 	if err != nil || len(ciIDs) == 0 {
@@ -351,6 +373,12 @@ type filterDoc struct {
 	Stages     []string          `json:"stages,omitempty"`
 	NameHas    string            `json:"name_has,omitempty"`
 	Attributes map[string]string `json:"attributes,omitempty"`
+	Owners     []shared.ID       `json:"owners,omitempty"`
+	NoOwner    bool              `json:"no_owner,omitempty"`
+	Locations  []shared.ID       `json:"locations,omitempty"`
+	NoLocation bool              `json:"no_location,omitempty"`
+	Tags       []string          `json:"tags,omitempty"`
+	NoTag      bool              `json:"no_tag,omitempty"`
 }
 
 func (CmdbAssuranceRepository) PutGroup(ctx context.Context, g cmdb.Group, expected int) error {
@@ -358,7 +386,11 @@ func (CmdbAssuranceRepository) PutGroup(ctx context.Context, g cmdb.Group, expec
 	if err != nil {
 		return err
 	}
-	doc := filterDoc{Classes: g.Filter.Classes, NameHas: g.Filter.NameHas, Attributes: g.Filter.Attributes}
+	f := g.Filter
+	doc := filterDoc{
+		Classes: f.Classes, NameHas: f.NameHas, Attributes: f.Attributes, Owners: f.Owners, NoOwner: f.NoOwner,
+		Locations: f.Locations, NoLocation: f.NoLocation, Tags: f.Tags, NoTag: f.NoTag,
+	}
 	for _, s := range g.Filter.Stages {
 		doc.Stages = append(doc.Stages, string(s))
 	}
@@ -385,7 +417,10 @@ func groupFrom(r sqlc.FindCmdbGroupRow) (cmdb.Group, error) {
 	if err := json.Unmarshal(r.Filter, &doc); err != nil {
 		return cmdb.Group{}, cmdbFailed("reading a group", err)
 	}
-	f := cmdb.Filter{Classes: doc.Classes, NameHas: doc.NameHas, Attributes: doc.Attributes}
+	f := cmdb.Filter{
+		Classes: doc.Classes, NameHas: doc.NameHas, Attributes: doc.Attributes, Owners: doc.Owners, NoOwner: doc.NoOwner,
+		Locations: doc.Locations, NoLocation: doc.NoLocation, Tags: doc.Tags, NoTag: doc.NoTag,
+	}
 	for _, s := range doc.Stages {
 		f.Stages = append(f.Stages, cmdb.Stage(s))
 	}
@@ -510,6 +545,50 @@ func (CmdbAssuranceRepository) FindAsset(ctx context.Context, ciID shared.ID) (c
 	return assetFrom(r)
 }
 
+func (CmdbAssuranceRepository) AddAssetMove(ctx context.Context, m cmdb.AssetMove) error {
+	q, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	var k cmdbKeys
+	params := sqlc.InsertCmdbAssetMoveParams{
+		ID: k.of(m.ID), HubID: k.of(m.HubID), CiID: k.of(m.CIID), State: string(m.State), MovedAt: timestampOf(m.At),
+		MovedBy: k.of(m.By), AssignedTo: k.opt(m.AssignedTo), StockroomID: k.opt(m.StockroomID),
+	}
+	if k.err != nil {
+		return k.err
+	}
+	if err := q.InsertCmdbAssetMove(ctx, params); err != nil {
+		return cmdbFailed("keeping an asset's move", err)
+	}
+	return nil
+}
+
+func (CmdbAssuranceRepository) AssetMoves(ctx context.Context, ciID shared.ID, limit int) ([]cmdb.AssetMove, error) {
+	q, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var k cmdbKeys
+	ci := k.of(ciID)
+	if k.err != nil {
+		return nil, k.err
+	}
+	rows, err := q.ListCmdbAssetMoves(ctx, sqlc.ListCmdbAssetMovesParams{CiID: ci, Batch: int32(limit)}) //nolint:gosec // bounded by the caller
+	if err != nil {
+		return nil, cmdbFailed("reading an asset's moves", err)
+	}
+	out := make([]cmdb.AssetMove, 0, len(rows))
+	var ids cmdbIDs
+	for _, r := range rows {
+		out = append(out, cmdb.AssetMove{
+			ID: ids.of(r.ID), HubID: ids.of(r.HubID), CIID: ids.of(r.CiID), State: cmdb.AssetState(r.State), At: timeFrom(r.MovedAt),
+			By: ids.of(r.MovedBy), AssignedTo: ids.of(r.AssignedTo), StockroomID: ids.of(r.StockroomID),
+		})
+	}
+	return out, ids.err
+}
+
 func (CmdbAssuranceRepository) Assets(ctx context.Context, hubID, after shared.ID, limit int) ([]cmdb.Asset, error) {
 	q, err := queriesFrom(ctx)
 	if err != nil {
@@ -581,6 +660,29 @@ func (CmdbAssuranceRepository) Aliases(ctx context.Context) ([]cmdb.SoftwareAlia
 		})
 	}
 	return out, k.err
+}
+
+// RemoveGroup deletes a group at the version expected.
+func (CmdbAssuranceRepository) RemoveGroup(ctx context.Context, id shared.ID, expected int) error {
+	q, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return shared.ErrNotFound.WithDetail("cmdb.group_not_found")
+	}
+	n, err := q.DeleteCmdbGroup(ctx, sqlc.DeleteCmdbGroupParams{ID: key, ExpectedVersion: assuranceVersion(expected)})
+	if err != nil {
+		return cmdbFailed("removing a group", err)
+	}
+	if n > 0 {
+		return nil
+	}
+	if _, err := (CmdbAssuranceRepository{}).FindGroup(ctx, id); err != nil {
+		return err
+	}
+	return shared.ErrVersionConflict.WithDetail("cmdb.version_conflict")
 }
 
 func (CmdbAssuranceRepository) RemoveAlias(ctx context.Context, id shared.ID) error {

@@ -62,7 +62,7 @@ func hubToleranceSection(hub shared.ID) section {
 
 // collectionSections are a hub document's sections of its collections' own blocks.
 func collectionSections() []section {
-	ruleAttributes := []string{"name", "enabled", "run_as", "trigger", "conditions", "actions", "throttle", "on_error"}
+	ruleAttributes := []string{"name", "enabled", "run_as", "trigger", "conditions", "entries", "actions", "throttle", "on_error"}
 	return []section{
 		{
 			name: sectionCollectionStructure, list: "GetContainer", collection: true,
@@ -139,7 +139,7 @@ func collectionSections() []section {
 			present: func(p places, block domain.Block) domain.Block {
 				block["actions"] = mapActions(block["actions"], p.out)
 				block["conditions"] = mapConditions(block["conditions"], p.literalOut)
-				return block
+				return withoutEmptyEntries(block)
 			},
 			opsAt: func(now current, change domain.BlockChange, row map[string]any) ([]operation, error) {
 				collection, inner := now.Places.collection(change.Key)

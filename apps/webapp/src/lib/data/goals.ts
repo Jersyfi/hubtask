@@ -167,6 +167,18 @@ export function portfolioWrite(portfolio: Portfolio, changes: Partial<PortfolioW
 }
 
 /** A widget as `PUT /dashboards/{id}` takes it: by its id, without the nulls the read carries. */
+/**
+ * At most `keep` rows, the rest summed as one row named `rest` (wcat: bars keep eight, a ring four),
+ * so a chart never draws more parts than the palette and the eye can tell apart.
+ */
+export function folded(rows: readonly FigureRow[], keep: number, rest: string): FigureRow[] {
+  if (rows.length <= keep) return [...rows];
+  const sorted = [...rows].sort((a, b) => b.value - a.value);
+  const kept = sorted.slice(0, keep - 1);
+  const value = sorted.slice(keep - 1).reduce((sum, row) => sum + row.value, 0);
+  return [...kept, { key: '__rest', label: rest, value, text: String(value) }];
+}
+
 export function widgetWrite(widget: DashboardWidget): DashboardWidgetWrite {
   const write: DashboardWidgetWrite = {
     id: widget.id,
@@ -184,6 +196,13 @@ export function widgetWrite(widget: DashboardWidget): DashboardWidgetWrite {
   // The replica hands the column on as stored, without the keys a widget does not use.
   if (widget.source !== 'GOALS' && widget.compare) write.compare = { ...widget.compare };
   if (widget.source !== 'GOALS' && widget.cumulative) write.cumulative = true;
+  if (widget.source === 'TEXT') write.text = widget.text ?? '';
+  if (widget.chart === 'LIST' && widget.column) write.column = widget.column;
+  if (widget.source === 'QUERY' && widget.released?.length) write.released = [...widget.released];
+  if ((widget.chart === 'NUMBER' || widget.chart === 'LINE') && typeof widget.target === 'number') {
+    write.target = widget.target;
+    if (typeof widget.warn_at === 'number') write.warn_at = widget.warn_at;
+  }
   return write;
 }
 
@@ -293,6 +312,28 @@ export function leftRows(data: readonly Record<string, unknown>[] | null | undef
   });
 }
 
+/** The fields whose groups are people, named by their account. */
+const PERSON_FIELDS: ReadonlySet<unknown> = new Set(['assignee_id', 'created_by']);
+
+/**
+ * The accounts a dashboard's groups name, once each: the groups of the widgets grouped by a person
+ * only - one value that is no account (a "true", a status key) would refuse the whole batch read.
+ */
+export function groupedPeople(
+  figures: readonly { id: string; data: readonly Record<string, unknown>[]; compare?: { data?: readonly Record<string, unknown>[] | null } | null }[],
+  fieldOf: (widgetId: string) => unknown,
+): string[] {
+  const ids = new Set<string>();
+  for (const figure of figures) {
+    if (!PERSON_FIELDS.has(fieldOf(figure.id))) continue;
+    for (const row of [...figure.data, ...(figure.compare?.data ?? [])]) {
+      const group = row['group'];
+      if (typeof group === 'string' && group !== '') ids.add(group);
+    }
+  }
+  return [...ids];
+}
+
 /** Several series of one widget side by side: one line per label, one value per series. */
 export interface SeriesTable {
   readonly labels: readonly string[];
@@ -354,8 +395,11 @@ export function totalOf(rows: readonly FigureRow[]): number {
   return rows.reduce((sum, row) => sum + row.value, 0);
 }
 
-/** The ten label colours of the design system, in the order series take them. */
-export const SERIES = ['blue', 'teal', 'amber', 'violet', 'green', 'magenta', 'orange', 'lime', 'red', 'slate'] as const;
+/**
+ * The chart palette (E-7, WB-2): the seven `chart.categorical` tokens in their fixed order - never
+ * a product's or a label's colour. A chart beyond seven parts groups the rest (`folded`).
+ */
+export const SERIES = ['1', '2', '3', '4', '5', '6', '7'] as const;
 export type Series = (typeof SERIES)[number];
 
 /** The colour token of the n-th series, cycling. */
@@ -380,7 +424,7 @@ export function barLayout(rows: readonly FigureRow[], width: number, height: num
   const gap = slot * 0.2;
   return rows.map((row, i) => {
     const h = top > 0 ? (Math.max(row.value, 0) / top) * height : 0;
-    return { key: row.key, x: i * slot + gap / 2, y: height - h, width: slot - gap, height: h, series: seriesOf(i) };
+    return { key: row.key, x: i * slot + gap / 2, y: height - h, width: slot - gap, height: h, series: seriesOf(0) };
   });
 }
 
@@ -463,6 +507,17 @@ function compare(a: string, b: string): number {
  * A dot at each point of a line, as an SVG path: a line of one period is a dot, never nothing.
  * Each dot is a segment of no length, drawn with a round cap.
  */
+/**
+ * The line through a series' points; a series of one period is drawn as a level across the
+ * chart at its value, so a line chart never shows its axes without a line.
+ */
+export function lineThrough(points: string, width: number): string {
+  const all = points.split(' ').filter(Boolean);
+  if (all.length !== 1) return points;
+  const y = all[0]!.split(',')[1];
+  return `0,${y} ${round(width)},${y}`;
+}
+
 export function lineDots(points: string): string {
   return points.split(' ').filter(Boolean).map((point) => `M${point}h0`).join('');
 }
@@ -470,6 +525,139 @@ export function lineDots(points: string): string {
 /** The highest value a chart's scale reaches, zero for none: the top of its value axis. */
 export function scaleTop(values: readonly (number | undefined)[]): number {
   return Math.max(0, ...values.filter((v): v is number => v !== undefined && Number.isFinite(v)));
+}
+
+// --- The nine kinds' shapes (wcat) -------------------------------------------------------------
+
+/**
+ * A NUMBER widget's figure: over periods the last period with its change against the one before
+ * and the last eight periods as a line; without periods the sum of its rows.
+ */
+export interface NumberFigure {
+  readonly value: number;
+  readonly text: string;
+  /** Last period minus the one before, where there are two. */
+  readonly change?: number;
+  /** The last eight periods as SVG points on a 100 × 24 canvas; '' for fewer than two. */
+  readonly spark: string;
+}
+
+export function numberFigure(rows: readonly FigureRow[]): NumberFigure {
+  // Entries without the stamp (one not resolved yet) belong to no period, and so to no figure of one.
+  const periods = rows.filter((row) => row.period !== undefined && row.column === undefined);
+  if (periods.length === 0 || rows.some((row) => row.column !== undefined)) {
+    const total = totalOf(rows);
+    const texts = rows.length === 1 ? rows[0]!.text : String(round(total));
+    return { value: total, text: texts, spark: '' };
+  }
+  const ordered = [...periods].sort((a, b) => compare(a.period!, b.period!));
+  const last = ordered[ordered.length - 1]!;
+  const before = ordered[ordered.length - 2];
+  const recent = ordered.slice(-8);
+  return {
+    value: last.value,
+    text: last.text,
+    ...(before ? { change: round(last.value - before.value) } : {}),
+    spark: recent.length > 1 ? linePoints(recent, 100, 24) : '',
+  };
+}
+
+/**
+ * Where a figure stands against its target and warning line (wcat "Ziel ≤ 30"): a warning line
+ * above the target means lower is better, below it higher is. `met` reaches the target, `warn`
+ * crosses the warning line, `between` is neither. Never drawn by colour alone: a word goes with it.
+ */
+export type TargetState = 'met' | 'between' | 'warn';
+export function targetState(value: number, target: number | null | undefined, warnAt: number | null | undefined): TargetState | undefined {
+  if (target === null || target === undefined) return undefined;
+  const lowerIsBetter = warnAt !== null && warnAt !== undefined ? warnAt >= target : false;
+  if (lowerIsBetter ? value <= target : value >= target) return 'met';
+  if (warnAt !== null && warnAt !== undefined && (lowerIsBetter ? value >= warnAt : value <= warnAt)) return 'warn';
+  return 'between';
+}
+
+/** A horizontal bar: its row and its length in percent of the longest. */
+export interface HBar {
+  readonly row: FigureRow;
+  readonly share: number;
+}
+
+/** Bars lying down, the longest full (wcat): at most eight, the rest as one row named `rest`. */
+export function hbars(rows: readonly FigureRow[], rest: string): HBar[] {
+  const kept = folded(rows, 8, rest);
+  const top = scaleTop(kept.map((row) => row.value));
+  return kept.map((row) => ({ row, share: top > 0 ? round((Math.max(row.value, 0) / top) * 100) : 0 }));
+}
+
+/** Two series as pairs of bars lying down: each label's parts in percent of the largest pair's sum. */
+export interface HPair {
+  readonly label: string;
+  readonly shares: readonly number[];
+  readonly texts: readonly string[];
+}
+export function hpairs(table: SeriesTable): HPair[] {
+  const sums = table.labels.map((_, i) => table.series.reduce((sum, each) => sum + Math.max(each.values[i] ?? 0, 0), 0));
+  const top = Math.max(0, ...sums);
+  return table.labels.slice(0, 8).map((label, i) => ({
+    label,
+    shares: table.series.map((each) => (top > 0 ? round((Math.max(each.values[i] ?? 0, 0) / top) * 100) : 0)),
+    texts: table.series.map((each) => each.texts[i] ?? ''),
+  }));
+}
+
+/** A ring's part: its row, its share of the whole and where it starts, both as fractions of one turn. */
+export interface RingPart {
+  readonly row: FigureRow;
+  readonly share: number;
+  readonly start: number;
+  readonly series: Series;
+}
+
+/** A ring of at most four parts (wcat), the rest as one named `rest`; parts of zero or less are left out. */
+export function ringParts(rows: readonly FigureRow[], rest: string): RingPart[] {
+  const kept = folded(rows.filter((row) => row.value > 0), 4, rest);
+  const total = kept.reduce((sum, row) => sum + row.value, 0);
+  if (total <= 0) return [];
+  let start = 0;
+  return kept.map((row, i) => {
+    const share = round(row.value / total);
+    const part = { row, share, start: round(start), series: seriesOf(i) };
+    start += row.value / total;
+    return part;
+  });
+}
+
+/** A matrix cell's step from 1 (least) to 5 (most), 0 where it holds nothing, over the whole matrix. */
+export function matrixSteps(matrix: Matrix): number[][] {
+  const values = matrix.cells.flat().map(Number).filter((v) => Number.isFinite(v));
+  const top = Math.max(0, ...values);
+  return matrix.cells.map((row) => row.map((text) => {
+    const v = Number(text);
+    if (text === '' || !Number.isFinite(v)) return 0;
+    return top > 0 ? Math.max(1, Math.ceil((Math.max(v, 0) / top) * 5)) : 1;
+  }));
+}
+
+/** A piece of a TEXT widget: plain, bold, or a link to a path inside the app. */
+export type TextPiece = { readonly kind: 'plain' | 'bold'; readonly text: string } | { readonly kind: 'link'; readonly text: string; readonly href: string };
+
+/**
+ * A TEXT widget's words in pieces - `**bold**` and `[words](/path)` - drawn as elements, never as
+ * HTML. A link goes only to a path of the app; any other target stays its words.
+ */
+export function textPieces(text: string): TextPiece[] {
+  const pieces: TextPiece[] = [];
+  const pattern = /\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)\s]+)\)/gu;
+  let at = 0;
+  for (const match of text.matchAll(pattern)) {
+    if (match.index > at) pieces.push({ kind: 'plain', text: text.slice(at, match.index) });
+    if (match[1] !== undefined) pieces.push({ kind: 'bold', text: match[1] });
+    else if (/^\/(?!\/)/u.test(match[3]!)) pieces.push({ kind: 'link', text: match[2]!, href: match[3]! });
+    else pieces.push({ kind: 'plain', text: match[2]! });
+    at = match.index + match[0].length;
+  }
+  if (at < text.length) pieces.push({ kind: 'plain', text: text.slice(at) });
+  return pieces;
 }
 
 function round(value: number): number {
@@ -532,4 +720,45 @@ export function csvOf(heads: readonly string[], rows: readonly (readonly (string
     return /[",\r\n]/u.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
   };
   return `${[heads, ...rows].map((row) => row.map(cell).join(',')).join('\r\n')}\r\n`;
+}
+
+// --- The dashboard's filter as a widget inherits it (§6.5) --------------------------------------
+
+type Node = Record<string, unknown>;
+const isLeaf = (node: Node): boolean => typeof node['field'] === 'string';
+
+/** The filter's top-level conditions, one per chip: a group ORed together stays one condition. */
+export function conditionsOf(filter: Node | undefined): Node[] {
+  if (!filter) return [];
+  if (filter['op'] === 'AND' && Array.isArray(filter['nodes'])) return filter['nodes'] as Node[];
+  return [filter];
+}
+
+/** What a widget takes of the dashboard's filter: its conditions but those on released fields - the server's rule. */
+export function inheritedFilter(filter: Node | undefined, released: readonly string[] = []): Node | undefined {
+  const kept = conditionsOf(filter).filter((node) => !(isLeaf(node) && released.includes(String(node['field']))));
+  if (kept.length === 0) return undefined;
+  return kept.length === 1 ? kept[0] : { op: 'AND', nodes: kept };
+}
+
+/**
+ * The tree *Als Liste öffnen* hands to a collection's list: what the dashboard passes on AND the
+ * widget's own filter, without a hub condition the collection already answers (its own hub).
+ */
+export function listFilter(filter: Node | undefined, released: readonly string[], own: Node | undefined, hubId: string | null | undefined): Node | undefined {
+  const shared = conditionsOf(inheritedFilter(filter, released)).filter((node) => !(node['field'] === 'hub_id' && node['op'] === 'EQ' && node['value'] === hubId));
+  const nodes = [...shared, ...conditionsOf(own)];
+  if (nodes.length === 0) return undefined;
+  return nodes.length === 1 ? nodes[0] : { op: 'AND', nodes };
+}
+
+/**
+ * The tree *Als Liste öffnen* hands to the search for a widget counting a hub or the whole
+ * workspace: the hub it counts in, once, AND what the dashboard passes on AND the widget's own.
+ */
+export function searchFilter(filter: Node | undefined, released: readonly string[], own: Node | undefined, hubId: string | undefined): Node | undefined {
+  const rest = conditionsOf(listFilter(filter, released, own, hubId));
+  const nodes = hubId ? [{ field: 'hub_id', op: 'EQ', value: hubId }, ...rest] : rest;
+  if (nodes.length === 0) return undefined;
+  return nodes.length === 1 ? nodes[0] : { op: 'AND', nodes };
 }

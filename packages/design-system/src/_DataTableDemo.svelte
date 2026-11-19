@@ -7,11 +7,12 @@
   import DataTable from './DataTable.svelte';
   import Stack from './Stack.svelte';
   import PeopleTable from './_PeopleTable.svelte';
+  import WorkTable from './_WorkTable.svelte';
   import { audit, auditColumns, type AuditRecord } from './_pageFixtures.ts';
 
   import IconButton from './IconButton.svelte';
 
-  const { mode = 'full' }: { mode?: 'full' | 'empty' | 'filtered' | 'selecting' | 'busy' | 'log' | 'tree' } = $props();
+  const { mode = 'full' }: { mode?: 'full' | 'empty' | 'filtered' | 'selecting' | 'busy' | 'log' | 'tree' | 'queue' | 'compact' | 'work-empty' } = $props();
 
   // A tree in the table: each row's fold stands before its title, outside the press that opens it.
   interface Kind { readonly id: string; readonly name: string; readonly depth: 0 | 1 | 2; readonly below: number }
@@ -38,7 +39,11 @@
   let selected = $state<string[]>([]);
 </script>
 
-{#if mode === 'log'}
+{#if mode === 'queue' || mode === 'compact'}
+  <WorkTable {mode} />
+{:else if mode === 'work-empty'}
+  <WorkTable mode="empty" />
+{:else if mode === 'log'}
   <DataTable
     label="Audit log"
     columns={auditColumns}

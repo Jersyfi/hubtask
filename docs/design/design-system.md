@@ -391,8 +391,8 @@ button. `Callout` is **not a `Banner`**: documentation, true whenever read, `rol
 dismissed. `ParameterTable` is a **`Table` underneath**, with *required* as a word (rule 3) and a
 deprecated field marked and kept.
 
-### Wave 5 — the shell (16)
-AppBar · NavDrawer · BottomBar · ViewBar · PageHeader · DetailPane · Logo · ResizeHandle · NavItem · NavGroup · NavFlyout · NavLevel · ProductTile · MoveCheck · BrowseStack · Sheet
+### Wave 5 — the shell (17)
+AppBar · NavDrawer · BottomBar · ViewBar · PageHeader · DetailPane · Logo · ResizeHandle · NavItem · NavGroup · NavFlyout · NavLevel · ProductTile · MoveCheck · BrowseStack · Sheet · UnreadDot
 
 The five that hold every page up ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md)), and
 the mark the bar carries; how the product uses them is §11.
@@ -487,10 +487,12 @@ Every routed view renders exactly one page kind; the kinds take compositions in 
   of its own and an open section hands its *‹ Settings* to the bar. `browse` is the phone's Browse
   stack, the frame's navigation drawn as a page (page-system §7.10).
   `DetailPage` (`data-page-kind="detail"`) is one object read and edited in place, as the entry
-  screen is built (§11.8): its head, then the details column and the main column - the details
-  first in the document, under the head below `expanded`, beside the main column at the inline end
+  screen is built (§11.8): its head, then the main column and the details column - the main column
+  first in the document, so reading and tab order go from the head into the content before the
+  properties; the details under the head below `expanded`, beside the main column at the inline end
   and at the pane's width from `expanded` up, staying in place while it scrolls. Drawn in a work
-  page's side panel (`isInPane`) it is one column and no page kind of its own.
+  page's side panel (`isInPane`) it is one column and no page kind of its own, the details after
+  the content.
   `StandalonePage` (`data-page-kind="standalone"`) is a page outside the app frame - nobody is
   signed in, or the visitor is no member, so there is no bar and nowhere to go: `card`, one centred
   card on the canvas with the two ambient washes and the operator's legal links under it (sign-in,
@@ -502,6 +504,151 @@ Their breakpoints are the window's, written as media queries from `primitive.bre
 story shows its widths when the window is narrowed, not the workbench's width axis. What sticks
 while the page scrolls sticks under `--page-sticky-top`, the app bar's height unless the frame says
 otherwise.
+
+### Wave 7 — the work surface
+`StateLozenge` · `StatusButton` · `ObjectHead` · `Property` · `PropertyRail` · `JumpMarks` ·
+`StepBar` · `FoldingSection` · `ProductBand` · `Widget` · `WidgetStrip` · `SummaryStrip` · `Composer` · `QueryLine` · `PriorityMark` ·
+`DeadlineBar` · `DeadlineList` · `DensitySwitch` · `TrustLine` · `PageOutline` · `FloatingBar` · `FloatingToolbar` ·
+`BlockHandle` · `BoxPopover` · `InsertList` · `LiveBlock`
+
+The shared blocks of the work-surface concept ([`docs/backlog/work-surface/`](../backlog/work-surface/README.md)
+§5; its mockups are the look), built before any screen uses them so that one pattern looks the same
+in every product (WB-1…WB-8). The page kinds, the dialog ladder and `DataTable` of wave 6 stay; the
+work surface extends them rather than drawing its own. Every string is the caller's resolved text,
+and every behaviour a test can hold lives in a module beside them: `lozenge.ts`, `steps.ts`,
+`fold.ts`, `swipe.ts`, `density.ts`, `query.ts`.
+
+* **`StateLozenge`** — one square-cornered shape for every vocabulary of states: the status
+  categories, SLA, goal, health, agent, rule, release and sync. The tone and the glyph of a state
+  are decided once in `lozenge.ts` (`LOZENGE_VOCABULARIES`); the word is the caller's. A neutral
+  state carries no glyph, every other one does (UX-7). `bold` for the one state a screen must show
+  first, `md` where it stands alone, and a `brand` tone for the reader's own work (*Mine*), which
+  is no status. `Badge` stays the system's vocabulary about itself.
+* **`StatusButton`** — the status as a lozenge button in its category's tone. Pressed (or ↓), it
+  opens "from *X* on" (E-23): every allowed step with its target lozenge and what it asks, the
+  steps the reader may not take as rows with their reason (focusable, `aria-disabled`, never
+  taken), how the done category is reached, and *View workflow* with where the workflow applies.
+  Without a workflow it lists every status, the current one ticked (`menuitemradio`), the done one
+  saying it completes the entry. Below `medium` the same rows open in a `Sheet`. Read only, it is
+  the lozenge without a chevron and the reason beside it. `primaryStep` in `steps.ts` chooses the
+  next step: the workflow's marked one if the reader may take it, otherwise the first allowed step
+  forward, never a step back; `defaultSteps` makes every status reachable with *Done* as the next.
+* **`ObjectHead`** — one head for entry, ticket, inventory object, goal, release, agent and
+  portfolio (WB-1): the breadcrumb and the tools (hidden on a phone, where the bar carries them), the
+  key with its product's tile, the type lozenge and a meta line, the title edited in place (the
+  words or the pencil; Enter keeps, Escape gives the old title back, blur keeps), and the action
+  bar — the status, the next step as the one primary, a second step the workflow offers, a
+  divider, the person (an empty one said), the due date, **one** deadline chip (what is breached
+  and the next deadline, ET-6), quiet facts and the end tools. On a phone the steps live in the
+  status's sheet and the person is the avatar alone (WB-8).
+* **`Property`** and **`PropertyRail`** — the rail of ET-1, `layout.rail` wide: sections products
+  register (`RailSection`: a title, a product's tile, a count, folded or empty), the form's groups
+  in the form's order. A head is a twist (`aria-expanded`); an empty section is one line with "+"
+  that adds its first value (WB-3); *More fields* stays folded. A `Property` is a name and a value
+  in two columns, an empty value said, a required one starred and named. Below `medium` the rail
+  is *All properties (n)* opening a sheet, with up to three properties above it (§7).
+* **`JumpMarks`** — the sections of an object with their counts (ET-2), sticking under
+  `--page-sticky-top`; the mark in view is `aria-current="location"`, followed by an
+  `IntersectionObserver`. A press scrolls to the section and moves focus there. Below `medium` they
+  are one row that scrolls sideways and the switch between sections: the caller shows the chosen one.
+* **`StepBar`** — a path an object walks, drawn as arrows in a row (IN-2): an inventory object's
+  stage. The steps before the current one are done and carry a check, the current one is filled in
+  the brand's primary and `aria-current="step"`, the later ones quiet - the glyph and the fill say
+  it, not the colour alone. It shows where the object stands; changing it is the caller's act beside
+  it. Right to left the arrows are mirrored; below `medium` the bar scrolls sideways with the
+  current step in view.
+* **`FoldingSection`** — a section of the main column with its heading, count and tools that folds
+  itself (ET-3): text clamped to 3, 5, 8 or 12 of its own lines, measured, so a short text shows no
+  *Show more*; a list cut to its first rows or its newest ones (`foldWindow`), never hiding a single
+  row. Focus arriving inside the clamped text opens the fold, so it is never hidden (2.4.11).
+* **`ProductBand`** — a product home's head (WB-2, WB-5): `PageHeader` with the product's tile
+  (`ProductTile` `xl` through `product.<id>`) as its mark and the figures as its line, the first
+  set bold. On a phone the tile is smaller, two figures stay, and the primary floats above the
+  bottom bar as every page's does.
+* **`Widget`** — one anatomy for Today and the overview (§6.1): tile, title, a quiet count, the one
+  act as a button, the figure, a line, the content. With a figure it is a card of Today's strip;
+  with content, a tile. While loading its place is held by lines (`aria-busy`). A widget whose
+  module is off is not drawn (P-17).
+* **`Composer`** — one input for comment, reply and internal note (ET-7): with `modes`, two tabs
+  (*Reply to Hannah Albers | Internal note*, the arrows between them), who sees it beside them, the
+  note yellow with a lock and the button saying *Save note*; attachments, snippets (also "/" at the
+  start of a line) and the macros — a `Menu` whose items say what each does (`MenuItem.description`)
+  — in its bar; Ctrl+↵ sends. The editor is the caller's slot (E-3); without one, a text field.
+  Below `medium` it docks above the bottom bar. Refused, it says why instead of a field.
+* **`QueryLine`** — the line of §6.11 as a shell: chips and text chips in one line (Q-2), a press on
+  a chip gives its spelling back to edit, Backspace in an empty field takes the last chip back; a
+  `combobox` with a `listbox` of suggestions — fields with kind and example, then a field's values
+  with their counts (`suggest` in `query.ts`, Q-3); a count slot that answers while typing and an
+  error at its chip with the spelling that fixes it (Q-4). It knows no grammar: the language
+  (`QueryLanguage`: `parse`, `format`) and the `FieldCatalogue` are handed in, so the one parser on
+  the server (Q-1) brings the dialect and the line never invents one.
+* **`DataTable`**, extended for a collection (WB-4, `kind="work"`): the head in small capitals, groups
+  with a `groupHead` (a status's lozenge), their count and a twist that folds them, "+ Entry in …"
+  as each group's last row (`add`, opening the capture there, C-4), `density` comfortable or
+  compact at `density.<mode>.row.height` — the device keeps the choice through `density.ts` —, the
+  row act and ⋯ coming forward on hover and focus on a device that hovers. Below `medium` a `stack`
+  snippet draws the stacked row — title, meta line, SLA bar —, and `swipe` lets a row be swiped:
+  right takes its act, left opens its menu; the act also heads the row's menu, so no act needs the
+  gesture (2.5.7). The row moves by token steps through `data-swipe`, never by a written length.
+
+* **`WidgetStrip`**, **`PriorityMark`**, **`DeadlineBar`**, **`DeadlineList`**, **`DensitySwitch`** — the
+  small parts the review of the foundation asked for, so a product never draws them itself: Today's
+  cards sharing a row equally and swiping on a phone; a priority as glyph and word in tone; a
+  deadline's bar with words (a paused clock with its mark, the track a hairline's colour so it shows
+  on the dark surface); a ticket's deadlines by urgency with bar and due time, the kept line and
+  *All deadlines as a table* (ET-6); *Comfortable | Compact* kept on the device, gone on a phone.
+
+* **`TrustLine`**, **`PageOutline`** — the two blocks of a page in Knowledge that frame its reading
+  (S-2, S-3): under the title who answers for the page, the verification as a `StateLozenge`
+  (*verified until …* or *review due*, a button for a writer), the last change and the labels; beside
+  the reading column (`layout.reading`, running text at `font.size.250` with the loose line height)
+  the headings of levels 2 and 3, the one in view marked and followed while the page scrolls.
+
+* **`FloatingToolbar`**, **`BlockHandle`**, **`BoxPopover`** — the tools of a page while writing (S-1): the bar above
+  selected words, "+" with the handle at the start of a line, the handle's menu being the way
+  that needs no dragging, and what "/" or "+" offers opened under that line. **`InsertList`** is
+  that offer: a listbox in groups, each choice with its tile and one line of what it puts in; the
+  arrows choose, Enter inserts, a letter jumps, Escape closes, and the keys' line says so. Opened
+  by "/" the focus stays in the line and the editor hands it the keys; the words typed after "/"
+  keep only the choices holding them in label or detail, marked, and with none left the list says so.
+* **`LiveBlock`** — work living in a page (S-4): the product's tile, what it is, *Live* in words
+  beside a mark and the way to the original over the live content. Neither is an element's overlay: both are anchored to a box (the
+  selection, the line) through a phantom element `rectAnchor` lays over it inside the container
+  (`anchor.ts`), so no call site measures where an overlay goes.
+
+**Fixes after review (2026-11-13).** A `work` row is one line at the density's height: no cell
+wraps, the title is cut with an ellipsis and shows its whole words on hover (`titleText`) and while
+the row has focus; the head's rule is a hairline, the body 13 px; the act and ⋯ stand in the title's
+cell, no column held for them. The leading checkbox selects (`isSelecting`), it never completes —
+completing is the swipe and the menu. Where the pointer is coarse or the window a phone's, a row's
+checkbox, ⋯, a group's twist and the composer's icons grow to `layout.target` (44 px). `QueryLine`
+opens its suggestions in the top layer, never clipped; offers *+ Condition* and *+ Group (or)*; and
+on a phone shows one strip with "+n" and the filters in a sheet. `Widget` titles break between
+words only, and `figureTone` sets a lozenge with glyph and word beside a figure that warns. A
+`Property` with `onedit` is an inline select. `SummaryCard` `lead="figure"` is a KPI; a product
+home's KPIs stand in a `SummaryStrip` under its band - four in a row, two rows on a tablet, the two
+the home names on a phone (§7). One figure size for a KPI and a `Widget`'s figure (`fs-450`); a
+`Widget` with `href` is a way to its tool, its title the link over the whole tile, a chevron at the
+head's end (scene hub). The
+`ProductBand` sets a 32 px name over its figures, the menu after the primary. The head's action bar
+is one type size; its deadline chip shows a clock until breached. `FoldingSection` clamps whole
+lines. The `Composer` takes `format`, a formatting bar inside its frame, and grows with its text.
+`FloatingBar` is the one floating surface - `FloatingToolbar`, a board's islands and its selection
+bar - at `r-lg` on `bg-raised`.
+The status sheet's rows are 64 px with hairlines.
+
+**The work surface's tokens.** `product.<id>.surface` and `.ink` for the eight products alias the
+label pair `navigation.ts` gives each (plans orange, pages teal, whiteboards amber, desk magenta,
+assets slate, time lime, goals green, agents violet): a component names the product, never its
+colour (WB-2), and the contrast test measures each ink on its surface. `chart.categorical.1–7` are
+a chart's series in a fixed order — indigo, sky, mint, amber, violet, raspberry, neutral —, the
+light theme's from the darker steps and the dark theme's from the lighter, each at least 3:1
+against every surface (1.4.11); beyond seven a chart groups the rest, and every chart has its table.
+`layout.rail` (320 px) is the property rail, `layout.reading` (720 px) the measure of running text,
+`layout.target` (44 px) the least hit area on a coarse pointer or a phone,
+and `density.<mode>.row.height` a row of a calm table: 40 px comfortable, 32 px compact (the
+concept's `density.row.compact`), 48 px spacious — inside each density mode, so the one
+vocabulary every mode declares holds.
 
 ---
 
@@ -586,6 +733,7 @@ content: the canvas and one region.
 | 2 Raised | `bg.raised` + `elevation.raised` | only what moves (a board's card) and at most one focal card | grouping |
 | 3 Overlay | `bg.raised` + the overlay shadow, `bg.scrim` behind a dialog | dialogs, sheets, menus, popovers | a second dialog over the first, except *Discard changes?* |
 | Sunken | `bg.surface-sunken` | a backdrop inside level 0 or 1: a board's column, a code sample, a group row | on raised or overlay |
+| Stage | `stage.surface`, its rail `stage.raised`, its buttons and tiles `stage.control`, ink `stage.ink`/`stage.ink-subtle`; the same in both modes | the file viewer's room: the file is what is lit | anywhere but the viewer |
 
 Inside a region, rows are parted by hairlines and groups by a quiet uppercase label, never by a
 nested box. A table's filter bar stands on the canvas above it and its foot (the count, *Show
@@ -1330,9 +1478,12 @@ between columns is the card's menu (§11.9).
 2. **The whole subtree**: `EntryList` with a `rootId` — no second flatten, row menu or drag; its rows
    carry the one entry menu every place that shows an entry carries (UC-WRK-28 check 1), without
    *Select*, since no bulk bar acts there. Every
-   level carries its checkbox, type mark, twist and "done of total" count; the section heading is the
-   manifest's name for the child type; a "+ <child type>" ends every level the manifest lets take
-   one, gated by `add_child`. Direct children open, deeper levels closed, "expand all" in the section
+   level carries its checkbox, type mark, twist and "done of total" count, each row one line ruled
+   from the next (`TaskRow` `isOneLine`, the title losing its end); the section heading is the
+   manifest's name for the child type. The top level ends in the capture field drawn in place
+   (C-4: the same parser and chips, the level as its kind pill, Enter adds and the line stays);
+   a row's "+" opens capture under that row, gated by `add_child`. The first three direct children that hold anything open, the rest
+   and deeper levels closed, as the work surface's `task` scene draws them; "expand all" in the section
    head; which levels are open is the device's (§11.10). Depth comes from the tree, never a type
    name. The bottom level has no subtree; its breadcrumb is the way up.
 3. **The details column**, beside the text from `expanded` up, below it on `compact` and in the
@@ -1458,9 +1609,9 @@ column is a dashed *Create column*. A card's *⋯* stands in its corner, drawn o
 its height**, so where it lands is a gap and no card is ever drawn over another; the column it left
 closes up. The slide is a transform, and the drag measures where the layout put each card, never
 where a transform drew it. Under reduced motion nothing travels or slides. The card menu's *move to
-column* stays as SC 2.5.7's alternative. **Entries without a column have a lane of their own,
-first**: what nobody has put in a column is found before the columns, and a board with entries and
-no columns is that one lane.
+column* stays as SC 2.5.7's alternative. **Entries without a column stand in *Ohne Spalte*,
+last and folded** (its count in the fold, never hidden; the work-surface build plan §5): the columns
+are the states, and a board with entries and no columns is that one lane.
 
 **Pointer and touch: one layout, two input rules.** Layout is width alone. What the pointer changes
 is written here and lives in `apps/webapp/src/lib/frame/viewport.svelte.ts` and the drag helper; no

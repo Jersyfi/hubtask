@@ -6,6 +6,7 @@ package knowledge
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -78,6 +79,11 @@ func TestAPageIsWrittenAndFoundThroughTheDoors(t *testing.T) {
 	if err != nil || len(listed["data"].([]usecase.Output)) != 3 {
 		t.Fatalf("listing the space: %v %v", listed, err)
 	}
+	for _, row := range listed["data"].([]usecase.Output) {
+		if _, hasBody := row["body"]; hasBody || (row["title"] == "Onboarding" && row["excerpt"] != "Day one") {
+			t.Fatalf("a tree row carries its excerpt, not its body: %v", row)
+		}
+	}
 	if _, err := doors.Invoke(ctx, ListPagesName, as(bert), usecase.Input{"hub_id": private.String()}); !errors.Is(err, shared.ErrNotFound) {
 		t.Fatalf("Bert listed Anna's private hub: %v", err)
 	}
@@ -90,6 +96,25 @@ func TestAPageIsWrittenAndFoundThroughTheDoors(t *testing.T) {
 	changed, err := doors.Invoke(ctx, UpdatePageName, as(bert), update)
 	if err != nil || changed["title"] != "Travel handbook" {
 		t.Fatalf("changing the title: %v %v", changed, err)
+	}
+
+	// A cover is set, read back and taken away (UC-DOC-16); a cover the domain refuses is no write.
+	covered, err := doors.Invoke(ctx, UpdatePageName, as(bert), usecase.Input{"page_id": rootID, "cover": map[string]any{"source": "GRADIENT", "key": "indigo-teal", "position": float64(40)}})
+	if err != nil || fmt.Sprint(covered["cover"]) != "map[key:indigo-teal position:40 source:GRADIENT]" {
+		t.Fatalf("setting a cover: %v %v", covered["cover"], err)
+	}
+	if _, err := doors.Invoke(ctx, UpdatePageName, as(bert), usecase.Input{"page_id": rootID, "cover": map[string]any{"source": "GRADIENT", "key": "x", "position": 40.5}}); code(err) != "pages.cover_position_out_of_range" {
+		t.Fatalf("a position between steps: %v", err)
+	}
+	if _, err := doors.Invoke(ctx, UpdatePageName, as(bert), usecase.Input{"page_id": rootID, "cover": "sunset"}); !errors.Is(err, shared.ErrValidation) {
+		t.Fatalf("a cover that is no document: %v", err)
+	}
+	if uncovered, err := doors.Invoke(ctx, UpdatePageName, as(bert), usecase.Input{"page_id": rootID, "cover": nil}); err != nil || uncovered["cover"] != nil {
+		t.Fatalf("taking the cover away: %v %v", uncovered["cover"], err)
+	}
+	read, _ = doors.Invoke(ctx, ReadPageName, as(bert), usecase.Input{"page_id": rootID})
+	if read["cover"] != nil {
+		t.Fatalf("the cover taken away is read back: %v", read["cover"])
 	}
 
 	if _, err := doors.Invoke(ctx, MovePageName, as(anna), usecase.Input{"page_id": rootID, "parent_id": child.String()}); code(err) != "pages.parent_cycle" {

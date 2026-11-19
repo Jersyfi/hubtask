@@ -336,11 +336,26 @@ export type PersonalSpace = components['schemas']['PersonalSpace'];
 export type PagePublicLink = components['schemas']['PagePublicLink'];
 export type PagePublicLinkMinted = components['schemas']['PagePublicLinkMinted'];
 export type PublicLinksPolicy = components['schemas']['PublicLinksPolicy'];
+export type CoverImagesPolicy = components['schemas']['CoverImagesPolicy'];
+export type CoverImageSearch = components['schemas']['CoverImageSearch'];
+export type Post = components['schemas']['Post'];
+export type PostList = components['schemas']['PostList'];
+export type PostFollowing = components['schemas']['PostFollowing'];
+export type UnreadPostList = components['schemas']['UnreadPostList'];
+export type PostReply = components['schemas']['PostReply'];
+export type PostReplyList = components['schemas']['PostReplyList'];
+export type PostConfirmations = components['schemas']['PostConfirmations'];
+export type PostSettings = components['schemas']['PostSettings'];
+export type PostCreate = components['schemas']['PostCreate'];
+export type PostReplyCreate = components['schemas']['PostReplyCreate'];
+export type PostReminded = components['schemas']['PostReminded'];
+export type CoverImageFetched = components['schemas']['CoverImageFetched'];
 export type PageArticle = components['schemas']['PageArticle'];
 export type PageLanguageLink = components['schemas']['PageLanguageLink'];
 export type PageLanguageVariant = components['schemas']['PageLanguageVariant'];
 export type PageLanguageVariants = components['schemas']['PageLanguageVariants'];
 export type ArticleSuggestionList = components['schemas']['ArticleSuggestionList'];
+export type PortalKnowledge = components['schemas']['PortalKnowledge'];
 export type Article = components['schemas']['Article'];
 /** The service desk (M5): the requester portal, calendars, SLA policies and an entry's goals, canned replies. */
 export type ArticleRating = components['schemas']['ArticleRating'];
@@ -396,6 +411,7 @@ export type Star = components['schemas']['Star'];
 export type StarList = components['schemas']['StarList'];
 export type HubQueue = components['schemas']['HubQueue'];
 export type HubQueueList = components['schemas']['HubQueueList'];
+export type DeadlinesKept = components['schemas']['DeadlinesKept'];
 export type WhiteboardBacklinkList = components['schemas']['WhiteboardBacklinkList'];
 export type WhiteboardComment = components['schemas']['WhiteboardComment'];
 export type WhiteboardCommentList = components['schemas']['WhiteboardCommentList'];
@@ -444,12 +460,16 @@ export type CiAlertList = components['schemas']['CiAlertList'];
 /** An entry's affected CIs, certification campaigns, CI groups and the service map, assets and software (M6). */
 export type EntryCis = components['schemas']['EntryCis'];
 export type EntryOnCi = components['schemas']['EntryOnCi'];
+export type CiWork = components['schemas']['CiWork'];
+export type CiWorkEntry = components['schemas']['CiWorkEntry'];
+export type CiWorkCounts = components['schemas']['CiWorkCounts'];
 export type CiCampaign = components['schemas']['CiCampaign'];
 export type CiCampaignList = components['schemas']['CiCampaignList'];
 export type CiCampaignDetail = components['schemas']['CiCampaignDetail'];
 export type CiCampaignStart = components['schemas']['CiCampaignStart'];
 export type CiAttest = components['schemas']['CiAttest'];
 export type CiAttestation = components['schemas']['CiAttestation'];
+export type CiCampaignReminded = components['schemas']['CiCampaignReminded'];
 export type CiGroup = components['schemas']['CiGroup'];
 export type CiGroupList = components['schemas']['CiGroupList'];
 export type CiGroupDefine = components['schemas']['CiGroupDefine'];
@@ -460,6 +480,10 @@ export type CiAsset = components['schemas']['CiAsset'];
 export type CiAssetList = components['schemas']['CiAssetList'];
 export type CiAssetRegister = components['schemas']['CiAssetRegister'];
 export type CiAssetMove = components['schemas']['CiAssetMove'];
+export type CiAssetStep = components['schemas']['CiAssetStep'];
+export type CiAttachments = components['schemas']['CiAttachments'];
+export type CiHistoryPage = components['schemas']['CiHistoryPage'];
+export type CiHistoryStep = components['schemas']['CiHistoryStep'];
 export type SoftwareAlias = components['schemas']['SoftwareAlias'];
 export type SoftwareAliasList = components['schemas']['SoftwareAliasList'];
 export type SoftwareAliasDefine = components['schemas']['SoftwareAliasDefine'];
@@ -579,6 +603,16 @@ export type WorkItem = components['schemas']['WorkItem'];
 export type Problem = components['schemas']['Problem'];
 export type Label = components['schemas']['Label'];
 export type Bucket = components['schemas']['Bucket'];
+/** A collection's level for its tasks: a list (NONE), board columns (COLUMNS), a workflow (WORKFLOW). */
+export type StateMode = components['schemas']['StateMode'];
+/** What a drop on a board's column did: moved, the one step taken, or the steps to choose among. */
+export type DropAnswer = components['schemas']['DropAnswer'];
+/** A list shown as a board, or a board as a list again - or what that would do. */
+export type BoardSwitch = components['schemas']['BoardSwitch'];
+/** A workflow made from a board's columns - or what it would be. */
+export type BoardWorkflow = components['schemas']['BoardWorkflow'];
+/** One board's columns before and after a workflow changes, with their statuses. */
+export type BoardPreview = components['schemas']['BoardPreview'];
 /**
  * One comment, including a removed one: `body` is null exactly when `deleted_at` is set, so a
  * tombstone still carries who wrote it and when — which is what keeps a reply from dangling.
@@ -777,6 +811,10 @@ export type MediaObject = components['schemas']['MediaObject'];
 export type MediaTransfer = components['schemas']['MediaTransfer'];
 export type MediaUploadRequest = components['schemas']['MediaUploadRequest'];
 export type MediaPage = components['schemas']['MediaPage'];
+/** The workspace's document server, where office files are shown as PDF and edited (UC-MED-06). */
+export type DocumentServer = components['schemas']['DocumentServer'];
+export type DocumentServerCheck = components['schemas']['DocumentServerCheck'];
+export type MediaEditingSession = components['schemas']['MediaEditingSession'];
 /** The cover as the entry carries it: a colour token, or an image by its media identifier. */
 export type Cover = components['schemas']['Cover'];
 export type CoverInput = components['schemas']['CoverInput'];

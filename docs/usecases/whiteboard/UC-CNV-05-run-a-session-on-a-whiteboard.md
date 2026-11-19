@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-05, P-18]
 state: verified
 tasks: []
-checked_by: [packages/whiteboard/test/tools.test.ts, apps/webapp/src/lib/data/whiteboards.test.ts, apps/webapp/src/lib/whiteboards/peers.test.ts, presentation/realtime/Handler_test.go, apps/webapp/e2e/whiteboardpeers.test.mjs]
+checked_by: [packages/whiteboard/test/tools.test.ts, apps/webapp/src/lib/data/whiteboards.test.ts, apps/webapp/src/lib/whiteboards/peers.test.ts, presentation/realtime/Handler_test.go, apps/webapp/e2e/whiteboardpeers.test.mjs, apps/webapp/e2e/whiteboardwork.test.mjs]
 ---
 
 # Run a session on a whiteboard
@@ -25,6 +25,7 @@ Bert opens the retro board; the cursors of Anna and Carla move across it with th
 1. Whoever may write the board starts a vote with a number of votes for each person, open or anonymous; each person gives at most that many votes, several on one object if they like, and takes one back; the board shows each object's votes and how many people voted, most votes first; an anonymous vote keeps no person's account with their votes; a vote ended takes no more votes and keeps its results until the next starts or they are cleared.
 2. Whoever may write the board starts a timer every participant sees count down; it pauses, goes on and stops for everyone, and says when the time is up.
 3. Everyone on the board - a reader as well - sees the others' cursors with their names and the list of who is there, and may follow one person's view until they move the board themselves.
+4. A running timer stands as one bar at the top centre of the board, where whoever may write the board adds a minute.
 
 ## Where it ends
 

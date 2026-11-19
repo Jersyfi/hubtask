@@ -44,7 +44,7 @@ export interface Candidate {
   readonly shortcut?: string;
 }
 
-export type RowKind = CandidateKind | 'source' | 'quick' | 'all' | 'refine';
+export type RowKind = CandidateKind | 'source' | 'quick' | 'all' | 'refine' | 'found' | 'jump' | 'saved' | 'make';
 
 export interface Row {
   readonly kind: RowKind;
@@ -102,13 +102,16 @@ function gradeOf(candidate: Candidate, words: string, locale?: string): Score {
  */
 export function rank(candidates: readonly Candidate[], words: string, locale?: string): readonly Candidate[] {
   if (words.trim() === '') {
-    const actions = candidates.filter((each) => each.kind === 'action');
+    const isGoTo = (each: Candidate) => each.id.startsWith('goto:');
+    const actions = candidates.filter((each) => each.kind === 'action' && !isGoTo(each));
     const isScreens = (each: Candidate) => each.id.startsWith('page:');
     return [
       ...candidates.filter((each) => each.kind === 'recent').slice(0, CAPS.recent),
       // The frame's first - capturing - leads wherever one stands; then the screen's own acts, then
       // the rest of the frame's.
       ...((frame) => [...frame.slice(0, 1), ...actions.filter(isScreens), ...frame.slice(1)])(actions.filter((each) => !isScreens(each))).slice(0, EMPTY_ACTIONS),
+      // The go-tos after them, every one: they are the empty field's way to the places (§6.11).
+      ...candidates.filter(isGoTo),
     ];
   }
   const graded = candidates

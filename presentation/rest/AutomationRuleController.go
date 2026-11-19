@@ -37,6 +37,9 @@ func ruleResponse(out usecase.Output) openapi.AutomationRule {
 		Conditions:   conditionsResponse(out["conditions"]),
 		Actions:      actionsResponse(out["actions"]),
 	}
+	if entries := out.String("entries"); entries != "" {
+		rule.Entries = &entries
+	}
 	if throttle, present := throttleResponse(out["throttle"]); present {
 		rule.Throttle = &throttle
 	}

@@ -57,7 +57,8 @@ hubtask/
 │                              # api-client (generated only), sync-engine (the client's data
 │                              # seam, the only caller of fetch), editor (a page's block
 │                              # editor over a live document), whiteboard (a board's scene),
-│                              # expression (CEL conditions offline), n8n-nodes-hubtask and
+│                              # expression (CEL conditions offline), query (the Hubtask
+│                              # query's browser twin), n8n-nodes-hubtask and
 │                              # zapier-app (generated, §2.2)
 ├── sdk/                       # go/, python/, typescript/ — generated client SDKs (§2.2)
 ├── locales/                   # en.json (the source), the translations, Embed.go
@@ -112,11 +113,12 @@ The JavaScript half points inwards too, towards what is shared:
 
 ```
 apps/webapp  → packages/design-system, packages/sync-engine, packages/expression, packages/editor,
-               packages/whiteboard
+               packages/whiteboard, packages/query
 apps/website → packages/design-system, packages/api-client (the document, at build time)
 packages/*   → other packages/* only, acyclically (ADR-0033)
              sync-engine → api-client, and nothing else new
              expression → api-client (its types) and the accepted CEL evaluator for the browser
+             query → nothing: the parser's twin, held to test/querylanguage/lines.json
              editor → the accepted block editor (TipTap's MIT core on ProseMirror) and CRDT (Yjs)
              n8n-nodes-hubtask, zapier-app → api-client (the document, at build time)
 sdk/*        → nothing in the workspace, and nothing in the workspace → sdk/*
@@ -141,6 +143,11 @@ it generates its own types and has no edge to any first-party member.
 * **The engine never merges.** Merging is the server's ([offline-sync.md](./offline-sync.md) §4);
   the engine queues, pushes, applies the server's answer and surfaces `conflict`/`rejected`. A merge
   rule in the package is a defect.
+* `packages/query` is the browser's twin of the server's Hubtask query (ADR-0102): the same parser
+  and formatter for both spellings, held to the server's by the shared test lines
+  (`test/querylanguage/lines.json`), and the language and catalogue the design system's
+  `QueryLine` takes. It answers while somebody types; the server reads the text again, and its
+  answer counts. It fetches nothing: it builds the bodies the sync engine sends.
 * `packages/expression` evaluates a type's form and a calculated field in the browser while the
   server cannot be reached, over the names the server's environments declare; online the server's
   answer is the one drawn, and every write is judged by the server again (foundation.md F-4).

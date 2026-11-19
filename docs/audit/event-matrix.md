@@ -129,6 +129,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `ai.provider_configured` | ConfigureAiProvider | `ai_provider` | NOTICE | Every time |
 | `ai.provider_read` | ReadAiProvider | `ai_provider` | INFO | When refused |
 | `ai.provider_removed` | RemoveAiProvider | `ai_provider` | NOTICE | Every time |
+| `ai.query_asked` | AskQuery | `tenant` | INFO | Every time |
 | `ai.question_asked` | AskWorkspace | `account` | NOTICE | Every time |
 | `ai.rule_asked` | DescribeRule | `automation_rule` | NOTICE | Every time |
 | `ai.source_chosen` | ChooseAiSource | `ai_source` | NOTICE | Every time |
@@ -241,6 +242,12 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `backup.target_tested` | TestBackupTarget | `backup_target` | INFO | Every time |
 | `backup.verified` | VerifyBackup | `backup_run` | INFO | Every time |
 
+## Board
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `board.switched` | SwitchBoard | `container` | INFO | Every time |
+
 ## Business_calendar
 
 | Action | Use case | Target | Severity | Recorded |
@@ -281,22 +288,30 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `cmdb.asset_moved` | MoveCiAsset | `cmdb_asset` | INFO | Every time |
 | `cmdb.asset_registered` | RegisterCiAsset | `cmdb_asset` | INFO | Every time |
 | `cmdb.campaign_closed` | CloseCiCampaign | `cmdb_campaign` | INFO | Every time |
+| `cmdb.campaign_reminded` | RemindCiCampaign | `cmdb_campaign` | INFO | Every time |
 | `cmdb.campaign_started` | StartCiCampaign | `cmdb_campaign` | INFO | Every time |
 | `cmdb.ci_affected` | AffectEntryCi | `work_item` | INFO | Every time |
 | `cmdb.ci_attested` | AttestCi | `cmdb_ci` | INFO | Every time |
 | `cmdb.ci_changed` | SetCiCompliance | `cmdb_ci` | INFO | Every time |
 | `cmdb.ci_changed` | UpdateCi | `cmdb_ci` | INFO | Every time |
+| `cmdb.ci_confirmed` | ConfirmCi | `cmdb_ci` | INFO | Every time |
 | `cmdb.ci_created` | CreateCi | `cmdb_ci` | INFO | Every time |
+| `cmdb.ci_file_attached` | AttachCiMedia | `cmdb_ci` | INFO | Every time |
+| `cmdb.ci_file_removed` | DetachCiMedia | `cmdb_ci` | INFO | Every time |
 | `cmdb.ci_read` | ListCiAssets | `cmdb_asset` | INFO | When refused |
+| `cmdb.ci_read` | ListCiAttachments | `cmdb_ci` | INFO | When refused |
 | `cmdb.ci_read` | ListCiBacklinks | `cmdb_ci` | INFO | When refused |
 | `cmdb.ci_read` | ListCiCampaigns | `cmdb_campaign` | INFO | When refused |
 | `cmdb.ci_read` | ListCiDuplicates | `cmdb_ci` | INFO | When refused |
 | `cmdb.ci_read` | ListCiGroupMembers | `cmdb_ci_group` | INFO | When refused |
 | `cmdb.ci_read` | ListCiGroups | `cmdb_ci_group` | INFO | When refused |
+| `cmdb.ci_read` | ListCiHistory | `cmdb_ci` | INFO | When refused |
 | `cmdb.ci_read` | ListCiHolds | `cmdb_run` | INFO | When refused |
 | `cmdb.ci_read` | ListCiRuns | `cmdb_run` | INFO | When refused |
+| `cmdb.ci_read` | ListCiWork | `cmdb_ci` | INFO | When refused |
 | `cmdb.ci_read` | ListCis | `cmdb_ci` | INFO | When refused |
 | `cmdb.ci_read` | ListEntryCis | `work_item` | INFO | When refused |
+| `cmdb.ci_read` | ListHubCiWork | `cmdb_ci` | INFO | When refused |
 | `cmdb.ci_read` | ListSoftwareProducts | `cmdb_ci` | INFO | When refused |
 | `cmdb.ci_read` | ReadCi | `cmdb_ci` | INFO | When refused |
 | `cmdb.ci_read` | ReadCiAsset | `cmdb_asset` | INFO | When refused |
@@ -318,6 +333,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `cmdb.connector_read` | ListCiConnectors | `cmdb_connector` | INFO | When refused |
 | `cmdb.duplicate_resolved` | ResolveCiDuplicate | `cmdb_ci` | INFO | Every time |
 | `cmdb.group_defined` | DefineCiGroup | `cmdb_ci_group` | INFO | Every time |
+| `cmdb.group_deleted` | DeleteCiGroup | `cmdb_ci_group` | INFO | Every time |
 | `cmdb.hold_dismissed` | DismissCiHold | `cmdb_run` | INFO | Every time |
 | `cmdb.reconciled` | ImportCiFile | `cmdb_run` | INFO | Every time |
 | `cmdb.reconciled` | ReconcileCis | `cmdb_run` | INFO | Every time |
@@ -334,6 +350,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `config.applied` | DecideConfigProposal | `configuration` | INFO | Every time |
 | `config.draft_discarded` | DiscardConfigDraft | `configuration` | INFO | Every time |
 | `config.draft_saved` | SaveConfigDraft | `configuration` | INFO | Every time |
+| `config.goal_set_added` | AddGoalSet | `configuration` | INFO | Every time |
 | `config.planned` | PlanConfig | `configuration` | INFO | When refused |
 | `config.planned` | PlanConfigTemplate | `configuration` | INFO | When refused |
 | `config.planned` | ValidateConfig | `configuration` | INFO | When refused |
@@ -363,6 +380,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `dashboard.deleted` | DeleteDashboard | `dashboard` | INFO | Every time |
 | `dashboard.digest_removed` | DeleteDashboardDigest | `dashboard` | INFO | Every time |
 | `dashboard.digest_set` | SetDashboardDigest | `dashboard` | INFO | Every time |
+| `dashboard.read` | DraftDashboardFigures | `dashboard` | INFO | When refused |
 | `dashboard.read` | ListDashboards | `dashboard` | INFO | When refused |
 | `dashboard.read` | ReadDashboard | `dashboard` | INFO | When refused |
 | `dashboard.read` | ReadDashboardDigest | `dashboard` | INFO | When refused |
@@ -395,6 +413,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `item.cover_set` | SetCover | `item` | INFO | Every time |
 | `item.created` | CreateWorkItem | `item` | INFO | Every time |
 | `item.custom_field_set` | SetCustomField | `item` | INFO | Every time |
+| `item.dropped` | DropItemOnColumn | `item` | INFO | Every time |
 | `item.due_cleared` | ClearDueDate | `item` | INFO | Every time |
 | `item.due_set` | SetDueDate | `item` | INFO | Every time |
 | `item.duplicated` | DuplicateWorkItem | `item` | INFO | Every time |
@@ -463,6 +482,9 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `media.confirmed` | ConfirmMediaUpload | `media` | INFO | Every time |
 | `media.deleted` | DeleteMedia | `media` | INFO | Every time |
+| `media.document_server_check` | CheckDocumentServer | `document_server` | INFO | When refused |
+| `media.document_server_read` | ReadDocumentServer | `document_server` | INFO | When refused |
+| `media.document_server_set` | SetDocumentServer | `document_server` | NOTICE | Every time |
 | `media.read` | GetMedia | `media` | INFO | When refused |
 | `media.staged` | RequestMediaUpload | `media` | INFO | Every time |
 
@@ -528,6 +550,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `entry_sla.kept_read` | ReadMyDeadlinesKept | `entry_sla` | INFO | When refused |
 | `entry_sla.read` | ReadEntrySla | `entry_sla` | INFO | When refused |
 | `entry_sla.reported` | ReportSla | `entry_sla` | INFO | When refused |
 
@@ -776,6 +799,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `` | GetSignInRules | `` |  | When refused |
 | `` | InspectInvitation | `` |  | When refused |
 | `` | ListConfigDrafts | `` |  | When refused |
+| `` | ListGoalSets | `` |  | When refused |
 | `` | ListHubTemplatePages | `` |  | When refused |
 | `` | ListRoles | `` |  | When refused |
 | `` | ListSampleEntries | `` |  | When refused |
@@ -794,6 +818,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `page.article_unpublished` | UnpublishPageFromPortal | `page` | INFO | Every time |
 | `page.changed` | SetPageLabels | `page` | INFO | Every time |
 | `page.changed` | UpdatePage | `page` | INFO | Every time |
+| `page.cover_image_fetched` | FetchCoverImage | `page` | INFO | When refused |
+| `page.cover_images_searched` | SearchCoverImages | `page` | INFO | When refused |
 | `page.created` | CopyPage | `page` | INFO | Every time |
 | `page.created` | CreatePage | `page` | INFO | Every time |
 | `page.created` | OpenDailyNote | `page` | INFO | Every time |
@@ -834,6 +860,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `page_article.rated` | RateArticle | `page_article` | INFO | Every time |
+| `page_article.read` | ListPortalKnowledge | `page_article` | INFO | When refused |
 | `page_article.read` | ReadArticle | `page_article` | INFO | Every time |
 | `page_article.read` | SuggestArticles | `page_article` | INFO | When refused |
 
@@ -844,6 +871,13 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `page_comment.added` | AddPageComment | `page_comment` | INFO | Every time |
 | `page_comment.changed` | ChangePageComment | `page_comment` | INFO | Every time |
 | `page_comment.deleted` | DeletePageComment | `page_comment` | INFO | Every time |
+
+## Page_cover_images
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `page_cover_images.policy_read` | ReadCoverImagesPolicy | `page_cover_images` | INFO | When refused |
+| `page_cover_images.policy_set` | SetCoverImagesPolicy | `page_cover_images` | NOTICE | Every time |
 
 ## Page_public_links
 
@@ -920,6 +954,32 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `portfolio.read` | ReadPortfolioRoadmap | `portfolio` | INFO | When refused |
 | `portfolio.status_reported` | ReportPortfolioStatus | `portfolio` | INFO | Every time |
 | `portfolio.updated` | UpdatePortfolio | `portfolio` | INFO | Every time |
+
+## Post
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `post.changed` | SetPostSettings | `post` | INFO | Every time |
+| `post.confirmed` | ConfirmPost | `post` | INFO | When refused |
+| `post.created` | CreatePost | `post` | INFO | Every time |
+| `post.followed` | FollowHubPosts | `post` | INFO | When refused |
+| `post.published` | PublishPost | `post` | INFO | Every time |
+| `post.read` | ListHubPosts | `post` | INFO | When refused |
+| `post.read` | ListPostReplies | `post` | INFO | When refused |
+| `post.read` | ListUnreadPosts | `post` | INFO | When refused |
+| `post.read` | ReadPost | `post` | INFO | When refused |
+| `post.read` | ReadPostConfirmations | `post` | INFO | When refused |
+| `post.reminded` | RemindPost | `post` | INFO | Every time |
+| `post.seen` | MarkPostSeen | `post` | INFO | When refused |
+
+## Post_reply
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `post_reply.added` | AddPostReply | `post_reply` | INFO | Every time |
+| `post_reply.deleted` | DeletePostReply | `post_reply` | INFO | Every time |
+| `post_reply.reacted` | ReactToPostReply | `post_reply` | INFO | When refused |
+| `post_reply.reacted` | UnreactToPostReply | `post_reply` | INFO | When refused |
 
 ## Presets
 
@@ -1051,6 +1111,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `search.read` | SearchAll | `search` | INFO | When refused |
 | `search.reindex_asked` | ReindexSearch | `workspace` | NOTICE | Every time |
 
 ## Sla_policy
@@ -1323,6 +1384,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `workflow.created` | CopyWorkflowHere | `workflow` | INFO | Every time |
 | `workflow.created` | CreateWorkflow | `workflow` | INFO | Every time |
+| `workflow.created` | MakeBoardWorkflow | `workflow` | INFO | Every time |
 | `workflow.deleted` | DeleteWorkflow | `workflow` | INFO | Every time |
 | `workflow.drafted` | SaveWorkflowDraft | `workflow` | INFO | Every time |
 | `workflow.published` | PreviewWorkflowPublish | `workflow` | INFO | When refused |

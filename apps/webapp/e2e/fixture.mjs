@@ -175,10 +175,17 @@ export const MANIFEST = {
   supported_locales: [{ locale: 'en', direction: 'ltr' }, { locale: 'de', direction: 'ltr' }],
   query_fields: [
     { field: 'title', operators: ['CONTAINS', 'EQ'], sortable: true, groupable: false, nullable: false },
-    { field: 'due_at', operators: ['LT', 'GT', 'IS_NULL'], sortable: true, groupable: false, nullable: true },
+    { field: 'due_at', kind: 'timestamp', operators: ['LT', 'GT', 'IS_NULL'], sortable: true, groupable: false, nullable: true },
     { field: 'bucket_id', operators: ['EQ', 'IN'], sortable: false, groupable: true, nullable: true },
   ],
-  view_layouts: ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN', 'TIMELINE'],
+  // The query line's keys (ADR-0102), a few: what the panel *Ansicht* offers and reads.
+  query_keys: [
+    { key: 'is', value: 'state', objects: ['task'], examples: ['is: open'], values: ['open', 'done'] },
+    { key: 'who', field: 'assignee_id', value: 'person', objects: ['task'], examples: ['who: me'], values: ['me', 'none'] },
+    { key: 'title', field: 'title', value: 'text', objects: ['task'], examples: ['title: tile'], values: [] },
+    { key: 'due', field: 'due_at', value: 'time', objects: ['task'], examples: ['due: <today'], values: [] },
+  ],
+  view_layouts: ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN', 'TIMELINE', 'CALENDAR'],
   // The role matrix as the server publishes it (domain-model.md §3.2), strongest first - the order
   // the effective role along a path is taken in, and the per-entry cells the screens offer from.
   roles: ROLES,
@@ -880,6 +887,10 @@ function lookRoute(route, request, url, path) {
   }
   if (index >= 0) return route.fulfill({ json: looked[index] });
   if (path.endsWith('/api/v1/search')) return route.fulfill({ json: { ...PAGE, data: LOOK_ITEMS } });
+  if (path.endsWith('/api/v1/search:all')) {
+    const data = LOOK_ITEMS.map((each) => ({ kind: 'ENTRY', id: each.id, title: each.title, hub_id: null, collection_id: each.collection_id ?? null, tile: null, snippet: null, state: null, key: null, updated_at: null, created_at: null, author_id: null, on: null }));
+    return route.fulfill({ json: { data, facets: [{ kind: 'ENTRY', count: data.length, more: false }] } });
+  }
   if (path.endsWith('/api/v1/sync:snapshot')) {
     const records = [HUB, COLLECTION, ...looked].map((c) => JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: c.id, container_id: c.parent_id, payload: c }));
     return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${records.join('\n')}\n{"cursor":"c-e2e"}\n` });
@@ -904,11 +915,11 @@ const dayCollection = (n, name, levels, figure) => ({
 export const TODAY_COLLECTIONS = {
   list: dayCollection('11', 'Shopping', ['TASK'], { kind: 'OPEN', open: 5 }),
   project: dayCollection('12', 'Garden', ['TASK', 'WORK_PACKAGE', 'ACTIVITY'], { kind: 'PROGRESS', done: 3, total: 8 }),
-  chores: dayCollection('13', 'Chores', ['TASK'], { kind: 'DUE', due: 2 }),
+  chores: { ...dayCollection('13', 'Chores', ['TASK'], { kind: 'DUE', due: 2 }), handle: 'chr' },
 };
 const dayItem = (n, title, collection, due, extra = {}) => ({
   id: `01a0e2e0-0000-7000-8000-0000000d7a${n}`, type: 'TASK', title, collection_id: collection.id, parent_id: null, depth: 0,
-  order_key: `a${n}`, version: 1, completion: { is_completed: false }, labels: [], label_ids: [], due_at: due, due_date_only: false, ...extra,
+  order_key: `a${n}`, number: Number(n), version: 1, completion: { is_completed: false }, labels: [], label_ids: [], due_at: due, due_date_only: false, ...extra,
 });
 const hoursFromNow = (hours) => new Date(Date.now() + hours * 3_600_000).toISOString();
 /** On the reader, soonest first as the search answers them. */
@@ -1243,6 +1254,17 @@ export function fallback(route, request, path) {
     const hits = words === '' ? [] : ALL_ITEMS.filter((each) => each.title.toLowerCase().includes(words));
     return route.fulfill({ json: { ...PAGE, data: hits } });
   }
+  // The search over every kind, by the same words: the entries, each as a hit row draws it.
+  if (read === '/search:all') {
+    const words = (request.postDataJSON()?.q ?? '').trim().toLowerCase();
+    const hits = words === '' ? [] : ALL_ITEMS.filter((each) => each.title.toLowerCase().includes(words));
+    const data = hits.map((each) => ({
+      kind: 'ENTRY', id: each.id, title: each.title, hub_id: null, collection_id: each.collection_id ?? null, tile: each.type ?? null,
+      snippet: null, state: each.completion?.is_completed ? 'DONE' : 'OPEN', key: null, updated_at: each.updated_at ?? null,
+      created_at: null, author_id: null, on: null,
+    }));
+    return route.fulfill({ json: { data, facets: [{ kind: 'ENTRY', count: data.length, more: false }] } });
+  }
 
   // The three writes the walks make, each answered with the entry it
   // makes. Two of them are the subject of the walk that makes them - the timeline's drag sets a
@@ -1250,6 +1272,14 @@ export function fallback(route, request, path) {
   // exercised what it is named after.
   const due = ALL_ITEMS.find((each) => read === `/items/${each.id}/due`);
   if (due) return route.fulfill({ json: { ...due, ...request.postDataJSON(), version: due.version + 1 } });
+  // A drop on a board's column (build-plan §5): answered as a move, completed in the done column -
+  // what the server does without a workflow.
+  const dropped = ALL_ITEMS.find((each) => read === `/items/${each.id}:drop`);
+  if (dropped) {
+    const body = request.postDataJSON() ?? {};
+    const into = BUCKETS.find((each) => each.id === body.bucket_id);
+    return route.fulfill({ json: { outcome: 'MOVED', steps: [], item: { ...dropped, bucket_id: body.bucket_id ?? null, completion: { is_completed: into?.is_done_bucket ?? false }, version: dropped.version + 1 } } });
+  }
   const ranked = ALL_ITEMS.find((each) => read === `/items/${each.id}:reorder`);
   if (ranked) return route.fulfill({ json: { ...ranked, ...request.postDataJSON(), version: ranked.version + 1 } });
   // What an entry's menu writes (UC-WRK-28): each answered with what it makes, so a walk that
@@ -1323,8 +1353,9 @@ export function fallback(route, request, path) {
   if (/^\/items\/[^/]+\/links$/u.test(read) && request.method() === 'GET') {
     return route.fulfill({ json: { links: [], backlinks: [], page_backlinks: [], whiteboard_backlinks: [] } });
   }
-  // No forge named the entry, no file is linked on it, no value of it came from AI.
-  if (/^\/items\/[^/]+\/(code-links|file-links|provenance)$/u.test(read) && request.method() === 'GET') {
+  // No forge named the entry, no file is linked on it, no value of it came from AI; it serves no
+  // goal and waits on no approval (the rail counts both).
+  if (/^\/items\/[^/]+\/(code-links|file-links|provenance|goals|approvals)$/u.test(read) && request.method() === 'GET') {
     return route.fulfill({ json: { data: [] } });
   }
   // No workflow binds the entries and no link type or entry type is defined beyond none, so an
@@ -1373,7 +1404,17 @@ export function fallback(route, request, path) {
   if (map && request.method() === 'GET') return route.fulfill({ json: { hub_id: map[1], nodes: [], edges: [], truncated: false } });
   const impact = /^\/cis\/([^/]+)\/impact$/.exec(read);
   if (impact && request.method() === 'GET') return route.fulfill({ json: { ci_id: impact[1], direction: new URL(request.url()).searchParams.get('direction') ?? 'DOWNSTREAM', reached: [], services: [] } });
+  // An object's work and what mentions it, none: its page reads both beside its relations.
+  const work = /^\/cis\/([^/]+)\/work$/.exec(read);
+  if (work && request.method() === 'GET') return route.fulfill({ json: { ci_id: work[1], data: [] } });
+  if (/^\/cis\/[^/]+\/backlinks$/.test(read) && request.method() === 'GET') return route.fulfill({ json: { data: [] } });
   if (read === '/integrations/file-stores' && request.method() === 'GET') return route.fulfill({ json: { data: [], kinds: [] } });
+  // The panel *View*'s count while typing and a key's values (Q-3, Q-4): the collection's entries,
+  // counted once, and no grouped value beyond the key's own - a count, not a claim about the query.
+  if (read === '/items:aggregate' && request.method() === 'POST') {
+    const grouped = request.postDataJSON()?.aggregate?.group_by;
+    return route.fulfill({ json: { data: grouped ? [] : [{ group: null, count: ITEMS.length }] } });
+  }
   if (read === '/jumble/entries') return route.fulfill({ json: { data: [], next_cursor: null } });
   if (read === '/jumble/destinations') return route.fulfill({ json: { data: DESTINATIONS, page: { next_cursor: null, has_more: false } } });
 
@@ -1444,13 +1485,16 @@ export function unstubbedSoFar() {
 /**
  * A signed-in tab at a width, with the failures the bundle throws collected. A walk about days
  * passes `timezoneId`, so it reads the same on every machine; a walk about fingers passes
- * `hasTouch`, so the page meets a touch screen. Nothing else is taken from `options`.
+ * `hasTouch`, so the page meets a touch screen; a walk about a phone's width passes `isMobile`,
+ * so the layout viewport widens as a phone's does. Nothing else is taken from `options`.
  */
-export async function signedIn(browser, width, height = 800, { timezoneId, hasTouch } = {}) {
+export async function signedIn(browser, width, height = 800, { timezoneId, hasTouch, isMobile } = {}) {
   const context = await browser.newContext({
     viewport: { width, height },
     ...(timezoneId ? { timezoneId } : {}),
-    ...(hasTouch ? { hasTouch: true } : {}),
+    ...(hasTouch || isMobile ? { hasTouch: true } : {}),
+    // A phone's browser widens its layout viewport to content that does not fit; a desktop's does not.
+    ...(isMobile ? { isMobile: true } : {}),
   });
   await context.route('**/api/v1/**', stub);
   await context.addInitScript(() => { sessionStorage.setItem('hubtask.bearer', 'e2e-bearer'); sessionStorage.setItem('hubtask.refresh', 'e2e-refresh'); });
@@ -1512,8 +1556,11 @@ export const newInHead = (page) => page.locator('header.head').getByRole('button
 /** Opens the new-collection dialog from the hub head's *New ▾ → Collection*. */
 export async function openNewCollection(page) {
   await newInHead(page).first().click({ timeout: 15_000 });
-  await page.getByRole('menuitem', { name: 'Collection', exact: true }).click();
+  await createKind(page, 'collection').click({ timeout: 10_000 });
 }
+
+/** A kind in *Create*, which the hub's *New* opens preset to the hub (§6.12, C-1). */
+export const createKind = (page, kind) => page.getByRole('group', { name: 'Create' }).locator(`[data-kind="${kind}"]`).first();
 
 /** A kind's toggle card in the new-collection dialog (the navigation concept's *New collection*), by its name. */
 export const kindChoice = (dialog, name) => dialog.locator('[data-collection-kinds]').getByRole('button', { name, exact: true });

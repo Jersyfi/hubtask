@@ -22,7 +22,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, COLLECTION, ITEMS, MANIFEST, PAGE, PERMISSIONS, OWNER_GRANTS, signedIn, stub, viewLink } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -100,8 +100,7 @@ async function onKitchen(page) {
 }
 
 test('chromium: ⌘K, Ctrl K and the field open the palette on every framed page (check 1)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280);
   t.after(() => context.close());
 
@@ -128,8 +127,7 @@ test('chromium: ⌘K, Ctrl K and the field open the palette on every framed page
 });
 
 test('chromium: 375 px — the shortcut and a tap on Search open the palette in a dialog (check 1)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 375, 800, { hasTouch: true });
   t.after(() => context.close());
 
@@ -150,9 +148,38 @@ test('chromium: 375 px — the shortcut and a tap on Search open the palette in 
   assert.deepEqual(failures, []);
 });
 
+// Scene palette m 4: on a phone the hits end in a foot a thumb reaches - *Filter*, a sheet of the
+// scopes with their counts, and *Show all* - instead of the list's last row.
+test('chromium: 375 px — the hits end in Filter and Show all, the scopes in a sheet', async (t) => {
+  const browser = await sharedChromium(t);
+  const { context, page, failures } = await signedIn(browser, 375, 800, { hasTouch: true });
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
+  await page.getByText(ITEMS[2].title).first().waitFor();
+  await page.keyboard.press('Control+k');
+  const dialog = page.getByRole('dialog', { name: 'Search or run a command' });
+  await dialog.waitFor();
+  await page.keyboard.type(ITEMS[2].title.slice(0, 6));
+  const all = dialog.getByRole('button', { name: /^Show all \d+ hits$/u });
+  await all.waitFor({ timeout: 10_000 });
+  assert.equal(await dialog.getByRole('option', { name: /^Show all/u }).count(), 0, 'the list still ends in its own Show all');
+
+  await dialog.getByRole('button', { name: 'Filter' }).tap();
+  const sheet = page.getByRole('dialog', { name: 'Filter' });
+  await sheet.waitFor();
+  // A menu shown as a sheet keeps its menu and items (D-1).
+  await sheet.getByRole('menuitem', { name: /^Entries · \d+$/u }).tap();
+  await sheet.waitFor({ state: 'hidden' });
+  assert.equal(await dialog.getByRole('button', { name: /^Entries/u, pressed: true }).count(), 1, 'the scope picked in the sheet is not the one on');
+
+  await all.tap();
+  await page.waitForFunction(() => location.pathname === '/search', null, { timeout: 5_000 });
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: an action the role refuses is absent (check 2)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   const offered = {};
   for (const role of ['MEMBER', 'VIEWER']) {
@@ -180,8 +207,7 @@ test('chromium: an action the role refuses is absent (check 2)', async (t) => {
 });
 
 test('chromium: a listed action shows its key, and ? lists every shortcut (check 3)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280);
   t.after(() => context.close());
 
@@ -209,8 +235,7 @@ test('chromium: the rank keys the list shows are the keys that rank (check 3)', 
   // The list is read from `lib/shortcuts.ts`; the keys are handled by the design system's
   // `rankIntent` on the list. Pressing every listed chord on a row in the middle and counting the
   // reorders it sends ties the two together - a key that drifted would be a key that sends nothing.
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280);
   t.after(() => context.close());
   const reorders = [];
@@ -232,8 +257,7 @@ test('chromium: the rank keys the list shows are the keys that rank (check 3)', 
 });
 
 test('chromium: summoned again, the last words are selected and what is typed replaces them', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280);
   t.after(() => context.close());
 
@@ -257,8 +281,7 @@ test('chromium: summoned again, the last words are selected and what is typed re
 });
 
 test('chromium: by keyboard alone, Enter performs the highlighted row and Escape returns focus (check 5)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280);
   t.after(() => context.close());
 
@@ -296,8 +319,7 @@ test('chromium: by keyboard alone, Enter performs the highlighted row and Escape
 });
 
 test('chromium: 375 px — an action that opens a dialog takes focus into it and gives it back (check 5)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 375);
   t.after(() => context.close());
 
@@ -340,8 +362,7 @@ async function ask(page, words) {
 const focusedSetting = (page) => page.evaluate(() => document.activeElement?.closest('[data-setting]')?.getAttribute('data-setting') ?? null);
 
 test('chromium: by keyboard alone, a setting opens its screen with focus on its row — English and German (check 2)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   const walks = [
     { locale: 'en', words: 'language', row: 'Language', setting: 'language', path: /\/profile\/you\/language$/ },
@@ -366,13 +387,12 @@ test('chromium: by keyboard alone, a setting opens its screen with focus on its 
 });
 
 test('chromium: by keyboard alone, the ways of making something are found — English and German (check 2)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   const words = { en: 'create', de: 'anlegen' };
   const expected = {
-    en: ['Capture', 'Create collection in House', 'Create hub', 'Add an entry'],
-    de: ['Erfassen', 'Sammlung in House anlegen', 'Hub anlegen', 'Eintrag hinzufügen'],
+    en: ['Create …', 'Create collection in House', 'Create hub', 'Add an entry'],
+    de: ['Erstellen …', 'Sammlung in House anlegen', 'Hub anlegen', 'Eintrag hinzufügen'],
   };
   for (const locale of ['en', 'de']) {
     const { context, page, failures } = await as(browser, 'OWNER', { locale });
@@ -403,8 +423,7 @@ test('chromium: by keyboard alone, the ways of making something are found — En
 });
 
 test('chromium: an action the role refuses is absent — a member is offered no collection and no shared hub (check 2)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   const offered = {};
   for (const role of ['OWNER', 'MEMBER']) {
@@ -423,8 +442,7 @@ test('chromium: an action the role refuses is absent — a member is offered no 
 });
 
 test('chromium: the empty palette offers the common actions and the places opened last; on an entry, its collection\'s acts', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280);
   t.after(() => context.close());
 
@@ -434,11 +452,25 @@ test('chromium: the empty palette offers the common actions and the places opene
   await page.waitForTimeout(600);
   await ask(page, '');
   const headings = await listOf(page).locator('[role="group"] > .head').allTextContents();
-  assert.ok(headings.includes('Actions'), `no actions group: ${headings.join(' | ')}`);
+  // Before typing the actions stand under *Quick* (§6.11, palette scene 1).
+  assert.ok(headings.includes('Quick'), `no quick group: ${headings.join(' | ')}`);
   assert.ok(headings.includes('Recently opened'), `no recent group: ${headings.join(' | ')}`);
   const names = await rowNames(page);
-  assert.ok(names.includes('Capture'), 'the empty palette does not offer capture');
+  assert.ok(names.includes('Create …'), 'the empty palette does not offer Create');
   assert.ok(names.includes('Kitchen'), 'the empty palette does not offer the collection opened last');
+  // The entry opened last says its key before its title (palette t 2).
+  const recent = listOf(page).locator('[role="group"]').filter({ has: page.locator('.head', { hasText: /^Recently opened$/u }) });
+  assert.equal(await recent.getByRole('option', { name: new RegExp(ITEMS[0].title, 'u') }).locator('.ticketkey').textContent(), `KITCHEN-${ITEMS[0].number}`);
+  // *Quick* goes to Today, the inbox and each product on, by the column's routes (§6.11).
+  for (const name of ['Go to Today', 'Go to Inbox']) assert.ok(names.includes(name), `no ${name}: ${names.join(' | ')}`);
+  const quick = listOf(page).locator('[role="group"]').filter({ has: page.locator('.head', { hasText: /^Quick$/u }) });
+  assert.ok((await quick.getByRole('option').allTextContents()).some((text) => text.includes('Go to Today')), 'Go to Today stands outside Quick');
+  await quick.getByRole('option', { name: /Go to Inbox/u }).click();
+  await page.waitForURL(/\/jumble$/u);
+  await page.goto(`${served.origin}/items/${ITEMS[0].id}`);
+  await page.getByRole('main').waitFor();
+  await page.waitForTimeout(600);
+  await ask(page, '');
 
   // Standing on one of its entries, the collection's acts are offered without naming it.
   await page.keyboard.type('board');

@@ -280,3 +280,28 @@ func TestADeletedOlaMovesNoClockAlreadyRunning(t *testing.T) {
 		t.Fatalf("the deleted OLA's paused goal was moved: %+v", got)
 	}
 }
+
+// UC-SVC-02 checks 10 and 11: assigning, as the assignment use case announces it, arms a group's
+// OLA, and handing the entry on or taking it off everybody meets it - the clocks follow
+// ItemAssigned and ItemUnassigned, not only ItemUpdated.
+func TestAnOlaFollowsTheAssignmentEvents(t *testing.T) {
+	for _, kind := range []event.Type{event.ItemAssigned, event.ItemUnassigned} {
+		if !(OLAClocks{}).Wants(kind) {
+			t.Fatalf("the OLA clocks do not hear %s", kind)
+		}
+	}
+	f, clocks, olas := olaFixture(t)
+	deliverTo(t, f, clocks, event.ItemCreated, monday, nil)
+	f.items.item.AssigneeID = networker
+	deliverTo(t, f, clocks, event.ItemAssigned, monday.Add(10*time.Minute), nil)
+	if got := olas.goal(domain.GoalResolution); got.Standing != domain.StandingRunning {
+		t.Fatalf("assigned to a member, the team's resolution is %+v", got)
+	}
+	f.items.item.AssigneeID = ""
+	deliverTo(t, f, clocks, event.ItemUnassigned, monday.Add(time.Hour), nil)
+	for _, kind := range []domain.GoalKind{domain.GoalFirstResponse, domain.GoalResolution} {
+		if got := olas.goal(kind); got.Standing != domain.StandingMet {
+			t.Errorf("%s: taken off the group, the team's goal is %+v", kind, got)
+		}
+	}
+}

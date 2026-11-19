@@ -190,6 +190,8 @@ type Loaded struct {
 	Entries  map[shared.ID]planrepo.PlanEntry
 	External map[shared.ID]bool
 	Links    []work.EntryLink
+	// Releases names the release each entry ships with; an entry in none is absent.
+	Releases map[shared.ID]shared.ID
 }
 
 // load reads a plan's visible entries, their dependencies - with the visible entries outside the
@@ -210,6 +212,7 @@ func (p Planner) load(
 		links    []work.EntryLink
 		registry work.LinkTypes
 		days     domain.Workdays = weekdays{}
+		releases []planrepo.EntryRelease
 	)
 	err := p.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
@@ -239,7 +242,12 @@ func (p Planner) load(
 		for _, e := range entries {
 			ids = append(ids, e.ID)
 		}
-		links, err = p.Links.Touching(ctx, ids, maxLinksOfAPlan)
+		if links, err = p.Links.Touching(ctx, ids, maxLinksOfAPlan); err != nil {
+			return err
+		}
+		if p.Releases != nil {
+			releases, err = p.Releases.Of(ctx, ids)
+		}
 		return err
 	})
 	if err != nil {
@@ -253,7 +261,10 @@ func (p Planner) load(
 	if err != nil {
 		return Loaded{}, err
 	}
-	out := Loaded{Zone: zone, Entries: map[shared.ID]planrepo.PlanEntry{}, External: map[shared.ID]bool{}}
+	out := Loaded{Zone: zone, Entries: map[shared.ID]planrepo.PlanEntry{}, External: map[shared.ID]bool{}, Releases: map[shared.ID]shared.ID{}}
+	for _, r := range releases {
+		out.Releases[r.EntryID] = r.ReleaseID
+	}
 	out.Plan.Calendar = days
 	for i, e := range entries {
 		if visible[i] {

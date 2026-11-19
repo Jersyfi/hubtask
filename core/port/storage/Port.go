@@ -98,12 +98,29 @@ type Transfer struct {
 // ignoring the half it does not use.
 type TransferIssuer interface {
 	// IssueUpload mints where the staged object's bytes go.
-	IssueUpload(object media.Object, expiresAt time.Time) (Transfer, error)
+	IssueUpload(ctx context.Context, object media.Object, expiresAt time.Time) (Transfer, error)
 
 	// IssueDownload mints where the object's bytes come from, served as a download: the
 	// disposition - attachment, with the file's name when one is known - is part of what is
 	// signed, so a holder cannot strip it (T-11).
-	IssueDownload(object media.Object, expiresAt time.Time) (Transfer, error)
+	IssueDownload(ctx context.Context, object media.Object, expiresAt time.Time) (Transfer, error)
+}
+
+type requestHostKey struct{}
+
+// ContextWithRequestHost carries the host a request arrived on, so that a target served by this
+// server is minted at the origin the asking page is on: a workspace's own host, where
+// connect-src and img-src 'self' admit it with no CORS (security.md §9). An inbound adapter sets
+// it; a call that came from no request - a job, a mail - has none and keeps the installation's
+// address.
+func ContextWithRequestHost(ctx context.Context, host string) context.Context {
+	return context.WithValue(ctx, requestHostKey{}, host)
+}
+
+// RequestHost is the host ContextWithRequestHost carried, or empty.
+func RequestHost(ctx context.Context) string {
+	host, _ := ctx.Value(requestHostKey{}).(string)
+	return host
 }
 
 // Upload is one object on its way in.

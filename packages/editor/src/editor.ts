@@ -25,7 +25,11 @@ import { CALLOUT_TONES, STATUS_TONES, embeddable, fromMarkdown, texOf, toMarkdow
 import { CodeBlocks, type DiagramColours } from './code.ts';
 import { EmojiShortcodes } from './emoji.ts';
 import { MathBlock } from './math.ts';
-import { CommentPassages, passagesKey, selectedWords, type Passage } from './passages.ts';
+import { CommentPassages, blockWords, passagesKey, selectedWords, type Passage } from './passages.ts';
+import { lineBelow, lineStart, moveLine, removeLine } from './lines.ts';
+import { caretLabels } from './carets.ts';
+import { placeholder } from './placeholder.ts';
+import { readSelectionFirst } from './selection.ts';
 import { MIRROR_META, linkLine, mirrorTicks, taskLineAt, tickedEntries, type TaskLine } from './tasks.ts';
 
 /** How the application draws a reference: its label, kept current as the resolver answers. */
@@ -429,12 +433,28 @@ export interface PageEditorOptions {
   readonly onTick?: (entryId: string, checked: boolean) => void;
   /** The text box's accessible name, resolved by the application: a text box without one is unnamed (WCAG 4.1.2). */
   readonly label?: string;
+  /** The words an empty, writable document shows in its first line (`placeholder.ts`). */
+  readonly placeholder?: string;
 }
 
 /** Builds the editor. The caller destroys it with the screen. */
+/** Before every keymap: a key acts on the selection the browser holds (`selection.ts`). */
+const SelectionFirst = Extension.create({
+  name: 'selectionFirst',
+  priority: 10_000,
+  addProseMirrorPlugins: () => [readSelectionFirst],
+});
+
+/** A co-writer's name beside their caret never covers words (`carets.ts`). */
+const CaretLabels = Extension.create({
+  name: 'caretLabels',
+  addProseMirrorPlugins: () => [caretLabels],
+});
+
 export function createPageEditor(options: PageEditorOptions): Editor {
   const fallback = options.fallback ?? '…';
   const extensions = [
+    SelectionFirst,
     StarterKit.configure({
       // The live document keeps its own history; a second one would undo another writer's typing.
       undoRedo: options.live ? false : {},
@@ -480,7 +500,13 @@ export function createPageEditor(options: PageEditorOptions): Editor {
         return caret;
       },
     }) as never);
+    extensions.push(CaretLabels);
   }
+  if (options.editable && options.placeholder) {
+    const words = options.placeholder;
+    extensions.push(Extension.create({ name: 'pagePlaceholder', addProseMirrorPlugins: () => [placeholder(words)] }));
+  }
+  let made: Editor | undefined;
   const editor = new Editor({
     element: options.element,
     injectCSS: false,
@@ -488,7 +514,14 @@ export function createPageEditor(options: PageEditorOptions): Editor {
     extensions,
     // A live document brings its own content; seeding it is `seedFromMarkdown`'s.
     ...(options.live ? {} : { content: fromMarkdown(options.body) as JSONContent }),
-    editorProps: { attributes: { class: 'page-body', 'aria-multiline': 'true', role: 'textbox', ...(options.label ? { 'aria-label': options.label } : {}) } },
+    // Only a text that can be written in is a textbox: read only, it is announced as the text it is. The
+    // role is written both ways because the editor adds `textbox` to whatever is left out. Asked on
+    // every state, so `setEditable` changes the role too.
+    editorProps: {
+      attributes: (): Record<string, string> => (made?.options.editable ?? options.editable)
+        ? { class: 'page-body', 'aria-multiline': 'true', role: 'textbox', ...(options.label ? { 'aria-label': options.label } : {}) }
+        : { class: 'page-body', role: 'document', ...(options.label ? { 'aria-label': options.label } : {}) },
+    },
     onUpdate: ({ editor: current, transaction }) => {
       if (transaction.getMeta('y-sync$')?.isChangeOrigin) return;
       if (!transaction.getMeta(MIRROR_META)) {
@@ -501,9 +534,10 @@ export function createPageEditor(options: PageEditorOptions): Editor {
       const top = $from.depth > 0 ? $from.node(1) : undefined;
       const id = top?.attrs['blockId'] as string | null | undefined;
       const selected = selectedWords(current.state.doc, from, to)?.slice(0, 500);
-      options.onBlock?.(top && id ? { id, text: top.textContent.slice(0, 500), ...(selected ? { selected } : {}) } : undefined);
+      options.onBlock?.(top && id ? { id, text: blockWords(top).slice(0, 500), ...(selected ? { selected } : {}) } : undefined);
     },
   });
+  made = editor;
   return editor;
 }
 
@@ -645,6 +679,27 @@ export function passageTops(editor: Editor): Map<string, number> {
   const ranges = passagesKey.getState(editor.state)?.ranges;
   for (const [id, range] of ranges ?? []) tops.set(id, editor.view.coordsAtPos(range.from).top);
   return tops;
+}
+
+/** The line (top-level block) at a viewport point, or the caret's: its start and its element. */
+export function lineAt(editor: Editor, point?: { left: number; top: number }): { start: number; element: HTMLElement } | undefined {
+  if (editor.isDestroyed) return undefined;
+  const pos = point ? editor.view.posAtCoords(point)?.pos : editor.state.selection.from;
+  if (pos === undefined) return undefined;
+  const start = lineStart(editor.state, pos);
+  if (start === undefined) return undefined;
+  const element = editor.view.nodeDOM(start);
+  return element instanceof HTMLElement ? { start, element } : undefined;
+}
+
+/** Applies a line's act (`lines.ts`) to the line starting at `start`; answers whether it did. */
+export function actOnLine(editor: Editor, start: number, act: 'up' | 'down' | 'remove' | 'below'): boolean {
+  const { state } = editor;
+  const tr = act === 'up' ? moveLine(state, start, -1) : act === 'down' ? moveLine(state, start, 1) : act === 'remove' ? removeLine(state, start) : lineBelow(state, start);
+  if (!tr) return false;
+  editor.view.dispatch(tr.scrollIntoView());
+  editor.view.focus();
+  return true;
 }
 
 export type { Editor };

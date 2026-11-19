@@ -53,8 +53,11 @@ type PlacementWriter struct {
 	Flow FlowGate
 	// Workflow and Statuses settle the statuses of what moved into another collection: the
 	// workflow in force there decides (WorkflowGate.Settle). Unwired, statuses stay as they were.
-	Workflow   WorkflowGate
-	Statuses   StatusMover
+	Workflow WorkflowGate
+	Statuses StatusMover
+	// Completion reads the destination's board and writes the completion its column decides
+	// (domain-model.md §3.5a); unwired boards leave an entry as it came.
+	Completion CompletionWriter
 	Authorizer Authorizer
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
@@ -601,10 +604,48 @@ func (w PlacementWriter) write(
 			return MoveResult{}, err
 		}
 	}
+	if after.CollectionID != before.CollectionID {
+		if after, err = w.land(ctx, actor, plan.destination, after, now); err != nil {
+			return MoveResult{}, err
+		}
+	}
 
 	// Always present, and empty for a move that resolved everything: a client that iterates the
 	// losses should not have to nil-check the field (I-W6).
 	return MoveResult{Item: after, SubtreeSize: size, DroppedReferences: dropped}, nil
+}
+
+// land puts an entry that came onto the destination's board where it agrees with its state
+// (Board.Arrived): the column it was put in decides its completion, a completed one goes into the
+// done column, and under a workflow the column shows its status. Only a top-level task stands on a
+// board.
+func (w PlacementWriter) land(
+	ctx context.Context, actor appshared.ActorContext, destination domain.Container, moved domain.WorkItem, now time.Time,
+) (domain.WorkItem, error) {
+	boards := w.Completion.Boards
+	if !boards.Wired() || moved.Type != domain.ItemTask || !moved.ParentID.IsZero() {
+		return moved, nil
+	}
+	board, err := boards.Of(ctx, destination.ID)
+	if err != nil || len(board.Columns) == 0 {
+		return moved, err
+	}
+	current, err := w.findItem(ctx, moved.ID)
+	if err != nil {
+		return domain.WorkItem{}, err
+	}
+	placed := board.Arrived(current, actor.AccountID, now)
+	switch {
+	case placed.Completion.IsCompleted != current.Completion.IsCompleted:
+		return w.Completion.follow(ctx, actor, destination, current, placed.Completion.IsCompleted, now)
+	case placed.BucketID != current.BucketID:
+		if err := w.Items.SetAttributes(ctx, placed, current.Version); err != nil {
+			return domain.WorkItem{}, err
+		}
+		placed.Version = current.Version + 1
+		return placed, w.recordChanges(ctx, current, placed, actor)
+	}
+	return current, nil
 }
 
 // settleStatuses moves the statuses of the entries that came into the destination and answers the

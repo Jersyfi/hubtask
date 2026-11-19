@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/planning"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 )
 
@@ -91,6 +92,16 @@ func (s *releaseStore) Entries(_ context.Context, id shared.ID, _ int) ([]planre
 	out := slices.Clone(s.members[id])
 	for i := range out {
 		out[i].Done = s.done[out[i].EntryID]
+	}
+	return out, nil
+}
+
+func (s *releaseStore) MemberStates(_ context.Context, ids []shared.ID, _ int) ([]planrepo.ReleaseMemberState, error) {
+	var out []planrepo.ReleaseMemberState
+	for _, id := range ids {
+		for _, m := range s.members[id] {
+			out = append(out, planrepo.ReleaseMemberState{ReleaseID: id, EntryID: m.EntryID, Done: s.done[m.EntryID], CollectionID: m.CollectionID, HubID: m.HubID})
+		}
 	}
 	return out, nil
 }
@@ -340,5 +351,94 @@ func TestAReleasePublishedMeanwhileIsReadUnderItsLock(t *testing.T) {
 	}
 	if err := (DeleteRelease{Planner: f.planner}).Execute(ctx, actor(), release.ID); detail(err) != "releases.released" {
 		t.Errorf("a release published meanwhile was deleted: %v", err)
+	}
+}
+
+// releaseWorkflows runs one workflow in the collection, whose "review" status is named.
+type releaseWorkflows struct{ workrepo.Workflows }
+
+func (releaseWorkflows) Schemes(context.Context) ([]work.WorkflowScheme, error) {
+	return []work.WorkflowScheme{{ContainerID: collection, WorkflowKey: "desk"}}, nil
+}
+
+func (releaseWorkflows) List(context.Context) ([]work.Workflow, error) {
+	return []work.Workflow{{Key: "desk", Published: work.WorkflowShape{Statuses: []work.WorkflowStatus{
+		{Key: "review", Name: "In review", Category: work.CategoryInProgress},
+	}}}}, nil
+}
+
+// The work-surface concept §11 (planrel): a list of releases answers each release's done and open
+// entries itself, counting only those its reader may see, so the list draws every release's
+// progress from one read.
+func TestAListOfReleasesCountsTheEntriesItsReaderMaySee(t *testing.T) {
+	f, store := releaseFixture()
+	ctx := context.Background()
+	release := planRelease(t, f, "2.4")
+	empty := planRelease(t, f, "2.5")
+	if _, err := (AddReleaseEntries{Planner: f.planner}).Execute(ctx, actor(), release.ID, []shared.ID{design, build, launch}); err != nil {
+		t.Fatal(err)
+	}
+	store.done[design] = true
+	f.gate.hidden[launch] = true
+	listed, err := ListReleases{Planner: f.planner}.Execute(ctx, actor(), hubID, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	counts := map[shared.ID][2]int{}
+	for _, r := range listed {
+		counts[r.Release.ID] = [2]int{r.Done, r.Open}
+	}
+	if counts[release.ID] != [2]int{1, 1} || counts[empty.ID] != [2]int{0, 0} {
+		t.Errorf("counts %+v, want 1 done and 1 open for 2.4, none for 2.5", counts)
+	}
+	out, err := ListReleases{Planner: f.planner}.Descriptor().Handler.Invoke(ctx, actor(), usecase.Input{"hub_id": hubID.String()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range out["data"].([]usecase.Output) {
+		if r["done_count"] == nil || r["open_count"] == nil {
+			t.Errorf("a listed release carries no counts: %+v", r)
+		}
+	}
+}
+
+// The work-surface concept §11 (planrel): a release's entry carries its key and its status as the
+// workflow in force names it; without a workflow, or a number, it carries neither.
+func TestAReleaseEntryCarriesItsKeyAndItsNamedStatus(t *testing.T) {
+	f, _ := releaseFixture()
+	ctx := context.Background()
+	f.planner.References = references{summaries: []workrepo.EntrySummary{
+		{ID: design, CollectionID: collection, HubID: hubID, Title: "Approve the design", Number: 12, KeyPrefix: "WEB", Status: "review"},
+		{ID: build, CollectionID: collection, HubID: hubID, Title: "Build"},
+	}}
+	f.planner.Workflows = releaseWorkflows{}
+	release := planRelease(t, f, "2.4")
+	if _, err := (AddReleaseEntries{Planner: f.planner}).Execute(ctx, actor(), release.ID, []shared.ID{design, build}); err != nil {
+		t.Fatal(err)
+	}
+	view, err := ReadRelease{Planner: f.planner}.Execute(ctx, actor(), release.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries := view.Output()["entries"].([]usecase.Output)
+	byID := map[string]usecase.Output{}
+	for _, e := range entries {
+		byID[e.String("item_id")] = e
+	}
+	if got := byID[design.String()]; got["key"] != "WEB-12" || got["status_name"] != "In review" || got["status_category"] != "IN_PROGRESS" {
+		t.Errorf("the design reads %+v, want WEB-12 in review", got)
+	}
+	if got := byID[build.String()]; got["key"] != nil || got["status_name"] != nil || got["status_category"] != nil {
+		t.Errorf("the build reads %+v, want no key and no status", got)
+	}
+	f.planner.Workflows = nil
+	view, err = ReadRelease{Planner: f.planner}.Execute(ctx, actor(), release.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range view.Output()["entries"].([]usecase.Output) {
+		if e["status_name"] != nil {
+			t.Errorf("without a workflow an entry is named %v", e["status_name"])
+		}
 	}
 }

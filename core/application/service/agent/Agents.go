@@ -7,6 +7,7 @@ import (
 	"context"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -199,9 +200,9 @@ func (h ListAgents) Descriptor() usecase.Descriptor {
 		Name:       ListAgentsName,
 		Module:     moduleOf(),
 		Permission: service.PermissionManageMembers,
-		Summary: "The workspace's agents by name: kind, owner, status, model, policy, budget and whether " +
-			"its approval still covers its model. Whoever does not administer agents is answered the " +
-			"agents they own.",
+		Summary: "The workspace's agents by name: kind, owner, status, model, policy, budget, whether " +
+			"its approval still covers its model, what it spent this hour and today and when its latest " +
+			"job started. Whoever does not administer agents is answered the agents they own.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  scopeRead,
 		ReadOnly:    true,
@@ -237,12 +238,28 @@ func (h ListAgents) Descriptor() usecase.Descriptor {
 				if err != nil {
 					return err
 				}
+				hour, day := windows(d.Clock.Now())
 				for _, a := range agents {
 					revision, _, err := d.modelRevision(ctx, a)
 					if err != nil {
 						return err
 					}
-					rows = append(rows, AgentOutput(a, revision))
+					row := AgentOutput(a, revision)
+					// What a card says of it: its share of the day's budget and its last run.
+					usage, err := d.Store.Usage(ctx, a.ID, hour, day)
+					if err != nil {
+						return err
+					}
+					row["usage"] = usecase.Output{"actions_this_hour": usage.ActionsLastHour, "tokens_today": usage.TokensToday}
+					jobs, err := d.Store.ListJobs(ctx, a.ID, 1)
+					if err != nil {
+						return err
+					}
+					row["last_run_at"] = nil
+					if len(jobs) > 0 {
+						row["last_run_at"] = jobs[0].StartedAt.UTC().Format(time.RFC3339)
+					}
+					rows = append(rows, row)
 				}
 				return nil
 			})

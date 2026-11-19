@@ -54,6 +54,8 @@ type Page struct {
 	ParentID shared.ID
 	Title    string
 	Body     string
+	// Head is the start of the body a tree row carries in its place, for its excerpt (Opening).
+	Head     string
 	Icon     string
 	OrderKey string
 	// Template marks a page the space offers as the start of new ones (UC-DOC-05).
@@ -66,6 +68,8 @@ type Page struct {
 	VerifiedUntil *time.Time
 	VerifiedAt    *time.Time
 	VerifiedBy    shared.ID
+	// Cover is the picture over the page's content (E-18); nil for none.
+	Cover *Cover
 	// Restricted marks a page that names who of its hub's readers may read it (Readers); the
 	// people are kept beside the page.
 	Restricted bool
@@ -152,7 +156,11 @@ type Change struct {
 	Template        *bool
 	ContentLanguage *string
 	Archived        *bool
+	Cover           *CoverChange
 }
+
+// CoverChange sets the page's cover, or takes it away when Cover is nil.
+type CoverChange struct{ Cover *Cover }
 
 // The fields a change names, as the trail records them.
 const (
@@ -162,6 +170,7 @@ const (
 	FieldTemplate = "template"
 	FieldLanguage = "content_language"
 	FieldArchived = "archived"
+	FieldCover    = "cover"
 )
 
 // Changed answers the page after the change and the fields it changed. A change that changes
@@ -214,6 +223,9 @@ func (p Page) Changed(change Change, by shared.ID, now time.Time, form text.Norm
 			next.ArchivedAt = &at
 		}
 		fields = append(fields, FieldArchived)
+	}
+	if change.Cover != nil && !sameCover(change.Cover.Cover, p.Cover) {
+		next.Cover, fields = change.Cover.Cover, append(fields, FieldCover)
 	}
 	if len(fields) > 0 {
 		next.UpdatedBy, next.UpdatedAt = by, now
@@ -339,3 +351,5 @@ func CheckVerification(until *time.Time, now time.Time) error {
 func invalid(path, code string) *shared.Error {
 	return shared.ErrValidation.WithDetail(code).WithFields(shared.FieldError{Path: path, Code: code})
 }
+
+func sameCover(a, b *Cover) bool { return a == b || (a != nil && b != nil && *a == *b) }

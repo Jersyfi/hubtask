@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, COLLECTION, HUB, MANIFEST, PAGE, PERMISSIONS, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -87,15 +87,13 @@ async function groupEdit(browser, permissions) {
 }
 
 test('chromium: renaming a group is offered only to whom may manage members', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   assert.deepEqual(await groupEdit(browser, PERMISSIONS.ADMIN), { inMenu: 1, inHead: 1 });
   assert.deepEqual(await groupEdit(browser, PERMISSIONS.AUDITOR), { inMenu: 0, inHead: 0 });
 });
 
 test('chromium: a reader who may not manage members is not told the group is above their own role', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page } = await as(browser, PERMISSIONS.AUDITOR);
   t.after(() => context.close());
   await page.goto(`${served.origin}/administration/groups/${GROUP.id}`);
@@ -124,15 +122,13 @@ async function emptyOffered(browser, permissions) {
 }
 
 test('chromium: emptying the trash is offered only to whom may delete a hub', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   assert.equal(await emptyOffered(browser, PERMISSIONS.OWNER), 1);
   assert.equal(await emptyOffered(browser, PERMISSIONS.ADMIN), 0);
 });
 
 test('chromium: a service account\'s tokens are offered only to whom may manage members', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   // The tokens are a list of the account's record page, with *New token* as its add (page-system §7.2).
   assert.equal(await offered(browser, PERMISSIONS.ADMIN, `/administration/machines/${MACHINE.id}`, MACHINE.display_name, 'New token'), 1);
   assert.equal(await offered(browser, PERMISSIONS.AUDITOR, `/administration/machines/${MACHINE.id}`, MACHINE.display_name, 'New token'), 0);

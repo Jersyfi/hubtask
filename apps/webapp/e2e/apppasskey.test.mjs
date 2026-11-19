@@ -16,7 +16,7 @@ import { generateKeyPairSync, randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { answerOf, relayUrl } from '../src/lib/signin/keyRelay.ts';
 import { serve } from './serve.mjs';
@@ -76,8 +76,7 @@ async function open(browser, address) {
 }
 
 test('chromium: the browser answers the app at its loopback address, and tells the server nothing', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, api, returned, failures } = await open(browser, relayUrl(origin, { port: PORT, state: STATE, options: OPTIONS }));
   await page.waitForURL(`http://127.0.0.1:${PORT}/**`);
 
@@ -98,8 +97,7 @@ test('chromium: the browser answers the app at its loopback address, and tells t
 });
 
 test('chromium: the options leave the address at once, and giving up tells the app nothing came', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   const returned = [];
@@ -121,8 +119,7 @@ test('chromium: the options leave the address at once, and giving up tells the a
 });
 
 test('chromium: an address that is not the app request asks for nothing', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, returned } = await open(browser, `${origin}/app/passkey#port=80&state=x`);
   await page.getByText('Nothing is waiting for a passkey here.').waitFor();
   assert.equal(await page.getByRole('button', { name: 'Use a passkey or security key' }).count(), 0);

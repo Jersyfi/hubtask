@@ -130,12 +130,47 @@ func (c Campaign) Answer(a Attestation, v Verdict, by shared.ID, now time.Time) 
 }
 
 // NextReview is the day a confirmed CI is reviewed again, from the day now falls on in its zone.
-func (c Campaign) NextReview(now time.Time) time.Time {
+func (c Campaign) NextReview(now time.Time) time.Time { return ReviewAfter(now, c.ReviewMonths) }
+
+// ReviewAfter is the day months on from the day now falls on in its zone.
+func ReviewAfter(now time.Time, months int) time.Time {
 	y, m, d := now.Date()
 	// The day is held to the target month's last: 31 January and a month is 28 February, not
 	// 3 March.
-	last := time.Date(y, m+time.Month(c.ReviewMonths)+1, 0, 0, 0, 0, 0, time.UTC).Day()
-	return time.Date(y, m+time.Month(c.ReviewMonths), min(d, last), 0, 0, 0, 0, time.UTC)
+	last := time.Date(y, m+time.Month(months)+1, 0, 0, 0, 0, 0, time.UTC).Day()
+	return time.Date(y, m+time.Month(months), min(d, last), 0, 0, 0, 0, time.UTC)
+}
+
+// Confirm is a person's word that the CI is as recorded, outside a campaign or within one: its
+// next review moves months on from the day local falls on (DefaultReviewMonths when zero), and
+// it keeps who said so and when. A merged CI is the survivor's to confirm.
+func (ci CI) Confirm(by shared.ID, now, local time.Time, months int) (CI, error) {
+	if months == 0 {
+		months = DefaultReviewMonths
+	}
+	if months < 1 || months > 60 {
+		return ci, invalid("/review_months", "cmdb.campaign_period_invalid")
+	}
+	if ci.Status == StatusMerged || !ci.MergedInto.IsZero() {
+		return ci, shared.ErrConflict.WithDetail("cmdb.ci_merged")
+	}
+	next := ReviewAfter(local, months)
+	ci.Compliance.ReviewDue = &next
+	ci.ConfirmedAt, ci.ConfirmedBy = &now, by
+	ci.UpdatedBy, ci.UpdatedAt = by, now
+	return ci, nil
+}
+
+// Waiting counts, per owning person, the objects a campaign still waits for - the pending
+// questions that name an owner. The one who asks is left out: nobody reminds themselves.
+func Waiting(as []Attestation, asker shared.ID) map[shared.ID]int {
+	out := map[shared.ID]int{}
+	for _, a := range as {
+		if a.Verdict == VerdictPending && !a.Owner.IsZero() && a.Owner != asker {
+			out[a.Owner]++
+		}
+	}
+	return out
 }
 
 // Today is the day now falls on in the zone it is read in - the workspace's -, as a review day

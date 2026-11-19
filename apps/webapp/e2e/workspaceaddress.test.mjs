@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { MANIFEST, WORKSPACE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -77,8 +77,7 @@ async function open(browser, address, width = 1280) {
 }
 
 test('chromium: with owners not allowed to change it, the address stands without a control and says why', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, sent } = await open(browser, OFF);
   t.after(() => context.close());
 
@@ -97,8 +96,7 @@ test('chromium: with owners not allowed to change it, the address stands without
 });
 
 test('chromium: the owner changes the address with the operator dialog and the password, and goes on to it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, sent, arrived } = await open(browser, ON);
   t.after(() => context.close());
 
@@ -125,8 +123,7 @@ test('chromium: the owner changes the address with the operator dialog and the p
 });
 
 test('chromium: 375 px — inside the cooldown the button is absent and the day is named in its place', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page } = await open(browser, COOLING, 375);
   t.after(() => context.close());
 

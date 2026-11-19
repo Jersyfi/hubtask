@@ -5,7 +5,7 @@ context: knowledge
 actors: [PE-member, PE-person, PE-admin, PE-agent, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-08, P-19]
-state: built
+state: verified
 tasks: []
 checked_by: [core/domain/model/knowledge/Page_test.go, core/application/service/knowledge/Pages_test.go, core/application/service/knowledge/CommentDoors_test.go, core/application/service/knowledge/PageDoors_test.go, test/integration/page_repository_test.go, apps/webapp/src/lib/data/pages.test.ts, core/application/service/knowledge/Copy_test.go, core/domain/model/knowledge/Label_test.go, core/application/service/knowledge/Labels_test.go, packages/editor/test/blocks.test.ts, packages/editor/test/markdown.test.ts, core/domain/model/knowledge/Render_test.go, apps/webapp/e2e/kompassscreens.test.mjs]
 ---
@@ -24,7 +24,7 @@ The web team writes "How we release" in its hub and puts "Checklist" and "Rollba
 
 1. A member who may write in a hub writes a page with a title and a body in its space, at the top or under another page; the space's tree lists it under its parent, in the order its pages were placed.
 2. A page moved under itself or under one of its own pages is refused with `pages.parent_cycle`; a page moves only within its own hub's space (`pages.parent_other_space`).
-3. A search finds a page by a word of its title or body, stemmed in the page's language, with the passage that matched, among the spaces the reader may read; archived and trashed pages are left out.
+3. A search finds a page by a word of its title or body, stemmed in the page's language, with the passage that matched, among the spaces the reader may read; archived and trashed pages are left out. Among equally good hits a page verified now comes before an unverified one or one due for review - the order changes, not what is found (work surface E-8).
 4. A page of a hub the reader may not read - a private hub's among them - is neither listed, read nor found; it answers as a missing page does.
 5. A page put in the trash goes with the pages under it and comes back with them; nothing is removed.
 6. In a hub's *Contents* in the sidebar, a member sees the space's tree, opens a page with its breadcrumb and writes it in place; the page draws no tree of its own.

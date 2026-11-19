@@ -11,10 +11,10 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
-import { COLLECTION, ITEMS, signedIn, stub } from './fixture.mjs';
+import { COLLECTION, MANIFEST, ITEMS, signedIn, stub } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -56,17 +56,23 @@ const SCHEDULE = {
 const BASELINE = { id: '01a0e2e0-0000-7000-8000-0000000f1b01', plan_id: COLLECTION.id, name: 'Agreed 1 Oct', taken_at: '2026-10-01T09:00:00Z', taken_by: null, entry_count: 3 };
 
 /** The collection's plan, with every write recorded and answered with what it makes. */
-async function plan(browser, width = 1280) {
+async function plan(browser, width = 1280, schedule = SCHEDULE, { extra = () => undefined, at = `/collections/${COLLECTION.id}/plan` } = {}) {
   const written = [];
   const { page, failures, context, unstubbed } = await signedIn(browser, width, 900, { timezoneId: 'UTC' });
   await context.unroute('**/api/v1/**');
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    // The collection's Timeline draws the plan's schedule where its planning module is on (§6.3).
+    if (path === `/containers/${COLLECTION.id}/modules`) return route.fulfill({ json: { modules_on: ['PLANNING'] } });
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: ['PLANNING'] } });
+    if (path === `/collections/${COLLECTION.id}/sprints`) return route.fulfill({ json: { data: [], runs_sprints: false } });
     const method = request.method();
     const body = request.postDataJSON();
     if (method !== 'GET') written.push({ method, path, body });
-    if (path === `/plans/${COLLECTION.id}/schedule`) return route.fulfill({ json: SCHEDULE });
+    const answer = extra(path, method);
+    if (answer !== undefined) return route.fulfill({ json: answer });
+    if (path === `/plans/${COLLECTION.id}/schedule`) return route.fulfill({ json: schedule });
     if (path === `/plans/${COLLECTION.id}/baselines`) return route.fulfill({ json: { data: [BASELINE] } });
     if (path === `/baselines/${BASELINE.id}` && method === 'DELETE') return route.fulfill({ status: 204 });
     if (path === `/plans/${COLLECTION.id}/tolerance`) {
@@ -92,13 +98,14 @@ async function plan(browser, width = 1280) {
     if (path === `/links/${LINK}/timing` && method === 'PUT') {
       return route.fulfill({ json: { id: LINK, type: 'depends_on', source_id: SECOND.id, target_id: FIRST.id, created_at: `${today}T09:00:00Z`, waits: 'SOURCE', ...body } });
     }
+    if (path === '/views' && method === 'POST') return route.fulfill({ status: 201, json: { id: '01a0e2e0-0000-7000-8000-0000000f1c01', version: 1, ...body } });
     const scheduling = /^\/items\/([^/]+)\/scheduling$/.exec(path);
     if (scheduling && method === 'PUT') return route.fulfill({ json: { item_id: scheduling[1], mode: 'AUTOMATIC', milestone: false, ...body } });
     return stub(route);
   });
-  await page.goto(`${served.origin}/collections/${COLLECTION.id}/plan`);
+  await page.goto(`${served.origin}${at}`);
   await page.locator('.timeline .scroller').waitFor({ timeout: 15_000 });
-  await page.getByLabel('Zoom').selectOption('day');
+  await page.getByRole('group', { name: 'Zoom' }).getByRole('button', { name: 'Days' }).click();
   await page.waitForTimeout(200);
   return { page, failures, written, close: () => context.close(), unstubbed };
 }
@@ -131,8 +138,7 @@ const middleOf = async (locator) => {
 const rowOf = (page, item) => page.locator(`.timeline .rows [data-row="${item.id}"]`);
 
 test('chromium: 1280 px — a bar carried moves both dates, an end carried moves one', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   // The whole bar, two days later: the start as a scalar, the due as an all-day date.
   {
@@ -172,14 +178,18 @@ test('chromium: 1280 px — a bar carried moves both dates, an end carried moves
 });
 
 test('chromium: 1280 px — a knob drawn onto another row makes that row wait', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close, unstubbed } = await plan(browser);
   t.after(close);
 
   // The chart draws the dependency the schedule holds, and says it in words.
   assert.equal(await page.locator(`.timeline .arrows [data-dependency="${LINK}"]`).count(), 1);
   assert.equal(await page.locator(`.timeline [data-dependency-said="${LINK}"]`).count(), 1);
+  // Said for a screen reader, drawn nowhere under the chart: the arrows have their own tab, and
+  // today is the word on its line (scene gantt).
+  const under = await page.locator('.timeline > .dependencies, .timeline > .said').evaluateAll((all) => all.map((each) => each.getBoundingClientRect().height));
+  assert.ok(under.every((height) => height <= 1), `words stand under the chart: ${under}`);
+  if (await page.locator('.timeline .tick[data-today]').count() > 0) assert.equal((await page.locator('.timeline .today-mark').innerText()).trim(), 'Today');
 
   // From the first bar's knob onto the third row: the third now waits for the first.
   const knob = await middleOf(rowOf(page, FIRST).getByRole('button', { name: 'Drag onto the entry that waits for this one' }));
@@ -198,8 +208,7 @@ test('chromium: 1280 px — a knob drawn onto another row makes that row wait', 
 });
 
 test('chromium: 1280 px — the table writes what the chart draws, from the keyboard', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close, unstubbed } = await plan(browser);
   t.after(close);
 
@@ -209,15 +218,18 @@ test('chromium: 1280 px — the table writes what the chart draws, from the keyb
   assert.equal(await page.getByRole('radiogroup', { name: 'Views of the plan' }).count(), 0, 'a second strip under the view bar');
   await page.getByRole('table', { name: 'The plan as a table' }).waitFor({ timeout: 5_000 });
 
-  // A dependency's lag, typed and saved in its popover (§5.1), not in a field per row.
+  // A dependency's time relation is one chip, "kind · lag", which opens it in a popover (§5.1,
+  // scene plandeps 3): the kind as four choices, the lag typed, saved together.
   const opening = page.getByRole('button', { name: `Change the timing of the dependency of ${SECOND.title}` });
+  assert.equal((await opening.textContent()).trim(), 'Finish to start · 1 d');
   await opening.click();
-  const lag = page.getByLabel(`Lag of the dependency of ${SECOND.title}`);
+  const lag = page.locator('[data-timing]').getByLabel('Lag in working days');
+  await page.locator('[data-timing]').getByRole('radio', { name: 'Start to start' }).click();
   await lag.fill('-2');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.waitForTimeout(300);
   const timing = written.find((each) => each.method === 'PUT' && each.path === `/links/${LINK}/timing`);
-  assert.deepEqual(timing?.body, { dependency_kind: 'FS', lag_days: -2 });
+  assert.deepEqual(timing?.body, { dependency_kind: 'SS', lag_days: -2 });
   assert.equal(await lag.count(), 0, 'the popover stays open after its save');
 
   // A lag past the bound is refused here, before anything is sent, and the popover stays.
@@ -250,8 +262,7 @@ test('chromium: 1280 px — the table writes what the chart draws, from the keyb
 });
 
 test('chromium: 1280 px — a dependency is added and removed without a pointer (SC 2.1.1, 2.5.7)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close, unstubbed } = await plan(browser);
   t.after(close);
 
@@ -261,9 +272,13 @@ test('chromium: 1280 px — a dependency is added and removed without a pointer 
   const adding = page.locator('[data-add-dependency]');
   await adding.getByLabel('Waiting entry').selectOption(THIRD.id);
   await adding.getByLabel('Waits for').selectOption(FIRST.id);
-  await adding.getByLabel('Kind').selectOption('SS');
-  await adding.getByLabel('Lag (working days)').fill('2');
-  await adding.getByRole('button', { name: 'Add a dependency' }).focus();
+  await adding.getByRole('radio', { name: 'Start to start' }).focus();
+  await page.keyboard.press('Enter');
+  await adding.getByLabel('Lag in working days').fill('2');
+  // The dialog's primary stands in its foot, Cancel beside it (the page system's dialog ladder).
+  const dialog = page.getByRole('dialog', { name: 'Add a dependency' });
+  assert.deepEqual((await dialog.locator('footer.actions').getByRole('button').allInnerTexts()).map((each) => each.trim()), ['Cancel', 'Add a dependency']);
+  await dialog.locator('footer.actions').getByRole('button', { name: 'Add a dependency' }).focus();
   await page.keyboard.press('Enter');
   await page.waitForTimeout(400);
 
@@ -284,12 +299,73 @@ test('chromium: 1280 px — a dependency is added and removed without a pointer 
   assert.deepEqual(unstubbed(), []);
 });
 
+// E-16, E-20 (UC-PLN-02 check 7): one schedule, two presentations; the view panel saved as a view.
+test('chromium: 1280 px — the Gantt and the light timeline are one tab, and the plan\'s view is saved as a view', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, written, close, unstubbed } = await plan(browser);
+  t.after(close);
+
+  // The Gantt is the default with the module: the outline columns and the critical switch.
+  const chart = page.locator('.timeline').first();
+  assert.equal(await chart.getAttribute('data-look'), 'gantt');
+  assert.equal(await page.locator('[data-critical-switch]').count(), 1);
+  // The same tab draws the light timeline: the same rows, no Gantt-only switches.
+  await page.locator('[data-plan-presentation="timeline"]').click();
+  assert.equal(await chart.getAttribute('data-look'), 'light');
+  assert.equal(await page.locator('[data-critical-switch]').count(), 0);
+  assert.equal(await page.locator('.timeline .rows [data-row]').count() >= 3, true, 'the light timeline lost rows');
+  // Its line as scene plan draws it: the grouping, then what is seen, the tray's opener at the end.
+  const line = await page.locator('.controls.second').evaluate((element) => [...element.querySelectorAll('[data-plan-group-open], [data-plan-query] [data-opener="view"], [data-undated-open]')]
+    .map((each) => ({ what: each.matches('[data-plan-group-open]') ? 'group' : each.matches('[data-undated-open]') ? 'undated' : 'filter', end: each.getBoundingClientRect().right, start: each.getBoundingClientRect().left, line: element.getBoundingClientRect().right })));
+  assert.deepEqual(line.filter((each) => each.what !== 'undated').map((each) => each.what), ['group', 'filter'], JSON.stringify(line));
+  const tray = line.find((each) => each.what === 'undated');
+  assert.ok(!tray || tray.line - tray.end < 2, `the tray's opener does not stand at the line's end: ${JSON.stringify(line)}`);
+  // What changed is counted on the panel's opener, and the panel saves it as a view of the place.
+  assert.equal((await page.locator('[data-plan-view-open]').first().textContent()).trim(), 'View · 1');
+  await page.locator('[data-plan-view-open]').first().click();
+  const panel = page.locator('[data-plan-view-panel]');
+  await panel.getByLabel('Name').fill('Light');
+  await panel.locator('[data-plan-view-save]').click();
+  await page.waitForTimeout(300);
+  const saved = written.find((each) => each.method === 'POST' && each.path === '/views');
+  assert.equal(saved?.body?.layout, 'TIMELINE');
+  assert.equal(saved?.body?.name, 'Light');
+  assert.equal(saved?.body?.grouping?.plan?.presentation, 'timeline', `saved ${JSON.stringify(saved?.body)}`);
+
+  assert.deepEqual(failures, []);
+  assert.deepEqual(unstubbed(), []);
+});
+
+// Scene plandeps 2: what the plan cannot hold stands on top, the broken chip is marked, and *Free
+// the date* hands the entry kept by hand back to the scheduler.
+test('chromium: 1280 px — what the plan cannot hold is on top, and its date is freed', async (t) => {
+  const browser = await sharedChromium(t);
+  const kept = SCHEDULE.entries.map((each) => (each.item_id === SECOND.id ? { ...each, mode: 'MANUAL' } : each));
+  const broken = { ...SCHEDULE, entries: kept, conflicts: [{ predecessor_id: FIRST.id, successor_id: SECOND.id, dependency_kind: 'FS', earliest: addDays(today, 6) }] };
+  const { page, failures, written, close, unstubbed } = await plan(browser, 1280, broken);
+  t.after(close);
+
+  const band = page.locator('[data-conflicts]');
+  await band.waitFor({ timeout: 5_000 });
+  assert.match(await band.textContent(), /1 dependency the plan cannot hold:/);
+  const top = await band.boundingBox();
+  const chart = await page.locator('.timeline').first().boundingBox();
+  assert.ok(top.y < chart.y, 'the band stands below the chart');
+  assert.equal(await page.locator(`[data-timing-chip="${LINK}"][data-broken]`).count(), 1, 'the broken chip is not marked');
+  await page.getByRole('button', { name: `Free the date of ${SECOND.title}` }).click();
+  await page.waitForTimeout(300);
+  const freed = written.find((each) => each.method === 'PUT' && each.path === `/items/${SECOND.id}/scheduling`);
+  assert.deepEqual(freed?.body, { mode: 'AUTOMATIC' });
+
+  assert.deepEqual(failures, []);
+  assert.deepEqual(unstubbed(), []);
+});
+
 // user-experience.md §7.5: the chart opens on the whole plan, a critical bar is named as such, an
 // entry without dates waits in the tray with *Give it dates*, and a baseline is deleted behind
 // *Undo* - nothing is sent until the message leaves without it.
 test('chromium: 1280 px — the plan fits, names its critical chain, trays the undated and deletes a baseline softly', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close, unstubbed } = await plan(browser);
   t.after(close);
 
@@ -309,19 +385,20 @@ test('chromium: 1280 px — the plan fits, names its critical chain, trays the u
   assert.equal(await page.getByRole('button', { name: 'Give Write the brief dates' }).count(), 0, 'the tray opened unfolded');
   await page.locator('.timeline details.undated summary').filter({ hasText: '1 without dates' }).click();
   await page.getByRole('button', { name: 'Give Write the brief dates' }).click();
-  await page.waitForURL(`**/items/${UNDATED}`, { timeout: 5_000 });
+  // From `large` the entry opens beside the timeline, as from a collection's list.
+  await page.waitForFunction((id) => new URLSearchParams(location.search).get('item') === id, UNDATED, { timeout: 5_000 });
   await page.goBack();
   await page.locator('.timeline .scroller').waitFor({ timeout: 15_000 });
 
   // A collection's timeline lists the plan's items first in the collection's own ⋯.
-  await page.getByRole('button', { name: /^Actions for / }).click();
+  await page.locator('[data-opener="container-menu"]').click();
   await page.getByRole('menuitem', { name: 'Plan settings' }).click();
   await page.getByRole('button', { name: 'Delete the baseline “Agreed 1 Oct”' }).click();
   await page.getByRole('button', { name: 'Undo' }).click();
   await page.waitForTimeout(300);
   assert.equal(written.some((each) => each.method === 'DELETE'), false, 'Undo sent the deletion');
   const settings = async () => {
-    await page.getByRole('button', { name: /^Actions for / }).click();
+    await page.locator('[data-opener="container-menu"]').click();
     await page.getByRole('menuitem', { name: 'Plan settings' }).click();
   };
   await settings();
@@ -342,8 +419,7 @@ test('chromium: 1280 px — the plan fits, names its critical chain, trays the u
 // §7.5 on a phone, the chart first: each title stands above its bar as wide as the screen and
 // stays in view while the chart scrolls within itself; the bars start at the screen's start.
 test('chromium: 375 px — the chart takes the width and its titles stand above the bars', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await plan(browser, 375);
   t.after(close);
   const at = await page.evaluate(() => {
@@ -354,7 +430,10 @@ test('chromium: 375 px — the chart takes the width and its titles stand above 
     const lanes = document.querySelector('.timeline .lanes').getBoundingClientRect();
     const bars = [...document.querySelectorAll('.timeline .cell[data-filled]')].map((each) => each.getBoundingClientRect())
       .filter((each) => each.right > box.left && each.left < box.right);
-    return { width: box.width, title: title.width, titleBottom: title.bottom, lanesTop: lanes.top, axis: axis.left, lanes: lanes.left, bars: bars.length, sideways: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+    // The chart's own surface pads it: the title takes the width inside that padding.
+    const style = getComputedStyle(scroller);
+    const inner = scroller.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd);
+    return { width: inner, title: title.width, titleBottom: title.bottom, lanesTop: lanes.top, axis: axis.left, lanes: lanes.left, bars: bars.length, sideways: document.documentElement.scrollWidth - document.documentElement.clientWidth };
   });
   assert.ok(at.title >= at.width * 0.95, `the title takes ${Math.round(at.title)} of ${Math.round(at.width)} px`);
   assert.ok(at.titleBottom <= at.lanesTop + 1, 'the title stands above its bar');
@@ -366,7 +445,122 @@ test('chromium: 375 px — the chart takes the width and its titles stand above 
     scroller.scrollLeft = scroller.scrollWidth;
     const box = scroller.getBoundingClientRect();
     const title = document.querySelector('.timeline .lead').getBoundingClientRect();
-    return { box: box.left, title: title.left };
+    const style = getComputedStyle(scroller);
+    return { box: box.left + parseFloat(style.borderInlineStartWidth) + parseFloat(style.paddingInlineStart), title: title.left };
   });
   assert.equal(Math.round(scrolled.title), Math.round(scrolled.box), 'the title stays in view as the chart scrolls');
+});
+
+// §6.2 (scene planview): the plan's view panel is the collections' one - from 905 px a side pane
+// (and a row's menu shows under the pointer only)
+// beside the plan, which stays usable; between 600 and 904 a drawer over it.
+test('chromium: the plan\'s view panel stands beside the plan at 1280 px and is a drawer at 800 px', async (t) => {
+  const browser = await sharedChromium(t);
+  const wide = await plan(browser);
+  t.after(wide.close);
+  const { page } = wide;
+  // A row's ⋯ shows where the pointer is, over the title's end, as a list row's tools do.
+  const row = page.locator(`.timeline .rows [data-row="${FIRST.id}"]`);
+  const menuWidth = () => row.locator('[data-action]').evaluate((element) => element.getBoundingClientRect().width);
+  const height = (await row.boundingBox()).height;
+  assert.ok((await menuWidth()) < 8, 'the row\'s menu is drawn without the pointer');
+  await row.locator('button.title').hover();
+  assert.ok((await menuWidth()) > 20, 'the row\'s menu does not show under the pointer');
+  assert.equal((await row.boundingBox()).height, height, 'the row grew when its menu showed');
+  await page.locator('[data-plan-view-open]').first().click();
+  const side = page.locator('[data-view-side]');
+  await side.locator('[data-plan-view-panel]').waitFor({ timeout: 5_000 });
+  assert.equal(await page.locator('dialog[open]').count(), 0, 'the panel opened as a dialog');
+  assert.equal(await page.locator('[inert]').count(), 0, 'something behind the panel is inert');
+  const [chart, pane] = [await page.locator('.timeline').first().boundingBox(), await side.boundingBox()];
+  assert.ok(chart && pane && chart.x + chart.width <= pane.x + 1, `the chart lies under the panel: ${JSON.stringify({ chart, pane })}`);
+  // Narrowed by the pane, the chart keeps its title and outline columns (scene planview): titles
+  // stand over the bars on a phone only, and the chart scrolls sideways within its own surface.
+  assert.equal(await page.locator('.timeline .heads').first().isVisible(), true, 'beside the panel the chart lost its column heads');
+  assert.equal(await row.locator('[data-outline]').isVisible(), true, 'beside the panel the row lost its outline columns');
+  const [title, lanes] = [await row.locator('.lead').boundingBox(), await row.locator('.lanes').boundingBox()];
+  assert.ok(title && lanes && Math.abs(title.y - lanes.y) < 2 && title.x + title.width <= lanes.x + 1,
+    `beside the panel the title stands over its bar: ${JSON.stringify({ title, lanes })}`);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, 'the chart widened the page');
+  // A change shows at once beside it.
+  await side.locator('[data-plan-presentation-panel="timeline"]').click();
+  assert.equal(await page.locator('.timeline').first().getAttribute('data-look'), 'light');
+  await side.locator('[data-plan-presentation-panel="timeline"]').focus();
+  await page.keyboard.press('Escape');
+  await side.waitFor({ state: 'detached', timeout: 5_000 });
+  assert.equal(await page.locator('[data-plan-view-open]').first().evaluate((element) => element === document.activeElement), true, 'focus did not return to View');
+  assert.deepEqual(wide.failures, []);
+
+  const narrow = await plan(browser, 800);
+  t.after(narrow.close);
+  await narrow.page.locator('[data-plan-view-open]').first().click();
+  await narrow.page.locator('dialog[open] [data-plan-view-panel]').waitFor({ timeout: 5_000 });
+  assert.equal(await narrow.page.locator('[data-view-side]').count(), 0, 'a drawer was wanted at 800 px');
+  assert.deepEqual(narrow.failures, []);
+});
+
+// §6.11 Q-2, ADR-0102 (scene planview): a view saved with a release's id shows the release's name
+// on its chip and in the panel, sends the id, and groups the rows by release.
+test('chromium: 1280 px — the plan\'s query line says the release by name over the chart, and the rows group by release', async (t) => {
+  const browser = await sharedChromium(t);
+  const SPRING = '01a0e2e0-0000-7000-8000-0000000f1d01';
+  const VIEW = '01a0e2e0-0000-7000-8000-0000000f1d02';
+  const released = { ...SCHEDULE, entries: SCHEDULE.entries.map((each) => (each.item_id === THIRD.id ? { ...each, release_id: SPRING } : { ...each, release_id: null })) };
+  const view = {
+    id: VIEW, name: 'Spring work', layout: 'TIMELINE', version: 1, scope_type: 'COLLECTION', scope_id: COLLECTION.id, sharing: 'PRIVATE', visible_fields: ['start', 'finish', 'duration', 'assignee'],
+    query: { filter: { field: 'release_id', op: 'EQ', value: SPRING }, line: `plan.release: ${SPRING}` },
+    grouping: { plan: { presentation: 'gantt', group_by: 'release' } },
+  };
+  const { page, failures, written, close, unstubbed } = await plan(browser, 1280, released, {
+    at: `/collections/${COLLECTION.id}/timeline?view=${VIEW}`,
+    extra: (path, method) => {
+      if (path === `/hubs/${COLLECTION.parent_id}/releases`) return { data: [{ id: SPRING, hub_id: COLLECTION.parent_id, name: 'Spring', description: '', release_on: addDays(today, 20), state: 'PLANNED', version: 1, done_count: 0, open_count: 1 }] };
+      if (path === '/views' && method === 'GET') return [view];
+      return undefined;
+    },
+  });
+  t.after(close);
+
+  const chips = page.locator('[data-plan-query] [data-query-chips]');
+  await chips.getByText('plan.release: Spring', { exact: true }).waitFor({ timeout: 5_000 });
+  assert.doesNotMatch(await page.locator('[data-plan-query]').textContent(), new RegExp(SPRING, 'u'), 'a chip shows the release\'s id');
+  const asked = written.filter((each) => each.path === '/items:query').map((each) => JSON.stringify(each.body));
+  assert.ok(asked.some((body) => body.includes(SPRING)), `the read did not send the release's id: ${asked.join(' | ')}`);
+  // Grouped by release: the entry in Spring first, those in none after it.
+  assert.equal(await page.locator('.timeline .rows [data-row]').first().getAttribute('data-row'), THIRD.id);
+  // *Filter* opens the panel, which offers Release among the groupings, pressed.
+  await page.locator('[data-plan-query]').getByRole('button', { name: 'Filter' }).click();
+  const panel = page.locator('[data-plan-view-panel]');
+  assert.equal(await panel.locator('[data-plan-chip="group:release"]').getAttribute('aria-pressed'), 'true');
+  // Taking the chip away takes the condition out of the line.
+  await chips.getByRole('button', { name: 'Remove plan.release: Spring' }).click();
+  assert.equal(await page.locator('[data-plan-query] [data-query-chips]').count(), 0);
+
+  assert.deepEqual(failures, []);
+  assert.deepEqual(unstubbed(), []);
+});
+
+test('chromium: 390 px — a dependency\'s menu is a sheet at the foot; adding one is the whole screen (D-1)', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, close } = await plan(browser, 390);
+  t.after(close);
+  // On a phone a dependency's row is reached by its ⋯, a sheet as every menu of the page is.
+  const more = page.getByRole('button', { name: /^More for the dependency of/ }).first();
+  await more.waitFor({ timeout: 15_000 });
+  await more.click();
+  const sheet = page.locator('dialog.sheet[open]');
+  await sheet.waitFor({ timeout: 5_000 });
+  await page.waitForTimeout(400);
+  const box = await sheet.boundingBox();
+  assert.ok(box && Math.abs(box.y + box.height - 900) <= 1, `the sheet does not stand at the foot: ${JSON.stringify(box)}`);
+  await page.keyboard.press('Escape');
+  await sheet.waitFor({ state: 'detached', timeout: 5_000 }).catch(() => undefined);
+
+  await page.locator('[data-add-dependency-open]').click();
+  const adding = page.locator('dialog[open]').filter({ has: page.locator('[data-add-dependency]') });
+  await adding.waitFor({ timeout: 5_000 });
+  await page.waitForTimeout(600);
+  const whole = await adding.boundingBox();
+  assert.ok(whole && whole.width >= 389 && whole.height >= 899, `adding is not the whole screen: ${JSON.stringify(whole)}`);
+  assert.deepEqual(failures, []);
 });

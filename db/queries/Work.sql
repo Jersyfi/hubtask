@@ -790,6 +790,9 @@ UPDATE work_item SET
   -- The status moves with the completion it decides in a workflow collection (UC-FLW-03 check 4), and stays
   -- what it was - null in every other collection - where a completion writes no step.
   status       = sqlc.narg('status')::text,
+  -- The column moves with completion on a board without a workflow, and with the status under
+  -- one (domain-model.md §3.5a); elsewhere it is written back as it was read.
+  bucket_id    = sqlc.narg('bucket_id')::uuid,
   updated_at   = sqlc.arg('updated_at'),
   version      = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');

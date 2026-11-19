@@ -216,6 +216,17 @@ var importers = map[string]importer{
 			return queries.ClearWorkflow(ctx)
 		},
 	},
+	"bucket_status": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportBucketStatus(ctx, sqlc.ImportBucketStatusParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsBucketStatus(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearBucketStatus(ctx)
+		},
+	},
 	"workflow_scheme": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportWorkflowScheme(ctx, sqlc.ImportWorkflowSchemeParams{Payload: payload, Overwrite: overwrite})
@@ -865,6 +876,17 @@ var importers = map[string]importer{
 			return queries.ClearPageLabel(ctx)
 		},
 	},
+	"media_version": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, _ bool) (int64, error) {
+			return queries.ImportMediaVersion(ctx, payload)
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsMediaVersion(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearMediaVersions(ctx)
+		},
+	},
 	"page_media": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, _ bool) (int64, error) {
 			return queries.ImportPageMedia(ctx, payload)
@@ -874,6 +896,72 @@ var importers = map[string]importer{
 		},
 		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
 			return queries.ClearPageMedia(ctx)
+		},
+	},
+	"post": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportPost(ctx, sqlc.ImportPostParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsPost(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearPost(ctx)
+		},
+	},
+	"post_read": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, _ bool) (int64, error) {
+			return queries.ImportPostRead(ctx, payload)
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsPostRead(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearPostRead(ctx)
+		},
+	},
+	"post_confirmation": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, _ bool) (int64, error) {
+			return queries.ImportPostConfirmation(ctx, payload)
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsPostConfirmation(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearPostConfirmation(ctx)
+		},
+	},
+	"post_reply": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportPostReply(ctx, sqlc.ImportPostReplyParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsPostReply(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearPostReply(ctx)
+		},
+	},
+	"post_reaction": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, _ bool) (int64, error) {
+			return queries.ImportPostReaction(ctx, payload)
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsPostReaction(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearPostReaction(ctx)
+		},
+	},
+	"post_follow": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, _ bool) (int64, error) {
+			return queries.ImportPostFollow(ctx, payload)
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsPostFollow(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearPostFollow(ctx)
 		},
 	},
 	"page_article_rating": {
@@ -907,6 +995,17 @@ var importers = map[string]importer{
 		},
 		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
 			return queries.ClearConfigDraft(ctx)
+		},
+	},
+	"config_goal_set": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportConfigGoalSet(ctx, sqlc.ImportConfigGoalSetParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsConfigGoalSet(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearConfigGoalSet(ctx)
 		},
 	},
 	"template_page": {
@@ -1072,6 +1171,39 @@ var importers = map[string]importer{
 		},
 		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
 			return queries.ClearCmdbAsset(ctx)
+		},
+	},
+	"cmdb_asset_move": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportCmdbAssetMove(ctx, sqlc.ImportCmdbAssetMoveParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsCmdbAssetMove(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearCmdbAssetMove(ctx)
+		},
+	},
+	"cmdb_ci_media": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, _ bool) (int64, error) {
+			return queries.ImportCmdbCiMedia(ctx, payload)
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsCmdbCiMedia(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearCmdbCiMedia(ctx)
+		},
+	},
+	"cmdb_ci_history": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, _ bool) (int64, error) {
+			return queries.ImportCmdbCiHistory(ctx, payload)
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsCmdbCiHistory(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearCmdbCiHistory(ctx)
 		},
 	},
 	"cmdb_software_alias": {

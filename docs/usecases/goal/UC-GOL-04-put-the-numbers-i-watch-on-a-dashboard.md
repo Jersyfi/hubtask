@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-11, P-13, P-18]
 state: verified
 tasks: []
-checked_by: [core/domain/model/goal/Goal_test.go, core/domain/model/view/Aggregate_test.go, core/application/service/work/AggregateItems_test.go, infrastructure/postgres/query/Aggregate_test.go, test/integration/query_aggregate_test.go, core/domain/model/goal/Digest_test.go, core/application/service/goal/Goal_test.go, core/application/service/goal/Digests_test.go, infrastructure/mail/SMTP_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts, apps/webapp/src/lib/data/xlsx.test.ts, core/domain/model/goal/Running_test.go, test/architecture/doorsalike_test.go, apps/webapp/e2e/goalswalk.test.mjs]
+checked_by: [core/domain/model/goal/Goal_test.go, core/domain/model/view/Aggregate_test.go, core/application/service/work/AggregateItems_test.go, infrastructure/postgres/query/Aggregate_test.go, test/integration/query_aggregate_test.go, core/domain/model/goal/Digest_test.go, core/application/service/goal/Goal_test.go, core/application/service/goal/Digests_test.go, infrastructure/mail/SMTP_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts, apps/webapp/src/lib/data/xlsx.test.ts, core/domain/model/goal/Running_test.go, test/architecture/doorsalike_test.go, apps/webapp/e2e/goalswalk.test.mjs, core/application/service/goal/DashboardFilter_test.go, core/domain/model/goal/Kinds_test.go, apps/webapp/src/lib/data/listhandoff.test.ts, apps/webapp/src/lib/data/viewquery.test.ts, test/integration/dashboard_draft_test.go]
 ---
 
 # Put the numbers I watch on a dashboard
@@ -65,6 +65,25 @@ says he may not see it. Ana's own dashboard *Mine* is hers alone.
 17. The digest carries each table widget's rows as a CSV file, computed as the subscriber, where
     their mail lets titles travel; a widget they cannot compute has no file, and no text in a file
     runs as a formula.
+18. A dashboard holds one query line every widget counting entries inherits, drawn as chips over its
+    widgets; people and places in it are named as in a collection's line. A widget releases the
+    condition of a field to ignore it, and a widget fed by a saved view keeps its view's query.
+19. The nine kinds draw each in its own shape - a number with its change, a target and a warning
+    line; bars lying down with their values; a ring; lines; a table; a matrix; goals' progress; a
+    list of entries; a text - in the fixed chart palette, the parts beyond what it tells apart
+    folded into one.
+20. In edit mode a widget is moved and resized by its handle and corner, by whole cells, with the
+    keyboard as well; a change is undone, and the library offers the nine kinds previewed with the
+    reader's own data.
+21. The widget editor stands beside the grid with the others dimmed, in three tabs; it shows the
+    dashboard's conditions as inherited chips, each released and taken back by a press, and names
+    every grouping and period field by its word, never its key.
+22. *Open as list* opens the collection a widget counts with the widget's line - what the dashboard
+    passes on and its own - as a changed, unsaved view; a widget counting a hub or the whole
+    workspace opens the search with that line. The line never enters the address.
+23. While a widget is edited, it stands large on the grid and its figure is computed from the
+    definition being edited, as the reader and held to a save's checks; nothing is stored until it
+    is applied, and only on a dashboard the reader sees.
 
 ## Where it ends
 

@@ -91,6 +91,24 @@ type Asset struct {
 	Version       int
 }
 
+// AssetMove is one step of an asset's life: the state it reached on being registered or moved,
+// when and by whom, and the person or stockroom it was with then.
+type AssetMove struct {
+	ID          shared.ID
+	HubID       shared.ID
+	CIID        shared.ID
+	State       AssetState
+	At          time.Time
+	By          shared.ID
+	AssignedTo  shared.ID
+	StockroomID shared.ID
+}
+
+// MoveOf is the step an asset just took into the state it holds now.
+func MoveOf(id shared.ID, a Asset, by shared.ID, at time.Time) AssetMove {
+	return AssetMove{ID: id, HubID: a.HubID, CIID: a.CIID, State: a.State, At: at, By: by, AssignedTo: a.AssignedTo, StockroomID: a.StockroomID}
+}
+
 var currencyPattern = regexp.MustCompile(`^[A-Z]{3}$`)
 
 // Check refuses a malformed register entry: a tag or supplier too long, a negative cost, a cost

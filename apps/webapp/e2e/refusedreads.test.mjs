@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { COLLECTION, PERMISSIONS } from './fixture.mjs';
@@ -49,8 +49,7 @@ const walks = [
 
 for (const walkOf of walks) {
   test(`chromium: ${walkOf.name}`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const walk = await productWalk(browser, { modules: walkOf.modules, manifest: walkOf.manifest, answer: refusing(walkOf.refused) });
     t.after(walk.close);
     const { page } = walk;

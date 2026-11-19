@@ -35,6 +35,10 @@ import (
 // encryption is not worth the name (security.md §8).
 const minSecretKeyLength = 32
 
+// defaultCoverImagesURL is the public image library a cover may take a picture from, dialled only
+// for a workspace that chose it (PG-6).
+const defaultCoverImagesURL = "https://api.openverse.org/v1"
+
 type EnvConfig struct {
 	version string
 	commit  string
@@ -169,14 +173,16 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			MaxAge:         getDuration("HUBTASK_CORS_MAX_AGE", 10*time.Minute),
 		},
 		Outbound: env.OutboundConfig{
-			Timeout:              getDuration("HUBTASK_HTTP_TIMEOUT", 10*time.Second),
-			ConnectTimeout:       getDuration("HUBTASK_HTTP_CONNECT_TIMEOUT", 5*time.Second),
-			MaxResponseBytes:     int64(getInt("HUBTASK_HTTP_MAX_RESPONSE_BYTES", 1<<20)), // 1 MiB
-			MaxRedirects:         getInt("HUBTASK_HTTP_MAX_REDIRECTS", 3),
-			AllowedHosts:         getList("HUBTASK_HTTP_ALLOWED_HOSTS"),
-			AllowPrivateNetworks: getBool("HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS", false),
-			CAFile:               get("HUBTASK_HTTP_CA_FILE", ""),
-			CARoots:              readOptional(get("HUBTASK_HTTP_CA_FILE", "")),
+			Timeout:               getDuration("HUBTASK_HTTP_TIMEOUT", 10*time.Second),
+			ConnectTimeout:        getDuration("HUBTASK_HTTP_CONNECT_TIMEOUT", 5*time.Second),
+			MaxResponseBytes:      int64(getInt("HUBTASK_HTTP_MAX_RESPONSE_BYTES", 1<<20)), // 1 MiB
+			MaxRedirects:          getInt("HUBTASK_HTTP_MAX_REDIRECTS", 3),
+			AllowedHosts:          getList("HUBTASK_HTTP_ALLOWED_HOSTS"),
+			AllowPrivateNetworks:  getBool("HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS", false),
+			DocumentServerPrivate: getBool("HUBTASK_DOCUMENT_SERVER_PRIVATE_NETWORK", tenancy != env.TenancyMulti),
+			CAFile:                get("HUBTASK_HTTP_CA_FILE", ""),
+			CARoots:               readOptional(get("HUBTASK_HTTP_CA_FILE", "")),
+			CoverImagesURL:        get("HUBTASK_COVER_IMAGES_URL", defaultCoverImagesURL),
 		},
 		Queue: env.QueueConfig{
 			PollInterval:      getDuration("HUBTASK_QUEUE_POLL_INTERVAL", 2*time.Second),

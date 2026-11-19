@@ -581,3 +581,24 @@ func TestAPlanAnswersItsUndatedEntriesAndItsDueOnlyOnes(t *testing.T) {
 		t.Errorf("the dated entry = %v, want not due_only", e)
 	}
 }
+
+// UC-PLN-02 (the view's *Release* grouping): each entry of the schedule names the release it ships
+// with, and an entry in none names none.
+func TestAPlanEntryNamesItsRelease(t *testing.T) {
+	f := newFixture()
+	store := newReleaseStore()
+	release := shared.MustParseID("01936f2a-7c1e-7000-8000-000000000107")
+	store.members[release] = []planrepo.ReleaseMember{{EntryID: design}}
+	f.planner.Releases = store
+	scheduled, err := ReadPlanSchedule{Planner: f.planner}.Execute(context.Background(), actor(), ScheduleQuery{PlanID: hubID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := scheduled.Output()
+	if e := entryOf(t, out, design); e == nil || e["release_id"] != release.String() {
+		t.Errorf("the design = %v, want its release", e)
+	}
+	if e := entryOf(t, out, build); e == nil || e["release_id"] != nil {
+		t.Errorf("the build = %v, want no release", e)
+	}
+}

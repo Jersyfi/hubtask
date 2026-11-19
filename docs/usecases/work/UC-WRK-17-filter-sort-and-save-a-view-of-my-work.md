@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-09, P-11, P-12, P-13]
 state: partial
 tasks: [B-12, D-07, D-08, F2-13, F3-15, F10-14]
-checked_by: [core/domain/model/view/Line_test.go, core/application/service/work/QueryItems_test.go, test/integration/query_language_test.go, test/integration/typed_field_test.go, core/domain/model/view/CustomShape_test.go, infrastructure/postgres/query/CustomValue_test.go, test/integration/query_test.go, test/integration/saved_view_test.go, test/integration/saved_view_acceptance_test.go, test/integration/export_test.go, core/domain/model/view/Filter_test.go, core/domain/model/view/SavedView_test.go, apps/webapp/e2e/container.test.mjs, apps/webapp/e2e/timeline.test.mjs, apps/webapp/e2e/subtreeviews.test.mjs, apps/webapp/src/lib/data/query.test.ts, apps/webapp/src/lib/data/queryline.test.ts, apps/webapp/src/lib/data/customfields.test.ts, test/integration/query_aggregate_test.go, infrastructure/postgres/query/Aggregate_test.go, core/application/service/work/AggregateItems_test.go, core/application/service/work/AggregateView_test.go]
+checked_by: [core/domain/model/view/Line_test.go, core/application/service/work/QueryItems_test.go, test/integration/query_language_test.go, test/integration/typed_field_test.go, core/domain/model/view/CustomShape_test.go, infrastructure/postgres/query/CustomValue_test.go, test/integration/query_test.go, test/integration/saved_view_test.go, test/integration/saved_view_acceptance_test.go, test/integration/export_test.go, core/domain/model/view/Filter_test.go, core/domain/model/view/SavedView_test.go, apps/webapp/e2e/container.test.mjs, apps/webapp/e2e/timeline.test.mjs, apps/webapp/e2e/subtreeviews.test.mjs, apps/webapp/src/lib/data/query.test.ts, apps/webapp/src/lib/data/queryline.test.ts, apps/webapp/src/lib/data/customfields.test.ts, test/integration/query_aggregate_test.go, infrastructure/postgres/query/Aggregate_test.go, core/application/service/work/AggregateItems_test.go, core/application/service/work/AggregateView_test.go, apps/webapp/e2e/viewpanel.test.mjs]
 ---
 
 # Filter, sort and save a view of my work
@@ -63,8 +63,18 @@ before saving a new one. At the end of the month the lead exports the view as CS
     is read into the same conditions and order, held to the same fields, operators and bounds, a
     line that cannot be read is refused with `query.line_malformed` naming the character it stops
     at, and a line sent beside conditions or an order is refused with `query.line_with_filter`.
-    In the web app, the filter's *As a line* field writes the line from the conditions and the
-    conditions from the line; a line the conditions cannot draw is kept whole, as a saved view's.
+    In the web app, the *View* panel's query line (UC-WRK-43) reads a line into the conditions and
+    the order and spells them back; a line the conditions cannot draw is kept whole, as a saved
+    view's.
+13. One panel *Ansicht* holds the layout, what is seen as the Hubtask query line (chips, the
+    count while typing, the same query as text), the order, the fields - custom fields
+    included -, the board's columns, lanes and limits, and saving with name, place and
+    visibility; it replaces the separate filter, sort, fields and views menus, the same in every
+    collection, and is a sheet on a phone. The tab whose view is changed and not saved carries a
+    dot, and the panel's button says how many parts changed (E-21).
+14. The calendar layout places the entries on the days of the date the view names (`due_at` by
+    default, or `start_at`, `created_at`, …), saved with the view as `grouping.date_field`; a
+    field that is no date is refused with `views.date_field_not_a_date`.
 
 ## Where it ends
 
@@ -79,4 +89,4 @@ before saving a new one. At the end of the month the lead exports the view as CS
 
 ## Today
 
-* Check 6: met for a view whose filter is conditions joined by AND — applying it draws them in the filter panel (`QueryPanel`, `conditionsOf` in `apps/webapp/src/lib/data/query.test.ts`), where they are changed. A filter the panel cannot draw (an OR, a NOT) is kept whole, counted as one condition and combined with what the person adds, so it is honoured but not shown condition by condition.
+* Check 6: partly met — a saved filter of conditions joined by AND is spelled on the *View* panel's query line, where it is changed; a filter the line cannot spell (an OR, a NOT) is kept whole and counted as one condition, honoured but not shown condition by condition.

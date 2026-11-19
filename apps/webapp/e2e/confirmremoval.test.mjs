@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { MANIFEST, PERMISSIONS, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -58,8 +58,7 @@ async function settle(page, removed, count) {
 }
 
 test('chromium: removing a backup schedule asks first, and cancelling sends nothing', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, removed, failures, close } = await open(browser, '/administration/backup');
   t.after(close);
 
@@ -84,8 +83,7 @@ test('chromium: removing a backup schedule asks first, and cancelling sends noth
 });
 
 test('chromium: removing a backup target asks in the same dialog', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, removed, close } = await open(browser, '/administration/backup/targets');
   t.after(close);
 
@@ -97,8 +95,7 @@ test('chromium: removing a backup target asks in the same dialog', async (t) => 
 });
 
 test('chromium: withdrawing a retention rule asks first, and cancelling sends nothing', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, removed, failures, close } = await open(browser, '/administration/retention');
   t.after(close);
 

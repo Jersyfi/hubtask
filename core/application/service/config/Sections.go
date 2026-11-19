@@ -222,6 +222,8 @@ func sections() []section {
 			create:     "DefineReplyTemplate", change: "DefineReplyTemplate", remove: "DeleteReplyTemplate",
 			locate: "key", locateFrom: "key", changeable: []string{"name", "body"}, whole: true,
 		},
+		timeWorkTypesSection(),
+		goalSetsSection(),
 	}, furnitureSections("")...)
 }
 

@@ -11,7 +11,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ALL, COLLECTIONS, DESIGN, HUBS, MOBILE, PD, WEB, open, served, side } from './kompassstub.mjs';
 
@@ -30,8 +30,7 @@ const box = async (locator) => {
 const VIEWS = ['?layout=board', '/sprint', '/backlog', '?layout=list', '/timeline', '/time'];
 
 test('R-11: every view of a collection draws one head - its name, its star, one figure - and the bar at one place', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   for (const [name, size] of [['desktop', desktop], ['tablet', tablet], ['phone', phone]]) {
     const { page, failures, close } = await go(browser, { path: `/collections/${MOBILE.id}`, ...size });
     t.after(close);
@@ -65,8 +64,7 @@ test('R-11: every view of a collection draws one head - its name, its star, one 
 });
 
 test('R-11: the sprint\'s days stand in the figure\'s place, the collection\'s count where a view has none', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await go(browser, { path: `/collections/${MOBILE.id}/sprint`, ...desktop });
   t.after(close);
   const figure = page.locator('main [data-head="collection"] .head-figure');
@@ -78,8 +76,7 @@ test('R-11: the sprint\'s days stand in the figure\'s place, the collection\'s c
 });
 
 test('A collection\'s people and its ⋯ stand in its head on every view, the ⋯ with the collection\'s own items', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   for (const [name, size] of [['desktop', desktop], ['tablet', tablet]]) {
     const { page, failures, close } = await go(browser, { path: `/collections/${MOBILE.id}`, ...size });
     t.after(close);
@@ -99,8 +96,7 @@ test('A collection\'s people and its ⋯ stand in its head on every view, the �
 });
 
 test('A hub tool\'s tabs draw one head - the trail, the tool\'s name, one figure slot - and the bar at one place', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const TOOLS = [['plan', ['', '/table', '/dependencies', '/releases', '/sprints']], ['time', ['', '/workload', '/budget']], ['goals', ['', '/dashboards']]];
   for (const [name, size] of [['desktop', desktop], ['tablet', tablet], ['phone', phone]]) {
     const { page, failures, close } = await go(browser, { path: `/hubs/${PD.id}/plan`, ...size });
@@ -146,56 +142,61 @@ async function fits(page, label) {
   return bar;
 }
 
-test('R-13: the tools fold to their marks - named, with their words as tooltips - and never overlap the views', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+/** The list's tools in their own line over the list (work-surface concept §6.2, E-21): each in words, inside the page. */
+async function inWords(page, label) {
+  const tools = page.getByRole('group', { name: 'The list’s tools' });
+  await tools.waitFor();
+  const edge = await box(page.locator('main'));
+  for (const name of ['View', 'Select entries']) {
+    const button = tools.getByRole('button', { name }).first();
+    assert.ok((await button.innerText()).trim().length > 2, `${label}: ${name} is a bare mark`);
+    const each = await box(button);
+    assert.ok(each.x + each.width <= edge.x + edge.width + 1, `${label}: ${name} runs past the page`);
+  }
+  return tools;
+}
+
+test('R-13: at every width the list\'s tools stand in words on their own line, and the bar holds no second View', async (t) => {
+  const browser = await sharedChromium(t);
   for (const width of [1440, 1024, 820, 600]) {
     const { page, failures, close } = await go(browser, { path: `/collections/${DESIGN.id}?layout=list`, width, height: 900, hasTouch: width < 905 });
     t.after(close);
-    const bar = await fits(page, `${width}`);
-    const tools = bar.locator('.tools');
-    const fit = await tools.getAttribute('data-fit');
-    const filter = bar.getByRole('button', { name: 'Filter' });
-    assert.equal(await filter.count(), 1, `${width}: Filter is named`);
-    if (fit === 'marks') {
-      assert.equal(await filter.getAttribute('title'), 'Filter', `${width}: a mark carries its words as tooltip`);
-      const mark = await box(filter);
-      assert.ok(Math.abs(mark.width - mark.height) <= 1, `${width}: a mark stands square, ${mark.width} by ${mark.height}`);
-    }
-    if (width === 1440) assert.equal(fit, 'whole', 'the widest window shows the tools whole');
-    if (width === 1024) assert.equal(fit, 'marks', 'the views keep their room, the tools fold to marks');
+    await inWords(page, `${width}`);
+    assert.equal(await page.getByRole('navigation', { name: DESIGN.name }).getByRole('button', { name: /^View/ }).count(), 0, `${width}: a second View in the bar`);
+    if (width < 905) await fits(page, `${width}`);
     assert.deepEqual(failures, []);
   }
 });
 
-test('R-13: narrower than the marks and the views, the tools move behind one ⋯ and work from there', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+test('R-13: beside a wide sidebar the list\'s tools wrap rather than hide, each in words, and work from there', async (t) => {
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await go(browser, { path: `/collections/${DESIGN.id}?layout=list`, width: 905, height: 900, storage: { 'hubtask.nav.width': '400' } });
   t.after(close);
-  const bar = await fits(page, '905 beside a wide sidebar');
-  await bar.getByRole('button', { name: 'Tools' }).click();
-  const panel = page.getByRole('dialog', { name: 'Tools' });
-  for (const name of ['Filter', 'Fields', 'Group', 'Sort', 'Views', 'Select entries']) {
-    assert.equal(await panel.getByRole('button', { name }).count(), 1, `${name} behind ⋯`);
-  }
-  await panel.getByRole('button', { name: 'Sort' }).click();
-  await page.getByRole('menuitem', { name: 'The order you arranged' }).waitFor();
+  const tools = await inWords(page, '905 beside a wide sidebar');
+  await tools.getByRole('button', { name: 'View' }).click();
+  await page.locator('[data-view-panel]').getByLabel('Sort by').waitFor();
   assert.deepEqual(failures, []);
 });
 
+/** Today's collections tile; on a phone it is the overview's, behind the switch (work-surface §7). */
+async function todayCollections(page) {
+  const overview = page.getByRole('tab', { name: 'Overview' });
+  await page.locator('[data-today]').waitFor();
+  if (await overview.count() && (await overview.getAttribute('aria-selected')) !== 'true') await overview.click();
+  return page.locator('[data-tile="COLLECTIONS"]');
+}
+
 test('R-15: a new screen starts at its top, back returns to where the reader was', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   for (const [name, size] of [['phone', phone], ['desktop', { ...desktop, height: 500 }]]) {
     const { page, failures, close } = await go(browser, { path: '/', ...size });
     t.after(close);
-    const tile = page.locator('section[aria-labelledby="today-lists"] a', { hasText: WEB.name });
+    const tile = (await todayCollections(page)).locator('a', { hasText: WEB.name });
     await tile.waitFor();
     const reach = await page.evaluate(() => document.documentElement.scrollHeight - innerHeight);
     assert.ok(reach > 120, `${name}: Today is taller than the screen`);
+    await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
     await tile.scrollIntoViewIfNeeded();
-    await page.evaluate(() => scrollBy(0, 60));
     const at = await page.evaluate(() => scrollY);
     assert.ok(at > 100, `${name}: Today scrolled to ${at}`);
     await tile.click();
@@ -203,15 +204,14 @@ test('R-15: a new screen starts at its top, back returns to where the reader was
     await page.waitForTimeout(300);
     assert.equal(await page.evaluate(() => scrollY), 0, `${name}: the collection opened where Today was scrolled to`);
     await page.goBack();
-    await tile.waitFor();
-    await page.waitForFunction((y) => Math.abs(scrollY - y) <= 2, at, { timeout: 5_000 });
+    await (await todayCollections(page)).locator('a', { hasText: WEB.name }).waitFor();
+    await page.waitForFunction((y) => Math.abs(scrollY - y) <= 2, at, { timeout: 5_000 }).catch(async () => assert.fail(`${name}: back returned to ${await page.evaluate(() => scrollY)}, not ${at}`));
     assert.deepEqual(failures, []);
   }
 });
 
 test('R-15 on desktop: a row of the sidebar opens its screen at the top, and the sidebar keeps its own scroll', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await go(browser, { path: `/collections/${WEB.id}?layout=list`, width: 1440, height: 520 });
   t.after(close);
   await page.locator('main').getByRole('heading', { level: 1, name: WEB.name }).waitFor();
@@ -232,9 +232,8 @@ test('R-15 on desktop: a row of the sidebar opens its screen at the top, and the
   assert.deepEqual(failures, []);
 });
 
-test('Today\'s Lists: a long name stays in its tile, and the card in its column', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+test('Today\'s collections: a long name stays in its tile, and the tile in its column', async (t) => {
+  const browser = await sharedChromium(t);
   const long = 'Team Boreal – Platform & API and everything around it';
   const renamed = COLLECTIONS.map((each) => (each.id === WEB.id ? { ...each, name: long } : each));
   const extra = async (route, request, url) => {
@@ -245,7 +244,7 @@ test('Today\'s Lists: a long name stays in its tile, and the card in its column'
   for (const size of [desktop, { width: 1024, height: 900 }, phone]) {
     const { page, failures, close } = await go(browser, { path: '/', extra, ...size });
     t.after(close);
-    const card = page.locator('section[aria-labelledby="today-lists"]');
+    const card = await todayCollections(page);
     await card.locator('a', { hasText: 'Team Boreal' }).waitFor();
     const edge = await box(card);
     for (const tile of await card.locator('a').all()) {
@@ -258,8 +257,7 @@ test('Today\'s Lists: a long name stays in its tile, and the card in its column'
 });
 
 test('The list\'s column heads stand over their columns where they fit, and are gone where they do not - never over each other', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   for (const width of [1440, 1024, 905, 820, 600, 390]) {
     const { page, failures, close } = await go(browser, { path: `/collections/${DESIGN.id}?layout=list`, width, height: 900, hasTouch: width < 905, ready: width < 600 ? phone.ready : undefined });
     t.after(close);
@@ -271,7 +269,12 @@ test('The list\'s column heads stand over their columns where they fit, and are 
     if (width === 1440) assert.ok(shown, 'the widest window shows the column heads');
     if (shown) {
       const heads = [];
-      for (const each of await head.locator('.col-head').all()) heads.push({ text: (await each.innerText()).trim(), ...(await box(each)) });
+      // Only the drawn heads: a field that finds no column goes to the row's meta line, and its
+      // head stays behind, undrawn, to be measured (§7).
+      for (const each of await head.locator('.col-head').all()) {
+        if (!(await each.evaluate((node) => getComputedStyle(node).visibility === 'visible'))) continue;
+        heads.push({ text: (await each.innerText()).trim(), ...(await box(each)) });
+      }
       for (let index = 1; index < heads.length; index += 1) {
         const before = heads[index - 1];
         assert.ok(heads[index].x >= before.x + before.width, `${width}: "${heads[index].text}" starts at ${heads[index].x}, "${before.text}" ends at ${before.x + before.width}`);
@@ -289,8 +292,7 @@ test('The list\'s column heads stand over their columns where they fit, and are 
 });
 
 test('A long one-word hub name ends in an ellipsis in the hub\'s head, never broken or hyphenated by the reader\'s language', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const long = 'Produktentwicklungsabteilung';
   const named = (each) => (each.id === PD.id ? { ...each, name: long } : each);
   const extra = async (route, request, url) => {
@@ -318,8 +320,7 @@ test('A long one-word hub name ends in an ellipsis in the hub\'s head, never bro
 });
 
 test('A title that wraps keeps its ☆ beside it, never on a line of its own', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const long = 'Mobile App for customers on iOS and Android';
   const renamed = COLLECTIONS.map((each) => (each.id === MOBILE.id ? { ...each, name: long } : each));
   const extra = async (route, request, url) => {

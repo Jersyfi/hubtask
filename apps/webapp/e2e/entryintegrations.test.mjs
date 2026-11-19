@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, COLLECTION, HUB, ITEMS, signedIn } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -37,8 +37,7 @@ const BRANCH = { ...PULL, id: '01a0e2e0-0000-7000-8000-000000002312', kind: 'BRA
 const json = (route, body, status = 200) => route.fulfill({ status, json: body });
 
 test('chromium: a forge is added under Settings → Code and its secret is shown once', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 1000);
   t.after(() => context.close());
   let hooks = [];
@@ -70,8 +69,7 @@ test('chromium: a forge is added under Settings → Code and its secret is shown
 });
 
 test('chromium: an entry shows its code and links a file from a store', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 1400);
   t.after(() => context.close());
   let files = [];
@@ -91,6 +89,8 @@ test('chromium: an entry shows its code and links a file from a store', async (t
   });
 
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
+  // The rail's *Code* section is folded as the scene draws it (§6.9); unfolded, it lists the links.
+  await page.getByRole('button', { name: 'Unfold Code' }).click({ timeout: 15_000 });
   const code = page.locator('[data-entry-code]');
   await code.waitFor({ timeout: 15_000 });
   const pull = code.getByRole('link', { name: PULL.title });
@@ -102,8 +102,8 @@ test('chromium: an entry shows its code and links a file from a store', async (t
   assert.equal(await code.getByRole('link', { name: BRANCH.title }).count(), 0);
 
   const section = page.locator('[data-entry-files]');
-  await section.getByText('No file from a store is linked yet.').waitFor({ timeout: 5_000 });
-  await section.getByRole('button', { name: 'Link a file' }).click();
+  // Nothing linked yet: no sentence about it (ET-4), only the act.
+  await section.getByRole('button', { name: 'Link a file' }).click({ timeout: 5_000 });
   const dialog = page.getByRole('dialog', { name: 'Link a file from a store' });
   await dialog.getByRole('textbox', { name: 'Address' }).fill('https://cloud.example.org/s/aBcD1234');
   await dialog.getByRole('button', { name: 'Link', exact: true }).click();

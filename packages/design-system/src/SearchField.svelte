@@ -144,4 +144,10 @@
 
   /* The platform's own clear button, removed: ours is beside it and two would be a puzzle. */
   .input::-webkit-search-cancel-button { appearance: none; }
+  /* A thumb's target (§7, P-1): a picker's search is as tall as a press where the pointer is coarse. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .shell[data-size] { min-height: var(--layout-target); }
+    .shell[data-size] .input { align-self: stretch; }
+  }
 </style>

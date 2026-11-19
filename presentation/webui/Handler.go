@@ -4,14 +4,18 @@
 package webui
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"path"
 	"regexp"
 	"strings"
+
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
 // ContentSecurityPolicy is the policy for the UI origin, decided in ADR-0028 - as it stands for an
@@ -34,6 +38,9 @@ const ContentSecurityPolicy = "default-src 'none'; " +
 	// data: and blob: are for images the application makes itself - a pasted screenshot, a
 	// generated avatar. A browser treats them as images, never as script.
 	"img-src 'self' data: blob:; " +
+	// The file viewer plays audio and video by their download URL - 'self' on a local
+	// installation - and nothing else; the media allowlist decides which types get that far.
+	"media-src 'self'; " +
 	"font-src 'self'; " +
 	// The API is the same origin, so this permits exactly the calls the application has to make
 	// and nothing else. It is also what stops a compromised dependency from exfiltrating.
@@ -48,10 +55,11 @@ const ContentSecurityPolicy = "default-src 'none'; " +
 
 // PolicyFor is the interface's policy for an installation whose media lives at mediaOrigin
 // (ADR-0047): the ADR-0028 policy with that one origin added to `connect-src` - the browser has
-// to PUT the bytes of an upload to a presigned URL there - and to `img-src` - a cover is drawn from
-// a presigned URL there - and to nothing else. An empty origin is the `local` installation, whose
-// media URLs are already 'self', and answers ContentSecurityPolicy byte for byte; a test holds it
-// there, which is what keeps this from quietly widening the default installation.
+// to PUT the bytes of an upload to a presigned URL there -, to `img-src` - a cover is drawn from
+// a presigned URL there - and to `media-src` - the file viewer plays from one - and to nothing
+// else. An empty origin is the `local` installation, whose media URLs are already 'self', and
+// answers ContentSecurityPolicy byte for byte; a test holds it there, which is what keeps this
+// from quietly widening the default installation.
 //
 // The origin is trusted as given: scheme, host and port, derived by the composition root from the
 // storage configuration it parsed for the adapter, and never from anything a request carries.
@@ -62,6 +70,7 @@ func PolicyFor(mediaOrigin string) string {
 	}
 	policy := ContentSecurityPolicy
 	policy = strings.Replace(policy, "img-src 'self' data: blob:; ", "img-src 'self' data: blob: "+mediaOrigin+"; ", 1)
+	policy = strings.Replace(policy, "media-src 'self'; ", "media-src 'self' "+mediaOrigin+"; ", 1)
 	policy = strings.Replace(policy, "connect-src 'self'; ", "connect-src 'self' "+mediaOrigin+"; ", 1)
 	return policy
 }
@@ -147,6 +156,32 @@ type Handler struct {
 	build string
 	// previous is the previous release's content-hashed assets (WithPrevious), nil for none.
 	previous fs.FS
+	// documentServer answers the origin of the document server the workspace a page loads in has
+	// entered (WithDocumentServers), nil for none.
+	documentServer func(ctx context.Context, host string) (string, error)
+}
+
+// WithDocumentServers answers the handler with the document's policy opened, per page load, for
+// the document server the workspace on the request's host entered: its origin joins `frame-src`
+// and replaces `form-action 'none'`, so the viewer can post the editor's token into a frame
+// (ADR-0104). Only the document; an asset keeps the closed policy, and so does a page whose
+// lookup fails.
+func (h Handler) WithDocumentServers(origin func(ctx context.Context, host string) (string, error)) Handler {
+	h.documentServer = origin
+	return h
+}
+
+// WithDocumentServer is a policy opened for one document server's origin; empty answers it
+// unchanged.
+func WithDocumentServer(policy, origin string) string {
+	if origin == "" {
+		return policy
+	}
+	policy = strings.Replace(policy, "form-action 'none'", "form-action "+origin, 1)
+	if strings.Contains(policy, "; frame-src ") {
+		return strings.Replace(policy, "; frame-src ", "; frame-src "+origin+" ", 1)
+	}
+	return policy + "; frame-src " + origin
 }
 
 // WithPrevious answers the handler with the previous release's assets beside its own bundle: a
@@ -268,6 +303,16 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) serve(w http.ResponseWriter, r *http.Request, name string) {
+	if name == indexPath && h.documentServer != nil {
+		origin, err := h.documentServer(r.Context(), r.Host)
+		if err != nil {
+			slog.WarnContext(r.Context(), "the workspace's document server could not be read for the page's policy",
+				slog.String("code", shared.AsError(err).DetailCode))
+		}
+		if err == nil && origin != "" {
+			w.Header().Set("Content-Security-Policy", WithDocumentServer(h.policy, origin))
+		}
+	}
 	if contentHashed.MatchString(name) {
 		w.Header().Set("Cache-Control", immutableCache)
 	} else {

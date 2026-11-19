@@ -40,7 +40,9 @@ raised the scope line. The velocity of the last three sprints is 18 points, so t
    each committed and completed, and the average completed of the latest three in the unit the
    newest counted; an estimate stays in its workspace and is in the workspace's archive.
 5. The sprint screen shows each entry's estimate and lets a member change it, draws the burndown
-   with its ideal line and the velocity of the closed sprints, and is readable as a table.
+   with its ideal line and the velocity of the closed sprints, and is readable as a table; the
+   backlog tab sums the backlog's estimates, counts the entries without one, and sets the planned
+   sprint against the velocity of the last three as a planning aid, never a limit (E-22).
 6. REST, MCP and hubctl set and clear an estimate and read the burndown and the velocity alike.
 
 ## Where it ends

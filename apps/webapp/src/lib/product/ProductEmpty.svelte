@@ -18,11 +18,16 @@
   import { guideOf, whoToAsk } from './guide.ts';
   import { productOf } from '../navigation.ts';
   import { productTour } from './producttour.svelte.ts';
+  import { PRODUCT_TILES } from './tiles.ts';
+  import TemplateCards from './TemplateCards.svelte';
 
   /** One act on the empty screen: resolved label, what pressing it does. */
   interface Act {
     label: string;
     onclick: () => void;
+    /** A template's one line and mark, which draw it as a card (scene empty). */
+    description?: string;
+    icon?: IconName;
   }
 
   interface Props {
@@ -50,12 +55,33 @@
      * is, so the empty state draws no second one beside it (user-experience.md §5.2).
      */
     isInHead?: boolean;
+    /**
+     * A product's home before its first use (scene empty): the product's tile in its colour, the
+     * side way beside the main one, and the templates as cards under it.
+     */
+    isProductHome?: boolean;
+    /**
+     * A product switched on and never used (scenes emptygoals, emptytime): the page's whole start -
+     * the title is the product's name, its one heading, and the page draws no band above it.
+     */
+    isStart?: boolean;
+    /** The side way beside the main one: start empty, set up first. */
+    side?: Act;
+    /**
+     * How the template cards are drawn, as each product's mockup draws them: `stacked` - mark, name,
+     * line and a *Use* mark (scene empty); `row` - mark beside name and line, no *Use* (the plans',
+     * inventory's, agents', goals' and time's homes).
+     */
+    templateShape?: 'stacked' | 'row';
   }
 
-  const { kind, title, description, icon, create, clear, templates = [], whoCan, product, place, isInHead = false }: Props = $props();
+  const { kind, title, description, icon, create, clear, templates = [], whoCan, product, place, isInHead = false, isProductHome: isHomeProp = false, isStart = false, side, templateShape = 'stacked' }: Props = $props();
+  const isProductHome = $derived(isHomeProp || isStart);
+  const tile = $derived(isProductHome && kind === 'unused' && product ? PRODUCT_TILES[product] : undefined);
 
   const act = $derived(kind === 'filtered' ? clear : isInHead && viewport.isCompact ? undefined : create);
   const offersTemplates = $derived(kind === 'unused' && create !== undefined && templates.length > 0);
+  const templateCards = $derived(offersTemplates && isProductHome);
   // Whom to ask, from the place's explanation (§5.5), read only where it is said.
   const asksPlace = $derived(kind === 'unused' && create === undefined && whoCan === undefined && place !== undefined);
   const explainPath = $derived(
@@ -83,6 +109,7 @@
   {#if act}
     <Button tone={kind === 'filtered' ? 'secondary' : 'primary'} icon={kind === 'filtered' ? undefined : 'plus'} data-tour={kind === 'filtered' ? undefined : 'product-create'} onclick={act.onclick}>{act.label}</Button>
   {/if}
+  {#if side && kind === 'unused'}<Button tone="secondary" data-empty-side onclick={side.onclick}>{side.label}</Button>{/if}
 {/snippet}
 
 {#snippet templateRow()}
@@ -106,7 +133,13 @@
   {title}
   {description}
   {icon}
-  action={act ? actRow : undefined}
-  secondary={offersTemplates ? templateRow : undefined}
+  product={tile}
+  isHome={isStart}
+  isTitleInBar={isStart && viewport.isCompact}
+  action={act || (side && kind === 'unused') ? actRow : undefined}
+  secondary={offersTemplates && !templateCards ? templateRow : undefined}
   footnote={saysWhoCan || guide || toured ? footnoteLine : undefined}
 />
+{#if templateCards}
+  <TemplateCards {templates} shape={templateShape} {tile} />
+{/if}

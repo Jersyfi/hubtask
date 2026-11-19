@@ -181,9 +181,11 @@ type CreateRuleCommand struct {
 	RunAs      shared.ID
 	Trigger    domain.Trigger
 	Conditions []domain.Condition
-	Actions    []domain.Action
-	Throttle   domain.Throttle
-	OnError    domain.OnError
+	// Entries is *for which entries* (UC-AUT-01/12), its names resolved by the writer's client.
+	Entries  string
+	Actions  []domain.Action
+	Throttle domain.Throttle
+	OnError  domain.OnError
 }
 
 // UpdateRuleCommand changes one. A nil pointer is a field the caller did not send.
@@ -194,6 +196,7 @@ type UpdateRuleCommand struct {
 	RunAs           *shared.ID
 	Trigger         *domain.Trigger
 	Conditions      *[]domain.Condition
+	Entries         *string
 	Actions         *[]domain.Action
 	Throttle        *domain.Throttle
 	OnError         *domain.OnError
@@ -212,7 +215,7 @@ func (h CreateRule) Execute(
 	// write a malformed rule tells them the wrong thing.
 	rule, err := domain.NewRule(domain.NewRuleInput{
 		ID: w.IDs.NewID(), TenantID: actor.TenantID, Name: cmd.Name, Key: cmd.Key, Scope: cmd.Scope,
-		RunAs: cmd.RunAs, Trigger: cmd.Trigger, Conditions: cmd.Conditions,
+		RunAs: cmd.RunAs, Trigger: cmd.Trigger, Conditions: cmd.Conditions, Entries: cmd.Entries,
 		Actions: cmd.Actions, Throttle: cmd.Throttle, OnError: cmd.OnError,
 		CreatedBy: actor.AccountID, Now: w.Clock.Now(), Text: w.Text,
 	})
@@ -755,7 +758,7 @@ func merged(
 	in := domain.NewRuleInput{
 		ID: current.ID, TenantID: current.TenantID,
 		Name: current.Name, Key: current.Key, Scope: current.Scope, RunAs: current.RunAs,
-		Trigger: current.Trigger, Conditions: current.Conditions, Actions: current.Actions,
+		Trigger: current.Trigger, Conditions: current.Conditions, Entries: current.Entries, Actions: current.Actions,
 		Throttle: current.Throttle, OnError: current.OnError,
 		CreatedBy: current.CreatedBy, Now: current.CreatedAt, Text: form,
 	}
@@ -773,6 +776,9 @@ func merged(
 	}
 	if cmd.Conditions != nil {
 		in.Conditions = *cmd.Conditions
+	}
+	if cmd.Entries != nil {
+		in.Entries = *cmd.Entries
 	}
 	if cmd.Actions != nil {
 		in.Actions = *cmd.Actions

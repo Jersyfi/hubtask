@@ -340,3 +340,47 @@ func manyHubs(n int) []string {
 	}
 	return out
 }
+
+// Today's sections (work-surface concept E-17): a closed set of cards and tiles, each once, in the
+// person's order; anything else is refused by name, and nothing given is the product's own.
+func TestTodaySectionsAreAClosedSetKeptOnceInOrder(t *testing.T) {
+	account, err := Invite(accountID, tenantID, "anna@example.org", "Anna", nil, nil)
+	if err != nil {
+		t.Fatalf("inviting: %v", err)
+	}
+
+	cases := []struct {
+		name   string
+		given  TodaySections
+		order  string
+		hidden string
+		code   string
+	}{
+		{"nothing is the product's own", TodaySections{}, "", "", ""},
+		{"an order and hidden sections", TodaySections{Order: []string{"TIME", "OVERDUE", "RECENT"}, Hidden: []string{"INBOX"}}, "TIME,OVERDUE,RECENT", "INBOX", ""},
+		{"each once, any case, blanks ignored", TodaySections{Order: []string{"time", " TIME", ""}, Hidden: []string{"inbox", "INBOX"}}, "TIME", "INBOX", ""},
+		{"every section", TodaySections{Order: todaySectionKeys[:]}, strings.Join(todaySectionKeys[:], ","), "", ""},
+		{"an unknown section in the order", TodaySections{Order: []string{"WEATHER"}}, "", "", "accounts.today_sections_invalid"},
+		{"an unknown hidden section", TodaySections{Hidden: []string{"POINTS"}}, "", "", "accounts.today_sections_hidden_invalid"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			updated, err := account.WithPreferences(Preferences{Today: c.given})
+			if c.code != "" {
+				if err == nil || shared.AsError(err).DetailCode != c.code {
+					t.Fatalf("error %v, want %s", err, c.code)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("error %v, want the sections accepted", err)
+			}
+			if got := strings.Join(updated.Today.Order, ","); got != c.order {
+				t.Errorf("order %q, want %q", got, c.order)
+			}
+			if got := strings.Join(updated.Today.Hidden, ","); got != c.hidden {
+				t.Errorf("hidden %q, want %q", got, c.hidden)
+			}
+		})
+	}
+}

@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, HUB, signedIn, stub } from './fixture.mjs';
@@ -56,19 +56,29 @@ const box = (locator) => locator.boundingBox();
 const inside = (inner, outer) =>
   inner.x >= outer.x - 1 && inner.y >= outer.y - 1 && inner.x + inner.width <= outer.x + outer.width + 1 && inner.y + inner.height <= outer.y + outer.height + 1;
 
-test('chromium: the board is full-bleed, its sheets closed until opened, and a sheet moves neither the canvas nor hides the tools', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+test('chromium: the board has no head; islands in the four corners and the dock at the foot cover under 8 % (W-1), and a sheet moves neither the canvas nor hides the dock', async (t) => {
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, 1280, 860, `/whiteboards/${BOARD_ID}`);
   t.after(() => context.close());
   const canvas = page.getByRole('application');
   await canvas.locator('g.object').first().waitFor({ timeout: 20_000 });
 
   const stage = await box(page.locator('.stage'));
+  const board = await box(page.locator('[data-board]'));
+  assert.equal(stage.y, board.y, 'something stands above the board');
   const tools = await box(page.locator('[data-board-tools]'));
-  assert.ok(inside(tools, stage), 'the tools lie over the canvas');
-  assert.ok(Math.abs(tools.x + tools.width / 2 - (stage.x + stage.width / 2)) < 2, 'the tools stand at the top centre');
-  assert.ok(tools.y - stage.y < 40, 'the tools stand at the top');
+  assert.ok(inside(tools, stage), 'the dock lies over the canvas');
+  assert.ok(Math.abs(tools.x + tools.width / 2 - (stage.x + stage.width / 2)) < 2, 'the dock stands at the foot centre');
+  assert.ok(stage.y + stage.height - (tools.y + tools.height) < 40, 'the dock stands at the foot');
+  const title = await box(page.locator('[data-board-island=title]'));
+  const people = await box(page.locator('[data-board-island=people]'));
+  const zoom = await box(page.locator('.zoombar'));
+  assert.ok(title.x - stage.x < 40 && title.y - stage.y < 40, 'menu and title are not top left');
+  assert.ok(stage.x + stage.width - (people.x + people.width) < 40 && people.y - stage.y < 40, 'people and moderation are not top right');
+  assert.ok(stage.x + stage.width - (zoom.x + zoom.width) < 40 && stage.y + stage.height - (zoom.y + zoom.height) < 40, 'the zoom is not bottom right');
+  const controls = [title, people, zoom, tools];
+  const cover = controls.reduce((sum, each) => sum + each.width * each.height, 0) / (stage.width * stage.height);
+  assert.ok(cover < 0.08, `the controls cover ${(cover * 100).toFixed(1)} % of the surface`);
   assert.equal(await page.locator('[data-board-side]').count(), 0, 'a sheet was open on arrival');
   // The board opens showing all it holds: the far note is on the screen.
   assert.ok(await canvas.locator('g.object').count() >= 2, 'the board did not open on everything it holds');
@@ -80,8 +90,8 @@ test('chromium: the board is full-bleed, its sheets closed until opened, and a s
   const after = await box(page.locator('.stage'));
   assert.deepEqual([after.width, after.height], [stage.width, stage.height], 'opening the sheet resized the canvas');
   const sheet = await box(side);
-  const moved = await box(page.locator('[data-board-tools]'));
-  assert.ok(moved.x + moved.width <= sheet.x, 'the sheet covers the tools');
+  const dock = await box(page.locator('[data-board-tools]'));
+  assert.ok(sheet.y + sheet.height <= dock.y || dock.x + dock.width <= sheet.x, 'the sheet covers the dock');
 
   await page.keyboard.press('Escape');
   await side.waitFor({ state: 'detached', timeout: 5_000 });
@@ -91,8 +101,7 @@ test('chromium: the board is full-bleed, its sheets closed until opened, and a s
 });
 
 test('chromium: on a phone the tools are at the foot of the board, all on the screen, and nothing scrolls sideways', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, 375, 812, `/whiteboards/${BOARD_ID}`);
   t.after(() => context.close());
   await page.getByRole('application').locator('g.object').first().waitFor({ timeout: 20_000 });
@@ -110,9 +119,31 @@ test('chromium: on a phone the tools are at the foot of the board, all on the sc
   assert.deepEqual(failures, []);
 });
 
-test('chromium: an empty hub starts a board from a template in one press, named and drawn from it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+test('chromium: on a phone the name and star stand once, and the list, the history and moderation are rows of the board menu (§7, WCAG 2.5.7)', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, context, failures } = await open(browser, 390, 844, `/whiteboards/${BOARD_ID}`);
+  t.after(() => context.close());
+  await page.getByRole('application').locator('g.object').first().waitFor({ timeout: 20_000 });
+  const drawn = (selector) => page.locator(selector).evaluateAll((all) => all.filter((each) => each.getClientRects().length > 0 && each.closest('.visually-hidden, [data-visually-hidden]') === null && each.getBoundingClientRect().width > 1).length);
+  assert.equal(await drawn('[data-board-island="title"] [aria-label^="Back"]'), 0, 'the island draws a second way back');
+  assert.equal(await page.getByRole('heading', { level: 1, name: 'Retro' }).count(), 1);
+
+  const menu = async () => {
+    await page.locator('[data-board-menu]').click();
+    return page.getByRole('menu', { name: 'More on this board' });
+  };
+  await (await menu()).getByRole('menuitem', { name: 'Show as a list' }).click();
+  await page.locator('[data-board-mode-list], .board-list, [data-board-list]').first().waitFor({ timeout: 5_000 }).catch(() => {});
+  await (await menu()).getByRole('menuitem', { name: 'Show as a surface' }).waitFor({ timeout: 5_000 });
+  await page.keyboard.press('Escape');
+  await (await menu()).getByRole('menuitem', { name: 'Moderate' }).click();
+  await page.locator('[data-board-sheet-body="session"], [role="dialog"], aside').first().waitFor({ timeout: 5_000 });
+  assert.ok(await page.getByRole('button', { name: /vot/i }).count() > 0, 'no way to start a vote');
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: an empty hub starts a board from a template in one press, named and drawn from it, with no dialog between (UC-CNV-01 check 12)', async (t) => {
+  const browser = await sharedChromium(t);
   const posted = [];
   const { page, context, failures } = await open(browser, 1280, 860, `/hubs/${HUB.id}/whiteboards`, { posted });
   t.after(() => context.close());
@@ -120,20 +151,17 @@ test('chromium: an empty hub starts a board from a template in one press, named 
   await start.waitFor({ timeout: 20_000 });
   assert.deepEqual(
     await start.locator('[data-board-start]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-board-start'))),
-    ['BLANK', 'RETRO', 'BRAINSTORM', 'USER_STORY_MAP', 'KANBAN', 'FLOWCHART'],
+    ['BLANK', 'RETRO_START_STOP_CONTINUE', 'RETRO_FOUR_LS', 'RETRO_MAD_SAD_GLAD', 'KANBAN', 'BRAINSTORM', 'FLOWCHART', 'USER_STORY_MAP'],
+    'the three retrospectives are not cards of their own',
   );
-  await start.locator('[data-board-start=RETRO] button').click();
-  const dialog = page.getByRole('dialog', { name: 'New whiteboard' });
-  await dialog.waitFor({ timeout: 5_000 });
-  assert.equal(await dialog.getByLabel('Title').inputValue(), 'Retrospective', 'the title is not the template’s name');
-  assert.equal(await dialog.locator('[data-board-start=RETRO] button').getAttribute('aria-pressed'), 'true');
-  await dialog.getByLabel('Questions of the retrospective').selectOption('RETRO_MAD_SAD_GLAD');
-  await dialog.getByRole('button', { name: 'Make the whiteboard' }).click();
+  await start.locator('[data-board-start=RETRO_MAD_SAD_GLAD] button').click();
   await page.waitForFunction(() => location.pathname.startsWith('/whiteboards/'), null, { timeout: 5_000 });
+  assert.equal(await page.getByRole('dialog', { name: 'New whiteboard' }).count(), 0, 'a dialog stood between the card and the board');
 
   assert.equal(posted.length, 1);
-  assert.equal(posted[0].title, 'Retrospective');
+  assert.equal(posted[0].title, 'Mad, sad, glad');
   const frames = posted[0].elements.filter((e) => e.kind === 'FRAME').map((e) => e.text);
   assert.deepEqual(frames, ['Mad', 'Sad', 'Glad'], 'the board was not made from the chosen questions');
+  assert.ok(!page.url().includes('new=1'), 'a board made from a template asked again what to start with');
   assert.deepEqual(failures, []);
 });

@@ -91,8 +91,10 @@ async function evidence(page, name) {
   await page.screenshot({ path: join(process.env.EVIDENCE, name), fullPage: false, animations: 'disabled' });
 }
 
-for (const [width, size] of [[1280, 'large'], [800, 'medium'], [375, 'compact']]) {
-  for (const scheme of ['light', 'dark']) {
+// The middle width only for the screenshots: nothing asserted differs from the large one's.
+for (const [width, size] of process.env.EVIDENCE ? [[1280, 'large'], [800, 'medium'], [375, 'compact']] : [[1280, 'large'], [375, 'compact']]) {
+  // Dark only for the screenshots: the walk asserts nothing the scheme changes.
+  for (const scheme of process.env.EVIDENCE ? ['light', 'dark'] : ['light']) {
     test(`chromium: ${size}, ${scheme} — a question in the palette comes back as a proposed answer, its filter saved as a view`, { timeout: 90_000 }, async () => {
       const browser = await chromium.launch();
       const { page, failures, writes, close } = await open(browser, width, { scheme });
@@ -165,10 +167,12 @@ for (const [width, size] of [[1280, 'large'], [800, 'medium'], [375, 'compact']]
         assert.deepEqual(asked, [{ question: QUESTION }, { question: FOLLOW_UP }], 'each question is its words alone');
         if (size === 'large') await evidence(page, `${size}-${scheme}-second.png`);
 
-        // Nothing applied: the writes are the questions, the view, and the dismissal.
-        const kinds = writes.map((each) => `${each.method} ${each.path}`);
+        // Nothing applied: the writes are the questions, the view, and the dismissal. The palette's
+        // search over every kind is a POST that reads (Q-5), never a write.
+        const kinds = writes.map((each) => `${each.method} ${each.path}`).filter((kind) => kind !== 'POST /search:all');
         for (const kind of kinds) {
-          assert.ok(kind === 'POST /ask' || kind === 'POST /views' || /^POST \/suggestions\/[^/]+:dismiss$/.test(kind), `an unexpected write: ${kind}`);
+          // A count asked over the list (the phone's query strip) is a read sent as POST, not a write.
+          assert.ok(kind === 'POST /ask' || kind === 'POST /views' || kind === 'POST /items:aggregate' || /^POST \/suggestions\/[^/]+:dismiss$/.test(kind), `an unexpected write: ${kind}`);
         }
         assert.deepEqual(failures, []);
       } finally {

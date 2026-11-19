@@ -11,9 +11,9 @@ import (
 )
 
 // The delivery half of T-11: inline is earned by an allowlist, everything else is a download.
-func TestOnlyTheImageAllowlistRendersInline(t *testing.T) {
+func TestOnlyTheImageAndMediaAllowlistRendersInline(t *testing.T) {
 	inline := []string{"image/png", "image/jpeg", "image/gif", "image/webp", "IMAGE/PNG",
-		"image/png; some=param"}
+		"image/png; some=param", "video/mp4", "video/webm", "audio/mpeg", "audio/wave", "audio/ogg"}
 	for _, contentType := range inline {
 		if got := media.DeliveryFor(contentType); got != media.DispositionInline {
 			t.Errorf("%s delivers as %s, want inline", contentType, got)
@@ -22,7 +22,8 @@ func TestOnlyTheImageAllowlistRendersInline(t *testing.T) {
 
 	attachment := []string{
 		"image/svg+xml", "text/html", "text/html; charset=utf-8", "application/pdf",
-		"application/octet-stream", "text/xml", "video/mp4", "", "not a type at all",
+		"application/octet-stream", "text/xml", "video/quicktime", "text/markdown", "text/csv", "application/zip",
+		"application/vnd.openxmlformats-officedocument.wordprocessingml.document", "", "not a type at all",
 	}
 	for _, contentType := range attachment {
 		if got := media.DeliveryFor(contentType); got != media.DispositionAttachment {
@@ -72,6 +73,29 @@ func TestTheClaimIsReconciledWithTheBytes(t *testing.T) {
 			claimed: "application/pdf", sniffed: "image/png", mismatch: true,
 		},
 		{
+			name:    "a DOCX claim sharpens the ZIP sniff its container answers (UC-MED-01)",
+			claimed: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", sniffed: "application/zip",
+			want: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		},
+		{
+			name:    "an XLSX claim sharpens the ZIP sniff",
+			claimed: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", sniffed: "application/zip",
+			want: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		},
+		{
+			name:    "an ODF text claim sharpens the ZIP sniff",
+			claimed: "application/vnd.oasis.opendocument.text", sniffed: "application/zip",
+			want: "application/vnd.oasis.opendocument.text",
+		},
+		{
+			name:    "a ZIP sniff sharpens only to a format built on ZIP",
+			claimed: "application/pdf", sniffed: "application/zip", mismatch: true,
+		},
+		{
+			name:    "an image claimed over ZIP bytes is refused",
+			claimed: "image/png", sniffed: "application/zip", mismatch: true,
+		},
+		{
 			name:    "an unreadable claim is refused rather than guessed at",
 			claimed: ";;;", sniffed: "image/png", mismatch: true,
 		},
@@ -99,6 +123,7 @@ func TestTheClaimIsReconciledWithTheBytes(t *testing.T) {
 	}
 }
 
+// UC-MED-05 check 1: SVG is never opened as a document.
 func TestSVGNeverRendersInlineWhicheverWayItArrives(t *testing.T) {
 	// Claimed honestly, sharpened from the XML sniff - and still a download (T-11: SVG is
 	// rasterised or served as a download; rasterising is nobody's job yet).

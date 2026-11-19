@@ -24,6 +24,19 @@ WHERE tenant_id = current_tenant_id() AND ci_id = ANY(sqlc.arg('ci_ids')::uuid[]
 ORDER BY added_at DESC, id
 LIMIT sqlc.arg('batch');
 
+-- name: ListCmdbOpenWorkOfHub :many
+-- The open, living entries naming a CI of the hub, latest first and bounded: each CI's count of
+-- open work. Whether the reader may see an entry is the application's to decide (rule 2).
+SELECT a.ci_id, a.item_id, wi.collection_id, c.parent_id AS hub_id
+FROM cmdb_affected a
+JOIN cmdb_ci ci ON ci.tenant_id = a.tenant_id AND ci.id = a.ci_id
+JOIN work_item wi ON wi.tenant_id = a.tenant_id AND wi.id = a.item_id
+JOIN container c ON c.tenant_id = wi.tenant_id AND c.id = wi.collection_id
+WHERE a.tenant_id = current_tenant_id() AND ci.hub_id = sqlc.arg('hub_id') AND ci.merged_into IS NULL
+  AND wi.deleted_at IS NULL AND wi.archived_at IS NULL AND NOT wi.is_completed AND c.deleted_at IS NULL
+ORDER BY a.added_at DESC, a.id
+LIMIT sqlc.arg('batch');
+
 -- name: InsertCmdbCampaign :exec
 INSERT INTO cmdb_campaign (id, tenant_id, hub_id, name, classes, due_by, due_on, review_months, started_by, started_at)
 VALUES (sqlc.arg('id'), current_tenant_id(), sqlc.arg('hub_id'), sqlc.arg('name'), sqlc.arg('classes')::text[],
@@ -91,6 +104,11 @@ ORDER BY key;
 -- name: FindCmdbGroup :one
 SELECT id, hub_id, key, name, filter, service_id, updated_by, updated_at, version
 FROM cmdb_ci_group WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id');
+
+-- name: DeleteCmdbGroup :execrows
+-- Optimistic: zero rows is a group gone or changed meanwhile; the caller tells them apart.
+DELETE FROM cmdb_ci_group
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id') AND version = sqlc.arg('expected_version');
 
 -- name: UpsertCmdbAsset :execrows
 -- Optimistic on a change: zero rows is an asset changed meanwhile.
@@ -162,3 +180,16 @@ SELECT source_ci_id AS ci_id, count(*)::int AS n
 FROM cmdb_relation
 WHERE tenant_id = current_tenant_id() AND hub_id = sqlc.arg('hub_id') AND type_key = 'installed_on'
 GROUP BY source_ci_id;
+
+-- name: InsertCmdbAssetMove :exec
+INSERT INTO cmdb_asset_move (id, tenant_id, hub_id, ci_id, state, moved_at, moved_by, assigned_to, stockroom_id)
+VALUES (sqlc.arg('id'), current_tenant_id(), sqlc.arg('hub_id'), sqlc.arg('ci_id'), sqlc.arg('state'), sqlc.arg('moved_at'),
+  sqlc.arg('moved_by'), sqlc.narg('assigned_to'), sqlc.narg('stockroom_id'));
+
+-- name: ListCmdbAssetMoves :many
+-- An asset's life, oldest first.
+SELECT id, hub_id, ci_id, state, moved_at, moved_by, assigned_to, stockroom_id
+FROM cmdb_asset_move
+WHERE tenant_id = current_tenant_id() AND ci_id = sqlc.arg('ci_id')
+ORDER BY moved_at, id
+LIMIT sqlc.arg('batch');

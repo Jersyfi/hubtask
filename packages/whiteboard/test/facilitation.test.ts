@@ -72,3 +72,16 @@ test('votes a board kept as one list per voter are still read and taken back', (
   assert.equal(session.unvote('ben', 'x'), true);
   assert.deepEqual([...session.votesOf('ben')].sort(), ['y', 'z']);
 });
+
+test('a minute more lengthens the timer, running, paused or run out', () => {
+  const session = new Facilitation(new Y.Doc());
+  session.startTimer(60_000, 0);
+  session.extendTimer(60_000, 30_000);
+  assert.deepEqual(session.remaining(30_000), { left: 90_000, running: true });
+  session.pauseTimer(40_000);
+  session.extendTimer(60_000, 40_000);
+  assert.deepEqual(session.remaining(50_000), { left: 140_000, running: false });
+  session.resumeTimer(50_000);
+  session.extendTimer(60_000, 500_000);
+  assert.deepEqual(session.remaining(500_000), { left: 60_000, running: true });
+});

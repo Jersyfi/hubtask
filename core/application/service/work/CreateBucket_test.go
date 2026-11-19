@@ -6,10 +6,12 @@ package work
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -553,5 +555,35 @@ func TestTheBucketDescriptorsCarryWhatTheChannelsNeed(t *testing.T) {
 	list := ListBuckets{}.Descriptor()
 	if !list.ReadOnly || list.Audit.Required {
 		t.Errorf("a read that is not read only, or that insists on an entry: %+v", list)
+	}
+}
+
+// A listed board answers the statuses each column shows under a workflow, and an empty list for a
+// column that shows none, so a client draws the mapping without a second read (§5).
+func TestAListedBoardAnswersTheStatusesOfEachColumn(t *testing.T) {
+	h := newBucketHarness()
+	h.withCollection()
+	todo := h.withBucket(shared.MustParseID("0192f000-0000-7000-8000-0000000000f1"), "Todo", "a0")
+	done := h.withBucket(shared.MustParseID("0192f000-0000-7000-8000-0000000000f2"), "Done", "a1")
+	h.list.Statuses = &mapping{rows: []domain.ColumnStatus{
+		{BucketID: todo.ID, Status: "open"}, {BucketID: todo.ID, Status: "waiting"},
+	}}
+
+	out, err := h.list.Descriptor().Handler.Invoke(context.Background(), actor(), usecase.Input{
+		"collection_id": collectionID.String(),
+	})
+	if err != nil {
+		t.Fatalf("listing the board failed: %v", err)
+	}
+
+	data, _ := out["data"].([]usecase.Output)
+	if len(data) != 2 {
+		t.Fatalf("the board is %+v", data)
+	}
+	if got := data[0]["statuses"]; !reflect.DeepEqual(got, []string{"open", "waiting"}) {
+		t.Errorf("Todo shows %v", got)
+	}
+	if got := data[1]["statuses"]; !reflect.DeepEqual(got, []string{}) || data[1]["id"] != done.ID.String() {
+		t.Errorf("Done shows %v, want an empty list", got)
 	}
 }

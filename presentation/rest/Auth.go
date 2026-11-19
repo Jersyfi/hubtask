@@ -113,6 +113,12 @@ var PublicRoutes = map[string]bool{
 	// installation (T-11).
 	http.MethodPut + " " + APIBasePath + "/media/{mediaId}:content": true,
 	http.MethodGet + " " + APIBasePath + "/media/{mediaId}:content": true,
+	// The document server's calls carry the WOPI access token in the query and no session: it is
+	// their whole credential, checked by the use case on every call (security.md §8, ADR-0104).
+	http.MethodGet + " " + APIBasePath + "/wopi/files/{mediaId}":           true,
+	http.MethodPost + " " + APIBasePath + "/wopi/files/{mediaId}":          true,
+	http.MethodGet + " " + APIBasePath + "/wopi/files/{mediaId}/contents":  true,
+	http.MethodPost + " " + APIBasePath + "/wopi/files/{mediaId}/contents": true,
 	// The calendar feed carries its credential in the URL for the same reason and with the same
 	// trust model, and for one more: a calendar client is not a browser and has nowhere to put a
 	// bearer header. The token is the whole of the authorisation, and the route validates it

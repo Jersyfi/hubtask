@@ -48,6 +48,9 @@ type DeleteBucketCommand struct {
 	// ExpectedVersion is the version the caller read, from If-Match. Zero means the caller read none
 	// and accepts whatever is there (api-guidelines.md §5).
 	ExpectedVersion int
+	// NewDoneBucketID is the column that means done instead, where the done column goes; at L1 it
+	// is required while other columns are left (Board.ChooseDoneSuccessor).
+	NewDoneBucketID shared.ID
 }
 
 // BucketDeletion is what became of the entries that were in the deleted column.
@@ -61,6 +64,9 @@ type BucketDeletion struct {
 	// anybody made a board.
 	TargetBucketID shared.ID
 	MovedItems     int
+	// DoneBucketID is the column that took the done mark, where the deleted one carried it; zero
+	// otherwise or where no column is left.
+	DoneBucketID shared.ID
 }
 
 // Execute deletes the column and returns what became of its entries.
@@ -122,7 +128,7 @@ func (h DeleteBucket) Execute(
 		}
 
 		result, err = h.write(ctx, actor, deleted, collection, changes, bucket.Version,
-			cmd.ExpectedVersion, now)
+			cmd.ExpectedVersion, cmd.NewDoneBucketID, now)
 		return err
 	})
 	if err != nil {
@@ -142,11 +148,11 @@ func (h DeleteBucket) Execute(
 func (h DeleteBucket) write(
 	ctx context.Context, actor appshared.ActorContext, deleted domain.Bucket,
 	collection domain.Container, changes []domain.FieldChange,
-	currentVersion, expectedVersion int, now time.Time,
+	currentVersion, expectedVersion int, chosen shared.ID, now time.Time,
 ) (BucketDeletion, error) {
 	w := h.Writer
 
-	target, err := h.fallbackFor(ctx, deleted)
+	target, successor, err := h.targetFor(ctx, deleted, chosen)
 	if err != nil {
 		return BucketDeletion{}, err
 	}
@@ -182,7 +188,39 @@ func (h DeleteBucket) write(
 		return BucketDeletion{}, err
 	}
 
-	return BucketDeletion{BucketID: deleted.ID, TargetBucketID: target, MovedItems: moved}, nil
+	if !successor.IsZero() {
+		marked := true
+		if err := w.setDone(ctx, actor, successor, &marked, collection); err != nil {
+			return BucketDeletion{}, err
+		}
+		if err := w.settleDone(ctx, actor, collection.ID, deleted.ID, successor, now); err != nil {
+			return BucketDeletion{}, err
+		}
+	}
+	return BucketDeletion{BucketID: deleted.ID, TargetBucketID: target, MovedItems: moved, DoneBucketID: successor}, nil
+}
+
+// targetFor is where a deleted column's entries go and which column takes its done mark: the
+// board decides where boards are read - the done column's to the successor the person chose
+// (Board.ChooseDoneSuccessor), the others' by Board.TargetAfterDeleting -, else the leftmost
+// column left.
+func (h DeleteBucket) targetFor(ctx context.Context, deleted domain.Bucket, chosen shared.ID) (shared.ID, shared.ID, error) {
+	if !h.Writer.Boards.Wired() {
+		target, err := h.fallbackFor(ctx, deleted)
+		return target, "", err
+	}
+	board, err := h.Writer.Boards.Of(ctx, deleted.CollectionID)
+	if err != nil {
+		return "", "", err
+	}
+	successor, err := board.ChooseDoneSuccessor(deleted.ID, chosen)
+	if err != nil {
+		return "", "", err
+	}
+	if !successor.IsZero() && len(board.Mapping) == 0 {
+		return successor, successor, nil
+	}
+	return board.TargetAfterDeleting(deleted.ID), successor, nil
 }
 
 // fallbackFor is where a deleted column's entries go: the leftmost column left on the board.
@@ -276,6 +314,7 @@ func deletionOutput(deletion BucketDeletion) usecase.Output {
 		"bucket_id":        deletion.BucketID.String(),
 		"target_bucket_id": idOrNil(deletion.TargetBucketID),
 		"moved_items":      deletion.MovedItems,
+		"done_bucket_id":   idOrNil(deletion.DoneBucketID),
 	}
 }
 
@@ -286,8 +325,10 @@ func (h DeleteBucket) Descriptor() usecase.Descriptor {
 		Permission: service.PermissionStructure,
 		Summary: "Takes a column off a collection's board. Its entries are not deleted with it: " +
 			"they move to the leftmost remaining column, or out of any column when this was the " +
-			"last one. What became of them is in the answer. Idempotent: deleting a column that is " +
-			"already gone succeeds, writes nothing and moves nothing.",
+			"last one. What became of them is in the answer. The done column of a board without a " +
+			"workflow goes only with new_done_bucket_id, the column that means done instead; its " +
+			"open entries are completed. Idempotent: deleting a column that is already gone " +
+			"succeeds, writes nothing and moves nothing.",
 		SideEffects: "Moves the entries out of the column, writes its deletion stamp, announces " +
 			string(event.BucketDeleted) + ", records a deletion for offline clients, and writes an " +
 			"audit entry.",
@@ -296,6 +337,12 @@ func (h DeleteBucket) Descriptor() usecase.Descriptor {
 			{
 				Name: "bucket_id", Kind: usecase.KindID, Required: true,
 				Description: "The column to take off the board.",
+			},
+			{
+				Name: "new_done_bucket_id", Kind: usecase.KindID,
+				Description: "Where the done column goes: the column that takes the done mark and " +
+					"its entries. Required then, while other columns are left " +
+					"(buckets.done_successor_required).",
 			},
 			{
 				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
@@ -323,9 +370,14 @@ func (h DeleteBucket) invoke(
 		return nil, err
 	}
 
+	newDone, err := in.ID("new_done_bucket_id")
+	if err != nil {
+		return nil, err
+	}
 	deletion, err := h.Execute(ctx, actor, DeleteBucketCommand{
 		BucketID:        bucketID,
 		ExpectedVersion: in.Int("expected_version"),
+		NewDoneBucketID: newDone,
 	})
 	if err != nil {
 		return nil, err

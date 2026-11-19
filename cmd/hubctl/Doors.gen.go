@@ -9,8 +9,8 @@ var generatedGroups = map[string]string{
 	"baseline":          "a plan's baselines: the agreed dates kept and compared with today's",
 	"business-calendar": "the workspace's business calendars: working hours, holidays and a time zone under a key",
 	"chat":              "a hub's chat bots on Matrix, Slack, Teams and Mattermost, which answer links to entries and make tasks of messages",
-	"ci":                "a hub's configuration items: make, reconcile, import, relate, merge and walk their impact",
-	"cmdb":              "the workspace's configuration item classes, relation types and sources, and a hub's inventory health",
+	"ci":                "a hub's inventory objects: make, reconcile, import, relate, merge and walk their impact",
+	"cmdb":              "the workspace's object types, relation types and sources, and a hub's inventory health",
 	"code":              "a hub's forge hooks and an entry's commits, branches and pull requests",
 	"dashboard":         "dashboards: widgets over summary views, summary documents and goals, and their figures for the caller",
 	"file":              "an entry's files and folders in a file store: Nextcloud, SharePoint, OneDrive, WebDAV",
@@ -390,7 +390,7 @@ var generatedCommands = []door{
 		},
 		Body: []doorParam{
 			{Name: "collection_id", Kind: "uuid", Help: "The collection whose labels a ticket triage chooses from; without it no labels are answered", Required: false},
-			{Name: "hub_id", Kind: "uuid", Help: "The hub whose CIs a CI suggestion or a triage matches; required for those two", Required: false},
+			{Name: "hub_id", Kind: "uuid", Help: "The hub whose objects an object suggestion or a triage matches; required for those two", Required: false},
 		},
 		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id"}},
 	{Group: "agent", Verb: "evaluations", OperationID: "listAgentEvaluations", Method: "GET", Path: "/agents/{agentId}/evaluations", Summary: "An agent's evaluation runs",
@@ -552,6 +552,11 @@ var generatedCommands = []door{
 			{Name: "collection_id", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"title"}},
+	{Group: "article", Verb: "spaces", OperationID: "listPortalKnowledge", Method: "GET", Path: "/portal-knowledge", Summary: "What a service's portal shares of the knowledge base",
+		Query: []doorParam{
+			{Name: "collection_id", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"title"}},
 	{Group: "article", Verb: "suggest", OperationID: "suggestArticles", Method: "GET", Path: "/articles", Summary: "The articles a service's portal offers for what a requester types",
 		Query: []doorParam{
 			{Name: "collection_id", Kind: "uuid", Help: "", Required: true},
@@ -635,6 +640,24 @@ var generatedCommands = []door{
 			{Name: "name", Kind: "string", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name"}},
+	{Group: "board", Verb: "switch", OperationID: "switchBoard", Method: "POST", Path: "/containers/{containerId}/board:switch", Summary: "Show a collection's tasks as a board, or as a list again",
+		PathParams: []doorParam{
+			{Name: "containerId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "dry_run", Kind: "boolean", Help: "", Required: false},
+			{Name: "to", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"columns_created", "columns_removed", "dry_run", "entries_placed", "level_after"}},
+	{Group: "board", Verb: "workflow", OperationID: "makeBoardWorkflow", Method: "POST", Path: "/containers/{containerId}/board:workflow", Summary: "Make a workflow from a board's columns",
+		PathParams: []doorParam{
+			{Name: "containerId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "dry_run", Kind: "boolean", Help: "", Required: false},
+			{Name: "name", Kind: "string", Help: "The workflow's name; the collection's by default", Required: false},
+		},
+		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"dry_run", "entries", "workflow"}},
 	{Group: "business-calendar", Verb: "define", OperationID: "defineBusinessCalendar", Method: "PUT", Path: "/business-calendars/{calendarKey}", Summary: "Add or replace a business calendar",
 		PathParams: []doorParam{
 			{Name: "calendarKey", Kind: "string", Help: "", Required: true},
@@ -756,12 +779,12 @@ var generatedCommands = []door{
 			{Name: "status", Kind: "string", Help: "", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "key", "title", "status"}},
-	{Group: "ci", Verb: "asset", OperationID: "readCiAsset", Method: "GET", Path: "/cis/{ciId}/asset", Summary: "A configuration item's asset record",
+	{Group: "ci", Verb: "asset", OperationID: "readCiAsset", Method: "GET", Path: "/cis/{ciId}/asset", Summary: "An object's register record",
 		PathParams: []doorParam{
 			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"name", "state", "version"}},
-	{Group: "ci", Verb: "asset move", OperationID: "moveCiAsset", Method: "POST", Path: "/cis/{ciId}/asset:move", Summary: "Move an asset through its life",
+	{Group: "ci", Verb: "asset move", OperationID: "moveCiAsset", Method: "POST", Path: "/cis/{ciId}/asset:move", Summary: "Move a register record through its life",
 		PathParams: []doorParam{
 			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
 		},
@@ -770,7 +793,7 @@ var generatedCommands = []door{
 			{Name: "state", Kind: "string", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"name", "state", "version"}},
-	{Group: "ci", Verb: "asset register", OperationID: "registerCiAsset", Method: "PUT", Path: "/cis/{ciId}/asset", Summary: "Write a configuration item's asset record",
+	{Group: "ci", Verb: "asset register", OperationID: "registerCiAsset", Method: "PUT", Path: "/cis/{ciId}/asset", Summary: "Write an object's register record",
 		PathParams: []doorParam{
 			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
 		},
@@ -788,7 +811,13 @@ var generatedCommands = []door{
 			{Name: "warranty_until", Kind: "string", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"name", "state", "version"}},
-	{Group: "ci", Verb: "attest", OperationID: "attestCi", Method: "PUT", Path: "/ci-campaigns/{campaignId}/cis/{ciId}", Summary: "Answer a campaign's question about a configuration item",
+	{Group: "ci", Verb: "attach", OperationID: "attachCiMedia", Method: "PUT", Path: "/cis/{ciId}/attachments/{mediaId}", Summary: "Put a file on an object",
+		PathParams: []doorParam{
+			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
+			{Name: "mediaId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"ci_id"}},
+	{Group: "ci", Verb: "attest", OperationID: "attestCi", Method: "PUT", Path: "/ci-campaigns/{campaignId}/cis/{ciId}", Summary: "Answer a campaign's question about an object",
 		PathParams: []doorParam{
 			{Name: "campaignId", Kind: "uuid", Help: "", Required: true},
 			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
@@ -797,12 +826,12 @@ var generatedCommands = []door{
 			{Name: "verdict", Kind: "string", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"attested_at", "attested_by", "campaign_id", "ci_id", "review_due"}},
-	{Group: "ci", Verb: "backlinks", OperationID: "listCiBacklinks", Method: "GET", Path: "/cis/{ciId}/backlinks", Summary: "What points at a configuration item",
+	{Group: "ci", Verb: "backlinks", OperationID: "listCiBacklinks", Method: "GET", Path: "/cis/{ciId}/backlinks", Summary: "What points at an object",
 		PathParams: []doorParam{
 			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"title"}},
-	{Group: "ci", Verb: "compliance", OperationID: "setCiCompliance", Method: "PUT", Path: "/cis/{ciId}/compliance", Summary: "Set a configuration item's lifecycle and compliance fields",
+	{Group: "ci", Verb: "compliance", OperationID: "setCiCompliance", Method: "PUT", Path: "/cis/{ciId}/compliance", Summary: "Set an object's lifecycle and compliance fields",
 		PathParams: []doorParam{
 			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
 		},
@@ -817,7 +846,15 @@ var generatedCommands = []door{
 			{Name: "status", Kind: "string", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "name", "status", "version"}},
-	{Group: "ci", Verb: "create", OperationID: "createCi", Method: "POST", Path: "/hubs/{hubId}/cis", Summary: "Make a configuration item by hand",
+	{Group: "ci", Verb: "confirm", OperationID: "confirmCi", Method: "POST", Path: "/cis/{ciId}:confirm", Summary: "Confirm an object is as recorded",
+		PathParams: []doorParam{
+			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "review_months", Kind: "integer", Help: "How far the next review moves on from today; 12 when not given", Required: false},
+		},
+		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "status", "version"}},
+	{Group: "ci", Verb: "create", OperationID: "createCi", Method: "POST", Path: "/hubs/{hubId}/cis", Summary: "Make an object by hand",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
 		},
@@ -827,6 +864,12 @@ var generatedCommands = []door{
 			{Name: "name", Kind: "string", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "status", "version"}},
+	{Group: "ci", Verb: "detach", OperationID: "detachCiMedia", Method: "DELETE", Path: "/cis/{ciId}/attachments/{mediaId}", Summary: "Take a file off an object",
+		PathParams: []doorParam{
+			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
+			{Name: "mediaId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"ci_id"}},
 	{Group: "ci", Verb: "duplicate ls", OperationID: "listCiDuplicates", Method: "GET", Path: "/hubs/{hubId}/ci-duplicates", Summary: "Open duplicates",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
@@ -840,14 +883,32 @@ var generatedCommands = []door{
 			{Name: "duplicateId", Kind: "uuid", Help: "", Required: true},
 		},
 		Body: []doorParam{
-			{Name: "survivor_id", Kind: "uuid", Help: "The CI that stays; absent says the CIs are distinct", Required: false},
+			{Name: "survivor_id", Kind: "uuid", Help: "The object that stays; absent says the objects are distinct", Required: false},
 		},
 		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "version"}},
-	{Group: "ci", Verb: "get", OperationID: "readCi", Method: "GET", Path: "/cis/{ciId}", Summary: "Read a configuration item",
+	{Group: "ci", Verb: "files", OperationID: "listCiAttachments", Method: "GET", Path: "/cis/{ciId}/attachments", Summary: "An object's files",
+		PathParams: []doorParam{
+			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "cursor", Kind: "string", Help: "", Required: false},
+			{Name: "size", Kind: "integer", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "status"}},
+	{Group: "ci", Verb: "get", OperationID: "readCi", Method: "GET", Path: "/cis/{ciId}", Summary: "Read an object",
 		PathParams: []doorParam{
 			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "status", "version"}},
+	{Group: "ci", Verb: "history", OperationID: "listCiHistory", Method: "GET", Path: "/cis/{ciId}/history", Summary: "An object's history",
+		PathParams: []doorParam{
+			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "cursor", Kind: "string", Help: "", Required: false},
+			{Name: "size", Kind: "integer", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id"}},
 	{Group: "ci", Verb: "hold dismiss", OperationID: "dismissCiHold", Method: "POST", Path: "/ci-holds/{holdId}:dismiss", Summary: "Close a held item",
 		PathParams: []doorParam{
 			{Name: "holdId", Kind: "uuid", Help: "", Required: true},
@@ -861,7 +922,7 @@ var generatedCommands = []door{
 			{Name: "limit", Kind: "integer", Help: "", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id"}},
-	{Group: "ci", Verb: "impact", OperationID: "readCiImpact", Method: "GET", Path: "/cis/{ciId}/impact", Summary: "What a configuration item's failure reaches",
+	{Group: "ci", Verb: "impact", OperationID: "readCiImpact", Method: "GET", Path: "/cis/{ciId}/impact", Summary: "What an object's failure reaches",
 		PathParams: []doorParam{
 			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
 		},
@@ -870,7 +931,7 @@ var generatedCommands = []door{
 			{Name: "direction", Kind: "string", Help: "", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"ci_id", "direction"}},
-	{Group: "ci", Verb: "import", OperationID: "importCiFile", Method: "POST", Path: "/hubs/{hubId}/cis:import", Summary: "Import a file of configuration items",
+	{Group: "ci", Verb: "import", OperationID: "importCiFile", Method: "POST", Path: "/hubs/{hubId}/cis:import", Summary: "Import a file of objects",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
 		},
@@ -878,11 +939,11 @@ var generatedCommands = []door{
 			{Name: "content", Kind: "string", Help: "The file's text; an `XLSX` workbook base64-encoded, its first sheet read as a `CSV` table by the …", Required: true},
 			{Name: "dry_run", Kind: "boolean", Help: "", Required: false},
 			{Name: "format", Kind: "string", Help: "", Required: true},
-			{Name: "mapping", Kind: "json", Help: "How a CSV table's or a JSON array's columns become a configuration item", Required: false},
+			{Name: "mapping", Kind: "json", Help: "How a CSV table's or a JSON array's columns become an object", Required: false},
 			{Name: "source", Kind: "string", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id"}},
-	{Group: "ci", Verb: "ls", OperationID: "listCis", Method: "GET", Path: "/hubs/{hubId}/cis", Summary: "A hub's configuration items",
+	{Group: "ci", Verb: "ls", OperationID: "listCis", Method: "GET", Path: "/hubs/{hubId}/cis", Summary: "A hub's objects",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
 		},
@@ -904,7 +965,7 @@ var generatedCommands = []door{
 			{Name: "source", Kind: "string", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id"}},
-	{Group: "ci", Verb: "relate", OperationID: "relateCis", Method: "POST", Path: "/ci-relations", Summary: "Join two configuration items",
+	{Group: "ci", Verb: "relate", OperationID: "relateCis", Method: "POST", Path: "/ci-relations", Summary: "Join two objects",
 		Body: []doorParam{
 			{Name: "source_ci_id", Kind: "uuid", Help: "", Required: true},
 			{Name: "target_ci_id", Kind: "uuid", Help: "", Required: true},
@@ -929,7 +990,7 @@ var generatedCommands = []door{
 			{Name: "relationId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id"}},
-	{Group: "ci", Verb: "update", OperationID: "updateCi", Method: "PATCH", Path: "/cis/{ciId}", Summary: "Change a configuration item by hand",
+	{Group: "ci", Verb: "update", OperationID: "updateCi", Method: "PATCH", Path: "/cis/{ciId}", Summary: "Change an object by hand",
 		PathParams: []doorParam{
 			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
 		},
@@ -939,6 +1000,16 @@ var generatedCommands = []door{
 			{Name: "name", Kind: "string", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "name", "status", "version"}},
+	{Group: "ci", Verb: "work", OperationID: "listCiWork", Method: "GET", Path: "/cis/{ciId}/work", Summary: "The entries an object is part of",
+		PathParams: []doorParam{
+			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "title"}},
+	{Group: "ci", Verb: "work count", OperationID: "listHubCiWork", Method: "GET", Path: "/hubs/{hubId}/ci-work", Summary: "How many open entries name each object of a hub",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"ci_id", "open"}},
 	{Group: "cmdb", Verb: "alias define", OperationID: "defineSoftwareAlias", Method: "POST", Path: "/software-aliases", Summary: "Count what installations report as one product",
 		Body: []doorParam{
 			{Name: "match_product", Kind: "string", Help: "", Required: true},
@@ -954,7 +1025,7 @@ var generatedCommands = []door{
 			{Name: "aliasId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id"}},
-	{Group: "cmdb", Verb: "asset ls", OperationID: "listCiAssets", Method: "GET", Path: "/hubs/{hubId}/assets", Summary: "A hub's asset register",
+	{Group: "cmdb", Verb: "asset ls", OperationID: "listCiAssets", Method: "GET", Path: "/hubs/{hubId}/assets", Summary: "A hub's register records",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
 		},
@@ -977,12 +1048,17 @@ var generatedCommands = []door{
 			{Name: "limit", Kind: "integer", Help: "", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "name", "version"}},
-	{Group: "cmdb", Verb: "campaign show", OperationID: "readCiCampaign", Method: "GET", Path: "/ci-campaigns/{campaignId}", Summary: "A certification campaign with every CI asked",
+	{Group: "cmdb", Verb: "campaign remind", OperationID: "remindCiCampaign", Method: "POST", Path: "/ci-campaigns/{campaignId}:remind", Summary: "Remind the owners who have not answered yet",
+		PathParams: []doorParam{
+			{Name: "campaignId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"reminded"}},
+	{Group: "cmdb", Verb: "campaign show", OperationID: "readCiCampaign", Method: "GET", Path: "/ci-campaigns/{campaignId}", Summary: "A certification campaign with every object asked",
 		PathParams: []doorParam{
 			{Name: "campaignId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
-	{Group: "cmdb", Verb: "campaign start", OperationID: "startCiCampaign", Method: "POST", Path: "/hubs/{hubId}/ci-campaigns", Summary: "Ask the owners of a hub's CIs to attest them",
+	{Group: "cmdb", Verb: "campaign start", OperationID: "startCiCampaign", Method: "POST", Path: "/hubs/{hubId}/ci-campaigns", Summary: "Ask the owners of a hub's objects to attest them",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
 		},
@@ -994,7 +1070,7 @@ var generatedCommands = []door{
 			{Name: "review_months", Kind: "integer", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "version"}},
-	{Group: "cmdb", Verb: "class define", OperationID: "defineCiClass", Method: "PUT", Path: "/cmdb/classes/{classKey}", Summary: "Add or change a class of the workspace's own",
+	{Group: "cmdb", Verb: "class define", OperationID: "defineCiClass", Method: "PUT", Path: "/cmdb/classes/{classKey}", Summary: "Add or change an object type of the workspace's own",
 		PathParams: []doorParam{
 			{Name: "classKey", Kind: "string", Help: "", Required: true},
 		},
@@ -1010,7 +1086,7 @@ var generatedCommands = []door{
 			{Name: "staleness_days", Kind: "integer", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"key", "name", "version"}},
-	{Group: "cmdb", Verb: "class ls", OperationID: "listCiClasses", Method: "GET", Path: "/cmdb/classes", Summary: "The configuration item classes",
+	{Group: "cmdb", Verb: "class ls", OperationID: "listCiClasses", Method: "GET", Path: "/cmdb/classes", Summary: "The object types",
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "name", "version"}},
 	{Group: "cmdb", Verb: "connector credential", OperationID: "setCiConnectorCredential", Method: "PUT", Path: "/cmdb-connectors/{connectorId}/credential", Summary: "Set a connector's credential",
 		PathParams: []doorParam{
@@ -1050,7 +1126,7 @@ var generatedCommands = []door{
 			{Name: "full", Kind: "boolean", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"dry_run", "error", "outcome", "pages"}},
-	{Group: "cmdb", Verb: "group define", OperationID: "defineCiGroup", Method: "PUT", Path: "/hubs/{hubId}/ci-groups/{groupKey}", Summary: "Define or change a CI group by its key",
+	{Group: "cmdb", Verb: "group define", OperationID: "defineCiGroup", Method: "PUT", Path: "/hubs/{hubId}/ci-groups/{groupKey}", Summary: "Define or change an object group by its key",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
 			{Name: "groupKey", Kind: "string", Help: "", Required: true},
@@ -1061,12 +1137,18 @@ var generatedCommands = []door{
 			{Name: "service_id", Kind: "uuid", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "key", "name", "version"}},
-	{Group: "cmdb", Verb: "group ls", OperationID: "listCiGroups", Method: "GET", Path: "/hubs/{hubId}/ci-groups", Summary: "A hub's CI groups",
+	{Group: "cmdb", Verb: "group delete", OperationID: "deleteCiGroup", Method: "DELETE", Path: "/hubs/{hubId}/ci-groups/{groupKey}", Summary: "Delete an object group by its key",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+			{Name: "groupKey", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: true, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "cmdb", Verb: "group ls", OperationID: "listCiGroups", Method: "GET", Path: "/hubs/{hubId}/ci-groups", Summary: "A hub's object groups",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "key", "name", "version"}},
-	{Group: "cmdb", Verb: "group members", OperationID: "listCiGroupMembers", Method: "GET", Path: "/ci-groups/{groupId}/members", Summary: "The configuration items a group holds now",
+	{Group: "cmdb", Verb: "group members", OperationID: "listCiGroupMembers", Method: "GET", Path: "/ci-groups/{groupId}/members", Summary: "The objects a group holds now",
 		PathParams: []doorParam{
 			{Name: "groupId", Kind: "uuid", Help: "", Required: true},
 		},
@@ -1088,7 +1170,7 @@ var generatedCommands = []door{
 			{Name: "reverse_name", Kind: "string", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"key", "name", "version"}},
-	{Group: "cmdb", Verb: "relation-type ls", OperationID: "listCiRelationTypes", Method: "GET", Path: "/cmdb/relation-types", Summary: "The relation types between configuration items",
+	{Group: "cmdb", Verb: "relation-type ls", OperationID: "listCiRelationTypes", Method: "GET", Path: "/cmdb/relation-types", Summary: "The relation types between objects",
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "name", "version"}},
 	{Group: "cmdb", Verb: "service-map", OperationID: "readServiceMap", Method: "GET", Path: "/hubs/{hubId}/service-map", Summary: "A hub's service map",
 		PathParams: []doorParam{
@@ -1110,12 +1192,12 @@ var generatedCommands = []door{
 		Body: []doorParam{
 			{Name: "classes", Kind: "strings", Help: "", Required: false},
 			{Name: "kind", Kind: "string", Help: "", Required: true},
-			{Name: "mapping", Kind: "json", Help: "How a CSV table's or a JSON array's columns become a configuration item", Required: false},
+			{Name: "mapping", Kind: "json", Help: "How a CSV table's or a JSON array's columns become an object", Required: false},
 			{Name: "may_create", Kind: "boolean", Help: "", Required: false},
 			{Name: "rank", Kind: "integer", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"key", "kind", "version"}},
-	{Group: "cmdb", Verb: "source ls", OperationID: "listCiSources", Method: "GET", Path: "/cmdb/sources", Summary: "The sources configuration items come from",
+	{Group: "cmdb", Verb: "source ls", OperationID: "listCiSources", Method: "GET", Path: "/cmdb/sources", Summary: "The sources objects come from",
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "kind", "version"}},
 	{Group: "code", Verb: "hook add", OperationID: "createCodeHook", Method: "POST", Path: "/hubs/{hubId}/code-hooks", Summary: "Add a forge hook",
 		PathParams: []doorParam{
@@ -1155,6 +1237,17 @@ var generatedCommands = []door{
 			{Name: "hub_id", Kind: "uuid", Help: "A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the …", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "config", Verb: "goal-set-add", OperationID: "addGoalSet", Method: "POST", Path: "/goal-sets", Summary: "Add a template's goal set",
+		Body: []doorParam{
+			{Name: "end_on", Kind: "string", Help: "", Required: true},
+			{Name: "goals", Kind: "json", Help: "The workspace's goals of the period, each written as creating a goal writes it", Required: false},
+			{Name: "key", Kind: "string", Help: "", Required: true},
+			{Name: "name", Kind: "string", Help: "", Required: true},
+			{Name: "start_on", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"key", "name"}},
+	{Group: "config", Verb: "goal-sets", OperationID: "listGoalSets", Method: "GET", Path: "/goal-sets", Summary: "The goal periods a template brought",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "name"}},
 	{Group: "config", Verb: "propose", OperationID: "proposeConfig", Method: "POST", Path: "/config:propose", Summary: "Propose a planned change for a person to decide",
 		Body: []doorParam{
 			{Name: "acknowledge", Kind: "boolean", Help: "", Required: false},
@@ -1272,6 +1365,7 @@ var generatedCommands = []door{
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "version"}},
 	{Group: "dashboard", Verb: "add", OperationID: "createDashboard", Method: "POST", Path: "/dashboards", Summary: "Create a dashboard",
 		Body: []doorParam{
+			{Name: "filter", Kind: "string", Help: "The dashboard's filter as a Hubtask query without an order, names as identifiers: every QUERY …", Required: false},
 			{Name: "group_ids", Kind: "strings", Help: "For GROUPS: the groups whose members see it, each where they read its place", Required: false},
 			{Name: "hub_id", Kind: "uuid", Help: "The hub it belongs to; the workspace's without", Required: false},
 			{Name: "name", Kind: "string", Help: "", Required: true},
@@ -1305,6 +1399,15 @@ var generatedCommands = []door{
 			{Name: "dashboardId", Kind: "uuid", Help: "A dashboard", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"computed_at", "dashboard_id"}},
+	{Group: "dashboard", Verb: "figures-draft", OperationID: "draftDashboardFigures", Method: "POST", Path: "/dashboards/{dashboardId}/figures:draft", Summary: "A dashboard's numbers for a definition not saved yet",
+		PathParams: []doorParam{
+			{Name: "dashboardId", Kind: "uuid", Help: "A dashboard", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "filter", Kind: "string", Help: "The filter as it is being edited; every QUERY widget inherits it but for the fields it released", Required: false},
+			{Name: "widgets", Kind: "json", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"computed_at", "dashboard_id"}},
 	{Group: "dashboard", Verb: "get", OperationID: "readDashboard", Method: "GET", Path: "/dashboards/{dashboardId}", Summary: "A dashboard",
 		PathParams: []doorParam{
 			{Name: "dashboardId", Kind: "uuid", Help: "A dashboard", Required: true},
@@ -1325,6 +1428,7 @@ var generatedCommands = []door{
 			{Name: "dashboardId", Kind: "uuid", Help: "A dashboard", Required: true},
 		},
 		Body: []doorParam{
+			{Name: "filter", Kind: "string", Help: "The dashboard's filter as a Hubtask query without an order, names as identifiers: every QUERY …", Required: false},
 			{Name: "group_ids", Kind: "strings", Help: "For GROUPS: the groups whose members see it, each where they read its place", Required: false},
 			{Name: "name", Kind: "string", Help: "", Required: true},
 			{Name: "sharing", Kind: "string", Help: "PRIVATE its owner's alone, SCOPE whoever reads its place, GROUPS the members of group_ids who read …", Required: false},
@@ -1385,6 +1489,14 @@ var generatedCommands = []door{
 			{Name: "connectionId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "find", Verb: "all", OperationID: "searchAll", Method: "POST", Path: "/search:all", Summary: "One search over every kind of object the caller may read",
+		Body: []doorParam{
+			{Name: "hub_id", Kind: "uuid", Help: "Only this hub's objects; people are not narrowed", Required: false},
+			{Name: "kinds", Kind: "strings", Help: "The kinds to search, in the order the answer groups them; omitted is every kind", Required: false},
+			{Name: "q", Kind: "string", Help: "The search as one Hubtask query: every free word must occur, every key narrows", Required: true},
+			{Name: "size", Kind: "integer", Help: "At most this many hits per kind", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "key", "title", "kind", "state"}},
 	{Group: "glance", Verb: "open", OperationID: "listMyOpenEntries", Method: "GET", Path: "/glance/open-entries", Summary: "My open entries, for another product's dashboard",
 		Query: []doorParam{
 			{Name: "cursor", Kind: "string", Help: "", Required: false},
@@ -1513,7 +1625,7 @@ var generatedCommands = []door{
 			{Name: "reason", Kind: "string", Help: "Why the hold is being lifted", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id"}},
-	{Group: "item", Verb: "affect", OperationID: "affectEntryCi", Method: "PUT", Path: "/items/{itemId}/cis/{ciId}", Summary: "Name a configuration item as affected by an entry",
+	{Group: "item", Verb: "affect", OperationID: "affectEntryCi", Method: "PUT", Path: "/items/{itemId}/cis/{ciId}", Summary: "Name an object as affected by an entry",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
 			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
@@ -1525,6 +1637,7 @@ var generatedCommands = []door{
 			{Name: "filter", Kind: "json", Help: "Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with `nodes`)", Required: false},
 			{Name: "include_archived", Kind: "boolean", Help: "", Required: false},
 			{Name: "include_trashed", Kind: "boolean", Help: "", Required: false},
+			{Name: "q", Kind: "string", Help: "The filter as one Hubtask query instead of `filter`, in either spelling `POST /items:query` takes - …", Required: false},
 			{Name: "scope", Kind: "json", Help: "Where to look, exactly as `POST /items:query` takes it - or `workspace`, instead of either …", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: true, Columns: []string{"count", "group", "period", "value"}},
@@ -1536,7 +1649,7 @@ var generatedCommands = []door{
 			{Name: "account_id", Kind: "uuid", Help: "The account to assign", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "title", "status", "version"}},
-	{Group: "item", Verb: "cis", OperationID: "listEntryCis", Method: "GET", Path: "/items/{itemId}/cis", Summary: "The configuration items an entry names as affected",
+	{Group: "item", Verb: "cis", OperationID: "listEntryCis", Method: "GET", Path: "/items/{itemId}/cis", Summary: "The objects an entry names as affected",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
 		},
@@ -1549,6 +1662,15 @@ var generatedCommands = []door{
 			{Name: "cascade_children", Kind: "boolean", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "title", "status", "version"}},
+	{Group: "item", Verb: "drop", OperationID: "dropItemOnColumn", Method: "POST", Path: "/items/{itemId}:drop", Summary: "Drop an entry onto a board's column",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "bucket_id", Kind: "uuid", Help: "", Required: false},
+			{Name: "step", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"outcome"}},
 	{Group: "item", Verb: "estimate", OperationID: "setEntryEstimate", Method: "PUT", Path: "/items/{itemId}/estimate", Summary: "Say how big an entry is",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
@@ -1611,7 +1733,7 @@ var generatedCommands = []door{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"status"}},
-	{Group: "item", Verb: "unaffect", OperationID: "unaffectEntryCi", Method: "DELETE", Path: "/items/{itemId}/cis/{ciId}", Summary: "Remove a configuration item from an entry's affected ones",
+	{Group: "item", Verb: "unaffect", OperationID: "unaffectEntryCi", Method: "DELETE", Path: "/items/{itemId}/cis/{ciId}", Summary: "Remove an object from an entry's affected ones",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
 			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
@@ -1745,6 +1867,20 @@ var generatedCommands = []door{
 			{Name: "mediaId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"item_id"}},
+	{Group: "media", Verb: "document-server", OperationID: "readDocumentServer", Method: "GET", Path: "/media:document-server", Summary: "The workspace's document server",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"kind"}},
+	{Group: "media", Verb: "document-server check", OperationID: "checkDocumentServer", Method: "POST", Path: "/media:document-server-check", Summary: "Test a document server before choosing it",
+		Body: []doorParam{
+			{Name: "kind", Kind: "string", Help: "", Required: true},
+			{Name: "url", Kind: "string", Help: "The server's https origin; absent for NONE", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"reached"}},
+	{Group: "media", Verb: "document-server set", OperationID: "setDocumentServer", Method: "PUT", Path: "/media:document-server", Summary: "Choose the workspace's document server",
+		Body: []doorParam{
+			{Name: "kind", Kind: "string", Help: "", Required: true},
+			{Name: "url", Kind: "string", Help: "The server's https origin; absent for NONE", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"kind"}},
 	{Group: "module", Verb: "here", OperationID: "listContainerModules", Method: "GET", Path: "/containers/{containerId}/modules", Summary: "The modules on where a hub or a collection is",
 		PathParams: []doorParam{
 			{Name: "containerId", Kind: "uuid", Help: "", Required: true},
@@ -1852,6 +1988,27 @@ var generatedCommands = []door{
 			{Name: "title", Kind: "string", Help: "The copy's title; omitted keeps the page's", Required: false},
 		},
 		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "title", "version"}},
+	{Group: "page", Verb: "cover-image-fetch", OperationID: "fetchCoverImage", Method: "POST", Path: "/pages/{pageId}/cover-images/{pictureId}:fetch", Summary: "Fetch an image library's picture for a page's cover",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+			{Name: "pictureId", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"content_base64", "content_type", "credit"}},
+	{Group: "page", Verb: "cover-images", OperationID: "searchCoverImages", Method: "GET", Path: "/pages/{pageId}/cover-images", Summary: "Search an image library for a page's cover",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "query", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"offered"}},
+	{Group: "page", Verb: "cover-images-policy", OperationID: "readCoverImagesPolicy", Method: "GET", Path: "/pages:cover-images", Summary: "Which image library covers may take pictures from",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"library", "locked_by", "source"}},
+	{Group: "page", Verb: "cover-images-policy set", OperationID: "setCoverImagesPolicy", Method: "PUT", Path: "/pages:cover-images", Summary: "Offer an image library for covers, or none",
+		Body: []doorParam{
+			{Name: "library", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"library", "locked_by", "source"}},
 	{Group: "page", Verb: "create", OperationID: "createPage", Method: "POST", Path: "/hubs/{hubId}/pages", Summary: "Write a new page",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
@@ -1952,6 +2109,7 @@ var generatedCommands = []door{
 		},
 		Body: []doorParam{
 			{Name: "collection_id", Kind: "uuid", Help: "", Required: true},
+			{Name: "with_subpages", Kind: "boolean", Help: "Share the page with everything under it, as a knowledge space", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"collection_id", "helpful", "page_id", "published_at", "published_by"}},
 	{Group: "page", Verb: "release", OperationID: "publishPage", Method: "POST", Path: "/pages/{pageId}:publish", Summary: "Publish what waits on a page",
@@ -1997,6 +2155,7 @@ var generatedCommands = []door{
 			{Name: "archived", Kind: "boolean", Help: "", Required: false},
 			{Name: "body", Kind: "string", Help: "", Required: false},
 			{Name: "content_language", Kind: "string", Help: "", Required: false},
+			{Name: "cover", Kind: "json", Help: "The picture over the page's content; null takes it away", Required: false},
 			{Name: "icon", Kind: "string", Help: "", Required: false},
 			{Name: "template", Kind: "boolean", Help: "", Required: false},
 			{Name: "title", Kind: "string", Help: "", Required: false},
@@ -2333,6 +2492,125 @@ var generatedCommands = []door{
 			{Name: "portfolioId", Kind: "uuid", Help: "A portfolio", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "status"}},
+	{Group: "post", Verb: "confirm", OperationID: "confirmPost", Method: "POST", Path: "/posts/{pageId}:confirm", Summary: "Confirm having read a post",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"title", "state"}},
+	{Group: "post", Verb: "confirmations", OperationID: "readPostConfirmations", Method: "GET", Path: "/posts/{pageId}/confirmations", Summary: "Who confirmed a post",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"audience", "confirm_by", "confirmed", "may_remind", "overdue"}},
+	{Group: "post", Verb: "create", OperationID: "createPost", Method: "POST", Path: "/hubs/{hubId}/posts", Summary: "Write a new post",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "audience", Kind: "string", Help: "", Required: false},
+			{Name: "body", Kind: "string", Help: "Markdown; without it, the template's", Required: false},
+			{Name: "confirm_by", Kind: "string", Help: "", Required: false},
+			{Name: "discussion", Kind: "boolean", Help: "", Required: false},
+			{Name: "featured_until", Kind: "string", Help: "", Required: false},
+			{Name: "group_ids", Kind: "strings", Help: "", Required: false},
+			{Name: "notify", Kind: "boolean", Help: "", Required: false},
+			{Name: "publish_at", Kind: "string", Help: "", Required: false},
+			{Name: "template", Kind: "string", Help: "", Required: false},
+			{Name: "title", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"title", "state"}},
+	{Group: "post", Verb: "follow", OperationID: "followHubPosts", Method: "PUT", Path: "/hubs/{hubId}/posts/following", Summary: "Follow a hub's posts",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "following", Kind: "boolean", Help: "Whether the caller follows the hub's posts", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"following"}},
+	{Group: "post", Verb: "get", OperationID: "readPost", Method: "GET", Path: "/posts/{pageId}", Summary: "Read a post",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"title", "state"}},
+	{Group: "post", Verb: "list", OperationID: "listHubPosts", Method: "GET", Path: "/hubs/{hubId}/posts", Summary: "A hub's posts",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "filter", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"title", "state"}},
+	{Group: "post", Verb: "publish", OperationID: "publishPost", Method: "POST", Path: "/posts/{pageId}:publish", Summary: "Publish a post now",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"title", "state"}},
+	{Group: "post", Verb: "react", OperationID: "reactToPostReply", Method: "PUT", Path: "/posts/{pageId}/replies/{replyId}/reactions/{reaction}", Summary: "React to a reply",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+			{Name: "replyId", Kind: "uuid", Help: "", Required: true},
+			{Name: "reaction", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id"}},
+	{Group: "post", Verb: "remind", OperationID: "remindPost", Method: "POST", Path: "/posts/{pageId}:remind", Summary: "Remind those who have not confirmed a post",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"reminded"}},
+	{Group: "post", Verb: "replies", OperationID: "listPostReplies", Method: "GET", Path: "/posts/{pageId}/replies", Summary: "A post's discussion",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id"}},
+	{Group: "post", Verb: "reply", OperationID: "addPostReply", Method: "POST", Path: "/posts/{pageId}/replies", Summary: "Reply in a post's discussion",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "body", Kind: "string", Help: "", Required: true},
+			{Name: "parent_id", Kind: "uuid", Help: "The reply it answers", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id"}},
+	{Group: "post", Verb: "reply-rm", OperationID: "deletePostReply", Method: "DELETE", Path: "/posts/{pageId}/replies/{replyId}", Summary: "Take a reply back",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+			{Name: "replyId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "post", Verb: "seen", OperationID: "markPostSeen", Method: "POST", Path: "/posts/{pageId}:seen", Summary: "Mark a post seen",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"title", "state"}},
+	{Group: "post", Verb: "set", OperationID: "setPostSettings", Method: "PUT", Path: "/posts/{pageId}", Summary: "Schedule, feature or narrow a post",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "audience", Kind: "string", Help: "The hub's readers, or those of them in the groups named", Required: false},
+			{Name: "confirm_by", Kind: "string", Help: "Asks its audience to confirm they read it by then", Required: false},
+			{Name: "discussion", Kind: "boolean", Help: "Whether the discussion under it is open", Required: false},
+			{Name: "featured_until", Kind: "string", Help: "Keeps it on top of the hub's posts until then", Required: false},
+			{Name: "group_ids", Kind: "strings", Help: "", Required: false},
+			{Name: "notify", Kind: "boolean", Help: "Whether the hub's followers are told once it is published", Required: false},
+			{Name: "publish_at", Kind: "string", Help: "When it goes out: now or earlier publishes at once, ahead schedules it, none keeps a draft", Required: false},
+			{Name: "template", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"title", "state"}},
+	{Group: "post", Verb: "unreact", OperationID: "unreactToPostReply", Method: "DELETE", Path: "/posts/{pageId}/replies/{replyId}/reactions/{reaction}", Summary: "Take a reaction back",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+			{Name: "replyId", Kind: "uuid", Help: "", Required: true},
+			{Name: "reaction", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id"}},
+	{Group: "post", Verb: "unread", OperationID: "listUnreadPosts", Method: "GET", Path: "/posts", Summary: "The posts new for the caller",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"title", "state"}},
+	{Group: "query", Verb: "ask", OperationID: "askQuery", Method: "POST", Path: "/query:ask", Summary: "Write a Hubtask query from a question in words",
+		Body: []doorParam{
+			{Name: "question", Kind: "string", Help: "What the person wants to find, as they would say it", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"model", "produced_at", "prompt_id", "prompt_version", "query"}},
 	{Group: "queue", Verb: "ls", OperationID: "listHubQueues", Method: "GET", Path: "/hubs/{hubId}/queues", Summary: "A hub's queues with their counts",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
@@ -2383,7 +2661,7 @@ var generatedCommands = []door{
 		Query: []doorParam{
 			{Name: "state", Kind: "string", Help: "Only releases in this state", Required: false},
 		},
-		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "name", "state", "version"}},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{}},
 	{Group: "release", Verb: "publish", OperationID: "publishRelease", Method: "POST", Path: "/releases/{releaseId}:publish", Summary: "Release it",
 		PathParams: []doorParam{
 			{Name: "releaseId", Kind: "uuid", Help: "", Required: true},
@@ -2662,6 +2940,11 @@ var generatedCommands = []door{
 			{Name: "priority_field", Kind: "string", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"key", "name", "version"}},
+	{Group: "sla", Verb: "kept", OperationID: "readMyDeadlinesKept", Method: "GET", Path: "/deadlines-kept", Summary: "How many of the deadlines on my own tickets I kept",
+		Query: []doorParam{
+			{Name: "days", Kind: "integer", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"kind"}},
 	{Group: "sla", Verb: "ls", OperationID: "listSlaPolicies", Method: "GET", Path: "/sla-policies", Summary: "The workspace's SLA policies",
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "name", "version"}},
 	{Group: "sla", Verb: "report", OperationID: "reportSla", Method: "GET", Path: "/sla-report", Summary: "How the SLA goals of a period stood",
@@ -3255,6 +3538,7 @@ var generatedCommands = []door{
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "workflow", Verb: "scheme preview", OperationID: "previewWorkflowScheme", Method: "POST", Path: "/workflow-scheme:preview", Summary: "Show what using a workflow would do",
 		Body: []doorParam{
+			{Name: "columns", Kind: "json", Help: "The statuses each board column shows under the workflow", Required: false},
 			{Name: "confirm", Kind: "boolean", Help: "True once the person has seen the preview", Required: false},
 			{Name: "container_id", Kind: "uuid", Help: "", Required: true},
 			{Name: "entry_type", Kind: "string", Help: "The type the row is for; left out for every type", Required: false},
@@ -3263,6 +3547,7 @@ var generatedCommands = []door{
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"entries"}},
 	{Group: "workflow", Verb: "scheme set", OperationID: "setWorkflowScheme", Method: "PUT", Path: "/workflow-scheme", Summary: "Use a workflow in a hub or collection",
 		Body: []doorParam{
+			{Name: "columns", Kind: "json", Help: "The statuses each board column shows under the workflow", Required: false},
 			{Name: "confirm", Kind: "boolean", Help: "True once the person has seen the preview", Required: false},
 			{Name: "container_id", Kind: "uuid", Help: "", Required: true},
 			{Name: "entry_type", Kind: "string", Help: "The type the row is for; left out for every type", Required: false},

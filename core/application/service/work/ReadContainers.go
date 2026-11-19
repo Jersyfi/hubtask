@@ -61,6 +61,8 @@ type GetContainer struct {
 	// Milestones answers when the container was last finished (UC-WRK-29 check 4). A build
 	// without it answers none.
 	Milestones repository.Milestones
+	// Levels answers a collection's level per entry type (§3.5a). A build without it answers none.
+	Levels StateModes
 }
 
 // GetContainerQuery is the input, typed.
@@ -155,7 +157,32 @@ func (h GetContainer) invoke(
 		return nil, err
 	}
 	out := withFigure(withStructure(containerOutput(container), structures, container.ID), figures, container.ID)
+	if err := h.withLevels(ctx, actor, container, out); err != nil {
+		return nil, err
+	}
 	return withMilestone(out, milestones, container.ID), nil
+}
+
+// withLevels adds a collection's level per entry type to its output, read after the permission
+// question in a read-only transaction of its own; a hub has none.
+func (h GetContainer) withLevels(
+	ctx context.Context, actor appshared.ActorContext, container domain.Container, out map[string]any,
+) error {
+	if !h.Levels.Wired() || container.Type != domain.ContainerCollection {
+		return nil
+	}
+	return h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		task, modes, err := h.Levels.Of(ctx, container)
+		if err != nil {
+			return err
+		}
+		byType := make(map[string]any, len(modes))
+		for key, mode := range modes {
+			byType[key] = string(mode)
+		}
+		out["state_mode"], out["state_modes"] = string(task), byType
+		return nil
+	})
 }
 
 // milestonesOf reads when the containers a read answers were last finished, after the permission

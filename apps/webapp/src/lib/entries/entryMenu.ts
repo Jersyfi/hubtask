@@ -75,6 +75,11 @@ export interface EntryMenuContext {
    * app's *Send link…* after *Copy link*. *Share* already means giving people a role on the entry.
    */
   readonly sendsLinks?: boolean;
+  /**
+   * The entry's workflow decides when it is done: its status button takes the steps, so the menu
+   * offers no *tick off* or *reopen* that would step around them.
+   */
+  readonly isStatusDriven?: boolean;
 }
 
 type Translate = (code: string, params?: Record<string, string | number>) => string;
@@ -134,7 +139,7 @@ export function entryMenu(context: EntryMenuContext, t: Translate): MenuItem[] {
   if (isSimple && context.simple?.category) {
     items.push({ id: 'category', label: t('app.entries.choose_category'), disabledReason: archived });
   }
-  if (context.carries('COMPLETION')) {
+  if (context.carries('COMPLETION') && !context.isStatusDriven) {
     items.push({
       id: context.item.isCompleted ? 'reopen' : 'complete',
       label: t(context.item.isCompleted ? 'app.entry_menu.reopen' : 'app.entry_menu.complete'),

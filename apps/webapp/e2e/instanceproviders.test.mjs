@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { chooseInRow, rowMenu, rowOffers } from './rowmenu.mjs';
 
@@ -87,8 +87,7 @@ async function open(browser, answer = () => undefined) {
 }
 
 test('chromium: a withdrawal shows the count, is announced for a day, and can be called off', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser);
   t.after(close);
 
@@ -136,8 +135,7 @@ test('chromium: a withdrawal shows the count, is announced for a day, and can be
 });
 
 test('chromium: withdraw now needs the number typed back, and a wrong one is refused with the right one', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser);
   t.after(close);
 
@@ -180,8 +178,7 @@ test('chromium: withdraw now needs the number typed back, and a wrong one is ref
 // row - on in every workspace for one admitted as "Only people invited here", each workspace's own
 // switch for one admitted by domain - and, without the lock, what a lock would do.
 test('chromium: each offered provider says what the lock on the ways to sign in does to it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   let rows = [
@@ -221,8 +218,7 @@ test('chromium: each offered provider says what the lock on the ways to sign in 
 // UC-INS-11 check 1: choosing Google fills the one issuer it has; choosing another provider
 // takes it out again, and what somebody typed stays.
 test('chromium: choosing Google fills its issuer, another provider takes it out', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser);
   t.after(close);
 
@@ -242,8 +238,7 @@ test('chromium: choosing Google fills its issuer, another provider takes it out'
 // UX-18 (§E8): one provider form for the workspace and the installation - the same fields in the
 // same order, the installation adding only the position after them.
 test('chromium: the offer is made in the one provider form a workspace uses too', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser);
   t.after(close);
 
@@ -263,8 +258,7 @@ test('chromium: the offer is made in the one provider form a workspace uses too'
 // UC-INS-11 check 3, P-12: the installation's refusal of a generic provider for anyone names the
 // provider in words, never by the contract's `GENERIC`.
 test('chromium: a refusal about a provider names it in words', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, (route, request, path) =>
     path === '/admin/identity-providers' && request.method() === 'POST'
       ? route.fulfill({
@@ -293,8 +287,7 @@ test('chromium: a refusal about a provider names it in words', async (t) => {
 // accounts' directory as a workspace's is (identity_provider.directory_personal): said on the field
 // as it is typed, and *Save* waits for it; under *Only people invited here* it may be named.
 test('chromium: the personal directory is refused in the installation provider list before the save', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   let posted = 0;
   const { page, close } = await open(browser, (route, request, path) => {
     if (path !== '/admin/identity-providers' || request.method() !== 'POST') return undefined;

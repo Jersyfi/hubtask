@@ -8,8 +8,8 @@ import type { DashboardWidget, Goal } from '@hubtask/sync-engine';
 
 import {
   alignmentTree, barLayout, currentQuarter, needingALook, hubOf, clampBox, csvOf, figureRows, goalWrite, linePoints, matrixOf, moved, nextBox, parentChoices,
-  leftRows, lineDots, percentText, scaleTop, pieSlices, readingOrder, resized, runningRows, seriesBars, seriesLines, seriesOf, seriesTable, totalOf,
-  widgetWrite,
+  folded, leftRows, lineDots, lineThrough, percentText, scaleTop, pieSlices, readingOrder, resized, runningRows, seriesBars, seriesLines, seriesOf, seriesTable, totalOf,
+  widgetWrite, numberFigure, targetState, hbars, hpairs, ringParts, matrixSteps, textPieces, conditionsOf, inheritedFilter, listFilter, searchFilter, groupedPeople,
 } from './goals.ts';
 
 const goal = (id: string, parent: string | null, progress: number | null = null): Goal => ({
@@ -122,8 +122,9 @@ test('bars, a line and a pie are drawn from the rows', () => {
   const bars = barLayout(rows, 100, 50);
   assert.equal(bars[1]?.height, 50);
   assert.equal(bars[0]?.height, 25);
-  assert.equal(bars[0]?.series, 'blue');
-  assert.equal(seriesOf(10), 'blue');
+  assert.equal(bars[1]?.series, '1', 'one series is one colour (E-7)');
+  assert.equal(seriesOf(1), '2');
+  assert.equal(seriesOf(7), '1', 'the seven chart colours repeat in their fixed order');
   assert.equal(linePoints(rows, 100, 50), '0,25 100,0');
   const slices = pieSlices(rows);
   assert.equal(slices.length, 2);
@@ -207,4 +208,132 @@ test('goals at risk or off track need a look', () => {
   const of = (status: Goal['status']) => ({ status }) as Goal;
   assert.equal(needingALook([of('ON_TRACK'), of('AT_RISK'), of('OFF_TRACK'), of('DONE'), of('NONE')]), 2);
   assert.equal(needingALook([]), 0);
+});
+
+// UC-GOL-04 check 19 (E-7): a chart draws at most as many parts as it may tell apart - the rest
+// is one row, *Others*, holding their sum.
+test('a chart folds what is past its parts into one row', () => {
+  const rows = figureRows(['a', 'b', 'c', 'd', 'e', 'f'].map((group, i) => ({ group, period: null, count: i + 1, value: null })));
+  const ring = folded(rows, 4, 'Others');
+  assert.deepEqual(ring.map((row) => row.label), ['f', 'e', 'd', 'Others']);
+  assert.equal(ring[3]?.value, 6);
+  assert.equal(folded(rows, 8, 'Others').length, 6);
+});
+
+// UC-GOL-04 check 19: each of the nine kinds is drawn in its own shape (wcat).
+test('a number over periods is the last period, its change and eight periods as a line', () => {
+  const rows = figureRows(['2026-01-05', '2026-01-12', '2026-01-19'].map((period, i) => ({ period, count: [30, 44, 38][i] })));
+  const figure = numberFigure(rows);
+  assert.equal(figure.text, '38');
+  assert.equal(figure.change, -6);
+  assert.equal(figure.spark.split(' ').length, 3);
+  assert.deepEqual(numberFigure(figureRows([{ count: 4 }, { count: 5 }])), { value: 9, text: '9', spark: '' });
+  assert.equal(numberFigure(figureRows([{ period: '2026-01-12', count: 3 }, { period: null, count: 19 }])).text, '3', 'the undated count in no period');
+});
+
+test('a target with a warning line above it means lower is better, below it higher', () => {
+  assert.equal(targetState(28, 30, 40), 'met');
+  assert.equal(targetState(35, 30, 40), 'between');
+  assert.equal(targetState(41, 30, 40), 'warn');
+  assert.equal(targetState(92, 90, 80), 'met');
+  assert.equal(targetState(75, 90, 80), 'warn');
+  assert.equal(targetState(5, undefined, 3), undefined);
+});
+
+test('bars lie down at most eight, the longest full, the rest as Sonstige', () => {
+  const rows = figureRows(Array.from({ length: 10 }, (_, i) => ({ group: `g${i}`, count: 10 - i })));
+  const bars = hbars(rows, 'Sonstige');
+  assert.equal(bars.length, 8);
+  assert.equal(bars[0]!.share, 100);
+  assert.equal(bars[7]!.row.label, 'Sonstige');
+  const pairs = hpairs(seriesTable([{ name: 'a', rows: figureRows([{ group: 'x', count: 14 }]) }, { name: 'b', rows: figureRows([{ group: 'x', count: 11 }]) }]));
+  assert.deepEqual(pairs[0]!.texts, ['14', '11']);
+  assert.equal(pairs[0]!.shares.reduce((a, b) => a + b, 0), 100);
+});
+
+test('a ring holds at most four parts, each starting where the last ended', () => {
+  const parts = ringParts(figureRows([{ group: 'a', count: 47 }, { group: 'b', count: 9 }, { group: 'c', count: 4 }, { group: 'd', count: 1 }, { group: 'e', count: 1 }, { group: 'f', count: 0 }]), 'Sonstige');
+  assert.equal(parts.length, 4);
+  assert.equal(parts[0]!.start, 0);
+  assert.equal(parts[3]!.row.label, 'Sonstige');
+  assert.equal(parts[3]!.row.value, 2);
+  assert.deepEqual(parts.map((part) => part.series), ['1', '2', '3', '4']);
+});
+
+test('a matrix cell steps from one to five over the whole matrix, nothing as zero', () => {
+  assert.deepEqual(matrixSteps({ rows: ['a'], columns: ['1', '2', '3'], cells: [['10', '', '2']] }), [[5, 0, 1]]);
+});
+
+test('a text is bold and links to app paths, never a link elsewhere', () => {
+  assert.deepEqual(textPieces('Zuerst **SA-7**, siehe [Plan](/pages/1) oder [hier](https://x.example).'), [
+    { kind: 'plain', text: 'Zuerst ' }, { kind: 'bold', text: 'SA-7' }, { kind: 'plain', text: ', siehe ' },
+    { kind: 'link', text: 'Plan', href: '/pages/1' }, { kind: 'plain', text: ' oder ' }, { kind: 'plain', text: 'hier' }, { kind: 'plain', text: '.' },
+  ]);
+  assert.equal(textPieces('[x](//evil)')[0]!.kind, 'plain');
+});
+
+test('a figure widget writes its target and warning line back, another kind never', () => {
+  const base = { id: 'w', title: 'Offen', source: 'QUERY', view_id: null, query: { aggregate: { function: 'COUNT' } }, goal_ids: [], compare: null, cumulative: false, text: '', column: '', released: [], x: 0, y: 0, w: 3, h: 2 };
+  const number = widgetWrite({ ...base, chart: 'NUMBER', target: 30, warn_at: 40 } as unknown as DashboardWidget);
+  assert.equal(number.target, 30);
+  assert.equal(number.warn_at, 40);
+  const bars = widgetWrite({ ...base, chart: 'BAR', target: 30, warn_at: null } as unknown as DashboardWidget);
+  assert.equal(bars.target, undefined);
+});
+
+// UC-GOL-04 check 18: a widget takes the dashboard's filter but the conditions on fields it released,
+// as the server does; a condition ORed together is one and stays whole.
+test('a widget inherits the dashboard filter but what it released', () => {
+  const hub = { field: 'hub_id', op: 'EQ', value: 'h1' };
+  const open = { field: 'is_completed', op: 'EQ', value: false };
+  const either = { op: 'OR', nodes: [{ field: 'status', op: 'EQ', value: 'todo' }, { field: 'status', op: 'EQ', value: 'done' }] };
+  const filter = { op: 'AND', nodes: [hub, open, either] };
+  assert.equal(conditionsOf(filter).length, 3);
+  assert.deepEqual(inheritedFilter(filter, ['is_completed', 'status']), { op: 'AND', nodes: [hub, either] });
+  assert.deepEqual(inheritedFilter(hub, ['hub_id']), undefined);
+  assert.deepEqual(inheritedFilter(filter, []), filter);
+});
+
+// UC-GOL-04 check 22: *Als Liste öffnen* hands over the inherited filter and the widget's own,
+// without the hub the collection already lies in.
+test('the list a widget opens carries its own line and what it inherits', () => {
+  const hub = { field: 'hub_id', op: 'EQ', value: 'h1' };
+  const open = { field: 'is_completed', op: 'EQ', value: false };
+  const mine = { field: 'priority', op: 'EQ', value: 'high' };
+  assert.deepEqual(listFilter({ op: 'AND', nodes: [hub, open] }, [], mine, 'h1'), { op: 'AND', nodes: [open, mine] });
+  assert.deepEqual(listFilter({ op: 'AND', nodes: [hub, open] }, ['is_completed'], undefined, 'h2'), hub);
+  assert.equal(listFilter(undefined, [], undefined, 'h1'), undefined);
+});
+
+// UC-GOL-04 check 22: a widget counting a hub or the whole workspace opens the search with its
+// line - the hub it counts in named once, beside what it inherits and its own.
+test('the search a widget opens names the hub it counts in once', () => {
+  const hub = { field: 'hub_id', op: 'EQ', value: 'h1' };
+  const open = { field: 'is_completed', op: 'EQ', value: false };
+  const mine = { field: 'priority', op: 'EQ', value: 'high' };
+  assert.deepEqual(searchFilter(open, [], mine, 'h1'), { op: 'AND', nodes: [hub, open, mine] });
+  assert.deepEqual(searchFilter({ op: 'AND', nodes: [hub, open] }, [], undefined, 'h1'), { op: 'AND', nodes: [hub, open] });
+  assert.deepEqual(searchFilter(open, [], undefined, undefined), open);
+  assert.equal(searchFilter(undefined, [], undefined, undefined), undefined);
+});
+
+// UC-GOL-04 check 8: a person's group is named by the person - and only a person-grouped widget's
+// groups are asked for, since one value that is no account (a PIE's "true") refuses the whole read.
+test('the people a dashboard names are the groups of its person-grouped widgets alone', () => {
+  const figures = [
+    { id: 'pie', data: [{ group: 'true', count: 3 }, { group: 'false', count: 19 }] },
+    { id: 'table', data: [{ group: 'a1', count: 1 }, { group: null, count: 2 }], compare: { data: [{ group: 'a2', count: 4 }] } },
+    { id: 'bar', data: [{ group: 'approved', count: 1 }] },
+    { id: 'made', data: [{ group: 'a1', count: 5 }, { group: 'a3', count: 1 }] },
+  ];
+  const fields: Record<string, unknown> = { pie: 'is_completed', table: 'assignee_id', bar: 'status', made: 'created_by' };
+  assert.deepEqual(groupedPeople(figures, (id) => fields[id]), ['a1', 'a2', 'a3']);
+  assert.deepEqual(groupedPeople(figures, () => 'status'), []);
+});
+
+// W-3: a line chart of one period drew its axes and an invisible point.
+test('a line of one period is a level across the chart; two or more points stay as they are', () => {
+  assert.equal(lineThrough('200,40', 400), '0,40 400,40');
+  assert.equal(lineThrough('0,25 100,0', 400), '0,25 100,0');
+  assert.equal(lineThrough('', 400), '');
 });

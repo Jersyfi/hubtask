@@ -214,6 +214,7 @@ migration 0257 writes, `cycle_time`, the first entry into a status of the `IN_PR
 `completed_at`, `wip_age`, that entry to now for an open entry, and `time_in_status`, the latest
 entry into the current status to now for an open entry - the use case binds the started statuses of
 the workspace's workflows and the moment from its clock, and an entry without history holds none;
+or `slip_days`, in days, the due date after the latest baseline's as `plan.slip` reads it;
 refused for `COUNT`,
 `query.field_not_aggregatable` for anything else), `group_by` (a field a query may group by) and
 `bucket` (`field`, a timestamp or a custom date, `period`: `day`, `week`, `month`, cut in the
@@ -297,6 +298,37 @@ interactive `statement_timeout` keeps an expensive but legal filter finite. A ne
 is a change in two tables: the domain's catalogue and the compiler's column mapping.
 
 ---
+
+**The Hubtask query** ([ADR-0102](../adr/ADR-0102-one-query-language.md)) is a third way in and
+adds no fourth way to SQL. Its two spellings - `field: value` and the `=`/`AND`/`ORDER BY` line -
+are read by one parser in the domain (`core/domain/model/view`, `ParseQuery`) into the same filter
+document and sort list a client could send, and from there the same `ParseFilter`, `ParseSort`,
+bounds and price hold. The keys, the time words and the people words are a closed list in the
+domain: `who` names `assignee_id`, `today` names `@today`, `-7d` names `@today-P7D`; a value is a
+bound parameter as every value is. Free words are a `MATCHES` leaf, read by
+`websearch_to_tsquery` as a parameter. `/meta/capabilities` serves the keys under `query_keys`, only
+those the parser reads.
+
+Three kinds of value only the use case can answer, each as the reader and before the statement is
+built (rule 2): the group words `my-groups` and `members("…")` (placeholders `@my_groups` and
+`@group:<identifier or name>`) become the group's people, read with the reader's right to read
+groups and bound as one array; `time.logged` binds whose time counts - the reader's own and others'
+only in the collections the time module shows them (UC-TIM-04), withheld below three people where
+only sums are shown -; `plan.critical` binds the entries the scheduler puts on the critical path of
+the hub or collection the query reaches, computed on asking. A door that cannot ask - a search of the
+whole workspace, the system acting as nobody - refuses the key (`query.key_needs_place`,
+`query.key_needs_reader`, `query.key_not_here`) rather than answering it as nobody. The browser's twin (`packages/query`) is held to the parser by
+`test/querylanguage/lines.json`; the server reads every text again.
+
+**Keys of one kind** (`asset.class`, `asset.stage`, `asset.owner`, `asset.location`, `asset.tag`,
+`page.verified`, `page.owner`, `goal.state`) are read by the same parser but compiled by no entry
+query: `POST /items:query` refuses them (`query.kind_not_here`). `POST /search:all` reads its `q` as
+a Hubtask query over every kind - free words searched, keys narrowing, a key of one kind keeping the
+search to that kind -, and `Query.KindFilter` turns such keys into the bound parameters of that
+kind's own search query (`SearchKinds.sql`, `SearchPages`), never into text: a key once
+(`query.key_twice`), values or'ed by a comma, no brackets across keys (`query.kind_filter_grouped`),
+no mixing of kinds (`query.kinds_mixed`). Every kind's hits still pass that product's read rule in
+the application layer (rule 2).
 
 ## 4. Pagination, sorting, partial responses
 

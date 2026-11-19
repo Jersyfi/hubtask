@@ -8,6 +8,7 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 )
@@ -75,5 +76,27 @@ func TestASavedViewsSummaryRefusesWhatItCannotAnswer(t *testing.T) {
 	}
 	if adapter.asked.Anchor.Kind != "" {
 		t.Error("a refused summary reached the statement")
+	}
+}
+
+// UC-GOL-01 check 11: a key result fed by any saved query counts what it lists - a view that
+// stores no aggregate answers its count when asked as one, through the same statement and the
+// reader's own permission.
+func TestAnySavedViewAnswersItsCountWhenAskedAsOne(t *testing.T) {
+	h, harness, adapter := aggregateViewFixture(t)
+	saved := harness.withCollectionView(accountID)
+
+	out, err := h.Descriptor().Handler.Invoke(t.Context(), viewSummaryActor(), usecase.Input{"view_id": saved.ID.String(), "as_count": true})
+	if err != nil {
+		t.Fatalf("counting a list view: %v", err)
+	}
+	if rows, _ := out["data"].([]usecase.Output); len(rows) != 1 || rows[0]["count"] != int64(3) && rows[0]["count"] != 3 {
+		t.Errorf("the count answered %v", out)
+	}
+	if adapter.asked.Anchor.CollectionID != collectionID {
+		t.Errorf("the count read %+v, want the view's collection", adapter.asked)
+	}
+	if asked := harness.authorizer.requests; len(asked) == 0 || asked[0].TargetID != collectionID {
+		t.Errorf("the reader was asked %+v", asked)
 	}
 }

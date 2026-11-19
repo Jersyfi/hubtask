@@ -5,9 +5,9 @@ context: work
 actors: [PE-admin, PE-auditor, PE-operator]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-10, P-12, P-13]
-state: built
+state: verified
 tasks: []
-checked_by: [apps/webapp/build/pagekinds.test.js, apps/webapp/e2e/pagesystem.test.mjs]
+checked_by: [apps/webapp/build/pagekinds.test.js, apps/webapp/e2e/pagesystem.test.mjs, apps/webapp/e2e/listarrangement.test.mjs]
 ---
 
 # Find any object in a long list and act on it
@@ -29,6 +29,7 @@ In `D1` a list holds a handful of rows and the search is rarely needed; in `D4`â
 3. The foot of the list says how many rows are shown and continues the list where there are more.
 4. A row shows at most one verb and a menu with the rest.
 5. At 390Ã—844 the *People* page with the seeded nine people is at most 1.5 screens high, its head included.
+6. A collection's list and a desk's queue are comfortable or compact by the person's choice, and this device keeps the choice (work-surface concept E-5).
 
 ## Where it ends
 

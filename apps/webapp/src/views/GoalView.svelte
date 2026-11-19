@@ -12,12 +12,13 @@
   // **The server computes the numbers**: a view's total and a milestone's entry are counted for
   // this reader, and an entry they may not read is not listed (UC-GOL-01 check 5).
 
+  import { referenceState } from '../lib/data/links.ts';
   import { untrack } from 'svelte';
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
     Badge, Button, Dialog, EmptyState, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Textarea,
-    DataTable, DetailPage, type DataColumn, type DataRowMenu,
+    DataTable, DetailPage, type DataColumn, type DataRowMenu, Breadcrumb, ObjectHead, StateLozenge, StatusButton, lozengeLook,
   } from '@hubtask/design-system/components';
   import type { Goal, GoalCheckInList, GoalList, WorkItem } from '@hubtask/sync-engine';
 
@@ -34,7 +35,7 @@
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
-  import { goalTone } from '../lib/goals/tone.ts';
+  import { goalState, goalTone, healthMenu } from '../lib/goals/tone.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { isNoSuchObject, isObjectId, renderProblem } from '../lib/problem.ts';
@@ -99,7 +100,12 @@
   });
 
   const placeHub = $derived(hubOf(goal));
-  const placeName = $derived(placeHub ? (containers.find(placeHub)?.name ?? t('app.goals.hub_unread')) : t('app.goals.workspace'));
+  // Said whole per case: a place's name cannot be declined into "von {place}" (German grammar).
+  const placeLine = $derived.by(() => {
+    if (!placeHub) return t('app.goals.goal_subtitle_workspace');
+    const name = containers.find(placeHub)?.name;
+    return name ? t('app.goals.goal_subtitle', { place: name }) : t('app.goals.goal_subtitle_unread');
+  });
   const personName = (id: string | null | undefined) => (id ? (accounts.nameOf(id) ?? t('app.people.unnamed')) : t('app.goals.nobody'));
 
   let failure = $state<string | undefined>(undefined);
@@ -205,9 +211,9 @@
   let isCheckingIn = $state(false);
   const checkIn = $state({ status: 'ON_TRACK' as CheckIn['status'], confidence: '7', note: '', values: {} as Record<string, string> });
   const manualResults = $derived((goal?.key_results ?? []).filter((each) => each.source === 'MANUAL' && each.kind !== 'MILESTONE'));
-  function openCheckIn() {
+  function openCheckIn(status?: CheckIn['status']) {
     if (!goal) return;
-    checkIn.status = goal.status === 'NONE' ? 'ON_TRACK' : goal.status;
+    checkIn.status = status ?? (goal.status === 'NONE' ? 'ON_TRACK' : goal.status);
     checkIn.confidence = String(goal.confidence ?? 7);
     checkIn.note = '';
     checkIn.values = Object.fromEntries(manualResults.map((each) => [each.id, String(each.current)]));
@@ -229,22 +235,40 @@
 
 <DetailPage>
   {#snippet top()}
-  <PageHeader
-    title={goal?.title ?? t('app.goals.goal')}
-    subtitle={goal ? t('app.goals.goal_subtitle', { place: placeName }) : undefined}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={goal
-      ? {
-          trail: [{ id: 'goals', label: t('app.goals.title'), href: `/goals?period=${goal.period_id}` }, { id: 'goal', label: goal.title }],
-          label: t('app.goals.trail'),
-          expandLabel: t('app.goals.expand_trail'),
-          onnavigate: () => onnavigate(`/goals?period=${goal?.period_id ?? ''}`),
-        }
-      : undefined}
-    secondary={mayWrite ? [{ label: t('app.goals.check_in'), icon: 'circle-check', onclick: openCheckIn }, { label: t('app.goals.change'), icon: 'pencil', onclick: openChange }] : []}
-    menu={mayWrite ? { label: t('app.goals.more'), items: [{ id: 'delete', label: t('app.goals.delete'), icon: 'trash', isDestructive: true }], onselect: () => (isDeleting = true) } : undefined}
-  />
+  {#if goal}
+    <!-- One head for every object (WB-1, the grammar scene): the goal's key, its title, its status,
+         the check-in as the next step, its owner and confidence. -->
+    {@const shown = goal}
+    <ObjectHead hasActsOnPhone
+      objectKey={{ label: t('app.goals.goal'), icon: 'flag', product: 'goals' }}
+      meta={placeLine}
+      title={shown.title}
+      titleLabel={t('app.goals.goal')}
+      next={mayWrite ? { label: t('app.goals.check_in'), icon: 'circle-check', onclick: () => openCheckIn() } : undefined}
+      secondary={mayWrite ? { label: t('app.goals.change'), onclick: openChange } : undefined}
+      person={{ name: personName(shown.owner_id), src: shown.owner_id ? accounts.pictureOf(shown.owner_id) : undefined }}
+      trail={viewport.isCompact ? undefined : goalTrail}
+      menu={mayWrite ? { label: t('app.goals.more'), items: [{ id: 'delete', label: t('app.goals.delete'), icon: 'trash', isDestructive: true }], onselect: () => (isDeleting = true) } : undefined}
+    >
+      {#snippet status()}
+        {#if mayWrite}
+          <!-- The status's ⌄ lists what a check-in gives; choosing one opens the check-in with it. -->
+          {@const menu = healthMenu(shown.status, STATUSES.filter((each) => each !== 'NONE'), (each) => t(`app.goals.status_${each}`))}
+          <span data-goal-status><StatusButton current={menu.current} statuses={menu.statuses} steps={menu.steps}
+            look={lozengeLook('goal', goalState(shown.status))}
+            label={t('app.goals.status_button', { state: menu.current.label })}
+            menuTitle={t('app.goals.status_menu')}
+            onstep={(step) => openCheckIn(step.to.id as CheckIn['status'])}
+            closeLabel={t('app.workflows.close')} grabLabel={t('app.workflows.close')} /></span>
+        {:else if shown.status !== 'NONE'}<StateLozenge vocabulary="goal" state={goalState(shown.status)} size="md" label={t(`app.goals.status_${shown.status}`)} />{/if}
+      {/snippet}
+      {#snippet facts()}{#if shown.confidence !== null}<span>{t('app.goals.confidence_of', { value: String(shown.confidence) })}</span>{/if}{/snippet}
+    </ObjectHead>
+  {:else}
+    <PageHeader title={t('app.goals.goal')} isTitleInBar={viewport.isCompact} />
+  {/if}
   {/snippet}
+
 
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
@@ -259,9 +283,6 @@
   {:else}
     <section class="summary" aria-label={t('app.goals.summary')}>
       <div class="facts">
-        {#if goal.status !== 'NONE'}<Badge tone={goalTone(goal.status)}>{t(`app.goals.status_${goal.status}`)}</Badge>{/if}
-        {#if goal.confidence !== null}<span>{t('app.goals.confidence_of', { value: String(goal.confidence) })}</span>{/if}
-        <span>{t('app.goals.owned_by', { name: personName(goal.owner_id) })}</span>
         {#if parentName && goal.parent_id}<span>{t('app.goals.serves')} <a href={`/goals/${goal.parent_id}`}>{parentName}</a></span>{/if}
         {#if goal.grade !== null}<Badge tone="info">{t('app.goals.graded', { percent: percentText(goal.grade) })}</Badge>{/if}
       </div>
@@ -318,7 +339,7 @@
         {#snippet empty()}<p class="quiet">{t('app.goals.no_entries')}</p>{/snippet}
         {#snippet cell(entry: Linked, column: DataColumn)}
           {#if column.id === 'entry'}<a href={`/items/${entry.id}`}>{entry.title}</a>{#if entry.key}<span class="note">{entry.key}</span>{/if}
-          {:else}{entry.completed ? t('app.goals.entry_done') : t('app.goals.entry_open')}{/if}
+          {:else}{@const state = referenceState({ completed: entry.completed, status_name: entry.status_name, status_category: entry.status_category }, t)}<StateLozenge size="sm" vocabulary="category" state={state.state} label={state.label} />{/if}
         {/snippet}
       </DataTable>
     </section>
@@ -342,8 +363,16 @@
   {/if}
 </DetailPage>
 
+{#snippet goalTrail()}
+  {#if goal}
+    {@const at = goal}
+    <Breadcrumb label={t('app.goals.trail')} trail={[{ id: 'goals', label: t('app.goals.title'), href: `/goals?period=${at.period_id}` }, { id: 'goal', label: at.title }]}
+      expandLabel={t('app.goals.expand_trail')} onnavigate={() => onnavigate(`/goals?period=${at.period_id}`)} />
+  {/if}
+{/snippet}
+
 {#if isChanging && goal}
-  <Dialog size="m" bind:isOpen={isChanging} title={t('app.goals.change')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isChanging} title={t('app.goals.change')} dismissLabel={t('app.links.cancel')} primary={{ label: t('app.goals.save'), onclick: () => void saveChange(), disabledReason: draft.title.trim() === '' ? t('app.goals.title_needed') : undefined }}>
     <Stack gap="150">
       <Input label={t('app.goals.goal_title')} bind:value={draft.title} maxlength={200} />
       <Textarea label={t('app.goals.description')} bind:value={draft.description} maxlength={10000} />
@@ -351,31 +380,37 @@
       <Select label={t('app.goals.col_owner')} bind:value={draft.owner} options={ownerChoices} />
       <Select label={t('app.goals.parent')} hint={t('app.goals.parent_hint')} bind:value={draft.parent}
         options={[{ value: '', label: t('app.goals.no_parent') }, ...parentChoices(siblings, goal.id).map((each) => ({ value: each.id, label: each.title }))]} />
-      <Inline justify="end"><Button disabledReason={draft.title.trim() === '' ? t('app.goals.title_needed') : undefined} onclick={() => void saveChange()}>{t('app.goals.save')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isChanging = false)}>{t('app.links.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
 {#if isDeleting && goal}
-  <Dialog size="s" bind:isOpen={isDeleting} title={t('app.goals.delete_title', { title: goal.title })} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="s" bind:isOpen={isDeleting} title={t('app.goals.delete_title', { title: goal.title })} dismissLabel={t('app.links.cancel')} primary={{ label: t('app.goals.delete'), onclick: () => void remove(), tone: 'danger' }}>
     <Stack gap="150">
       <p class="quiet">{t('app.goals.delete_hint')}</p>
-      <Inline justify="end"><Button tone="danger" onclick={() => void remove()}>{t('app.goals.delete')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isDeleting = false)}>{t('app.links.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
 {#if isLinking}
-  <Dialog size="l" bind:isOpen={isLinking} title={t('app.goals.link_entry')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="l" bind:isOpen={isLinking} title={t('app.goals.link_entry')} dismissLabel={t('app.links.cancel')} primary={{ label: t('app.goals.link'), onclick: () => void link(), disabledReason: linking ? undefined : t('app.goals.pick_entry') }}>
     <Stack gap="150">
       <EntryPicker excluded={linked} chosen={linking} onchoose={(item) => (linking = item)} />
-      <Inline justify="end"><Button disabledReason={linking ? undefined : t('app.goals.pick_entry')} onclick={() => void link()}>{t('app.goals.link')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isLinking = false)}>{t('app.links.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
 {#if isCheckingIn && goal}
-  <Dialog size="m" bind:isOpen={isCheckingIn} title={t('app.goals.check_in_title', { title: goal.title })} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isCheckingIn} title={t('app.goals.check_in_title', { title: goal.title })} dismissLabel={t('app.links.cancel')} primary={{ label: t('app.goals.check_in'), onclick: () => void saveCheckIn(), disabledReason: confidenceError }}>
     <Stack gap="150">
       <Select label={t('app.goals.col_status')} bind:value={checkIn.status} options={STATUSES.filter((each) => each !== 'NONE').map((each) => ({ value: each, label: t(`app.goals.status_${each}`) }))} />
       <Input label={t('app.goals.col_confidence')} hint={t('app.goals.confidence_hint')} bind:value={checkIn.confidence} inputmode="numeric" error={confidenceError} />
@@ -388,8 +423,10 @@
         {/if}
       {/each}
       <Textarea label={t('app.goals.checkin_note')} hint={t('app.goals.checkin_note_hint')} bind:value={checkIn.note} maxlength={5000} />
-      <Inline justify="end"><Button disabledReason={confidenceError} onclick={() => void saveCheckIn()}>{t('app.goals.check_in')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isCheckingIn = false)}>{t('app.links.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
@@ -397,7 +434,8 @@
   .summary, .block { display: flex; flex-direction: column; gap: var(--sp-100); min-width: 0; }
   .facts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-150); color: var(--text-secondary); font-size: var(--fs-075); }
   .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); }
-  .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }
+  /* The entry's section head (FoldingSection, H-6): one look for every object's parts. */
+  .heading { margin: 0; font-family: var(--font-display); font-size: var(--fs-200); font-weight: var(--fw-semibold); line-height: var(--lh-tight); }
   .description { margin: 0; white-space: pre-wrap; }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }

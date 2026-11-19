@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { PAGE } from './fixture.mjs';
@@ -37,8 +37,7 @@ const fields = [
 ];
 
 test('chromium: a form field\'s conditions are folded, picked in words, the expression behind Advanced', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const walk = await productWalk(browser, {
     modules: ['WORKFLOWS'],
     answer: (method, path) => {

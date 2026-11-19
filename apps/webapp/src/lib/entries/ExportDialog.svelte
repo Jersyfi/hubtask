@@ -92,7 +92,7 @@
   title={view ? t('app.export.title') : t('app.export.filtered_title')}
   dismissLabel={t('app.workspace.cancel')}
   onClose={onclose}
->
+  primary={{ label: t('app.export.go'), onclick: () => void run(), isBusy: isExporting, busyLabel: t('app.workspace.saving') }}>
   <Stack gap="150">
     {#if !view}
       <!-- Which rows: what the list shows now, so nobody wonders whether the filter applies. -->
@@ -116,9 +116,6 @@
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
     <Inline gap="100">
-      <Button isBusy={isExporting} busyLabel={t('app.workspace.saving')} onclick={() => void run()}>
-        {t('app.export.go')}
-      </Button>
       <Button tone="secondary" onclick={onclose}>{t('app.workspace.cancel')}</Button>
     </Inline>
   </Stack>

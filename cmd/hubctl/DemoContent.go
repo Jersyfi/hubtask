@@ -251,7 +251,7 @@ func (d *demo) scrum(ctx context.Context) demoHub {
 		}
 	}
 	app := d.collection(ctx, "scrum.app", h, "Team Atlas – Mobile App", "iOS- und Android-App für Endkundinnen und Endkunden.")
-	api := d.collection(ctx, "scrum.api", h, "Team Boreal – Platform & API", "Public REST API, billing and the event pipeline.")
+	api := d.collection(ctx, "scrum.api", h, "Team Boreal – Plattform & API", "Öffentliche REST-API, Abrechnung und die Event-Pipeline.")
 	out.coll["app"], out.coll["api"] = app, api
 	lab := map[string]any{}
 	if app != "" && d.held["entry.scrum.login"] == "" {
@@ -279,20 +279,20 @@ func (d *demo) scrum(ctx context.Context) demoHub {
 	if loginFresh {
 		d.steps(ctx, login, "plan", "start")
 		d.comment(ctx, "Mehmet Yılmaz", login, "Android 13 kann Passkeys nur mit Google Play Services ≥ 23.x – sollen wir das als Mindestversion festlegen?", false)
-		d.comment(ctx, "Amelia Hughes", login, "Yes, let's require it; the share of Android 13 without current Play Services is under 2 % in our analytics.", false)
+		d.comment(ctx, "Amelia Hughes", login, "Ja, lass uns das voraussetzen – laut unserer Auswertung liegt der Anteil von Android 13 ohne aktuelle Play Services unter 2 %.", false)
 	}
 
-	offline, fresh := d.entry(ctx, "scrum.offline", app, "Offline mode: orders placed without a connection are queued and sent once the phone is back online", entryOptions{
+	offline, fresh := d.entry(ctx, "scrum.offline", app, "Offline-Modus: Bestellungen ohne Verbindung werden vorgemerkt und gesendet, sobald das Telefon wieder online ist", entryOptions{
 		entryType: "story", assignee: sofia, labels: []any{lab["Kundenwunsch"]}, due: d.day(16, 9),
-		notes: "Customers in rural areas lose their basket when the train enters a tunnel. Queue the order locally, " +
-			"show a clear *pending* state and send it within 30 seconds of reconnecting.",
+		notes: "Kundinnen und Kunden auf dem Land verlieren ihren Warenkorb, wenn der Zug in einen Tunnel fährt. Die Bestellung lokal vormerken, " +
+			"klar als *ausstehend* zeigen und binnen 30 Sekunden nach der Wiederverbindung senden.",
 	})
 	stories = append(stories, offline)
 	if fresh {
 		d.steps(ctx, offline, "plan")
 	}
-	d.child(ctx, "scrum.offline.queue", offline, "WORK_PACKAGE", "Local queue with retry and idempotency key", nil)
-	d.child(ctx, "scrum.offline.badge", offline, "WORK_PACKAGE", "Pending badge in the order list", nil)
+	d.child(ctx, "scrum.offline.queue", offline, "WORK_PACKAGE", "Lokale Warteschlange mit Wiederholung und Idempotenzschlüssel", nil)
+	d.child(ctx, "scrum.offline.badge", offline, "WORK_PACKAGE", "Hinweis »ausstehend« in der Bestellliste", nil)
 
 	darkmode, fresh := d.entry(ctx, "scrum.darkmode", app, "Dunkelmodus folgt der Systemeinstellung", entryOptions{
 		entryType: "story", assignee: jonas, labels: []any{lab["Barrierefreiheit"]}})
@@ -311,22 +311,22 @@ func (d *demo) scrum(ctx context.Context) demoHub {
 		notes: "Reproduzierbar auf Pixel 8, Android 15. Stacktrace im Crash-Reporter: `NullPointerException in DeepLinkRouter.resolve`."})
 	if fresh {
 		d.steps(ctx, bug1, "plan", "start")
-		d.comment(ctx, "Sofia Rossi", bug1, "Seen on iOS too? I could not reproduce it on an iPhone 15 with iOS 18.1.", false)
+		d.comment(ctx, "Sofia Rossi", bug1, "Auch unter iOS gesehen? Auf einem iPhone 15 mit iOS 18.1 konnte ich es nicht nachstellen.", false)
 		d.link(ctx, bug1, login, "blocks")
 		d.link(ctx, offline, darkmode, "depends_on")
 	}
-	bug2, _ := d.entry(ctx, "scrum.keyboard", app, "Checkout button hidden behind the keyboard on small screens", entryOptions{entryType: "bug", assignee: jonas})
+	bug2, _ := d.entry(ctx, "scrum.keyboard", app, "Bezahlen-Knopf auf kleinen Bildschirmen von der Tastatur verdeckt", entryOptions{entryType: "bug", assignee: jonas})
 	stories = append(stories, bug2)
 
 	platformSpec := []struct {
 		title, kind string
 		who         any
 	}{
-		{"Rate limiting per API key with a clear Retry-After header", "story", amelia},
+		{"Ratenbegrenzung je API-Schlüssel mit klarem Retry-After-Header", "story", amelia},
 		{"Webhooks: Zustellungen bei 5xx exponentiell wiederholen und nach 24 h aufgeben", "story", lukas},
-		{"Billing: invoices as PDF/A-3 with embedded ZUGFeRD XML", "story", mehmet},
+		{"Abrechnung: Rechnungen als PDF/A-3 mit eingebettetem ZUGFeRD-XML", "story", mehmet},
 		{"Event-Pipeline: Partitionierung nach Mandant statt nach Zeit", "story", amelia},
-		{"Pagination cursor breaks when two entries share a timestamp", "bug", lukas},
+		{"Blätter-Cursor bricht, wenn zwei Einträge denselben Zeitstempel haben", "bug", lukas},
 	}
 	platform := make([]string, len(platformSpec))
 	anyFresh := false
@@ -341,7 +341,7 @@ func (d *demo) scrum(ctx context.Context) demoHub {
 		d.steps(ctx, platform[4], "plan", "start", "review", "finish")
 		d.link(ctx, platform[3], platform[1], "blocks")
 		d.comment(ctx, "Lukas Brandt", platform[1], "Wir sollten die Wiederholungen im Audit sichtbar machen, sonst fragt der Support jedes Mal nach.", false)
-		d.comment(ctx, "Amelia Hughes", platform[0], "Draft of the limits: 600 requests/minute per key, burst 1200. @Lukas please sanity-check before Friday.", false)
+		d.comment(ctx, "Amelia Hughes", platform[0], "Entwurf der Limits: 600 Anfragen pro Minute je Schlüssel, Spitze 1200. @Lukas bitte bis Freitag gegenlesen.", false)
 	}
 
 	// Sprints: one finished, one running, one planned; estimates in points.
@@ -374,7 +374,7 @@ func (d *demo) scrum(ctx context.Context) demoHub {
 			d.counts["sprints"]++
 		}
 		if rel := d.write(ctx, "release 4.2", "POST", "/hubs/"+h+"/releases", map[string]any{"name": "App 4.2 „Schlüssellos“",
-			"description": "Passkeys, dark mode and screen reader prices.", "release_on": d.date(14)}); rel != nil {
+			"description": "Passkeys, Dunkelmodus und Preise für Screenreader.", "release_on": d.date(14)}); rel != nil {
 			d.write(ctx, "release entries", "POST", "/releases/"+str(rel["id"])+"/entries", map[string]any{"item_ids": []string{login, darkmode, a11y}})
 			d.counts["releases"]++
 		}
@@ -446,7 +446,7 @@ func (d *demo) kanban(ctx context.Context) demoHub {
 	if fresh {
 		d.take(ctx, "kanban_team", h, false)
 	}
-	board := d.collection(ctx, "kanban.board", h, "Content-Board Q4", "Blog, newsletter, social and the trade fair in November.")
+	board := d.collection(ctx, "kanban.board", h, "Content-Board Q4", "Blog, Newsletter, Social Media und die Messe im November.")
 	out.coll["board"] = board
 	lab := map[string]any{}
 	if board != "" && d.held["entry.kanban.card0"] == "" {
@@ -460,15 +460,15 @@ func (d *demo) kanban(ctx context.Context) demoHub {
 	}{
 		{"Fallstudie: Wie die Stadtwerke Lüneburg ihre Störungsannahme von 3 Tagen auf 4 Stunden verkürzt haben", "Blog", priya, []string{"pull", "review"}},
 		{"Newsletter November: Rückblick Herbstmesse, neue Integrationen, Webinar-Termine", "Newsletter", sofia, []string{"pull"}},
-		{"LinkedIn carousel: five signs your service desk has outgrown spreadsheets", "Social", jonas, []string{"pull", "review", "finish"}},
+		{"LinkedIn-Karussell: fünf Zeichen, dass euer Servicedesk den Tabellen entwachsen ist", "Social", jonas, []string{"pull", "review", "finish"}},
 		{"Messestand IT-Expo Köln: Standplan, Bildschirme, Demo-Laptops und Give-aways", "Messe", priya, nil},
-		{"Webinar: Running ITIL change management without a 40-page process manual", "Blog", sofia, nil},
+		{"Webinar: ITIL-Änderungsmanagement ohne 40-seitiges Prozesshandbuch", "Blog", sofia, nil},
 		{"Pressemitteilung zur Version 4.2 abstimmen (Freigabe durch Geschäftsführung)", "", priya, []string{"pull"}},
-		{"Short video: setting up a Kanban board in under two minutes", "Social", jonas, nil},
+		{"Kurzvideo: ein Kanban-Board in unter zwei Minuten einrichten", "Social", jonas, nil},
 	}
 	comments := [][2]string{
 		{"Priya Natarajan", "Freigabe der Stadtwerke liegt vor, Zitat von Frau Albers ist abgestimmt."},
-		{"Sofia Rossi", "Webinar dates: 19 and 26 November, both 10:00 CET."},
+		{"Sofia Rossi", "Webinar-Termine: 19. und 26. November, jeweils 10:00 Uhr."},
 		{"Jonas Weber", "Bildschirme für die Messe sind bestellt, Lieferung KW 46. Das Karussell ist live, 1.240 Impressionen am ersten Tag."},
 	}
 	for i, c := range cards {
@@ -593,13 +593,13 @@ func (d *demo) classic(ctx context.Context) demoHub {
 
 func (d *demo) serviceDesk(ctx context.Context) (demoHub, bool) {
 	out := demoHub{coll: map[string]string{}}
-	h, fresh := d.hub(ctx, "desk", "IT-Service-Desk", "Störungen, Serviceanfragen, Probleme und Changes nach ITIL 4.", "life-buoy", "teal")
+	h, fresh := d.hub(ctx, "desk", "IT-Service-Desk", "Störungen, Serviceanfragen, Probleme und Änderungen nach ITIL 4.", "life-buoy", "teal")
 	out.hub = h
 	if h == "" {
 		return out, false
 	}
 	desk := d.collection(ctx, "desk.intake", h, "Störungen & Anfragen", "Was über das Portal, per Mail oder am Telefon ankommt.")
-	changes := d.collection(ctx, "desk.changes", h, "Changes", "")
+	changes := d.collection(ctx, "desk.changes", h, "Änderungen", "Änderungen nach ITIL: Antrag, Freigabe durch das CAB, Umsetzung im Wartungsfenster.")
 	problems := d.collection(ctx, "desk.problems", h, "Probleme", "")
 	out.coll["desk"], out.coll["changes"], out.coll["problems"] = desk, changes, problems
 	if fresh {
@@ -625,8 +625,8 @@ func (d *demo) serviceDesk(ctx context.Context) (demoHub, bool) {
 		{"Hannah Albers", "incident", "Seit dem Update lässt sich das Kundenportal in Firefox nicht mehr öffnen",
 			"Fehlermeldung: »Die Verbindung wurde zurückgesetzt«. In Edge funktioniert es. Betroffen sind alle 14 Arbeitsplätze im Kundenzentrum."},
 		{"Felix Hartmann", "service_request", "Neuer Zugang für Auszubildende ab 1. Dezember (3 Personen)", "Bitte Zugänge mit Rolle »Sachbearbeitung« anlegen."},
-		{"Grace O'Neill", "incident", "Delivery notes are printed without the barcode since this morning",
-			"Warehouse 2 in Felixstowe. Printer model Zebra ZT411, the test page prints fine."},
+		{"Grace O'Neill", "incident", "Lieferscheine werden seit heute Morgen ohne Barcode gedruckt",
+			"Lager 2 in Felixstowe. Drucker Zebra ZT411, die Testseite druckt einwandfrei."},
 		{"Hannah Albers", "service_request", "Lizenz für das Planungswerkzeug auf eine weitere Person übertragen", ""},
 	}
 	raised := make([]string, len(requests))
@@ -669,7 +669,7 @@ func (d *demo) serviceDesk(ctx context.Context) (demoHub, bool) {
 				d.write(ctx, "assign", "POST", "/items/"+raised[i]+":assign", map[string]any{"account_id": sofia})
 			}
 			d.steps(ctx, raised[i], "start", "resolve")
-			d.comment(ctx, "Sofia Rossi", raised[i], "The label template lost its barcode field in last night's update; restored it, please try again.", false)
+			d.comment(ctx, "Sofia Rossi", raised[i], "Die Etikettenvorlage hat beim Update heute Nacht ihr Barcode-Feld verloren; es ist wiederhergestellt, bitte noch einmal versuchen.", false)
 		}
 	}
 	for i, inc := range []struct {
@@ -677,7 +677,7 @@ func (d *demo) serviceDesk(ctx context.Context) (demoHub, bool) {
 		who                              any
 	}{
 		{"VPN-Gateway Frankfurt antwortet sporadisch nicht (Paketverlust 30 %)", "High", "Medium", "P2", mehmet},
-		{"Shared mailbox 'invoices@' stopped receiving mail from the ERP", "Medium", "High", "P2", sofia},
+		{"Gemeinsames Postfach »rechnungen@« empfängt keine Mails mehr aus dem ERP", "Medium", "High", "P2", sofia},
 		{"Drucker 2. OG druckt nur leere Seiten", "Low", "Low", "P4", nil},
 	} {
 		id, _ := d.entry(ctx, fmt.Sprintf("desk.incident%d", i), desk, inc.title, entryOptions{entryType: "incident", assignee: inc.who,
@@ -694,7 +694,7 @@ func (d *demo) serviceDesk(ctx context.Context) (demoHub, bool) {
 		notes: "**Risiko:** gering. **Rückfall:** altes Bundle liegt auf lb-01:/etc/haproxy/certs/backup.\n\n**Test:** SSL Labs ≥ A."}); made {
 		d.steps(ctx, change, "submit", "approve")
 	}
-	if change2, made := d.entry(ctx, "desk.change2", changes, "Upgrade PostgreSQL 15 → 16 on the reporting cluster", entryOptions{entryType: "change", assignee: sofia}); made {
+	if change2, made := d.entry(ctx, "desk.change2", changes, "PostgreSQL 15 → 16 auf dem Reporting-Cluster aktualisieren", entryOptions{entryType: "change", assignee: sofia}); made {
 		d.steps(ctx, change2, "submit")
 	}
 	// Two changes ask the CAB; seed-demo.sh's CAB decides one, the other waits in its approvals.
@@ -883,9 +883,7 @@ func (d *demo) cmdb(ctx context.Context, desk demoHub, fresh bool) {
 	}
 }
 
-const demoArchitecture = `# Architekturüberblick Kunden-App
-
-Die App spricht ausschließlich mit der **Public API v3**. Es gibt keinen direkten Zugriff auf Datenbanken.
+const demoArchitecture = `Die App spricht ausschließlich mit der **Public API v3**. Es gibt keinen direkten Zugriff auf Datenbanken.
 
 ## Bausteine
 
@@ -901,6 +899,28 @@ Die App spricht ausschließlich mit der **Public API v3**. Es gibt keinen direkt
 2. Bestellungen werden offline mit einem Idempotenzschlüssel gepuffert.
 `
 
+// pageTitled answers the hub's page of that title, or empty where it has none or it cannot be read.
+func (d *demo) pageTitled(ctx context.Context, hub, title string) string {
+	if hub == "" {
+		return ""
+	}
+	var pages struct {
+		Data []struct {
+			ID    string `json:"id"`
+			Title string `json:"title"`
+		} `json:"data"`
+	}
+	if err := d.call(ctx, func(ctx context.Context) error { return d.c.Get(ctx, "/hubs/"+hub+"/pages", nil, &pages) }); err != nil {
+		return ""
+	}
+	for _, p := range pages.Data {
+		if p.Title == title {
+			return p.ID
+		}
+	}
+	return ""
+}
+
 func (d *demo) page(ctx context.Context, key, hub string, body map[string]any) (string, bool) {
 	if hub == "" {
 		return "", false
@@ -910,7 +930,7 @@ func (d *demo) page(ctx context.Context, key, hub string, body map[string]any) (
 
 func (d *demo) wiki(ctx context.Context, scrum string, desk demoHub, classic string) {
 	root, _ := d.page(ctx, "scrum.handbook", scrum, map[string]any{"title": "Handbuch Produktentwicklung", "icon": "📘",
-		"body": "Alles, was ein neues Teammitglied in der ersten Woche braucht.\n\nStart here: the pages below are kept current by both teams."})
+		"body": "Alles, was ein neues Teammitglied in der ersten Woche braucht.\n\nHier anfangen: Die Seiten darunter halten beide Teams aktuell."})
 	if root != "" {
 		arch, fresh := d.page(ctx, "scrum.architecture", scrum, map[string]any{"title": "Architekturüberblick Kunden-App", "parent_id": root,
 			"body": strings.Replace(demoArchitecture, "## Entscheidungen", "## Offene Fragen\n\n- Wie lange halten wir Offline-Bestellungen?", 1)})
@@ -924,12 +944,12 @@ func (d *demo) wiki(ctx context.Context, scrum string, desk demoHub, classic str
 			if image := d.upload(ctx, "bausteine.png", png(320, 180, [3]byte{37, 99, 235})); image != "" {
 				d.write(ctx, "page image", "POST", "/pages/"+arch+"/media", map[string]any{"media_id": image})
 			}
-			d.say(ctx, "Amelia Hughes", "page comment", "POST", "/pages/"+arch+"/comments", map[string]any{"body": "Could we add the sequence diagram for the passkey sign-in here?"})
+			d.say(ctx, "Amelia Hughes", "page comment", "POST", "/pages/"+arch+"/comments", map[string]any{"body": "Können wir hier das Sequenzdiagramm für die Passkey-Anmeldung ergänzen?"})
 		}
 		d.page(ctx, "scrum.onboarding", scrum, map[string]any{
-			"title":     "Onboarding for new developers – laptop, accounts, first pull request in your first three days",
+			"title":     "Onboarding für neue Entwicklerinnen und Entwickler – Laptop, Zugänge und der erste Pull-Request in drei Tagen",
 			"parent_id": root,
-			"body":      "## Day 1\n\n- Pick up your laptop at the IT desk (ground floor)\n- Sign in with your passkey\n\n## Day 2\n\n- Pair with your buddy on a small bug\n\n## Day 3\n\n- Open your first pull request",
+			"body":      "## Tag 1\n\n- Laptop am IT-Schalter abholen (Erdgeschoss)\n- Mit dem Passkey anmelden\n\n## Tag 2\n\n- Mit der Patin oder dem Paten einen kleinen Fehler beheben\n\n## Tag 3\n\n- Den ersten Pull-Request öffnen",
 			"subpages": []any{map[string]any{"title": "Lokale Entwicklungsumgebung einrichten", "body": "```bash\nmake db-up && make run\n```",
 				"subpages": []any{map[string]any{"title": "Fehlerbehebung: Docker startet nicht", "body": "Docker Desktop neu starten, dann `docker info` prüfen."}}}},
 		})
@@ -938,11 +958,21 @@ func (d *demo) wiki(ctx context.Context, scrum string, desk demoHub, classic str
 			d.say(ctx, "Lukas Brandt", "page comment", "POST", "/pages/"+ritual+"/comments", map[string]any{"body": "Retro ab Dezember bitte remote – die Hälfte des Teams ist im Homeoffice."})
 		}
 	}
-	if kb, _ := d.page(ctx, "desk.knowledge", desk.hub, map[string]any{"title": "Wissensdatenbank Service Desk", "icon": "💡",
-		"body": "Lösungen für häufige Anfragen. Artikel mit ✅ sind für das Kundenportal freigegeben."}); kb != "" {
+	// The desk's template brings a knowledge base of its own; the articles go under it rather than
+	// under a second root beside it.
+	kb := d.held["page.desk.knowledge"]
+	if kb == "" {
+		kb = d.pageTitled(ctx, desk.hub, "Wissensdatenbank")
+	}
+	if kb == "" {
+		kb, _ = d.page(ctx, "desk.knowledge", desk.hub, map[string]any{"title": "Wissensdatenbank", "icon": "💡",
+			"body": "Lösungen für häufige Anfragen. Artikel mit ✅ sind für das Kundenportal freigegeben."})
+	}
+	d.knowledge = kb
+	if kb != "" {
 		for i, a := range [][2]string{
 			{"VPN verbindet nicht: die fünf häufigsten Ursachen", "1. Zeit auf dem Laptop falsch\n2. Zertifikat abgelaufen\n3. Hotel-WLAN blockiert UDP 4500\n4. Alte Client-Version\n5. Konto gesperrt"},
-			{"How to reset your password when you are locked out", "Use *Forgot password* on the sign-in page. The link is valid for 30 minutes."},
+			{"Passwort zurücksetzen, wenn du ausgesperrt bist", "Auf der Anmeldeseite *Passwort vergessen* wählen. Der Link gilt 30 Minuten."},
 			{"Drucker im 2. OG: Treiber und Warteschlangen", "Warteschlange `\\\\print-01\\OG2-Farbe`, Treiber Version 7.3."},
 		} {
 			article, fresh := d.page(ctx, fmt.Sprintf("desk.article%d", i), desk.hub, map[string]any{"title": a[0], "parent_id": kb, "body": a[1]})
@@ -973,16 +1003,19 @@ func sticky(id string, x, y int, text, color string) map[string]any {
 }
 
 func (d *demo) whiteboards(ctx context.Context, scrum, kanban demoHub) {
+	// Three frames, as a retro is run: what went well, what did not, what the team does next.
 	elements := []any{
-		map[string]any{"id": "frame-retro", "kind": "FRAME", "x": 0, "y": 0, "width": 1200, "height": 700, "text": "Retro Sprint 23"},
-		map[string]any{"id": "col-good", "kind": "TEXT", "x": 40, "y": 30, "text": "Was lief gut?"},
-		map[string]any{"id": "col-better", "kind": "TEXT", "x": 440, "y": 30, "text": "Was können wir besser machen?"},
-		map[string]any{"id": "col-actions", "kind": "TEXT", "x": 840, "y": 30, "text": "Actions"},
-		sticky("s1", 40, 90, "Dark mode shipped two days early 🎉", "green"),
-		sticky("s2", 40, 230, "Pairing zwischen Atlas und Boreal hat super funktioniert", "green"),
-		sticky("s3", 440, 90, "Review-Termin kollidiert mit dem Release", "amber"),
-		sticky("s4", 440, 230, "Flaky UI tests cost us half a day", "red"),
-		sticky("s5", 840, 90, "Review eine Stunde früher legen (Lukas)", "blue"),
+		map[string]any{"id": "frame-good", "kind": "FRAME", "x": 0, "y": 0, "width": 400, "height": 460, "text": "Was lief gut"},
+		map[string]any{"id": "frame-bad", "kind": "FRAME", "x": 420, "y": 0, "width": 400, "height": 460, "text": "Was lief nicht gut"},
+		map[string]any{"id": "frame-actions", "kind": "FRAME", "x": 840, "y": 0, "width": 400, "height": 460, "text": "Maßnahmen"},
+		sticky("s1", 13, 60, "Dunkelmodus zwei Tage früher ausgeliefert 🎉", "green"),
+		sticky("s2", 13, 200, "Pairing zwischen Atlas und Boreal hat super funktioniert", "green"),
+		sticky("s6", 207, 60, "Review-Demo lief ohne Hänger", "green"),
+		sticky("s3", 433, 60, "Review-Termin kollidierte mit dem Release", "amber"),
+		sticky("s4", 433, 200, "Wackelige UI-Tests haben uns einen halben Tag gekostet", "red"),
+		sticky("s7", 627, 60, "Zu viele Meetings am Mittwoch", "amber"),
+		sticky("s5", 853, 60, "Review eine Stunde früher legen (Lukas)", "blue"),
+		sticky("s8", 853, 200, "Wackelige UI-Tests in einen eigenen Quarantäne-Lauf schieben (Sofia)", "blue"),
 		map[string]any{"id": "c1", "kind": "CONNECTOR", "from": "s4", "to": "s5", "route": "CURVED", "end": "ARROW"},
 	}
 	for i, story := range scrum.entries {
@@ -990,12 +1023,12 @@ func (d *demo) whiteboards(ctx context.Context, scrum, kanban demoHub) {
 			break
 		}
 		if story != "" {
-			elements = append(elements, map[string]any{"id": fmt.Sprintf("card%d", i), "kind": "CARD", "x": 40 + 220*i, "y": 420,
+			elements = append(elements, map[string]any{"id": fmt.Sprintf("card%d", i), "kind": "CARD", "x": 13 + 220*i, "y": 500,
 				"width": 200, "height": 90, "target": map[string]any{"kind": "ENTRY", "id": story}})
 		}
 	}
 	if retro, fresh := d.board(ctx, "scrum.retro", scrum.hub, "Retro Sprint 23", elements); fresh {
-		d.say(ctx, "Sofia Rossi", "whiteboard comment", "POST", "/whiteboards/"+retro+"/comments", map[string]any{"body": "Let's look at the flaky tests together on Thursday.", "element_id": "s4"})
+		d.say(ctx, "Sofia Rossi", "whiteboard comment", "POST", "/whiteboards/"+retro+"/comments", map[string]any{"body": "Lasst uns die wackeligen Tests am Donnerstag gemeinsam anschauen.", "element_id": "s4"})
 	}
 	d.board(ctx, "scrum.flow", scrum.hub, "Anmeldefluss mit Passkey (Entwurf)", []any{
 		map[string]any{"id": "start", "kind": "SHAPE", "shape": "ELLIPSE", "x": 0, "y": 0, "width": 160, "height": 70, "text": "Kunde öffnet App"},
@@ -1007,9 +1040,9 @@ func (d *demo) whiteboards(ctx context.Context, scrum, kanban demoHub) {
 		map[string]any{"id": "e3", "kind": "CONNECTOR", "from": "q", "to": "no", "end": "ARROW", "route": "ELBOW"},
 	})
 	notes := []any{}
-	for i, n := range [][2]string{{"Messe-Motto: »Weniger Tickets, mehr Zeit«", "violet"}, {"Live demo: portal in 60 seconds", "blue"},
-		{"Goodies: Kaffeebecher aus Bambus", "green"}, {"Badge scanner rental?", "amber"},
-		{"Standpersonal: 4 Personen pro Tag", "teal"}, {"Follow-up mail within 48 h", "blue"}} {
+	for i, n := range [][2]string{{"Messe-Motto: »Weniger Tickets, mehr Zeit«", "violet"}, {"Live-Demo: das Portal in 60 Sekunden", "blue"},
+		{"Goodies: Kaffeebecher aus Bambus", "green"}, {"Scanner für Besucherausweise mieten?", "amber"},
+		{"Standpersonal: 4 Personen pro Tag", "teal"}, {"Nachfass-Mail innerhalb von 48 h", "blue"}} {
 		notes = append(notes, sticky(fmt.Sprintf("n%d", i), (i%4)*200, (i/4)*150, n[0], n[1]))
 	}
 	d.board(ctx, "kanban.expo", kanban.hub, "Brainstorming IT-Expo Köln", notes)
@@ -1096,7 +1129,7 @@ func (d *demo) recordWeeks(ctx context.Context, plan demoTime, lastMonday int) b
 	}
 	fresh := false
 	minutes := []int{90, 150, 45, 210, 120}
-	notes := []string{"Implementierung", "Code review", "Pairing session", "Tests und Dokumentation", "Abstimmung mit dem Fachbereich"}
+	notes := []string{"Implementierung", "Code-Review", "Pairing-Sitzung", "Tests und Dokumentation", "Abstimmung mit dem Fachbereich"}
 	record := func(key string, body map[string]any) {
 		if _, made := d.spokenObject(ctx, plan.person, prefix+key, "TIME_RECORD", "time records", "/time-records", body); made {
 			fresh = true
@@ -1140,23 +1173,23 @@ func (d *demo) goals(ctx context.Context, scrum, kanban, classic, desk demoHub) 
 	}
 	lukas, amelia, priya, mehmet := d.who("Lukas Brandt"), d.who("Amelia Hughes"), d.who("Priya Natarajan"), d.who("Mehmet Yılmaz")
 	company, companyFresh := d.goal(ctx, "company", map[string]any{"period_id": period, "title": "Kundinnen und Kunden lösen ihr Anliegen selbst – ohne Anruf",
-		"owner_id": lukas, "status": "ON_TRACK", "description": "Self-service first: portal, app and knowledge base answer the common questions.",
+		"owner_id": lukas, "status": "ON_TRACK", "description": "Selbstbedienung zuerst: Portal, App und Wissensdatenbank beantworten die häufigen Fragen.",
 		"key_results": []any{
 			map[string]any{"title": "Anteil Anfragen über das Portal", "kind": "PERCENT", "start": 22, "target": 60, "current": 41, "unit": "%"},
-			map[string]any{"title": "Average first response time (hours)", "kind": "NUMBER", "start": 9, "target": 2, "current": 4.5, "unit": "h"},
+			map[string]any{"title": "Durchschnittliche Zeit bis zur ersten Antwort (Stunden)", "kind": "NUMBER", "start": 9, "target": 2, "current": 4.5, "unit": "h"},
 			map[string]any{"title": "Passkey-Anmeldung live", "kind": "BINARY", "start": 0, "target": 1, "current": 0},
 		}})
-	appGoal, appFresh := d.goal(ctx, "company.app", map[string]any{"period_id": period, "title": "App rating of 4.6 stars or better in both stores",
+	appGoal, appFresh := d.goal(ctx, "company.app", map[string]any{"period_id": period, "title": "App-Bewertung von 4,6 Sternen oder besser in beiden Stores",
 		"owner_id": amelia, "parent_id": company, "status": "AT_RISK", "hub_id": scrum.hub,
-		"key_results": []any{map[string]any{"title": "Crash-free sessions", "kind": "PERCENT", "start": 97.1, "target": 99.5, "current": 98.2, "unit": "%"}}})
-	d.goal(ctx, "company.desk", map[string]any{"period_id": period, "title": "Keine P1-Störung länger als vier Stunden offen",
+		"key_results": []any{map[string]any{"title": "Sitzungen ohne Absturz", "kind": "PERCENT", "start": 97.1, "target": 99.5, "current": 98.2, "unit": "%"}}})
+	deskGoal, _ := d.goal(ctx, "company.desk", map[string]any{"period_id": period, "title": "Keine P1-Störung länger als vier Stunden offen",
 		"owner_id": mehmet, "parent_id": company, "status": "ON_TRACK", "hub_id": desk.hub})
 	build, buildFresh := d.goal(ctx, "build", map[string]any{"period_id": period, "title": "Logistikzentrum im Zeit- und Kostenrahmen (± 5 %)",
 		"owner_id": priya, "status": "OFF_TRACK", "hub_id": classic.hub})
 	if appFresh && len(scrum.entries) >= 3 {
 		d.write(ctx, "goal entries", "POST", "/goals/"+appGoal+"/entries", map[string]any{"entry_ids": scrum.entries[:3]})
 		d.say(ctx, "Amelia Hughes", "check-in", "POST", "/goals/"+appGoal+"/check-ins", map[string]any{"status": "AT_RISK", "confidence": 5,
-			"note": "The push-link crash costs us; fix is in Sprint 24."})
+			"note": "Der Absturz bei Push-Links kostet uns Bewertungen; die Korrektur kommt mit Sprint 24."})
 	}
 	if buildFresh && len(classic.entries) >= 4 {
 		d.write(ctx, "goal entries", "POST", "/goals/"+build+"/entries", map[string]any{"entry_ids": classic.entries[:4]})
@@ -1179,7 +1212,7 @@ func (d *demo) goals(ctx context.Context, scrum, kanban, classic, desk demoHub) 
 		}
 	}
 	portfolio, fresh := d.object(ctx, "portfolio.strategy", "PORTFOLIO", "portfolios", "/portfolios", map[string]any{"name": "Strategische Vorhaben 2026",
-		"owner_id": lukas, "status": "AT_RISK", "description": "Everything the management board reviews monthly.", "items": items})
+		"owner_id": lukas, "status": "AT_RISK", "description": "Alles, was die Geschäftsführung monatlich prüft.", "items": items})
 	if fresh {
 		d.write(ctx, "portfolio update", "POST", "/portfolios/"+portfolio+"/updates", map[string]any{"status": "AT_RISK",
 			"summary": "Bau im Verzug (Stahl), App und Service Desk im Plan. Entscheidung zur PV-Erweiterung im November."})
@@ -1192,7 +1225,7 @@ func (d *demo) goals(ctx context.Context, scrum, kanban, classic, desk demoHub) 
 				digital = append(digital, it)
 			}
 		}
-		d.object(ctx, "portfolio.strategy.digital", "PORTFOLIO", "portfolios", "/portfolios", map[string]any{"name": "Digital customer experience",
+		d.object(ctx, "portfolio.strategy.digital", "PORTFOLIO", "portfolios", "/portfolios", map[string]any{"name": "Digitales Kundenerlebnis",
 			"owner_id": amelia, "parent_id": portfolio, "status": "ON_TRACK", "items": digital})
 	}
 
@@ -1200,7 +1233,7 @@ func (d *demo) goals(ctx context.Context, scrum, kanban, classic, desk demoHub) 
 		map[string]any{"title": "Offene Einträge nach Typ", "chart": "BAR", "source": "QUERY", "x": 0, "y": 0, "w": 6, "h": 4,
 			"query": map[string]any{"scope": map[string]any{"workspace": true}, "filter": map[string]any{"op": "EQ", "field": "is_completed", "value": false},
 				"aggregate": map[string]any{"function": "COUNT", "group_by": "entry_type"}}},
-		map[string]any{"title": "Entries completed per week", "chart": "LINE", "source": "QUERY", "x": 6, "y": 0, "w": 6, "h": 4,
+		map[string]any{"title": "Erledigte Einträge je Woche", "chart": "LINE", "source": "QUERY", "x": 6, "y": 0, "w": 6, "h": 4,
 			"query": map[string]any{"scope": map[string]any{"workspace": true}, "filter": map[string]any{"op": "EQ", "field": "is_completed", "value": true},
 				"aggregate": map[string]any{"function": "COUNT", "bucket": map[string]any{"field": "completed_at", "period": "week", "week_start": "monday"}}}},
 	}
@@ -1209,14 +1242,15 @@ func (d *demo) goals(ctx context.Context, scrum, kanban, classic, desk demoHub) 
 			"goal_ids": []string{company, appGoal, build}})
 	}
 	if desk.hub != "" {
-		widgets = append(widgets, map[string]any{"title": "Incidents by priority", "chart": "PIE", "source": "QUERY", "x": 6, "y": 4, "w": 6, "h": 3,
+		widgets = append(widgets, map[string]any{"title": "Störungen nach Priorität", "chart": "PIE", "source": "QUERY", "x": 6, "y": 4, "w": 6, "h": 3,
 			"query": map[string]any{"scope": map[string]any{"container_id": desk.hub, "include_descendants": true},
 				"aggregate": map[string]any{"function": "COUNT", "group_by": "custom_fields.priority"}}})
 	}
 	d.object(ctx, "dashboard.board", "DASHBOARD", "dashboards", "/dashboards", map[string]any{"name": "Geschäftsführung – Wochenüberblick", "sharing": "SCOPE", "widgets": widgets})
+	d.deskDashboard(ctx, desk.hub, company, deskGoal)
 	if scrum.hub != "" {
 		d.object(ctx, "dashboard.atlas", "DASHBOARD", "dashboards", "/dashboards", map[string]any{"name": "Team Atlas", "sharing": "SCOPE", "hub_id": scrum.hub,
-			"widgets": []any{map[string]any{"title": "Open stories", "chart": "NUMBER", "source": "QUERY", "x": 0, "y": 0, "w": 4, "h": 2,
+			"widgets": []any{map[string]any{"title": "Offene Stories", "chart": "NUMBER", "source": "QUERY", "x": 0, "y": 0, "w": 4, "h": 2,
 				"query": map[string]any{"scope": map[string]any{"container_id": scrum.hub, "include_descendants": true},
 					"filter": map[string]any{"op": "EQ", "field": "is_completed", "value": false}, "aggregate": map[string]any{"function": "COUNT"}}}}})
 	}
@@ -1248,4 +1282,75 @@ func (d *demo) period(ctx context.Context, name, start, end string) string {
 	}
 	d.counts["goal periods"]++
 	return str(made["id"])
+}
+
+// deskDashboard is the desk's week at a glance, every widget kind once or more, all of them
+// inheriting the dashboard's filter: the desk's hub over the last six weeks.
+func (d *demo) deskDashboard(ctx context.Context, hub, company, deskGoal string) {
+	if hub == "" {
+		return
+	}
+	workspace := map[string]any{"workspace": true}
+	count := func(q string, bucket map[string]any, groupBy string) map[string]any {
+		aggregate := map[string]any{"function": "COUNT"}
+		if bucket != nil {
+			aggregate["bucket"] = bucket
+		}
+		if groupBy != "" {
+			aggregate["group_by"] = groupBy
+		}
+		query := map[string]any{"scope": workspace, "aggregate": aggregate}
+		if q != "" {
+			query["q"] = q
+		}
+		return query
+	}
+	average := func(field, q string) map[string]any {
+		query := map[string]any{"scope": workspace, "aggregate": map[string]any{"function": "AVG", "field": field,
+			"bucket": map[string]any{"field": "completed_at", "period": "week"}}}
+		if q != "" {
+			query["q"] = q
+		}
+		return query
+	}
+	created, completed := map[string]any{"field": "created_at", "period": "week"}, map[string]any{"field": "completed_at", "period": "week"}
+	widgets := []any{
+		map[string]any{"title": "Offene Tickets", "chart": "NUMBER", "source": "QUERY", "x": 0, "y": 0, "w": 3, "h": 2, "target": 30, "warn_at": 40,
+			"query": count("is: open", created, "")},
+		map[string]any{"title": "Gelöst je Woche", "chart": "NUMBER", "source": "QUERY", "x": 3, "y": 0, "w": 3, "h": 2, "query": count("is: done", completed, "")},
+		map[string]any{"title": "Ø Lösungszeit", "chart": "NUMBER", "source": "QUERY", "x": 6, "y": 0, "w": 3, "h": 2, "query": average("lead_time", "is: done")},
+		map[string]any{"title": "Zufriedenheit", "chart": "NUMBER", "source": "QUERY", "x": 9, "y": 0, "w": 3, "h": 2, "query": average("satisfaction", "")},
+		map[string]any{"title": "Erstellt und gelöst je Woche", "chart": "LINE", "source": "QUERY", "x": 0, "y": 2, "w": 6, "h": 3, "cumulative": true,
+			"query": count("", created, ""), "compare": map[string]any{"first_title": "erstellt", "title": "gelöst", "query": count("", completed, "")}},
+		map[string]any{"title": "Offen und erledigt", "chart": "PIE", "source": "QUERY", "x": 6, "y": 2, "w": 3, "h": 3, "query": count("", nil, "is_completed")},
+		map[string]any{"title": "Kurz vor Verletzung", "chart": "LIST", "source": "QUERY", "x": 9, "y": 2, "w": 3, "h": 3, "column": "due_at",
+			"query": map[string]any{"scope_container_id": hub, "include_descendants": true,
+				"filter": map[string]any{"op": "EQ", "field": "is_completed", "value": false}, "sort": []any{map[string]any{"field": "due_at", "dir": "ASC"}}}},
+		map[string]any{"title": "Offen je Person", "chart": "TABLE", "source": "QUERY", "x": 0, "y": 5, "w": 4, "h": 3, "query": count("is: open", nil, "assignee_id")},
+		map[string]any{"title": "Tickets nach Status", "chart": "BAR", "source": "QUERY", "x": 4, "y": 5, "w": 4, "h": 3, "query": count("", nil, "status")},
+		map[string]any{"title": "Häufung nach Typ", "chart": "MATRIX", "source": "QUERY", "x": 8, "y": 5, "w": 4, "h": 3, "query": count("", created, "type")},
+	}
+	if goals := compactIDs(deskGoal, company); len(goals) > 0 {
+		widgets = append(widgets, map[string]any{"title": "Ziele des Desks", "chart": "PROGRESS", "source": "GOALS", "x": 0, "y": 8, "w": 6, "h": 2, "goal_ids": goals})
+	}
+	note := "Diese Woche zählt: **VPN-Störung** zuerst. Ab Montag gilt der neue Bereitschaftsplan."
+	if kb := d.knowledge; kb != "" {
+		note += " Lösungen stehen in der [Wissensdatenbank](/pages/" + kb + ")."
+	}
+	widgets = append(widgets, map[string]any{"title": "Hinweis der Leitung", "chart": "TEXT", "source": "TEXT", "x": 6, "y": 8, "w": 6, "h": 2, "text": note})
+	if id, fresh := d.object(ctx, "dashboard.desk", "DASHBOARD", "dashboards", "/dashboards", map[string]any{"name": "Servicedesk – Wochenüberblick",
+		"sharing": "SCOPE", "hub_id": hub, "filter": "hub: " + hub + " created: -6w..", "widgets": widgets}); fresh {
+		d.write(ctx, "dashboard digest", "PUT", "/dashboards/"+id+"/digest", map[string]any{"cadence": "WEEKLY", "weekday": 1, "hour": 8, "time_zone": "Europe/Berlin"})
+	}
+}
+
+// compactIDs answers the identifiers that are not empty, in order.
+func compactIDs(ids ...string) []string {
+	out := []string{}
+	for _, id := range ids {
+		if id != "" {
+			out = append(out, id)
+		}
+	}
+	return out
 }

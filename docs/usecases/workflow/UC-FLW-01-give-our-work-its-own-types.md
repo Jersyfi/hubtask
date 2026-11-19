@@ -53,6 +53,6 @@ works in every view. An agent creating an entry through MCP names the type the s
   type wherever the entry sits; a copy takes a key of its own. A shared type is never changed
   from a hub (configuration model §2); a collection defines no types of its own.
 * A type does not change who may see an entry — that is roles and security levels.
-* A type with the *record* behaviour — a configuration item, a risk, a contact — is never
+* A type with the *record* behaviour — an inventory object, a risk, a contact — is never
   completed: it has no completion, and completing one is refused.
 

@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { MANIFEST, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -49,8 +49,7 @@ async function overview(browser, serviceOnly) {
 }
 
 test('chromium: a service-only workspace is named apart from the counts, in the right number', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   assert.match(await overview(browser, 1), /1 more workspace holds only service accounts and is not counted\./);
   assert.match(await overview(browser, 2), /2 more workspaces hold only service accounts and are not counted\./);
@@ -92,8 +91,7 @@ async function overviewWith(browser, { operators, health }) {
 // UC-INS-12 check 2: the operators are counted right, in the right number, and an empty register is
 // said as what it is to the owner who runs the installation through it.
 test('chromium: the operators are counted in words, and an empty register names the owner', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   const empty = await overviewWith(browser, { operators: [] });
   assert.match(empty, /You run this installation because it has one workspace/);
@@ -104,8 +102,7 @@ test('chromium: the operators are counted in words, and an empty register names 
 
 // The health report's hint on a provider's installation without an accessibility statement, in words.
 test('chromium: the overview says what the health report finds missing', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   const text = await overviewWith(browser, {
     operators: [OPERATOR(1)],
@@ -158,8 +155,7 @@ async function overviewOf(browser, tenancy) {
 // UC-INS-12 check 1: the overview's line on the defaults counts what *Defaults* counts - every area,
 // not the sign-in switches alone.
 test('chromium: the overview counts every setting, as the defaults do', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const text = await overviewOf(browser, 'single');
   assert.match(text, /2 of 4 settings decided, 1 of them locked/, text);
 });
@@ -167,8 +163,7 @@ test('chromium: the overview counts every setting, as the defaults do', async (t
 // deployments.md D1: a single installation cannot suspend or delete its one workspace, so it is
 // shown no counter for either; an installation of many is.
 test('chromium: only an installation of many counts suspended and deleted workspaces', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const single = await overviewOf(browser, 'single');
   assert.doesNotMatch(single, /Suspended|Being deleted/, single);
   const multi = await overviewOf(browser, 'multi');
@@ -180,8 +175,7 @@ test('chromium: only an installation of many counts suspended and deleted worksp
 // the schema as the Upgrade row's state, and a backlog above its alert's line in the warning tone.
 // The section that promised later screens is gone.
 test('chromium: the health report is said in words, with the upgrade row and the backlogs', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const since = new Date(Date.now() - 2 * 3_600_000).toISOString();
   const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
   t.after(() => context.close());
@@ -252,8 +246,7 @@ const INSTALLATION_SECTION = [
 
 // ux-inventory.md §E8, §E10: breadcrumbs everywhere, the installation included.
 test('chromium: every screen of the installation says where it is and leads back', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 812 } });
   t.after(() => context.close());
   await context.route('**/api/v1/**', (route) => {
@@ -309,8 +302,7 @@ async function usageScreen(browser, answer) {
 // user-experience.md §8.4: *Usage* draws each workspace's latest people, entries and stored bytes
 // once metering is on, and says how to switch it on while it is off - never as a failure.
 test('chromium: usage shows each workspace\'s latest counts, and how to switch metering on', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   const on = await usageScreen(browser, { json: {
     data: [{ workspace_id: '01a0e2e0-0000-7000-8000-0000000005a1', purged: false, metrics: {

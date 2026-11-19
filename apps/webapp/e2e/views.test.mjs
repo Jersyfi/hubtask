@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The collection's one *Views* menu (ux-inventory.md §E4, §E9 "Second Saved views entry"): the
-// saved views that apply here, each opened by its row with its query and layout; saving what is on
-// screen; changing a view; exporting the list as it is filtered without saving a view first; the
-// calendar subscriptions. The page menu no longer carries a second way to the views. Chromium only.
+// The collection's saved views without a menu of their own (work-surface §6.2, scene viewcfg): each
+// a tab of the bar, opened with its query and layout; ＋ saves what is on screen; the panel *View*
+// changes a view, exports the list as it is filtered without saving a view first and holds the
+// calendar subscriptions. The page menu carries no second way to the views. Chromium only.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { COLLECTION, signedIn } from './fixture.mjs';
@@ -36,9 +36,8 @@ const OPEN_WORK = {
 
 const labelsOf = (menu) => menu.getByRole('menuitem').evaluateAll((items) => items.map((item) => item.querySelector('.label')?.textContent.trim() ?? ''));
 
-test('chromium: 1280 px — one Views menu opens, saves, exports the filtered list and subscribes', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+test('chromium: 1280 px — a saved view is a tab; the View panel exports the filtered list, manages and subscribes', async (t) => {
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
 
@@ -68,25 +67,29 @@ test('chromium: 1280 px — one Views menu opens, saves, exports the filtered li
   assert.ok(!(await labelsOf(pageMenu)).some((label) => /view/i.test(label)), `the page menu still names a view: ${await labelsOf(pageMenu)}`);
   await page.keyboard.press('Escape');
 
-  // The one menu, in its order: the views that apply here, then the acts.
-  const trigger = page.locator('[data-opener="views"]');
-  assert.equal(await trigger.count(), 1, 'no Views menu in the head');
-  await trigger.click();
-  const menu = page.getByRole('menu', { name: 'Views' });
-  await menu.waitFor({ timeout: 5_000 });
-  assert.deepEqual(await labelsOf(menu), ['Show Open work', 'Save this view…', 'Rename, share or delete a view…', 'Export this list…', 'Calendar subscriptions…']);
-
-  // Opening a view applies its query and its layout together.
+  // The saved view is a tab of the bar; opening it applies its query and its layout together.
   const before = queried.length;
-  await menu.getByRole('menuitem', { name: 'Show Open work' }).click();
+  const tab = page.getByRole('navigation', { name: COLLECTION.name }).getByRole('link', { name: 'Open work' });
+  await tab.waitFor({ timeout: 5_000 });
+  await tab.click();
   for (let waited = 0; queried.length === before && waited < 50; waited++) await page.waitForTimeout(100);
   const applied = queried.slice(before).find((body) => body.filter);
   assert.deepEqual(applied?.filter, OPEN_WORK.query.filter, 'the view’s filter was not applied');
   await page.locator('.board').first().waitFor({ timeout: 5_000 }).catch(() => assert.fail('the view’s board layout was not applied'));
 
+  // The one panel *View* holds the acts the menu held (work-surface §6.2): no Views menu is left.
+  assert.equal(await page.locator('[data-opener="views"]').count(), 0, 'a Views menu is still in the head');
+  const trigger = page.locator('[data-opener="view"]');
+  assert.equal(await trigger.count(), 1, 'no View button over the list');
+  const panel = page.locator('[data-view-panel]');
+  const openPanel = async () => {
+    if (!(await panel.isVisible())) await trigger.click();
+    await panel.waitFor({ timeout: 5_000 });
+  };
+
   // Export without a saved view: the list as it is filtered now.
-  await trigger.click();
-  await page.getByRole('menuitem', { name: 'Export this list…' }).click();
+  await openPanel();
+  await panel.getByRole('button', { name: 'Export this list…' }).click();
   const dialog = page.getByRole('dialog', { name: 'Export this list' });
   await dialog.waitFor({ timeout: 5_000 });
   const download = page.waitForEvent('download', { timeout: 5_000 });
@@ -100,14 +103,18 @@ test('chromium: 1280 px — one Views menu opens, saves, exports the filtered li
   await page.keyboard.press('Escape');
   await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
 
-  // Saving, changing and the subscriptions each open their own dialog.
-  for (const [row, title] of [['Save this view…', 'Save this view'], ['Rename, share or delete a view…', 'Saved views'], ['Calendar subscriptions…', 'Calendar subscriptions']]) {
-    await trigger.click();
-    await page.getByRole('menuitem', { name: row }).click();
+  // Changing and the subscriptions each open their own dialog from the panel; ＋ in the bar saves.
+  for (const [row, title] of [['Rename, share or delete a view…', 'Saved views'], ['Calendar subscriptions…', 'Calendar subscriptions']]) {
+    await openPanel();
+    await panel.getByRole('button', { name: row }).click();
     const opened = page.getByRole('dialog', { name: title });
     await opened.waitFor({ timeout: 5_000 }).catch(() => assert.fail(`${row} opened no ${title}`));
     await page.keyboard.press('Escape');
     await opened.waitFor({ state: 'hidden', timeout: 5_000 });
   }
+  await page.getByRole('navigation', { name: COLLECTION.name }).getByRole('button', { name: 'Save this view…' }).click();
+  const saving = page.getByRole('dialog', { name: 'Save this view' });
+  await saving.waitFor({ timeout: 5_000 }).catch(() => assert.fail('＋ opened no Save this view'));
+  await page.keyboard.press('Escape');
   assert.deepEqual(failures, []);
 });

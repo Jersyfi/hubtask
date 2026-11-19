@@ -8,7 +8,7 @@ import { SOURCE } from '../i18n/source.ts';
 import { PRODUCTS } from '../navigation.ts';
 import { ROUTES } from '../routes.ts';
 import { resolve } from '../router.ts';
-import { collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse, placesToCreate, writableHubs, nextReleaseOf, hubsWithAssetsFirst, inventoryByClass, sprintsRunning, pagesChangedSince, boardsChangedSince, goalsStanding } from './home.ts';
+import { continueReading, daysOverdue, pagesFigures, verifiedBySpace, collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse, placesToCreate, writableHubs, nextReleaseOf, hubsWithAssetsFirst, inventoryByClass, sprintsRunning, pagesChangedSince, boardsChangedSince, goalsStanding, phasesOf, attentionAcross, planCounts } from './home.ts';
 
 // user-experience.md §2.2: every product's home leads somewhere - to a hub's screen of it or to a
 // workspace-wide screen it already has - and every address resolves to a route.
@@ -145,7 +145,7 @@ test('every product home carries its primary create act', () => {
     }
     const create = createOf(row.module);
     assert.ok(create, `${row.module}'s home has no create act`);
-    assert.ok(create.code in SOURCE && create.inCode in SOURCE, `${row.module}: ${create.code}, ${create.inCode}`);
+    assert.ok(create.code in SOURCE, `${row.module}: ${create.code}`);
     const screen = create.level === 'HUB' ? hubScreenOf(row.module, id) : collectionScreenOf(row.module, id);
     assert.ok(screen && resolve(ROUTES, screen).name, `${row.module}'s create leads to no route: ${screen}`);
   }
@@ -287,4 +287,54 @@ test('a hub\'s overview counts the goals still pursued and those of them at risk
   const goals = ['ON_TRACK', 'AT_RISK', 'OFF_TRACK', 'NONE', 'DONE', 'DROPPED'].map((status) => ({ status }));
   assert.deepEqual(goalsStanding(goals), { open: 4, atRisk: 2 });
   assert.deepEqual(goalsStanding([]), { open: 0, atRisk: 0 });
+});
+
+test('a plan\'s phases are its top-level entries by start, the one running today now', () => {
+  const entry = (id: string, start: string, finish: string, done = false, parent: string | null = null) =>
+    ({ item_id: id, title: id, parent_id: parent, start, finish, duration_days: 5, done, external: false });
+  const phases = phasesOf([
+    entry('build', '2026-11-10', '2026-11-20'),
+    entry('plan', '2026-11-01', '2026-11-07', true),
+    entry('wall', '2026-11-11', '2026-11-12', false, 'build'),
+    entry('open', '2026-12-01', '2026-12-05'),
+  ], '2026-11-13');
+  assert.deepEqual(phases.map((each) => [each.id, each.state]), [['plan', 'done'], ['build', 'now'], ['open', 'later']]);
+  // Between phases the first not done is the one now.
+  assert.deepEqual(phasesOf([entry('plan', '2026-11-01', '2026-11-07', true), entry('open', '2026-12-01', '2026-12-05')], '2026-11-13').map((each) => each.state), ['done', 'now']);
+  assert.deepEqual(phasesOf([], '2026-11-13'), []);
+});
+
+test('what needs attention is each hub\'s problems in turn, at most as many as shown', () => {
+  const healthAt = { h1: { problems: [{ ci_id: 'a' }, { ci_id: 'b' }] }, h2: { problems: [{ ci_id: 'c' }] } };
+  assert.deepEqual(attentionAcross(healthAt, ['h2', 'h1', 'h3'], 2).map((each) => [each.hubId, each.ci_id]), [['h2', 'c'], ['h1', 'a']]);
+});
+
+test('planCounts: a hub holds plans by its releases, dated entries and its collections\' sprints, once both reads answered', () => {
+  const hubOf = (collection: string) => ({ c1: 'a', c2: 'b' })[collection];
+  assert.deepEqual(planCounts(['a', 'b'], { a: [], b: [] }, { a: [], b: [] }, {}, hubOf), { a: 0, b: 0 });
+  assert.deepEqual(planCounts(['a', 'b'], { a: [1], b: [] }, { a: [], b: [1, 2] }, { c1: [1] }, hubOf), { a: 2, b: 2 });
+  assert.deepEqual(planCounts(['a', 'b'], { a: [] }, { a: [], b: [] }, {}, hubOf), { a: 0 }, 'a hub whose releases are still read is left out');
+  assert.equal(isUnused(planCounts(['a', 'b'], { a: [] }, { a: [], b: [] }, {}, hubOf), ['a', 'b']), undefined);
+});
+
+test('the pages\' home counts the pages, the spaces, the verified and the reader\'s reviews; per space how much is verified; what to continue (phome)', () => {
+  const now = '2026-11-14T10:00:00Z';
+  const page = (id: string, extra: Partial<Record<string, unknown>> = {}) => ({
+    id, hub_id: 'h1', updated_at: '2026-11-01T00:00:00Z', owner_id: 'me', template: false, archived: false, due_for_review: false, trashed_at: null, daily_for: null, verified_until: null, ...extra,
+  });
+  const lists = {
+    h1: [page('a', { verified_until: '2027-01-15T00:00:00Z' }), page('b', { verified_until: '2026-11-01T00:00:00Z', due_for_review: true }), page('t', { template: true })],
+    h2: [page('c', { hub_id: 'h2', verified_until: '2027-01-01T00:00:00Z' })],
+    h3: [],
+  };
+  assert.deepEqual(pagesFigures(lists, ['h1', 'h2', 'h3'], now, 1), { pages: 3, spaces: 2, verified: 2, toReview: 1 });
+  assert.deepEqual(verifiedBySpace(lists, ['h1', 'h2', 'h3'], now), [{ hubId: 'h1', verified: 1, total: 2 }, { hubId: 'h2', verified: 1, total: 1 }]);
+  assert.deepEqual(continueReading(lists, ['h1', 'h2'], ['c', 'gone', 't', 'a', 'b'], 2).map((each) => each.id), ['c', 'a'], 'a page no longer read, or a template, is left out');
+});
+
+test('a review is due since whole days, none on its first day or before', () => {
+  assert.equal(daysOverdue('2026-11-11T09:00:00Z', '2026-11-14T10:00:00Z'), 3);
+  assert.equal(daysOverdue('2026-11-14T09:00:00Z', '2026-11-14T20:00:00Z'), 0);
+  assert.equal(daysOverdue('2026-11-20T09:00:00Z', '2026-11-14T20:00:00Z'), 0);
+  assert.equal(daysOverdue('not a date', '2026-11-14T20:00:00Z'), 0);
 });

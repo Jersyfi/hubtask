@@ -10,8 +10,10 @@ import (
 
 var (
 	quotePrefix = regexp.MustCompile(`^(?:>\s?)+`)
-	// The marks of one line's prose, leftmost first, so an escaped mark is never read as a mark.
-	excerptMark = regexp.MustCompile("\\\\([\\\\`*_~\\[\\]#|])|(!?)\\[([^\\]]*)\\]\\(([^)\\s]*)\\)|\\*\\*|~~|__|\\*([^*\\s][^*]*?)\\*|(^|[\\s(])_([^_\\s][^_]*?)_")
+	// The marks of one line's prose, leftmost first, so an escaped mark is never read as a mark;
+	// any ASCII punctuation may be escaped (CommonMark), and the editor writes "\1." for a number
+	// that would start a list.
+	excerptMark = regexp.MustCompile("\\\\([!-/:-@\\[-`{-~]|\\d+[.)])|(!?)\\[([^\\]]*)\\]\\(([^)\\s]*)\\)|\\*\\*|~~|__|\\*([^*\\s][^*]*?)\\*|(^|[\\s(])_([^_\\s][^_]*?)_")
 )
 
 // PlainExcerpt is a search hit's passage as words (UC-DOC-01/3): the body's Markdown removed, its
@@ -96,4 +98,25 @@ func plainProse(text string) string {
 	}
 	out.WriteString(text[at:])
 	return out.String()
+}
+
+// MaxOpeningRunes bounds a tree row's excerpt (api/openapi.yaml, Page.excerpt).
+const MaxOpeningRunes = 160
+
+// Opening is a page's first words as plain text, as a tree row carries them: the head of the body
+// without its Markdown, cut at a word with an ellipsis past MaxOpeningRunes. The head may end inside
+// a mark; PlainExcerpt drops a mark whose partner was cut off.
+func Opening(head string) string {
+	text := []rune(PlainExcerpt(head))
+	if len(text) <= MaxOpeningRunes {
+		return string(text)
+	}
+	cut := MaxOpeningRunes - 1
+	for i := cut; i > MaxOpeningRunes/2; i-- {
+		if text[i] == ' ' {
+			cut = i
+			break
+		}
+	}
+	return strings.TrimRight(string(text[:cut]), " ,;:.-–") + "…"
 }

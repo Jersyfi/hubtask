@@ -29,10 +29,13 @@
   import AppWorkspaces from './AppWorkspaces.svelte';
   import SwitchWorkspace from './SwitchWorkspace.svelte';
   import AreaNav from './AreaNav.svelte';
+  import CreateMenu from '../create/CreateMenu.svelte';
+  import { create } from '../create/create.svelte.ts';
   import Palette from '../palette/Palette.svelte';
   import { newMarks } from '../product/newmark.svelte.ts';
   import { palette } from '../palette/palette.svelte.ts';
   import CaptureDialog from '../capture/CaptureDialog.svelte';
+  import FileViewer from '../files/FileViewer.svelte';
   import { capture } from '../capture/capture.svelte.ts';
   import { jumbleWritable, liveCollections, mayCaptureHere, openLevels, openRoles } from '../capture/places.svelte.ts';
   import { listenForShortcuts } from './keys.ts';
@@ -54,6 +57,8 @@
   import { homeModuleOf } from '../product/producttour.ts';
   import SyncLine from './SyncLine.svelte';
   import WorkspaceNav from './WorkspaceNav.svelte';
+  import PortalFrameBar from './PortalFrameBar.svelte';
+  import { isOutsider } from '../portal/portal.ts';
   import PhoneBar from './PhoneBar.svelte';
   import { AREA_STEP_PATHS, TabStacks, areaStepOf, ascentOf, depthOf, phoneTabs, starOf, tabOf, type PhoneTab } from '../phone.ts';
   import { levelOf, type NavLevel } from '../sidebar.ts';
@@ -269,21 +274,24 @@
   // it is adopted when the account arrives and dropped when it changes — two people sharing a
   // browser never read each other's (`lib/recents.svelte.ts`).
   $effect(() => recents.adopt(actor.account?.id));
+  $effect(() => create.adopt(actor.account?.id));
 
   // Which of the five widths the frame is drawn at. Started with the frame and stopped with it.
   $effect(() => viewport.start());
 
+  // Whoever holds READ nowhere gets the portal's frame alone (PO-2, E-13): no sidebar, Today,
+  // search over Hubtask or *Erstellen*. Decided by what the server answers on the account.
+  const isOutside = $derived(session.isSignedIn && isOutsider(actor.hasNoAccess, actor.portals));
   // The global shortcuts, while somebody is signed in: `⌘K`/`Ctrl K` and `/` open the palette from
   // every framed page (UC-WRK-27 check 1). Which press is which is `lib/shortcuts.ts`'s.
   $effect(() => {
-    if (!session.isSignedIn) return;
+    if (!session.isSignedIn || isOutside) return;
     return listenForShortcuts(() => palette.isOpen, {
       palette: () => palette.summon(),
       help: () => (isHelpOpen = true),
       // `Q`, where the reader may capture at all; elsewhere it is no shortcut (P-05).
-      capture: () => {
-        if (mayCaptureHere()) capture.summon();
-      },
+      // `C` or `Q` opens *Erstellen* (C-5), which holds capture's line on top.
+      capture: () => create.summon(),
       // `S` stars or unstars the place on screen, as its head's ☆ does (UC-WRK-37 check 5).
       star: () => {
         const place = starOf(route);
@@ -305,7 +313,7 @@
     if (!needsRoles) return;
     openRoles(liveCollections());
   });
-  const isCaptureOffered = $derived(session.isSignedIn && mayCaptureHere());
+  const isCaptureOffered = $derived(session.isSignedIn && !isOutside && mayCaptureHere());
 
   /** Where the reader stands: the capture field's own collection, and what the palette offers for it. */
   const captureHere = $derived({
@@ -512,7 +520,7 @@
   /** Hidden where the screen is the work's own canvas: a whiteboard (§9). */
   const isBottomBarShown = $derived(route.name !== 'whiteboard' && !page.isWriting);
   function choosePhoneTab(id: string) {
-    if (id === 'capture') return capture.summon();
+    if (id === 'capture') return create.summon();
     // Search opens the palette, the bar having no field to type in: its *All results* and *Open
     // search* are the way to the search screen (UC-WRK-27 check 1).
     if (id === 'search') return palette.summon();
@@ -770,7 +778,7 @@
           <span class="seek-word">{t('app.palette.placeholder')}</span>
         </button>
         {#if isCaptureOffered}
-          <IconButton icon="plus" size="sm" tone="primary" label={t('app.capture.open_field')} data-tour="capture" aria-keyshortcuts="Q" onclick={() => capture.summon()} />
+          <IconButton icon="plus" size="sm" tone="primary" label={t('app.create.open')} data-tour="capture" aria-keyshortcuts="C Q" aria-haspopup="dialog" onclick={() => create.summon()} />
         {/if}
       </div>
     {:else}
@@ -779,14 +787,20 @@
       <div class="ways">
         <Palette host="bar" onnavigate={go} onaccount={accountVerb} here={captureHere} />
         {#if isCaptureOffered}
-          <span class="beside">
-            <Button size="sm" tone="primary" icon="plus" data-tour="capture" aria-keyshortcuts="Q" onclick={() => capture.summon()}>{t('app.capture.open_field')}</Button>
+          <span class="beside" {@attach (element) => { create.button = element; return () => { if (create.button === element) create.button = undefined; }; }}>
+            <Button size="sm" tone="primary" icon="plus" data-tour="capture" aria-keyshortcuts="C Q" aria-haspopup="dialog" onclick={() => create.summon()}>{t('app.create.open')}</Button>
           </span>
         {/if}
       </div>
     {/if}
   {/snippet}
-  {#if isPhone}
+  {#snippet outsiderAccount(extra?: Snippet<[close: () => void]>)}
+    <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet={viewport.isCompact} bind:isSheetOpen={isAccountOpen} {elsewhere} onchoose={chooseAccount}
+      sheetIcon={extra ? 'list' : undefined} {extra} />
+  {/snippet}
+  {#if isOutside}
+    <PortalFrameBar {route} {isPhone} onnavigate={go} account={outsiderAccount} />
+  {:else if isPhone}
     <PhoneBar label={t('app.nav.bar')} title={page.title} back={phoneBack} onback={back} star={phoneStar} menu={page.menu}>
       {#snippet account()}
         <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet bind:isSheetOpen={isAccountOpen} {elsewhere}
@@ -819,6 +833,7 @@
            would eventually disagree about which action is an action and which is an item. -->
       {#if viewport.isCompact && page.menu}
         {@const offered = page.menu}
+        <!-- Not anchored: on a phone the page's menu is a sheet from the foot, as every menu of the page is (D-1). -->
         <Menu label={offered.label} items={offered.items} placement={{ side: 'block-end', align: 'end' }} onselect={offered.onselect}>
           {#snippet trigger(props)}
             <IconButton icon="ellipsis" label={offered.label} data-opener={offered.opener} {...props} />
@@ -851,7 +866,7 @@
          view that rendered it would rebuild it on every navigation. Pinned from `expanded`, where
          the tour's `hubs` step finds it; below that the same tree is in the drawer and the step
          finds the bar's ☰ instead. -->
-    {#if session.isSignedIn}
+    {#if session.isSignedIn && !isOutside}
       {#if viewport.isBelowExpanded && !isPhone}
         <NavDrawer bind:isOpen={isDrawerOpen} title={section?.label ?? t('app.nav.title')} dismissLabel={t('app.nav.close')}>
           {#if section}
@@ -1002,19 +1017,29 @@
 
   <!-- The primary destinations where a thumb is, on `compact` only; "You" opens the account group
        as a sheet from the bottom, because there is no avatar in the bar on a phone. -->
-  {#if isPhone && isBottomBarShown}
+  {#if isPhone && isBottomBarShown && !isOutside}
     <BottomBar
       label={t('app.nav.label')}
       destinations={phoneDestinations}
       current={phoneTab}
       onnavigate={choosePhoneTab}
+      onhold={(id) => {
+        if (id === 'capture') create.summonLast();
+      }}
     />
   {/if}
   <!-- The palette's second drawing, below `medium`: the same field and list, in a dialog. -->
-  {#if session.isSignedIn && viewport.isBelowExpanded && palette.isOpen}
+  {#if session.isSignedIn && !isOutside && viewport.isBelowExpanded && palette.isOpen}
     <Palette host="dialog" onnavigate={go} onaccount={accountVerb} here={captureHere} />
   {/if}
   <!-- One capture field for the three ways in: `Q`, the bar's button, the bottom bar's ＋. -->
+  <!-- *Erstellen*: C, Q, the bar's button and the bottom bar's ＋ (C-5); capture is its line.
+       Mounted while closed: a kind's own dialog (a collection) outlives the menu that opened it. -->
+  {#if isCaptureOffered}
+    <CreateMenu here={captureHere} onnavigate={go} />
+  {/if}
+  <!-- The one file viewer (F-1), opened by whatever shows files. -->
+  <FileViewer />
   {#if isCaptureOffered && capture.isOpen}
     <CaptureDialog currentCollectionId={captureHere.collection} currentItemId={captureHere.item} currentHubId={captureHere.hub} onnavigate={go} />
   {/if}
@@ -1040,7 +1065,7 @@
        the prompt belongs to the frame rather than to whichever screen made the request. -->
   <StepUpPrompt />
   <!-- The tour: walks routes, so it lives where every route is. -->
-  {#if session.isSignedIn}
+  {#if session.isSignedIn && !isOutside}
     <TourGuide path={route.path} {onnavigate} />
     <ProductTourGuide routeName={route.name} routeTab={route.query['tab']} {onnavigate} />
   {/if}

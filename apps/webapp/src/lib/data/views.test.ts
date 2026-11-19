@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  liveViewReadOf,
   scopeIdOf,
   caldavAddressOf,
   exportFileName,
@@ -138,4 +139,17 @@ test('an export without a view asks the question a view saved here would store',
     format: 'ICS',
     query: { scope: { container_id: 'c-1', include_descendants: false } },
   });
+});
+
+test('a view living in a page reads its own question at its own scope, a page of rows at most', () => {
+  const stored = { scope_container_id: 'c1', include_descendants: false, filter: { field: 'status', op: 'eq', value: 'todo' }, sort: [{ field: 'due_at', dir: 'ASC' }] };
+  assert.deepEqual(liveViewReadOf(stored, 5), {
+    scope: { container_id: 'c1', include_descendants: false },
+    filter: { field: 'status', op: 'eq', value: 'todo' },
+    sort: [{ field: 'due_at', dir: 'ASC' }],
+    page: { size: 5 },
+  });
+  assert.deepEqual(liveViewReadOf({ scope_container_id: 'h1', include_descendants: true }, 3), { scope: { container_id: 'h1', include_descendants: true }, page: { size: 3 } });
+  assert.equal(liveViewReadOf({ filter: {} }, 5), undefined, 'no scope, no rows');
+  assert.equal(liveViewReadOf(undefined, 5), undefined);
 });

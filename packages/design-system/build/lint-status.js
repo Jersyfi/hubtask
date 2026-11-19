@@ -25,7 +25,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 /** The components that are a status: their surface is drawn their own way, through a tone. */
-export const STATUS_COMPONENTS = new Set(['Badge.svelte', 'Banner.svelte', 'Toast.svelte', 'Callout.svelte', 'RunStatusBadge.svelte']);
+export const STATUS_COMPONENTS = new Set(['Badge.svelte', 'Banner.svelte', 'Toast.svelte', 'Callout.svelte', 'RunStatusBadge.svelte', 'StateLozenge.svelte', 'StatusButton.svelte', 'DeadlineBar.svelte', 'DeadlineList.svelte', 'PriorityMark.svelte']);
 
 /**
  * Attributes that name a kind rather than a state, so red text under them is a kind of action or a

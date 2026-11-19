@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-09, P-11]
 state: built
 tasks: [G-01, B-13, F4-10, P-01, P-02, P-03]
-checked_by: [core/application/service/identity/AccessToken_test.go, test/integration/access_token_test.go, test/architecture/parity_test.go, test/integration/channel_parity_test.go, test/integration/idempotency_test.go]
+checked_by: [core/application/service/identity/AccessToken_test.go, core/application/service/work/QueryItems_test.go, test/querylanguage/lines_test.go, test/integration/access_token_test.go, test/architecture/parity_test.go, test/integration/channel_parity_test.go, test/integration/idempotency_test.go]
 ---
 
 # Script my workspace with hubctl or the API
@@ -48,6 +48,10 @@ revoked and the next request with it fails.
    twice.
 9. The public API reference and the Go, TypeScript and Python clients are generated from the same
    contract the server is built from.
+10. A query is written once in either spelling of the Hubtask query - `is: open who: me` or
+    `is_completed = false AND assignee_id = @me` - and reads the same through the API, MCP and
+    `hubctl` (`POST /items:query` `q`, `POST /search` `query`), with errors as codes at the place
+    they stand (work surface E-10, ADR-0102).
 
 ## Where it ends
 

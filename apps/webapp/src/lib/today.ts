@@ -27,9 +27,26 @@ export interface DayBands {
   readonly earlier: readonly WorkItem[];
   /** Due before the reader's day ends, and not yet past. */
   readonly today: readonly WorkItem[];
-  /** Due after today. UC-WRK-20's *next*. */
+  /** Due after today, or without a date. UC-WRK-20's *next*. */
   readonly later: readonly WorkItem[];
 }
+
+/**
+ * What the first panel draws from: the open entries assigned to the reader, with a date or without
+ * - an undated entry is on somebody as much as a dated one ("0 on you", concept §10), and waits
+ * under *upcoming*. No `sort`: the contract's default for a search with no words is
+ * `due_at ASC NULLS LAST` (ADR-0064), so the undated come last. `@me` is resolved on the server.
+ */
+export const MINE_QUERY = {
+  filter: {
+    op: 'AND',
+    nodes: [
+      { op: 'EQ', field: 'assignee_id', value: '@me' },
+      { op: 'EQ', field: 'is_completed', value: false },
+    ],
+  },
+  page: { size: 20 },
+} as const;
 
 /** Whether the entry falls due before the reader's next day begins. */
 export function isDueByTonight(item: WorkItem, readerZone: string, now: number): boolean {
@@ -257,4 +274,100 @@ export function timeTodayOf(
     week: week.minutes,
     running: timer?.running ? { minutes: timer.elapsed_minutes ?? 0, entryId: timer.entry_id, ...(timer.entry_title ? { entryTitle: timer.entry_title } : {}) } : undefined,
   };
+}
+
+/** The cards of Today's row (work-surface concept §6.1), in the product's own order. */
+export const TODAY_CARDS = ['OVERDUE', 'DUE_TODAY', 'REPLY', 'TIME', 'APPROVALS'] as const;
+/** The tiles over the full width, in the product's own order. */
+export const TODAY_TILES = ['COLLECTIONS', 'NEWS', 'INBOX', 'RECENT'] as const;
+export type TodayCard = (typeof TODAY_CARDS)[number];
+export type TodayTile = (typeof TODAY_TILES)[number];
+export type TodaySection = TodayCard | TodayTile;
+
+/**
+ * The cards this person's modules give (P-17): the day's two always, *needs your reply* with the
+ * service desk, *time today* with time, *waits for your yes* where approvals, held acts or page
+ * reviews can wait - the bands of `productBandsOf` it gathers.
+ */
+export function cardsOf(modulesOn: readonly string[] | undefined): TodayCard[] {
+  const bands = productBandsOf(modulesOn);
+  return TODAY_CARDS.filter((card) => {
+    if (card === 'REPLY') return bands.includes('desk');
+    if (card === 'TIME') return bands.includes('time');
+    if (card === 'APPROVALS') return bands.includes('approvals') || bands.includes('agent_acts') || bands.includes('reviews');
+    return true;
+  });
+}
+
+/**
+ * *Abschnitte* (E-17): the sections given here in the person's order - those named first, the
+ * rest after in the product's order - and those hidden. A stored section not given here stays
+ * absent either way: a role or a module decides first, the person's arrangement second.
+ */
+export function arrangeSections<T extends string>(
+  given: readonly T[],
+  order: readonly string[] | null | undefined,
+  hidden: readonly string[] | null | undefined,
+): { shown: T[]; hidden: T[] } {
+  const named = order ?? [];
+  const rank = (key: T) => {
+    const at = named.indexOf(key);
+    return at === -1 ? named.length + given.indexOf(key) : at;
+  };
+  const sorted = [...given].sort((a, b) => rank(a) - rank(b));
+  const off = new Set(hidden ?? []);
+  return { shown: sorted.filter((key) => !off.has(key)), hidden: sorted.filter((key) => off.has(key)) };
+}
+
+/** The whole order a move up (`-1`) or down (`1`) writes; at the edge it stays as it was. */
+export function movedSection<T extends string>(all: readonly T[], order: readonly string[] | null | undefined, key: T, by: -1 | 1): T[] {
+  const { shown, hidden } = arrangeSections(all, order, undefined);
+  const list = [...shown, ...hidden];
+  const at = list.indexOf(key);
+  const to = at + by;
+  if (at === -1 || to < 0 || to >= list.length) return list;
+  [list[at], list[to]] = [list[to] as T, list[at] as T];
+  return list;
+}
+
+/** The whole hidden list a switch writes: `key` added at the end or taken out. */
+export function hiddenSections(list: readonly string[] | null | undefined, key: string, isHidden: boolean): string[] {
+  const rest = (list ?? []).filter((each) => each !== key);
+  return isHidden ? [...rest, key] : rest;
+}
+
+/** How many rows each of the two columns draws before its "all n" (§6.1). */
+export const ROWS_PER_COLUMN = 8;
+
+/** A column's rows: at most eight, and how many are held back. */
+export function capped<T>(rows: readonly T[], size = ROWS_PER_COLUMN): { shown: T[]; rest: number } {
+  return { shown: rows.slice(0, size), rest: Math.max(0, rows.length - size) };
+}
+
+/** *Dein Tag*'s rows: eight across the bands, the soonest band first, and how many wait behind. */
+export function dayRows(bands: DayBands, size = ROWS_PER_COLUMN): DayBands & { rest: number } {
+  let left = size;
+  const take = (rows: readonly WorkItem[]) => {
+    const out = rows.slice(0, Math.max(0, left));
+    left -= out.length;
+    return out;
+  };
+  const earlier = take(bands.earlier);
+  const today = take(bands.today);
+  const later = take(bands.later);
+  const all = bands.earlier.length + bands.today.length + bands.later.length;
+  return { earlier, today, later, rest: all - earlier.length - today.length - later.length };
+}
+
+/** How many of the day's entries are due at a time of day rather than on the day. */
+export function timedCount(items: readonly WorkItem[]): number {
+  return items.filter((item) => item.due_at && !item.due_date_only).length;
+}
+
+/** How many of the desk's entries are past the moment their running SLA was due. */
+export function breachedCount(ids: readonly string[], dueOf: Readonly<Record<string, number | undefined>>, now: number): number {
+  return ids.filter((id) => {
+    const due = dueOf[id];
+    return due !== undefined && due < now;
+  }).length;
 }

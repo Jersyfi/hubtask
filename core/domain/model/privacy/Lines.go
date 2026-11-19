@@ -28,6 +28,7 @@ const (
 	LineGoalCheckIns       LineKind = "GOAL_CHECK_INS"
 	LinePortfolioUpdates   LineKind = "PORTFOLIO_UPDATES"
 	LinePageDrafts         LineKind = "PAGE_DRAFTS"
+	LinePostReplies        LineKind = "POST_REPLIES"
 	LineEntries            LineKind = "ENTRIES"
 )
 
@@ -62,6 +63,7 @@ var writingLines = []struct {
 	{RowCheckIn, LineGoalCheckIns},
 	{RowPortfolioUpdate, LinePortfolioUpdates},
 	{RowPageDraft, LinePageDrafts},
+	{RowPostReply, LinePostReplies},
 }
 
 // rowTally is how the rows of one kind end: by the mode's own fate, or kept by a hold.

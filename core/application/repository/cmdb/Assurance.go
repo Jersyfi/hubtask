@@ -11,6 +11,14 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
+// OpenWork is an open entry naming a CI, with the collection and hub its reader is judged on.
+type OpenWork struct {
+	CIID         shared.ID
+	ItemID       shared.ID
+	CollectionID shared.ID
+	HubID        shared.ID
+}
+
 // Assurance keeps what vouches for an inventory: the CIs entries name as affected, certification
 // campaigns and their attestations, a hub's CI groups, the CIs' asset records and the workspace's
 // software aliases. Another workspace's rows are not found.
@@ -22,6 +30,9 @@ type Assurance interface {
 	AffectedOf(ctx context.Context, itemID shared.ID) ([]cmdb.Affected, error)
 	// AffectingAny answers the rows naming any of the CIs, the latest first, up to limit.
 	AffectingAny(ctx context.Context, ciIDs []shared.ID, limit int) ([]cmdb.Affected, error)
+	// OpenWorkOfHub answers the open, unarchived entries naming a CI of the hub, one row per
+	// naming, the latest first, up to limit.
+	OpenWorkOfHub(ctx context.Context, hubID shared.ID, limit int) ([]OpenWork, error)
 
 	// InsertCampaign writes a campaign with one pending attestation per CI asked.
 	InsertCampaign(ctx context.Context, c cmdb.Campaign, asked []cmdb.Attestation) error
@@ -40,10 +51,17 @@ type Assurance interface {
 	PutGroup(ctx context.Context, g cmdb.Group, expected int) error
 	Groups(ctx context.Context, hubID shared.ID) ([]cmdb.Group, error)
 	FindGroup(ctx context.Context, id shared.ID) (cmdb.Group, error)
+	// RemoveGroup deletes a group at the version expected: not found when it is gone, a version
+	// conflict when it changed.
+	RemoveGroup(ctx context.Context, id shared.ID, expected int) error
 
 	// PutAsset writes a CI's asset record at the version expected; zero expects none.
 	PutAsset(ctx context.Context, a cmdb.Asset, expected int) error
 	FindAsset(ctx context.Context, ciID shared.ID) (cmdb.Asset, error)
+	// AddAssetMove keeps a step of an asset's life; AssetMoves answers them oldest first, up to
+	// limit.
+	AddAssetMove(ctx context.Context, m cmdb.AssetMove) error
+	AssetMoves(ctx context.Context, ciID shared.ID, limit int) ([]cmdb.AssetMove, error)
 	Assets(ctx context.Context, hubID, after shared.ID, limit int) ([]cmdb.Asset, error)
 
 	// PutAlias writes an alias at the version expected; zero expects a new match.

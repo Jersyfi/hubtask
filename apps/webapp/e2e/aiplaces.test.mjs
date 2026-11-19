@@ -12,7 +12,7 @@
 // * a running question is stopped from its card, and the job is cancelled;
 // * with AI off, nothing of it is drawn - the rule editor's AI blocks included.
 //
-// Chromium, at 375, 768 and 1280 px; EVIDENCE=<dir> keeps the screenshots, light and dark.
+// Chromium, at 375 and 1280 px; EVIDENCE=<dir> keeps the screenshots, at 768 px and in dark too.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -104,7 +104,7 @@ async function reachEntry(browser, { width = 1280, ai = true, role = 'OWNER', st
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
-  await page.getByText(CHILDREN[ENTRY.id][0].title).first().waitFor({ timeout: 15_000 });
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
   // The role and the manifest arrive with their reads; give the screen the moment to draw them.
   await page.waitForTimeout(600);
   return { page, failures, asked, close: () => context.close() };
@@ -117,14 +117,18 @@ async function evidence(page, name) {
 
 const menu = (page, name) => page.getByRole('button', { name, exact: true });
 
-for (const width of [375, 768, 1280]) {
+// The middle width only for the screenshots: nothing asserted differs from the large one's.
+for (const width of process.env.EVIDENCE ? [375, 768, 1280] : [375, 1280]) {
   test(`chromium: ${width} px — a ✦ per subject, and no suggestion area while nothing stands`, { timeout: 90_000 }, async () => {
     const browser = await chromium.launch();
     const { page, failures, close } = await openEntry(browser, { width });
     try {
-      for (const name of ['Ask AI about this entry', 'Ask AI about the notes', 'Ask AI about the steps']) {
+      for (const name of ['Ask AI about this entry', 'Ask AI about the notes']) {
         assert.equal(await menu(page, name).count(), 1, `${name} is offered`);
       }
+      // On a phone one section shows at a time (§7): the parts are a press away.
+      if (width < 600) await page.getByRole('navigation', { name: /^Sections of/ }).getByRole('link', { name: /^Parts/ }).click();
+      assert.equal(await menu(page, 'Ask AI about the steps').count(), 1, 'Ask AI about the steps is offered');
       assert.equal(await page.getByText('Nothing has been suggested', { exact: false }).count(), 0, 'no empty area');
       assert.equal(await page.getByRole('heading', { name: 'Suggestions' }).count(), 0, 'no section heading');
       assert.equal(await page.locator('section[data-ai]').count(), 0, 'no proposal drawn');
@@ -136,7 +140,8 @@ for (const width of [375, 768, 1280]) {
     }
   });
 
-  for (const scheme of width === 1280 ? ['light', 'dark'] : ['light']) {
+  // Dark only for the screenshots: the walk asserts nothing the scheme changes.
+  for (const scheme of width === 1280 && process.env.EVIDENCE ? ['light', 'dark'] : ['light']) {
     test(`chromium: ${width} px ${scheme} — each proposal stands under its subject, look-alikes by title`, { timeout: 90_000 }, async () => {
       const browser = await chromium.launch();
       const { page, failures, close } = await openEntry(browser, { width, standing: STANDING, scheme });
@@ -144,13 +149,13 @@ for (const width of [375, 768, 1280]) {
         const placeOf = (text) => page.getByText(text, { exact: false }).first().evaluate((node) => {
           const row = node.closest('.with-ai');
           if (row) return row.querySelector('[data-detail]')?.getAttribute('data-detail') ?? 'row';
-          return node.closest('[role="tabpanel"]') ? 'comments' : node.closest('.columns > .main') ? 'steps' : 'head';
+          return node.closest('[role="tabpanel"]') ? 'comments' : node.closest('#entry-parts') ? 'steps' : 'head';
         });
         assert.equal(await placeOf('Book the tiler for Thursday'), 'head');
         assert.equal(await placeOf('Pick the grout'), 'steps');
         assert.equal(await placeOf('We agreed on white tiles.'), 'comments');
-        // The details fold opens on a phone while a proposal stands in it.
-        assert.equal(await page.locator('details.details-fold').evaluate((node) => node.open), true);
+        // The fields with nothing set unfold while a proposal stands among them.
+        assert.equal(await page.locator('[data-details] .rows').first().getAttribute('data-folded'), null);
         assert.equal(await placeOf('Doing'), 'labels');
         // Named by title, read from the entry; one that cannot be read is said to be one.
         await page.getByRole('link', { name: NEIGHBOUR.title }).first().waitFor({ timeout: 5_000 });
@@ -295,8 +300,8 @@ test('chromium: while an entry is being created, what already looks like it is n
     page.on('pageerror', (error) => failures.push(String(error)));
     try {
       await page.goto(`${served.origin}/items/${ENTRY.id}`);
-      await page.getByRole('button', { name: 'Add an activity', exact: true }).click();
-      await page.getByRole('dialog', { name: 'Capture' }).getByRole('textbox', { name: 'What do you want to remember?' }).fill('Book an electrician');
+      // The capture line at the parts' foot is the capture field in place (C-4).
+      await page.locator('[data-parts-capture]').getByRole('textbox', { name: 'What do you want to remember?' }).fill('Book an electrician');
       await page.waitForTimeout(900);
       if (ai) {
         await page.getByText('Possibly already here:').waitFor({ timeout: 5_000 });

@@ -4,7 +4,12 @@
 package goal
 
 import (
+	"regexp"
+	"strings"
+	"unicode/utf8"
+
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
@@ -14,6 +19,12 @@ const (
 	MaxWidgetGoals   = 20
 	DashboardColumns = 12
 	MaxWidgetRows    = 12
+	// MaxWidgetText bounds a TEXT widget: a hint in words, not a page.
+	MaxWidgetText = 2000
+	// MaxListRows is how many first hits a LIST widget shows; the rest is its list's.
+	MaxListRows = 10
+	// MaxReleased bounds the dashboard's filter keys one widget does not inherit.
+	MaxReleased = 20
 )
 
 // Sharing is who reads a dashboard: its owner alone, everybody who reads its place, or the members
@@ -45,6 +56,10 @@ const (
 	ChartMatrix Chart = "MATRIX"
 	// ChartProgress draws goals' progress.
 	ChartProgress Chart = "PROGRESS"
+	// ChartList shows a query's first hits as entries: key, title and one column.
+	ChartList Chart = "LIST"
+	// ChartText is a short text with links - context, never a figure.
+	ChartText Chart = "TEXT"
 )
 
 // WidgetSource is where a widget's numbers come from.
@@ -57,6 +72,8 @@ const (
 	WidgetQuery WidgetSource = "QUERY"
 	// WidgetGoals shows goals' progress.
 	WidgetGoals WidgetSource = "GOALS"
+	// WidgetText holds its own words and runs nothing.
+	WidgetText WidgetSource = "TEXT"
 )
 
 // Widget is one tile of a dashboard. Its numbers are never stored: they are the summary the query
@@ -76,8 +93,18 @@ type Widget struct {
 	// Cumulative draws each period as the running total of the periods up to it - a burnup, and
 	// with Compare the work left between the two series, a burndown.
 	Cumulative bool
-	X, Y       int
-	W, H       int
+	// Text is a TEXT widget's words.
+	Text string
+	// Column is the one field a LIST widget shows beside key and title: due_at, status, ….
+	Column string
+	// Released are the fields of the dashboard's filter this widget does not inherit (§6.5): its
+	// own query decides them.
+	Released []string
+	// Target and WarnAt draw a figure's goal and its warning line ("Ziel ≤ 4 h · Warnung ab 6 h"),
+	// for NUMBER and LINE only; a warning line above the target means lower is better.
+	Target, WarnAt *float64
+	X, Y           int
+	W, H           int
 }
 
 // Compare is a widget's second series: a summary document as POST /items:aggregate takes it, and
@@ -101,9 +128,14 @@ type Dashboard struct {
 	Sharing Sharing
 	// GroupIDs are the groups a GROUPS dashboard is shared with; empty for any other.
 	GroupIDs []shared.ID
-	Widgets  []Widget
-	Version  int
+	// Filter is the dashboard's filter as a Hubtask query (ADR-0102), names already identifiers:
+	// every QUERY widget inherits it but for the fields it released.
+	Filter  string
+	Widgets []Widget
+	Version int
 }
+
+var fieldName = regexp.MustCompile(`^[a-z][a-z0-9_.]{0,63}$`)
 
 // CheckDashboard checks a dashboard's name, sharing and widgets' shapes; a QUERY widget's
 // document is the use case's to parse.
@@ -138,6 +170,19 @@ func CheckDashboard(d Dashboard, normalizer text.Normalizer) (Dashboard, error) 
 		}
 		d.GroupIDs = groups
 	}
+	d.Filter = strings.TrimSpace(d.Filter)
+	if d.Filter != "" {
+		q, err := view.ParseQuery(d.Filter, "/filter")
+		if err != nil {
+			return Dashboard{}, err
+		}
+		if len(q.Sort) > 0 {
+			return Dashboard{}, invalid("/filter", "query.sort_not_here")
+		}
+		if _, err := q.EntryFilter("/filter"); err != nil {
+			return Dashboard{}, err
+		}
+	}
 	if len(d.Widgets) > MaxWidgets {
 		return Dashboard{}, invalid("/widgets", "dashboards.too_many_widgets")
 	}
@@ -164,7 +209,7 @@ func checkWidget(w Widget, at string, normalizer text.Normalizer) (Widget, error
 	}
 	w.Title = name
 	switch w.Chart {
-	case ChartNumber, ChartBar, ChartPie, ChartLine, ChartTable, ChartMatrix, ChartProgress:
+	case ChartNumber, ChartBar, ChartPie, ChartLine, ChartTable, ChartMatrix, ChartProgress, ChartList, ChartText:
 	default:
 		return Widget{}, invalid(at+"/chart", "dashboards.chart_invalid")
 	}
@@ -185,11 +230,69 @@ func checkWidget(w Widget, at string, normalizer text.Normalizer) (Widget, error
 		}
 		w.ViewID, w.Query, w.Chart = "", nil, ChartProgress
 		w.Compare, w.Cumulative = nil, false
+	case WidgetText:
+		w.Text = strings.TrimSpace(w.Text)
+		if w.Text == "" {
+			return Widget{}, invalid(at+"/text", "dashboards.text_required")
+		}
+		if utf8.RuneCountInString(w.Text) > MaxWidgetText || !utf8.ValidString(w.Text) {
+			return Widget{}, invalid(at+"/text", "dashboards.text_too_long")
+		}
+		w.ViewID, w.Query, w.GoalIDs, w.Chart = "", nil, nil, ChartText
+		w.Compare, w.Cumulative, w.Released = nil, false, nil
 	default:
 		return Widget{}, invalid(at+"/source", "dashboards.source_invalid")
 	}
 	if w.Source != WidgetGoals && w.Chart == ChartProgress {
 		return Widget{}, invalid(at+"/chart", "dashboards.chart_invalid")
+	}
+	if w.Source != WidgetText {
+		w.Text = ""
+		if w.Chart == ChartText {
+			return Widget{}, invalid(at+"/chart", "dashboards.chart_invalid")
+		}
+	}
+	if w.Chart == ChartList {
+		if w.Source != WidgetQuery {
+			return Widget{}, invalid(at+"/source", "dashboards.list_needs_query")
+		}
+		if w.Column != "" && !fieldName.MatchString(w.Column) {
+			return Widget{}, invalid(at+"/column", "dashboards.column_invalid")
+		}
+	} else {
+		w.Column = ""
+	}
+	if w.Source != WidgetQuery {
+		w.Released = nil
+	}
+	if len(w.Released) > MaxReleased {
+		return Widget{}, invalid(at+"/released", "dashboards.released_invalid")
+	}
+	released := make([]string, 0, len(w.Released))
+	seenField := map[string]bool{}
+	for _, f := range w.Released {
+		if !fieldName.MatchString(f) {
+			return Widget{}, invalid(at+"/released", "dashboards.released_invalid")
+		}
+		if !seenField[f] {
+			seenField[f] = true
+			released = append(released, f)
+		}
+	}
+	if len(released) == 0 {
+		released = nil
+	}
+	w.Released = released
+	if w.Target != nil || w.WarnAt != nil {
+		if w.Chart != ChartNumber && w.Chart != ChartLine {
+			return Widget{}, invalid(at+"/target", "dashboards.target_chart")
+		}
+		if w.Target == nil {
+			return Widget{}, invalid(at+"/warn_at", "dashboards.warn_needs_target")
+		}
+		if w.WarnAt != nil && *w.WarnAt == *w.Target {
+			return Widget{}, invalid(at+"/warn_at", "dashboards.warn_equal")
+		}
 	}
 	if (w.Compare != nil || w.Cumulative) && !w.Chart.Series() {
 		return Widget{}, invalid(at+"/chart", "dashboards.series_chart")

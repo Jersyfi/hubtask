@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { signedIn } from './fixture.mjs';
@@ -21,8 +21,7 @@ const served = await serve(DIST);
 test.after(() => served.close());
 
 test('chromium: 1280 px — a screen that throws while drawing leaves the frame usable', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await signedIn(browser, 1280, 1000);
   t.after(close);
   // The archive screen builds its search link while it is set up; that one construction throws, as
@@ -55,16 +54,17 @@ test('chromium: 1280 px — a screen that throws while drawing leaves the frame 
 
 // A screen the frame draws directly, without a chunk of its own, is held by the frame's boundary.
 test('chromium: 1280 px — the start screen throwing while drawing leaves the frame usable', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await signedIn(browser, 1280, 1000);
   t.after(close);
+  // Today's heading greets by the hour where the reader is, and only that greeting reads the hour
+  // in the 24-hour cycle; that one construction throws while Today draws. Nothing else is touched.
   await page.addInitScript(() => {
-    const Original = window.URLSearchParams;
-    window.URLSearchParams = class extends Original {
-      constructor(init) {
-        if (init && typeof init === 'object' && init.f === 'who:me is:open due:today') throw new TypeError('forced for the test');
-        super(init);
+    const Original = Intl.DateTimeFormat;
+    Intl.DateTimeFormat = class extends Original {
+      constructor(locales, options) {
+        if (options && options.hourCycle === 'h23' && options.hour === 'numeric' && options.minute === undefined) throw new TypeError('forced for the test');
+        super(locales, options);
       }
     };
   });
@@ -80,8 +80,7 @@ test('chromium: 1280 px — the start screen throwing while drawing leaves the f
 });
 
 test('chromium: 1280 px — a promise nobody awaited is told with a reference', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await signedIn(browser, 1280, 1000);
   t.after(close);
   await page.goto(`${served.origin}/archive`);

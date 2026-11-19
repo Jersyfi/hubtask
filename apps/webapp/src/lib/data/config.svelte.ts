@@ -23,7 +23,11 @@ const TEMPLATES = '/config/templates';
 const SANDBOX = '/config/sandbox';
 const DRAFTS = '/config/drafts';
 // What an apply can change: every block of the document, and what the capabilities answer of it.
-export const TOUCHED = ['/config', DRAFTS, TEMPLATES, '/tenant', '/tenant/modules', '/entry-types', '/link-types', '/workflows', '/custom-fields', '/roles', '/meta/capabilities'];
+export const TOUCHED = [
+  '/config', DRAFTS, TEMPLATES, '/tenant', '/tenant/modules', '/entry-types', '/link-types', '/workflows', '/custom-fields', '/roles', '/meta/capabilities',
+  // The workspace's goal sets and kinds of work (configuration.md §6).
+  '/goal-periods', '/goals', '/time-work-types',
+];
 
 /** The templates a hub can take, or the workspace's. */
 function templatesPath(hubId?: string, collectionId?: string): string {

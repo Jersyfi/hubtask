@@ -403,19 +403,12 @@
     title={t('app.trash.purge_title', { title: purging.title })}
     dismissLabel={t('app.workspace.cancel')}
     onClose={() => (purging = undefined)}
+    primary={{ label: t('app.trash.purge_confirm'), onclick: () => purging && purge(purging), tone: 'danger', isBusy: isWorking, busyLabel: t('app.trash.purge_confirm') }}
   >
     <p class="detail">{t('app.trash.purge_body')}</p>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (purging = undefined)}>
         {t('app.workspace.cancel')}
-      </Button>
-      <Button
-        tone="danger"
-        isBusy={isWorking}
-        busyLabel={t('app.trash.purge_confirm')}
-        onclick={() => purging && purge(purging)}
-      >
-        {t('app.trash.purge_confirm')}
       </Button>
     {/snippet}
   </Dialog>
@@ -427,6 +420,7 @@
     bind:isOpen={isEmptying}
     title={t('app.trash.empty_title')}
     dismissLabel={t('app.workspace.cancel')}
+    primary={{ label: t('app.trash.empty_confirm'), onclick: empty, tone: 'danger', isBusy: isWorking, busyLabel: t('app.trash.empty_confirm') }}
   >
     <!-- It says how many and what goes with them, because nothing here deletes without the person
          having read what it deletes. -->
@@ -434,14 +428,6 @@
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isEmptying = false)}>
         {t('app.workspace.cancel')}
-      </Button>
-      <Button
-        tone="danger"
-        isBusy={isWorking}
-        busyLabel={t('app.trash.empty_confirm')}
-        onclick={empty}
-      >
-        {t('app.trash.empty_confirm')}
       </Button>
     {/snippet}
   </Dialog>

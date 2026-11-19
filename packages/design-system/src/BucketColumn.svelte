@@ -10,10 +10,12 @@
   // the write), so this must not pretend it did: the column says it is over, and the reader
   // decides. A client that blocked the drop would be inventing a rule the workspace does not have.
   //
-  // **`isDoneBucket`** marks the column that means "finished". The server completes nothing on its
-  // account — `Bucket.IsDoneBucket` says so in the domain: "stored and reported; what reacts to it
-  // is the client that renders the board". So this column *announces* what dropping here means and
-  // the board is what acts on it; a component that acted would be a component with a write in it.
+  // **`isDoneBucket`** marks the column that means "finished": the server keeps the done column and
+  // completion together through every door (domain-model.md §3.5a), so the column only announces it.
+  //
+  // **`isFolded`** draws the column narrow, its name and count only (the done column, *Ohne
+  // Spalte*); the head is a button that unfolds it. **`refusal`** dims a column a carried card may
+  // not enter and says why, in words beside the dimming (rule 3).
   //
   // A column is a **region** with an accessible name, and its cards are a list. A board of `div`s
   // is a board a screen reader reads as one long run of titles with no way to tell which column
@@ -31,13 +33,25 @@
     count?: number | null;
     /** The bucket's limit, or null for none. */
     wipLimit?: number | null;
+    /** The limit beside the count, resolved ("WIP 2 / 3"); the bare numbers without it. */
+    limitLabel?: string;
     /** Resolved sentence for a column that is over its limit. */
     overLimitLabel?: string;
     /** Whether dropping here completes an entry, and the resolved sentence that says so. */
     isDoneBucket?: boolean;
     doneBucketLabel?: string;
+    /** Under a workflow, the statuses the column shows, as one resolved line. */
+    statusesLabel?: string;
+    /** Drawn narrow: name and count only, and `unfoldLabel` on the head that opens it. */
+    isFolded?: boolean;
+    unfoldLabel?: string;
+    onunfold?: () => void;
+    /** Why a carried card may not enter, while one is carried; the column dims and says so. */
+    refusal?: string;
     /** Controls that belong to the column rather than to a card. */
     actions?: Snippet;
+    /** The column's foot: capture in place ("+ entry", C-4). */
+    foot?: Snippet;
     children: Snippet;
   }
 
@@ -45,10 +59,17 @@
     name,
     count,
     wipLimit,
+    limitLabel,
     overLimitLabel,
     isDoneBucket = false,
     doneBucketLabel,
+    statusesLabel,
+    isFolded = false,
+    unfoldLabel,
+    onunfold,
+    refusal,
     actions,
+    foot,
     children,
   }: Props = $props();
 
@@ -57,14 +78,25 @@
   );
 </script>
 
-<section class="column" aria-label={name} data-over={isOverLimit ? '' : undefined}>
+{#if isFolded}
+  <section class="column" data-folded="" aria-label={name} data-refused={refusal ? '' : undefined}>
+    <button type="button" class="unfold" aria-expanded="false" title={unfoldLabel} onclick={() => onunfold?.()}>
+      <span class="name">{name}</span>
+      {#if count !== null && count !== undefined}<span class="count">{count}</span>{/if}
+      {#if isDoneBucket}<span class="done" title={doneBucketLabel}><Icon name="circle-check" size="sm" /></span>{/if}
+    </button>
+    {#if refusal}<p class="refusal">{refusal}</p>{/if}
+    <div class="cards" hidden>{@render children()}</div>
+  </section>
+{:else}
+<section class="column" aria-label={name} data-over={isOverLimit ? '' : undefined} data-refused={refusal ? '' : undefined}>
   <header class="head">
     <h3 class="name">{name}</h3>
     {#if count !== null && count !== undefined}
       <!-- The count and the limit together, because a limit with no count is a number nobody can
            act on. `aria-hidden` on the separator only: both numbers are read. -->
       <span class="count">
-        {count}{#if wipLimit !== null && wipLimit !== undefined}<span aria-hidden="true"> / </span>{wipLimit}{/if}
+        {count}{#if wipLimit !== null && wipLimit !== undefined}<span aria-hidden="true"> · </span>{limitLabel ?? `${count} / ${wipLimit}`}{/if}
       </span>
     {/if}
     {#if isDoneBucket}
@@ -74,6 +106,7 @@
     {/if}
     {#if actions}<div class="actions">{@render actions()}</div>{/if}
   </header>
+  {#if statusesLabel}<p class="statuses">{statusesLabel}</p>{/if}
 
   {#if isOverLimit && overLimitLabel}
     <!-- Said, not enforced. The server accepts the card; the column tells the reader it is over.
@@ -83,9 +116,12 @@
       {overLimitLabel}
     </p>
   {/if}
+  {#if refusal}<p class="refusal" role="status">{refusal}</p>{/if}
 
   <div class="cards" {@attach arrivals}>{@render children()}</div>
+  {#if foot}<div class="foot">{@render foot()}</div>{/if}
 </section>
+{/if}
 
 <style>
   .column {
@@ -136,6 +172,33 @@
 
   .mark { display: inline-flex; flex: none; }
 
+  .statuses { margin: 0; color: var(--text-subtle); font-size: var(--fs-075); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .refusal { margin: 0; color: var(--text-subtle); font-size: var(--fs-075); }
+
+  /* A column a carried card may not enter: dimmed, and its reason in words above (rule 3). */
+  .column[data-refused] { opacity: 0.5; }
+
+  .column[data-folded] { inline-size: auto; padding: var(--sp-100); }
+
+  .unfold {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-100);
+    padding: var(--sp-050);
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    writing-mode: vertical-rl;
+  }
+
+  .unfold:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+
+  .foot { display: flex; }
+
   .cards {
     display: flex;
     flex-direction: column;
@@ -143,4 +206,7 @@
     min-block-size: var(--sp-600);
     overflow-y: auto;
   }
+
+  /* `display: flex` above would otherwise show a folded column's cards and its add button. */
+  .cards[hidden] { display: none; }
 </style>

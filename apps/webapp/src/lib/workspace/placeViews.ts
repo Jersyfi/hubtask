@@ -22,12 +22,14 @@ export interface PlaceView {
 /** What a hub tool's tabs depend on beyond the hub: whether the reader manages costs (*Budget*). */
 export interface ToolInput {
   readonly mayCost?: boolean;
+  /** Whether a collection of the hub runs sprints: *Plan*'s *Sprints* only then (§2.4, §6.3). */
+  readonly runsSprints?: boolean;
 }
 
 /**
  * A hub tool's own tabs (§2.4): *Plan* the schedule, its table, its dependencies, the releases and
  * the sprints; *Inventory* its
- * sections are its own (`assetStrips`, *Manage* a menu at the bar's end); *Time* the actuals,
+ * tabs are its own (`inventoryPlace`: Stock, Map, Health, Alerts, Upkeep); *Time* the actuals,
  * the workload and, for whoever manages costs, the budget; *Goals* the goals and the dashboards.
  */
 export function toolViews(hubId: string, tool: string, input: ToolInput = {}): readonly PlaceView[] {
@@ -39,7 +41,7 @@ export function toolViews(hubId: string, tool: string, input: ToolInput = {}): r
         { id: 'table', code: 'app.planning.view_table', icon: 'columns-3', href: `${base}/plan/table` },
         { id: 'dependencies', code: 'app.timeline.dependencies', icon: 'link', href: `${base}/plan/dependencies` },
         { id: 'releases', code: 'app.releases.title', href: `${base}/plan/releases` },
-        { id: 'sprints', code: 'app.sprints.title', icon: 'repeat', href: `${base}/plan/sprints` },
+        ...(input.runsSprints ? [{ id: 'sprints', code: 'app.sprints.title', icon: 'repeat' as const, href: `${base}/plan/sprints` }] : []),
       ];
     case 'time':
       return [
@@ -93,11 +95,11 @@ export function collectionViews(input: CollectionInput): readonly CollectionView
   const has = (layout: string) => layouts.includes(layout);
   const list: CollectionView = { id: 'list', code: 'app.view.LIST_COLLAPSED', icon: 'square-check', href: `${base}?layout=list` };
   const board: CollectionView[] = has('KANBAN') ? [{ id: 'board', code: 'app.view.KANBAN', icon: 'columns-3', href: `${base}?layout=board` }] : [];
-  const timeline: CollectionView[] = on('PLANNING')
+  // One address for the timeline (§6.3, E-16): the plan's schedule where the plan is on, else the
+  // timeline presentation - no layout of the collection's own screen.
+  const timeline: CollectionView[] = on('PLANNING') || has('TIMELINE')
     ? [{ id: 'timeline', code: 'app.view.TIMELINE', icon: 'calendar', href: `${base}/timeline` }]
-    : has('TIMELINE')
-      ? [{ id: 'timeline', code: 'app.view.TIMELINE', icon: 'calendar', href: `${base}?layout=timeline` }]
-      : [];
+    : [];
   const sprint: CollectionView[] = on('PLANNING') && input.runsSprints
     ? [
         { id: 'sprint', ...(input.sprintName ? { name: input.sprintName } : { code: 'app.nav.view_sprint' }), icon: 'repeat', href: `${base}/sprint` },

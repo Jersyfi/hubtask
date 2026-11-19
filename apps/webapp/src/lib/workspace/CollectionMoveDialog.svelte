@@ -7,7 +7,7 @@
   // consequences as warnings, in words. *Move* is enabled once no obstacle remains; on a phone it
   // names the destination. A name taken is resolved in the dialog: the rename is written first.
   // On a desktop the hub is one field, *To: …*, that opens the list; on a phone the list stands.
-  import { Button, Dialog, Icon, Input, MoveCheck, Sheet, type MoveCheckItem } from '@hubtask/design-system/components';
+  import { Dialog, Icon, Input, MoveCheck, type MoveCheckItem } from '@hubtask/design-system/components';
   import type { Container, ContainerMovePreview, MoveFinding } from '@hubtask/sync-engine';
 
   import { announcer } from '../announce.svelte.ts';
@@ -179,21 +179,17 @@
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 {/snippet}
 
-{#snippet actions()}
-  {#if !viewport.isCompact}<Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.workspace.cancel')}</Button>{/if}
-  <Button tone="primary" isBusy={isMoving} disabledReason={blocked} onclick={() => void move()}>{confirmLabel}</Button>
-{/snippet}
-
-{#if viewport.isCompact}
-  <Sheet title={t('app.move.title', { name: container.name })} closeLabel={t('app.sheet_close')} bind:isOpen>
-    {@render body()}
-    <div class="sheet-actions">{@render actions()}</div>
-  </Sheet>
-{:else}
-  <Dialog size="m" title={t('app.move.title', { name: container.name })} bind:isOpen dismissLabel={t('app.workspace.cancel')} {actions}>
-    {@render body()}
-  </Dialog>
-{/if}
+<!-- The ladder (page-system §5.1): a Dialog M - a full-screen dialog on a phone, its primary in the
+     bar -, the move as its one primary, *Cancel* beside it. -->
+<Dialog
+  size="m"
+  title={t('app.move.title', { name: container.name })}
+  bind:isOpen
+  dismissLabel={t('app.workspace.cancel')}
+  primary={{ label: confirmLabel, onclick: () => void move(), isBusy: isMoving, disabledReason: blocked }}
+>
+  {@render body()}
+</Dialog>
 
 <style>
   .lead { margin: 0 0 var(--sp-100); color: var(--text-subtle); }
@@ -254,5 +250,4 @@
   .why { color: var(--text-subtle); }
   .failure { color: var(--text-danger); }
   /* On a phone one button, the width of the sheet, names the destination; *Close* cancels. */
-  .sheet-actions { display: grid; margin-block-start: var(--sp-200); }
 </style>

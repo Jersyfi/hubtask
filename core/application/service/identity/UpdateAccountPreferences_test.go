@@ -350,3 +350,42 @@ func TestTheChannelInputKeepsAbsentAndEmptyApart(t *testing.T) {
 		t.Errorf("an empty input changed the locale to %q", account.Locale)
 	}
 }
+
+// Today's sections follow the person (work-surface concept E-17): written whole, left by a write
+// that does not name them, cleared by an empty list, refused by name when a key is unknown.
+func TestTodaysSectionsAreWrittenLeftAndCleared(t *testing.T) {
+	accounts := newAccounts(settled(t))
+	handler := preferencesHandler(accounts, &authorizer{}, &auditSink{})
+	registry, err := usecase.NewRegistry(nil, handler.Descriptor())
+	if err != nil {
+		t.Fatalf("the catalogue refused the entry: %v", err)
+	}
+	invoke := func(in usecase.Input) (usecase.Output, error) {
+		in["account_id"] = adminID.String()
+		return registry.Invoke(t.Context(), UpdateAccountPreferencesName, admin(), in)
+	}
+	out, err := invoke(usecase.Input{"today_sections": []any{"TIME", "OVERDUE"}, "today_sections_hidden": []any{"INBOX"}})
+	if err != nil {
+		t.Fatalf("writing Today's sections: %v", err)
+	}
+	if order, _ := out["today_sections"].([]string); strings.Join(order, ",") != "TIME,OVERDUE" {
+		t.Errorf("today_sections = %v", out["today_sections"])
+	}
+	if hidden, _ := out["today_sections_hidden"].([]string); strings.Join(hidden, ",") != "INBOX" {
+		t.Errorf("today_sections_hidden = %v", out["today_sections_hidden"])
+	}
+	out, err = invoke(usecase.Input{"locale": "nl"})
+	if _, present := out["today_sections_hidden"]; err != nil || !present {
+		t.Errorf("a write that did not name the sections cleared them: %v", err)
+	}
+	out, err = invoke(usecase.Input{"today_sections": []any{}, "today_sections_hidden": []any{}})
+	if _, present := out["today_sections"]; err != nil || present {
+		t.Errorf("an empty list did not clear the order: %v, %v", out["today_sections"], err)
+	}
+	if _, present := out["today_sections_hidden"]; present {
+		t.Errorf("an empty list did not clear the hidden sections: %v", out["today_sections_hidden"])
+	}
+	if _, err := invoke(usecase.Input{"today_sections_hidden": []any{"POINTS"}}); err == nil {
+		t.Errorf("an unknown section was accepted")
+	}
+}

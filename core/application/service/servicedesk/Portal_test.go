@@ -34,7 +34,7 @@ func TestARequestAnswersWithoutTheTeamsFields(t *testing.T) {
 	out := RequestOutput(work.WorkItem{
 		ID: "0190a4c2-7b1e-7000-8000-000000000001", Type: work.ItemTask, Title: "Printer",
 		CustomFields: map[string]any{"cost_centre": "4711"}, AssigneeID: "0190a4c2-7b1e-7000-8000-000000000002",
-	})
+	}, nil)
 	for _, field := range []string{"custom_fields", "assignee_id", "members", "labels"} {
 		if _, present := out[field]; present {
 			t.Errorf("the requester reads %s", field)

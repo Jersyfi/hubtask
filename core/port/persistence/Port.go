@@ -158,3 +158,19 @@ type Savepoint interface {
 type Independent interface {
 	WithinIndependent(ctx context.Context, scope Scope, fn func(ctx context.Context) error) error
 }
+
+// Detaching hands out a context without the caller's transaction: a unit of work opened from it
+// runs on a connection of its own. For a read that may be cut off by a deadline of its own or go on
+// after its caller - a cancelled statement ends the transaction it runs in, and a second statement
+// on a connection still busy with the first is refused - so it never runs inside its caller's.
+type Detaching interface {
+	Detach(ctx context.Context) context.Context
+}
+
+// Detached is ctx without its transaction where uow can detach it, and ctx otherwise.
+func Detached(ctx context.Context, uow UnitOfWork) context.Context {
+	if detaching, ok := uow.(Detaching); ok {
+		return detaching.Detach(ctx)
+	}
+	return ctx
+}

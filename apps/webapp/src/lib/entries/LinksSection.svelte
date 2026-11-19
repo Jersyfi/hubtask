@@ -12,13 +12,13 @@
   // Without the right to change the entry neither drawing nor removing is drawn (P-05).
 
   import { untrack } from 'svelte';
-  import { Button, Dialog, IconButton, Select, Skeleton, Stack } from '@hubtask/design-system/components';
+  import { Button, Dialog, IconButton, Select, Skeleton, Stack, StateLozenge } from '@hubtask/design-system/components';
   import type { EntryLinks, WorkItem } from '@hubtask/sync-engine';
 
   import EntryPicker from './EntryPicker.svelte';
   import ReferenceChip from './ReferenceChip.svelte';
   import {
-    drawableTypes, entryLinksPath, groupLinks, links, linkTypes, referencesIn, resolved, sideName, targetLabel,
+    drawableTypes, entryLinksPath, groupLinks, links, linkTypes, referenceState, referencesIn, resolved, sideName, targetLabel,
   } from '../data/links.svelte.ts';
   import { resource } from '../data/resource.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
@@ -29,13 +29,20 @@
     item: WorkItem;
     /** Whether the reader may change this entry, which is what drawing and removing a link need. */
     mayChange: boolean;
+    /** How many rows the section holds once read: its heading's count and the jump mark's (ET-2). */
+    count?: number;
   }
 
-  const { item, mayChange }: Props = $props();
+  let { item, mayChange, count = $bindable(undefined) }: Props = $props();
 
   // The section is keyed on the entry by its caller, so the path is fixed for its life.
   const read = resource<EntryLinks>(untrack(() => entryLinksPath(item.id)));
   $effect(() => untrack(() => linkTypes.open()));
+
+  /** A group folds from five rows (ET-3); the groups opened here, by name. */
+  const LINK_FOLD = 5;
+  let openGroups = $state<string[]>([]);
+  const cut = <T,>(name: string, rows: readonly T[]): readonly T[] => (openGroups.includes(name) || rows.length <= LINK_FOLD ? rows : rows.slice(0, LINK_FOLD));
 
   const answer = $derived(read.state.status === 'ready' ? read.state.data : undefined);
   const groups = $derived(answer ? groupLinks(answer.links, linkTypes.all, t) : []);
@@ -47,6 +54,13 @@
   // What the notes mention, resolved for the reader, in the order the text holds them.
   const mentioned = $derived(referencesIn(item.notes ?? ''));
   const mentions = resolved(() => mentioned.map((found) => found.reference));
+  /** Every row the section lists, once read: its heading's count and the jump mark's (ET-2). */
+  const total = $derived(
+    answer ? groups.reduce((sum, group) => sum + group.rows.length, 0) + backlinks.length + pageBacklinks.length + mentioned.length : undefined,
+  );
+  $effect(() => {
+    count = total;
+  });
 
   let refusal = $state<string | undefined>(undefined);
 
@@ -100,7 +114,9 @@
 
 <section class="links" aria-labelledby="links-heading-{item.id}" data-links>
   <div class="head">
-    <h2 class="section" id="links-heading-{item.id}">{t('app.links.title')}</h2>
+    <h2 class="section" id="links-heading-{item.id}">{t('app.links.title')}{#if total}{' '}<span class="count">{total}</span>{/if}</h2>
+    <!-- Nothing linked: the section is one line (ET-3). -->
+    {#if answer && !failure && groups.length === 0 && backlinks.length === 0 && pageBacklinks.length === 0 && mentioned.length === 0}<span class="quiet none">{t('app.links.none')}</span>{/if}
     {#if mayChange && typeOptions.length > 0}
       <Button size="sm" tone="subtle" icon="link" data-draw-link onclick={startDraw}>{t('app.links.add')}</Button>
     {/if}
@@ -111,16 +127,18 @@
   {:else if !answer}
     <div aria-busy="true"><Skeleton lines={2} /></div>
   {:else}
-    {#if groups.length === 0 && backlinks.length === 0 && pageBacklinks.length === 0 && mentioned.length === 0}
-      <p class="quiet">{t('app.links.none')}</p>
-    {/if}
     {#each groups as group (group.name)}
       <div class="group">
-        <h3 class="relation">{group.name}</h3>
+        <h3 class="relation">{group.name} <span class="count">{group.rows.length}</span></h3>
         <ul class="rows">
-          {#each group.rows as row (row.id)}
+          {#each cut(group.name, group.rows) as row (row.id)}
             <li class="row" data-link={row.id}>
-              <ReferenceChip target={row.other} />
+              <ReferenceChip target={row.other} row />
+              <!-- An entry's state on its line (§6.9 links), as its workflow names it. -->
+              {#if row.other?.available && row.other.kind === 'ENTRY'}
+                {@const state = referenceState(row.other, t)}
+                <span class="state" data-link-state={state.state}><StateLozenge label={state.label} vocabulary="category" state={state.state} size="sm" /></span>
+              {/if}
               {#if mayChange}
                 <IconButton
                   icon="x" size="sm" tone="subtle"
@@ -132,50 +150,63 @@
             </li>
           {/each}
         </ul>
+        {@render more(group.name, group.rows.length)}
       </div>
     {/each}
     {#if backlinks.length > 0}
       <div class="group">
-        <h3 class="relation">{t('app.links.backlinks')}</h3>
+        <h3 class="relation">{t('app.links.backlinks')} <span class="count">{backlinks.length}</span></h3>
         <ul class="rows">
-          {#each backlinks as backlink (`${backlink.source_kind}:${backlink.source_id}:${backlink.anchor ?? ''}`)}
+          {#each cut('backlinks', backlinks) as backlink (`${backlink.source_kind}:${backlink.source_id}:${backlink.anchor ?? ''}`)}
             <li class="row" data-backlink={backlink.entry.id}>
               <span class="backlink">
-                <ReferenceChip target={backlink.entry} strength={backlink.strength} />
+                <ReferenceChip target={backlink.entry} strength={backlink.strength} row />
                 {#if backlink.source_kind === 'COMMENT'}<span class="quiet">{t('app.links.backlink_comment')}</span>{/if}
               </span>
             </li>
           {/each}
         </ul>
+        {@render more('backlinks', backlinks.length)}
       </div>
     {/if}
     {#if pageBacklinks.length > 0}
       <div class="group">
-        <h3 class="relation">{t('app.links.page_backlinks')}</h3>
+        <h3 class="relation">{t('app.links.page_backlinks')} <span class="count">{pageBacklinks.length}</span></h3>
         <ul class="rows">
-          {#each pageBacklinks as backlink (backlink.page.id)}
+          {#each cut('pages', pageBacklinks) as backlink (backlink.page.id)}
             <li class="row" data-page-backlink={backlink.page.id}>
-              <ReferenceChip target={backlink.page} strength={backlink.strength} />
+              <ReferenceChip target={backlink.page} strength={backlink.strength} row />
             </li>
           {/each}
         </ul>
+        {@render more('pages', pageBacklinks.length)}
       </div>
     {/if}
     {#if mentioned.length > 0}
       <div class="group">
-        <h3 class="relation">{t('app.mentions.title')}</h3>
+        <h3 class="relation">{t('app.mentions.title')} <span class="count">{mentioned.length}</span></h3>
         <ul class="rows mentions">
-          {#each mentioned as found, index (`${found.reference.kind}/${found.reference.id}#${found.reference.anchor ?? ''}`)}
+          {#each cut('mentions', mentioned) as found, index (`${found.reference.kind}/${found.reference.id}#${found.reference.anchor ?? ''}`)}
             <li class="row" data-mention={found.reference.id}>
-              <ReferenceChip target={mentions.targets[index]} strength={found.strength} />
+              <ReferenceChip target={mentions.targets[index]} strength={found.strength} row />
             </li>
           {/each}
         </ul>
+        {@render more('mentions', mentioned.length)}
       </div>
     {/if}
   {/if}
   {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
 </section>
+
+{#snippet more(name: string, total: number)}
+  {#if total > LINK_FOLD}
+    {@const isOpen = openGroups.includes(name)}
+    <button type="button" class="more" aria-expanded={isOpen} onclick={() => (openGroups = isOpen ? openGroups.filter((each) => each !== name) : [...openGroups, name])}>
+      {isOpen ? t('app.entry.show_less') : t('app.entry.show_all', { count: String(total) })}
+    </button>
+  {/if}
+{/snippet}
 
 {#if isDrawOpen}
   <Dialog size="l" primary={{ label: t('app.links.confirm'), isBusy: isDrawing, disabledReason: chosen ? undefined : t('app.links.choose_first'), onclick: () => void draw() }}
@@ -196,6 +227,8 @@
 {/if}
 
 <style>
+  .none { flex: 1; min-inline-size: 0; font-size: var(--fs-075); }
+
   .links { display: flex; flex-direction: column; gap: var(--sp-100); }
 
   .head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); }
@@ -206,13 +239,21 @@
 
   .relation { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-medium); }
 
-  .rows { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }
+  /* One column no wider than the section: an auto track would grow to a title that does not wrap. */
+  .rows { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
 
-  .row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); }
+  /* One tight line per link: the reference, its state at the end, the remove. */
+  .row { display: flex; align-items: center; gap: var(--sp-100); min-block-size: var(--sp-400); }
+  .row > :global(:first-child) { flex: 1; min-inline-size: 0; }
 
   .backlink { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-100); }
 
   .quiet { margin: 0; color: var(--text-secondary); }
+
+  .count { color: var(--text-subtle); font-weight: var(--fw-regular); }
+
+  .more { align-self: flex-start; padding: 0; border: none; background: none; color: var(--text-brand); font: inherit; font-size: var(--fs-075); cursor: pointer; }
+  .more:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 
   .refusal { margin: 0; color: var(--text-danger); }
 </style>

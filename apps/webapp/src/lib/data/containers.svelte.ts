@@ -19,7 +19,7 @@
  * — correct, and enough to make renaming a collection empty every other level as well.
  */
 
-import type { Container, ContainerPage, ResourceState, StructureChange, StructurePreview } from '@hubtask/sync-engine';
+import type { Container, ContainerPage, ResourceState, StateMode, StructureChange, StructurePreview } from '@hubtask/sync-engine';
 
 import { TOUCHED } from './config.svelte.ts';
 import { engine, INTENT } from './engine.ts';
@@ -98,6 +98,17 @@ class Containers {
    * client ever asks for, and the hub it sits in is then not loaded either. Looking only in the
    * levels would render "not in this workspace" for a container that is simply not fetched yet.
    */
+  /**
+   * A collection's level for its tasks (build-plan §5): answered only when the one collection is
+   * read (`state_mode`), never in the replica's records, so it is its own read - followed, because a
+   * level switch or a scheme change invalidates `/containers`.
+   */
+  levelOf(id: string, into: (level: StateMode | undefined, byType: Readonly<Record<string, StateMode>> | undefined) => void): () => void {
+    return engine.subscribe<Container>({ path: `/containers/${id}` }, (next) => {
+      if (next.status === 'ready') into(next.data.state_mode, next.data.state_modes);
+    });
+  }
+
   find(id: string): Container | undefined {
     const inHubs = this.hubs.find((container) => container.id === id);
     if (inHubs) return inHubs;

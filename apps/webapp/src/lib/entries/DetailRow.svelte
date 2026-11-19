@@ -38,9 +38,15 @@
     ask?: Snippet;
     /** What AI has to say about it, under the row. Renders nothing where nothing stands. */
     below?: Snippet;
+    /** A quiet line under the value saying where it comes from: *from impact × urgency*. */
+    note?: string;
+    /** The value drawn otherwise than as its words - a label's chips; `value` still names it. */
+    shown?: Snippet;
+    /** The value in full where the row shows it short: a tip on the row. */
+    title?: string;
   }
 
-  const { label, value, id, children, isReadOnly = false, ask, below }: Props = $props();
+  const { label, value, id, children, isReadOnly = false, ask, below, note, shown, title }: Props = $props();
 
   let isOpen = $state(false);
 </script>
@@ -64,10 +70,10 @@
 {#snippet row()}
 {#if isReadOnly}
   {#if value !== undefined}
-    <div class="detail-row" data-detail={id}>{@render face()}</div>
+    <div class="detail-row" data-detail={id} {title}>{@render face()}</div>
   {/if}
 {:else if viewport.isCompact}
-  <button type="button" class="detail-row" data-detail={id} aria-haspopup="dialog" aria-expanded={isOpen} onclick={() => (isOpen = true)}>
+  <button type="button" class="detail-row" data-detail={id} {title} aria-haspopup="dialog" aria-expanded={isOpen} onclick={() => (isOpen = true)}>
     {@render face()}
   </button>
   <Drawer bind:isOpen edge="block-end" title={label} dismissLabel={t('app.dismiss')}>
@@ -76,7 +82,7 @@
 {:else}
   <Popover label={label} bind:isOpen placement={{ side: 'block-end', align: 'start' }}>
     {#snippet trigger(props)}
-      <button type="button" class="detail-row" data-detail={id} {...props}>
+      <button type="button" class="detail-row" data-detail={id} {title} {...props}>
         {@render face()}
       </button>
     {/snippet}
@@ -90,7 +96,7 @@
   {#if value === undefined}
     <span class="add"><Icon name="plus" size="sm" />{t('app.detail.add')}</span>
   {:else}
-    <span class="value">{value}</span>
+    <span class="value">{#if shown}{@render shown()}{:else}{value}{/if}{#if note}<span class="note" data-detail-note>{note}</span>{/if}</span>
   {/if}
 {/snippet}
 
@@ -103,18 +109,19 @@
   .line > :global(:first-child) { flex: 1 1 auto; min-width: 0; }
   .ask { flex: none; }
 
+  /* A form's row (task.d): the field's name in a column of its own, the value beside it from
+     the same start, no rule between the rows - the section is the group. */
   .detail-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
     align-items: baseline;
-    justify-content: space-between;
-    gap: var(--sp-150);
+    gap: var(--sp-100);
     inline-size: 100%;
     box-sizing: border-box;
-    min-block-size: var(--density-control-md-min);
-    padding: var(--density-row-block) var(--sp-100);
+    min-block-size: var(--sp-400);
+    padding: var(--sp-050) var(--sp-100);
     border: 0;
-    border-block-end: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: 0;
+    border-radius: var(--r-sm);
     background: transparent;
     color: var(--text-primary);
     font: inherit;
@@ -134,17 +141,18 @@
 
   /* §3's label row: the field's name, small and quiet, so the value reads first. */
   .key {
-    flex: none;
     font-size: var(--fs-075);
     font-weight: var(--fw-semibold);
-    color: var(--text-subtle);
+    color: var(--text-secondary);
   }
 
   .value {
     min-width: 0;
-    text-align: end;
+    text-align: start;
     overflow-wrap: anywhere;
   }
+
+  .note { display: block; color: var(--text-subtle); font-size: var(--fs-075); }
 
   /* An empty field is an offer, in the interaction colour, with the word (rule 3). */
   .add {
@@ -154,5 +162,11 @@
     color: var(--text-brand);
     font-size: var(--fs-075);
     font-weight: var(--fw-medium);
+  }
+
+  /* A thumb's target (§7): a row is layout.target tall where the pointer is coarse. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .detail-row { min-block-size: var(--layout-target); align-items: center; }
   }
 </style>

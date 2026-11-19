@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -107,8 +107,7 @@ async function changeARule(page) {
 // UC-ID-05 check 5, UC-ID-12: the provider-only administrator without a factor - the account D4 to
 // D6 produce - changes a sign-in rule.
 test('chromium: a provider-only administrator confirms at the provider and the change goes through', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser, 'PROVIDER');
   t.after(close);
 
@@ -142,8 +141,7 @@ test('chromium: a provider-only administrator confirms at the provider and the c
 
 // ADR-0075 §1: an account that holds every way is offered every way, one field at a time.
 test('chromium: the dialog offers every way the account holds, and a recovery code proves it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser, 'PASSWORD TOTP RECOVERY PROVIDER');
   t.after(close);
 
@@ -177,8 +175,7 @@ test('chromium: the dialog offers every way the account holds, and a recovery co
 // The error presentation rule on the step-up's return: a server failure is a sentence with the
 // reference to quote, never the bare category.
 test('chromium: a step-up return the server fails is a sentence with its reference', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, 'PROVIDER');
   t.after(close);
   await page.context().route('**/api/v1/auth/step-up', (route) =>

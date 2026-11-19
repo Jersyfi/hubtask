@@ -39,7 +39,11 @@ const (
 var privateHubExemptions = map[string]string{
 	// Reads through GetWorkItem; TestAiRunByOthersKeepsAPrivateHubFromOutsiders runs it, outside
 	// the table because its answer names no identifier.
-	"AiTranslate":                  asksOnItsPath,
+	"AiTranslate": asksOnItsPath,
+	// Reads no hub at all: the question and the query's keys go to the provider, nothing else.
+	"AskQuery":                     "reads nothing of a hub",
+	"ReadDocumentServer":           "the workspace's document server: a kind and an origin, nothing of a hub",
+	"CheckDocumentServer":          "asks a server's discovery at an origin it is given; reads nothing of a hub",
 	"ExportView":                   asksOnItsPath,
 	"ExportItems":                  asksOnItsPath,
 	"GetRecurrence":                asksOnItsPath,
@@ -61,6 +65,7 @@ var privateHubExemptions = map[string]string{
 	"ListTemplates":                asksOnItsPath,
 	"GetMedia":                     asksOnItsPath,
 	"ListAttachments":              asksOnItsPath,
+	"ListCiAttachments":            asksOnItsPath + " - READ at the object's hub",
 	"ListMemberships":              asksOnItsPath,
 	"ListRoles":                    asksOnItsPath + " - each grant's place; the workspace's grants are its own",
 	"ExplainAccess":                asksOnItsPath + " - the place asked about, when it is about somebody else",

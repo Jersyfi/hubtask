@@ -13,13 +13,13 @@
 
 import type {
   CiConnector, CiConnectorDefine, CiConnectorRun, CiBacklinkList, CiClass, CiClassDefine, CiRelationType, CiRelationTypeDefine, CiSource, CiSourceDefine, CiCompliance, CiDuplicateResolved, CiFileImport, CiImpact, CiRelation, CiRun, ConfigurationItem, ConfigurationItemCreate,
-  ConfigurationItemList, ConfigurationItemUpdate, CiAsset, CiAssetRegister, CiAttestation, CiCampaign, CiCampaignStart, CiGroup, CiGroupDefine,
+  ConfigurationItemList, ConfigurationItemUpdate, CiAsset, CiAssetRegister, CiAttestation, CiCampaign, CiCampaignReminded, CiCampaignStart, CiGroup, CiGroupDefine,
   EntryCis, SoftwareAlias, SoftwareAliasDefine,
 } from '@hubtask/sync-engine';
 
 import {
   assetsPath, attestPath, campaignClosePath, campaignPath, campaignsPath, ciAssetMovePath, ciAssetPath, entryCiPath, entryCisPath, groupPath,
-  groupsPath, serviceMapPath, softwareAliasPath, softwareAliasesPath, type AssetState, type DisposalMethod,
+  groupsPath, objectWorkPath, serviceMapPath, softwareAliasPath, softwareAliasesPath, type AssetState, type DisposalMethod,
 } from './cmdb.ts';
 import { backlinksPath, ciPath, connectorCredentialPath, connectorPath, connectorRunPath, connectorsPath, cisPath, classesPath, duplicatesPath, healthPath, holdsPath, impactPath, relationTypesPath, runPath, runsPath, sourcesPath } from './cmdb.ts';
 import { engine, INTENT } from './engine.ts';
@@ -73,6 +73,13 @@ class Cmdb {
     return engine.mutate<ConfigurationItem>('PATCH', ciPath(ci.id), body, {
       ifMatch: `"${ci.version}"`,
       invalidates: [ciPath(ci.id), ...inventory(ci.hub_id)],
+    });
+  }
+
+  /** The object is as recorded: its next review moves on, an open round's question about it is answered. */
+  confirm(ci: Pick<ConfigurationItem, 'id' | 'hub_id'>, reviewMonths?: number): Promise<ConfigurationItem> {
+    return engine.mutate<ConfigurationItem>('POST', `${ciPath(ci.id)}:confirm`, reviewMonths ? { review_months: reviewMonths } : {}, {
+      invalidates: [ciPath(ci.id), ...inventory(ci.hub_id), campaignsPath(ci.hub_id), '/ci-campaigns/'],
     });
   }
 
@@ -163,11 +170,11 @@ class Cmdb {
   }
 
   affect(itemId: string, ciId: string): Promise<EntryCis> {
-    return engine.mutate<EntryCis>('PUT', entryCiPath(itemId, ciId), undefined, { invalidates: [entryCisPath(itemId)] });
+    return engine.mutate<EntryCis>('PUT', entryCiPath(itemId, ciId), undefined, { invalidates: [entryCisPath(itemId), objectWorkPath(ciId)] });
   }
 
   unaffect(itemId: string, ciId: string): Promise<EntryCis> {
-    return engine.mutate<EntryCis>('DELETE', entryCiPath(itemId, ciId), undefined, { invalidates: [entryCisPath(itemId)] });
+    return engine.mutate<EntryCis>('DELETE', entryCiPath(itemId, ciId), undefined, { invalidates: [entryCisPath(itemId), objectWorkPath(ciId)] });
   }
 
   startCampaign(hubId: string, body: CiCampaignStart): Promise<CiCampaign> {
@@ -189,11 +196,24 @@ class Cmdb {
     });
   }
 
+  /** The owners an open round still waits for, each told once; the answer says how many. */
+  remindCampaign(campaign: Pick<CiCampaign, 'id'>): Promise<CiCampaignReminded> {
+    return engine.mutate<CiCampaignReminded>('POST', `${campaignPath(campaign.id)}:remind`, undefined, {});
+  }
+
   /** A group added under its key, or changed with the version last read. */
   defineGroup(hubId: string, key: string, body: CiGroupDefine, version?: number): Promise<CiGroup> {
     return engine.mutate<CiGroup>('PUT', groupPath(hubId, key), body, {
       ...(version ? { ifMatch: `"${version}"` } : {}),
       invalidates: [groupsPath(hubId), '/ci-groups/', serviceMapPath(hubId)],
+    });
+  }
+
+  /** A saved group deleted at the version last read; the objects it held stay. */
+  deleteGroup(group: CiGroup): Promise<void> {
+    return engine.mutate<void>('DELETE', groupPath(group.hub_id, group.key), undefined, {
+      ifMatch: `"${group.version}"`,
+      invalidates: [groupsPath(group.hub_id), '/ci-groups/', serviceMapPath(group.hub_id)],
     });
   }
 

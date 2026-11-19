@@ -79,7 +79,7 @@
             {t('app.workspaces.open')}
           </Button>
         {/if}
-        <Menu
+        <Menu isAnchored
           label={t('app.workspaces.actions', { name: row.name })}
           items={[{ id: 'forget', label: forgetLabel ?? t('app.workspaces.forget_here'), isDestructive: forgetLabel !== undefined }]}
           placement={{ side: 'block-end', align: 'end' }}

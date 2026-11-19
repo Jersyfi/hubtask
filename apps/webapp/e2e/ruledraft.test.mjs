@@ -43,8 +43,10 @@ async function evidence(page, name) {
   await page.screenshot({ path: join(process.env.EVIDENCE, name), fullPage: false });
 }
 
-for (const [width, size] of [[1280, 'large'], [800, 'medium'], [375, 'compact']]) {
-  for (const scheme of ['light', 'dark']) {
+// The middle width only for the screenshots: below 905 px it walks what the compact one walks.
+for (const [width, size] of process.env.EVIDENCE ? [[1280, 'large'], [800, 'medium'], [375, 'compact']] : [[1280, 'large'], [375, 'compact']]) {
+  // Dark only for the screenshots: the walk asserts nothing the scheme changes.
+  for (const scheme of process.env.EVIDENCE ? ['light', 'dark'] : ['light']) {
     test(`chromium: ${size}, ${scheme} — a sentence becomes a rule on the canvas, saved switched off`, { timeout: 90_000 }, async () => {
       const browser = await chromium.launch();
       const { page, failures, accepted, close } = await openEditor(browser, width, { ai: true, scheme });

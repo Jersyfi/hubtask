@@ -104,7 +104,8 @@ export function touches(e: Element, at: Point, radius: number): boolean {
   return false;
 }
 
-function toSegment(p: Point, a: Point, b: Point): number {
+/** How far a point lies from a segment. */
+export function toSegment(p: Point, a: Point, b: Point): number {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const length = dx * dx + dy * dy;

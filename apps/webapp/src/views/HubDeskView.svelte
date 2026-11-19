@@ -13,7 +13,7 @@
   import { untrack } from 'svelte';
   import type { HubQueueList, SavedView } from '@hubtask/sync-engine';
   import { engine } from '../lib/data/engine.ts';
-  import { DESK_QUEUES, QUEUE_SHOWN, desksOf, queueQuery, type DeskQueue } from '../lib/servicedesk/queues.ts';
+  import { DESK_QUEUES, QUEUE_SHOWN, queueQuery, type DeskQueue } from '../lib/servicedesk/queues.ts';
   import { queuePath } from '../lib/sidebar.ts';
   import { Button, Dialog, Input, Skeleton, Stack, WorkPage, type PageAction } from '@hubtask/design-system/components';
 
@@ -24,11 +24,15 @@
   import { ITIL_TEMPLATE } from '../lib/servicedesk/desk.ts';
 
   import { containers } from '../lib/data/containers.svelte.ts';
-  import { entryTypes } from '../lib/data/entrytypes.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import DeskQueues from '../lib/servicedesk/DeskQueues.svelte';
-  import QueryPanel from '../lib/entries/QueryPanel.svelte';
+  import { QueryLine, lineText, type QueryToken } from '@hubtask/design-system/components';
+  import { createCatalogue, type QueryKey } from '@hubtask/query';
+  import { language, wording } from '../lib/entries/viewLanguage.ts';
+  import { readQuery, type Names } from '../lib/data/viewquery.ts';
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { accounts } from '../lib/data/accounts.svelte.ts';
   import type { ItemsQuery } from '../lib/data/items.svelte.ts';
   import { views } from '../lib/data/views.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -48,11 +52,13 @@
 
   // The hub's queues, one read, as the sidebar reads them.
   let queues = $state<HubQueueList['data'] | undefined>(undefined);
+  // The desks the server names with them (`desks`): the client does not read the entry types for them.
+  let deskIds = $state<readonly string[] | undefined>(undefined);
   $effect(() => {
     const at = hubId;
     return untrack(() => engine.subscribe<HubQueueList>({ path: `/hubs/${at}/queues` }, (next) => {
-      if (next.status === 'ready') queues = next.data.data;
-      if (next.status === 'failed') queues = [];
+      if (next.status === 'ready') { queues = next.data.data; deskIds = next.data.desks ?? []; }
+      if (next.status === 'failed') { queues = []; deskIds = []; }
     }));
   });
   const chosen = $derived(queues?.find((each) => each.view_id === queue || (each.view_id === null && each.key === queue)) ?? queues?.find((each) => each.key === queue));
@@ -79,11 +85,11 @@
     // names, else its open requests, rather than a page that waits for ever.
     if (!chosen && queues?.length === 0) {
       const fallback = STANDARD[queue ?? ''] ?? 'open';
-      return narrowed({ queue: fallback, name: t(`app.desk_queues.${fallback}`), query: queueQuery(fallback, hubId, deskIds) });
+      return narrowed({ queue: fallback, name: t(`app.desk_queues.${fallback}`), query: queueQuery(fallback, hubId, deskIds ?? []) });
     }
     if (!chosen) return undefined;
     const standard = STANDARD[chosen.key];
-    if (standard) return narrowed({ queue: standard, name: queueName, query: queueQuery(standard, hubId, deskIds) });
+    if (standard) return narrowed({ queue: standard, name: queueName, query: queueQuery(standard, hubId, deskIds ?? []) });
     if (!saved) return undefined;
     const asked = saved.query as Record<string, unknown>;
     return narrowed({
@@ -102,7 +108,28 @@
   // *Filter*: the reader's conditions joined to the queue's own; the queue's order stays.
   let isFiltering = $state(false);
   let narrowing = $state<ItemsQuery['filter']>(undefined);
-  let filterCount = $state(0);
+  // The queue's filter is the Hubtask query typed, as over every list (§6.11, scene qline): one
+  // line, read into the condition joined to the queue's own.
+  let tokens = $state<readonly QueryToken[]>([]);
+  let text = $state('');
+  let line = $state('');
+  const queryKeys = $derived<readonly QueryKey[]>(
+    ((manifest.value as { query_keys?: readonly QueryKey[] } | undefined)?.query_keys ?? []).filter((key) => !['asset', 'page', 'goal'].includes(key.product ?? '')),
+  );
+  const catalogue = $derived(createCatalogue(queryKeys, wording, () => []));
+  const names: Names = {
+    person: (name) => people.candidates({ hubId }).find((each) => accounts.nameOf(each)?.toLowerCase() === name.toLowerCase()),
+    label: () => undefined,
+    collection: (name) => containers.collectionsOf(hubId).find((each) => each.name.toLowerCase() === name.toLowerCase())?.id,
+    nameOf: (field, value) => (field === 'collection_id' ? containers.find(value)?.name : accounts.nameOf(value)),
+  };
+  function lineChanged(next: readonly QueryToken[]) {
+    line = lineText(language, next, '');
+    const read = readQuery(line, names);
+    if (!read.ok) return;
+    narrowing = read.query.filter;
+  }
+  const filterCount = $derived(tokens.length);
   function narrowed<T extends { query?: Record<string, unknown> }>(each: T): T {
     if (!narrowing || !each.query) return each;
     const own = each.query['filter'] as { op?: string; nodes?: unknown[] } | undefined;
@@ -131,6 +158,9 @@
       isNaming = false;
       isFiltering = false;
       narrowing = undefined;
+      tokens = [];
+      text = '';
+      line = '';
       // Known here before the hub's queues are read again, so its address is not taken for an
       // unknown one and sent to the first queue; the read brings its count.
       queues = [...(queues ?? []), { view_id: made.id, key: made.key, name: made.name, count: 0, at_risk: 0 }];
@@ -171,18 +201,15 @@
     const at = hubId;
     return untrack(() => containers.openLevel(at));
   });
-  $effect(() => untrack(() => entryTypes.open()));
   $effect(() => {
     const at = hubId;
     return untrack(() => people.open({ hubId: at }));
   });
   const mayShape = $derived(holds(people.roleOf({ hubId }, actor.account?.id, roleOrder()) ?? undefined, 'STRUCTURE').status === 'permitted');
 
-  // A refused read of the types reads as no desk: what the reader cannot read offers no portal.
-  const typesStatus = $derived(entryTypes.state?.status);
-  const isReading = $derived(containers.isLevelLoading(hubId) || typesStatus === undefined || typesStatus === 'idle' || typesStatus === 'loading');
-  const deskIds = $derived(isReading ? [] : desksOf(containers.collectionsOf(hubId), entryTypes.all));
-  const desks = $derived(containers.collectionsOf(hubId).filter((collection) => deskIds.includes(collection.id)));
+  // A refused read of the queues reads as no desk: what the reader cannot read offers no portal.
+  const isReading = $derived(containers.isLevelLoading(hubId) || deskIds === undefined);
+  const desks = $derived(containers.collectionsOf(hubId).filter((collection) => deskIds?.includes(collection.id)));
   // *New request* opens the desk's list, where an entry is captured (§5.2); each other desk in its list.
   const primary = $derived.by(() => {
     const first = desks[0];
@@ -192,7 +219,7 @@
       icon: 'plus' as const,
       onclick: () => onnavigate(`/collections/${first.id}`),
       menu: desks.length > 1
-        ? { label: t('app.desk_home.new_request_in'), items: desks.map((desk) => ({ id: desk.id, label: t('app.desk_home.in_desk', { desk: desk.name }) })), onselect: (id: string) => onnavigate(`/collections/${id}`) }
+        ? { label: t('app.split_more', { action: t('app.desk_home.new_request') }), items: desks.map((desk) => ({ id: desk.id, label: t('app.desk_home.in_desk', { desk: desk.name }) })), onselect: (id: string) => onnavigate(`/collections/${id}`) }
         : undefined,
     };
   });
@@ -228,7 +255,23 @@
     />
   {:else}
     <div class="filter" hidden={!isFiltering} data-queue-filter>
-      <QueryPanel layout="LIST_COLLAPSED" onquery={(asked) => (narrowing = asked.filter)} oncount={(count) => (filterCount = count)} />
+      <QueryLine
+        label={t('app.viewcfg.query')}
+        {language}
+        {catalogue}
+        bind:tokens
+        bind:text
+        placeholder={t('app.viewcfg.query_placeholder')}
+        suggestionsLabel={t('app.viewcfg.suggestions')}
+        fieldsHeading={(typed) => t('app.viewcfg.fields_heading', { typed })}
+        valuesHeading={(field) => t('app.viewcfg.values_heading', { field })}
+        editLabel={(spelling) => t('app.viewcfg.edit_chip', { spelling })}
+        removeLabel={(spelling) => t('app.viewcfg.remove_chip', { spelling })}
+        onchange={lineChanged}
+        addConditionLabel={t('app.viewcfg.add_condition')}
+        addGroupLabel={t('app.viewcfg.add_group')}
+        hint={t('app.viewcfg.chip_hint')}
+      />
     </div>
     {#if only}
       {#key `${only.queue}:${chosen?.view_id ?? chosen?.key}`}
@@ -240,23 +283,21 @@
   {/if}
 </WorkPage>
 
-<Dialog size="s" bind:isOpen={isNaming} title={t('app.hub_desk.save_as_queue')} dismissLabel={t('app.workspace.cancel')}>
+<Dialog size="s" bind:isOpen={isNaming} title={t('app.hub_desk.save_as_queue')} dismissLabel={t('app.workspace.cancel')} primary={{ label: t('app.hub_desk.save_as_queue'), onclick: saveQueue, isBusy: isSaving, busyLabel: t('app.hub_desk.saving'), disabledReason: newName.trim() === '' ? t('app.workspace.name_required') : undefined }}>
   <Stack gap="150">
     <Input label={t('app.hub_desk.queue_name')} bind:value={newName} />
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
   </Stack>
   {#snippet actions()}
     <Button tone="secondary" onclick={() => (isNaming = false)}>{t('app.workspace.cancel')}</Button>
-    <Button tone="primary" isBusy={isSaving} busyLabel={t('app.hub_desk.saving')} disabledReason={newName.trim() === '' ? t('app.workspace.name_required') : undefined} data-save-queue onclick={saveQueue}>{t('app.hub_desk.save_as_queue')}</Button>
   {/snippet}
 </Dialog>
 
-<Dialog size="s" bind:isOpen={isDeleting} title={t('app.hub_desk.delete_title', { name: queueName })} dismissLabel={t('app.workspace.cancel')}>
+<Dialog size="s" bind:isOpen={isDeleting} title={t('app.hub_desk.delete_title', { name: queueName })} dismissLabel={t('app.workspace.cancel')} primary={{ label: t('app.hub_desk.delete_queue'), onclick: deleteQueue, tone: 'danger', isBusy: isSaving, busyLabel: t('app.hub_desk.deleting') }}>
   <p class="quiet">{t('app.hub_desk.delete_body')}</p>
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
   {#snippet actions()}
     <Button tone="secondary" onclick={() => (isDeleting = false)}>{t('app.workspace.cancel')}</Button>
-    <Button tone="danger" isBusy={isSaving} busyLabel={t('app.hub_desk.deleting')} data-delete-queue onclick={deleteQueue}>{t('app.hub_desk.delete_queue')}</Button>
   {/snippet}
 </Dialog>
 

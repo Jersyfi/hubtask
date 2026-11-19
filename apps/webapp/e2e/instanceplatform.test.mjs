@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { chooseInRow, rowOffers } from './rowmenu.mjs';
 
@@ -93,8 +93,7 @@ async function open(browser, { tenancy = 'multi', width = 1280, height = 900, fr
 }
 
 test('chromium: an operator sees the dead letters, is told the subscription stays on, and delivers them again', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser);
   t.after(close);
 
@@ -116,8 +115,7 @@ test('chromium: an operator sees the dead letters, is told the subscription stay
 });
 
 test('chromium: an operator subscribes a platform and sees its secret once, then pauses and removes one', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser);
   t.after(close);
 
@@ -152,8 +150,7 @@ test('chromium: an operator subscribes a platform and sees its secret once, then
 
 // On a phone each subscription reads top to bottom, its address whole, its controls reachable.
 test('chromium: on a phone the dead letters are seen and delivered again', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser, { width: 375, height: 812 });
   t.after(close);
 
@@ -169,8 +166,7 @@ test('chromium: on a phone the dead letters are seen and delivered again', async
 // An enforcing instance file decides the subscriptions: the screen offers no add, pause or remove,
 // and the dead letters are still delivered again from here.
 test('chromium: subscriptions the instance file decides offer only a redelivery', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, { fromFile: true });
   t.after(close);
 
@@ -186,8 +182,7 @@ test('chromium: subscriptions the instance file decides offer only a redelivery'
 // UC-INS-14 check 7: a single-workspace installation has no purchase platform to tell - no row in
 // the installation's navigation, and the address reads nothing.
 test('chromium: a single-workspace installation offers no events to a platform', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser, { tenancy: 'single' });
   t.after(close);
 

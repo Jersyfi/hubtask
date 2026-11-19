@@ -16,7 +16,7 @@
   // **The copy is opened.** It is a new entry somebody just made, and leaving them on the list to
   // find it would be the one thing they did not ask for.
 
-  import { Button, Checkbox, Dialog, Inline, Input, Select, Stack } from '@hubtask/design-system/components';
+  import { Button, Checkbox, Dialog, Input, Select, Stack } from '@hubtask/design-system/components';
   import type { DroppedReference, WorkItem } from '@hubtask/sync-engine';
 
   import { containers } from '../data/containers.svelte.ts';
@@ -96,6 +96,9 @@
   title={item ? t('app.duplicate.of', { title: item.title }) : t('app.duplicate.title')}
   dismissLabel={t('app.workspace.cancel')}
   onClose={onclose}
+  primary={copyId
+    ? { label: t('app.duplicate.open'), onclick: () => onopened(copyId!) }
+    : { label: t('app.duplicate.go'), isBusy: isCopying, busyLabel: t('app.workspace.saving'), onclick: () => void duplicate() }}
 >
   <Stack gap="150">
     <Input label={t('app.duplicate.new_title')} hint={t('app.duplicate.title_hint')} bind:value={title} />
@@ -129,17 +132,10 @@
       </div>
     {/if}
 
-    <Inline gap="100">
-      {#if copyId}
-        <Button onclick={() => onopened(copyId!)}>{t('app.duplicate.open')}</Button>
-      {:else}
-        <Button isBusy={isCopying} busyLabel={t('app.workspace.saving')} onclick={() => void duplicate()}>
-          {t('app.duplicate.go')}
-        </Button>
-      {/if}
-      <Button tone="secondary" onclick={onclose}>{t('app.workspace.cancel')}</Button>
-    </Inline>
   </Stack>
+  {#snippet actions()}
+    <Button tone="secondary" onclick={onclose}>{t('app.workspace.cancel')}</Button>
+  {/snippet}
 </Dialog>
 
 <style>

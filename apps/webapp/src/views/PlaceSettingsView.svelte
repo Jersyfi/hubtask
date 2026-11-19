@@ -10,6 +10,7 @@
 
   import { EmptyState, ReadOnlyNotice, Skeleton } from '@hubtask/design-system/components';
   import type { PageHead } from '@hubtask/design-system/components';
+  import type { DeskLogo } from '@hubtask/sync-engine';
 
   import PlacePeople from '../lib/people/PlacePeople.svelte';
   import LazyView from '../lib/frame/LazyView.svelte';
@@ -23,6 +24,12 @@
   import { live } from '../lib/data/live.svelte.ts';
   import { modules, modulesHere } from '../lib/data/modules.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
+  import { entryTypes } from '../lib/data/entrytypes.svelte.ts';
+  import { entryTypesOffered } from '../lib/data/entrytypes.ts';
+  import { deskLogoPath } from '../lib/data/portal.svelte.ts';
+  import { resourceWhen } from '../lib/data/resource.svelte.ts';
+  import { actsAsDesk } from '../lib/portal/portal.ts';
+  import DeskLogoPanel from '../lib/servicedesk/DeskLogoPanel.svelte';
   import TemplatesSection from '../lib/entries/TemplatesSection.svelte';
   import { t } from '../lib/i18n/i18n.svelte.ts';
   import StructurePanel from '../lib/workspace/StructurePanel.svelte';
@@ -71,6 +78,18 @@
     return untrack(() => containers.openLevel(wanted));
   });
   const collections = $derived(container?.type === 'HUB' ? containers.collectionsOf(id) : []);
+
+  // A desk's logo is part of its look, set here rather than on the portal it is drawn on
+  // (UC-SVC-05 check 9); asked only of a collection that acts as a desk.
+  $effect(() => {
+    if (container?.type !== 'COLLECTION' || !modulesOn.includes('SERVICE_DESK')) return;
+    return untrack(() => entryTypes.open());
+  });
+  const isDesk = $derived(
+    container?.type === 'COLLECTION' && modulesOn.includes('SERVICE_DESK')
+      && actsAsDesk(entryTypes.all, entryTypesOffered(container.structure?.settings, 'TASK'), container.parent_id),
+  );
+  const deskLogo = resourceWhen<DeskLogo>(() => (isDesk ? deskLogoPath(id) : undefined));
 
   /** The path this place sits on, and the role the reader holds along it (`people.roleOf`). */
   const containerPath = $derived(
@@ -130,6 +149,9 @@
 {:else}
   {#snippet generalTab()}
     <PlaceGeneral {container} />
+    {#if isDesk && deskLogo.state.status === 'ready'}
+      <DeskLogoPanel collectionId={container.id} hasLogo={Boolean(deskLogo.state.data.logo_media_id)} />
+    {/if}
   {/snippet}
   {#snippet labelsTab()}
     <LazyView load={settingsParts.LabelsDialog} props={{ collectionId: container.id }} />

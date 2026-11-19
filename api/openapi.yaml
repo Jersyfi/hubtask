@@ -85,8 +85,8 @@ x-hubtask-cli-groups:
   code: "a hub's forge hooks and an entry's commits, branches and pull requests"
   file: "an entry's files and folders in a file store: Nextcloud, SharePoint, OneDrive, WebDAV"
   chat: "a hub's chat bots on Matrix, Slack, Teams and Mattermost, which answer links to entries and make tasks of messages"
-  cmdb: "the workspace's configuration item classes, relation types and sources, and a hub's inventory health"
-  ci: "a hub's configuration items: make, reconcile, import, relate, merge and walk their impact"
+  cmdb: "the workspace's object types, relation types and sources, and a hub's inventory health"
+  ci: "a hub's inventory objects: make, reconcile, import, relate, merge and walk their impact"
   business-calendar: "the workspace's business calendars: working hours, holidays and a time zone under a key"
   sla: "the workspace's SLA policies, how an entry's goals stand, and how they stood in a period"
   request: "the requester portal: a service's catalogue, raising a request, following and answering your own"
@@ -460,7 +460,7 @@ paths:
       x-hubtask-rest: generated
       x-hubtask-cli: "release ls"
       summary: A hub's releases
-      description: The hub's releases, the latest day first, at most 200. Needs READ at the hub.
+      description: The hub's releases, the latest day first, at most 200, each with how many of its entries the reader may see are done and open. Needs READ at the hub.
       parameters:
         - { name: state, in: query, schema: { type: string, enum: [PLANNED, RELEASED] }, description: "Only releases in this state." }
       responses:
@@ -1698,6 +1698,32 @@ paths:
               schema: { $ref: "#/components/schemas/DashboardFigures" }
         "4XX":
           $ref: "#/components/responses/Problem"
+  /dashboards/{dashboardId}/figures:draft:
+    parameters:
+      - $ref: "#/components/parameters/DashboardId"
+    post:
+      tags: [goals]
+      operationId: draftDashboardFigures
+      x-hubtask-rest: generated
+      x-hubtask-cli: "dashboard figures-draft"
+      summary: A dashboard's numbers for a definition not saved yet
+      description: >
+        Computes widgets and a filter as they are being edited, exactly as GET
+        /dashboards/{dashboardId}/figures computes the saved ones, as the caller: the same checks as a
+        save, nothing stored. Only a dashboard the caller sees; its name and sharing stay as they are.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DashboardDraft" }
+      responses:
+        "200":
+          description: The figures
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DashboardFigures" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /dashboards/{dashboardId}/digest:
     parameters:
       - $ref: "#/components/parameters/DashboardId"
@@ -1824,7 +1850,9 @@ paths:
       x-hubtask-rest: generated
       x-hubtask-cli: "agent ls"
       summary: The workspace's agents
-      description: Whoever administers agents reads all of them; anybody else the agents acting for them.
+      description: >
+        Whoever administers agents reads all of them; anybody else the agents acting for them. Each
+        with what it spent this hour and today and when its latest job started.
       parameters:
         - { name: owner_id, in: query, schema: { type: string, format: uuid }, description: "Only the agents acting for this person." }
         - { name: model_id, in: query, schema: { type: string, format: uuid }, description: "Only the agents using this model." }
@@ -2126,7 +2154,7 @@ paths:
       x-hubtask-cli: "agent run"
       summary: Start a shipped agent's job on one target
       description: >
-        Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory.
+        Ticket triage, object suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory.
         The job runs in the background on the agent's own account, held to its policy, its person and its budget;
         what it would change waits for a person among the agent's requests, or as a suggestion on the entry.
         An agent built elsewhere runs no job here.
@@ -2262,8 +2290,8 @@ paths:
       x-hubtask-cli: "agent evaluate-run"
       summary: Have a shipped agent answer its own evaluation set
       description: >
-        Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI
-        suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a
+        Each case's title and notes are the material: a knowledge draft answers `title` and `body`, an object
+        suggestion and a ticket triage answer `cis`, the names of the hub's objects the text names. Given a
         collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the
         names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers
         are compared as a recorded run's are, and the run counts for the model's revision as it now stands.
@@ -2277,7 +2305,7 @@ paths:
               type: object
               additionalProperties: false
               properties:
-                hub_id: { type: string, format: uuid, description: "The hub whose CIs a CI suggestion or a triage matches; required for those two." }
+                hub_id: { type: string, format: uuid, description: "The hub whose objects an object suggestion or a triage matches; required for those two." }
                 collection_id: { type: string, format: uuid, description: "The collection whose labels a ticket triage chooses from; without it no labels are answered." }
       responses:
         "201":
@@ -3544,7 +3572,8 @@ paths:
         are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own
         permissions. A hub with a desk and no queue view answers the four standard queues by
         `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over
-        the open entries of its desks; a hub with neither answers none. A count that takes longer
+        the open entries of its desks; a hub with neither answers none. `desks` names the hub's
+        desks either way. A count that takes longer
         than two seconds, or whose view anchors something the caller may not read, is null. Needs
         READ on the hub and the service desk switched on.
       responses:
@@ -3760,6 +3789,29 @@ paths:
               schema: { $ref: "#/components/schemas/SlaReport" }
         "4XX":
           $ref: "#/components/responses/Problem"
+  /deadlines-kept:
+    get:
+      tags: [servicedesk]
+      operationId: readMyDeadlinesKept
+      x-hubtask-rest: generated
+      x-hubtask-cli: "sla kept"
+      summary: How many of the deadlines on my own tickets I kept
+      description: >
+        For the signed-in person, over the entries assigned to them: the deadlines that ended in the
+        window - met or breached -, per kind - the requester's goals (first response, next response,
+        resolution) and each team's OLA by its group and goal - with how many were kept. Never
+        another person's; no report permission needed. The window ends now and reaches back `days`
+        days, 30 when left out.
+      parameters:
+        - { name: days, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 365 } }
+      responses:
+        "200":
+          description: The deadlines kept
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeadlinesKept" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /items/{itemId}/requester:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -3773,8 +3825,8 @@ paths:
         The person who raised the entry - its creator - and the portal organisation their mail
         domain belongs to, if any, for the side panel a handler reads beside a request; their other
         requests are a query by `created_by`, which answers what the reader may see. Also up to 20
-        configuration items the requester owns, by name, of the hubs where the reader may read
-        them and assets are switched on; merged and disposed ones are left out. The address
+        objects the requester owns, by name, of the hubs where the reader may read
+        them and the inventory is switched on; merged and disposed ones are left out. The address
         itself is not answered. Needs READ on the entry and the service desk switched on.
       responses:
         "200":
@@ -4157,6 +4209,27 @@ paths:
               schema: { $ref: "#/components/schemas/ArticleSuggestionList" }
         "4XX":
           $ref: "#/components/responses/Problem"
+  /portal-knowledge:
+    get:
+      tags: [pages]
+      operationId: listPortalKnowledge
+      x-hubtask-rest: generated
+      x-hubtask-cli: "article spaces"
+      summary: What a service's portal shares of the knowledge base
+      description: >
+        Every article and every space published to the service's portal, each space with the pages
+        under it a requester reads: live, never behind a restriction nor under one, never a language
+        variant (opening a page answers it in the reader's language). At most 500 pages per space. Needs REQUEST at the collection.
+      parameters:
+        - $ref: "#/components/parameters/CollectionId"
+      responses:
+        "200":
+          description: The shared knowledge
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PortalKnowledge" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /articles/{pageId}:
     parameters:
       - $ref: "#/components/parameters/PageId"
@@ -4371,14 +4444,14 @@ paths:
       operationId: listCiClasses
       x-hubtask-rest: generated
       x-hubtask-cli: "cmdb class ls"
-      summary: The configuration item classes
+      summary: The object types
       description: >
-        The class hierarchy Hubtask ships and the workspace's own classes beneath it, each with what
-        it inherits: attributes, identifier rules nearest first, the relations a CI of it needs.
-        Needs READ in the workspace and the assets module switched on.
+        The object type hierarchy Hubtask ships and the workspace's own object types beneath it, each with what
+        it inherits: attributes, identifier rules nearest first, the relations an object of it needs.
+        Needs READ in the workspace and the inventory module switched on.
       responses:
         "200":
-          description: The classes
+          description: The object types
           content:
             application/json:
               schema: { $ref: "#/components/schemas/CiClassList" }
@@ -4396,9 +4469,9 @@ paths:
       x-hubtask-rest: generated
       x-hubtask-rest-path: { classKey: key }
       x-hubtask-cli: "cmdb class define"
-      summary: Add or change a class of the workspace's own
+      summary: Add or change an object type of the workspace's own
       description: >
-        Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is
+        Adds an object type beneath a shipped or an own object type, or changes an own object type. A shipped object type is
         not changed. Needs STRUCTURE in the workspace.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
@@ -4409,7 +4482,7 @@ paths:
             schema: { $ref: "#/components/schemas/CiClassDefine" }
       responses:
         "200":
-          description: The class
+          description: The object type
           content:
             application/json:
               schema: { $ref: "#/components/schemas/CiClass" }
@@ -4421,10 +4494,10 @@ paths:
       operationId: listCiRelationTypes
       x-hubtask-rest: generated
       x-hubtask-cli: "cmdb relation-type ls"
-      summary: The relation types between configuration items
+      summary: The relation types between objects
       description: >
         The shipped relation catalogue and the workspace's own types, each with which end suffers
-        when the other fails and the class pairs it may join.
+        when the other fails and the object type pairs it may join.
       responses:
         "200":
           description: The relation types
@@ -4447,7 +4520,7 @@ paths:
       x-hubtask-cli: "cmdb relation-type define"
       summary: Add or change a relation type of the workspace's own
       description: >
-        Its words both ways, its impact (which end suffers when the other fails) and the class
+        Its words both ways, its impact (which end suffers when the other fails) and the object type
         pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
@@ -4470,7 +4543,7 @@ paths:
       operationId: listCiSources
       x-hubtask-rest: generated
       x-hubtask-cli: "cmdb source ls"
-      summary: The sources configuration items come from
+      summary: The sources objects come from
       description: >
         People (`manual`), files, programs and connectors by precedence, a lower rank first.
       responses:
@@ -4495,7 +4568,7 @@ paths:
       x-hubtask-cli: "cmdb source define"
       summary: Add or change a source
       description: >
-        Its kind, rank, the classes it may write, whether it may make new CIs and a file source's
+        Its kind, rank, the object types it may write, whether it may make new objects and a file source's
         mapping. Needs STRUCTURE in the workspace.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
@@ -4523,9 +4596,9 @@ paths:
       operationId: listCis
       x-hubtask-rest: generated
       x-hubtask-cli: "ci ls"
-      summary: A hub's configuration items
+      summary: A hub's objects
       description: >
-        A page of the hub's CIs in a stable order, narrowed to a class and its descendants when one
+        A page of the hub's objects in a stable order, narrowed to an object type and its descendants when one
         is given; `next` is the cursor of the following page. Needs READ on the hub.
       parameters:
         - { name: class, in: query, schema: { type: string } }
@@ -4534,7 +4607,7 @@ paths:
         - { name: include_merged, in: query, schema: { type: boolean } }
       responses:
         "200":
-          description: The CIs
+          description: The objects
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ConfigurationItemList" }
@@ -4546,10 +4619,10 @@ paths:
       x-hubtask-rest: generated
       x-hubtask-rest-location: /cis/{id}
       x-hubtask-cli: "ci create"
-      summary: Make a configuration item by hand
+      summary: Make an object by hand
       description: >
         Through the same reconciliation every source writes through, as source `manual`: when the
-        hub already holds a CI its identifiers name, nothing is made and the problem names that CI
+        hub already holds an object its identifiers name, nothing is made and the problem names that object
         (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
       requestBody:
         required: true
@@ -4577,7 +4650,7 @@ paths:
       x-hubtask-cli: "ci reconcile"
       summary: Reconcile a source's payload
       description: >
-        Each item is identified - by the source's own key, then by its class's identifier rules in
+        Each item is identified - by the source's own key, then by its object type's identifier rules in
         order - and created, updated under the sources' precedence, held for review, or reported as
         a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the
         hub.
@@ -4605,7 +4678,7 @@ paths:
       operationId: importCiFile
       x-hubtask-rest: generated
       x-hubtask-cli: "ci import"
-      summary: Import a file of configuration items
+      summary: Import a file of objects
       description: >
         A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials,
         through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS
@@ -4658,7 +4731,7 @@ paths:
       x-hubtask-rest: generated
       x-hubtask-cli: "ci run get"
       summary: One reconciliation run with its decisions
-      description: Every item's outcome, CI, matching rule and the attributes taken or kept, by name. Needs READ on the hub.
+      description: Every item's outcome, object, matching rule and the attributes taken or kept, by name. Needs READ on the hub.
       responses:
         "200":
           description: The run
@@ -4679,7 +4752,7 @@ paths:
       x-hubtask-rest: generated
       x-hubtask-cli: "ci hold ls"
       summary: Items held for review
-      description: What the reconciliation held instead of making a CI, newest first. Needs READ on the hub.
+      description: What the reconciliation held instead of making an object, newest first. Needs READ on the hub.
       parameters:
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500 } }
       responses:
@@ -4723,7 +4796,7 @@ paths:
       x-hubtask-rest: generated
       x-hubtask-cli: "ci duplicate ls"
       summary: Open duplicates
-      description: Sets of CIs one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
+      description: Sets of objects one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
       parameters:
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500 } }
       responses:
@@ -4748,7 +4821,7 @@ paths:
       summary: Merge a duplicate or call it distinct
       description: >
         With a survivor, the others are merged into it and retired as merged, never deleted;
-        without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+        without one, the objects are recorded as distinct. Needs WRITE_ITEMS on the hub.
       requestBody:
         required: false
         content:
@@ -4775,7 +4848,7 @@ paths:
       x-hubtask-cli: "cmdb connector ls"
       summary: A hub's connectors
       description: >
-        The programs the hub's configuration items are pulled from and the monitoring programs that
+        The programs the hub's objects are pulled from and the monitoring programs that
         post alerts to it, with the source each writes as, the hosts it may reach, its period,
         whether a credential is set - never the credential - and how its last run ended. Needs READ
         on the hub.
@@ -4896,7 +4969,7 @@ paths:
       summary: A hub's alerts
       description: >
         The alerts monitoring programs posted to the hub's intakes, the latest first, each problem
-        once by its key, with the CI its host names and the entry opened for it. Needs READ on the
+        once by its key, with the object its host names and the entry opened for it. Needs READ on the
         hub.
       parameters:
         - { name: status, in: query, schema: { type: string, enum: [FIRING, RESOLVED] } }
@@ -4933,7 +5006,7 @@ paths:
         `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in
         Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp,
         a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its
-        key, bound to the CI its host names, and opens an entry in the intake's collection while it
+        key, bound to the object its host names, and opens an entry in the intake's collection while it
         fires and completes it when it resolves.
 
         Every reason not to serve answers the same `404` - an unknown intake, one switched off, a
@@ -5445,8 +5518,8 @@ paths:
       x-hubtask-cli: "cmdb health"
       summary: A hub's inventory judged
       description: >
-        Completeness, correctness (stale, orphaned, duplicate), CIs without an owner and reviews
-        overdue, per class and in all, with the CIs found wanting. Needs READ on the hub.
+        Completeness, correctness (stale, orphaned, duplicate), objects without an owner and reviews
+        overdue, per object type and in all, with the objects found wanting. Needs READ on the hub.
       responses:
         "200":
           description: The health
@@ -5466,13 +5539,13 @@ paths:
       operationId: readCi
       x-hubtask-rest: generated
       x-hubtask-cli: "ci get"
-      summary: Read a configuration item
+      summary: Read an object
       description: >
         With its relations both ways and the protection need it inherits from everything that
         suffers when it fails. Needs READ on the hub.
       responses:
         "200":
-          description: The CI
+          description: The object
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ConfigurationItem" }
@@ -5483,9 +5556,9 @@ paths:
       operationId: updateCi
       x-hubtask-rest: generated
       x-hubtask-cli: "ci update"
-      summary: Change a configuration item by hand
+      summary: Change an object by hand
       description: >
-        Its name, attributes (null clears one) or a more specific class, through the reconciliation
+        Its name, attributes (null clears one) or a more specific object type, through the reconciliation
         as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS
         on the hub.
       parameters:
@@ -5497,7 +5570,37 @@ paths:
             schema: { $ref: "#/components/schemas/ConfigurationItemUpdate" }
       responses:
         "200":
-          description: The CI
+          description: The object
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConfigurationItem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /cis/{ciId}:confirm:
+    parameters:
+      - name: ciId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [cmdb]
+      operationId: confirmCi
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci confirm"
+      summary: Confirm an object is as recorded
+      description: >
+        Its next review moves review_months on from today (12 when not given), and the object
+        records who confirmed it and when. A pending question of an open campaign about it is
+        answered CONFIRMED at the same time. The owning person confirms with READ on the hub,
+        anybody else with WRITE_ITEMS.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CiConfirm" }
+      responses:
+        "200":
+          description: The object
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ConfigurationItem" }
@@ -5514,7 +5617,7 @@ paths:
       operationId: setCiCompliance
       x-hubtask-rest: generated
       x-hubtask-cli: "ci compliance"
-      summary: Set a configuration item's lifecycle and compliance fields
+      summary: Set an object's lifecycle and compliance fields
       description: >
         Stage and status, owner, location, protection need (C/I/A), next review and quantity; a
         member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
@@ -5527,7 +5630,7 @@ paths:
             schema: { $ref: "#/components/schemas/CiCompliance" }
       responses:
         "200":
-          description: The CI
+          description: The object
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ConfigurationItem" }
@@ -5544,7 +5647,7 @@ paths:
       operationId: readCiImpact
       x-hubtask-rest: generated
       x-hubtask-cli: "ci impact"
-      summary: What a configuration item's failure reaches
+      summary: What an object's failure reaches
       description: >
         DOWNSTREAM, everything that suffers when it fails, with the services among them; UPSTREAM,
         everything whose failure it suffers. Needs READ on the hub.
@@ -5570,7 +5673,7 @@ paths:
       operationId: listCiBacklinks
       x-hubtask-rest: generated
       x-hubtask-cli: "ci backlinks"
-      summary: What points at a configuration item
+      summary: What points at an object
       description: >
         The pages, entries' notes and comments and whiteboards that mention it, show it as a card or
         embed it, each with its title - only those the reader may see. Needs READ on the hub.
@@ -5580,6 +5683,131 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/CiBacklinkList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /cis/{ciId}/work:
+    parameters:
+      - name: ciId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [cmdb]
+      operationId: listCiWork
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci work"
+      summary: The entries an object is part of
+      description: >
+        Every entry - a ticket, a change, a task - that names the object as affected, or names an object beneath
+        it, one whose failure it suffers up to eight steps, each once: open ones first, then at most
+        twenty completed ones. Only entries the reader may see, never archived ones. Needs READ on
+        the hub.
+      responses:
+        "200":
+          description: The entries on the object
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiWork" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /cis/{ciId}/attachments:
+    parameters:
+      - name: ciId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [cmdb]
+      operationId: listCiAttachments
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci files"
+      summary: An object's files
+      description: >
+        The object's files as media objects, oldest upload first, without a download target per
+        row - one is read for one file. Needs READ on the hub.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: The files
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /cis/{ciId}/attachments/{mediaId}:
+    parameters:
+      - name: ciId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - $ref: "#/components/parameters/MediaId"
+    put:
+      tags: [cmdb]
+      operationId: attachCiMedia
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci attach"
+      summary: Put a file on an object
+      description: >
+        Idempotent: an object that already holds it succeeds. The media object has to be READY, of
+        usage ATTACHMENT and of this workspace; it is one the caller uploaded or one an object of a
+        hub they read already holds. Attaching raises the object's reference count; the bytes are
+        shared, never copied. At most 500 files an object (`cmdb.files_full`, 409). Needs
+        WRITE_ITEMS on the hub.
+      responses:
+        "200":
+          description: The files the object now holds
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiAttachments" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [cmdb]
+      operationId: detachCiMedia
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci detach"
+      summary: Take a file off an object
+      description: >
+        Idempotent: an object that does not hold it succeeds. The media object itself stays; once
+        nothing references it, the reconciliation job removes it. Needs WRITE_ITEMS on the hub.
+      responses:
+        "200":
+          description: The files the object now holds
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiAttachments" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+  /cis/{ciId}/history:
+    parameters:
+      - name: ciId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [cmdb]
+      operationId: listCiHistory
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci history"
+      summary: An object's history
+      description: >
+        The object's own history, newest first: who did what, and when - made, changed by hand or
+        by a source, its stage, owner, location or protection need changed, related and unrelated,
+        confirmed and attested, registered and moved, files put on and taken off. It is the
+        product's record and not the audit trail: readable by whoever reads the hub, deleted with
+        the object. Each step carries a message code the client renders. Needs READ on the hub.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: The history
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiHistoryPage" }
         "4XX":
           $ref: "#/components/responses/Problem"
   /items/{itemId}/cis:
@@ -5593,14 +5821,14 @@ paths:
       operationId: listEntryCis
       x-hubtask-rest: generated
       x-hubtask-cli: "item cis"
-      summary: The configuration items an entry names as affected
+      summary: The objects an entry names as affected
       description: >
         Those the reader may read, the active services and offerings their failure reaches, the other
-        open entries naming them or a CI they reach, and the entries planned on them in a window
+        open entries naming them or an object they reach, and the entries planned on them in a window
         overlapping the entry's start and due. Needs READ on the entry.
       responses:
         "200":
-          description: The affected CIs
+          description: The affected objects
           content:
             application/json:
               schema: { $ref: "#/components/schemas/EntryCis" }
@@ -5621,13 +5849,13 @@ paths:
       operationId: affectEntryCi
       x-hubtask-rest: generated
       x-hubtask-cli: "item affect"
-      summary: Name a configuration item as affected by an entry
+      summary: Name an object as affected by an entry
       description: >
         At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and
-        READ on the CI's hub.
+        READ on the object's hub.
       responses:
         "200":
-          description: The affected CIs as they now stand
+          description: The affected objects as they now stand
           content:
             application/json:
               schema: { $ref: "#/components/schemas/EntryCis" }
@@ -5638,11 +5866,11 @@ paths:
       operationId: unaffectEntryCi
       x-hubtask-rest: generated
       x-hubtask-cli: "item unaffect"
-      summary: Remove a configuration item from an entry's affected ones
+      summary: Remove an object from an entry's affected ones
       description: Needs WRITE_ITEMS on the entry.
       responses:
         "200":
-          description: The affected CIs as they now stand
+          description: The affected objects as they now stand
           content:
             application/json:
               schema: { $ref: "#/components/schemas/EntryCis" }
@@ -5676,9 +5904,9 @@ paths:
       operationId: startCiCampaign
       x-hubtask-rest: generated
       x-hubtask-cli: "cmdb campaign start"
-      summary: Ask the owners of a hub's CIs to attest them
+      summary: Ask the owners of a hub's objects to attest them
       description: >
-        Every active CI of the classes named (all when none) - with due_by, only those whose review
+        Every active object of the object types named (all when none) - with due_by, only those whose review
         falls due by then or was never set - is asked once, of its owning person when it has one. The
         set is fixed when it starts. Needs WRITE_ITEMS on the hub.
       requestBody:
@@ -5705,8 +5933,8 @@ paths:
       operationId: readCiCampaign
       x-hubtask-rest: generated
       x-hubtask-cli: "cmdb campaign show"
-      summary: A certification campaign with every CI asked
-      description: Its score and each CI's verdict, who gave it and when. Needs READ on the hub.
+      summary: A certification campaign with every object asked
+      description: Its score and each object's verdict, who gave it and when. Needs READ on the hub.
       responses:
         "200":
           description: The campaign
@@ -5738,6 +5966,30 @@ paths:
               schema: { $ref: "#/components/schemas/CiCampaign" }
         "4XX":
           $ref: "#/components/responses/Problem"
+  /ci-campaigns/{campaignId}:remind:
+    parameters:
+      - name: campaignId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [cmdb]
+      operationId: remindCiCampaign
+      x-hubtask-rest: generated
+      x-hubtask-cli: "cmdb campaign remind"
+      summary: Remind the owners who have not answered yet
+      description: >
+        Tells each owning person of a still pending object once per call, naming how many of their
+        objects wait. Refused `cmdb.nobody_to_remind` when no pending object has an owning person,
+        and `cmdb.campaign_closed` on a closed campaign. Needs WRITE_ITEMS on the hub.
+      responses:
+        "200":
+          description: Reminded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiCampaignReminded" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /ci-campaigns/{campaignId}/cis/{ciId}:
     parameters:
       - name: campaignId
@@ -5753,9 +6005,9 @@ paths:
       operationId: attestCi
       x-hubtask-rest: generated
       x-hubtask-cli: "ci attest"
-      summary: Answer a campaign's question about a configuration item
+      summary: Answer a campaign's question about an object
       description: >
-        CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due
+        CONFIRMED moves the object's next review by the campaign's period; DISPUTED makes it fall due
         today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
       requestBody:
         required: true
@@ -5770,6 +6022,29 @@ paths:
               schema: { $ref: "#/components/schemas/CiAttestation" }
         "4XX":
           $ref: "#/components/responses/Problem"
+  /hubs/{hubId}/ci-work:
+    parameters:
+      - name: hubId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [cmdb]
+      operationId: listHubCiWork
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci work count"
+      summary: How many open entries name each object of a hub
+      description: >
+        For each object of the hub, the open, unarchived entries the reader may see that name it as
+        affected; objects with none are left out. Needs READ on the hub.
+      responses:
+        "200":
+          description: The open entries per object
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiWorkCounts" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /hubs/{hubId}/ci-groups:
     parameters:
       - name: hubId
@@ -5781,8 +6056,8 @@ paths:
       operationId: listCiGroups
       x-hubtask-rest: generated
       x-hubtask-cli: "cmdb group ls"
-      summary: A hub's CI groups
-      description: Each with how many CIs it holds now. Needs READ on the hub.
+      summary: A hub's object groups
+      description: Each with how many objects it holds now. Needs READ on the hub.
       responses:
         "200":
           description: The groups
@@ -5807,10 +6082,10 @@ paths:
       x-hubtask-rest: generated
       x-hubtask-rest-path: { groupKey: key }
       x-hubtask-cli: "cmdb group define"
-      summary: Define or change a CI group by its key
+      summary: Define or change an object group by its key
       description: >
-        A name and a filter on classes, stages, a text the name holds and attribute values; at least
-        one. A group naming a service CI is what that service rests on beside its relations. Needs
+        A name and a filter on object types, stages, a text the name holds and attribute values; at least
+        one. A group naming a service object is what that service rests on beside its relations. Needs
         WRITE_ITEMS on the hub.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
@@ -5827,6 +6102,22 @@ paths:
               schema: { $ref: "#/components/schemas/CiGroup" }
         "4XX":
           $ref: "#/components/responses/Problem"
+    delete:
+      tags: [cmdb]
+      operationId: deleteCiGroup
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: { groupKey: key }
+      x-hubtask-cli: "cmdb group delete"
+      summary: Delete an object group by its key
+      description: >
+        The group is gone; the objects it held are unchanged. Needs WRITE_ITEMS on the hub.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Deleted
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /ci-groups/{groupId}/members:
     parameters:
       - name: groupId
@@ -5838,7 +6129,7 @@ paths:
       operationId: listCiGroupMembers
       x-hubtask-rest: generated
       x-hubtask-cli: "cmdb group members"
-      summary: The configuration items a group holds now
+      summary: The objects a group holds now
       description: Needs READ on the hub.
       responses:
         "200":
@@ -5885,15 +6176,15 @@ paths:
       operationId: listCiAssets
       x-hubtask-rest: generated
       x-hubtask-cli: "cmdb asset ls"
-      summary: A hub's asset register
-      description: In CI order after a cursor, narrowed to a state when given. Needs READ on the hub.
+      summary: A hub's register records
+      description: In object order after a cursor, narrowed to a state when given. Needs READ on the hub.
       parameters:
         - { name: state, in: query, schema: { type: string, enum: [REQUESTED, ORDERED, IN_STOCK, DEPLOYED, RETIRED, DISPOSED] } }
         - { name: after, in: query, schema: { type: string, format: uuid } }
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500 } }
       responses:
         "200":
-          description: The assets
+          description: The register records
           content:
             application/json:
               schema: { $ref: "#/components/schemas/CiAssetList" }
@@ -5910,11 +6201,11 @@ paths:
       operationId: readCiAsset
       x-hubtask-rest: generated
       x-hubtask-cli: "ci asset"
-      summary: A configuration item's asset record
-      description: Not found when it has none. Needs READ on the hub.
+      summary: An object's register record
+      description: With the steps of its life, oldest first. Not found when it has none. Needs READ on the hub.
       responses:
         "200":
-          description: The asset
+          description: The register record
           content:
             application/json:
               schema: { $ref: "#/components/schemas/CiAsset" }
@@ -5925,7 +6216,7 @@ paths:
       operationId: registerCiAsset
       x-hubtask-rest: generated
       x-hubtask-cli: "ci asset register"
-      summary: Write a configuration item's asset record
+      summary: Write an object's register record
       description: >
         Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new
         record starts in the state given, REQUESTED when none. A member left out stays, null clears
@@ -5939,7 +6230,7 @@ paths:
             schema: { $ref: "#/components/schemas/CiAssetRegister" }
       responses:
         "200":
-          description: The asset
+          description: The register record
           content:
             application/json:
               schema: { $ref: "#/components/schemas/CiAsset" }
@@ -5956,10 +6247,10 @@ paths:
       operationId: moveCiAsset
       x-hubtask-rest: generated
       x-hubtask-cli: "ci asset move"
-      summary: Move an asset through its life
+      summary: Move a register record through its life
       description: >
-        The CI's lifecycle stage follows. Disposing needs the method and the reference of the
-        certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+        The object's lifecycle stage follows. Disposing needs the method and the reference of the
+        certificate that proves it; a disposed object moves no more. Needs WRITE_ITEMS on the hub.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
       requestBody:
@@ -5969,7 +6260,7 @@ paths:
             schema: { $ref: "#/components/schemas/CiAssetMove" }
       responses:
         "200":
-          description: The asset
+          description: The register record
           content:
             application/json:
               schema: { $ref: "#/components/schemas/CiAsset" }
@@ -6050,7 +6341,7 @@ paths:
       x-hubtask-cli: "cmdb software"
       summary: A hub's software, normalised
       description: >
-        Its software CIs grouped by the product an alias names or by their folded names, with their
+        Its software objects grouped by the product an alias names or by their folded names, with their
         versions and installations. Needs READ on the hub.
       responses:
         "200":
@@ -6066,10 +6357,10 @@ paths:
       operationId: relateCis
       x-hubtask-rest: generated
       x-hubtask-cli: "ci relate"
-      summary: Join two configuration items
+      summary: Join two objects
       description: >
-        By a relation type, read from the source; the type's class pairs decide whether it may join
-        them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+        By a relation type, read from the source; the type's object type pairs decide whether it may join
+        them. Both objects are in one hub. Needs WRITE_ITEMS on the hub.
       requestBody:
         required: true
         content:
@@ -8753,8 +9044,15 @@ paths:
         The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number,
         level and type, title, status, completion, dates, assignee, collection and parent, never its
         notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export
-        cap; `$top` and `$skip` page as OData says, and other query options are not served.
+        cap; `$top` and `$skip` page as OData says. `$filter` takes a Hubtask query in either
+        spelling (`is: open who: me`, `is_completed = false AND due_at < @today`), which narrows
+        the view's rows and never widens them; a sort or a kind other than entries in it is
+        refused. Other query options are not served.
       parameters:
+        - name: $filter
+          in: query
+          required: false
+          schema: { type: string, maxLength: 4000 }
         - name: $top
           in: query
           required: false
@@ -10611,7 +10909,7 @@ paths:
       operationId: updateAccountPreferences
       x-hubtask-rest: generated
       x-hubtask-rest-null: empty
-      x-hubtask-rest-null-as: { products_seen: [], nav_products: [], nav_products_hidden: [], nav_hubs_hidden: [] }
+      x-hubtask-rest-null-as: { products_seen: [], nav_products: [], nav_products_hidden: [], nav_hubs_hidden: [], today_sections: [], today_sections_hidden: [] }
       x-hubtask-rest-words: [celebrations]
       x-hubtask-rest-utc: [onboarding_completed_at]
       x-hubtask-rest-answer: accountResponse
@@ -18278,7 +18576,11 @@ paths:
       description: >
         The workflow the entry's collection runs for its type, the entry's status, and the steps
         the person may take from it, each with what it asks for, what it still needs and whether
-        its checks hold. `workflow` is null where none runs; a reader gets no steps.
+        its checks hold. `workflow` is null where none runs; a reader gets no steps. Beside them
+        the steps from the status the person may not take, each with a reason code and who may;
+        the fewest steps into done; the workflow's picture, read-only for every reader; and
+        whether the person may open it in the designer. Where no workflow runs the picture is the
+        default one, every status reachable, and completing the entry reaches done.
       responses:
         "200":
           description: The steps
@@ -18326,6 +18628,46 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}:drop:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: dropItemOnColumn
+      x-hubtask-cli: "item drop"
+      x-hubtask-rest: generated
+      summary: Drop an entry onto a board's column
+      description: >
+        Drops the entry onto a column of its collection's board - `bucket_id` omitted is the column
+        of the statuses no column shows. Without a workflow the entry moves (`MOVED`), and entering
+        or leaving the done column completes or reopens it. Under a workflow the one step reaching
+        the column is taken (`STEP_TAKEN`); where several do, they are answered (`CHOOSE`) and
+        nothing is written - asked again with `step`, that step is taken; a status the entry
+        already has is `MOVED` without a write. Refused with `board.no_columns`,
+        `board.column_required`, `board.column_without_status`, `board.no_step` (the workflow has
+        no such step) or `board.step_blocked` (the person may not take it), and the refusals of
+        the column move or the step.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bucket_id: { type: string, format: uuid }
+                step: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$" }
+      responses:
+        "200":
+          description: What the drop did, and the entry as it now stands
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DropAnswer"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -20391,6 +20733,75 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /search:all:
+    post:
+      tags: [items]
+      operationId: searchAll
+      x-hubtask-rest: generated
+      x-hubtask-cli: "find all"
+      x-hubtask-cli-columns: [id, key, title, kind, state]
+      summary: One search over every kind of object the caller may read
+      description: >
+        Entries, tickets, pages, whiteboards, goals, dashboards, inventory objects, people, file names,
+        comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one
+        hit row draws (title, place, tile, the passage that matched where there is one, its
+        state), grouped by kind in the order of `kinds` and best first within a kind, at most
+        `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the
+        search to that kind. `facets` counts the hits per kind the caller may read; a count with
+        `more` is a lower bound. Every hit and every count is narrowed to what the caller may
+        read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People
+        are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where
+        the caller may read what it is on. Among equally good pages a verified one comes first. A post is found
+        by its title and body once it is published, and only by a person it is for - never as a page, and never
+        a draft or a scheduled one, not even by its writers. A `POST` because what
+        somebody looks for is their content.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SearchAllRequest" }
+      responses:
+        "200":
+          description: The hits by kind and the counts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SearchAllAnswer" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /query:ask:
+    post:
+      tags: [suggestions]
+      operationId: askQuery
+      x-hubtask-rest: generated
+      x-hubtask-cli: "query ask"
+      summary: Write a Hubtask query from a question in words
+      description: >
+        Asks the workspace's AI provider to write the question as a Hubtask query, and answers the
+        query as text in the `field: value` spelling - read by the same parser `POST /items:query`
+        uses and written back in its canonical form, so it holds only keys this installation
+        answers. **Nothing is run and nothing is stored**: the person sees the query, changes it
+        and runs it themselves. Offered where `features.query_from_words` in `GET /meta/manifest`
+        is true; every way of not getting an answer - no provider, no consent, a spent budget, a
+        slow model, an answer that is not a query - is `503` with `ai.unavailable`, and a person
+        who keeps their own content out of AI is refused the same way. The audit records that a
+        query was asked for, never the question. A `POST` because the question is content.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AskQueryRequest" }
+      responses:
+        "200":
+          description: The query, for the person to see and change
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AskedQuery" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+
   /search:reindex:
     post:
       tags: [items]
@@ -20417,6 +20828,78 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/SearchReindex" }
         "403": { $ref: "#/components/responses/Problem" }
+
+  /containers/{containerId}/board:switch:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+    post:
+      tags: [structure]
+      operationId: switchBoard
+      x-hubtask-cli: "board switch"
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: { containerId: collection_id }
+      summary: Show a collection's tasks as a board, or as a list again
+      description: |
+        `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
+        language), the completed entries in the done one and the open ones in the other. `NONE`
+        takes the columns off again, the done column last; completion stays as it is. Refused with
+        `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
+        where the collection already stands there. `dry_run` counts and writes nothing. Needs
+        STRUCTURE where the collection is.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [to]
+              properties:
+                to: { type: string, enum: [NONE, COLUMNS] }
+                dry_run: { type: boolean, default: false }
+      responses:
+        "200":
+          description: What the switch did, or would do
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BoardSwitch" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /containers/{containerId}/board:workflow:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+    post:
+      tags: [structure]
+      operationId: makeBoardWorkflow
+      x-hubtask-cli: "board workflow"
+      x-hubtask-rest: generated
+      x-hubtask-rest-path: { containerId: collection_id }
+      summary: Make a workflow from a board's columns
+      description: |
+        A workflow of the collection's hub with one status per column - the first column's the
+        initial status, the done column's done, the rest in progress, every step free -, run for
+        the collection's tasks with each column showing its own status; every entry takes the
+        status of the column it stands in. One transaction. Refused with `board.no_columns`
+        without columns and `board.workflow_runs` where a workflow already runs for tasks.
+        `dry_run` answers the statuses and counts and writes nothing. Needs STRUCTURE where the
+        collection is and at its hub.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 1, maxLength: 120, description: "The workflow's name; the collection's by default." }
+                dry_run: { type: boolean, default: false }
+      responses:
+        "200":
+          description: The workflow made, or what it would be
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BoardWorkflow" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /items/{itemId}:complete:
     parameters:
@@ -21395,9 +21878,19 @@ paths:
       description: >
         Takes the column off the board. Its entries are not deleted with it: they move to the
         leftmost remaining column, or out of any column when this was the last one. What became of
-        them is in the answer rather than left to be discovered.
+        them is in the answer rather than left to be discovered. The done column of a board without
+        a workflow is deleted only with `new_done_bucket_id`, the column that means done instead:
+        without it, where other columns are left, the deletion is refused with
+        `buckets.done_successor_required`, the suggested column in its `suggested_bucket_id`.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
+        - name: new_done_bucket_id
+          in: query
+          required: false
+          description: >
+            Where the done column is deleted: the column that takes the done mark and its entries.
+            Its open entries are completed with the mark. Read only when the done column goes.
+          schema: { type: string, format: uuid }
       responses:
         "200":
           description: Deleted, with what became of the entries that were in it
@@ -22445,6 +22938,222 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /media/{mediaId}:pdf:
+    parameters:
+      - $ref: "#/components/parameters/MediaId"
+    post:
+      tags: [media]
+      operationId: convertMediaToPdf
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Wopi
+      description: >
+        An office file as a PDF, converted by the workspace's document server, for the viewer to
+        draw. Readable by whoever may read the file; a read by `POST`, as an export is, so that a
+        client fetches it as a document with its bearer. Refused with
+        `media.conversion_unavailable` where the workspace has no document server that converts,
+        and `media.not_an_office_file` for anything else. A download, never a rendering path.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        "200":
+          description: The PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /media/{mediaId}:edit:
+    parameters:
+      - $ref: "#/components/parameters/MediaId"
+    post:
+      tags: [media]
+      operationId: startMediaEditing
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Wopi
+      description: >
+        Opens an office file for editing in the workspace's document server: a
+        short-lived access token for this person and this file, and the WOPI source the server
+        reads and saves it through. Needs a right to change an entry, a board or a page holding the file;
+        refused with `media.document_server_none` where the workspace has chosen none. Saving in
+        the server makes a new version of the file.
+      responses:
+        "200":
+          description: The editing session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MediaEditingSession" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /media:document-server:
+    get:
+      tags: [media]
+      operationId: readDocumentServer
+      x-hubtask-rest: generated
+      x-hubtask-cli: "media document-server"
+      summary: The workspace's document server
+      description: >
+        Where the workspace's office files are shown and edited: none, or a server's kind and its
+        https origin. Readable by every member - the viewer asks it; set under STRUCTURE.
+      responses:
+        "200":
+          description: The choice
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DocumentServer" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [media]
+      operationId: setDocumentServer
+      x-hubtask-rest: generated
+      x-hubtask-cli: "media document-server set"
+      summary: Choose the workspace's document server
+      description: >
+        NONE, or a kind with the server's https origin - no credentials, query or fragment. Needs
+        STRUCTURE at the workspace; an agent never decides it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentServer" }
+      responses:
+        "200":
+          description: Set
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DocumentServer" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /media:document-server-check:
+    post:
+      tags: [media]
+      operationId: checkDocumentServer
+      x-hubtask-rest: generated
+      x-hubtask-cli: "media document-server check"
+      summary: Test a document server before choosing it
+      description: >
+        Asks the server at the given https origin for its WOPI discovery, without storing
+        anything, so the administration sees whether the workspace can reach it. Needs STRUCTURE
+        at the workspace; an agent never asks. Refused with
+        `media.document_server_private_network` for an address inside a private network, which
+        this installation does not call; with `media.document_server_unreachable` where nothing
+        answers; and with `media.document_server_no_discovery` where something answers that is
+        not a document server.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentServer" }
+      responses:
+        "200":
+          description: The server answered its discovery
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DocumentServerCheck" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+
+  /wopi/files/{mediaId}:
+    parameters:
+      - $ref: "#/components/parameters/MediaId"
+      - $ref: "#/components/parameters/WopiAccessToken"
+    get:
+      tags: [media]
+      operationId: checkWopiFileInfo
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Wopi
+      security: []
+      description: >
+        WOPI CheckFileInfo, called by the document server with the access token: the file's
+        name, size, version and whether this person may save. Answers in the protocol's own
+        shape, not as a Hubtask resource.
+      responses:
+        "200":
+          description: The file's information
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WopiFileInfo" }
+        "401":
+          description: The token does not open this file
+        "404":
+          description: No such file, or not readable by the token's person
+    post:
+      tags: [media]
+      operationId: lockWopiFile
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Wopi
+      security: []
+      description: >
+        WOPI Lock, RefreshLock, Unlock, UnlockAndRelock and GetLock, by `X-WOPI-Override`, with
+        the lock in `X-WOPI-Lock` and the replaced one in `X-WOPI-OldLock`. A mismatch answers
+        409 with the lock that holds in `X-WOPI-Lock`.
+      responses:
+        "200":
+          description: Done; GetLock answers the lock in `X-WOPI-Lock`
+        "401":
+          description: The token does not open this file
+        "409":
+          description: Another lock holds the file
+  /wopi/files/{mediaId}/contents:
+    parameters:
+      - $ref: "#/components/parameters/MediaId"
+      - $ref: "#/components/parameters/WopiAccessToken"
+    get:
+      tags: [media]
+      operationId: getWopiFile
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Wopi
+      security: []
+      description: WOPI GetFile - the file's bytes, with its version in `X-WOPI-ItemVersion`.
+      responses:
+        "200":
+          description: The bytes
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: The token does not open this file
+    post:
+      tags: [media]
+      operationId: putWopiFile
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Wopi
+      security: []
+      description: >
+        WOPI PutFile - the document server saves; the file keeps its identity and the bytes it
+        had become its earlier version. Only under the lock that holds (or into an empty file),
+        and only for a person who may still change what holds it.
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Saved; the new version in `X-WOPI-ItemVersion`
+        "401":
+          description: The token does not open this file
+        "409":
+          description: Another lock holds the file
+        "413":
+          description: Larger than the installation takes
+
   /stream:
     get:
       tags: [sync]
@@ -22839,6 +23548,62 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/HubTemplatePage" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /goal-sets:
+    get:
+      tags: [structure]
+      operationId: listGoalSets
+      x-hubtask-rest: generated
+      x-hubtask-cli: "config goal-sets"
+      summary: The goal periods a template brought
+      description: >
+        The goal periods a template brought to the workspace - a quarter's objectives with their key
+        results, or a period alone - marked under their key. Needs STRUCTURE or READ_CONFIGURATION at
+        the workspace.
+      responses:
+        "200":
+          description: The goal sets
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GoalSetList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [structure]
+      operationId: addGoalSet
+      x-hubtask-rest: generated
+      x-hubtask-cli: "config goal-set-add"
+      summary: Add a template's goal set
+      description: >
+        Opens a goal period with the workspace's goals and their key results in one write, marked
+        under its key, as the workspace's configuration document does for a template's goal sets. A
+        key the workspace already marks is refused (`config.goal_set_taken`). Needs STRUCTURE at the
+        workspace and what opening the period and writing each goal needs.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [key, name, start_on, end_on]
+              properties:
+                key: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$" }
+                name: { type: string, minLength: 1, maxLength: 200 }
+                start_on: { type: string, format: date }
+                end_on: { type: string, format: date }
+                goals:
+                  type: array
+                  maxItems: 20
+                  description: The workspace's goals of the period, each written as creating a goal writes it.
+                  items: { $ref: "#/components/schemas/GoalSetGoal" }
+      responses:
+        "201":
+          description: Added
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GoalSet" }
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -23301,6 +24066,368 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /hubs/{hubId}/posts:
+    parameters:
+      - name: hubId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [pages]
+      operationId: listHubPosts
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post list"
+      summary: A hub's posts
+      description: >
+        The hub's posts the caller sees, featured ones first, then newest first: published ones for
+        their audience, drafts and scheduled ones for the hub's writers only. `filter` narrows to
+        the unread ones, the caller's own, or the scheduled ones. A post never reaches anybody who
+        may not read its hub. Needs READ on the hub.
+      parameters:
+        - name: filter
+          in: query
+          required: false
+          schema: { type: string, enum: [ALL, UNREAD, MINE, SCHEDULED], default: ALL }
+      responses:
+        "200":
+          description: The posts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [pages]
+      operationId: createPost
+      x-hubtask-rest: generated
+      x-hubtask-rest-location: /posts/{page_id}
+      x-hubtask-cli: "post create"
+      summary: Write a new post
+      description: >
+        Writes a post in the hub: a page with a date, started from one of the post templates or
+        empty, published now (`publish_at` now or earlier), scheduled (`publish_at` ahead) or kept
+        as a draft (no `publish_at`). Its audience is the hub's readers or those of them in the
+        groups named. Needs WRITE_ITEMS on the hub.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PostCreate" }
+      responses:
+        "201":
+          description: Written
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Post" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /hubs/{hubId}/posts/following:
+    parameters:
+      - name: hubId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [pages]
+      operationId: followHubPosts
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post follow"
+      summary: Follow a hub's posts
+      description: >
+        Follows the hub's posts, or stops. A follower is told when a post that asks for it goes
+        out - only one that is for them; a post never reaches anybody beyond its audience. Only a
+        person follows: an agent or a service account is refused `posts.person_follows`. Needs READ
+        on the hub.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PostFollowing" }
+      responses:
+        "200":
+          description: Set
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostFollowing" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /posts:
+    get:
+      tags: [pages]
+      operationId: listUnreadPosts
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post unread"
+      summary: The posts new for the caller
+      description: >
+        The published posts the caller has not seen yet, across every hub they read, featured ones
+        first, then newest first, at most 20. Each post is judged at its own hub as on the hub's
+        list: a post never reaches anybody who may not read its hub or is outside its audience.
+      responses:
+        "200":
+          description: The posts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UnreadPostList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /posts/{pageId}:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+    get:
+      tags: [pages]
+      operationId: readPost
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post get"
+      summary: Read a post
+      description: >
+        The post's date, audience and state, how many have seen it, and whether the caller has
+        seen and confirmed it; its words are its page's. A writer of the hub also gets the read
+        confirmation's standing. Not found for anybody it is not for.
+      responses:
+        "200":
+          description: The post
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Post" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [pages]
+      operationId: setPostSettings
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post set"
+      summary: Schedule, feature or narrow a post
+      description: >
+        Sets when the post goes out, until when it stays on top, for whom, whether it is discussed,
+        whether the hub's followers are told and until when its readers are asked to confirm it.
+        A published post keeps its publishing moment. Needs WRITE_ITEMS on the hub.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PostSettings" }
+      responses:
+        "200":
+          description: Set
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Post" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /posts/{pageId}:publish:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+    post:
+      tags: [pages]
+      operationId: publishPost
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post publish"
+      summary: Publish a post now
+      description: >
+        Publishes a draft or a scheduled post at once for its audience. Needs WRITE_ITEMS on the
+        hub; a published post answers as it stands.
+      responses:
+        "200":
+          description: Published
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Post" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /posts/{pageId}:seen:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+    post:
+      tags: [pages]
+      operationId: markPostSeen
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post seen"
+      summary: Mark a post seen
+      description: >
+        Counts the caller among those who have seen the published post; the count is shown to
+        everybody, the names to nobody.
+      responses:
+        "200":
+          description: Seen
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Post" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /posts/{pageId}:confirm:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+    post:
+      tags: [pages]
+      operationId: confirmPost
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post confirm"
+      summary: Confirm having read a post
+      description: >
+        Confirms that the caller read a published post that asks its audience for it; refused
+        `posts.confirmation_not_asked` for one that does not. Shown to the hub's writers only.
+      responses:
+        "200":
+          description: Confirmed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Post" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /posts/{pageId}/confirmations:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+    get:
+      tags: [pages]
+      operationId: readPostConfirmations
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post confirmations"
+      summary: Who confirmed a post
+      description: >
+        How many of the post's audience confirmed it by when, and who did. Needs WRITE_ITEMS on
+        the hub: read confirmations are shown to the post's writers only.
+      responses:
+        "200":
+          description: The confirmations
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostConfirmations" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /posts/{pageId}:remind:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+    post:
+      tags: [pages]
+      operationId: remindPost
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post remind"
+      summary: Remind those who have not confirmed a post
+      description: >
+        Tells each of the post's audience who has not confirmed it yet, once per call. Refused
+        `posts.nobody_to_remind` when everybody has. Needs WRITE_ITEMS on the hub.
+      responses:
+        "200":
+          description: Reminded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostReminded" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /posts/{pageId}/replies:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+    get:
+      tags: [pages]
+      operationId: listPostReplies
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post replies"
+      summary: A post's discussion
+      description: >
+        The replies under the post, oldest first, one level deep, each with its reactions counted
+        and whether the caller gave them.
+      responses:
+        "200":
+          description: The discussion
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostReplyList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [pages]
+      operationId: addPostReply
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post reply"
+      summary: Reply in a post's discussion
+      description: >
+        Adds a reply under a published post whose discussion is open, or an answer to a reply.
+        Anybody the post is for may reply.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PostReplyCreate" }
+      responses:
+        "201":
+          description: Replied
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostReply" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /posts/{pageId}/replies/{replyId}:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+      - name: replyId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [pages]
+      operationId: deletePostReply
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post reply-rm"
+      summary: Take a reply back
+      description: The caller's own reply, or any for a writer of the hub; its place stays, its words go.
+      responses:
+        "204":
+          description: Taken back
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /posts/{pageId}/replies/{replyId}/reactions/{reaction}:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+      - name: replyId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: reaction
+        in: path
+        required: true
+        schema: { type: string, enum: [THANKS, AGREE, CELEBRATE, IDEA] }
+    put:
+      tags: [pages]
+      operationId: reactToPostReply
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post react"
+      summary: React to a reply
+      description: Gives one of the few fixed reactions to a reply, once per person and kind.
+      responses:
+        "200":
+          description: Reacted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostReply" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [pages]
+      operationId: unreactToPostReply
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post unreact"
+      summary: Take a reaction back
+      description: Takes the caller's reaction of that kind back.
+      responses:
+        "200":
+          description: Taken back
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostReply" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /pages/{pageId}/backlinks:
     parameters:
       - $ref: "#/components/parameters/PageId"
@@ -23659,6 +24786,108 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /pages/{pageId}/cover-images:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+    get:
+      tags: [pages]
+      operationId: searchCoverImages
+      x-hubtask-rest: generated
+      x-hubtask-cli: "page cover-images"
+      summary: Search an image library for a page's cover
+      description: >
+        Whether the workspace offers an image library for covers and, with a query, up to twelve
+        of its openly licensed pictures, each with who made it and a small preview the server
+        fetched. Without a query or with the library switched off it asks nothing outside.
+        Needs WRITE_ITEMS on the page's hub.
+      parameters:
+        - name: query
+          in: query
+          required: false
+          schema: { type: string, maxLength: 100 }
+      responses:
+        "200":
+          description: The pictures found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoverImageSearch" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /pages/{pageId}/cover-images/{pictureId}:fetch:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+      - name: pictureId
+        in: path
+        required: true
+        schema: { type: string, pattern: "^[0-9a-fA-F-]{8,64}$" }
+    post:
+      tags: [pages]
+      operationId: fetchCoverImage
+      x-hubtask-rest: generated
+      x-hubtask-cli: "page cover-image-fetch"
+      summary: Fetch an image library's picture for a page's cover
+      description: >
+        The picture's larger rendition, fetched by the server, with who made it: the client uploads
+        it as the page's cover image and names its maker as the cover's credit. Refused
+        `pages.cover_images_off` while the workspace offers no library. Needs WRITE_ITEMS on the
+        page's hub.
+      responses:
+        "200":
+          description: The picture
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoverImageFetched" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /pages:cover-images:
+    get:
+      tags: [pages]
+      operationId: readCoverImagesPolicy
+      x-hubtask-rest: generated
+      x-hubtask-cli: "page cover-images-policy"
+      summary: Which image library covers may take pictures from
+      description: >
+        The workspace's choice of an image library offered as a cover's fourth source, the level
+        that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+      responses:
+        "200":
+          description: The policy
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoverImagesPolicy" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [pages]
+      operationId: setCoverImagesPolicy
+      x-hubtask-rest: generated
+      x-hubtask-cli: "page cover-images-policy set"
+      summary: Offer an image library for covers, or none
+      description: >
+        Off by default, since every search leaves the installation; the installation or the plan
+        may lock it (`setting.locked`). Needs MANAGE_MEMBERS at the workspace; an agent never
+        decides it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [library]
+              properties:
+                library: { type: string, enum: [OFF, OPEN_LIBRARY] }
+      responses:
+        "200":
+          description: Set
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoverImagesPolicy" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /pages/{pageId}/articles:
     parameters:
       - $ref: "#/components/parameters/PageId"
@@ -23670,8 +24899,11 @@ paths:
       summary: Publish a page to a service's portal
       description: >
         Publishes the page as an article of one service's portal: the requesters of that
-        collection read it and are offered it while they type a request. Never a page behind a
-        restriction (`pages.article_restricted`); publishing twice changes nothing. Needs
+        collection read it and are offered it while they type a request. With `with_subpages`,
+        the page is shared as a space: every page under it reaches the same requesters, as it
+        stands at each reading, except a page behind a restriction and everything under that.
+        Never a page behind a restriction (`pages.article_restricted`); publishing twice the same
+        way changes nothing, publishing again the other way changes only `with_subpages`. Needs
         MANAGE_MEMBERS on the page's hub and READ at the collection.
       requestBody:
         required: true
@@ -23683,6 +24915,10 @@ paths:
               required: [collection_id]
               properties:
                 collection_id: { type: string, format: uuid }
+                with_subpages:
+                  type: boolean
+                  default: false
+                  description: Share the page with everything under it, as a knowledge space.
       responses:
         "201":
           description: Published
@@ -24934,6 +26170,14 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    WopiAccessToken:
+      name: access_token
+      in: query
+      required: true
+      description: >
+        The WOPI access token: one person, one file, read or write, for a short while. The
+        protocol carries it in the query; it is never logged.
+      schema: { type: string }
     CollectionId:
       name: collection_id
       in: query
@@ -25154,6 +26398,16 @@ components:
             phrase, an exclusion and a word followed by a space are all finished, and are matched
             whole. A hit on a beginning ranks below one on a whole word, because it is weaker
             evidence that these are the words somebody meant.
+        query:
+          type: string
+          maxLength: 4000
+          description: >
+            The search as one Hubtask query instead of `q`, `filter` and `sort`: its free words
+            and phrases are what is looked for and ranked, every `field: value` narrows -
+            `passkey "zweites Gerät" who: me is: open`. Either spelling `POST /items:query`
+            takes; `GET /meta/capabilities` lists the keys under `query_keys`. A `type:` other
+            than an entry's level is `query.kind_not_here`, and the query sent with `q`,
+            `filter` or `sort` is `query.line_with_filter`.
         container_id:
           type: [string, "null"]
           format: uuid
@@ -25310,6 +26564,18 @@ components:
             The hubs the person moved behind *More* in the sidebar, by id. Absent or empty: none.
             An id of a hub the person no longer sees is kept and shows nothing.
           items: { type: string, format: uuid }
+        today_sections:
+          type: array
+          description: >
+            The order the person gave *Today*'s cards and tiles. Absent or empty: the product's own
+            order; a section not named keeps its own place after those named.
+          items: { $ref: "#/components/schemas/TodaySection" }
+        today_sections_hidden:
+          type: array
+          description: >
+            The cards and tiles the person hid on *Today*. Absent or empty: every section the
+            person's roles and modules give is shown.
+          items: { $ref: "#/components/schemas/TodaySection" }
         nav_hubs_order:
           type: [string, "null"]
           enum: [MANUAL, RECENT, NAME, null]
@@ -25636,6 +26902,22 @@ components:
             The hubs shown behind *More* in the sidebar, by id, the whole list. `null` or an empty
             list clears it, which shows every hub again.
           items: { type: string, format: uuid }
+        today_sections:
+          type: [array, "null"]
+          maxItems: 16
+          uniqueItems: true
+          description: >
+            The order of *Today*'s cards and tiles, the whole list. `null` or an empty list clears
+            it, which gives the product's own order again.
+          items: { $ref: "#/components/schemas/TodaySection" }
+        today_sections_hidden:
+          type: [array, "null"]
+          maxItems: 16
+          uniqueItems: true
+          description: >
+            The cards and tiles hidden on *Today*, the whole list. `null` or an empty list clears
+            it, which shows every section again.
+          items: { $ref: "#/components/schemas/TodaySection" }
         nav_hubs_order:
           type: [string, "null"]
           enum: [MANUAL, RECENT, NAME, null]
@@ -26330,6 +27612,34 @@ components:
         version:
           type: integer
           description: The optimistic lock, as everywhere else.
+
+    AskQueryRequest:
+      type: object
+      required: [question]
+      description: A question in words, in any language the provider reads.
+      properties:
+        question:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: What the person wants to find, as they would say it.
+
+    AskedQuery:
+      type: object
+      description: >
+        The question as a Hubtask query, with the provenance every AI output carries. Not a
+        record and not a result: no entry was read to write it.
+      required: [query, source, model, prompt_id, prompt_version, produced_at]
+      properties:
+        query:
+          type: string
+          description: >
+            The query in the `field: value` spelling, in its canonical form.
+        source: { type: string, enum: [AI] }
+        model: { type: string }
+        prompt_id: { type: string }
+        prompt_version: { type: string }
+        produced_at: { type: string, format: date-time }
 
     AiTranslateRequest:
       type: object
@@ -29553,6 +30863,14 @@ components:
           type: integer
           description: How many workspaces were given a re-sealing job.
 
+    TodaySection:
+      type: string
+      description: >
+        A card or a tile of *Today* a person may hide and order: the cards overdue, due today,
+        needs your reply, time today and waits for your yes; the tiles your collections, new for
+        you (the posts not read yet), inbox and recently opened.
+      enum: [OVERDUE, DUE_TODAY, REPLY, TIME, APPROVALS, COLLECTIONS, NEWS, INBOX, RECENT]
+
     Module:
       type: string
       description: A module of the suite - a family of building blocks switched on for a place.
@@ -29776,6 +31094,7 @@ components:
         milestone: { type: boolean }
         done: { type: boolean }
         due_only: { type: boolean, description: "The entry has a due date and no start; its start and finish are that day." }
+        release_id: { type: [string, "null"], format: uuid, description: "The release the entry ships with; null when none." }
 
     PlanDependency:
       type: object
@@ -29935,7 +31254,16 @@ components:
       type: object
       required: [data]
       properties:
-        data: { type: array, items: { $ref: "#/components/schemas/Release" } }
+        data: { type: array, items: { $ref: "#/components/schemas/ReleaseListItem" } }
+
+    ReleaseListItem:
+      allOf:
+        - $ref: "#/components/schemas/Release"
+        - type: object
+          required: [done_count, open_count]
+          properties:
+            done_count: { type: integer, description: "Its entries the reader may see that are done." }
+            open_count: { type: integer, description: "Its entries the reader may see that are still open." }
 
     ReleaseDetail:
       allOf:
@@ -29949,12 +31277,23 @@ components:
               type: array
               items:
                 type: object
-                required: [item_id, title, type_name, done, collection_id, added_at]
+                required: [item_id, title, type_name, done, collection_id, added_at, key, status_name, status_category]
                 properties:
                   item_id: { type: string, format: uuid }
                   title: { type: string }
                   type_name: { type: string, description: "The name of the entry's type; empty without one." }
                   done: { type: boolean }
+                  key: { type: [string, "null"], description: "The entry's key (`WEB-128`), where its collection gives one." }
+                  status_name:
+                    type: [string, "null"]
+                    description: >
+                      The entry's status as the workflow in force names it; null where no workflow
+                      runs or the status has no name of its own, which a client words by
+                      `status_category`.
+                  status_category:
+                    type: [string, "null"]
+                    enum: [BACKLOG, TODO, IN_PROGRESS, DONE, null]
+                    description: The status's category; null where no workflow runs, where `done` says done or open.
                   collection_id: { type: string, format: uuid }
                   added_at: { type: string, format: date-time }
 
@@ -30259,7 +31598,7 @@ components:
         target: { type: number }
         current: { type: number }
         unit: { type: string, maxLength: 16 }
-        source: { type: string, enum: [MANUAL, VIEW], description: "VIEW takes the total of a saved summary view." }
+        source: { type: string, enum: [MANUAL, VIEW], description: "VIEW takes a saved view's number: a summary view's total, any other view's count of what it lists." }
         view_id: { type: string, format: uuid }
         entry_id: { type: string, format: uuid, description: "The entry a MILESTONE waits for." }
 
@@ -30335,13 +31674,23 @@ components:
           description: Only on a goal read alone.
           items:
             type: object
-            required: [id, title, key, completed, collection_id]
+            required: [id, title, key, completed, collection_id, status_name, status_category]
             properties:
               id: { type: string, format: uuid }
               title: { type: string }
               key: { type: [string, "null"] }
               completed: { type: boolean }
               collection_id: { type: string, format: uuid }
+              status_name:
+                type: [string, "null"]
+                description: >
+                  The entry's status as the workflow in force names it; null where no workflow
+                  runs or the status has no name of its own, which a client words by
+                  `status_category`.
+              status_category:
+                type: [string, "null"]
+                enum: [BACKLOG, TODO, IN_PROGRESS, DONE, null]
+                description: The status's category; null where no workflow runs, where `completed` says done or open.
         check_ins: { type: array, description: "The latest 20, only on a goal read alone.", items: { $ref: "#/components/schemas/GoalCheckIn" } }
 
     AgentModel:
@@ -30428,10 +31777,14 @@ components:
         version: { type: integer }
         usage:
           type: object
-          description: What it spent; only on an agent read alone.
+          description: What it spent this hour and today, on a list and on an agent read alone.
           properties:
             actions_this_hour: { type: integer }
             tokens_today: { type: integer }
+        last_run_at:
+          type: [string, "null"]
+          format: date-time
+          description: When its latest job started; null before its first. On a list only.
     AgentList:
       type: object
       required: [data]
@@ -30842,10 +32195,19 @@ components:
       properties:
         id: { type: string, format: uuid }
         title: { type: string, minLength: 1, maxLength: 200 }
-        chart: { type: string, enum: [NUMBER, BAR, PIE, LINE, TABLE, MATRIX, PROGRESS] }
-        source: { type: string, enum: [VIEW, QUERY, GOALS] }
+        chart: { type: string, enum: [NUMBER, BAR, PIE, LINE, TABLE, MATRIX, PROGRESS, LIST, TEXT], description: "LIST shows a query's first entries, TEXT a short text with links." }
+        source: { type: string, enum: [VIEW, QUERY, GOALS, TEXT], description: "TEXT for a TEXT widget, which runs nothing." }
         view_id: { type: string, format: uuid, description: "A saved summary view, for VIEW." }
-        query: { type: object, additionalProperties: true, description: "A POST /items:aggregate document, for QUERY." }
+        query: { type: object, additionalProperties: true, description: "A POST /items:aggregate document, for QUERY; for a LIST widget a POST /items:query document (q or filter, scope, sort)." }
+        text: { type: string, maxLength: 2000, description: "A TEXT widget's words: plain text, **bold** and [links](/path)." }
+        column: { type: string, maxLength: 64, description: "The one field a LIST widget shows beside key and title, e.g. due_at, status, assignee_id." }
+        released:
+          type: array
+          maxItems: 20
+          items: { type: string, maxLength: 64 }
+          description: "Fields of the dashboard's filter this QUERY widget does not inherit, e.g. created_at."
+        target: { type: [number, "null"], description: "A NUMBER or LINE widget's goal, drawn beside its figure or as a line." }
+        warn_at: { type: [number, "null"], description: "A NUMBER or LINE widget's warning line, with a target; above the target, lower is better." }
         goal_ids: { type: array, maxItems: 20, items: { type: string, format: uuid }, description: "For GOALS." }
         compare: { $ref: "#/components/schemas/DashboardWidgetCompare" }
         cumulative: { type: boolean, description: "Each period drawn as the running total of the periods up to it, for BAR, LINE and TABLE over COUNT or SUM; with compare, the work left between the two series as well." }
@@ -30869,10 +32231,15 @@ components:
       properties:
         id: { type: string, format: uuid }
         title: { type: string }
-        chart: { type: string, enum: [NUMBER, BAR, PIE, LINE, TABLE, MATRIX, PROGRESS] }
-        source: { type: string, enum: [VIEW, QUERY, GOALS] }
+        chart: { type: string, enum: [NUMBER, BAR, PIE, LINE, TABLE, MATRIX, PROGRESS, LIST, TEXT] }
+        source: { type: string, enum: [VIEW, QUERY, GOALS, TEXT] }
         view_id: { type: [string, "null"], format: uuid }
         query: { type: [object, "null"], additionalProperties: true }
+        text: { type: string, description: "A TEXT widget's words; empty for any other." }
+        column: { type: string, description: "A LIST widget's column; empty for any other." }
+        released: { type: array, items: { type: string }, description: "The dashboard filter's fields this widget does not inherit." }
+        target: { type: [number, "null"], description: "The widget's goal; null without one." }
+        warn_at: { type: [number, "null"], description: "The widget's warning line; null without one." }
         goal_ids: { type: array, items: { type: string, format: uuid } }
         compare:
           anyOf: [{ $ref: "#/components/schemas/DashboardWidgetCompare" }, { type: "null" }]
@@ -30897,6 +32264,14 @@ components:
           uniqueItems: true
           items: { type: string, format: uuid }
           description: "For GROUPS: the groups whose members see it, each where they read its place."
+        filter: { type: string, maxLength: 2000, description: "The dashboard's filter as a Hubtask query without an order, names as identifiers: every QUERY widget inherits it but for the fields it released." }
+        widgets: { type: array, maxItems: 24, items: { $ref: "#/components/schemas/DashboardWidgetWrite" } }
+
+    DashboardDraft:
+      type: object
+      required: [widgets]
+      properties:
+        filter: { type: string, maxLength: 2000, description: "The filter as it is being edited; every QUERY widget inherits it but for the fields it released." }
         widgets: { type: array, maxItems: 24, items: { $ref: "#/components/schemas/DashboardWidgetWrite" } }
 
     DashboardCreate:
@@ -30914,6 +32289,7 @@ components:
           uniqueItems: true
           items: { type: string, format: uuid }
           description: "For GROUPS: the groups whose members see it, each where they read its place."
+        filter: { type: string, maxLength: 2000, description: "The dashboard's filter as a Hubtask query without an order, names as identifiers: every QUERY widget inherits it but for the fields it released." }
         widgets: { type: array, maxItems: 24, items: { $ref: "#/components/schemas/DashboardWidgetWrite" } }
         hub_id: { type: string, format: uuid, description: "The hub it belongs to; the workspace's without." }
 
@@ -30932,6 +32308,7 @@ components:
           uniqueItems: true
           items: { type: string, format: uuid }
           description: "For GROUPS: the groups whose members see it, each where they read its place."
+        filter: { type: string, description: "The dashboard's filter as a Hubtask query; empty without one." }
         widgets: { type: array, items: { $ref: "#/components/schemas/DashboardWidget" } }
         version: { type: integer }
 
@@ -30976,7 +32353,7 @@ components:
               id: { type: string, format: uuid }
               data:
                 type: array
-                description: A summary's rows (count, group, period, value, and running for a cumulative widget), or a GOALS widget's goals (goal_id, title, status, progress).
+                description: A summary's rows (count, group, period, value, and running for a cumulative widget), a GOALS widget's goals (goal_id, title, status, progress), or a LIST widget's first entries as POST /items:query answers them; empty for TEXT.
                 items: { type: object, additionalProperties: true }
               truncated: { type: boolean }
               error: { type: [string, "null"], description: "The error code of a widget the caller cannot run." }
@@ -31384,6 +32761,7 @@ components:
         on_behalf_of: { type: [string, "null"], format: uuid, description: "On the caller's own list: the person away they decide for." }
         workflow: { type: string }
         step: { type: string }
+        step_name: { type: [string, "null"], description: "The step's name as its workflow publishes it now - the step's own, else the status it leads into; null where neither is named." }
         item_version: { type: integer, description: "The entry's version when the approval was asked." }
         state: { type: string, enum: [PENDING, APPROVED, DECLINED, WITHDRAWN] }
         current_level: { type: integer }
@@ -31555,11 +32933,30 @@ components:
         title: { type: string }
         notes: { type: [string, "null"] }
         status: { type: [string, "null"] }
+        status_name:
+          type: [string, "null"]
+          description: >
+            The status as the desk's workflow names it; null where no workflow runs or the status
+            has no name of its own, which a client words by `status_category`.
+        status_category:
+          type: [string, "null"]
+          enum: [BACKLOG, TODO, IN_PROGRESS, DONE, null]
+          description: The status's category; null where no workflow runs.
         is_completed: { type: boolean }
         completed_at: { type: [string, "null"], format: date-time }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
         is_own: { type: boolean, description: "Whether the caller raised it; false for a colleague's request of their organisation." }
+        last_reply_at:
+          type: [string, "null"]
+          format: date-time
+          description: When the team last answered in public; null while it has not, and never for an internal note.
+        next_due_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            The earliest moment the desk promised the requester to act by - its running SLA goals'
+            next due time; null while none runs. A team's internal promise is never told.
 
     RequestSatisfaction:
       type: object
@@ -31599,7 +32996,7 @@ components:
             other requests are not that person's.
         assets:
           description: >
-            The configuration items the requester owns that the reader may read, by name, at most
+            The objects the requester owns that the reader may read, by name, at most
             20.
           type: array
           items:
@@ -31681,6 +33078,89 @@ components:
                 - $ref: "#/components/schemas/PortalMergedRequest"
                 - type: "null"
 
+    SearchAllRequest:
+      type: object
+      required: [q]
+      properties:
+        q:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: >
+            The search as one Hubtask query: every free word must occur, every key narrows. A key
+            of one kind (`asset.class`, `asset.stage`, `asset.owner`, `asset.location`,
+            `asset.tag`, `page.verified`, `page.owner`, `goal.state`) keeps the search to that
+            kind and a key of entries to entries, the other kinds counting none; `type:` chooses
+            kinds; keys alone need no words. Keys of two kinds, or keys of one kind bracketed
+            together, are refused (`query.kinds_mixed`, `query.kind_filter_grouped`). A `q` that
+            is one ticket key, `SA-12`, finds that entry first wherever the caller may read it.
+        kinds:
+          type: array
+          maxItems: 14
+          description: >
+            The kinds to search, in the order the answer groups them; omitted is every kind.
+            `TICKET` is the entries of the collections that act as a service desk; where it is
+            asked, `ENTRY` holds the other entries, and where it is not, every entry.
+          items: { $ref: "#/components/schemas/SearchKind" }
+        hub_id: { type: string, format: uuid, description: "Only this hub's objects; people are not narrowed." }
+        size: { type: integer, minimum: 1, maximum: 25, default: 5, description: "At most this many hits per kind." }
+    SearchKind:
+      type: string
+      enum: [ENTRY, TICKET, PAGE, WHITEBOARD, GOAL, DASHBOARD, ASSET, PERSON, FILE, COMMENT, PORTFOLIO, RELEASE, SPRINT, POST]
+    SearchAllAnswer:
+      type: object
+      required: [data, facets]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/SearchAllHit" } }
+        facets: { type: array, items: { $ref: "#/components/schemas/SearchFacet" } }
+    SearchFacet:
+      type: object
+      required: [kind, count, more]
+      properties:
+        kind: { $ref: "#/components/schemas/SearchKind" }
+        count: { type: integer, description: "The hits of this kind the caller may read." }
+        more: { type: boolean, description: "True when there may be more than count." }
+    SearchAllHit:
+      type: object
+      description: One object as a hit row draws it.
+      required: [kind, id, title, hub_id, collection_id, tile, snippet, state, status, key, updated_at, created_at, author_id, on]
+      properties:
+        kind: { $ref: "#/components/schemas/SearchKind" }
+        id: { type: string, format: uuid }
+        title: { type: string, description: "The title, a name, a file name, or for a comment the title of what it is on." }
+        hub_id: { type: [string, "null"], format: uuid, description: "The hub it stands in; null for the workspace's own, for portfolios and for people." }
+        collection_id: { type: [string, "null"], format: uuid, description: "An entry's or a sprint's collection, or that of the entry a comment or file is on." }
+        tile:
+          type: [string, "null"]
+          description: >
+            What its tile shows: an entry's or a ticket's level (TASK, WORK_PACKAGE, ACTIVITY), a page's or a post's icon,
+            an inventory object's object type key, a file's media type, a person's account kind.
+        snippet: { type: [string, "null"], description: "The passage that matched, the words found between « and »; for pages, posts, comments, and entries and tickets whose notes hold a word asked for." }
+        state:
+          type: [string, "null"]
+          description: >
+            An entry's or a ticket's OPEN or DONE, a page's VERIFIED or REVIEW_DUE (null when never verified),
+            a goal's or a portfolio's status, a release's or a sprint's state, an inventory object's
+            stage, a dashboard's sharing, a person's account status.
+        status:
+          type: [string, "null"]
+          description: >
+            An entry's or a ticket's workflow status key, which the client names as its board and list do;
+            null where the entry stands in no workflow and for every other kind.
+        key: { type: [string, "null"], description: "An entry's or a ticket's key where its collection has a handle or a key prefix." }
+        updated_at: { type: [string, "null"], format: date-time }
+        created_at: { type: [string, "null"], format: date-time, description: "When it was made, for a post when it was published; for entries, tickets, pages and posts, null for the other kinds." }
+        author_id: { type: [string, "null"], format: uuid, description: "The account that made it; for entries, tickets, pages and posts, null for the other kinds." }
+        on:
+          description: What a comment or a file belongs to; null for every other kind.
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [kind, id]
+              properties:
+                kind: { type: string, enum: [ENTRY, PAGE, WHITEBOARD] }
+                id: { type: string, format: uuid }
+
     GlancePage:
       type: object
       required: [data, next_cursor]
@@ -31716,6 +33196,13 @@ components:
         readable: { type: boolean }
         title: { type: [string, "null"] }
         status: { type: [string, "null"] }
+        status_name:
+          type: [string, "null"]
+          description: The status as the desk's workflow names it, as on PortalRequest; null when not readable.
+        status_category:
+          type: [string, "null"]
+          enum: [BACKLOG, TODO, IN_PROGRESS, DONE, null]
+          description: The status's category; null where no workflow runs or when not readable.
         is_completed: { type: boolean }
         completed_at: { type: [string, "null"], format: date-time }
         comments:
@@ -31758,6 +33245,25 @@ components:
               goal: { type: string, enum: [FIRST_RESPONSE, NEXT_RESPONSE, RESOLUTION] }
               standing: { type: string, enum: [RUNNING, PAUSED, MET, BREACHED] }
               entries: { type: integer }
+
+    DeadlinesKept:
+      type: object
+      required: [from, to, data]
+      properties:
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+        data:
+          type: array
+          description: One row per kind that ended in the window, the requester's goals first, then each group's.
+          items:
+            type: object
+            required: [kind, goal, group_id, ended, kept]
+            properties:
+              kind: { type: string, enum: [SLA, OLA] }
+              goal: { type: string, enum: [FIRST_RESPONSE, NEXT_RESPONSE, RESOLUTION] }
+              group_id: { type: [string, "null"], format: uuid, description: "The team an OLA is the group's of; null for the requester's goals." }
+              ended: { type: integer, description: "Deadlines of the kind that were met or breached in the window." }
+              kept: { type: integer, description: "Of them, met without being breached." }
 
     LinkType:
       type: object
@@ -31926,21 +33432,31 @@ components:
         id: { type: string, format: uuid }
         anchor: { type: [string, "null"] }
         available: { type: boolean }
-        title: { type: string, description: "The entry's, page's or goal's title, the container's, view's, dashboard's or configuration item's name." }
+        title: { type: string, description: "The entry's, page's or goal's title, the container's, view's, dashboard's or object's name." }
         key: { type: [string, "null"], description: "The entry's key (`INC-128`, as every screen draws it) or the container's handle, where it has one." }
         number: { type: [integer, "null"], format: int64 }
         level: { $ref: "#/components/schemas/ItemType" }
         entry_type: { type: string }
         completed: { type: boolean }
+        status_name:
+          type: [string, "null"]
+          description: >
+            An entry's status as the workflow in force names it; null where no workflow runs or the
+            status has no name of its own, which a client words by `status_category`.
+        status_category:
+          type: [string, "null"]
+          enum: [BACKLOG, TODO, IN_PROGRESS, DONE, null]
+          description: An entry's status's category; null where no workflow runs, where `completed` says done or to do.
         archived: { type: boolean }
         collection_id: { type: string, format: uuid }
+        assignee_id: { type: [string, "null"], format: uuid, description: "The account an entry is on; null where nobody is." }
         start_at: { type: [string, "null"], format: date-time }
         due_at: { type: [string, "null"], format: date-time }
         layout: { type: string, description: "A view's layout." }
-        hub_id: { type: string, format: uuid, description: "The hub a page, a whiteboard, a configuration item, or a goal or dashboard of a hub is in." }
+        hub_id: { type: string, format: uuid, description: "The hub a page, a whiteboard, an object, or a goal or dashboard of a hub is in." }
         status: { type: string, description: "A goal's status." }
-        ci_class: { type: string, description: "A configuration item's class." }
-        stage: { type: string, description: "A configuration item's lifecycle stage." }
+        ci_class: { type: string, description: "An object's object type." }
+        stage: { type: string, description: "An object's lifecycle stage." }
         icon: { type: [string, "null"], description: "A page's icon." }
         due_for_review: { type: boolean, description: "A page whose verification has run out." }
         element_count: { type: integer, description: "How many objects a whiteboard holds." }
@@ -32173,6 +33689,85 @@ components:
               count: { type: integer }
         columns_before: { type: array, items: { type: string } }
         columns_after: { type: array, items: { type: string } }
+        boards:
+          type: array
+          description: >
+            Per collection reached that has board columns: its level before and after, its columns
+            with the statuses each would show, the statuses no column would show with a suggested
+            column, and how many entries change column.
+          items: { $ref: "#/components/schemas/BoardPreview" }
+
+    StateMode:
+      type: string
+      enum: [NONE, COLUMNS, WORKFLOW]
+      description: >
+        Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a
+        board without a workflow - the columns are the states, one of them the done column;
+        `WORKFLOW` the status decides and the columns show statuses.
+
+    BoardPreview:
+      type: object
+      required: [collection_id, level_before, level_after, done_bucket_id, columns, unmapped, moved, column_only]
+      properties:
+        collection_id: { type: string, format: uuid }
+        level_before: { $ref: "#/components/schemas/StateMode" }
+        level_after: { $ref: "#/components/schemas/StateMode" }
+        done_bucket_id:
+          type: [string, "null"]
+          format: uuid
+          description: Without a workflow after, the column that is the done column; null otherwise.
+        columns:
+          type: array
+          items:
+            type: object
+            required: [bucket_id, name, is_done_bucket, statuses, completes]
+            properties:
+              bucket_id: { type: string, format: uuid }
+              name: { type: string }
+              is_done_bucket: { type: boolean }
+              statuses: { type: array, items: { type: string }, description: "The statuses it shows after." }
+              completes: { type: boolean, description: "Whether an entry in it is done after." }
+        unmapped:
+          type: array
+          description: The statuses no column shows after (*Ohne Spalte*), each with where it would fit.
+          items:
+            type: object
+            required: [status, suggested_bucket_id]
+            properties:
+              status: { type: string }
+              suggested_bucket_id: { type: [string, "null"], format: uuid }
+        moved: { type: integer, description: "Entries whose column changes." }
+        column_only: { type: integer, description: "Of them, those whose status stays." }
+
+    BoardSwitch:
+      type: object
+      required: [dry_run, level_before, level_after, columns_created, columns_removed, entries_placed]
+      properties:
+        dry_run: { type: boolean }
+        level_before: { $ref: "#/components/schemas/StateMode" }
+        level_after: { $ref: "#/components/schemas/StateMode" }
+        columns_created: { type: integer }
+        columns_removed: { type: integer }
+        entries_placed: { type: integer, description: "Entries put into a column, or out of one." }
+
+    BoardWorkflow:
+      type: object
+      required: [dry_run, workflow, statuses, entries]
+      properties:
+        dry_run: { type: boolean }
+        workflow: { type: string, description: "The new workflow's key." }
+        statuses:
+          type: array
+          items:
+            type: object
+            required: [key, name, category, bucket_id, count]
+            properties:
+              key: { type: string }
+              name: { type: string }
+              category: { type: string, enum: [TODO, IN_PROGRESS, DONE] }
+              bucket_id: { type: string, format: uuid }
+              count: { type: integer, description: "Entries that take this status." }
+        entries: { type: integer, description: "Entries that take a status." }
 
     WorkflowSchemeChange:
       type: object
@@ -32182,6 +33777,20 @@ components:
         entry_type: { type: string, description: "The type the row is for; left out for every type." }
         workflow: { type: string, description: "The workflow's key; left out removes the row." }
         confirm: { type: boolean, description: "True once the person has seen the preview." }
+        columns:
+          type: array
+          description: >
+            The statuses each board column shows under the workflow. A board shows the statuses of
+            every workflow its entry types run, so a change for one type reaches the boards whose
+            types it touches and takes their columns too. A board one of whose columns is named here
+            takes exactly this mapping; every other board the proposal of the preview (`boards`).
+            Ignored where the workflow leaves.
+          items:
+            type: object
+            required: [bucket_id, statuses]
+            properties:
+              bucket_id: { type: string, format: uuid }
+              statuses: { type: array, items: { type: string } }
 
     WorkflowSchemeResult:
       type: object
@@ -32215,24 +33824,135 @@ components:
               messages: { type: object, additionalProperties: { type: string }, description: "The words per language." }
               message_code: { type: [string, "null"], description: "The shipped message picked." }
         holds: { type: boolean, description: "Whether it may be taken now." }
+        approval_levels: { type: integer, minimum: 0, description: "How many levels of approval taking it opens; 0 moves the entry at once." }
         from: { type: string, description: "On a try: the status it was judged from." }
         leaves_from: { type: boolean, description: "On a try: whether it leaves that status." }
 
+    DropAnswer:
+      type: object
+      required: [outcome, steps, item]
+      properties:
+        outcome:
+          type: string
+          enum: [MOVED, STEP_TAKEN, CHOOSE]
+        steps:
+          type: array
+          description: The step taken, or the steps to choose among.
+          items:
+            type: object
+            required: [key, name, to]
+            properties:
+              key: { type: string }
+              name: { type: [string, "null"] }
+              to: { type: string }
+        item:
+          $ref: "#/components/schemas/WorkItem"
     EntrySteps:
       type: object
       required: [workflow, status, steps]
       properties:
+        state_mode:
+          type: string
+          enum: [NONE, COLUMNS, WORKFLOW]
+          description: >
+            How the entry's type says where an entry stands in its collection: `NONE` a list -
+            open or done; `COLUMNS` a board without a workflow - `columns` are the states;
+            `WORKFLOW` the status decides.
+        columns:
+          type: array
+          description: >
+            At `COLUMNS` the board's columns, left to right, as the entry's states; `completes`
+            marks the done column, which completes what enters it. Empty otherwise.
+          items:
+            type: object
+            required: [id, name, completes]
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+              completes: { type: boolean }
+        column_id:
+          type: [string, "null"]
+          format: uuid
+          description: At `COLUMNS` the column the entry reads as; null otherwise.
         workflow: { type: [string, "null"] }
         status: { type: [string, "null"] }
         steps:
           type: array
           items: { $ref: "#/components/schemas/StepVerdict" }
+        blocked:
+          type: array
+          description: The steps from the status the person may not take, in the workflow's order; empty for a reader.
+          items: { $ref: "#/components/schemas/BlockedStep" }
+        done_route:
+          type: array
+          description: >
+            The fewest steps from the status into a done one, whoever may take them; empty from a
+            done status, where no step leads there, and where no workflow runs.
+          items:
+            type: object
+            required: [key, name, to]
+            properties:
+              key: { type: string }
+              name: { type: [string, "null"] }
+              to: { type: string }
+        picture: { $ref: "#/components/schemas/WorkflowPicture" }
+        by_default:
+          type: boolean
+          description: >
+            True where no workflow runs: the picture is the default one, every status is
+            reachable, and completing the entry reaches done.
+        may_design: { type: boolean, description: "Whether the person may open the workflow in the designer." }
+
+    BlockedStep:
+      type: object
+      description: A step from the entry's status the person may not take, and who may.
+      required: [key, name, to, reason, roles, people, groups]
+      properties:
+        key: { type: string }
+        name: { type: [string, "null"] }
+        to: { type: string }
+        reason:
+          type: string
+          enum: [workflows.step_who_unmet, workflows.step_condition_unmet]
+          description: >
+            `workflows.step_who_unmet`: the step is limited to roles, people or groups the person
+            is not among; `workflows.step_condition_unmet`: its condition over the entry and the
+            person does not hold.
+        roles: { type: array, items: { type: string }, description: "The roles that may take it." }
+        people:
+          type: array
+          description: The people the step's person fields name on this entry.
+          items: { type: string, format: uuid }
+        groups: { type: array, items: { type: string, format: uuid }, description: "The groups whose members may take it." }
+        permission: { type: string, description: "The permission that opens it to whoever holds it." }
+
+    WorkflowPicture:
+      type: object
+      description: A workflow drawn read-only - its statuses and the steps between them, without who may take them.
+      required: [statuses, initial, steps]
+      properties:
+        statuses:
+          type: array
+          items: { $ref: "#/components/schemas/WorkflowStatus" }
+        initial: { type: string }
+        steps:
+          type: array
+          items:
+            type: object
+            required: [key, name, from, to, limited, approval]
+            properties:
+              key: { type: string }
+              name: { type: [string, "null"] }
+              from: { type: array, items: { type: string }, description: "Empty is any status but its target." }
+              to: { type: string }
+              limited: { type: boolean, description: "Whether only some people may take it." }
+              approval: { type: boolean, description: "Whether taking it waits for an approval." }
 
     EntryType:
       type: object
       description: >
-        A kind of entry a workspace names on one level - a bug, a feature, a purchase, a
-        configuration item - with its icon, its colour and the behaviours of its entries.
+        A kind of entry a workspace names on one level - a bug, a feature, a purchase, an
+        inventory object - with its icon, its colour and the behaviours of its entries.
       required: [key, level, system, name, icon, color_token, completable, workflow, record, schedulable, estimable, allowed_children, position, archived, version]
       properties:
         key: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$", description: "The stable name every door, a query and the configuration file use." }
@@ -34534,6 +36254,14 @@ components:
             another collection's handle; a person may change or clear it. An entry's key is the
             prefix and its number where the collection has one, the handle in capitals and the
             number otherwise. A key in either form names the entry. Null on a hub.
+        state_mode:
+          $ref: "#/components/schemas/StateMode"
+        state_modes:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/StateMode" }
+          description: >
+            A collection's level per entry type it offers; `state_mode` is the tasks'. Answered
+            when one collection is read, left out on a hub and in lists.
         structure:
           $ref: "#/components/schemas/EffectiveStructure"
           description: >
@@ -34925,9 +36653,9 @@ components:
         offered:
           type: array
           minItems: 1
-          maxItems: 4
-          items: { type: string, enum: [LIST_COLLAPSED, LIST_EXPANDED, KANBAN, TIMELINE] }
-        default: { type: string, enum: [LIST_COLLAPSED, LIST_EXPANDED, KANBAN, TIMELINE] }
+          maxItems: 5
+          items: { type: string, enum: [LIST_COLLAPSED, LIST_EXPANDED, KANBAN, TIMELINE, CALENDAR] }
+        default: { type: string, enum: [LIST_COLLAPSED, LIST_EXPANDED, KANBAN, TIMELINE, CALENDAR] }
 
     StructureCounts:
       type: object
@@ -35025,7 +36753,7 @@ components:
         views:
           type: array
           description: The views no longer offered.
-          items: { type: string, enum: [LIST_COLLAPSED, LIST_EXPANDED, KANBAN, TIMELINE] }
+          items: { type: string, enum: [LIST_COLLAPSED, LIST_EXPANDED, KANBAN, TIMELINE, CALENDAR] }
         automation:
           type: array
           description: What runs by itself now and would pause.
@@ -35553,6 +37281,12 @@ components:
         grouping:
           type: object
           additionalProperties: true
+          description: >
+            The client's grouping hint, stored whole. Three keys are checked against the field
+            catalogue: `field`, what the list groups by and the board's columns follow, a field
+            one can group by; `lanes_by`, the board's lanes, a second such field; `date_field`,
+            the timestamp a CALENDAR layout places the entries on (`due_at`, `start_at`, …). Any
+            other key is stored and echoed.
         visible_fields:
           type: array
           items: { type: string }
@@ -35596,13 +37330,20 @@ components:
           description: >
             The query, anchored, in the use case's input shape - `scope_container_id`, not a nested
             `scope` object. See `SavedView.query`; both shapes are refused here rather than at the
-            first export.
+            first export. A search saved as a view holds its line as `q`, the Hubtask query
+            `POST /search:all` takes, read here by the same parser and refused where it does not read.
           example:
             scope_container_id: "0192f000-0000-7000-8000-0000000000c0"
             filter: { field: due_at, op: LTE, value: "@today+P7D" }
         grouping:
           type: object
           additionalProperties: true
+          description: >
+            The client's grouping hint, stored whole. Three keys are checked against the field
+            catalogue: `field`, what the list groups by and the board's columns follow, a field
+            one can group by; `lanes_by`, the board's lanes, a second such field; `date_field`,
+            the timestamp a CALENDAR layout places the entries on (`due_at`, `start_at`, …). Any
+            other key is stored and echoed.
         visible_fields:
           type: array
           items: { type: string }
@@ -35643,6 +37384,12 @@ components:
         grouping:
           type: object
           additionalProperties: true
+          description: >
+            The client's grouping hint, stored whole. Three keys are checked against the field
+            catalogue: `field`, what the list groups by and the board's columns follow, a field
+            one can group by; `lanes_by`, the board's lanes, a second such field; `date_field`,
+            the timestamp a CALENDAR layout places the entries on (`due_at`, `start_at`, …). Any
+            other key is stored and echoed.
         visible_fields:
           type: array
           items: { type: string }
@@ -35664,6 +37411,13 @@ components:
       required: [data]
       properties:
         data: { type: array, items: { $ref: "#/components/schemas/HubQueue" } }
+        desks:
+          type: array
+          items: { type: string, format: uuid }
+          description: >
+            The hub's collections that act as a desk - those offering a type the requester portal
+            takes - over which the standard queues count; empty where the hub has none. A client
+            names a desk by this, not by reading the entry types itself.
 
     HubQueue:
       type: object
@@ -36209,6 +37963,13 @@ components:
             The account the rule acts as. It can never do more than that account may,
             which is why the writer has to hold those rights too.
         trigger: { $ref: "#/components/schemas/RuleTrigger" }
+        entries:
+          type: string
+          description: >
+            For which entries: a query line, every name in it an identifier, that narrows the
+            entries the rule acts on before its conditions are asked. It is read at each run as
+            `run_as` reads, so it never reaches an entry that account may not read. Empty is every
+            entry the trigger reaches.
         conditions:
           type: array
           description: >
@@ -36320,6 +38081,13 @@ components:
         scope: { $ref: "#/components/schemas/RuleScope" }
         run_as: { type: string, format: uuid }
         trigger: { $ref: "#/components/schemas/RuleTrigger" }
+        entries:
+          type: string
+          maxLength: 2000
+          description: >
+            For which entries, as a query line with identifiers for names; empty for every entry.
+            A trigger that is about no entry (a schedule, an inbound webhook, an intake entry)
+            takes none.
         conditions:
           type: array
           items: { $ref: "#/components/schemas/RuleCondition" }
@@ -36945,6 +38713,13 @@ components:
         scope: { $ref: "#/components/schemas/RuleScope" }
         run_as: { type: string, format: uuid }
         trigger: { $ref: "#/components/schemas/RuleTrigger" }
+        entries:
+          type: string
+          maxLength: 2000
+          description: >
+            For which entries, as a query line with identifiers for names; empty for every entry.
+            A trigger that is about no entry (a schedule, an inbound webhook, an intake entry)
+            takes none.
         conditions:
           type: array
           items: { $ref: "#/components/schemas/RuleCondition" }
@@ -37597,6 +39372,62 @@ components:
             and `.`, at most 40 characters each and 20 together, answered in lower case. Null
             clears the key.
 
+    DocumentServer:
+      type: object
+      additionalProperties: false
+      required: [kind]
+      properties:
+        kind:
+          type: string
+          enum: [NONE, COLLABORA_ONLINE, ONLYOFFICE, EURO_OFFICE, MICROSOFT_365]
+        url:
+          type: string
+          description: The server's https origin; absent for NONE.
+    DocumentServerCheck:
+      type: object
+      additionalProperties: false
+      required: [reached]
+      properties:
+        reached:
+          type: boolean
+          description: The server answered its WOPI discovery.
+    MediaEditingSession:
+      type: object
+      required: [access_token, access_token_ttl, wopi_src, action_url, server]
+      properties:
+        action_url:
+          type: string
+          description: >
+            Where the browser posts the token, in a frame: the document server's editor for this
+            kind of file, from its discovery, with the WOPI source in its query. Always on the
+            server's own origin, which is the only one the interface's policy lets a form post to
+            and a frame show.
+        access_token:
+          type: string
+          description: Shown once, to hand to the document server; never logged.
+        access_token_ttl:
+          type: integer
+          format: int64
+          description: When the token expires, in milliseconds since the epoch - the protocol's unit.
+        wopi_src:
+          type: string
+          description: The file's WOPI address the document server reads and saves through.
+        server: { $ref: "#/components/schemas/DocumentServer" }
+    WopiFileInfo:
+      type: object
+      required: [BaseFileName, Size, OwnerId, UserId, Version]
+      properties:
+        BaseFileName: { type: string }
+        Size: { type: integer, format: int64 }
+        OwnerId: { type: string }
+        UserId: { type: string }
+        Version: { type: string }
+        UserCanWrite: { type: boolean }
+        ReadOnly: { type: boolean }
+        SupportsLocks: { type: boolean }
+        SupportsGetLock: { type: boolean }
+        SupportsUpdate: { type: boolean }
+        UserCanNotWriteRelative: { type: boolean }
     MediaObject:
       type: object
       required: [id, usage, status, content_type, size, ref_count, created_by, created_at]
@@ -37637,6 +39468,23 @@ components:
             possible at zero.
         created_by: { type: string, format: uuid }
         created_at: { type: string, format: date-time }
+        inline:
+          type: boolean
+          description: >
+            Whether a browser may decode the bytes itself from the download URL: a READY image,
+            audio or video in a format whose decoding executes nothing. Every other file is
+            fetched and drawn by the client - a PDF page, text, a table, an archive's listing - or
+            downloaded; none is ever opened as a document.
+        office:
+          type: boolean
+          description: >
+            Whether the file is an office document - shown as a PDF converted by the workspace's
+            document server (`:pdf`), or as a card where there is none.
+        editable:
+          type: boolean
+          description: >
+            Whether this person may open the file for editing in the workspace's document server
+            (`:edit`): an office file, a server chosen, and a right to change what holds it.
         upload:
           oneOf:
             - $ref: "#/components/schemas/MediaTransfer"
@@ -38104,6 +39952,16 @@ components:
             item_id: { type: string, format: uuid }
             include_descendants: { type: boolean, default: true }
             workspace: { type: boolean, default: false }
+        q:
+          type: string
+          maxLength: 4000
+          description: >
+            The filter as one Hubtask query instead of `filter`, in either spelling `POST
+            /items:query` takes - what a query line counts while somebody types (`who: me
+            is: open` with `scope.workspace` and `COUNT`), and, grouped by a field, the values it
+            suggests with their counts. Free words count the entries they find; a `sort:` is
+            refused with `query.sort_not_here`, and a line sent with `filter` with
+            `query.line_with_filter`.
         filter: { $ref: "#/components/schemas/FilterNode" }
         include_archived: { type: boolean, default: false }
         include_trashed: { type: boolean, default: false }
@@ -38148,7 +40006,9 @@ components:
                 does not hold -, or from the status history: `cycle_time`, the first entry into an
                 in-progress status to completion, `wip_age`, that entry to now for an open entry,
                 and `time_in_status`, the current status's latest entry to now for an open entry;
-                an entry without history holds none. For a `time` summary, `minutes` alone.
+                an entry without history holds none -, or `slip_days`, the days an entry's due date
+                lies after its latest baseline's (`plan.slip`), which an entry outside every baseline
+                or without a due date does not hold. For a `time` summary, `minutes` alone.
                 Required for every function but `COUNT`, refused for `COUNT`.
             group_by:
               type: string
@@ -38228,7 +40088,15 @@ components:
           type: string
           maxLength: 4000
           description: >
-            The filter and the order as one line instead of `filter` and `sort`, for example
+            The filter and the order as one Hubtask query instead of `filter` and `sort`, in
+            either of its two spellings. The first is `field: value` - `who: me, none is: open
+            due: <today -label: intern sort: -updated`: a comma is or, a space and, a leading `-`
+            not, `<`, `<=`, `>`, `>=` compare, `a..b` is a range, `( … OR … )` and `NOT` group,
+            words without a field find entries by their words, `today`, `-7d`, `+2w`,
+            `this-week` and `overdue` are times the server resolves, `me` and `none` are people;
+            `GET /meta/capabilities` lists the keys under `query_keys`. A key or value it cannot
+            read is `query.field_unknown` or `query.value_unknown` with the character it stops at
+            (`at`) and, where one is near, a `suggestion`. The second is
             `status = open AND custom_fields.priority >= 3 ORDER BY due_at DESC`. Comparisons are
             `=`, `!=`, `<`, `<=`, `>`, `>=`, `~` (contains), `IN (…)`, `NOT IN (…)`, `IS EMPTY`,
             `IS NOT EMPTY`, `BETWEEN … AND …`, `CONTAINS`, `CONTAINS ANY (…)`, `CONTAINS ALL (…)`,
@@ -38519,6 +40387,12 @@ components:
             Advisory: nothing refuses the drop that exceeds it, because the requirement is that the
             column turns red rather than that the work becomes impossible. Null is no limit.
         is_done_bucket: { type: boolean, default: false }
+        statuses:
+          type: array
+          items: { type: string }
+          description: >
+            Under a workflow, the statuses the column shows; empty without one. Answered where the
+            board is listed.
         color_token:
           type: [string, "null"]
           description: >
@@ -38578,8 +40452,15 @@ components:
           type: [string, "null"]
           format: uuid
           description: >
-            The column the entries moved to - the leftmost remaining one. Null when this was the
-            last column on the board, in which case the entries now carry none.
+            The column the entries moved to: the done column's successor where the done column
+            was deleted, under a workflow mapped onto the board none (the statuses it showed are
+            unmapped now), else the first open column left. Null where none is.
+        done_bucket_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The column that took the done mark where the deleted one carried it - the rightmost
+            column left. Null otherwise.
         moved_items:
           type: integer
           description: How many entries were moved.
@@ -39289,7 +41170,7 @@ components:
           description: The failure's parameters, beside its code.
         category:
           type: string
-          enum: [ASSIGNMENT, MEMBERSHIP, COMMENT, INVITATION, REMINDER, INTEGRATION, RETENTION, EMERGENCY_ACCESS, REQUEST_REPLY, SLA]
+          enum: [ASSIGNMENT, MEMBERSHIP, COMMENT, INVITATION, REMINDER, INTEGRATION, RETENTION, EMERGENCY_ACCESS, REQUEST_REPLY, SLA, POST, ATTESTATION]
           description: >
             What the mail told the person, where it was recorded as a notification. Absent for an
             invitation that is still queued to be recorded.
@@ -39336,7 +41217,7 @@ components:
           type: string
           enum: [ACCOUNT, CREDENTIALS, PERSONAL_RULES, NOTIFICATIONS, AI_DRAFTS, KUDOS, ARRANGEMENTS,
             TIME, ASSIGNMENTS, INTAKE, COMMENTS, PAGE_COMMENTS, WHITEBOARD_COMMENTS, GOAL_CHECK_INS,
-            PORTFOLIO_UPDATES, PAGE_DRAFTS, ENTRIES, MEDIA]
+            PORTFOLIO_UPDATES, PAGE_DRAFTS, ENTRIES, MEDIA, POST_REPLIES]
         fate:
           type: string
           enum: [DELETED, ANONYMISED, KEPT, RELEASED]
@@ -41004,6 +42885,45 @@ components:
         sortable: { type: boolean }
         groupable: { type: boolean }
 
+    QueryKey:
+      type: object
+      required: [key, value, kinds, examples, values]
+      description: >
+        One key of the Hubtask query's `field: value` spelling.
+      properties:
+        key:
+          type: string
+          description: >
+            What is typed before the colon: `who`, `desk.standing`; `cf.` is the prefix of the
+            custom fields, followed by a custom field's key.
+        field:
+          type: string
+          description: >
+            The `query_fields` field the key compares; absent for `is`, `type` and `sort`, which
+            choose a state, the kinds or the order. A key of one kind other than entries
+            (`asset.`, `page.`, `goal.`) names itself: it is answered by that kind's search in
+            `POST /search:all` and refused by a query of entries.
+        value:
+          type: string
+          enum: [state, kind, person, place, label, time, number, text, words, choice, flag, relation, sort, custom]
+          description: What kind of value the key takes, which decides the suggestions a client offers.
+        product:
+          type: string
+          description: >
+            The product the key's prefix belongs to (`desk`, `plan`, `time`, `asset`, `page`,
+            `goal`, `cf`); absent for the keys of every kind.
+        kinds:
+          type: array
+          description: The kinds of object the key asks about.
+          items: { type: string }
+        examples:
+          type: array
+          items: { type: string }
+        values:
+          type: array
+          description: The words a key with a closed list takes; empty for the others.
+          items: { type: string }
+
     Capabilities:
       type: object
       description: Self-description; clients configure themselves from this.
@@ -41068,6 +42988,14 @@ components:
             a field whose use case this version does not have is not in it, and filtering on it is
             refused rather than silently matching nothing.
           items: { $ref: "#/components/schemas/QueryField" }
+        query_keys:
+          type: array
+          description: >
+            The keys of the Hubtask query's `field: value` spelling, in the order a client offers
+            them: only keys this installation answers. A client names them in its own language;
+            the key, the value words and the examples stay English, so a saved query survives a
+            change of language.
+          items: { $ref: "#/components/schemas/QueryKey" }
         text_languages:
           type: array
           description: >
@@ -41228,7 +43156,7 @@ components:
             The keys are open, and a key that is absent is not a promise in either direction - it
             is a part of the product that has not been asked to describe itself yet. The ones
             answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`,
-            `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`,
+            `backup_targets`, `ai_suggestions`, `query_from_words`, `semantic_search`, `natural_ordering`,
             `sign_in_rules`, `search_filter`, `structure`, `structure_enforced`, `setup_open`,
             `mail_domain` (the operator's receiving domain is set, so a workspace's mail intake has
             an address there) and `encryption` (the installation holds an encryption key, so a
@@ -41251,6 +43179,9 @@ components:
             both can be written (`PATCH /containers/{containerId}/structure`,
             `PATCH /tenant/structure`). It does not say that entries already obey `levels` and
             `fields`; a client offers only what they allow either way.
+
+            `query_from_words` says that `POST /query:ask` can answer the caller: it follows
+            `ai_suggestions`, and a client without it draws no question field beside the query.
 
             `ai_suggestions` and `semantic_search` are the same two names `degraded_features`
             uses in `/meta/health`, so a client reading either
@@ -41475,7 +43406,18 @@ components:
         parent_id: { type: [string, "null"], format: uuid, description: "The page it sits under; null at the top." }
         title: { type: string, maxLength: 200 }
         body: { type: string, maxLength: 1048576, description: "The body in Markdown; absent in a tree's rows." }
+        excerpt:
+          type: string
+          maxLength: 200
+          description: >
+            The body's opening words as plain text, cut short; present in a tree's rows, where the body
+            is not.
         icon: { type: [string, "null"], maxLength: 16 }
+        cover:
+          description: The picture over the page's content; null for none. Absent in a tree's rows.
+          oneOf:
+            - $ref: "#/components/schemas/PageCover"
+            - type: "null"
         position: { type: string, description: "Its place among its siblings: they sort by this, as text." }
         template: { type: boolean, description: "Offered as a template of the space." }
         content_language: { type: [string, "null"], description: "The BCP-47 tag search stems the page by; null for the workspace's." }
@@ -41575,6 +43517,32 @@ components:
           type: array
           items: { $ref: "#/components/schemas/HubTemplatePage" }
 
+    GoalSet:
+      type: object
+      required: [key, period_id, name, start_on, end_on]
+      properties:
+        key: { type: string }
+        period_id: { type: string, format: uuid }
+        name: { type: string }
+        start_on: { type: string, format: date }
+        end_on: { type: string, format: date }
+
+    GoalSetList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/GoalSet" }
+
+    GoalSetGoal:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 10000 }
+        key_results: { type: array, maxItems: 20, items: { $ref: "#/components/schemas/KeyResultWrite" } }
+
     PageSpaceDrafts:
       type: object
       required: [drafts, source, pending]
@@ -41657,6 +43625,26 @@ components:
         template: { type: boolean }
         content_language: { type: string }
         archived: { type: boolean }
+        cover:
+          description: The picture over the page's content; null takes it away.
+          oneOf:
+            - $ref: "#/components/schemas/PageCover"
+            - type: "null"
+
+    PageCover:
+      type: object
+      description: >
+        A page's cover: one of the gradients or gallery pictures the clients draw by their key, or an
+        image of the media context by its id. A key a client does not know draws as no cover there.
+      required: [source, key, position]
+      properties:
+        source: { type: string, enum: [GRADIENT, GALLERY, IMAGE] }
+        key:
+          type: string
+          maxLength: 40
+          description: A gradient's or a gallery picture's key (lowercase letters, digits, hyphens), or the image's media id.
+        position: { type: integer, minimum: 0, maximum: 100, description: "How far down the picture is shown from: 0 its top, 100 its foot." }
+        credit: { type: string, maxLength: 120, description: "Who made an image library's picture, named at the cover; only an image carries one." }
 
     PageMove:
       type: object
@@ -41729,10 +43717,11 @@ components:
 
     PageArticle:
       type: object
-      required: [page_id, collection_id, published_by, published_at, views, helpful, unhelpful]
+      required: [page_id, collection_id, with_subpages, published_by, published_at, views, helpful, unhelpful]
       properties:
         page_id: { type: string, format: uuid }
         collection_id: { type: string, format: uuid }
+        with_subpages: { type: boolean, description: "Shared as a space: every page under it reaches the portal too." }
         published_by: { type: [string, "null"], format: uuid }
         published_at: { type: string, format: date-time }
         views: { type: integer, format: int64, description: "Openings in the portal." }
@@ -41800,6 +43789,35 @@ components:
         content_language: { type: [string, "null"] }
         updated_at: { type: string, format: date-time }
 
+    PortalKnowledge:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          description: What a service's portal shares, in the order it was shared.
+          items:
+            type: object
+            required: [page_id, title, icon, with_subpages, pages]
+            properties:
+              page_id: { type: string, format: uuid }
+              title: { type: string }
+              icon: { type: string }
+              with_subpages: { type: boolean, description: "A space: `pages` holds what lies under it." }
+              pages:
+                type: array
+                description: >
+                  The pages under a space a requester reads, parents before their children and in
+                  their order; empty for a single article.
+                items:
+                  type: object
+                  required: [page_id, parent_id, title, icon]
+                  properties:
+                    page_id: { type: string, format: uuid }
+                    parent_id: { type: string, format: uuid }
+                    title: { type: string }
+                    icon: { type: string }
+
     ArticleRating:
       type: object
       required: [page_id, collection_id, helpful]
@@ -41835,6 +43853,203 @@ components:
           required: [token]
           properties:
             token: { type: string, description: "The credential; the address is /api/v1/public/roadmaps/{token}." }
+
+    CoverImagesPolicy:
+      type: object
+      required: [library, source]
+      properties:
+        library: { type: string, enum: [OFF, OPEN_LIBRARY] }
+        source: { type: string, description: The level whose value is in force. }
+        locked_by: { type: string, description: The level that locked it, where one did. }
+
+    CoverImageSearch:
+      type: object
+      required: [offered, pictures]
+      properties:
+        offered: { type: boolean, description: Whether the workspace offers an image library for covers. }
+        pictures:
+          type: array
+          maxItems: 12
+          items:
+            type: object
+            required: [id, creator, preview]
+            properties:
+              id: { type: string }
+              creator: { type: string, description: Who made the picture, as the library names them. }
+              preview: { type: string, description: "A small rendition as a data: URL." }
+
+    PostSettings:
+      type: object
+      additionalProperties: false
+      properties:
+        template: { type: [string, "null"], enum: [ANNOUNCEMENT, RELEASE_NOTE, MONTHLY_REVIEW, WELCOME, null] }
+        publish_at: { type: [string, "null"], format: date-time, description: "When it goes out: now or earlier publishes at once, ahead schedules it, none keeps a draft." }
+        featured_until: { type: [string, "null"], format: date-time, description: "Keeps it on top of the hub's posts until then." }
+        audience: { type: string, enum: [HUB, GROUPS], default: HUB, description: "The hub's readers, or those of them in the groups named." }
+        group_ids:
+          type: array
+          maxItems: 20
+          items: { type: string, format: uuid }
+        discussion: { type: boolean, default: true, description: Whether the discussion under it is open. }
+        notify: { type: boolean, default: true, description: "Whether the hub's followers are told once it is published." }
+        confirm_by: { type: [string, "null"], format: date-time, description: "Asks its audience to confirm they read it by then." }
+
+    PostCreate:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 500 }
+        body: { type: string, maxLength: 1048576, description: "Markdown; without it, the template's." }
+        template: { type: [string, "null"], enum: [ANNOUNCEMENT, RELEASE_NOTE, MONTHLY_REVIEW, WELCOME, null] }
+        publish_at: { type: [string, "null"], format: date-time }
+        featured_until: { type: [string, "null"], format: date-time }
+        audience: { type: string, enum: [HUB, GROUPS], default: HUB }
+        group_ids:
+          type: array
+          maxItems: 20
+          items: { type: string, format: uuid }
+        discussion: { type: boolean, default: true }
+        notify: { type: boolean, default: true }
+        confirm_by: { type: [string, "null"], format: date-time }
+
+    Post:
+      type: object
+      required: [page_id, hub_id, title, icon, template, state, publish_at, published_at, featured_until,
+        featured, audience, group_ids, everyone_in_workspace, discussion, notify, confirm_by, created_by,
+        created_at, seen_count, seen, confirmed, may_write, cover, excerpt, reading_minutes, reply_count, labels]
+      properties:
+        page_id: { type: string, format: uuid, description: "The page that holds its words." }
+        hub_id: { type: string, format: uuid }
+        title: { type: string }
+        icon: { type: [string, "null"] }
+        template: { type: [string, "null"], enum: [ANNOUNCEMENT, RELEASE_NOTE, MONTHLY_REVIEW, WELCOME, null] }
+        state: { type: string, enum: [DRAFT, SCHEDULED, PUBLISHED] }
+        publish_at: { type: [string, "null"], format: date-time }
+        published_at: { type: [string, "null"], format: date-time }
+        featured_until: { type: [string, "null"], format: date-time }
+        featured: { type: boolean, description: Whether it stands on top of the hub's posts now. }
+        audience: { type: string, enum: [HUB, GROUPS] }
+        group_ids:
+          type: array
+          items: { type: string, format: uuid }
+        everyone_in_workspace: { type: boolean, description: "For a writer: the audience is the hub's readers and every member of the workspace reads the hub." }
+        discussion: { type: boolean }
+        notify: { type: boolean }
+        confirm_by: { type: [string, "null"], format: date-time }
+        created_by: { type: [string, "null"], format: uuid }
+        created_at: { type: string, format: date-time }
+        seen_count: { type: integer, description: How many have seen it; never who. }
+        seen: { type: boolean, description: Whether the caller has seen it. }
+        confirmed: { type: boolean, description: Whether the caller confirmed reading it. }
+        may_write: { type: boolean, description: Whether the caller writes in the hub. }
+        cover:
+          description: The picture over its words, as its page carries it.
+          oneOf:
+            - { $ref: "#/components/schemas/PageCover" }
+            - { type: "null" }
+        excerpt: { type: string, maxLength: 240, description: "Its opening words without their marks, for a list." }
+        reading_minutes: { type: integer, minimum: 1, description: "About how long reading it takes." }
+        reply_count: { type: integer, description: How many replies its discussion holds. }
+        labels:
+          type: array
+          description: Its page's labels.
+          items: { type: string }
+        confirmations:
+          description: For a writer of the hub, how the read confirmation stands.
+          oneOf:
+            - { $ref: "#/components/schemas/PostConfirmations" }
+            - { type: "null" }
+
+    UnreadPostList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Post" }
+
+    PostList:
+      type: object
+      required: [data, may_write, workspace_wide]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Post" }
+        may_write: { type: boolean, description: Whether the caller may write posts here. }
+        workspace_wide: { type: boolean, description: "For a writer: every member of the workspace reads the hub, so its readers are everyone in the workspace." }
+        following: { type: boolean, description: Whether the caller follows the hub's posts and is told when one goes out. }
+
+    PostFollowing:
+      type: object
+      required: [following]
+      properties:
+        following: { type: boolean, description: Whether the caller follows the hub's posts. }
+
+    PostConfirmations:
+      type: object
+      required: [confirmed, audience, confirm_by, may_remind, overdue]
+      properties:
+        confirmed: { type: integer }
+        audience: { type: integer }
+        confirm_by: { type: string, format: date-time }
+        may_remind: { type: boolean }
+        overdue: { type: boolean }
+        confirmed_ids:
+          type: array
+          description: Who confirmed it, for the post's writers.
+          items: { type: string, format: uuid }
+
+    PostReminded:
+      type: object
+      required: [reminded]
+      properties:
+        reminded: { type: integer, description: How many were reminded. }
+
+    PostReply:
+      type: object
+      required: [id, page_id, parent_id, author_id, body, created_at, deleted, reactions]
+      properties:
+        id: { type: string, format: uuid }
+        page_id: { type: string, format: uuid }
+        parent_id: { type: [string, "null"], format: uuid }
+        author_id: { type: [string, "null"], format: uuid }
+        body: { type: string, description: "Markdown; empty once taken back." }
+        created_at: { type: string, format: date-time }
+        deleted: { type: boolean }
+        reactions:
+          type: array
+          items:
+            type: object
+            required: [reaction, count, mine]
+            properties:
+              reaction: { type: string, enum: [THANKS, AGREE, CELEBRATE, IDEA] }
+              count: { type: integer }
+              mine: { type: boolean }
+
+    PostReplyList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/PostReply" }
+
+    PostReplyCreate:
+      type: object
+      additionalProperties: false
+      required: [body]
+      properties:
+        body: { type: string, minLength: 1, maxLength: 65536 }
+        parent_id: { type: [string, "null"], format: uuid, description: The reply it answers. }
+
+    CoverImageFetched:
+      type: object
+      required: [content_base64, content_type, credit]
+      properties:
+        content_base64: { type: string, format: byte }
+        content_type: { type: string, enum: [image/jpeg, image/png, image/webp] }
+        credit: { type: string, maxLength: 120, description: Who made the picture, for the cover's credit. }
 
     PublicLinksPolicy:
       type: object
@@ -42143,6 +44358,13 @@ components:
               excerpt: { type: string, description: "The passage that matched, the words found between « and »." }
               rank: { type: number }
               updated_at: { type: string, format: date-time }
+              verified_until:
+                type: [string, "null"]
+                format: date-time
+                description: >
+                  When the page's verification lapses; null for a page never verified. Among
+                  equally good hits a page verified now comes first; a past date is a page due
+                  for review.
 
     Whiteboard:
       type: object
@@ -42203,7 +44425,7 @@ components:
       required: [attributes]
       properties:
         attributes: { type: array, items: { type: string } }
-        class: { type: string, description: The class that declared the rule. }
+        class: { type: string, description: The object type that declared the rule. }
 
     CiRequiredRelation:
       type: object
@@ -42211,12 +44433,12 @@ components:
       properties:
         types: { type: array, items: { type: string } }
         outgoing: { type: boolean }
-        class: { type: string, description: The class that declared it; left out where it is defined. }
+        class: { type: string, description: The object type that declared it; left out where it is defined. }
 
     CiClass:
       type: object
       description: >
-        A configuration item class. A shipped class has no `name`: a client shows its own word for
+        An object type. A shipped object type has no `name`: a client shows its own word for
         the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days`
         include what it inherits.
       required: [key, parent, system, attributes, all_attributes, identifier_rules, required_relations, staleness_days, lineage, version]
@@ -42232,7 +44454,7 @@ components:
         identifier_rules: { type: array, items: { $ref: "#/components/schemas/CiIdentifierRule" } }
         required_relations: { type: array, items: { $ref: "#/components/schemas/CiRequiredRelation" } }
         staleness_days: { type: integer }
-        own_staleness_days: { type: integer, description: The staleness period the class sets itself; 0 where it inherits. }
+        own_staleness_days: { type: integer, description: The staleness period the object type sets itself; 0 where it inherits. }
         lineage: { type: array, items: { type: string } }
         archived: { type: boolean }
         version: { type: integer }
@@ -42296,7 +44518,7 @@ components:
 
     CiFileMapping:
       type: object
-      description: How a CSV table's or a JSON array's columns become a configuration item.
+      description: How a CSV table's or a JSON array's columns become an object.
       required: [class, name_column]
       properties:
         class: { type: string }
@@ -42348,7 +44570,7 @@ components:
     CiOwnProtection:
       type: object
       description: >
-        The need a person set. A dimension in `fixed` is not raised by what depends on the CI and
+        The need a person set. A dimension in `fixed` is not raised by what depends on the object and
         carries a `reason`.
       properties:
         c: { type: [string, "null"], enum: [NORMAL, HIGH, VERY_HIGH, null] }
@@ -42405,7 +44627,7 @@ components:
     ConfigurationItem:
       type: object
       description: >
-        A configuration item in a hub. `attributes` hold its class's typed values; `provenance`
+        An object in a hub. `attributes` hold its object type's typed values; `provenance`
         names per attribute the source that last wrote it. `effective_protection` is given on a
         single read: the need it inherits from everything that suffers when it fails.
       required: [id, hub_id, class, name, stage, status, attributes, provenance, protection, quantity, created_at, updated_at, version]
@@ -42426,7 +44648,7 @@ components:
         has_asset:
           type: boolean
           description: >
-            Given on a single read: whether it has an asset record. False means
+            Given on a single read: whether it has a register record. False means
             `GET /cis/{ciId}/asset` answers not found.
         review_due: { type: [string, "null"], format: date }
         quantity: { type: integer }
@@ -42438,6 +44660,11 @@ components:
         created_at: { type: string, format: date-time }
         updated_by: { type: string, format: uuid }
         updated_at: { type: string, format: date-time }
+        confirmed_at:
+          type: [string, "null"]
+          format: date-time
+          description: When a person last confirmed it is as recorded, by itself or in a campaign.
+        confirmed_by: { type: [string, "null"], format: uuid }
         version: { type: integer }
 
     ConfigurationItemList:
@@ -42551,7 +44778,7 @@ components:
     CiConnector:
       type: object
       description: >
-        A program a hub's CIs are pulled from, or that posts alerts or a GLPI Agent's inventory
+        A program a hub's objects are pulled from, or that posts alerts or a GLPI Agent's inventory
         to it. Never its credential; `secret` is present once, in the answer that drew an
         intake's.
       required: [id, hub_id, key, kind, source, push, settings, allowed_hosts, hosts, every_minutes, enabled, has_credential, failures, version]
@@ -42562,7 +44789,7 @@ components:
         kind: { type: string, enum: [GLPI, NETBOX, INTUNE, ENTRA, HETZNER, OPENSTACK, ALERTMANAGER, ZABBIX, CHECKMK, GLPI_AGENT] }
         source: { type: string }
         push: { type: boolean, description: An intake rather than a pull. }
-        inventory: { type: boolean, description: An intake posted CIs rather than alerts. }
+        inventory: { type: boolean, description: An intake posted objects rather than alerts. }
         base_url: { type: string }
         settings: { type: object, additionalProperties: { type: string } }
         allowed_hosts: { type: array, items: { type: string } }
@@ -42894,11 +45121,11 @@ components:
     CiDuplicateResolve:
       type: object
       properties:
-        survivor_id: { type: string, format: uuid, description: The CI that stays; absent says the CIs are distinct. }
+        survivor_id: { type: string, format: uuid, description: The object that stays; absent says the objects are distinct. }
 
     CiDuplicateResolved:
       type: object
-      description: The survivor after a merge, or the duplicate's identifier when the CIs are distinct.
+      description: The survivor after a merge, or the duplicate's identifier when the objects are distinct.
       required: [id, merged]
       properties:
         id: { type: string, format: uuid }
@@ -42927,7 +45154,7 @@ components:
               added_at: { type: string, format: date-time }
         services:
           type: array
-          description: The active services and offerings the affected CIs' failure reaches.
+          description: The active services and offerings the affected objects' failure reaches.
           items:
             type: object
             required: [ci_id, class, name]
@@ -42937,18 +45164,127 @@ components:
               name: { type: string }
         related:
           type: array
-          description: The other open entries naming an affected CI or one it reaches.
+          description: The other open entries naming an affected object or one it reaches.
           items: { $ref: "#/components/schemas/EntryOnCi" }
         collisions:
           type: array
-          description: The entries planned on an affected CI, or one it reaches, in an overlapping window.
+          description: The entries planned on an affected object, or one it reaches, in an overlapping window.
           items:
             allOf:
               - $ref: "#/components/schemas/EntryOnCi"
               - type: object
                 required: [direct]
                 properties:
-                  direct: { type: boolean, description: Both entries name the CI itself. }
+                  direct: { type: boolean, description: Both entries name the object itself. }
+
+    CiAttachments:
+      type: object
+      description: >
+        The files one object holds. Returned by attaching and detaching rather than the object
+        itself: neither touches the object's own row or version.
+      required: [ci_id, media_ids]
+      properties:
+        ci_id: { type: string, format: uuid }
+        media_ids:
+          type: array
+          items: { type: string, format: uuid }
+    CiHistoryPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/CiHistoryStep" }
+        page: { $ref: "#/components/schemas/PageInfo" }
+    CiHistoryStep:
+      type: object
+      description: >
+        One step of an object's history. Append-only: nothing edits one, and what removes one is
+        the removal of the object it belongs to.
+      required: [id, ci_id, code, actor, occurred_at, change_set]
+      properties:
+        id: { type: string, format: uuid }
+        ci_id: { type: string, format: uuid }
+        code:
+          type: string
+          description: >
+            The message the client renders, from locales/*.json - activity.ci_created and the rest.
+          example: activity.ci_stage_changed
+        actor:
+          type: object
+          required: [type, id]
+          properties:
+            type:
+              type: string
+              enum: [USER, SERVICE_ACCOUNT, AUTOMATION, AI_AGENT, SYSTEM]
+            id: { type: [string, "null"], format: uuid }
+        occurred_at: { type: string, format: date-time }
+        change_set:
+          type: object
+          additionalProperties: true
+          description: >
+            What moved, keyed by field: `from` and `to` where the history keeps the values - the
+            stage, a person, a place, an object at the other end, a file, the source that wrote -
+            and `changed: true` for an attribute, whose value the object itself shows.
+          example:
+            stage: { from: IN_STOCK, to: IN_USE }
+    CiWork:
+      type: object
+      required: [ci_id, data]
+      properties:
+        ci_id: { type: string, format: uuid }
+        data:
+          type: array
+          description: Open entries first, then at most twenty completed ones; within each, the latest named first.
+          items: { $ref: "#/components/schemas/CiWorkEntry" }
+
+    CiWorkCounts:
+      type: object
+      required: [data, truncated]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [ci_id, open]
+            properties:
+              ci_id: { type: string, format: uuid }
+              open: { type: integer, minimum: 1, description: The open entries the reader may see that name the object. }
+        truncated: { type: boolean, description: The count stopped at 5000 namings; the numbers are then too low. }
+
+    CiWorkEntry:
+      type: object
+      required: [item_id, key, title, entry_type, collection_id, hub_id, status, completed, start_at, due_at, reason, via]
+      properties:
+        item_id: { type: string, format: uuid }
+        key: { type: [string, "null"], description: "The entry's key, INC-128; null where the entry has no number or its collection no word." }
+        title: { type: string }
+        entry_type: { type: string }
+        collection_id: { type: string, format: uuid }
+        hub_id: { type: [string, "null"], format: uuid }
+        status:
+          type: [object, "null"]
+          description: The entry's status as the workflow in force names it; null where none runs.
+          required: [key, name, category]
+          properties:
+            key: { type: string }
+            name: { type: [string, "null"] }
+            category: { type: [string, "null"] }
+        completed: { type: boolean }
+        start_at: { type: [string, "null"], format: date-time }
+        due_at: { type: [string, "null"], format: date-time }
+        reason:
+          type: string
+          enum: [NAMES, BENEATH]
+          description: NAMES, the entry names this object itself; BENEATH, it names an object whose failure this object suffers.
+        via:
+          type: [object, "null"]
+          description: The nearest object beneath that the entry names; null for NAMES.
+          required: [ci_id, name, class]
+          properties:
+            ci_id: { type: string, format: uuid }
+            name: { type: string }
+            class: { type: string }
 
     EntryOnCi:
       type: object
@@ -43026,6 +45362,21 @@ components:
                   attested_by: { type: [string, "null"], format: uuid }
                   attested_at: { type: [string, "null"], format: date-time }
 
+    CiConfirm:
+      type: object
+      properties:
+        review_months:
+          type: integer
+          minimum: 1
+          maximum: 60
+          description: How far the next review moves on from today; 12 when not given.
+
+    CiCampaignReminded:
+      type: object
+      required: [reminded]
+      properties:
+        reminded: { type: integer, description: How many people were reminded. }
+
     CiAttest:
       type: object
       required: [verdict]
@@ -43050,6 +45401,24 @@ components:
         stages: { type: array, items: { type: string, enum: [PLANNED, ORDERED, IN_STOCK, IN_USE, MAINTENANCE, RETIRED, DISPOSED] } }
         name_has: { type: string }
         attributes: { type: object, additionalProperties: { type: string } }
+        owners:
+          type: array
+          maxItems: 50
+          description: The owner is one of these people or groups (or nobody, with no_owner) - the inventory line's asset.owner.
+          items: { type: string, format: uuid }
+        no_owner: { type: boolean, description: Also, or only, objects without an owner. }
+        locations:
+          type: array
+          maxItems: 50
+          description: The location is one of these location objects (or none, with no_location) - asset.location.
+          items: { type: string, format: uuid }
+        no_location: { type: boolean, description: Also, or only, objects without a location. }
+        tags:
+          type: array
+          maxItems: 50
+          description: The inventory number is one of these, compared lowered (or none, with no_tag) - asset.tag. Kept lowered.
+          items: { type: string, minLength: 1, maxLength: 100 }
+        no_tag: { type: boolean, description: Also, or only, objects without an inventory number. }
 
     CiGroupDefine:
       type: object
@@ -43071,7 +45440,7 @@ components:
         service_id: { type: [string, "null"], format: uuid }
         updated_at: { type: string, format: date-time }
         version: { type: integer }
-        members: { type: integer, description: How many CIs it holds now. }
+        members: { type: integer, description: How many objects it holds now. }
 
     CiGroupList:
       type: object
@@ -43120,7 +45489,7 @@ components:
               source: { type: string, format: uuid }
               target: { type: string, format: uuid }
               type: { type: string, description: "A relation type's key, or group:<key> for a group's member." }
-        truncated: { type: boolean, description: The map stopped at 2000 CIs. }
+        truncated: { type: boolean, description: The map stopped at 2000 objects. }
 
     CiAssetRegister:
       type: object
@@ -43179,6 +45548,24 @@ components:
             at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
         version: { type: integer }
+        moves:
+          type: array
+          description: >
+            The steps of its life, oldest first - the state reached on being registered and at each
+            move, when, by whom and with whom or in which stockroom. Answered by the reads and writes
+            of one register record, not by the register's list; a register record made before the steps were kept
+            has none, its state alone.
+          items: { $ref: "#/components/schemas/CiAssetStep" }
+
+    CiAssetStep:
+      type: object
+      required: [state, at, by, assigned_to, stockroom_id]
+      properties:
+        state: { type: string, enum: [REQUESTED, ORDERED, IN_STOCK, DEPLOYED, RETIRED, DISPOSED] }
+        at: { type: string, format: date-time }
+        by: { type: [string, "null"], format: uuid }
+        assigned_to: { type: [string, "null"], format: uuid }
+        stockroom_id: { type: [string, "null"], format: uuid }
 
     CiAssetList:
       type: object
@@ -43300,11 +45687,11 @@ components:
     CmdbHealth:
       type: object
       description: >
-        A hub's active configuration items judged: completeness and correctness from 0 to 1, the
-        counts of stale, orphaned and duplicate CIs, CIs without an owner and reviews overdue, per
-        class, and the CIs found wanting with the kinds of problem; the relations a program
-        reported and has not confirmed within the staleness period of their source's class; each
-        service scored by the share of the CIs it rests on - itself and what its failure follows
+        A hub's active objects judged: completeness and correctness from 0 to 1, the
+        counts of stale, orphaned and duplicate objects, objects without an owner and reviews overdue, per
+        object type, and the objects found wanting with the kinds of problem; the relations a program
+        reported and has not confirmed within the staleness period of their source's object type; each
+        service scored by the share of the objects it rests on - itself and what its failure follows
         from - found wanting in nothing, worst first; and each source's conflict rate over the
         hub's latest twenty runs - of the attributes it reported with another value, the share a
         better source kept.
@@ -43350,7 +45737,7 @@ components:
               ci_id: { type: string, format: uuid }
               class: { type: string }
               name: { type: string }
-              cis: { type: integer, description: "The active CIs it rests on, itself included." }
+              cis: { type: integer, description: "The active objects it rests on, itself included." }
               wanting: { type: integer, description: "Of those, the ones health finds wanting." }
               score: { type: number, description: "1 less the share wanting, from 0 to 1." }
         sources:

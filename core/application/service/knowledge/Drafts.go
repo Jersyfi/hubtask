@@ -74,6 +74,17 @@ func (s Space) drafting(ctx context.Context, tenant, hubID shared.ID) (bool, err
 	return domain.DraftsOf(r), err
 }
 
+// pageDrafting reports whether a page's changes wait in a draft: its hub keeps drafts and it is
+// no post's page - a post has its own publishing (UC-DOC-17).
+func (s Space) pageDrafting(ctx context.Context, tenant shared.ID, page domain.Page) (bool, error) {
+	drafts, err := s.drafting(ctx, tenant, page.HubID)
+	if err != nil || !drafts || s.Posting.Posts == nil {
+		return drafts, err
+	}
+	posts, err := s.Posting.Posts.PostPages(ctx, []shared.ID{page.ID})
+	return !posts[page.ID], err
+}
+
 // draftOf answers a page's draft, if the space keeps drafts.
 func (s Space) draftOf(ctx context.Context, pageID shared.ID) (*domain.Draft, error) {
 	if s.Drafting.Drafts == nil {

@@ -75,13 +75,17 @@ func (s Scheduled) Output() usecase.Output {
 		if !entry.ParentID.IsZero() && !s.Loaded.External[p.ID] {
 			parent = entry.ParentID.String()
 		}
+		var release any
+		if id, ok := s.Loaded.Releases[p.ID]; ok && !s.Loaded.External[p.ID] {
+			release = id.String()
+		}
 		entries = append(entries, usecase.Output{
 			"item_id": p.ID.String(), "title": entry.Title, "parent_id": parent,
 			"collection_id": entry.CollectionID.String(), "start": p.Start.String(), "finish": p.Finish.String(),
 			"duration_days": p.Duration, "moved": p.Moved, "total_float_days": p.TotalFloat,
 			"free_float_days": p.FreeFloat, "critical": p.Critical, "summary": p.Summary,
 			"external": s.Loaded.External[p.ID], "mode": string(mode), "milestone": entry.Milestone,
-			"done": entry.Done, "due_only": entry.StartAt == nil && entry.DueAt != nil,
+			"done": entry.Done, "due_only": entry.StartAt == nil && entry.DueAt != nil, "release_id": release,
 		})
 	}
 	conflicts := make([]usecase.Output, 0, len(s.Result.Conflicts))
@@ -264,4 +268,18 @@ func (h ApplyPlanSchedule) Descriptor() usecase.Descriptor {
 			return usecase.Output{"moved": applied.Moved}, nil
 		}),
 	}, planTarget)
+}
+
+// CriticalEntries answers `plan.critical` (work.CriticalPath): the plan scheduled for the asker as
+// ReadPlanSchedule schedules it - its own calendar, the entries the asker may read - and its
+// critical path. Computed on asking and never stored, so the answer is the schedule of the moment.
+type CriticalEntries struct{ Planner Planner }
+
+// Critical answers the entries on the critical path of a hub or a collection.
+func (c CriticalEntries) Critical(ctx context.Context, actor appshared.ActorContext, planID shared.ID) ([]shared.ID, error) {
+	scheduled, err := ReadPlanSchedule(c).Execute(ctx, actor, ScheduleQuery{PlanID: planID})
+	if err != nil {
+		return nil, err
+	}
+	return scheduled.Result.CriticalPath, nil
 }

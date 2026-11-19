@@ -9,7 +9,7 @@
   import { untrack } from 'svelte';
   import { Button, IconButton, Inline, Select, Stack } from '@hubtask/design-system/components';
   import FailureNote from '../frame/FailureNote.svelte';
-  import type { Workflow, WorkflowPreview, WorkflowSchemeChange } from '@hubtask/sync-engine';
+  import type { BoardPreview, Workflow, WorkflowPreview, WorkflowSchemeChange } from '@hubtask/sync-engine';
 
   import { containers } from '../data/containers.svelte.ts';
   import { entryTypes } from '../data/entrytypes.svelte.ts';
@@ -17,6 +17,7 @@
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import { UNMAPPED, mappedColumns, statusPlaces } from '../entries/boardlevel.ts';
 
   interface Props {
     workflow: Workflow;
@@ -72,7 +73,9 @@
     isBusy = true;
     refusal = undefined;
     try {
-      pending = { change, preview: await workflows.previewScheme(change) };
+      const preview = await workflows.previewScheme(change);
+      pending = { change, preview };
+      placed = Object.fromEntries((preview.boards ?? []).map((board) => [board.collection_id, statusPlaces(board)]));
     } catch (error) {
       refusal = renderProblem(error as never, messages).message;
     } finally {
@@ -90,12 +93,21 @@
     void previewOf({ container_id: row.container_id, ...(row.entry_type ? { entry_type: row.entry_type } : {}) });
   }
 
+  /**
+   * Where each status stands on each board the change reaches (build-plan §5): the server's
+   * proposal, editable per status, sent as `columns` with the change.
+   */
+  let placed = $state<Record<string, Record<string, string>>>({});
+  const columnsOf = (board: BoardPreview) => mappedColumns(board, placed[board.collection_id] ?? {});
+
   async function confirm() {
     if (!pending) return;
     isBusy = true;
     refusal = undefined;
     try {
-      const result = await workflows.setScheme(pending.change);
+      const boards = (pending.preview.boards ?? []).filter((board) => board.level_after === 'WORKFLOW');
+      const columns = boards.flatMap(columnsOf);
+      const result = await workflows.setScheme({ ...pending.change, ...(columns.length > 0 ? { columns } : {}) });
       toast.show({ text: t('app.workflow_designer.scheme_done', { count: result.entries_moved }), tone: 'success' });
       pending = undefined;
     } catch (error) {
@@ -138,6 +150,22 @@
       <div class="pending" data-scheme-preview>
         <p>{t('app.workflow_designer.publish_entries', { count: pending.preview.entries })}</p>
         <p class="quiet">{t('app.workflow_designer.columns_after')} {pending.preview.columns_after.map(columnName).join(' · ') || t('app.workflow_designer.no_status')}</p>
+        {#each (pending.preview.boards ?? []).filter((board) => board.level_after === 'WORKFLOW') as board (board.collection_id)}
+          {@const options = [...board.columns.map((column) => ({ value: column.bucket_id, label: column.name })), { value: UNMAPPED, label: t('app.board.unmapped') }]}
+          <section class="board" data-board-mapping={board.collection_id} aria-label={t('app.workflow_designer.board_mapping', { name: placeName(board.collection_id) })}>
+            <h4 class="board-name">{t('app.workflow_designer.board_mapping', { name: placeName(board.collection_id) })}</h4>
+            <ul class="mapping">
+              {#each Object.keys(placed[board.collection_id] ?? {}) as status (status)}
+                <li>
+                  <span class="status">{columnName(status)}</span>
+                  <Select label={t('app.workflow_designer.status_column', { status: columnName(status) })} isLabelHidden {options}
+                    bind:value={() => placed[board.collection_id]?.[status] ?? UNMAPPED, (chosen) => (placed = { ...placed, [board.collection_id]: { ...placed[board.collection_id], [status]: chosen ?? UNMAPPED } })} />
+                </li>
+              {/each}
+            </ul>
+            {#if board.moved > 0}<p class="quiet">{t('app.workflow_designer.board_moved', { count: board.moved })}</p>{/if}
+          </section>
+        {/each}
         <Inline gap="100">
           <Button tone="secondary" size="sm" onclick={() => (pending = undefined)}>{t('app.workflow_designer.cancel')}</Button>
           <Button tone="primary" size="sm" data-confirm-scheme isBusy={isBusy} onclick={confirm}>
@@ -157,6 +185,10 @@
     border-radius: var(--r-lg);
     background: var(--bg-surface);
   }
+  .board { display: grid; gap: var(--sp-100); padding-block: var(--sp-100); border-block-start: var(--bw-hairline) solid var(--border-subtle); }
+  .board-name { margin: 0; font-size: var(--fs-075); font-weight: var(--fw-medium); }
+  .mapping { display: grid; gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
+  .mapping li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp-100); align-items: center; }
   .title { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }
   .quiet { margin: 0; color: var(--text-secondary); }
   p { margin: 0; }

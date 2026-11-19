@@ -248,6 +248,22 @@ func column(field view.Field, prefix string) (string, bool) {
 		if prefix == itemPrefix {
 			return satisfactionScore, true
 		}
+	case view.FieldHub:
+		if prefix == itemPrefix {
+			return entryHub, true
+		}
+	case view.FieldSprint:
+		if prefix == itemPrefix {
+			return entrySprint, true
+		}
+	case view.FieldRelease:
+		if prefix == itemPrefix {
+			return entryRelease, true
+		}
+	case view.FieldSlip:
+		if prefix == itemPrefix {
+			return entrySlip, true
+		}
 	}
 	return "", false
 }
@@ -268,6 +284,24 @@ const slaStanding = `(SELECT (ARRAY['MET', 'PAUSED', 'RUNNING', 'AT_RISK', 'BREA
 // (satisfaction_rating_item_uq).
 const satisfactionScore = `(SELECT sr.score::bigint FROM satisfaction_rating sr WHERE sr.tenant_id = wi.tenant_id ` +
 	`AND sr.item_id = wi.id)`
+
+// entryHub is the hub the entry's collection stands in.
+const entryHub = `(SELECT hc.parent_id FROM container hc WHERE hc.tenant_id = wi.tenant_id AND hc.id = wi.collection_id)`
+
+// entrySprint is the sprint the entry is in and not yet out of, one at most
+// (sprint_entry_one_open_idx).
+const entrySprint = `(SELECT se.sprint_id FROM sprint_entry se WHERE se.tenant_id = wi.tenant_id ` +
+	`AND se.entry_id = wi.id AND se.removed_at IS NULL AND se.outcome IS NULL)`
+
+// entryRelease is the release the entry ships with, one at most (release_entry_one_idx).
+const entryRelease = `(SELECT re.release_id FROM release_entry re WHERE re.tenant_id = wi.tenant_id ` +
+	`AND re.entry_id = wi.id)`
+
+// entrySlip is the days between the due date the entry's latest baseline kept and its own.
+const entrySlip = `(SELECT (wi.due_at::date - pbe.due_at::date)::bigint FROM plan_baseline_entry pbe ` +
+	`JOIN plan_baseline pb ON pb.tenant_id = pbe.tenant_id AND pb.id = pbe.baseline_id ` +
+	`WHERE pbe.tenant_id = wi.tenant_id AND pbe.entry_id = wi.id AND pbe.due_at IS NOT NULL ` +
+	`ORDER BY pb.taken_at DESC LIMIT 1)`
 
 // Derived reports a sort field whose value is not a column of the row, so the adapter reads the
 // cursor's key of it beside the page (DerivedKey).
@@ -474,6 +508,14 @@ var errCursorInvalid = shared.ErrValidation.
 func errFieldNotCompilable(field view.Field) error {
 	return shared.ErrInternal.
 		WithDetail("query.field_not_compilable").
+		WithParams(map[string]string{"field": field.Name})
+}
+
+// errNotAnswered refuses a key only the use case can answer - whose time, which plan - where the
+// use case did not: a door that does not ask it says so rather than guessing.
+func errNotAnswered(field view.Field) error {
+	return shared.ErrValidation.
+		WithDetail("query.key_not_here").
 		WithParams(map[string]string{"field": field.Name})
 }
 

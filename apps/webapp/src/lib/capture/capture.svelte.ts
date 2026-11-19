@@ -37,6 +37,13 @@ export interface Door {
   readonly importFrom?: { readonly source: ImportKind } | { readonly family: SourceFamily };
   /** Whether the field stays open after Enter, for a list typed one line after another. */
   readonly keepsOpen?: boolean;
+  /** The line already typed elsewhere - *Erstellen*'s line, the palette's words - to go on with. */
+  readonly text?: string;
+  /**
+   * Told the entries made through this door, once they exist: an inventory object's *Report an
+   * incident* names the object on them. The capture stays the one way an entry is made.
+   */
+  readonly oncreated?: (itemIds: readonly string[]) => void;
 }
 
 /** One entry, several lines as several entries, from a template, or a file imported. */

@@ -250,4 +250,9 @@
   .footer:empty,
   .footer:has(> :global(:only-child:empty)),
   .footer:not(:has(> :global(:not(.people)))):has(> .people:empty) { display: none; }
+  /* A thumb's target (§7, N20): a card's title link is as tall as a press. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    a.title { min-block-size: var(--layout-target); }
+  }
 </style>

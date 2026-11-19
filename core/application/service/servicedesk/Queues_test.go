@@ -63,6 +63,17 @@ func (p portalTypes) List(context.Context) ([]work.EntryType, error) {
 		Form: work.Form{Channels: []work.FormChannelRule{{Channel: work.ChannelPortal}}}}}, nil
 }
 
+// offering names the incident type on the desk and offers every type on the plain collection,
+// which names none and so is no desk.
+type offering struct{}
+
+func (offering) OfferedTaskTypes(_ context.Context, collection work.Container) ([]string, error) {
+	if collection.ID == queueDesk {
+		return []string{"incident"}, nil
+	}
+	return nil, nil
+}
+
 type queueViews struct {
 	viewrepo.SavedViews
 	queues []view.SavedView
@@ -103,7 +114,7 @@ func (k keptOut) Authorize(_ context.Context, _ appshared.ActorContext, request 
 func queueUseCase(views []view.SavedView, types portalTypes, counter *counting, authorizer workservice.Authorizer) ListHubQueues {
 	return ListHubQueues{
 		Desk:  Desk{Containers: queueTree{}, Authorizer: authorizer, UnitOfWork: inline{}, Audit: discard{}, Clock: at(monday)},
-		Views: queueViews{queues: views}, EntryTypes: types,
+		Views: queueViews{queues: views}, EntryTypes: types, Gate: offering{},
 		Query: workservice.QueryItems{
 			Containers: queueTree{}, Authorizer: authorizer, UnitOfWork: inline{}, Clock: at(monday), Counter: counter,
 		},
@@ -127,9 +138,13 @@ func queueView(id, scope shared.ID, key, name string, position int) view.SavedVi
 // of them are at risk or breached beside it.
 func TestAHubWithADeskAnswersTheStandardQueues(t *testing.T) {
 	counter := &counting{}
-	queues, err := queueUseCase(nil, portalTypes{}, counter, &gate{allow: true}).Execute(context.Background(), reader(), queueHub)
+	answer, err := queueUseCase(nil, portalTypes{}, counter, &gate{allow: true}).Execute(context.Background(), reader(), queueHub)
 	if err != nil {
 		t.Fatal(err)
+	}
+	queues := answer.Queues
+	if len(answer.Desks) != 1 || answer.Desks[0] != queueDesk {
+		t.Errorf("the hub's desks are not named: %v", answer.Desks)
 	}
 	want := []string{QueueMine, QueueUnassigned, QueueBreaching, QueueOpen}
 	if len(queues) != len(want) {
@@ -144,7 +159,8 @@ func TestAHubWithADeskAnswersTheStandardQueues(t *testing.T) {
 			t.Errorf("queue %s was not counted at the hub: %+v", queue.Key, search.Anchor)
 		}
 		desks := search.Spec.Filter.Nodes[0]
-		if desks.Field.Name != "collection_id" || len(desks.Values) != 2 {
+		// UC-SVC-03 check 10: the collection offering every type is no desk, as the client's actsAsDesk tells.
+		if desks.Field.Name != "collection_id" || len(desks.Values) != 1 || desks.Values[0].ID != queueDesk {
 			t.Errorf("queue %s was not narrowed to the desks: %+v", queue.Key, desks)
 		}
 		within := counter.within[i]
@@ -171,11 +187,12 @@ func TestAHubsQueueViewsAreCountedByTheirOwnFilter(t *testing.T) {
 		queueView(second, elsewhere, "theirs", "Theirs", 2),
 	}
 	counter := &counting{}
-	queues, err := queueUseCase(views, portalTypes{none: true}, counter, keptOut{hub: elsewhere}).
+	answer, err := queueUseCase(views, portalTypes{none: true}, counter, keptOut{hub: elsewhere}).
 		Execute(context.Background(), reader(), queueHub)
 	if err != nil {
 		t.Fatal(err)
 	}
+	queues := answer.Queues
 	if len(queues) != 2 || queues[0].ViewID != first || queues[0].Name != "Mine" || !queues[0].Counted ||
 		queues[1].ViewID != second || queues[1].Counted {
 		t.Fatalf("answered %+v", queues)
@@ -185,9 +202,13 @@ func TestAHubsQueueViewsAreCountedByTheirOwnFilter(t *testing.T) {
 	}
 
 	slow := &counting{slow: true}
-	queues, err = queueUseCase(views[:1], portalTypes{}, slow, &gate{allow: true}).Execute(context.Background(), reader(), queueHub)
+	answer, err = queueUseCase(views[:1], portalTypes{}, slow, &gate{allow: true}).Execute(context.Background(), reader(), queueHub)
+	queues = answer.Queues
 	if err != nil || len(queues) != 1 || queues[0].Counted {
 		t.Fatalf("a count past its budget answered %+v, %v", queues, err)
+	}
+	if len(answer.Desks) != 1 || answer.Desks[0] != queueDesk {
+		t.Errorf("a hub with queue views names its desks too: %v", answer.Desks)
 	}
 	out := HubQueueOutput(queues[0])
 	if out["count"] != nil || out["at_risk"] != nil || out["view_id"] != first.String() {
@@ -198,10 +219,10 @@ func TestAHubsQueueViewsAreCountedByTheirOwnFilter(t *testing.T) {
 // A hub without a desk and without queue views has no queues; a reader who may not read the hub
 // is told it does not exist.
 func TestAHubWithoutADeskHasNoQueues(t *testing.T) {
-	queues, err := queueUseCase(nil, portalTypes{none: true}, &counting{}, &gate{allow: true}).
+	answer, err := queueUseCase(nil, portalTypes{none: true}, &counting{}, &gate{allow: true}).
 		Execute(context.Background(), reader(), queueHub)
-	if err != nil || len(queues) != 0 {
-		t.Fatalf("answered %+v, %v", queues, err)
+	if err != nil || len(answer.Queues) != 0 || len(answer.Desks) != 0 {
+		t.Fatalf("answered %+v, %v", answer, err)
 	}
 	if _, err := queueUseCase(nil, portalTypes{}, &counting{}, &gate{allow: false}).
 		Execute(context.Background(), reader(), queueHub); !errors.Is(err, shared.ErrNotFound) {
@@ -224,5 +245,20 @@ func TestTheHubsQueuesThroughTheDoor(t *testing.T) {
 	if len(data) != 4 || data[0]["key"] != QueueMine || data[0]["view_id"] != nil || data[0]["name"] != nil ||
 		data[0]["count"] != 7 || data[0]["at_risk"] != 1 {
 		t.Fatalf("answered %v", data)
+	}
+	if desks, _ := out["desks"].([]string); len(desks) != 1 || desks[0] != queueDesk.String() {
+		t.Errorf("the desks are not answered: %v", out["desks"])
+	}
+}
+
+// UC-WRK-18 check 9. A collection that names no type it offers - it offers every type - is no desk, as the client
+// tells a desk: the search does not call its entries tickets.
+func TestACollectionOfferingEveryTypeIsNoDesk(t *testing.T) {
+	acting, err := DeskCollections{EntryTypes: portalTypes{}, Gate: offering{}}.Desks(context.Background(), reader(), []work.Container{
+		{ID: queueDesk, TenantID: tenantID, Type: work.ContainerCollection, ParentID: queueHub},
+		{ID: queuePlain, TenantID: tenantID, Type: work.ContainerCollection, ParentID: queueHub},
+	})
+	if err != nil || !acting[queueDesk] || acting[queuePlain] {
+		t.Fatalf("answered %v, %v", acting, err)
 	}
 }

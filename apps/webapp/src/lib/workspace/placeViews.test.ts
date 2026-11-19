@@ -14,13 +14,15 @@ const ids = (views: readonly { id: string }[]) => views.map((view) => view.id);
 test('a collection draws one view bar: list, board, timeline, time and its saved views (UC-WRK-36 check 9)', () => {
   const saved = [{ id: 'v1', name: 'My open ones' }];
   assert.deepEqual(ids(collectionViews({ id: 'c', modulesOn: ALL, saved })), ['list', 'board', 'timeline', 'time', 'view:v1']);
-  // Its former *Plan* is the *Timeline* view where the plan is on, the timeline layout where it is off.
+  // Its *Timeline* has one address, the plan's schedule where the plan is on and the timeline
+  // presentation where it is off - no layout of the collection's screen (§6.3, E-16).
   assert.equal(collectionViews({ id: 'c', modulesOn: ALL }).find((view) => view.id === 'timeline')?.href, '/collections/c/timeline');
-  assert.equal(collectionViews({ id: 'c', modulesOn: [] }).find((view) => view.id === 'timeline')?.href, '/collections/c?layout=timeline');
+  assert.equal(collectionViews({ id: 'c', modulesOn: [] }).find((view) => view.id === 'timeline')?.href, '/collections/c/timeline');
   assert.deepEqual(ids(collectionViews({ id: 'c', modulesOn: [], layouts: ['LIST_COLLAPSED'] })), ['list']);
   assert.equal(collectionViews({ id: 'c', modulesOn: ALL, saved }).at(-1)?.href, '/collections/c?view=v1');
 });
 
+// UC-PLN-02 check 10: what a collection runs decides its views, as it decides the hub plan's Sprints.
 test('a collection that runs sprints opens with the board and the sprint; a desk keeps to its lists', () => {
   assert.deepEqual(ids(collectionViews({ id: 'c', modulesOn: ALL, runsSprints: true })), ['board', 'sprint', 'backlog', 'list', 'timeline', 'time']);
   // The sprint view names the running sprint (the mockup's *Sprint 42*), the backlog a view of its own.
@@ -38,11 +40,12 @@ test('a collection that runs sprints opens with the board and the sprint; a desk
 });
 
 test('a hub tool with tabs of its own holds them in one bar; a hub itself has none', () => {
-  assert.deepEqual(ids(toolViews('h', 'plan')), ['schedule', 'table', 'dependencies', 'releases', 'sprints']);
+  assert.deepEqual(ids(toolViews('h', 'plan')), ['schedule', 'table', 'dependencies', 'releases']);
+  assert.deepEqual(ids(toolViews('h', 'plan', { runsSprints: true })), ['schedule', 'table', 'dependencies', 'releases', 'sprints']);
   assert.deepEqual(ids(toolViews('h', 'time')), ['actuals', 'workload']);
   assert.deepEqual(ids(toolViews('h', 'time', { mayCost: true })), ['actuals', 'workload', 'budget']);
   assert.deepEqual(ids(toolViews('h', 'goals')), ['goals', 'dashboards']);
-  assert.deepEqual(toolViews('h', 'plan').map((view) => view.href), ['/hubs/h/plan', '/hubs/h/plan/table', '/hubs/h/plan/dependencies', '/hubs/h/plan/releases', '/hubs/h/plan/sprints']);
+  assert.deepEqual(toolViews('h', 'plan', { runsSprints: true }).map((view) => view.href), ['/hubs/h/plan', '/hubs/h/plan/table', '/hubs/h/plan/dependencies', '/hubs/h/plan/releases', '/hubs/h/plan/sprints']);
   assert.deepEqual(ids(toolViews('h', 'overview')), []);
 });
 

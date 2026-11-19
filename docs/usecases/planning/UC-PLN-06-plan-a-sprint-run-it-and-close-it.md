@@ -46,9 +46,13 @@ four entries are done; the lead closes the sprint and carries the two open ones 
    unchanged.
 6. A sprint stays in its workspace: the workspace next door neither reads nor deletes it, and its
    memberships are in the workspace's archive.
-7. The sprint screen of a collection shows the running and planned sprints with their goal, the
-   backlog beside the selected sprint, and starts and closes a sprint with the choice where the
-   unfinished entries go.
+7. The sprint screen of a collection shows the running and planned sprints in one bar with their
+   goal, the days left, the points done and a small burndown, the sprint's columns - the board's,
+   by the workflow's statuses - each with its points, on a phone one column under a strip of them,
+   and closes a sprint with the choice where the unfinished entries go. The backlog is a tab of its
+   own rather than a column of the sprint: the running sprint folded, the planned sprint with its
+   start, and the backlog as a ranking carried into the planned sprint by mouse or by keyboard,
+   with a line to type a new entry (E-22).
 8. REST, MCP and hubctl plan, change, start, close and read sprints alike.
 
 ## Where it ends

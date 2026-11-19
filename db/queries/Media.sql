@@ -101,7 +101,11 @@ FROM (
     -- A board's pictures and files, trashed boards included: they may come back.
     + (SELECT count(*) FROM whiteboard_media b WHERE b.media_id = o.id)
     -- A page's pictures and files, trashed pages included, for the same reason.
-    + (SELECT count(*) FROM page_media g WHERE g.media_id = o.id) AS total
+    + (SELECT count(*) FROM page_media g WHERE g.media_id = o.id)
+    -- An inventory object's files, until the object goes.
+    + (SELECT count(*) FROM cmdb_ci_media c WHERE c.media_id = o.id)
+    -- A file's earlier version is kept while the file lives (UC-MED-06).
+    + (SELECT count(*) FROM media_version v WHERE v.earlier_media_id = o.id) AS total
   FROM media_object o
   WHERE o.deleted_at IS NULL
 ) c
@@ -169,6 +173,14 @@ FROM page_media g JOIN page p ON p.tenant_id = g.tenant_id AND p.id = g.page_id
 WHERE g.media_id = sqlc.arg('media_id')::uuid AND p.deleted_at IS NULL
 LIMIT 50;
 
+-- name: ListMediaReferencingCis :many
+-- The hubs of the inventory objects that hold an object, for GetMedia's authorisation: whoever may
+-- read one of those hubs may read the object, as they read the inventory object itself.
+SELECT DISTINCT c.hub_id
+FROM cmdb_ci_media m JOIN cmdb_ci c ON c.tenant_id = m.tenant_id AND c.id = m.ci_id
+WHERE m.media_id = sqlc.arg('media_id')::uuid
+LIMIT 50;
+
 -- name: MediaServesAvatar :one
 -- Whether somebody shows the object as their picture, for GetMedia's authorisation: a picture is
 -- read by every member, as the name beside it is.
@@ -211,6 +223,102 @@ SELECT m.id, m.tenant_id, m.storage_key, m.file_name, m.mime_type, m.byte_size, 
 FROM item_attachment a
 JOIN media_object m ON m.id = a.media_id
 WHERE a.item_id = sqlc.arg('item_id')::uuid
+  AND (
+    sqlc.narg('cursor_created_at')::timestamptz IS NULL
+    OR (m.created_at, m.id) > (sqlc.narg('cursor_created_at')::timestamptz, sqlc.narg('cursor_id')::uuid)
+  )
+ORDER BY m.created_at, m.id
+LIMIT sqlc.arg('page_size');
+
+-- name: FindDocumentServer :one
+-- The workspace's document server; no row is none (UC-MED-06).
+SELECT kind, url FROM document_server WHERE tenant_id = current_tenant_id();
+
+-- name: UpsertDocumentServer :exec
+INSERT INTO document_server (tenant_id, kind, url, set_by, updated_at)
+VALUES (current_tenant_id(), sqlc.arg('kind'), sqlc.arg('url'), sqlc.narg('set_by'), sqlc.arg('updated_at'))
+ON CONFLICT (tenant_id) DO UPDATE
+  SET kind = excluded.kind, url = excluded.url, set_by = excluded.set_by, updated_at = excluded.updated_at;
+
+-- name: DeleteDocumentServer :execrows
+DELETE FROM document_server WHERE tenant_id = current_tenant_id();
+
+-- name: FindMediaLock :one
+-- The lock a document server holds on a file, expired or not: the domain decides whether it holds.
+SELECT lock_id, expires_at FROM media_lock WHERE media_id = sqlc.arg('media_id');
+
+-- name: UpsertMediaLock :exec
+INSERT INTO media_lock (tenant_id, media_id, lock_id, expires_at)
+VALUES (current_tenant_id(), sqlc.arg('media_id'), sqlc.arg('lock_id'), sqlc.arg('expires_at'))
+ON CONFLICT (tenant_id, media_id) DO UPDATE
+  SET lock_id = excluded.lock_id, expires_at = excluded.expires_at;
+
+-- name: DeleteMediaLock :execrows
+DELETE FROM media_lock WHERE media_id = sqlc.arg('media_id');
+
+-- name: LockMediaObjectForSave :one
+-- A save's first statement: the row is held until the transaction ends, so two saves of one file
+-- number their versions one after the other.
+SELECT id FROM media_object WHERE id = sqlc.arg('id') AND deleted_at IS NULL FOR UPDATE;
+
+-- name: NextMediaVersionNumber :one
+SELECT COALESCE(max(number), 0)::int + 1 AS next FROM media_version WHERE media_id = sqlc.arg('media_id');
+
+-- name: InsertMediaVersion :exec
+INSERT INTO media_version (tenant_id, media_id, number, earlier_media_id, saved_by, saved_at)
+VALUES (current_tenant_id(), sqlc.arg('media_id'), sqlc.arg('number'), sqlc.arg('earlier_media_id'),
+        sqlc.narg('saved_by'), sqlc.arg('saved_at'));
+
+-- name: ReplaceMediaContent :execrows
+-- A save's last write: the file keeps its id and takes the new bytes; the bytes it had are the
+-- earlier version's object, written before this in the same transaction.
+UPDATE media_object SET storage_key = sqlc.arg('storage_key'), mime_type = sqlc.arg('mime_type'),
+  byte_size = sqlc.arg('byte_size')
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND status = 'READY';
+
+-- name: InsertReadyMediaObject :exec
+-- An earlier version's object: the bytes the file had, READY because they were judged when they
+-- arrived.
+INSERT INTO media_object (
+  id, tenant_id, storage_key, file_name, mime_type, byte_size, usage, status,
+  ref_count, created_by, created_at
+) VALUES (
+  sqlc.arg('id'), current_tenant_id(), sqlc.arg('storage_key'), sqlc.narg('file_name'),
+  sqlc.arg('mime_type'), sqlc.arg('byte_size'), sqlc.arg('usage'), 'READY',
+  1, sqlc.narg('created_by'), sqlc.arg('created_at')
+);
+
+-- name: ListMediaVersions :many
+SELECT number, earlier_media_id, saved_by, saved_at FROM media_version
+WHERE media_id = sqlc.arg('media_id') ORDER BY number DESC LIMIT 100;
+
+-- name: InsertCiMedia :execrows
+-- ON CONFLICT DO NOTHING, for the reason InsertItemAttachment gives: zero rows is how the caller
+-- knows not to raise the reference count twice.
+INSERT INTO cmdb_ci_media (tenant_id, ci_id, media_id)
+VALUES (current_tenant_id(), sqlc.arg('ci_id'), sqlc.arg('media_id'))
+ON CONFLICT DO NOTHING;
+
+-- name: DeleteCiMedia :execrows
+DELETE FROM cmdb_ci_media
+WHERE ci_id = sqlc.arg('ci_id')::uuid AND media_id = sqlc.arg('media_id')::uuid;
+
+-- name: ListCiMediaIDs :many
+SELECT media_id FROM cmdb_ci_media
+WHERE ci_id = sqlc.arg('ci_id')::uuid
+ORDER BY media_id;
+
+-- name: CountCiMedia :one
+SELECT count(*)::int AS total FROM cmdb_ci_media WHERE ci_id = sqlc.arg('ci_id')::uuid;
+
+-- name: ListCiMedia :many
+-- One page of an object's files as media objects, oldest upload first, keyed as
+-- ListItemAttachments is (api-guidelines.md §4).
+SELECT m.id, m.tenant_id, m.storage_key, m.file_name, m.mime_type, m.byte_size, m.checksum,
+       m.usage, m.status, m.ref_count, m.created_by, m.created_at, m.deleted_at
+FROM cmdb_ci_media a
+JOIN media_object m ON m.id = a.media_id
+WHERE a.ci_id = sqlc.arg('ci_id')::uuid
   AND (
     sqlc.narg('cursor_created_at')::timestamptz IS NULL
     OR (m.created_at, m.id) > (sqlc.narg('cursor_created_at')::timestamptz, sqlc.narg('cursor_id')::uuid)

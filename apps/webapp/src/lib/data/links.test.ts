@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import type { EntryLink, EntryLinks, LinkType, ReferenceTarget } from '@hubtask/sync-engine';
 
 import {
-  dependenciesAmong, drawableTypes, groupLinks, inserted, referenceText, referencesIn, sideName, targetLabel,
+  dependenciesAmong, drawableTypes, groupLinks, inserted, referenceState, referenceText, referencesIn, sideName, targetLabel,
 } from './links.ts';
 
 const t = (code: string) => `<${code}>`;
@@ -113,4 +113,11 @@ test('a reference out of sight reads as nothing - never a title (check 4)', () =
 test('a whiteboard drawn in place is a live view, as the server reads it (reference.Kind.Viewable)', () => {
   const id = '00000000-0000-0000-0000-0000000000b1';
   assert.deepEqual(referencesIn(`![](hubtask:whiteboard/${id})`), [{ reference: { kind: 'WHITEBOARD', id }, strength: 'EMBED' }]);
+});
+
+test('a linked entry reads its status by its workflow\'s name, else its category, else done or to do (§6.9 links)', () => {
+  assert.deepEqual(referenceState({ completed: false, status_name: 'In review', status_category: 'IN_PROGRESS' }, t), { label: 'In review', state: 'progress' });
+  assert.deepEqual(referenceState({ completed: false, status_name: null, status_category: 'BACKLOG' }, t), { label: '<workflows.category.backlog>', state: 'todo' });
+  assert.deepEqual(referenceState({ completed: true }, t), { label: '<workflows.category.done>', state: 'done' });
+  assert.deepEqual(referenceState({ completed: false, status_category: null }, t), { label: '<workflows.category.todo>', state: 'todo' });
 });

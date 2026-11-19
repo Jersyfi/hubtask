@@ -62,6 +62,12 @@ type SearchItems struct {
 	Clock clock.Clock
 	// Gate marks what each entry's collection hides of it.
 	Gate EntryGate
+	// Groups, Time and Critical answer `my-groups`/`members("…")`, `time.logged` and
+	// `plan.critical` as QueryItems does; a search of the whole workspace has no plan, and no
+	// collections to ask the time module about, so it refuses the last two.
+	Groups   GroupPeople
+	Time     TimeReach
+	Critical CriticalPath
 }
 
 // QueryMeaning turns what somebody typed into a vector, or says it cannot.
@@ -122,7 +128,11 @@ func (h SearchItems) Execute(
 	// One grammar read twice is one *resolution* twice: `@me` and the date anchors are values only
 	// the server knows, and a placeholder that reaches the compiler is a defect rather than a bad
 	// request.
-	if filter, err = resolveFilter(h.Clock, actor, filter, "/filter"); err != nil {
+	groups, err := askGroups(ctx, actor, h.Groups, filter)
+	if err != nil {
+		return repository.ItemHitPage{}, err
+	}
+	if filter, err = resolveFilter(h.Clock, actor, filter, "/filter", groups); err != nil {
 		return repository.ItemHitPage{}, err
 	}
 
@@ -150,6 +160,15 @@ func (h SearchItems) Execute(
 	reach, err := h.reach(ctx, actor, request.ContainerID)
 	if err != nil {
 		return repository.ItemHitPage{}, err
+	}
+	if needs := view.NeedsOf(request.Filter); needs.Time || needs.Critical {
+		if reach.anchor.Kind != repository.AnchorHub && reach.anchor.Kind != repository.AnchorCollection {
+			return repository.ItemHitPage{}, shared.ErrValidation.WithDetail("query.key_needs_place")
+		}
+		asker := QueryItems{UnitOfWork: h.UnitOfWork, Containers: h.Containers, Time: h.Time, Critical: h.Critical}
+		if request.Filter, err = asker.askedKeys(ctx, actor, request.Filter, reach.anchor, reach.container); err != nil {
+			return repository.ItemHitPage{}, err
+		}
 	}
 
 	// The query is embedded before the transaction opens, for the reason every provider call in
@@ -261,6 +280,8 @@ type scopeReach struct {
 	anchor     repository.Anchor
 	restrictTo []shared.ID
 	narrow     bool
+	// container is the collection the search is anchored to, for the time module's question.
+	container domain.Container
 }
 
 // reach asks the permission question in the shape the scope makes it.
@@ -327,6 +348,7 @@ func (h SearchItems) reach(
 			Kind: repository.AnchorCollection, CollectionID: container.ID, IncludeDescendants: true,
 		},
 		restrictTo: reached.Shared,
+		container:  container,
 	}, nil
 }
 
@@ -414,6 +436,13 @@ func (h SearchItems) Descriptor() usecase.Descriptor {
 					"is refused, because \"everything\" is not a question this API answers.",
 			},
 			{
+				Name: "query", Kind: usecase.KindString,
+				Description: "The search as one Hubtask query instead of q, filter and sort: free " +
+					"words and phrases are ranked, every field: value narrows - passkey who: me " +
+					"is: open. Either spelling; GET /query/keys lists the keys. At most 4000 " +
+					"characters; refused beside q, filter or sort.",
+			},
+			{
 				Name: "container_id", Kind: usecase.KindID,
 				Description: "The hub or collection to search in. Omitted searches everywhere the " +
 					"caller may see.",
@@ -488,7 +517,7 @@ func (h SearchItems) invoke(
 		return nil, err
 	}
 
-	page, err := h.Execute(ctx, actor, SearchItemsQuery{
+	search := SearchItemsQuery{
 		Words:           in.String("q"),
 		Filter:          in["filter"],
 		Sort:            in["sort"],
@@ -499,7 +528,25 @@ func (h SearchItems) invoke(
 		IncludeTrashed:  in.Bool("include_trashed"),
 		Cursor:          in.String("cursor"),
 		Size:            in.Int("size"),
-	})
+	}
+	// The query as text: its free words are ranked, the rest narrows (ADR-0102).
+	if in.Present("query") {
+		if in.Present("q") {
+			return nil, shared.ErrValidation.WithDetail("query.line_with_filter").
+				WithFields(shared.FieldError{Path: "/query", Code: "query.line_with_filter"})
+		}
+		line, err := queryLineOf(in, "query", false)
+		if err != nil {
+			return nil, err
+		}
+		search.Words, search.Filter, search.Sort = line.words, line.filter, nil
+		if line.sort != nil {
+			search.Sort = line.sort
+		}
+		search.IncludeArchived = search.IncludeArchived || line.archived
+		search.IncludeTrashed = search.IncludeTrashed || line.trashed
+	}
+	page, err := h.Execute(ctx, actor, search)
 	if err != nil {
 		return nil, err
 	}

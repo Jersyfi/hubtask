@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { Container, WorkItem } from '@hubtask/sync-engine';
 
-import { bandsOf, deskAnswerQuery, greetingOf, isDueByTonight, isListFigure, isProjectFigure, nextStepQuery, nearestFirst, productBandsOf, runningDue, sprintDaysLeft, timeTodayOf, todayRowCountOf, heldActRows } from './today.ts';
+import { MINE_QUERY, ROWS_PER_COLUMN, TODAY_CARDS, TODAY_TILES, arrangeSections, breachedCount, capped, cardsOf, dayRows, hiddenSections, movedSection, timedCount, bandsOf, deskAnswerQuery, greetingOf, isDueByTonight, isListFigure, isProjectFigure, nextStepQuery, nearestFirst, productBandsOf, runningDue, sprintDaysLeft, timeTodayOf, todayRowCountOf, heldActRows } from './today.ts';
 
 const BERLIN = 'Europe/Berlin';
 const AUCKLAND = 'Pacific/Auckland';
@@ -56,6 +56,16 @@ test('the bands keep the server\'s order and leave out the entries of a list', (
   assert.deepEqual(bands.earlier.map((each) => each.id), ['late', 'morning'], 'what is past is earlier, whenever it was due');
   assert.deepEqual(bands.today.map((each) => each.id), ['tonight']);
   assert.deepEqual(bands.later.map((each) => each.id), ['next']);
+});
+
+test('what is on the reader counts every open entry assigned to them, with a date or without', () => {
+  const nodes = JSON.stringify(MINE_QUERY.filter);
+  assert.ok(nodes.includes('"assignee_id"') && nodes.includes('"is_completed"'), 'mine and open');
+  assert.ok(!nodes.includes('due_at'), 'an undated entry is on the reader too ("0 on you", concept §10)');
+  const undated = item({ id: 'undated' });
+  const bands = bandsOf([item({ id: 'late', due_at: '2026-10-22T08:00:00Z' }), undated], BERLIN, NOW, () => false);
+  assert.deepEqual(bands.later.map((each) => each.id), ['undated'], 'an entry without a date waits under upcoming');
+  assert.equal(bands.earlier.length + bands.today.length + bands.later.length, 2);
 });
 
 test('a list counts what is open, a project its progress, and nothing else is either', () => {
@@ -179,4 +189,56 @@ test('Needs your answer merges the hubs by the moment each entry is due', () => 
   const rows = [{ id: 'a1' }, { id: 'a2' }, { id: 'b1' }, { id: 'b2' }];
   assert.deepEqual(nearestFirst(rows, { a1: 30, a2: 40, b1: 10 }).map((row) => row.id), ['b1', 'a1', 'a2', 'b2']);
   assert.deepEqual(nearestFirst(rows, {}).map((row) => row.id), ['a1', 'a2', 'b1', 'b2']);
+});
+
+test('a card stands only where the person\'s modules give it; the day\'s two always', () => {
+  assert.deepEqual(cardsOf(undefined), ['OVERDUE', 'DUE_TODAY']);
+  assert.deepEqual(cardsOf([]), ['OVERDUE', 'DUE_TODAY']);
+  assert.deepEqual(cardsOf(['TIME']), ['OVERDUE', 'DUE_TODAY', 'TIME']);
+  assert.deepEqual(cardsOf(['SERVICE_DESK']), ['OVERDUE', 'DUE_TODAY', 'REPLY', 'APPROVALS']);
+  assert.deepEqual(cardsOf(['KNOWLEDGE']), ['OVERDUE', 'DUE_TODAY', 'APPROVALS']);
+  assert.deepEqual(cardsOf(['AGENTS', 'TIME', 'SERVICE_DESK']), ['OVERDUE', 'DUE_TODAY', 'REPLY', 'TIME', 'APPROVALS']);
+});
+
+test('Abschnitte orders the sections as the person gave them, the rest in the product\'s order after, the hidden left out', () => {
+  const cards = ['OVERDUE', 'DUE_TODAY', 'REPLY', 'TIME', 'APPROVALS'] as const;
+  assert.deepEqual(arrangeSections(cards, undefined, undefined), { shown: [...cards], hidden: [] });
+  assert.deepEqual(arrangeSections(cards, ['TIME', 'OVERDUE'], ['REPLY']), { shown: ['TIME', 'OVERDUE', 'DUE_TODAY', 'APPROVALS'], hidden: ['REPLY'] });
+  // A section stored but not given here (its module off) stays absent, hidden or not (P-17).
+  assert.deepEqual(arrangeSections(['OVERDUE', 'DUE_TODAY'], ['TIME', 'DUE_TODAY'], ['TIME']), { shown: ['DUE_TODAY', 'OVERDUE'], hidden: [] });
+});
+
+test('moving a section writes the whole order, and hiding it the whole hidden list', () => {
+  const all = ['OVERDUE', 'DUE_TODAY', 'TIME'] as const;
+  assert.deepEqual(movedSection(all, undefined, 'TIME', -1), ['OVERDUE', 'TIME', 'DUE_TODAY']);
+  assert.deepEqual(movedSection(all, ['TIME', 'OVERDUE'], 'OVERDUE', -1), ['OVERDUE', 'TIME', 'DUE_TODAY']);
+  // At the edge nothing moves.
+  assert.deepEqual(movedSection(all, undefined, 'OVERDUE', -1), ['OVERDUE', 'DUE_TODAY', 'TIME']);
+  assert.deepEqual(movedSection(all, undefined, 'TIME', 1), ['OVERDUE', 'DUE_TODAY', 'TIME']);
+  assert.deepEqual(hiddenSections(['INBOX'], 'RECENT', true), ['INBOX', 'RECENT']);
+  assert.deepEqual(hiddenSections(['INBOX', 'RECENT'], 'INBOX', false), ['RECENT']);
+});
+
+test('a column draws at most eight rows and says how many it held back', () => {
+  const rows = Array.from({ length: 11 }, (_, at) => at);
+  assert.deepEqual(capped(rows), { shown: rows.slice(0, 8), rest: 3 });
+  assert.deepEqual(capped(rows.slice(0, 5)), { shown: rows.slice(0, 5), rest: 0 });
+  assert.equal(ROWS_PER_COLUMN, 8);
+});
+
+test('the day\'s rows fill eight across its bands, the soonest first', () => {
+  const rows = (prefix: string, n: number) => Array.from({ length: n }, (_, at) => item({ id: `${prefix}${at}` }));
+  const out = dayRows({ earlier: rows('e', 3), today: rows('t', 4), later: rows('l', 5) });
+  assert.deepEqual([out.earlier.length, out.today.length, out.later.length], [3, 4, 1]);
+  assert.equal(out.rest, 4);
+});
+
+test('the due-today card counts the timed entries apart, and the reply card the breached', () => {
+  assert.equal(timedCount([item({ due_at: '2026-10-23T14:00:00Z' }), item({ due_at: '2026-10-23T00:00:00Z', due_date_only: true }), item()]), 1);
+  assert.equal(breachedCount(['a', 'b', 'c'], { a: NOW - 1, b: NOW + 60_000 }, NOW), 1);
+});
+
+test('nothing on Today keeps points, streaks or rankings (UC-WRK-29)', () => {
+  // The sections are the person's figures of the day, never a score: no key names one.
+  for (const key of [...TODAY_CARDS, ...TODAY_TILES]) assert.doesNotMatch(key, /POINT|STREAK|RANK|SCORE|LEADER/u);
 });

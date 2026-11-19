@@ -100,3 +100,29 @@ test('the key is a column of every list with levels, shown first where the works
   assert.deepEqual(defaultArrangement({ ...project, showsTypes: true }).fields, ['key', 'due', 'people', 'labels', 'progress']);
   assert.deepEqual(toggleField(['due'], 'key'), ['key', 'due']);
 });
+
+// UC-WRK-45 check 1, E-21: a desk's own list carries the queue's columns, and the custom fields in
+// force are offered as `cf.<key>` columns after the collection's own.
+test('a desk collection offers and shows requester, priority and SLA; custom fields follow', () => {
+  const desk: ListOffer = {
+    isSimple: false, isLevelled: false, offersAmount: false, hasColumns: true,
+    carriesDue: true, carriesPeople: true, carriesLabels: true, showsTypes: true, isDesk: true, customKeys: ['impact'],
+  };
+  assert.deepEqual(offeredFields(desk), ['key', 'type', 'requester', 'priority', 'sla', 'column', 'due', 'people', 'labels', 'cf.impact']);
+  assert.deepEqual(defaultArrangement(desk).fields, ['key', 'type', 'requester', 'priority', 'sla', 'people']);
+  assert.ok(!offeredFields({ ...desk, isDesk: false }).includes('sla'));
+});
+
+// UC-SVC-03 check 12, scene queue: a desk's own list is its queue - the key, type, requester,
+// priority, SLA and assignee, grouped by status where a workflow runs.
+test('a desk collection under a workflow opens grouped by status; status is offered only under one', () => {
+  const desk: ListOffer = {
+    isSimple: false, isLevelled: false, offersAmount: false, hasColumns: false,
+    carriesDue: true, carriesPeople: true, carriesLabels: true, showsTypes: true, isDesk: true, runsWorkflow: true,
+  };
+  assert.equal(defaultArrangement(desk).grouping, 'status');
+  assert.equal(defaultArrangement(desk).done, 'inline');
+  assert.equal(defaultArrangement({ ...desk, runsWorkflow: false }).grouping, 'none');
+  assert.ok(offeredGroupings({ ...desk, isDesk: false }).includes('status'));
+  assert.ok(!offeredGroupings({ ...desk, runsWorkflow: false }).includes('status'));
+});

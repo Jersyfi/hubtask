@@ -125,6 +125,47 @@ func TestAPagesPictureIsReadByThePagesReaders(t *testing.T) {
 	}
 }
 
+// UC-MED-06: whoever may write a page holding an office file may edit the file in the document
+// server - written in its hub and admitted by its restrictions -; a share, which only reads, a
+// credential without the write scope and a page in the trash do not.
+func TestAPagesFileIsWrittenByThePagesWriters(t *testing.T) {
+	f := newFixture()
+	ctx := context.Background()
+	reach := PageMediaReach{Space: f.space}
+	open := f.create(t, anna, hub, "", "Handbook", "")
+	secret := f.create(t, anna, private, "", "Notes", "")
+
+	if writes, err := reach.WritesAny(ctx, as(bert), []shared.ID{open.ID}); err != nil || !writes {
+		t.Fatalf("a writer of the hub: %v, %v", writes, err)
+	}
+	if _, err := (SharePage{Space: f.space}).Execute(ctx, as(anna), secret.ID, bert); err != nil {
+		t.Fatal(err)
+	}
+	if writes, _ := reach.WritesAny(ctx, as(bert), []shared.ID{secret.ID}); writes {
+		t.Fatal("a share let its reader edit the page's file")
+	}
+	reader := as(bert)
+	reader.Scopes = []string{pagesRead}
+	if writes, _ := reach.WritesAny(ctx, reader, []shared.ID{open.ID}); writes {
+		t.Fatal("a credential without the write scope edits the page's file")
+	}
+	if _, err := (RestrictPage{Space: f.space}).Execute(ctx, as(anna), RestrictPageCommand{PageID: open.ID, AccountIDs: []shared.ID{anna}}); err != nil {
+		t.Fatal(err)
+	}
+	if writes, _ := reach.WritesAny(ctx, as(bert), []shared.ID{open.ID}); writes {
+		t.Fatal("a restriction did not keep the file from somebody it does not name")
+	}
+	if writes, _ := reach.WritesAny(ctx, as(anna), []shared.ID{open.ID, secret.ID}); !writes {
+		t.Fatal("the writer the restriction names was refused")
+	}
+	if _, err := (TrashPage{Space: f.space}).Execute(ctx, as(anna), open.ID); err != nil {
+		t.Fatal(err)
+	}
+	if writes, _ := reach.WritesAny(ctx, as(anna), []shared.ID{open.ID}); writes {
+		t.Fatal("a page in the trash lets its file be edited")
+	}
+}
+
 // Attaching what a page already holds is a retry and answers as the first attach did, even on a
 // page that holds as many files as it may.
 func TestAttachingWhatAPageHoldsAgainIsARetry(t *testing.T) {

@@ -22,6 +22,8 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
+import { sharedChromium } from './browser.mjs';
+
 import { COLLECTION, ITEMS, JUMBLED, openSettings, signedIn, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
@@ -238,8 +240,7 @@ test('chromium: a mailbox connects through its provider and comes back connected
 // the head counts it, and the column counts it on every screen of the administration
 // (user-experience.md §7.10); a single failed read is said but not counted as an outage.
 test('chromium: a failing mailbox is said beside Check now and counted in the column', { timeout: 120_000 }, async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280, 900);
   const box = (id, address, failing, failure) => ({
     id, protocol: 'IMAP', address, host: 'imap.gmail.com', port: 993, username: address, folder: 'INBOX', done_folder: 'Hubtask',

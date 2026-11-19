@@ -32,6 +32,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
@@ -182,6 +183,20 @@ const (
 
 // Trigger is what starts a run, carrying the fields its own kind needs and no others.
 //
+// FiresOn reports whether an update that changed the fields sets the trigger off: always where it
+// is not narrowed, else when one of its fields is among them.
+func (t Trigger) FiresOn(changed []string) bool {
+	if len(t.ChangedFields) == 0 {
+		return true
+	}
+	for _, field := range t.ChangedFields {
+		if slices.Contains(changed, field) {
+			return true
+		}
+	}
+	return false
+}
+
 // One struct with a kind rather than six types, because that is the shape the `trigger` column has
 // always held and the shape the contract declares. What keeps it honest is that validation is per
 // kind and refuses a field belonging to another one: a trigger carrying a cron expression and an
@@ -247,9 +262,14 @@ type Rule struct {
 	RunAs      shared.ID
 	Trigger    Trigger
 	Conditions []Condition
-	Actions    []Action
-	Throttle   Throttle
-	OnError    OnError
+	// Entries is *for which entries* (UC-AUT-01/12): a query line, its names already identifiers, that
+	// narrows the entries the rule acts on before its conditions are asked. Empty is every entry
+	// the trigger reaches. It is read at each run as the run_as account, so it never widens what
+	// that account may read.
+	Entries  string
+	Actions  []Action
+	Throttle Throttle
+	OnError  OnError
 	// FailureCount is the run of failed runs. A run of them disables the rule by itself, and
 	// enabling it by hand clears the count.
 	FailureCount int
@@ -342,11 +362,13 @@ type NewRuleInput struct {
 	// Conditions are checked for their shape here and compiled by the application layer, which is
 	// the only side that may hold an evaluator.
 	Conditions []Condition
-	Actions    []Action
-	Throttle   Throttle
-	OnError    OnError
-	CreatedBy  shared.ID
-	Now        time.Time
+	// Entries is the query line *for which entries*; empty for every entry.
+	Entries   string
+	Actions   []Action
+	Throttle  Throttle
+	OnError   OnError
+	CreatedBy shared.ID
+	Now       time.Time
 
 	// Text brings the name to normal form C before it is bounded and stored (i18n-l10n.md §5);
 	// work.NewWorkItemInput says why it is handed in.
@@ -391,6 +413,10 @@ func NewRule(in NewRuleInput) (Rule, error) {
 	if err != nil {
 		return Rule{}, err
 	}
+	entries, err := ValidEntries(in.Entries, trigger.Kind)
+	if err != nil {
+		return Rule{}, err
+	}
 	actions, err := ValidActionShape(in.Actions)
 	if err != nil {
 		return Rule{}, err
@@ -408,10 +434,41 @@ func NewRule(in NewRuleInput) (Rule, error) {
 	return Rule{
 		ID: in.ID, TenantID: in.TenantID, Name: name, Key: in.Key, Scope: scope,
 		Enabled: false,
-		RunAs:   in.RunAs, Trigger: trigger, Conditions: conditions, Actions: actions,
+		RunAs:   in.RunAs, Trigger: trigger, Conditions: conditions, Entries: entries, Actions: actions,
 		Throttle: throttle, OnError: onError,
 		CreatedBy: in.CreatedBy, CreatedAt: now, UpdatedAt: now, Version: 1,
 	}, nil
+}
+
+// MaxEntriesLength bounds *for which entries*, as long as a dashboard's or a view's line may be.
+const MaxEntriesLength = 2000
+
+// ValidEntries checks *for which entries* (UC-AUT-01/12): one query line over entries, without an order,
+// on a trigger that is about an entry. The names in it are identifiers by now (ADR-0102): the
+// writer's client resolved them before sending.
+func ValidEntries(raw string, kind TriggerKind) (string, error) {
+	line := strings.TrimSpace(raw)
+	if line == "" {
+		return "", nil
+	}
+	if len([]rune(line)) > MaxEntriesLength {
+		return "", fieldError("/entries", "automation.entries_too_long")
+	}
+	switch kind {
+	case TriggerSchedule, TriggerInboundWebhook, TriggerJumbleEntry:
+		return "", fieldError("/entries", "automation.entries_without_entry")
+	}
+	q, err := view.ParseQuery(line, "/entries")
+	if err != nil {
+		return "", err
+	}
+	if len(q.Sort) > 0 {
+		return "", fieldError("/entries", "query.sort_not_here")
+	}
+	if _, err := q.EntryFilter("/entries"); err != nil {
+		return "", err
+	}
+	return line, nil
 }
 
 // RuleName checks a title somebody wrote, in normal form C (i18n-l10n.md §5).

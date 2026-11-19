@@ -95,3 +95,13 @@ test('a code the second catalogue lacks falls back to the source, and one it has
   const { [translated]: _dropped, ...lacking } = withoutNotes;
   assert.equal(patternFor(translated, [lacking, SOURCE]), SOURCE[translated]);
 });
+
+test('an entry’s counted details agree with their count in both languages', () => {
+  const german = JSON.parse(fs.readFileSync(path.join(LOCALES, 'de.json'), 'utf8')) as Record<string, string>;
+  assert.equal(format(SOURCE['app.item.reminders_count']!, { count: '1' }, 'en'), '1 reminder');
+  assert.equal(format(SOURCE['app.item.reminders_count']!, { count: '3' }, 'en'), '3 reminders');
+  assert.equal(format(german['app.item.reminders_count']!, { count: '1' }, 'de'), '1 Erinnerung');
+  assert.equal(format(german['app.item.reminders_count']!, { count: '2' }, 'de'), '2 Erinnerungen');
+  assert.equal(format(german['app.item.attachments_count']!, { count: '1' }, 'de'), '1 Anhang');
+  assert.equal(format(german['app.item.attachments_count']!, { count: '7' }, 'de'), '7 Anhänge');
+});

@@ -1,0 +1,65 @@
+{
+  "key": "goals_customer_okr",
+  "version": 1,
+  "document": {
+    "modules": {
+      "goals": {
+        "switch": "ON"
+      }
+    },
+    "goal_sets": {
+      "customer_okr": {
+        "span": "QUARTER",
+        "name": "{{year}} Q{{quarter}}",
+        "goals": [
+          {
+            "title": "Raise customer satisfaction",
+            "key_results": [
+              {
+                "title": "Satisfaction after a closed request",
+                "kind": "PERCENT",
+                "start": 72,
+                "target": 85,
+                "current": 72
+              },
+              {
+                "title": "Median first response",
+                "kind": "NUMBER",
+                "start": 8,
+                "target": 4,
+                "unit": "h",
+                "current": 8
+              },
+              {
+                "title": "Requests solved on first contact",
+                "kind": "PERCENT",
+                "start": 55,
+                "target": 70,
+                "current": 55
+              }
+            ]
+          },
+          {
+            "title": "Keep customers longer",
+            "key_results": [
+              {
+                "title": "Customers who renew",
+                "kind": "PERCENT",
+                "start": 80,
+                "target": 90,
+                "current": 80
+              },
+              {
+                "title": "Cancellations per month",
+                "kind": "NUMBER",
+                "start": 12,
+                "target": 6,
+                "current": 12
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

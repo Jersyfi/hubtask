@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -26,8 +26,7 @@ const SESSIONS = [
 
 for (const [width, isPhone] of [[375, true], [1280, false]]) {
   test(`chromium: ${width} px — the sessions table ${isPhone ? 'becomes list rows' : 'stays a table'}`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const context = await browser.newContext({ viewport: { width, height: 900 } });
     t.after(() => context.close());
     await context.route('**/api/v1/**', async (route) => {
@@ -70,8 +69,7 @@ for (const [width, isPhone] of [[375, true], [1280, false]]) {
 // phone (page-system §4.3, §4.4): a matrix read across its rows scrolls sideways inside its own
 // frame with the role column pinned, and the page itself never scrolls sideways.
 test('chromium: 375 px — who may do what scrolls inside its frame with the role pinned', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 375, height: 900 } });
   t.after(() => context.close());
   await context.route('**/api/v1/**', (route) => stub(route));

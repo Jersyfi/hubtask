@@ -65,9 +65,10 @@ const (
 	ViewListExpanded  ViewLayout = "LIST_EXPANDED"
 	ViewKanban        ViewLayout = "KANBAN"
 	ViewTimeline      ViewLayout = "TIMELINE"
+	ViewCalendar      ViewLayout = "CALENDAR"
 )
 
-var viewLayouts = [...]ViewLayout{ViewListCollapsed, ViewListExpanded, ViewKanban, ViewTimeline}
+var viewLayouts = [...]ViewLayout{ViewListCollapsed, ViewListExpanded, ViewKanban, ViewTimeline, ViewCalendar}
 
 // ViewLayouts is the declared set.
 func ViewLayouts() []ViewLayout { return viewLayouts[:] }

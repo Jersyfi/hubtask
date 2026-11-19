@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { MANIFEST, PAGE, signedIn, stub, unstubbedSoFar } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -74,8 +74,7 @@ async function onPlan(browser, notIncluded, extra = () => undefined) {
 }
 
 test('chromium: rules a plan leaves out rest, readable, with nothing to create or switch on', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await onPlan(browser, ['AUTOMATION_RULES']);
   t.after(() => context.close());
 
@@ -123,8 +122,7 @@ test('chromium: rules a plan leaves out rest, readable, with nothing to create o
 });
 
 test('chromium: resting rules behind a first page are not counted as if the first page were all of them', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await onPlan(browser, ['AUTOMATION_RULES']);
   t.after(() => context.close());
   // The contract puts the next page's cursor under `page`; a later route is asked first.
@@ -138,8 +136,7 @@ test('chromium: resting rules behind a first page are not counted as if the firs
 });
 
 test('chromium: included, the rules screen offers what it always did', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await onPlan(browser, ['WEBHOOKS']);
   t.after(() => context.close());
 
@@ -170,8 +167,7 @@ const SUBSCRIPTIONS = [
 ];
 
 test('chromium: webhooks a plan leaves out rest with their secrets; pausing and unsubscribing stay', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await onPlan(browser, ['WEBHOOKS'], (route, _request, path) => {
     if (path === '/integrations/webhooks') return route.fulfill({ json: SUBSCRIPTIONS });
     if (path === `/integrations/webhooks/${SUBSCRIPTIONS[0].id}/deliveries`) {
@@ -228,8 +224,7 @@ const TENANT = {
 };
 
 test('chromium: the workspace\'s own providers a plan leaves out sign nobody in, and nothing switches them on', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await onPlan(browser, ['OWN_SIGN_IN_PROVIDERS'], (route, _request, path) => {
     if (path === '/identity-providers') return route.fulfill({ json: [OWN, OWN_OFF] });
     if (path === '/tenant') return route.fulfill({ json: TENANT });

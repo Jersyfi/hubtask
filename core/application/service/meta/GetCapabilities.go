@@ -57,6 +57,9 @@ type Capabilities struct {
 	// database: a manifest that listed a field the grammar refuses would send a client to build a
 	// filter editor for a query that cannot run.
 	QueryFields []view.Field
+	// QueryKeys are the keys of the Hubtask query's field: value spelling (ADR-0102), the
+	// catalogue the parser reads, for the same reason.
+	QueryKeys []view.QueryKey
 	// ViewLayouts is the set a saved view's layout is validated against. The declaration
 	// is the whole of the server's involvement: a layout is stored, echoed back, and never
 	// consulted, which is what makes new frontend views possible without a backend change
@@ -539,6 +542,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		InstallationURL:           installationURLOf(g.Config),
 		ItemTypes:                 profiles,
 		QueryFields:               view.Fields(),
+		QueryKeys:                 view.QueryKeys(),
 		ViewLayouts:               view.Layouts(),
 		CompletionPolicies:        work.CompletionPolicies(),
 		AutoAssignStrategies:      work.AutoAssignStrategies(),
@@ -608,6 +612,9 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// one feature, one name, whichever of the two a client reads. It is also the honest
 			// scope: what a person loses is suggestions, not "AI".
 			"ai_suggestions": ai.Completion,
+			// Whether POST /query:ask can answer the caller (Q-6): a question in words beside the
+			// query is drawn only where it can, so without AI nothing of it appears (P-14).
+			"query_from_words": ai.Completion,
 			// Whether the caller's workspace can search by meaning (ADR-0050).
 			//
 			// Both halves, because either alone is not the feature. The store is read from the

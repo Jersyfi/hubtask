@@ -232,6 +232,48 @@ type Preferences struct {
 	ProductsSeen []string
 	// Nav is the sidebar's preferences, each list whole and each word empty for its default.
 	Nav NavPreferences
+	// Today is how *Today*'s cards and tiles are arranged, each list whole.
+	Today TodaySections
+}
+
+// TodaySections is how one person arranged *Today* (work-surface concept E-17): the cards and tiles
+// in their order, and those hidden. Empty is the product's own: its order, nothing hidden. A
+// section the person's roles or modules do not give stays absent whatever is stored (P-17).
+type TodaySections struct {
+	Order  []string
+	Hidden []string
+}
+
+// todaySectionKeys is the closed set, cards first: a section is a word, never free text.
+var todaySectionKeys = [...]string{"OVERDUE", "DUE_TODAY", "REPLY", "TIME", "APPROVALS", "COLLECTIONS", "NEWS", "INBOX", "RECENT"}
+
+// todaySectionsOf checks both lists: known keys only, upper case, each once in the order given -
+// so neither can grow past the set.
+func todaySectionsOf(raw TodaySections) (TodaySections, error) {
+	order, err := sectionKeysOf(raw.Order, "accounts.today_sections_invalid")
+	if err != nil {
+		return TodaySections{}, err
+	}
+	hidden, err := sectionKeysOf(raw.Hidden, "accounts.today_sections_hidden_invalid")
+	if err != nil {
+		return TodaySections{}, err
+	}
+	return TodaySections{Order: order, Hidden: hidden}, nil
+}
+
+func sectionKeysOf(raw []string, code string) ([]string, error) {
+	out := make([]string, 0, len(raw))
+	for _, value := range raw {
+		key := strings.ToUpper(strings.TrimSpace(value))
+		if key == "" || slices.Contains(out, key) {
+			continue
+		}
+		if !slices.Contains(todaySectionKeys[:], key) {
+			return nil, shared.ErrValidation.WithDetail(code).WithParams(map[string]string{"value": strings.TrimSpace(value)})
+		}
+		out = append(out, key)
+	}
+	return out, nil
 }
 
 // NavPreferences is how the sidebar is arranged for one person: the products' order and the ones
@@ -347,10 +389,15 @@ func (a Account) WithPreferences(p Preferences) (Account, error) {
 	if err != nil {
 		return Account{}, err
 	}
+	sections, err := todaySectionsOf(p.Today)
+	if err != nil {
+		return Account{}, err
+	}
 
 	a.Locale, a.TimeZone, a.WeekStart = locale, zone, weekStart
 	a.Celebrations, a.OnboardingCompletedAt, a.ProductsSeen = celebrations, completedAt, seen
 	a.Nav = nav
+	a.Today = sections
 	return a, nil
 }
 

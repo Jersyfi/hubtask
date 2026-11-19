@@ -80,6 +80,9 @@ type Desk struct {
 	// Visibility narrows the list to the hubs the caller may read (UC-FLW-02 check 9). Nil lists
 	// the workspace's workflows alone, so a build without it never shows a private hub's words.
 	Visibility Visibility
+	// Boards plans and writes what a change of scheme does to the boards it reaches
+	// (domain-model.md §3.5a); unwired, boards are left as they are.
+	Boards workservice.SchemeBoards
 }
 
 // GroupFinder finds one of the workspace's groups.
@@ -1134,32 +1137,49 @@ type SchemeChange struct {
 	ContainerID shared.ID
 	EntryType   string
 	WorkflowKey string
+	// Columns is the mapping the person chose for the boards reached, across boards; nil takes the
+	// proposal (work.SchemeBoards.Plan).
+	Columns []domain.ColumnStatus
+}
+
+// schemeOutcome is what a change of the scheme does: the moves of the statuses and, per board
+// reached, what happens to it.
+type schemeOutcome struct {
+	moves  []domain.StatusMove
+	boards []boardOutcome
+}
+
+// boardOutcome is one board a change of scheme reaches, and the shape its tasks run after.
+type boardOutcome struct {
+	collectionID shared.ID
+	change       domain.BoardChange
+	will         *domain.WorkflowShape
 }
 
 // schemePlan answers what a change of the scheme does.
-func (d Desk) schemePlan(ctx context.Context, change SchemeChange) ([]domain.WorkflowScheme, []domain.StatusMove, domain.Container, error) {
+func (d Desk) schemePlan(ctx context.Context, change SchemeChange) (schemeOutcome, error) {
 	container, err := d.Containers.Find(ctx, change.ContainerID)
 	if err != nil {
-		return nil, nil, domain.Container{}, err
+		return schemeOutcome{}, err
 	}
 	set, err := d.read(ctx)
 	if err != nil {
-		return nil, nil, domain.Container{}, err
+		return schemeOutcome{}, err
 	}
 	if change.WorkflowKey != "" {
 		chosen, found := set.Find(change.WorkflowKey)
 		if !found {
-			return nil, nil, domain.Container{}, shared.ErrNotFound.WithDetail("workflows.not_found")
+			return schemeOutcome{}, shared.ErrNotFound.WithDetail("workflows.not_found")
 		}
 		// A hub's own workflow runs in that hub and its collections alone (UC-FLW-02 check 9).
 		if !chosen.UsableIn(hubOfContainer(container)) {
-			return nil, nil, domain.Container{}, shared.ErrConflict.WithDetail("workflows.hub_bound").
+			return schemeOutcome{}, shared.ErrConflict.WithDetail("workflows.hub_bound").
 				WithFields(shared.FieldError{Path: "/workflow", Code: "workflows.hub_bound"})
 		}
 	}
 	before, err := d.Workflows.Schemes(ctx)
 	if err != nil {
-		return nil, nil, domain.Container{}, err
+		return schemeOutcome{}, err
 	}
 	var after []domain.WorkflowScheme
 	for _, scheme := range before {
@@ -1172,10 +1192,102 @@ func (d Desk) schemePlan(ctx context.Context, change SchemeChange) ([]domain.Wor
 	}
 	collections, err := d.collectionsUnder(ctx, container)
 	if err != nil {
-		return nil, nil, domain.Container{}, err
+		return schemeOutcome{}, err
 	}
 	moves, _, err := d.plan(ctx, collections, before, after, set, set, nil)
-	return after, moves, container, err
+	if err != nil {
+		return schemeOutcome{}, err
+	}
+	boards, err := d.boardsReached(ctx, collections, before, after, set, change.Columns)
+	return schemeOutcome{moves: moves, boards: boards}, err
+}
+
+// boardsReached plans each board that shows another union of workflows after the change - the
+// workflows of every entry type on it (domain.BoardShape), so a change for one type reaches the
+// boards its type stands on; a row of the mapping chosen that names no column of these boards is
+// refused as buckets.not_found.
+func (d Desk) boardsReached(
+	ctx context.Context, collections []domain.Container, before, after []domain.WorkflowScheme,
+	set domain.Workflows, chosen []domain.ColumnStatus,
+) ([]boardOutcome, error) {
+	if !d.Boards.Wired() {
+		return nil, nil
+	}
+	types, err := workservice.BoardTypesOf(ctx, d.Boards.Types, append(append([]domain.WorkflowScheme{}, before...), after...))
+	if err != nil {
+		return nil, err
+	}
+	shapeOf := func(schemes []domain.WorkflowScheme, collection domain.Container) (string, *domain.WorkflowShape) {
+		shape, key := set.OnBoard(schemes, collection.ID, collection.ParentID, types)
+		return key, shape
+	}
+	used := map[shared.ID]bool{}
+	var out []boardOutcome
+	for _, collection := range collections {
+		wasKey, was := shapeOf(before, collection)
+		willKey, will := shapeOf(after, collection)
+		if wasKey == willKey {
+			continue
+		}
+		change, err := d.Boards.Plan(ctx, collection.ID, was, will, chosen)
+		if err != nil {
+			return nil, err
+		}
+		if len(change.Board.Columns) == 0 {
+			continue
+		}
+		for _, column := range change.Board.Columns {
+			used[column.ID] = true
+		}
+		out = append(out, boardOutcome{collectionID: collection.ID, change: change, will: will})
+	}
+	for _, row := range chosen {
+		if !used[row.BucketID] {
+			return nil, shared.ErrNotFound.WithDetail("buckets.not_found").
+				WithParams(map[string]string{"bucket_id": row.BucketID.String()})
+		}
+	}
+	return out, nil
+}
+
+// BoardsOutput is the boards a change of scheme reaches, as the contract spells them (schema
+// BoardPreview).
+func BoardsOutput(boards []boardOutcome) []usecase.Output {
+	out := make([]usecase.Output, 0, len(boards))
+	for _, board := range boards {
+		change := board.change
+		columns := make([]usecase.Output, 0, len(change.Board.Columns))
+		for _, column := range change.Board.Columns {
+			statuses := change.Board.StatusesOf(column.ID)
+			completes := column.ID == change.DoneColumn
+			if board.will != nil {
+				completes = domain.ColumnCompletes(statuses, *board.will)
+			}
+			columns = append(columns, usecase.Output{
+				"bucket_id": column.ID.String(), "name": column.Name, "is_done_bucket": column.IsDoneBucket,
+				"statuses": nonNil(statuses), "completes": completes,
+			})
+		}
+		unmapped := make([]usecase.Output, 0, len(change.Unmapped))
+		for _, suggestion := range change.Unmapped {
+			unmapped = append(unmapped, usecase.Output{
+				"status": suggestion.Status, "suggested_bucket_id": idOrNil(suggestion.BucketID),
+			})
+		}
+		out = append(out, usecase.Output{
+			"collection_id": board.collectionID.String(), "level_before": string(change.Before),
+			"level_after": string(change.After), "done_bucket_id": idOrNil(change.DoneColumn),
+			"columns": columns, "unmapped": unmapped, "moved": change.Moved, "column_only": change.ColumnOnly,
+		})
+	}
+	return out
+}
+
+func idOrNil(id shared.ID) any {
+	if id.IsZero() {
+		return nil
+	}
+	return id.String()
 }
 
 func (d Desk) authorizeScheme(ctx context.Context, actor appshared.ActorContext, containerID shared.ID) error {
@@ -1198,7 +1310,38 @@ func schemeChangeFrom(in usecase.Input) (SchemeChange, error) {
 	if err != nil {
 		return SchemeChange{}, err
 	}
-	return SchemeChange{ContainerID: containerID, EntryType: in.String("entry_type"), WorkflowKey: in.String("workflow")}, nil
+	columns, err := columnsFrom(in["columns"])
+	if err != nil {
+		return SchemeChange{}, err
+	}
+	return SchemeChange{
+		ContainerID: containerID, EntryType: in.String("entry_type"), WorkflowKey: in.String("workflow"), Columns: columns,
+	}, nil
+}
+
+// columnsFrom reads the mapping chosen: per column its statuses, a column without any as one row
+// without a status (work.SchemeBoards.Plan); nil where none was given.
+func columnsFrom(raw any) ([]domain.ColumnStatus, error) {
+	list, ok := raw.([]any)
+	if !ok {
+		return nil, nil
+	}
+	rows := []domain.ColumnStatus{}
+	for _, entry := range list {
+		column, _ := entry.(map[string]any)
+		text, _ := column["bucket_id"].(string)
+		id, err := shared.ParseID(text)
+		if err != nil {
+			return nil, shared.ErrValidation.WithDetail("shared.id_malformed").
+				WithParams(map[string]string{"value": text}).
+				WithFields(shared.FieldError{Path: "/columns", Code: "shared.id_malformed"})
+		}
+		rows = append(rows, domain.ColumnStatus{BucketID: id})
+		for _, status := range textsOf(column["statuses"]) {
+			rows = append(rows, domain.ColumnStatus{BucketID: id, Status: status})
+		}
+	}
+	return rows, nil
 }
 
 func schemeFields() []usecase.Field {
@@ -1206,6 +1349,8 @@ func schemeFields() []usecase.Field {
 		{Name: "container_id", Kind: usecase.KindID, Required: true, Description: "The hub or collection."},
 		{Name: "entry_type", Kind: usecase.KindString, Description: "The type the row is for; empty for every type."},
 		{Name: "workflow", Kind: usecase.KindString, Description: "The workflow's key; empty removes the row."},
+		{Name: "columns", Kind: usecase.KindList, Description: "Per board column its statuses under the workflow " +
+			"(bucket_id, statuses); a board one of whose columns is named takes exactly these, every other the proposal."},
 	}
 }
 
@@ -1232,7 +1377,7 @@ func (h PreviewWorkflowScheme) Descriptor() usecase.Descriptor {
 			}
 			var out usecase.Output
 			err = h.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-				_, moves, _, err := h.Desk.schemePlan(ctx, change)
+				outcome, err := h.Desk.schemePlan(ctx, change)
 				if err != nil {
 					return err
 				}
@@ -1242,7 +1387,8 @@ func (h PreviewWorkflowScheme) Descriptor() usecase.Descriptor {
 						columns = w.Published.Columns()
 					}
 				}
-				out = PreviewOutput(moves, nil, nil, columns)
+				out = PreviewOutput(outcome.moves, nil, nil, columns)
+				out["boards"] = BoardsOutput(outcome.boards)
 				return nil
 			})
 			return out, err
@@ -1264,10 +1410,11 @@ func (h SetWorkflowScheme) Execute(ctx context.Context, actor appshared.ActorCon
 	}
 	moved := 0
 	err := h.Desk.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		_, moves, _, err := h.Desk.schemePlan(ctx, change)
+		outcome, err := h.Desk.schemePlan(ctx, change)
 		if err != nil {
 			return err
 		}
+		moves := outcome.moves
 		now := h.Desk.Clock.Now()
 		if change.WorkflowKey == "" {
 			if err := h.Desk.Workflows.RemoveScheme(ctx, change.ContainerID, change.EntryType); err != nil {
@@ -1299,8 +1446,18 @@ func (h SetWorkflowScheme) Execute(ctx context.Context, actor appshared.ActorCon
 		if err := h.Desk.announceScheme(ctx, actor); err != nil {
 			return err
 		}
+		for _, board := range outcome.boards {
+			if err := h.Desk.Boards.Map(ctx, board.collectionID, board.change); err != nil {
+				return err
+			}
+		}
 		if moved, err = h.Desk.Mover.Move(ctx, actor, moves, now); err != nil {
 			return err
+		}
+		for _, board := range outcome.boards {
+			if err := h.Desk.Boards.Settle(ctx, actor, board.collectionID, board.change, board.will, now); err != nil {
+				return err
+			}
 		}
 		return h.Desk.trail(ctx, actor, WorkflowSchemeSetAction, change.ContainerID, now,
 			audit.Change{Field: "workflow", Classification: audit.Open, To: change.WorkflowKey},

@@ -191,6 +191,7 @@ func TestTheDefaultsAreTheDocumentedOnes(t *testing.T) {
 		{"outbound response limit", cfg.Outbound.MaxResponseBytes, int64(1 << 20)},
 		{"outbound redirects", cfg.Outbound.MaxRedirects, 3},
 		{"private networks", cfg.Outbound.AllowPrivateNetworks, false},
+		{"cover image library", cfg.Outbound.CoverImagesURL, "https://api.openverse.org/v1"},
 		{"anonymous rate limit", cfg.RateLimit.AnonymousPerMinute, 60},
 		{"load shed threshold", cfg.LoadShed.Inflight, 64},
 		{"load shed retry after", cfg.LoadShed.RetryAfter, 5 * time.Second},
@@ -206,6 +207,23 @@ func TestTheDefaultsAreTheDocumentedOnes(t *testing.T) {
 	}
 	if len(cfg.Roles) != 4 {
 		t.Errorf("roles = %v, want all four", cfg.Roles)
+	}
+}
+
+// The image library a cover may take a picture from is configuration (PG-6): an operator points it
+// at another instance, and an empty value keeps the default.
+func TestTheCoverImageLibraryIsConfigured(t *testing.T) {
+	withRequiredSecrets(t)
+	t.Setenv("HUBTASK_COVER_IMAGES_URL", "https://images.example.org/v1")
+	cfg, err := load(t)
+	if err != nil || cfg.Outbound.CoverImagesURL != "https://images.example.org/v1" {
+		t.Fatalf("CoverImagesURL = %q, %v", cfg.Outbound.CoverImagesURL, err)
+	}
+
+	t.Setenv("HUBTASK_COVER_IMAGES_URL", "")
+	cfg, err = load(t)
+	if err != nil || cfg.Outbound.CoverImagesURL != "https://api.openverse.org/v1" {
+		t.Fatalf("an empty value gave %q, %v", cfg.Outbound.CoverImagesURL, err)
 	}
 }
 

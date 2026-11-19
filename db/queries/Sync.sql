@@ -438,10 +438,12 @@ SELECT EXISTS (
 -- server: a hub's readers are not all its readers (migration 0268).
 SELECT p.id, p.hub_id, p.parent_id, p.title, p.body, p.icon, p.order_key, p.template, p.content_language,
        p.owner_id, p.verified_until, p.verified_at, p.verified_by, p.archived_at, p.deleted_at,
-       p.created_by, p.created_at, p.updated_by, p.updated_at, p.version, p.restricted, p.daily_for
+       p.created_by, p.created_at, p.updated_by, p.updated_at, p.version, p.restricted, p.daily_for, p.cover
 FROM page p
 WHERE p.tenant_id = current_tenant_id() AND p.id > sqlc.arg('after') AND p.deleted_at IS NULL
   AND NOT page_behind_restriction(p.id)
+  -- Nor does a post: its audience and its moment are judged on the server.
+  AND NOT EXISTS (SELECT 1 FROM post po WHERE po.tenant_id = p.tenant_id AND po.page_id = p.id)
 ORDER BY p.id
 LIMIT sqlc.arg('batch');
 
@@ -450,7 +452,7 @@ LIMIT sqlc.arg('batch');
 -- inventory offline; each is filed under its hub, which decides who is told of it.
 SELECT id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id,
        location_ci_id, protection, review_due, quantity, last_seen_at, merged_into,
-       created_by, created_at, updated_by, updated_at, version
+       created_by, created_at, updated_by, updated_at, confirmed_at, confirmed_by, version
 FROM cmdb_ci
 WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after') AND merged_into IS NULL
 ORDER BY id
@@ -493,7 +495,7 @@ LIMIT sqlc.arg('batch');
 -- name: SnapshotDashboards :many
 -- The workspace's dashboards as their widgets' queries, each filed under its hub; a private one
 -- reaches its owner alone.
-SELECT id, hub_id, owner_id, name, sharing, group_ids, widgets, version
+SELECT id, hub_id, owner_id, name, sharing, group_ids, widgets, version, filter
 FROM dashboard
 WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
 ORDER BY id

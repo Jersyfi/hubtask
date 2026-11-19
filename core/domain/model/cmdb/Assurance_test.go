@@ -6,6 +6,7 @@ package cmdb
 import (
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -115,7 +116,7 @@ func TestAGroupHoldsTheCIsItsFilterMatches(t *testing.T) {
 		{ID: id("13"), Class: "server", Stage: StageInUse, Attributes: map[string]any{"app": "crm"}},
 		{ID: id("14"), Class: "virtual_machine", Stage: StageInUse, Status: StatusMerged, Attributes: map[string]any{"app": "crm"}},
 	}
-	if m := g.Members(cis, classes); len(m) != 1 || m[0].ID != id("10") {
+	if m := g.Members(cis, classes, nil); len(m) != 1 || m[0].ID != id("10") {
 		t.Fatalf("members: %+v", m)
 	}
 	for name, in := range map[string]GroupInput{
@@ -125,6 +126,59 @@ func TestAGroupHoldsTheCIsItsFilterMatches(t *testing.T) {
 		"stage":        {Key: "x", Name: "x", Filter: Filter{Stages: []Stage{"GONE"}}},
 	} {
 		if _, err := NewGroup(id("01"), id("02"), id("03"), id("04"), in, classes, now); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}
+
+// UC-AST-11 check 1: a group keeps the inventory line's owner, location and tag - each a set of
+// values or none, as the asset.owner, asset.location and asset.tag keys read them.
+func TestAGroupMatchesOwnerLocationAndTagAsTheInventoryLineDoes(t *testing.T) {
+	classes := NewClasses(nil)
+	team, room, other := id("20"), id("21"), id("22")
+	cis := []CI{
+		{ID: id("10"), Class: "laptop", Compliance: Compliance{OwnerAccount: id("07"), Location: room}},
+		{ID: id("11"), Class: "laptop", Compliance: Compliance{OwnerGroup: team, Location: other}},
+		{ID: id("12"), Class: "laptop"},
+		{ID: id("13"), Class: "laptop", Status: StatusMerged},
+	}
+	tags := AssetTags{id("10"): " INV-7 ", id("11"): "inv-8"}
+	members := func(f Filter) []string {
+		g, err := NewGroup(id("01"), id("02"), id("03"), id("04"), GroupInput{Key: "x", Name: "x", Filter: f}, classes, now)
+		if err != nil {
+			t.Fatalf("%+v: %v", f, err)
+		}
+		var out []string
+		for _, ci := range g.Members(cis, classes, tags) {
+			out = append(out, string(ci.ID[len(ci.ID)-2:]))
+		}
+		return out
+	}
+	for name, c := range map[string]struct {
+		f    Filter
+		want []string
+	}{
+		"a person or a group":   {Filter{Owners: []shared.ID{id("07"), team}}, []string{"10", "11"}},
+		"a group or nobody":     {Filter{Owners: []shared.ID{team}, NoOwner: true}, []string{"11", "12"}},
+		"nobody":                {Filter{NoOwner: true}, []string{"12"}},
+		"a location":            {Filter{Locations: []shared.ID{room}}, []string{"10"}},
+		"no location":           {Filter{NoLocation: true}, []string{"12"}},
+		"a tag, lowered":        {Filter{Tags: []string{"Inv-7"}}, []string{"10"}},
+		"no tag":                {Filter{NoTag: true}, []string{"12"}},
+		"keys together narrow":  {Filter{Owners: []shared.ID{team}, Tags: []string{"INV-7", "INV-8"}}, []string{"11"}},
+		"a location or nowhere": {Filter{Locations: []shared.ID{other}, NoLocation: true}, []string{"11", "12"}},
+	} {
+		if got := members(c.f); !slices.Equal(got, c.want) {
+			t.Errorf("%s: %v, want %v", name, got, c.want)
+		}
+	}
+	for name, f := range map[string]Filter{
+		"a tag too long":  {Tags: []string{strings.Repeat("x", 101)}},
+		"an empty tag":    {Tags: []string{" "}},
+		"too many owners": {Owners: slices.Repeat([]shared.ID{team}, MaxGroupValues+1)},
+		"a malformed id":  {Locations: []shared.ID{"room"}},
+	} {
+		if _, err := NewGroup(id("01"), id("02"), id("03"), id("04"), GroupInput{Key: "x", Name: "x", Filter: f}, classes, now); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
 	}
@@ -246,6 +300,80 @@ func TestTheNextReviewFromAMonthsEndStaysInItsMonth(t *testing.T) {
 		if got := (Campaign{ReviewMonths: c.months}).NextReview(from.Add(10 * time.Hour)).Format(time.DateOnly); got != c.want {
 			t.Errorf("%s + %d months: %s, want %s", c.from, c.months, got, c.want)
 		}
+	}
+}
+
+// A person's confirmation moves the review on from the workspace's day, 12 months when no period
+// is named, and keeps who said so; a period out of range and a merged CI are refused.
+func TestAConfirmationMovesTheReviewAndKeepsWhoSaidSo(t *testing.T) {
+	at, _ := time.Parse(time.RFC3339, "2026-11-14T23:30:00Z")
+	local := at.In(time.FixedZone("ahead", 2*3600))
+	by := id("77")
+	cases := []struct {
+		name   string
+		ci     CI
+		months int
+		want   string
+		detail string
+	}{
+		{"no period is a year from the local day", CI{Status: StatusOK}, 0, "2027-11-15", ""},
+		{"three months", CI{Status: StatusOK}, 3, "2027-02-15", ""},
+		{"sixty months", CI{Status: StatusOK}, 60, "2031-11-15", ""},
+		{"too long", CI{Status: StatusOK}, 61, "", "cmdb.campaign_period_invalid"},
+		{"negative", CI{Status: StatusOK}, -1, "", "cmdb.campaign_period_invalid"},
+		{"merged", CI{Status: StatusMerged, MergedInto: id("88")}, 0, "", "cmdb.ci_merged"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := c.ci.Confirm(by, at, local, c.months)
+			if c.detail != "" {
+				if !strings.Contains(fmt.Sprint(err), c.detail) {
+					t.Fatalf("err %v, want %s", err, c.detail)
+				}
+				return
+			}
+			if err != nil || got.Compliance.ReviewDue == nil || got.Compliance.ReviewDue.Format(time.DateOnly) != c.want {
+				t.Fatalf("review %v (%v), want %s", got.Compliance.ReviewDue, err, c.want)
+			}
+			if got.ConfirmedBy != by || got.ConfirmedAt == nil || !got.ConfirmedAt.Equal(at) || got.UpdatedBy != by {
+				t.Fatalf("confirmed by %s at %v, updated by %s", got.ConfirmedBy, got.ConfirmedAt, got.UpdatedBy)
+			}
+		})
+	}
+}
+
+// A round waits for each owner's pending objects; answered ones, ownerless ones and the asker's
+// own are not counted.
+func TestARoundWaitsForEachOwnersPendingObjects(t *testing.T) {
+	ann, ben, asker := id("61"), id("62"), id("63")
+	cases := []struct {
+		name string
+		as   []Attestation
+		want map[shared.ID]int
+	}{
+		{"nothing asked", nil, map[shared.ID]int{}},
+		{"two of one owner, one of another", []Attestation{
+			{Owner: ann, Verdict: VerdictPending}, {Owner: ann, Verdict: VerdictPending}, {Owner: ben, Verdict: VerdictPending},
+		}, map[shared.ID]int{ann: 2, ben: 1}},
+		{"answered and ownerless left out", []Attestation{
+			{Owner: ann, Verdict: VerdictConfirmed}, {Owner: ben, Verdict: VerdictDisputed}, {Verdict: VerdictPending},
+		}, map[shared.ID]int{}},
+		{"the asker's own left out", []Attestation{
+			{Owner: asker, Verdict: VerdictPending}, {Owner: ben, Verdict: VerdictPending},
+		}, map[shared.ID]int{ben: 1}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := Waiting(c.as, asker)
+			if len(got) != len(c.want) {
+				t.Fatalf("%v, want %v", got, c.want)
+			}
+			for owner, n := range c.want {
+				if got[owner] != n {
+					t.Errorf("%s: %d, want %d", owner, got[owner], n)
+				}
+			}
+		})
 	}
 }
 

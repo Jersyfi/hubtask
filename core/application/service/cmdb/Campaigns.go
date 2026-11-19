@@ -5,6 +5,8 @@ package cmdb
 
 import (
 	"context"
+	"errors"
+	"slices"
 	"time"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -17,18 +19,22 @@ import (
 
 // The use case names (UC-AST-10).
 const (
-	ListCiCampaignsName = "ListCiCampaigns"
-	StartCiCampaignName = "StartCiCampaign"
-	ReadCiCampaignName  = "ReadCiCampaign"
-	AttestCiName        = "AttestCi"
-	CloseCiCampaignName = "CloseCiCampaign"
+	ListCiCampaignsName  = "ListCiCampaigns"
+	StartCiCampaignName  = "StartCiCampaign"
+	ReadCiCampaignName   = "ReadCiCampaign"
+	AttestCiName         = "AttestCi"
+	CloseCiCampaignName  = "CloseCiCampaign"
+	ConfirmCiName        = "ConfirmCi"
+	RemindCiCampaignName = "RemindCiCampaign"
 )
 
 // The audit codes of certification. An attestation names the CI and the verdict, never a name.
 const (
-	CampaignStartedAction audit.Action = "cmdb.campaign_started"
-	CampaignClosedAction  audit.Action = "cmdb.campaign_closed"
-	CIAttestedAction      audit.Action = "cmdb.ci_attested"
+	CampaignStartedAction  audit.Action = "cmdb.campaign_started"
+	CampaignClosedAction   audit.Action = "cmdb.campaign_closed"
+	CIAttestedAction       audit.Action = "cmdb.ci_attested"
+	CIConfirmedAction      audit.Action = "cmdb.ci_confirmed"
+	CampaignRemindedAction audit.Action = "cmdb.campaign_reminded"
 )
 
 const campaignTarget = "cmdb_campaign"
@@ -86,7 +92,7 @@ type ListCiCampaigns struct{ Inventory Inventory }
 func (h ListCiCampaigns) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListCiCampaignsName, Permission: service.PermissionRead,
-		Summary: "Lists a hub's certification campaigns, the latest first, each with its score: how many CIs were " +
+		Summary: "Lists a hub's certification campaigns, the latest first, each with its score: how many objects were " +
 			"asked, confirmed, disputed, pending and overdue, and the share answered.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Input: []usecase.Field{
@@ -137,9 +143,9 @@ type StartCiCampaign struct{ Inventory Inventory }
 func (h StartCiCampaign) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: StartCiCampaignName, Permission: service.PermissionWriteItems,
-		Summary: "Starts a certification campaign in a hub: every active CI of the classes named (all when none) " +
+		Summary: "Starts a certification campaign in a hub: every active object of the object types named (all when none) " +
 			"- and, with due_by, only those whose review falls due by then or was never set - is asked once, of " +
-			"its owning person when it has one. Answers are due on due_on; a confirmed CI's next review moves " +
+			"its owning person when it has one. Answers are due on due_on; a confirmed object's next review moves " +
 			"review_months on (12 when not given). The set is fixed when it starts.",
 		SideEffects: "Writes the campaign, one pending attestation per CI asked and an audit entry.", TokenScope: cisWrite,
 		Input: []usecase.Field{
@@ -228,7 +234,7 @@ type ReadCiCampaign struct{ Inventory Inventory }
 func (h ReadCiCampaign) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ReadCiCampaignName, Permission: service.PermissionRead,
-		Summary: "Reads a certification campaign with its score and every CI asked: its name and class, the person " +
+		Summary: "Reads a certification campaign with its score and every object asked: its name and object type, the person " +
 			"asked, the verdict, who gave it and when.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Input: []usecase.Field{{Name: "campaign_id", Kind: usecase.KindID, Required: true, Description: "The campaign."}},
@@ -302,7 +308,7 @@ type AttestCi struct{ Inventory Inventory }
 func (h AttestCi) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: AttestCiName, Permission: service.PermissionRead,
-		Summary: "Answers a campaign's question about a CI: CONFIRMED - it is as recorded, and its next review " +
+		Summary: "Answers a campaign's question about an object: CONFIRMED - it is as recorded, and its next review " +
 			"moves the campaign's period on -, or DISPUTED - the record is wrong or the object gone, and its review " +
 			"falls due today. The person asked answers with READ on the hub; anybody else needs WRITE_ITEMS. A " +
 			"closed campaign takes no answer; a later answer replaces an earlier one.",
@@ -371,11 +377,19 @@ func (h AttestCi) Descriptor() usecase.Descriptor {
 				updated := ci
 				updated.Compliance.ReviewDue = &next
 				updated.UpdatedBy, updated.UpdatedAt = actor.AccountID, now
+				if a.Verdict == domain.VerdictConfirmed {
+					updated.ConfirmedAt, updated.ConfirmedBy = &now, actor.AccountID
+				}
 				if err := s.Store.UpdateCI(ctx, updated, ci.Version); err != nil {
 					return err
 				}
 				updated.Version++
 				if err := s.announce(ctx, actor, updated); err != nil {
+					return err
+				}
+				if err := s.chronicle(ctx, actor, ciID, domain.VerbAttested, map[string]domain.Moved{
+					"verdict": {To: string(a.Verdict)}, "review_due": {To: next.Format(time.DateOnly)},
+				}); err != nil {
 					return err
 				}
 				out = usecase.Output{
@@ -387,6 +401,176 @@ func (h AttestCi) Descriptor() usecase.Descriptor {
 					audit.Change{Field: "verdict", Classification: audit.Open, To: string(a.Verdict)})
 			})
 			return out, err
+		}),
+	})
+}
+
+// ConfirmCi is a person's word that an object is as recorded, outside a campaign or answering one.
+type ConfirmCi struct{ Inventory Inventory }
+
+// Descriptor is the catalogue entry.
+func (h ConfirmCi) Descriptor() usecase.Descriptor {
+	return descriptor(usecase.Descriptor{
+		Name: ConfirmCiName, Permission: service.PermissionRead,
+		Summary: "Confirms an object is as recorded: its next review moves review_months on from today (12 when not " +
+			"given) and it keeps who confirmed it and when. A pending question of an open campaign about it is " +
+			"answered CONFIRMED at the same time. The owning person confirms with READ on the hub; anybody else " +
+			"needs WRITE_ITEMS.",
+		SideEffects: "Writes the CI, any open campaign's answer about it, an audit entry and the change log.", TokenScope: cisWrite,
+		Input: []usecase.Field{
+			{Name: "ci_id", Kind: usecase.KindID, Required: true, Description: "The configuration item."},
+			{Name: "review_months", Kind: usecase.KindInt, Description: "How far its next review moves on from today, 1 to 60."},
+		},
+		Audit: usecase.AuditDeclaration{Action: CIConfirmedAction, TargetType: ciTarget, Severity: audit.SeverityInfo, Required: true},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			id, err := in.ID("ci_id")
+			if err != nil {
+				return nil, err
+			}
+			s := h.Inventory
+			placed, err := s.placeOf(ctx, actor, id)
+			if err != nil {
+				return nil, err
+			}
+			owner := !placed.Compliance.OwnerAccount.IsZero() && placed.Compliance.OwnerAccount == actor.AccountID
+			if err := s.authorizeHub(ctx, actor, placed.HubID, !owner, CIConfirmedAction, ciTarget, id); err != nil {
+				return nil, err
+			}
+			var out usecase.Output
+			err = s.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+				ci, err := s.Store.FindCI(ctx, id, true)
+				if err != nil {
+					return err
+				}
+				now := s.Clock.Now()
+				confirmed, err := ci.Confirm(actor.AccountID, now, now.In(zoneOf(actor)), in.Int("review_months"))
+				if err != nil {
+					return err
+				}
+				answered, err := s.answerOpenCampaigns(ctx, actor, ci, owner, now)
+				if err != nil {
+					return err
+				}
+				if err := s.Store.UpdateCI(ctx, confirmed, ci.Version); err != nil {
+					return err
+				}
+				confirmed.Version++
+				if err := s.announce(ctx, actor, confirmed); err != nil {
+					return err
+				}
+				out = CIOutput(confirmed, nil)
+				if err := s.chronicle(ctx, actor, id, domain.VerbConfirmed, map[string]domain.Moved{
+					"review_due": {To: confirmed.Compliance.ReviewDue.Format(time.DateOnly)},
+				}); err != nil {
+					return err
+				}
+				return s.record(ctx, actor, CIConfirmedAction, ciTarget, id,
+					audit.Change{Field: "review_due", Classification: audit.Open, To: confirmed.Compliance.ReviewDue.Format(time.DateOnly)},
+					audit.Change{Field: "campaigns_answered", Classification: audit.Open, To: itoa(answered)})
+			})
+			return out, err
+		}),
+	})
+}
+
+// answerOpenCampaigns answers CONFIRMED every open campaign of the CI's hub still waiting for it,
+// so that the round counts the object's own confirmation; it answers how many it answered. An
+// owner admitted with READ answers only what was asked of them, as AttestCi would let them.
+func (s Inventory) answerOpenCampaigns(ctx context.Context, actor appshared.ActorContext, ci domain.CI, asOwner bool, now time.Time) (int, error) {
+	cs, err := s.Assurance.Campaigns(ctx, ci.HubID, 100)
+	if err != nil {
+		return 0, err
+	}
+	answered := 0
+	for _, c := range cs {
+		if c.Closed() {
+			continue
+		}
+		a, err := s.Assurance.FindAttestation(ctx, c.ID, ci.ID)
+		if errors.Is(err, shared.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return 0, err
+		}
+		if a.Verdict != domain.VerdictPending || asOwner && a.Owner != actor.AccountID {
+			continue
+		}
+		if a, err = c.Answer(a, domain.VerdictConfirmed, actor.AccountID, now); err != nil {
+			return 0, err
+		}
+		if err := s.Assurance.Answer(ctx, a); err != nil {
+			return 0, err
+		}
+		answered++
+	}
+	return answered, nil
+}
+
+// RemindCiCampaign tells the owners of objects an open campaign still waits for.
+type RemindCiCampaign struct{ Inventory Inventory }
+
+// Descriptor is the catalogue entry.
+func (h RemindCiCampaign) Descriptor() usecase.Descriptor {
+	return descriptor(usecase.Descriptor{
+		Name: RemindCiCampaignName, Permission: service.PermissionWriteItems,
+		Summary: "Reminds each owning person of an object a certification campaign still waits for, once per call, " +
+			"naming how many of their objects wait. Refused when no pending object has an owning person, and on a " +
+			"closed campaign.",
+		SideEffects: "Records a reminder for each owner and writes an audit entry naming how many, never whom.", TokenScope: cisWrite,
+		Input: []usecase.Field{{Name: "campaign_id", Kind: usecase.KindID, Required: true, Description: "The campaign."}},
+		Audit: usecase.AuditDeclaration{Action: CampaignRemindedAction, TargetType: campaignTarget, Severity: audit.SeverityInfo, Required: true},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			id, err := in.ID("campaign_id")
+			if err != nil {
+				return nil, err
+			}
+			s := h.Inventory
+			c, err := s.campaign(ctx, actor, id)
+			if err != nil {
+				return nil, err
+			}
+			if err := s.authorizeHub(ctx, actor, c.HubID, true, CampaignRemindedAction, campaignTarget, id); err != nil {
+				return nil, err
+			}
+			if c.Closed() {
+				return nil, shared.ErrConflict.WithDetail("cmdb.campaign_closed")
+			}
+			var waiting []shared.ID
+			err = s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+				as, err := s.Assurance.Attestations(ctx, id)
+				if err != nil {
+					return err
+				}
+				for owner := range domain.Waiting(as, actor.AccountID) {
+					waiting = append(waiting, owner)
+				}
+				return nil
+			})
+			if err != nil {
+				return nil, err
+			}
+			owners, err := s.stillReading(ctx, actor.TenantID, c.HubID, waiting)
+			if err != nil {
+				return nil, err
+			}
+			if len(owners) == 0 {
+				return nil, shared.ErrConflict.WithDetail("cmdb.nobody_to_remind")
+			}
+			slices.SortFunc(owners, compareIDs)
+			err = s.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+				if s.Notify != nil {
+					if err := s.Notify.AttestationReminder(ctx, actor.TenantID, actor.AccountID, id, owners); err != nil {
+						return err
+					}
+				}
+				return s.record(ctx, actor, CampaignRemindedAction, campaignTarget, id,
+					audit.Change{Field: "reminded", Classification: audit.Open, To: itoa(len(owners))})
+			})
+			if err != nil {
+				return nil, err
+			}
+			return usecase.Output{"reminded": len(owners)}, nil
 		}),
 	})
 }

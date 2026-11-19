@@ -19,6 +19,8 @@
 
 import { HOLD_MS, hasLeftTheHandle } from '@hubtask/design-system/components';
 
+import { classify, edgeInset, startsAtEdge, swipeThreshold, type Point } from './swipe.ts';
+
 export interface EntryGestureOptions {
   /** The entry an event happened on, or nothing where it was not on one. */
   readonly idAt: (target: EventTarget | null) => string | undefined;
@@ -26,6 +28,11 @@ export interface EntryGestureOptions {
   readonly open: (id: string) => void;
   /** Where a press belongs to something else - a drag's grip, which takes its own hold. */
   readonly ignore?: string;
+  /**
+   * A finger's sideways swipe on a row (work-surface concept §7): towards the inline end its one
+   * act - complete or advance -, towards the start its menu. Never the only way: the menu holds both.
+   */
+  readonly swipe?: { readonly toEnd?: (id: string) => void; readonly toStart?: (id: string) => void };
 }
 
 const isContextKey = (event: KeyboardEvent) => event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey);
@@ -43,7 +50,7 @@ function swallowNextClick() {
 /** Installs the gestures on `node`; the returned function removes them. Call it from an `$effect`. */
 export function attachEntryGestures(node: HTMLElement, options: EntryGestureOptions): () => void {
   let held: ReturnType<typeof setTimeout> | undefined;
-  let holding: { id: string; from: { x: number; y: number }; isStill: boolean } | undefined;
+  let holding: { id: string; from: Point; isStill: boolean; atEdge: boolean } | undefined;
 
   const forget = () => {
     if (held !== undefined) clearTimeout(held);
@@ -81,7 +88,8 @@ export function attachEntryGestures(node: HTMLElement, options: EntryGestureOpti
     if (target?.closest?.('button, input, select, textarea, [role="menuitem"]') && !target.closest('a')) return;
     const id = options.idAt(event.target);
     if (id === undefined) return;
-    holding = { id, from: { x: event.clientX, y: event.clientY }, isStill: false };
+    // The screen edge's band is the platform's back gesture, never a row's swipe.
+    holding = { id, from: { x: event.clientX, y: event.clientY, at: event.timeStamp }, isStill: false, atEdge: startsAtEdge(event.clientX, window.innerWidth, edgeInset(node)) };
     held = setTimeout(() => {
       held = undefined;
       if (holding) holding.isStill = true;
@@ -90,6 +98,19 @@ export function attachEntryGestures(node: HTMLElement, options: EntryGestureOpti
 
   const onPointerMove = (event: PointerEvent) => {
     if (!holding) return;
+    if (options.swipe && !holding.isStill && !holding.atEdge) {
+      const isRtl = getComputedStyle(node).direction === 'rtl';
+      const gesture = classify(holding.from, { x: event.clientX, y: event.clientY, at: event.timeStamp }, swipeThreshold(node), isRtl);
+      const act = gesture === 'swipe-end' ? options.swipe.toEnd : gesture === 'swipe-start' ? options.swipe.toStart : undefined;
+      if (act) {
+        const { id } = holding;
+        forget();
+        swallowNextClick();
+        act(id);
+        return;
+      }
+      if (gesture === 'pending' || gesture === 'hold') return;
+    }
     if (hasLeftTheHandle(holding.from, { x: event.clientX, y: event.clientY })) forget();
   };
 

@@ -267,6 +267,15 @@ re-mints identities must rewrite exactly these).
 | 140 | `entry_status_changes` | `entry_status_change` | `item_id/seq` | `item_id`→work_items (when an entry entered each status, `status` and `entered_at`, migration 0381; an importer draws `seq` anew - it only orders an entry's rows - and Hubtask's restore writes them after the entries, replacing the row its write of each entry dated from the restore's moment; an entry an archive carries no history for - an archive from before this file - keeps that row, and its history starts at the restore) |
 | 141 | `sample_objects` | `sample_object` | `key` | — (the mark of the workspace's sample content, `kind` and `object_id` naming a row of the table the kind says, and the `version` it was made at, migration 0384, user-experience.md §3.6; nothing is remapped, and a DUPLICATE skips it, since a copy would mark the originals) |
 | 142 | `account_stars` | `account_star` | `account_id` | `account_id`→accounts (a person's stars in their order, migration 0389, UC-WRK-37; each member names a row of the table its kind says and is not remapped, so a DUPLICATE skips it) |
+| 143 | `posts` | `post` | `page_id` | `page_id`→pages, `hub_id`→containers (a page with a date: when it goes out, for whom, featured, discussed, confirmed; migration 0401, UC-DOC-17) |
+| 144 | `post_reads` | `post_read` | `page_id/account_id` | `page_id`→posts, `account_id`→accounts (who has seen a post, UC-DOC-18) |
+| 145 | `post_confirmations` | `post_confirmation` | `page_id/account_id` | `page_id`→posts, `account_id`→accounts (who confirmed reading it, UC-DOC-18) |
+| 146 | `post_replies` | `post_reply` | `id` | `page_id`→posts, `parent_id`→post_replies, `author_id`→accounts (the discussion under a post, one level deep) |
+| 147 | `post_reactions` | `post_reaction` | `reply_id/account_id/reaction` | `reply_id`→post_replies, `account_id`→accounts |
+| 148 | `post_follows` | `post_follow` | `hub_id/account_id` | `hub_id`→containers, `account_id`→accounts (who follows a hub's posts, migration 0404) |
+| 149 | `cmdb_asset_moves` | `cmdb_asset_move` | `id` | `ci_id`→cmdb_assets, `hub_id`→containers, `assigned_to`→accounts, `stockroom_id`→cmdb_cis (each cleared when absent) (each step of an asset's life with its moment and who moved it, migration 0430, UC-AST-12) |
+| 150 | `cmdb_ci_media` | `cmdb_ci_media` | `ci_id/media_id` | `ci_id`→cmdb_cis, `media_id`→media_objects (the files an inventory object holds, migration 0434, UC-AST-01) |
+| 151 | `cmdb_ci_history` | `cmdb_ci_history` | `id` | `ci_id`→cmdb_cis (an inventory object's own history: who did what and when, migration 0435, UC-AST-01) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a

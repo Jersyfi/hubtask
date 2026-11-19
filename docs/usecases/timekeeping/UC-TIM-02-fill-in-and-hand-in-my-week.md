@@ -36,6 +36,9 @@ back the Wednesday workshop, adjusts Thursday and hands the week in - 40 hours.
 7. REST, MCP and hubctl read, copy, hand in and take back a week alike.
 8. The web app shows the week as a grid of days with the records on their entries, copies last
    week and hands it in.
+9. On the desktop the week's grid ends with a row that adds an entry, the totals of each day and
+   each day's time against the person's capacity; handing in says under the week what happens next.
+   On a phone a strip of the seven days chooses the day whose records are listed.
 
 ## Where it ends
 

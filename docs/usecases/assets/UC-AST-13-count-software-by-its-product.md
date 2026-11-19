@@ -22,9 +22,9 @@ The scans report "Mozilla Firefox 128.0 (x64)" and "mozilla firefox", and Code f
 
 ## How to check
 
-1. A hub's software CIs are grouped by product: the publisher folded without case and legal form ("Microsoft Corporation" is "microsoft"), the product without case, version or architecture ("Firefox 128.0 (x64)" is "firefox"); each product lists its versions with how many CIs and installations (hosts it is installed on) each.
-2. An administrator defines an alias - a product and a publisher as reported, or any publisher - and the publisher and product it counts as; an alias with its publisher wins over one for any, and removing it changes no CI.
-3. The *Assets* screen shows a hub's software by product and the workspace's aliases, where an administrator adds and removes one.
+1. A hub's software objects are grouped by product: the publisher folded without case and legal form ("Microsoft Corporation" is "microsoft"), the product without case, version or architecture ("Firefox 128.0 (x64)" is "firefox"); each product lists its versions with how many objects and installations (hosts it is installed on) each.
+2. An administrator defines an alias - a product and a publisher as reported, or any publisher - and the publisher and product it counts as; an alias with its publisher wins over one for any, and removing it changes no object.
+3. The *Inventory* screen shows a hub's software by product and the workspace's aliases, where an administrator adds and removes one.
 
 ## Where it ends
 

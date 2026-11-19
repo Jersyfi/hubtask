@@ -37,8 +37,10 @@
      * for a toolbar, where the button's words are the visible name and the label is kept for the
      * accessibility tree only (user-experience.md §5.10). `icon` is the button as a paperclip
      * alone, for a bar of icon buttons (a whiteboard's tools), its words the button's name.
+     * `tile` is the drop area as the last cell of a grid of cards (an entry's files): dashed,
+     * filling the cell, the button and the drop words stacked, the label for the tree only.
      */
-    variant?: 'target' | 'button' | 'icon';
+    variant?: 'target' | 'button' | 'icon' | 'tile';
     /** The button's size; a toolbar's `sm`. */
     size?: ControlSize;
     /** What the drop target says. An addition to the button, never the only way in. */
@@ -111,6 +113,11 @@
   const errorId = $derived(error ? `error-${instanceId}` : undefined);
   const isUploading = $derived(progress !== undefined);
 
+  /** Opens the system's file choice: for an offer that names a file among other choices ("/"). */
+  export function choose() {
+    input?.click();
+  }
+
   function take(files: FileList | null | undefined) {
     const chosen = files?.[0];
     // Emptied at once, so the same file chosen again after a refusal is a change again.
@@ -163,11 +170,11 @@
       {#if variant === 'icon'}
         <IconButton icon="paperclip" label={chooseLabel} {size} {disabledReason} {...(errorId ? { 'aria-describedby': errorId } : {})} onclick={() => input?.click()} />
       {:else}
-        <Button tone={variant === 'button' ? 'subtle' : 'secondary'} {size} icon={variant === 'button' ? 'paperclip' : undefined} disabledReason={disabledReason} {...(errorId ? { 'aria-describedby': errorId } : {})} onclick={() => input?.click()}>
+        <Button tone={variant === 'target' ? 'secondary' : 'subtle'} {size} icon={variant === 'button' ? 'paperclip' : undefined} disabledReason={disabledReason} {...(errorId ? { 'aria-describedby': errorId } : {})} onclick={() => input?.click()}>
           {chooseLabel}
         </Button>
       {/if}
-      {#if variant === 'target' && dropLabel}<span class="drop">{dropLabel}</span>{/if}
+      {#if (variant === 'target' || variant === 'tile') && dropLabel}<span class="drop">{dropLabel}</span>{/if}
     </span>
   </div>
 
@@ -218,6 +225,11 @@
       border-color var(--motion-state-duration) var(--motion-state-easing);
   }
 
+  /* The grid's last cell: as tall as the cards beside it, its words stacked in the middle. */
+  .field[data-variant='tile'] { block-size: 100%; }
+  .field[data-variant='tile'] .target { flex: 1 1 auto; flex-direction: column; justify-content: center; text-align: center; }
+  .field[data-variant='tile'] .painted { display: flex; flex-direction: column; align-items: center; gap: var(--sp-050); }
+
   .target[data-over] { background: var(--bg-surface-hover); border-color: var(--accent-primary); }
 
   /* The button alone: no area, no gap, and the label for the accessibility tree only - the
@@ -226,7 +238,7 @@
 
   .field:is([data-variant='button'], [data-variant='icon']) .target { border: none; padding: 0; border-radius: var(--r-sm); }
 
-  .field:is([data-variant='button'], [data-variant='icon']) .label {
+  .field:is([data-variant='button'], [data-variant='icon'], [data-variant='tile']) .label {
     position: absolute;
     /* VisuallyHidden's clip pattern: the one pixel is not a design value (see there). */
     /* design-system-lint-ignore */

@@ -5,6 +5,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -17,6 +18,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
@@ -149,8 +151,12 @@ func (PageRepository) Update(ctx context.Context, page knowledge.Page, expected 
 	if err != nil {
 		return err
 	}
+	cover, err := pageCoverDocument(page.Cover)
+	if err != nil {
+		return err
+	}
 	rows, err := queries.UpdatePage(ctx, sqlc.UpdatePageParams{
-		ParentID: nullable[0], Title: page.Title, Body: page.Body, Icon: page.Icon, OrderKey: page.OrderKey,
+		Cover: cover, ParentID: nullable[0], Title: page.Title, Body: page.Body, Icon: page.Icon, OrderKey: page.OrderKey,
 		Template: page.Template, ContentLanguage: optionalText(page.ContentLanguage), OwnerID: nullable[1],
 		VerifiedUntil: optionalTimestamp(page.VerifiedUntil), VerifiedAt: optionalTimestamp(page.VerifiedAt),
 		VerifiedBy: nullable[2], ArchivedAt: optionalTimestamp(page.ArchivedAt),
@@ -186,7 +192,7 @@ func (PageRepository) List(
 		return nil, pageFailed("listing the pages", err)
 	}
 	return mapRows(rows, func(row sqlc.ListHubPagesRow) (knowledge.Page, error) {
-		return pageFrom(bodiless(row))
+		return bodiless(row)
 	})
 }
 
@@ -207,7 +213,7 @@ func (PageRepository) Trashed(ctx context.Context, hubID shared.ID, limit int) (
 		return nil, pageFailed("listing the trashed pages", err)
 	}
 	return mapRows(rows, func(row sqlc.ListTrashedHubPagesRow) (knowledge.Page, error) {
-		return pageFrom(bodiless(sqlc.ListHubPagesRow(row)))
+		return bodiless(sqlc.ListHubPagesRow(row))
 	})
 }
 
@@ -346,10 +352,20 @@ func (PageRepository) Search(ctx context.Context, query repository.PageQuery) ([
 	if query.Label != "" {
 		label = &query.Label
 	}
+	owner := bound{values: []string{}}
+	if query.Owner != nil {
+		owner = boundOf([]view.KindCondition{*query.Owner}, query.Owner.Field)
+	}
+	owners, err := owner.ids()
+	if err != nil {
+		return nil, err
+	}
 	rows, err := queries.SearchPages(ctx, sqlc.SearchPagesParams{
-		Text: query.Text, HubIds: hubs, Label: label, AuthorID: author,
+		Text: query.Text, HubIds: hubs, Label: label, AuthorID: author, Verified: query.Verified,
+		OwnerNegated: owner.negated, OwnerValues: owners, OwnerNone: owner.none,
 		UpdatedFrom: optionalTimestamp(query.UpdatedFrom), UpdatedTo: optionalTimestamp(query.UpdatedTo),
 		Batch: int32(query.Limit), //nolint:gosec // bounded by the use case
+		At:    timestamp(query.At),
 	})
 	if err != nil {
 		return nil, pageFailed("searching the pages", err)
@@ -360,9 +376,14 @@ func (PageRepository) Search(ctx context.Context, query repository.PageQuery) ([
 			return repository.Hit{}, err
 		}
 		parent, err := optionalID(row.ParentID)
+		if err != nil {
+			return repository.Hit{}, err
+		}
+		author, err := optionalID(row.CreatedBy)
 		return repository.Hit{
 			ID: ids[0], HubID: ids[1], ParentID: parent, Title: row.Title, Icon: row.Icon,
 			Excerpt: row.Excerpt, Rank: row.Rank, UpdatedAt: timeFrom(row.UpdatedAt),
+			VerifiedUntil: optionalTime(row.VerifiedUntil), CreatedAt: timeFrom(row.CreatedAt), CreatedBy: author,
 		}, err
 	})
 }
@@ -770,16 +791,19 @@ func pageReadError(err error) error {
 	return pageFailed("reading the page", err)
 }
 
-// bodiless is a tree row as a page row with an empty body: a tree is read without its bodies.
-func bodiless(row sqlc.ListHubPagesRow) sqlc.FindPageRow {
-	return sqlc.FindPageRow{
+// bodiless is a tree row as a page with an empty body and the body's head: a tree is read without
+// its bodies.
+func bodiless(row sqlc.ListHubPagesRow) (knowledge.Page, error) {
+	page, err := pageFrom(sqlc.FindPageRow{
 		ID: row.ID, HubID: row.HubID, ParentID: row.ParentID, Title: row.Title, Icon: row.Icon,
 		OrderKey: row.OrderKey, Template: row.Template, ContentLanguage: row.ContentLanguage,
 		OwnerID: row.OwnerID, VerifiedUntil: row.VerifiedUntil, VerifiedAt: row.VerifiedAt,
 		VerifiedBy: row.VerifiedBy, ArchivedAt: row.ArchivedAt, DeletedAt: row.DeletedAt,
 		CreatedBy: row.CreatedBy, CreatedAt: row.CreatedAt, UpdatedBy: row.UpdatedBy,
 		UpdatedAt: row.UpdatedAt, Version: row.Version, Restricted: row.Restricted, DailyFor: row.DailyFor,
-	}
+	})
+	page.Head = row.BodyHead
+	return page, err
 }
 
 func pageFrom(row sqlc.FindPageRow) (knowledge.Page, error) {
@@ -804,6 +828,9 @@ func pageFrom(row sqlc.FindPageRow) (knowledge.Page, error) {
 	if row.DailyFor.Valid {
 		day := row.DailyFor.Time
 		page.DailyFor = &day
+	}
+	if page.Cover, err = pageCoverFrom(row.Cover); err != nil {
+		return knowledge.Page{}, err
 	}
 	if row.ContentLanguage != nil {
 		page.ContentLanguage = *row.ContentLanguage
@@ -1191,4 +1218,34 @@ func (PageRepository) CountMedia(ctx context.Context, pageID shared.ID) (int, er
 		return 0, pageFailed("counting the files", err)
 	}
 	return int(count), nil
+}
+
+// storedCover is a page's cover as the column holds it (migration 0400).
+type storedCover struct {
+	Source   string `json:"source"`
+	Key      string `json:"key"`
+	Position int    `json:"position"`
+	Credit   string `json:"credit,omitempty"`
+}
+
+func pageCoverDocument(cover *knowledge.Cover) ([]byte, error) {
+	if cover == nil {
+		return nil, nil
+	}
+	document, err := json.Marshal(storedCover{Source: string(cover.Source), Key: cover.Key, Position: cover.Position, Credit: cover.Credit})
+	if err != nil {
+		return nil, pageFailed("writing the cover", err)
+	}
+	return document, nil
+}
+
+func pageCoverFrom(document []byte) (*knowledge.Cover, error) {
+	if len(document) == 0 {
+		return nil, nil
+	}
+	var stored storedCover
+	if err := json.Unmarshal(document, &stored); err != nil {
+		return nil, pageFailed("reading the cover", err)
+	}
+	return &knowledge.Cover{Source: knowledge.CoverSource(stored.Source), Key: stored.Key, Position: stored.Position, Credit: stored.Credit}, nil
 }

@@ -23,6 +23,7 @@
   import type { Snippet } from 'svelte';
 
   import Icon from './Icon.svelte';
+  import ProductTile, { type ProductId } from './ProductTile.svelte';
   import type { IconName } from './icons/index.ts';
 
   /** Which of §4's three. Named for the cause, because that is what decides the words. */
@@ -35,6 +36,8 @@
     /** At most one more. Absent is the common case for `settled`. */
     description?: string;
     icon?: IconName;
+    /** A product's first use (work-surface scene empty): the mark is the product's tile, in its colour. */
+    product?: ProductId;
     /**
      * The one thing to do about it.
      *
@@ -53,9 +56,19 @@
      * on `settled`, which offers nothing.
      */
     footnote?: Snippet;
+    /**
+     * A product's start page (scenes emptygoals, emptytime): the title is the product's name, the
+     * page's one heading, at the band's size; the acts stand in one row.
+     */
+    isHome?: boolean;
+    /**
+     * Where a phone's bar already carries the page's name as its h1, the start page's title is the
+     * second level, so the page names itself once.
+     */
+    isTitleInBar?: boolean;
   }
 
-  const { kind, title, description, icon, action, secondary, footnote }: Props = $props();
+  const { kind, title, description, icon, product, action, secondary, footnote, isHome = false, isTitleInBar = false }: Props = $props();
 
   const MARK: Record<Emptiness, IconName> = {
     unused: 'plus',
@@ -68,9 +81,13 @@
   const offersFootnote = $derived(kind !== 'settled' && footnote !== undefined);
 </script>
 
-<div class="empty" data-kind={kind}>
-  <span class="mark" aria-hidden="true"><Icon name={icon ?? MARK[kind]} /></span>
-  <p class="title">{title}</p>
+<div class="empty" data-kind={kind} data-home={isHome ? '' : undefined}>
+  {#if product && kind === 'unused'}
+    <span class="tile" aria-hidden="true"><ProductTile icon={icon ?? MARK[kind]} {product} size="xl" /></span>
+  {:else}
+    <span class="mark" aria-hidden="true"><Icon name={icon ?? MARK[kind]} /></span>
+  {/if}
+  {#if isHome && isTitleInBar}<h2 class="title">{title}</h2>{:else if isHome}<h1 class="title">{title}</h1>{:else}<p class="title">{title}</p>{/if}
   {#if description}<p class="description">{description}</p>{/if}
   {#if offersAction}<div class="action">{@render action?.()}</div>{/if}
   {#if offersSecondary}<div class="secondary">{@render secondary?.()}</div>{/if}
@@ -89,6 +106,7 @@
   }
 
   .mark { display: inline-flex; color: var(--text-subtle); }
+  .tile { display: inline-flex; }
 
   /* Rule 3: the three kinds are not told apart by colour. They differ in their mark, their words
      and whether they offer anything, and the mark is what carries it in greyscale. */
@@ -111,6 +129,13 @@
   }
 
   .action { margin-top: var(--sp-100); }
+  /* The band's two title sizes (one per width), so a product's start and its home read alike. */
+  .empty[data-home] .title { font-size: var(--fs-600); font-weight: var(--fw-bold); }
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width < 600px) {
+    .empty[data-home] .title { font-size: var(--fs-450); }
+  }
+  .empty[data-home] .action { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-100); }
 
   /* The templates: a row that wraps, as wide as the sentence above it may be. */
   .secondary {

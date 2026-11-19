@@ -2,10 +2,11 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // One object read and edited in place - an entry, a page, a goal (page-system §7.8, as built,
-  // design-system §11.8): its head, then the main column and the details column. The details come
-  // first in the document, so reading and tab order meet them under the head on every width; from
-  // `expanded` they stand beside the main column at the inline end, at the pane's width, and stay
-  // in place while it scrolls (PS-17).
+  // design-system §11.8): its head, then the main column and the details column. The main column
+  // comes first in the document, so reading and tab order go from the head into the content before
+  // the properties; from `expanded` the details stand beside it at the inline end, at the pane's
+  // width, and stay in place while it scrolls (PS-17). Below `expanded` a page draws them under the
+  // head (a phone's *All properties*); in a side panel they follow the content.
   import type { Snippet } from 'svelte';
 
   import PageFrame from './_PageFrame.svelte';
@@ -32,8 +33,8 @@
 
 {#snippet columns()}
   <div class="columns" data-pane={isInPane ? '' : undefined}>
-    {#if details}<div class="details">{@render details()}</div>{/if}
     <div class="main">{@render children()}</div>
+    {#if details}<div class="details">{@render details()}</div>{/if}
   </div>
 {/snippet}
 
@@ -61,14 +62,16 @@
   .main { flex: 1; }
 
   .details { min-width: 0; }
+  .columns:not([data-pane]) .details { order: -1; }
 
   /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
   @media (width >= 905px) {
-    .columns:not([data-pane]) { flex-direction: row-reverse; align-items: flex-start; }
+    .columns:not([data-pane]) { flex-direction: row; align-items: flex-start; }
+    .columns:not([data-pane]) .details { order: 0; }
 
     .columns:not([data-pane]) .details {
       flex: none;
-      inline-size: var(--layout-pane-width);
+      inline-size: var(--layout-rail);
       position: sticky;
       inset-block-start: calc(var(--page-sticky-top, var(--layout-appbar-height)) + var(--sp-200));
     }

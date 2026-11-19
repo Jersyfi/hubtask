@@ -25,7 +25,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">Isolation</p>
@@ -59,7 +59,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">Getting in</p>
@@ -95,7 +95,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">The trail</p>
@@ -130,7 +130,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">Data protection</p>
@@ -182,7 +182,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">The pipeline</p>

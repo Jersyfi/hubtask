@@ -29,11 +29,15 @@
   // level - set on the *Structure* panel - travel back as they are and are shown, not offered. The
   // installation's and the plan's locks are not the workspace's to lift.
   //
+  // **Files** (UC-MED-06 check 1): the document server office files are shown and edited in, and
+  // a test of the connection before the choice is saved. A server inside a private network is
+  // refused by the installation's outbound guard; the test says so with its reason.
+  //
   // The address is not here: it has a screen of its own, *Address*, with who may change it.
 
   import { tick, untrack } from 'svelte';
 
-  import { CheckboxGroup, Input, SaveBar, Select, SettingRow, SettingsLayout, SettingsSection, Spinner } from '@hubtask/design-system/components';
+  import { Button, CheckboxGroup, Input, SaveBar, Select, SettingRow, SettingsLayout, SettingsSection, Spinner } from '@hubtask/design-system/components';
   import type { SectionLink } from '@hubtask/design-system/components';
   import ZonePicker from '../lib/forms/ZonePicker.svelte';
   import { TransportError } from '@hubtask/sync-engine';
@@ -56,6 +60,7 @@
   import WriteOnly from '../lib/workspace/WriteOnly.svelte';
   import { SETTINGS } from '../lib/workspace/structureDraft.ts';
   import PublicLinksSwitch from '../lib/pages/PublicLinksSwitch.svelte';
+  import CoverImagesSwitch from '../lib/pages/CoverImagesSwitch.svelte';
   import PublicFormsSwitch from '../lib/servicedesk/PublicFormsSwitch.svelte';
   import PublicRoadmapsSwitch from '../lib/goals/PublicRoadmapsSwitch.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -63,6 +68,10 @@
   import { pagePart } from '../lib/settings/asFile.ts';
   import { viewAsFileAction } from '../lib/settings/viewasfile.svelte.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
+  import type { DocumentServer } from '@hubtask/sync-engine';
+  import { resourceWhen } from '../lib/data/resource.svelte.ts';
+  import { DOCUMENT_SERVER_KINDS, choiceOf, isTestable, movedFrom, type DocumentServerKind } from '../lib/files/documentServer.ts';
+  import { documentServerPath, documentServers } from '../lib/files/documentServer.svelte.ts';
 
   interface Props {
     /** The section the address names (`/administration/workspace/:section`); none is the list. */
@@ -126,6 +135,7 @@
     { id: 'language', code: 'app.workspace.section_language' },
     { id: 'help', code: 'app.workspace.section_help' },
     { id: 'new-hubs', code: 'app.workspace.section_new_hubs' },
+    { id: 'files', code: 'app.workspace.section_files' },
   ] as const;
   const sections = $derived(SECTIONS.filter((each) => each.id !== 'help' || hasHelp));
   const isKnown = (id: string | undefined): boolean => id !== undefined && sections.some((each) => each.id === id);
@@ -272,8 +282,54 @@
     }
   }
 
+  // *Files*: what is stored, and the two values while they are being changed.
+  // Read where the section is shown: the other sections ask nothing of the media module.
+  const storedServer = resourceWhen<DocumentServer>(() => (shown === 'files' ? documentServerPath : undefined));
+  const serverHeld = $derived(storedServer.state.status === 'ready' ? storedServer.state.data : undefined);
+  let chosenKind = $state<DocumentServerKind | undefined>(undefined);
+  let chosenUrl = $state<string | undefined>(undefined);
+  let isSavingFiles = $state(false);
+  let filesFailure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
+  let reach = $state<{ status: 'testing' } | { status: 'reached' } | { status: 'refused'; message: string } | undefined>(undefined);
+  const serverKind = $derived<DocumentServerKind>(chosenKind ?? serverHeld?.kind ?? 'NONE');
+  const serverUrl = $derived(chosenUrl ?? serverHeld?.url ?? '');
+  const filesChanged = $derived(movedFrom(serverHeld, serverKind, serverUrl));
+  const kindOptions = $derived(DOCUMENT_SERVER_KINDS.map((kind) => ({ value: kind, label: t(`app.workspace.files_kind_${kind}`) })));
+
+  function discardFiles(): void {
+    chosenKind = undefined;
+    chosenUrl = undefined;
+    filesFailure = undefined;
+    reach = undefined;
+  }
+
+  async function saveFiles(): Promise<void> {
+    if (filesChanged === 0) return;
+    isSavingFiles = true;
+    filesFailure = undefined;
+    try {
+      await documentServers.set(choiceOf(serverKind, serverUrl));
+      discardFiles();
+      toast.show({ text: t('app.workspace.files_saved'), tone: 'success' });
+    } catch (cause) {
+      filesFailure = problemOf(cause);
+    } finally {
+      isSavingFiles = false;
+    }
+  }
+
+  async function testFiles(): Promise<void> {
+    reach = { status: 'testing' };
+    try {
+      await documentServers.check(choiceOf(serverKind, serverUrl));
+      reach = { status: 'reached' };
+    } catch (cause) {
+      reach = { status: 'refused', message: problemOf(cause).message };
+    }
+  }
+
   /** Every section's unsaved values: what the leave guard holds, as a move between sections keeps them. */
-  const unsaved = $derived(Object.keys(movement()).length + hubsChanged);
+  const unsaved = $derived(Object.keys(movement()).length + hubsChanged + filesChanged);
   $effect(() => leaveGuard.hold(() => unsaved));
 
   /** A section's state in the list, from what is read: never a guess before the read answers. */
@@ -287,6 +343,12 @@
         Boolean(held.default_week_start),
       ].filter(Boolean).length;
       return set > 0 ? { status: t('app.workspace.status_set', { count: set }), statusTone: 'set' } : { status: t('app.workspace.status_default') };
+    }
+    if (id === 'files') {
+      if (!serverHeld) return {};
+      return serverHeld.kind && serverHeld.kind !== 'NONE'
+        ? { status: t(`app.workspace.files_kind_${serverHeld.kind}`), statusTone: 'set' }
+        : { status: t('app.workspace.status_default') };
     }
     if (id === 'new-hubs') {
       const set = (defaultValue !== '' ? 1 : 0) + lockedSettings.length;
@@ -332,6 +394,21 @@
       savingLabel={t('app.workspace.saving')}
       onDiscard={discardHubs}
       onSave={() => void saveHubs()}
+    />
+  </WriteOnly>
+{/snippet}
+
+{#snippet filesSaveBar()}
+  <WriteOnly>
+    <SaveBar
+      label={t('app.save_bar.label')}
+      changesLabel={filesChanged > 0 ? t('app.save_bar.changes', { count: String(filesChanged) }) : undefined}
+      discardLabel={t('app.save_bar.discard')}
+      saveLabel={t('app.workspace.save')}
+      isSaving={isSavingFiles}
+      savingLabel={t('app.workspace.saving')}
+      onDiscard={discardFiles}
+      onSave={() => void saveFiles()}
     />
   </WriteOnly>
 {/snippet}
@@ -473,6 +550,7 @@
       <!-- Switches that act at once: no save bar (PS-10). -->
       <SettingsSection title={t('app.workspace.section_help')} description={t('app.workspace.section_help_lead')}>
         {#if isModuleOn('KNOWLEDGE', modulesOn)}<div class="row"><PublicLinksSwitch /></div>{/if}
+        {#if isModuleOn('KNOWLEDGE', modulesOn)}<div class="row"><CoverImagesSwitch /></div>{/if}
         {#if isModuleOn('SERVICE_DESK', modulesOn)}<div class="row"><PublicFormsSwitch /></div>{/if}
         {#if isModuleOn('GOALS', modulesOn)}<div class="row"><PublicRoadmapsSwitch /></div>{/if}
       </SettingsSection>
@@ -510,6 +588,60 @@
           </div>
         </SettingsSection>
       </WorkspaceGate>
+    {:else if shown === 'files'}
+      {#if filesFailure}<FailureNote problem={filesFailure} />{/if}
+      <WorkspaceGate permission="STRUCTURE">
+        <SettingsSection title={t('app.workspace.section_files')} description={t('app.workspace.section_files_lead')} status={statusOf('files').status} save={filesSaveBar}>
+          <div class="row" data-document-server>
+            <SettingRow label={t('app.workspace.files_server')} help={t('app.workspace.files_server_hint')} fieldWidth="md" isChanged={(serverHeld?.kind ?? 'NONE') !== serverKind}>
+              {#snippet control(nameId)}
+                <Select
+                  label={t('app.workspace.files_server')}
+                  isLabelHidden
+                  aria-labelledby={nameId}
+                  options={kindOptions}
+                  bind:value={() => serverKind, (value) => { chosenKind = value as DocumentServerKind; reach = undefined; }}
+                />
+              {/snippet}
+            </SettingRow>
+          </div>
+          {#if serverKind !== 'NONE'}
+            <div class="row" data-document-server-address>
+              <SettingRow label={t('app.workspace.files_address')} help={t('app.workspace.files_address_hint')} fieldWidth="lg" isChanged={(serverHeld?.url ?? '') !== choiceOf(serverKind, serverUrl).url}>
+                {#snippet control(nameId)}
+                  <Input
+                    label={t('app.workspace.files_address')}
+                    isLabelHidden
+                    aria-labelledby={nameId}
+                    type="url"
+                    placeholder="https://"
+                    bind:value={() => serverUrl, (value) => { chosenUrl = value; reach = undefined; }}
+                    error={filesFailure?.fields.get('/url')}
+                  />
+                  <div class="reach" data-document-server-test>
+                    <Button
+                      size="sm"
+                      isBusy={reach?.status === 'testing'}
+                      busyLabel={t('app.workspace.files_testing')}
+                      disabledReason={isTestable(serverKind, serverUrl) ? undefined : t('app.workspace.files_address_hint')}
+                      onclick={() => void testFiles()}
+                    >
+                      {t('app.workspace.files_test')}
+                    </Button>
+                    <span class="quiet" role="status" aria-live="polite">
+                      {#if reach?.status === 'reached'}
+                        <span class="reached" data-reached>{t('app.workspace.files_reached')}</span>
+                      {:else if reach?.status === 'refused'}
+                        <span class="refused" data-refused>{reach.message}</span>
+                      {/if}
+                    </span>
+                  </div>
+                {/snippet}
+              </SettingRow>
+            </div>
+          {/if}
+        </SettingsSection>
+      </WorkspaceGate>
     {/if}
   {/if}
 </SettingsLayout>
@@ -530,5 +662,15 @@
   /* Each row is wrapped so a test and a reader find its control and its parts together; the
      hairline the design system draws between two rows is drawn here between two wrapped ones,
      since its own rule sees siblings. */
+  .reach {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-200);
+    margin-block-start: var(--sp-200);
+  }
+  .reached { color: var(--text-success); }
+  .refused { color: var(--text-danger); }
+
   .row + .row :global(.setting-row > .setting-line:first-child) { border-block-start: var(--bw-hairline) solid var(--border-subtle); }
 </style>

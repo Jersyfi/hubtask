@@ -1399,6 +1399,21 @@ func (e ApprovalState) Valid() bool {
 	}
 }
 
+// Defines values for AskedQuerySource.
+const (
+	AskedQuerySourceAI AskedQuerySource = "AI"
+)
+
+// Valid indicates whether the value is a known member of the AskedQuerySource enum.
+func (e AskedQuerySource) Valid() bool {
+	switch e {
+	case AskedQuerySourceAI:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditActorType.
 const (
 	AuditActorTypeAIAGENT        AuditActorType = "AI_AGENT"
@@ -2014,6 +2029,45 @@ func (e BackupTargetKind) Valid() bool {
 	}
 }
 
+// Defines values for BlockedStepReason.
+const (
+	WorkflowsStepConditionUnmet BlockedStepReason = "workflows.step_condition_unmet"
+	WorkflowsStepWhoUnmet       BlockedStepReason = "workflows.step_who_unmet"
+)
+
+// Valid indicates whether the value is a known member of the BlockedStepReason enum.
+func (e BlockedStepReason) Valid() bool {
+	switch e {
+	case WorkflowsStepConditionUnmet:
+		return true
+	case WorkflowsStepWhoUnmet:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BoardWorkflowStatusesCategory.
+const (
+	BoardWorkflowStatusesCategoryDONE       BoardWorkflowStatusesCategory = "DONE"
+	BoardWorkflowStatusesCategoryINPROGRESS BoardWorkflowStatusesCategory = "IN_PROGRESS"
+	BoardWorkflowStatusesCategoryTODO       BoardWorkflowStatusesCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the BoardWorkflowStatusesCategory enum.
+func (e BoardWorkflowStatusesCategory) Valid() bool {
+	switch e {
+	case BoardWorkflowStatusesCategoryDONE:
+		return true
+	case BoardWorkflowStatusesCategoryINPROGRESS:
+		return true
+	case BoardWorkflowStatusesCategoryTODO:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BulkOperationOp.
 const (
 	ADDLABEL     BulkOperationOp = "ADD_LABEL"
@@ -2488,6 +2542,36 @@ func (e CiAssetRegisterState) Valid() bool {
 	}
 }
 
+// Defines values for CiAssetStepState.
+const (
+	CiAssetStepStateDEPLOYED  CiAssetStepState = "DEPLOYED"
+	CiAssetStepStateDISPOSED  CiAssetStepState = "DISPOSED"
+	CiAssetStepStateINSTOCK   CiAssetStepState = "IN_STOCK"
+	CiAssetStepStateORDERED   CiAssetStepState = "ORDERED"
+	CiAssetStepStateREQUESTED CiAssetStepState = "REQUESTED"
+	CiAssetStepStateRETIRED   CiAssetStepState = "RETIRED"
+)
+
+// Valid indicates whether the value is a known member of the CiAssetStepState enum.
+func (e CiAssetStepState) Valid() bool {
+	switch e {
+	case CiAssetStepStateDEPLOYED:
+		return true
+	case CiAssetStepStateDISPOSED:
+		return true
+	case CiAssetStepStateINSTOCK:
+		return true
+	case CiAssetStepStateORDERED:
+		return true
+	case CiAssetStepStateREQUESTED:
+		return true
+	case CiAssetStepStateRETIRED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CiAttestVerdict.
 const (
 	CiAttestVerdictCONFIRMED CiAttestVerdict = "CONFIRMED"
@@ -2917,6 +3001,33 @@ func (e CiGroupFilterStages) Valid() bool {
 	}
 }
 
+// Defines values for CiHistoryStepActorType.
+const (
+	CiHistoryStepActorTypeAIAGENT        CiHistoryStepActorType = "AI_AGENT"
+	CiHistoryStepActorTypeAUTOMATION     CiHistoryStepActorType = "AUTOMATION"
+	CiHistoryStepActorTypeSERVICEACCOUNT CiHistoryStepActorType = "SERVICE_ACCOUNT"
+	CiHistoryStepActorTypeSYSTEM         CiHistoryStepActorType = "SYSTEM"
+	CiHistoryStepActorTypeUSER           CiHistoryStepActorType = "USER"
+)
+
+// Valid indicates whether the value is a known member of the CiHistoryStepActorType enum.
+func (e CiHistoryStepActorType) Valid() bool {
+	switch e {
+	case CiHistoryStepActorTypeAIAGENT:
+		return true
+	case CiHistoryStepActorTypeAUTOMATION:
+		return true
+	case CiHistoryStepActorTypeSERVICEACCOUNT:
+		return true
+	case CiHistoryStepActorTypeSYSTEM:
+		return true
+	case CiHistoryStepActorTypeUSER:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CiImpactDirection.
 const (
 	CiImpactDirectionDOWNSTREAM CiImpactDirection = "DOWNSTREAM"
@@ -3202,6 +3313,24 @@ func (e CiSourceDefineKind) Valid() bool {
 	case CiSourceDefineKindCONNECTOR:
 		return true
 	case CiSourceDefineKindFILE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CiWorkEntryReason.
+const (
+	BENEATH CiWorkEntryReason = "BENEATH"
+	NAMES   CiWorkEntryReason = "NAMES"
+)
+
+// Valid indicates whether the value is a known member of the CiWorkEntryReason enum.
+func (e CiWorkEntryReason) Valid() bool {
+	switch e {
+	case BENEATH:
+		return true
+	case NAMES:
 		return true
 	default:
 		return false
@@ -3931,6 +4060,45 @@ func (e CoverKind) Valid() bool {
 	}
 }
 
+// Defines values for CoverImageFetchedContentType.
+const (
+	Imagejpeg CoverImageFetchedContentType = "image/jpeg"
+	Imagepng  CoverImageFetchedContentType = "image/png"
+	Imagewebp CoverImageFetchedContentType = "image/webp"
+)
+
+// Valid indicates whether the value is a known member of the CoverImageFetchedContentType enum.
+func (e CoverImageFetchedContentType) Valid() bool {
+	switch e {
+	case Imagejpeg:
+		return true
+	case Imagepng:
+		return true
+	case Imagewebp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CoverImagesPolicyLibrary.
+const (
+	CoverImagesPolicyLibraryOFF         CoverImagesPolicyLibrary = "OFF"
+	CoverImagesPolicyLibraryOPENLIBRARY CoverImagesPolicyLibrary = "OPEN_LIBRARY"
+)
+
+// Valid indicates whether the value is a known member of the CoverImagesPolicyLibrary enum.
+func (e CoverImagesPolicyLibrary) Valid() bool {
+	switch e {
+	case CoverImagesPolicyLibraryOFF:
+		return true
+	case CoverImagesPolicyLibraryOPENLIBRARY:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CoverInputKind.
 const (
 	CoverInputKindCOLOR CoverInputKind = "COLOR"
@@ -4148,11 +4316,13 @@ func (e DashboardDigestWriteCadence) Valid() bool {
 const (
 	DashboardWidgetChartBAR      DashboardWidgetChart = "BAR"
 	DashboardWidgetChartLINE     DashboardWidgetChart = "LINE"
+	DashboardWidgetChartLIST     DashboardWidgetChart = "LIST"
 	DashboardWidgetChartMATRIX   DashboardWidgetChart = "MATRIX"
 	DashboardWidgetChartNUMBER   DashboardWidgetChart = "NUMBER"
 	DashboardWidgetChartPIE      DashboardWidgetChart = "PIE"
 	DashboardWidgetChartPROGRESS DashboardWidgetChart = "PROGRESS"
 	DashboardWidgetChartTABLE    DashboardWidgetChart = "TABLE"
+	DashboardWidgetChartTEXT     DashboardWidgetChart = "TEXT"
 )
 
 // Valid indicates whether the value is a known member of the DashboardWidgetChart enum.
@@ -4161,6 +4331,8 @@ func (e DashboardWidgetChart) Valid() bool {
 	case DashboardWidgetChartBAR:
 		return true
 	case DashboardWidgetChartLINE:
+		return true
+	case DashboardWidgetChartLIST:
 		return true
 	case DashboardWidgetChartMATRIX:
 		return true
@@ -4172,6 +4344,8 @@ func (e DashboardWidgetChart) Valid() bool {
 		return true
 	case DashboardWidgetChartTABLE:
 		return true
+	case DashboardWidgetChartTEXT:
+		return true
 	default:
 		return false
 	}
@@ -4181,6 +4355,7 @@ func (e DashboardWidgetChart) Valid() bool {
 const (
 	DashboardWidgetSourceGOALS DashboardWidgetSource = "GOALS"
 	DashboardWidgetSourceQUERY DashboardWidgetSource = "QUERY"
+	DashboardWidgetSourceTEXT  DashboardWidgetSource = "TEXT"
 	DashboardWidgetSourceVIEW  DashboardWidgetSource = "VIEW"
 )
 
@@ -4190,6 +4365,8 @@ func (e DashboardWidgetSource) Valid() bool {
 	case DashboardWidgetSourceGOALS:
 		return true
 	case DashboardWidgetSourceQUERY:
+		return true
+	case DashboardWidgetSourceTEXT:
 		return true
 	case DashboardWidgetSourceVIEW:
 		return true
@@ -4202,11 +4379,13 @@ func (e DashboardWidgetSource) Valid() bool {
 const (
 	DashboardWidgetWriteChartBAR      DashboardWidgetWriteChart = "BAR"
 	DashboardWidgetWriteChartLINE     DashboardWidgetWriteChart = "LINE"
+	DashboardWidgetWriteChartLIST     DashboardWidgetWriteChart = "LIST"
 	DashboardWidgetWriteChartMATRIX   DashboardWidgetWriteChart = "MATRIX"
 	DashboardWidgetWriteChartNUMBER   DashboardWidgetWriteChart = "NUMBER"
 	DashboardWidgetWriteChartPIE      DashboardWidgetWriteChart = "PIE"
 	DashboardWidgetWriteChartPROGRESS DashboardWidgetWriteChart = "PROGRESS"
 	DashboardWidgetWriteChartTABLE    DashboardWidgetWriteChart = "TABLE"
+	DashboardWidgetWriteChartTEXT     DashboardWidgetWriteChart = "TEXT"
 )
 
 // Valid indicates whether the value is a known member of the DashboardWidgetWriteChart enum.
@@ -4215,6 +4394,8 @@ func (e DashboardWidgetWriteChart) Valid() bool {
 	case DashboardWidgetWriteChartBAR:
 		return true
 	case DashboardWidgetWriteChartLINE:
+		return true
+	case DashboardWidgetWriteChartLIST:
 		return true
 	case DashboardWidgetWriteChartMATRIX:
 		return true
@@ -4226,6 +4407,8 @@ func (e DashboardWidgetWriteChart) Valid() bool {
 		return true
 	case DashboardWidgetWriteChartTABLE:
 		return true
+	case DashboardWidgetWriteChartTEXT:
+		return true
 	default:
 		return false
 	}
@@ -4235,6 +4418,7 @@ func (e DashboardWidgetWriteChart) Valid() bool {
 const (
 	DashboardWidgetWriteSourceGOALS DashboardWidgetWriteSource = "GOALS"
 	DashboardWidgetWriteSourceQUERY DashboardWidgetWriteSource = "QUERY"
+	DashboardWidgetWriteSourceTEXT  DashboardWidgetWriteSource = "TEXT"
 	DashboardWidgetWriteSourceVIEW  DashboardWidgetWriteSource = "VIEW"
 )
 
@@ -4244,6 +4428,8 @@ func (e DashboardWidgetWriteSource) Valid() bool {
 	case DashboardWidgetWriteSourceGOALS:
 		return true
 	case DashboardWidgetWriteSourceQUERY:
+		return true
+	case DashboardWidgetWriteSourceTEXT:
 		return true
 	case DashboardWidgetWriteSourceVIEW:
 		return true
@@ -4417,6 +4603,45 @@ func (e DeadLetterState) Valid() bool {
 	}
 }
 
+// Defines values for DeadlinesKeptDataGoal.
+const (
+	DeadlinesKeptDataGoalFIRSTRESPONSE DeadlinesKeptDataGoal = "FIRST_RESPONSE"
+	DeadlinesKeptDataGoalNEXTRESPONSE  DeadlinesKeptDataGoal = "NEXT_RESPONSE"
+	DeadlinesKeptDataGoalRESOLUTION    DeadlinesKeptDataGoal = "RESOLUTION"
+)
+
+// Valid indicates whether the value is a known member of the DeadlinesKeptDataGoal enum.
+func (e DeadlinesKeptDataGoal) Valid() bool {
+	switch e {
+	case DeadlinesKeptDataGoalFIRSTRESPONSE:
+		return true
+	case DeadlinesKeptDataGoalNEXTRESPONSE:
+		return true
+	case DeadlinesKeptDataGoalRESOLUTION:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeadlinesKeptDataKind.
+const (
+	DeadlinesKeptDataKindOLA DeadlinesKeptDataKind = "OLA"
+	DeadlinesKeptDataKindSLA DeadlinesKeptDataKind = "SLA"
+)
+
+// Valid indicates whether the value is a known member of the DeadlinesKeptDataKind enum.
+func (e DeadlinesKeptDataKind) Valid() bool {
+	switch e {
+	case DeadlinesKeptDataKindOLA:
+		return true
+	case DeadlinesKeptDataKindSLA:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DependencyHealthCircuitState.
 const (
 	DependencyHealthCircuitStateClosed      DependencyHealthCircuitState = "closed"
@@ -4456,6 +4681,54 @@ func (e DeprecatedFieldIn) Valid() bool {
 	case Operation:
 		return true
 	case Query:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DocumentServerKind.
+const (
+	DocumentServerKindCOLLABORAONLINE DocumentServerKind = "COLLABORA_ONLINE"
+	DocumentServerKindEUROOFFICE      DocumentServerKind = "EURO_OFFICE"
+	DocumentServerKindMICROSOFT365    DocumentServerKind = "MICROSOFT_365"
+	DocumentServerKindNONE            DocumentServerKind = "NONE"
+	DocumentServerKindONLYOFFICE      DocumentServerKind = "ONLYOFFICE"
+)
+
+// Valid indicates whether the value is a known member of the DocumentServerKind enum.
+func (e DocumentServerKind) Valid() bool {
+	switch e {
+	case DocumentServerKindCOLLABORAONLINE:
+		return true
+	case DocumentServerKindEUROOFFICE:
+		return true
+	case DocumentServerKindMICROSOFT365:
+		return true
+	case DocumentServerKindNONE:
+		return true
+	case DocumentServerKindONLYOFFICE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DropAnswerOutcome.
+const (
+	DropAnswerOutcomeCHOOSE    DropAnswerOutcome = "CHOOSE"
+	DropAnswerOutcomeMOVED     DropAnswerOutcome = "MOVED"
+	DropAnswerOutcomeSTEPTAKEN DropAnswerOutcome = "STEP_TAKEN"
+)
+
+// Valid indicates whether the value is a known member of the DropAnswerOutcome enum.
+func (e DropAnswerOutcome) Valid() bool {
+	switch e {
+	case DropAnswerOutcomeCHOOSE:
+		return true
+	case DropAnswerOutcomeMOVED:
+		return true
+	case DropAnswerOutcomeSTEPTAKEN:
 		return true
 	default:
 		return false
@@ -4846,6 +5119,27 @@ func (e EntrySlaGoalStanding) Valid() bool {
 	}
 }
 
+// Defines values for EntryStepsStateMode.
+const (
+	EntryStepsStateModeCOLUMNS  EntryStepsStateMode = "COLUMNS"
+	EntryStepsStateModeNONE     EntryStepsStateMode = "NONE"
+	EntryStepsStateModeWORKFLOW EntryStepsStateMode = "WORKFLOW"
+)
+
+// Valid indicates whether the value is a known member of the EntryStepsStateMode enum.
+func (e EntryStepsStateMode) Valid() bool {
+	switch e {
+	case EntryStepsStateModeCOLUMNS:
+		return true
+	case EntryStepsStateModeNONE:
+		return true
+	case EntryStepsStateModeWORKFLOW:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ErasureKeptHoldScopeKind.
 const (
 	ErasureKeptHoldScopeKindACCOUNT   ErasureKeptHoldScopeKind = "ACCOUNT"
@@ -4912,6 +5206,7 @@ const (
 	ErasureLineKindPAGEDRAFTS         ErasureLineKind = "PAGE_DRAFTS"
 	ErasureLineKindPERSONALRULES      ErasureLineKind = "PERSONAL_RULES"
 	ErasureLineKindPORTFOLIOUPDATES   ErasureLineKind = "PORTFOLIO_UPDATES"
+	ErasureLineKindPOSTREPLIES        ErasureLineKind = "POST_REPLIES"
 	ErasureLineKindTIME               ErasureLineKind = "TIME"
 	ErasureLineKindWHITEBOARDCOMMENTS ErasureLineKind = "WHITEBOARD_COMMENTS"
 )
@@ -4950,6 +5245,8 @@ func (e ErasureLineKind) Valid() bool {
 	case ErasureLineKindPERSONALRULES:
 		return true
 	case ErasureLineKindPORTFOLIOUPDATES:
+		return true
+	case ErasureLineKindPOSTREPLIES:
 		return true
 	case ErasureLineKindTIME:
 		return true
@@ -5281,6 +5578,33 @@ func (e GlanceLineKind) Valid() bool {
 	case GlanceLineKindENTRY:
 		return true
 	case GlanceLineKindPAGE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GoalLinkedEntriesStatusCategory.
+const (
+	GoalLinkedEntriesStatusCategoryBACKLOG     GoalLinkedEntriesStatusCategory = "BACKLOG"
+	GoalLinkedEntriesStatusCategoryDONE        GoalLinkedEntriesStatusCategory = "DONE"
+	GoalLinkedEntriesStatusCategoryINPROGRESS  GoalLinkedEntriesStatusCategory = "IN_PROGRESS"
+	GoalLinkedEntriesStatusCategoryLessThannil GoalLinkedEntriesStatusCategory = "<nil>"
+	GoalLinkedEntriesStatusCategoryTODO        GoalLinkedEntriesStatusCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the GoalLinkedEntriesStatusCategory enum.
+func (e GoalLinkedEntriesStatusCategory) Valid() bool {
+	switch e {
+	case GoalLinkedEntriesStatusCategoryBACKLOG:
+		return true
+	case GoalLinkedEntriesStatusCategoryDONE:
+		return true
+	case GoalLinkedEntriesStatusCategoryINPROGRESS:
+		return true
+	case GoalLinkedEntriesStatusCategoryLessThannil:
+		return true
+	case GoalLinkedEntriesStatusCategoryTODO:
 		return true
 	default:
 		return false
@@ -5842,11 +6166,13 @@ func (e InstanceSettingsPlanAppliedThrough) Valid() bool {
 // Defines values for InvitationDeliveryCategory.
 const (
 	InvitationDeliveryCategoryASSIGNMENT      InvitationDeliveryCategory = "ASSIGNMENT"
+	InvitationDeliveryCategoryATTESTATION     InvitationDeliveryCategory = "ATTESTATION"
 	InvitationDeliveryCategoryCOMMENT         InvitationDeliveryCategory = "COMMENT"
 	InvitationDeliveryCategoryEMERGENCYACCESS InvitationDeliveryCategory = "EMERGENCY_ACCESS"
 	InvitationDeliveryCategoryINTEGRATION     InvitationDeliveryCategory = "INTEGRATION"
 	InvitationDeliveryCategoryINVITATION      InvitationDeliveryCategory = "INVITATION"
 	InvitationDeliveryCategoryMEMBERSHIP      InvitationDeliveryCategory = "MEMBERSHIP"
+	InvitationDeliveryCategoryPOST            InvitationDeliveryCategory = "POST"
 	InvitationDeliveryCategoryREMINDER        InvitationDeliveryCategory = "REMINDER"
 	InvitationDeliveryCategoryREQUESTREPLY    InvitationDeliveryCategory = "REQUEST_REPLY"
 	InvitationDeliveryCategoryRETENTION       InvitationDeliveryCategory = "RETENTION"
@@ -5858,6 +6184,8 @@ func (e InvitationDeliveryCategory) Valid() bool {
 	switch e {
 	case InvitationDeliveryCategoryASSIGNMENT:
 		return true
+	case InvitationDeliveryCategoryATTESTATION:
+		return true
 	case InvitationDeliveryCategoryCOMMENT:
 		return true
 	case InvitationDeliveryCategoryEMERGENCYACCESS:
@@ -5867,6 +6195,8 @@ func (e InvitationDeliveryCategory) Valid() bool {
 	case InvitationDeliveryCategoryINVITATION:
 		return true
 	case InvitationDeliveryCategoryMEMBERSHIP:
+		return true
+	case InvitationDeliveryCategoryPOST:
 		return true
 	case InvitationDeliveryCategoryREMINDER:
 		return true
@@ -6138,22 +6468,22 @@ func (e ItemAggregateQueryAggregateFunction) Valid() bool {
 
 // Defines values for ItemAggregateQueryAggregateSource.
 const (
-	Entries ItemAggregateQueryAggregateSource = "entries"
-	Links   ItemAggregateQueryAggregateSource = "links"
-	Pages   ItemAggregateQueryAggregateSource = "pages"
-	Time    ItemAggregateQueryAggregateSource = "time"
+	ItemAggregateQueryAggregateSourceEntries ItemAggregateQueryAggregateSource = "entries"
+	ItemAggregateQueryAggregateSourceLinks   ItemAggregateQueryAggregateSource = "links"
+	ItemAggregateQueryAggregateSourcePages   ItemAggregateQueryAggregateSource = "pages"
+	ItemAggregateQueryAggregateSourceTime    ItemAggregateQueryAggregateSource = "time"
 )
 
 // Valid indicates whether the value is a known member of the ItemAggregateQueryAggregateSource enum.
 func (e ItemAggregateQueryAggregateSource) Valid() bool {
 	switch e {
-	case Entries:
+	case ItemAggregateQueryAggregateSourceEntries:
 		return true
-	case Links:
+	case ItemAggregateQueryAggregateSourceLinks:
 		return true
-	case Pages:
+	case ItemAggregateQueryAggregateSourcePages:
 		return true
-	case Time:
+	case ItemAggregateQueryAggregateSourceTime:
 		return true
 	default:
 		return false
@@ -7360,6 +7690,27 @@ func (e PageBacklinkListDataStrength) Valid() bool {
 	}
 }
 
+// Defines values for PageCoverSource.
+const (
+	PageCoverSourceGALLERY  PageCoverSource = "GALLERY"
+	PageCoverSourceGRADIENT PageCoverSource = "GRADIENT"
+	PageCoverSourceIMAGE    PageCoverSource = "IMAGE"
+)
+
+// Valid indicates whether the value is a known member of the PageCoverSource enum.
+func (e PageCoverSource) Valid() bool {
+	switch e {
+	case PageCoverSourceGALLERY:
+		return true
+	case PageCoverSourceGRADIENT:
+		return true
+	case PageCoverSourceIMAGE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PageExportFilesEncoding.
 const (
 	PageExportFilesEncodingBASE64 PageExportFilesEncoding = "BASE64"
@@ -7882,6 +8233,87 @@ func (e PolicySource) Valid() bool {
 	}
 }
 
+// Defines values for PortalMergedRequestStatusCategory.
+const (
+	PortalMergedRequestStatusCategoryBACKLOG     PortalMergedRequestStatusCategory = "BACKLOG"
+	PortalMergedRequestStatusCategoryDONE        PortalMergedRequestStatusCategory = "DONE"
+	PortalMergedRequestStatusCategoryINPROGRESS  PortalMergedRequestStatusCategory = "IN_PROGRESS"
+	PortalMergedRequestStatusCategoryLessThannil PortalMergedRequestStatusCategory = "<nil>"
+	PortalMergedRequestStatusCategoryTODO        PortalMergedRequestStatusCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the PortalMergedRequestStatusCategory enum.
+func (e PortalMergedRequestStatusCategory) Valid() bool {
+	switch e {
+	case PortalMergedRequestStatusCategoryBACKLOG:
+		return true
+	case PortalMergedRequestStatusCategoryDONE:
+		return true
+	case PortalMergedRequestStatusCategoryINPROGRESS:
+		return true
+	case PortalMergedRequestStatusCategoryLessThannil:
+		return true
+	case PortalMergedRequestStatusCategoryTODO:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PortalRequestStatusCategory.
+const (
+	PortalRequestStatusCategoryBACKLOG     PortalRequestStatusCategory = "BACKLOG"
+	PortalRequestStatusCategoryDONE        PortalRequestStatusCategory = "DONE"
+	PortalRequestStatusCategoryINPROGRESS  PortalRequestStatusCategory = "IN_PROGRESS"
+	PortalRequestStatusCategoryLessThannil PortalRequestStatusCategory = "<nil>"
+	PortalRequestStatusCategoryTODO        PortalRequestStatusCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the PortalRequestStatusCategory enum.
+func (e PortalRequestStatusCategory) Valid() bool {
+	switch e {
+	case PortalRequestStatusCategoryBACKLOG:
+		return true
+	case PortalRequestStatusCategoryDONE:
+		return true
+	case PortalRequestStatusCategoryINPROGRESS:
+		return true
+	case PortalRequestStatusCategoryLessThannil:
+		return true
+	case PortalRequestStatusCategoryTODO:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PortalRequestDetailStatusCategory.
+const (
+	PortalRequestDetailStatusCategoryBACKLOG     PortalRequestDetailStatusCategory = "BACKLOG"
+	PortalRequestDetailStatusCategoryDONE        PortalRequestDetailStatusCategory = "DONE"
+	PortalRequestDetailStatusCategoryINPROGRESS  PortalRequestDetailStatusCategory = "IN_PROGRESS"
+	PortalRequestDetailStatusCategoryLessThannil PortalRequestDetailStatusCategory = "<nil>"
+	PortalRequestDetailStatusCategoryTODO        PortalRequestDetailStatusCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the PortalRequestDetailStatusCategory enum.
+func (e PortalRequestDetailStatusCategory) Valid() bool {
+	switch e {
+	case PortalRequestDetailStatusCategoryBACKLOG:
+		return true
+	case PortalRequestDetailStatusCategoryDONE:
+		return true
+	case PortalRequestDetailStatusCategoryINPROGRESS:
+		return true
+	case PortalRequestDetailStatusCategoryLessThannil:
+		return true
+	case PortalRequestDetailStatusCategoryTODO:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PortfolioItemsKind.
 const (
 	PortfolioItemsKindCOLLECTION PortfolioItemsKind = "COLLECTION"
@@ -8011,6 +8443,186 @@ func (e PortfolioWriteStatus) Valid() bool {
 	case PortfolioWriteStatusOFFTRACK:
 		return true
 	case PortfolioWriteStatusONTRACK:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostAudience.
+const (
+	PostAudienceGROUPS PostAudience = "GROUPS"
+	PostAudienceHUB    PostAudience = "HUB"
+)
+
+// Valid indicates whether the value is a known member of the PostAudience enum.
+func (e PostAudience) Valid() bool {
+	switch e {
+	case PostAudienceGROUPS:
+		return true
+	case PostAudienceHUB:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostState.
+const (
+	PostStateDRAFT     PostState = "DRAFT"
+	PostStatePUBLISHED PostState = "PUBLISHED"
+	PostStateSCHEDULED PostState = "SCHEDULED"
+)
+
+// Valid indicates whether the value is a known member of the PostState enum.
+func (e PostState) Valid() bool {
+	switch e {
+	case PostStateDRAFT:
+		return true
+	case PostStatePUBLISHED:
+		return true
+	case PostStateSCHEDULED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostTemplate.
+const (
+	PostTemplateANNOUNCEMENT  PostTemplate = "ANNOUNCEMENT"
+	PostTemplateLessThannil   PostTemplate = "<nil>"
+	PostTemplateMONTHLYREVIEW PostTemplate = "MONTHLY_REVIEW"
+	PostTemplateRELEASENOTE   PostTemplate = "RELEASE_NOTE"
+	PostTemplateWELCOME       PostTemplate = "WELCOME"
+)
+
+// Valid indicates whether the value is a known member of the PostTemplate enum.
+func (e PostTemplate) Valid() bool {
+	switch e {
+	case PostTemplateANNOUNCEMENT:
+		return true
+	case PostTemplateLessThannil:
+		return true
+	case PostTemplateMONTHLYREVIEW:
+		return true
+	case PostTemplateRELEASENOTE:
+		return true
+	case PostTemplateWELCOME:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostCreateAudience.
+const (
+	PostCreateAudienceGROUPS PostCreateAudience = "GROUPS"
+	PostCreateAudienceHUB    PostCreateAudience = "HUB"
+)
+
+// Valid indicates whether the value is a known member of the PostCreateAudience enum.
+func (e PostCreateAudience) Valid() bool {
+	switch e {
+	case PostCreateAudienceGROUPS:
+		return true
+	case PostCreateAudienceHUB:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostCreateTemplate.
+const (
+	PostCreateTemplateANNOUNCEMENT  PostCreateTemplate = "ANNOUNCEMENT"
+	PostCreateTemplateLessThannil   PostCreateTemplate = "<nil>"
+	PostCreateTemplateMONTHLYREVIEW PostCreateTemplate = "MONTHLY_REVIEW"
+	PostCreateTemplateRELEASENOTE   PostCreateTemplate = "RELEASE_NOTE"
+	PostCreateTemplateWELCOME       PostCreateTemplate = "WELCOME"
+)
+
+// Valid indicates whether the value is a known member of the PostCreateTemplate enum.
+func (e PostCreateTemplate) Valid() bool {
+	switch e {
+	case PostCreateTemplateANNOUNCEMENT:
+		return true
+	case PostCreateTemplateLessThannil:
+		return true
+	case PostCreateTemplateMONTHLYREVIEW:
+		return true
+	case PostCreateTemplateRELEASENOTE:
+		return true
+	case PostCreateTemplateWELCOME:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostReplyReactionsReaction.
+const (
+	AGREE     PostReplyReactionsReaction = "AGREE"
+	CELEBRATE PostReplyReactionsReaction = "CELEBRATE"
+	IDEA      PostReplyReactionsReaction = "IDEA"
+	THANKS    PostReplyReactionsReaction = "THANKS"
+)
+
+// Valid indicates whether the value is a known member of the PostReplyReactionsReaction enum.
+func (e PostReplyReactionsReaction) Valid() bool {
+	switch e {
+	case AGREE:
+		return true
+	case CELEBRATE:
+		return true
+	case IDEA:
+		return true
+	case THANKS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostSettingsAudience.
+const (
+	PostSettingsAudienceGROUPS PostSettingsAudience = "GROUPS"
+	PostSettingsAudienceHUB    PostSettingsAudience = "HUB"
+)
+
+// Valid indicates whether the value is a known member of the PostSettingsAudience enum.
+func (e PostSettingsAudience) Valid() bool {
+	switch e {
+	case PostSettingsAudienceGROUPS:
+		return true
+	case PostSettingsAudienceHUB:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostSettingsTemplate.
+const (
+	PostSettingsTemplateANNOUNCEMENT  PostSettingsTemplate = "ANNOUNCEMENT"
+	PostSettingsTemplateLessThannil   PostSettingsTemplate = "<nil>"
+	PostSettingsTemplateMONTHLYREVIEW PostSettingsTemplate = "MONTHLY_REVIEW"
+	PostSettingsTemplateRELEASENOTE   PostSettingsTemplate = "RELEASE_NOTE"
+	PostSettingsTemplateWELCOME       PostSettingsTemplate = "WELCOME"
+)
+
+// Valid indicates whether the value is a known member of the PostSettingsTemplate enum.
+func (e PostSettingsTemplate) Valid() bool {
+	switch e {
+	case PostSettingsTemplateANNOUNCEMENT:
+		return true
+	case PostSettingsTemplateLessThannil:
+		return true
+	case PostSettingsTemplateMONTHLYREVIEW:
+		return true
+	case PostSettingsTemplateRELEASENOTE:
+		return true
+	case PostSettingsTemplateWELCOME:
 		return true
 	default:
 		return false
@@ -8197,6 +8809,60 @@ func (e QueryFieldKind) Valid() bool {
 	}
 }
 
+// Defines values for QueryKeyValue.
+const (
+	QueryKeyValueChoice   QueryKeyValue = "choice"
+	QueryKeyValueCustom   QueryKeyValue = "custom"
+	QueryKeyValueFlag     QueryKeyValue = "flag"
+	QueryKeyValueKind     QueryKeyValue = "kind"
+	QueryKeyValueLabel    QueryKeyValue = "label"
+	QueryKeyValueNumber   QueryKeyValue = "number"
+	QueryKeyValuePerson   QueryKeyValue = "person"
+	QueryKeyValuePlace    QueryKeyValue = "place"
+	QueryKeyValueRelation QueryKeyValue = "relation"
+	QueryKeyValueSort     QueryKeyValue = "sort"
+	QueryKeyValueState    QueryKeyValue = "state"
+	QueryKeyValueText     QueryKeyValue = "text"
+	QueryKeyValueTime     QueryKeyValue = "time"
+	QueryKeyValueWords    QueryKeyValue = "words"
+)
+
+// Valid indicates whether the value is a known member of the QueryKeyValue enum.
+func (e QueryKeyValue) Valid() bool {
+	switch e {
+	case QueryKeyValueChoice:
+		return true
+	case QueryKeyValueCustom:
+		return true
+	case QueryKeyValueFlag:
+		return true
+	case QueryKeyValueKind:
+		return true
+	case QueryKeyValueLabel:
+		return true
+	case QueryKeyValueNumber:
+		return true
+	case QueryKeyValuePerson:
+		return true
+	case QueryKeyValuePlace:
+		return true
+	case QueryKeyValueRelation:
+		return true
+	case QueryKeyValueSort:
+		return true
+	case QueryKeyValueState:
+		return true
+	case QueryKeyValueText:
+		return true
+	case QueryKeyValueTime:
+		return true
+	case QueryKeyValueWords:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for QuotaSource.
 const (
 	QuotaSourceDEFAULT   QuotaSource = "DEFAULT"
@@ -8350,6 +9016,33 @@ func (e ReferenceStrength) Valid() bool {
 	}
 }
 
+// Defines values for ReferenceTargetStatusCategory.
+const (
+	ReferenceTargetStatusCategoryBACKLOG     ReferenceTargetStatusCategory = "BACKLOG"
+	ReferenceTargetStatusCategoryDONE        ReferenceTargetStatusCategory = "DONE"
+	ReferenceTargetStatusCategoryINPROGRESS  ReferenceTargetStatusCategory = "IN_PROGRESS"
+	ReferenceTargetStatusCategoryLessThannil ReferenceTargetStatusCategory = "<nil>"
+	ReferenceTargetStatusCategoryTODO        ReferenceTargetStatusCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the ReferenceTargetStatusCategory enum.
+func (e ReferenceTargetStatusCategory) Valid() bool {
+	switch e {
+	case ReferenceTargetStatusCategoryBACKLOG:
+		return true
+	case ReferenceTargetStatusCategoryDONE:
+		return true
+	case ReferenceTargetStatusCategoryINPROGRESS:
+		return true
+	case ReferenceTargetStatusCategoryLessThannil:
+		return true
+	case ReferenceTargetStatusCategoryTODO:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ReleaseState.
 const (
 	ReleaseStatePLANNED  ReleaseState = "PLANNED"
@@ -8368,6 +9061,33 @@ func (e ReleaseState) Valid() bool {
 	}
 }
 
+// Defines values for ReleaseDetailEntriesStatusCategory.
+const (
+	ReleaseDetailEntriesStatusCategoryBACKLOG     ReleaseDetailEntriesStatusCategory = "BACKLOG"
+	ReleaseDetailEntriesStatusCategoryDONE        ReleaseDetailEntriesStatusCategory = "DONE"
+	ReleaseDetailEntriesStatusCategoryINPROGRESS  ReleaseDetailEntriesStatusCategory = "IN_PROGRESS"
+	ReleaseDetailEntriesStatusCategoryLessThannil ReleaseDetailEntriesStatusCategory = "<nil>"
+	ReleaseDetailEntriesStatusCategoryTODO        ReleaseDetailEntriesStatusCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the ReleaseDetailEntriesStatusCategory enum.
+func (e ReleaseDetailEntriesStatusCategory) Valid() bool {
+	switch e {
+	case ReleaseDetailEntriesStatusCategoryBACKLOG:
+		return true
+	case ReleaseDetailEntriesStatusCategoryDONE:
+		return true
+	case ReleaseDetailEntriesStatusCategoryINPROGRESS:
+		return true
+	case ReleaseDetailEntriesStatusCategoryLessThannil:
+		return true
+	case ReleaseDetailEntriesStatusCategoryTODO:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ReleaseDetailState.
 const (
 	ReleaseDetailStatePLANNED  ReleaseDetailState = "PLANNED"
@@ -8380,6 +9100,24 @@ func (e ReleaseDetailState) Valid() bool {
 	case ReleaseDetailStatePLANNED:
 		return true
 	case ReleaseDetailStateRELEASED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReleaseListItemState.
+const (
+	ReleaseListItemStatePLANNED  ReleaseListItemState = "PLANNED"
+	ReleaseListItemStateRELEASED ReleaseListItemState = "RELEASED"
+)
+
+// Valid indicates whether the value is a known member of the ReleaseListItemState enum.
+func (e ReleaseListItemState) Valid() bool {
+	switch e {
+	case ReleaseListItemStatePLANNED:
+		return true
+	case ReleaseListItemStateRELEASED:
 		return true
 	default:
 		return false
@@ -9094,6 +9832,81 @@ func (e SavedViewShareSharing) Valid() bool {
 	}
 }
 
+// Defines values for SearchAllHitOnKind.
+const (
+	SearchAllHitOnKindENTRY      SearchAllHitOnKind = "ENTRY"
+	SearchAllHitOnKindPAGE       SearchAllHitOnKind = "PAGE"
+	SearchAllHitOnKindWHITEBOARD SearchAllHitOnKind = "WHITEBOARD"
+)
+
+// Valid indicates whether the value is a known member of the SearchAllHitOnKind enum.
+func (e SearchAllHitOnKind) Valid() bool {
+	switch e {
+	case SearchAllHitOnKindENTRY:
+		return true
+	case SearchAllHitOnKindPAGE:
+		return true
+	case SearchAllHitOnKindWHITEBOARD:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SearchKind.
+const (
+	SearchKindASSET      SearchKind = "ASSET"
+	SearchKindCOMMENT    SearchKind = "COMMENT"
+	SearchKindDASHBOARD  SearchKind = "DASHBOARD"
+	SearchKindENTRY      SearchKind = "ENTRY"
+	SearchKindFILE       SearchKind = "FILE"
+	SearchKindGOAL       SearchKind = "GOAL"
+	SearchKindPAGE       SearchKind = "PAGE"
+	SearchKindPERSON     SearchKind = "PERSON"
+	SearchKindPORTFOLIO  SearchKind = "PORTFOLIO"
+	SearchKindPOST       SearchKind = "POST"
+	SearchKindRELEASE    SearchKind = "RELEASE"
+	SearchKindSPRINT     SearchKind = "SPRINT"
+	SearchKindTICKET     SearchKind = "TICKET"
+	SearchKindWHITEBOARD SearchKind = "WHITEBOARD"
+)
+
+// Valid indicates whether the value is a known member of the SearchKind enum.
+func (e SearchKind) Valid() bool {
+	switch e {
+	case SearchKindASSET:
+		return true
+	case SearchKindCOMMENT:
+		return true
+	case SearchKindDASHBOARD:
+		return true
+	case SearchKindENTRY:
+		return true
+	case SearchKindFILE:
+		return true
+	case SearchKindGOAL:
+		return true
+	case SearchKindPAGE:
+		return true
+	case SearchKindPERSON:
+		return true
+	case SearchKindPORTFOLIO:
+		return true
+	case SearchKindPOST:
+		return true
+	case SearchKindRELEASE:
+		return true
+	case SearchKindSPRINT:
+		return true
+	case SearchKindTICKET:
+		return true
+	case SearchKindWHITEBOARD:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SearchMode.
 const (
 	AUTO    SearchMode = "AUTO"
@@ -9589,6 +10402,27 @@ func (e StarterSetHubPreset) Valid() bool {
 	}
 }
 
+// Defines values for StateMode.
+const (
+	StateModeCOLUMNS  StateMode = "COLUMNS"
+	StateModeNONE     StateMode = "NONE"
+	StateModeWORKFLOW StateMode = "WORKFLOW"
+)
+
+// Valid indicates whether the value is a known member of the StateMode enum.
+func (e StateMode) Valid() bool {
+	switch e {
+	case StateModeCOLUMNS:
+		return true
+	case StateModeNONE:
+		return true
+	case StateModeWORKFLOW:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StepUpGrantMethod.
 const (
 	StepUpGrantMethodPASSKEY  StepUpGrantMethod = "PASSKEY"
@@ -9729,6 +10563,7 @@ func (e StructureLockOrigin) Valid() bool {
 
 // Defines values for StructurePreviewViews.
 const (
+	StructurePreviewViewsCALENDAR      StructurePreviewViews = "CALENDAR"
 	StructurePreviewViewsKANBAN        StructurePreviewViews = "KANBAN"
 	StructurePreviewViewsLISTCOLLAPSED StructurePreviewViews = "LIST_COLLAPSED"
 	StructurePreviewViewsLISTEXPANDED  StructurePreviewViews = "LIST_EXPANDED"
@@ -9738,6 +10573,8 @@ const (
 // Valid indicates whether the value is a known member of the StructurePreviewViews enum.
 func (e StructurePreviewViews) Valid() bool {
 	switch e {
+	case StructurePreviewViewsCALENDAR:
+		return true
 	case StructurePreviewViewsKANBAN:
 		return true
 	case StructurePreviewViewsLISTCOLLAPSED:
@@ -9855,6 +10692,7 @@ func (e StructureSettingsCelebration) Valid() bool {
 
 // Defines values for StructureViewsDefault.
 const (
+	StructureViewsDefaultCALENDAR      StructureViewsDefault = "CALENDAR"
 	StructureViewsDefaultKANBAN        StructureViewsDefault = "KANBAN"
 	StructureViewsDefaultLISTCOLLAPSED StructureViewsDefault = "LIST_COLLAPSED"
 	StructureViewsDefaultLISTEXPANDED  StructureViewsDefault = "LIST_EXPANDED"
@@ -9864,6 +10702,8 @@ const (
 // Valid indicates whether the value is a known member of the StructureViewsDefault enum.
 func (e StructureViewsDefault) Valid() bool {
 	switch e {
+	case StructureViewsDefaultCALENDAR:
+		return true
 	case StructureViewsDefaultKANBAN:
 		return true
 	case StructureViewsDefaultLISTCOLLAPSED:
@@ -9879,6 +10719,7 @@ func (e StructureViewsDefault) Valid() bool {
 
 // Defines values for StructureViewsOffered.
 const (
+	StructureViewsOfferedCALENDAR      StructureViewsOffered = "CALENDAR"
 	StructureViewsOfferedKANBAN        StructureViewsOffered = "KANBAN"
 	StructureViewsOfferedLISTCOLLAPSED StructureViewsOffered = "LIST_COLLAPSED"
 	StructureViewsOfferedLISTEXPANDED  StructureViewsOffered = "LIST_EXPANDED"
@@ -9888,6 +10729,8 @@ const (
 // Valid indicates whether the value is a known member of the StructureViewsOffered enum.
 func (e StructureViewsOffered) Valid() bool {
 	switch e {
+	case StructureViewsOfferedCALENDAR:
+		return true
 	case StructureViewsOfferedKANBAN:
 		return true
 	case StructureViewsOfferedLISTCOLLAPSED:
@@ -10378,6 +11221,45 @@ func (e TimesheetWeekState) Valid() bool {
 	case TimesheetWeekStateREJECTED:
 		return true
 	case TimesheetWeekStateSUBMITTED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TodaySection.
+const (
+	TodaySectionAPPROVALS   TodaySection = "APPROVALS"
+	TodaySectionCOLLECTIONS TodaySection = "COLLECTIONS"
+	TodaySectionDUETODAY    TodaySection = "DUE_TODAY"
+	TodaySectionINBOX       TodaySection = "INBOX"
+	TodaySectionNEWS        TodaySection = "NEWS"
+	TodaySectionOVERDUE     TodaySection = "OVERDUE"
+	TodaySectionRECENT      TodaySection = "RECENT"
+	TodaySectionREPLY       TodaySection = "REPLY"
+	TodaySectionTIME        TodaySection = "TIME"
+)
+
+// Valid indicates whether the value is a known member of the TodaySection enum.
+func (e TodaySection) Valid() bool {
+	switch e {
+	case TodaySectionAPPROVALS:
+		return true
+	case TodaySectionCOLLECTIONS:
+		return true
+	case TodaySectionDUETODAY:
+		return true
+	case TodaySectionINBOX:
+		return true
+	case TodaySectionNEWS:
+		return true
+	case TodaySectionOVERDUE:
+		return true
+	case TodaySectionRECENT:
+		return true
+	case TodaySectionREPLY:
+		return true
+	case TodaySectionTIME:
 		return true
 	default:
 		return false
@@ -11479,6 +12361,24 @@ func (e ListConfigProposalsParamsState) Valid() bool {
 	}
 }
 
+// Defines values for SwitchBoardJSONBodyTo.
+const (
+	SwitchBoardJSONBodyToCOLUMNS SwitchBoardJSONBodyTo = "COLUMNS"
+	SwitchBoardJSONBodyToNONE    SwitchBoardJSONBodyTo = "NONE"
+)
+
+// Valid indicates whether the value is a known member of the SwitchBoardJSONBodyTo enum.
+func (e SwitchBoardJSONBodyTo) Valid() bool {
+	switch e {
+	case SwitchBoardJSONBodyToCOLUMNS:
+		return true
+	case SwitchBoardJSONBodyToNONE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CheckInGoalJSONBodyStatus.
 const (
 	CheckInGoalJSONBodyStatusATRISK   CheckInGoalJSONBodyStatus = "AT_RISK"
@@ -11548,6 +12448,30 @@ func (e ListCiAlertsParamsStatus) Valid() bool {
 	case ListCiAlertsParamsStatusFIRING:
 		return true
 	case ListCiAlertsParamsStatusRESOLVED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListHubPostsParamsFilter.
+const (
+	ListHubPostsParamsFilterALL       ListHubPostsParamsFilter = "ALL"
+	ListHubPostsParamsFilterMINE      ListHubPostsParamsFilter = "MINE"
+	ListHubPostsParamsFilterSCHEDULED ListHubPostsParamsFilter = "SCHEDULED"
+	ListHubPostsParamsFilterUNREAD    ListHubPostsParamsFilter = "UNREAD"
+)
+
+// Valid indicates whether the value is a known member of the ListHubPostsParamsFilter enum.
+func (e ListHubPostsParamsFilter) Valid() bool {
+	switch e {
+	case ListHubPostsParamsFilterALL:
+		return true
+	case ListHubPostsParamsFilterMINE:
+		return true
+	case ListHubPostsParamsFilterSCHEDULED:
+		return true
+	case ListHubPostsParamsFilterUNREAD:
 		return true
 	default:
 		return false
@@ -11755,6 +12679,24 @@ func (e SetDependencyTimingJSONBodyDependencyKind) Valid() bool {
 	}
 }
 
+// Defines values for SetCoverImagesPolicyJSONBodyLibrary.
+const (
+	SetCoverImagesPolicyJSONBodyLibraryOFF         SetCoverImagesPolicyJSONBodyLibrary = "OFF"
+	SetCoverImagesPolicyJSONBodyLibraryOPENLIBRARY SetCoverImagesPolicyJSONBodyLibrary = "OPEN_LIBRARY"
+)
+
+// Valid indicates whether the value is a known member of the SetCoverImagesPolicyJSONBodyLibrary enum.
+func (e SetCoverImagesPolicyJSONBodyLibrary) Valid() bool {
+	switch e {
+	case SetCoverImagesPolicyJSONBodyLibraryOFF:
+		return true
+	case SetCoverImagesPolicyJSONBodyLibraryOPENLIBRARY:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ReportPortfolioStatusJSONBodyStatus.
 const (
 	ReportPortfolioStatusJSONBodyStatusATRISK   ReportPortfolioStatusJSONBodyStatus = "AT_RISK"
@@ -11778,16 +12720,16 @@ func (e ReportPortfolioStatusJSONBodyStatus) Valid() bool {
 
 // Defines values for ListMyRequestsParamsScope.
 const (
-	MINE         ListMyRequestsParamsScope = "MINE"
-	ORGANISATION ListMyRequestsParamsScope = "ORGANISATION"
+	ListMyRequestsParamsScopeMINE         ListMyRequestsParamsScope = "MINE"
+	ListMyRequestsParamsScopeORGANISATION ListMyRequestsParamsScope = "ORGANISATION"
 )
 
 // Valid indicates whether the value is a known member of the ListMyRequestsParamsScope enum.
 func (e ListMyRequestsParamsScope) Valid() bool {
 	switch e {
-	case MINE:
+	case ListMyRequestsParamsScopeMINE:
 		return true
-	case ORGANISATION:
+	case ListMyRequestsParamsScopeORGANISATION:
 		return true
 	default:
 		return false
@@ -12265,9 +13207,15 @@ type Account struct {
 	// `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
 	// stays so that the workspace's own content is still readable, and everything of the
 	// person's in it is gone.
-	Status    AccountStatus     `json:"status"`
-	TimeZone  *string           `json:"time_zone,omitempty"`
-	WeekStart *AccountWeekStart `json:"week_start,omitempty"`
+	Status   AccountStatus `json:"status"`
+	TimeZone *string       `json:"time_zone,omitempty"`
+
+	// TodaySections The order the person gave *Today*'s cards and tiles. Absent or empty: the product's own order; a section not named keeps its own place after those named.
+	TodaySections *[]TodaySection `json:"today_sections,omitempty"`
+
+	// TodaySectionsHidden The cards and tiles the person hid on *Today*. Absent or empty: every section the person's roles and modules give is shown.
+	TodaySectionsHidden *[]TodaySection   `json:"today_sections_hidden,omitempty"`
+	WeekStart           *AccountWeekStart `json:"week_start,omitempty"`
 }
 
 // AccountKind defines model for Account.Kind.
@@ -12323,9 +13271,15 @@ type AccountPreferences struct {
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
 
 	// ProductsSeen The products whose first-visit mark the person has seen, written by the client as the whole list. `null` or an empty list clears it, which shows each product's mark again.
-	ProductsSeen *[]Module                    `json:"products_seen,omitempty"`
-	TimeZone     *string                      `json:"time_zone,omitempty"`
-	WeekStart    *AccountPreferencesWeekStart `json:"week_start,omitempty"`
+	ProductsSeen *[]Module `json:"products_seen,omitempty"`
+	TimeZone     *string   `json:"time_zone,omitempty"`
+
+	// TodaySections The order of *Today*'s cards and tiles, the whole list. `null` or an empty list clears it, which gives the product's own order again.
+	TodaySections *[]TodaySection `json:"today_sections,omitempty"`
+
+	// TodaySectionsHidden The cards and tiles hidden on *Today*, the whole list. `null` or an empty list clears it, which shows every section again.
+	TodaySectionsHidden *[]TodaySection              `json:"today_sections_hidden,omitempty"`
+	WeekStart           *AccountPreferencesWeekStart `json:"week_start,omitempty"`
 }
 
 // AccountPreferencesNavContentsMode How the sidebar shows a hub's contents. `null` clears it; the default is TREE.
@@ -12504,13 +13458,16 @@ type AdminTenantPage struct {
 // Agent defines model for Agent.
 type Agent struct {
 	// AccountId The service account it acts as.
-	AccountId   *openapi_types.UUID `json:"account_id"`
-	ApprovedAt  *time.Time          `json:"approved_at"`
-	ApprovedBy  *openapi_types.UUID `json:"approved_by"`
-	Budget      AgentBudget         `json:"budget"`
-	CreatedAt   time.Time           `json:"created_at"`
-	Id          openapi_types.UUID  `json:"id"`
-	Kind        AgentKind           `json:"kind"`
+	AccountId  *openapi_types.UUID `json:"account_id"`
+	ApprovedAt *time.Time          `json:"approved_at"`
+	ApprovedBy *openapi_types.UUID `json:"approved_by"`
+	Budget     AgentBudget         `json:"budget"`
+	CreatedAt  time.Time           `json:"created_at"`
+	Id         openapi_types.UUID  `json:"id"`
+	Kind       AgentKind           `json:"kind"`
+
+	// LastRunAt When its latest job started; null before its first. On a list only.
+	LastRunAt   *time.Time          `json:"last_run_at,omitempty"`
 	MinAccuracy int                 `json:"min_accuracy"`
 	ModelId     *openapi_types.UUID `json:"model_id"`
 	Name        string              `json:"name"`
@@ -12528,7 +13485,7 @@ type Agent struct {
 	SuspendedAt *time.Time          `json:"suspended_at"`
 	SuspendedBy *openapi_types.UUID `json:"suspended_by"`
 
-	// Usage What it spent; only on an agent read alone.
+	// Usage What it spent this hour and today, on a list and on an agent read alone.
 	Usage *struct {
 		ActionsThisHour *int `json:"actions_this_hour,omitempty"`
 		TokensToday     *int `json:"tokens_today,omitempty"`
@@ -13110,8 +14067,11 @@ type Approval struct {
 	RequestedBy openapi_types.UUID  `json:"requested_by"`
 	State       ApprovalState       `json:"state"`
 	Step        string              `json:"step"`
-	Version     int                 `json:"version"`
-	Workflow    string              `json:"workflow"`
+
+	// StepName The step's name as its workflow publishes it now - the step's own, else the status it leads into; null where neither is named.
+	StepName *string `json:"step_name,omitempty"`
+	Version  int     `json:"version"`
+	Workflow string  `json:"workflow"`
 }
 
 // ApprovalDecisionsVerdict defines model for Approval.Decisions.Verdict.
@@ -13174,6 +14134,27 @@ type ArticleSuggestionList struct {
 		UpdatedAt time.Time          `json:"updated_at"`
 	} `json:"data"`
 }
+
+// AskQueryRequest A question in words, in any language the provider reads.
+type AskQueryRequest struct {
+	// Question What the person wants to find, as they would say it.
+	Question string `json:"question"`
+}
+
+// AskedQuery The question as a Hubtask query, with the provenance every AI output carries. Not a record and not a result: no entry was read to write it.
+type AskedQuery struct {
+	Model         string    `json:"model"`
+	ProducedAt    time.Time `json:"produced_at"`
+	PromptId      string    `json:"prompt_id"`
+	PromptVersion string    `json:"prompt_version"`
+
+	// Query The query in the `field: value` spelling, in its canonical form.
+	Query  string           `json:"query"`
+	Source AskedQuerySource `json:"source"`
+}
+
+// AskedQuerySource defines model for AskedQuery.Source.
+type AskedQuerySource string
 
 // Assignment Who the entry is assigned to.
 type Assignment struct {
@@ -13395,6 +14376,9 @@ type AutomationRule struct {
 	// Enabled Switched off when the rule is written. `:enable` and `:disable` are what move it, so that the trail says which of the two somebody did.
 	Enabled bool `json:"enabled"`
 
+	// Entries For which entries: a query line, every name in it an identifier, that narrows the entries the rule acts on before its conditions are asked. It is read at each run as `run_as` reads, so it never reaches an entry that account may not read. Empty is every entry the trigger reaches.
+	Entries *string `json:"entries,omitempty"`
+
 	// FailureCount Consecutive failed runs. A run of them disables the rule by itself, and enabling it by hand clears the count.
 	FailureCount int `json:"failure_count"`
 
@@ -13444,6 +14428,9 @@ type AutomationRuleCreate struct {
 	Actions    []RuleAction     `json:"actions"`
 	Conditions *[]RuleCondition `json:"conditions,omitempty"`
 
+	// Entries For which entries, as a query line with identifiers for names; empty for every entry. A trigger that is about no entry (a schedule, an inbound webhook, an intake entry) takes none.
+	Entries *string `json:"entries,omitempty"`
+
 	// Key The rule's stable key in its scope. Omitted draws one from the name; one the scope already holds is refused.
 	Key     *string                      `json:"key,omitempty"`
 	Name    string                       `json:"name"`
@@ -13473,6 +14460,9 @@ type AutomationRulePage struct {
 type AutomationRuleUpdate struct {
 	Actions    *[]RuleAction    `json:"actions,omitempty"`
 	Conditions *[]RuleCondition `json:"conditions,omitempty"`
+
+	// Entries For which entries, as a query line with identifiers for names; empty for every entry. A trigger that is about no entry (a schedule, an inbound webhook, an intake entry) takes none.
+	Entries *string `json:"entries,omitempty"`
 
 	// ExpectedVersion The version last read. A mismatch is a conflict rather than an overwrite.
 	ExpectedVersion *int                         `json:"expected_version,omitempty"`
@@ -13785,6 +14775,106 @@ type BillingRateList struct {
 	Data []BillingRate `json:"data"`
 }
 
+// BlockedStep A step from the entry's status the person may not take, and who may.
+type BlockedStep struct {
+	// Groups The groups whose members may take it.
+	Groups []openapi_types.UUID `json:"groups"`
+	Key    string               `json:"key"`
+	Name   *string              `json:"name"`
+
+	// People The people the step's person fields name on this entry.
+	People []openapi_types.UUID `json:"people"`
+
+	// Permission The permission that opens it to whoever holds it.
+	Permission *string `json:"permission,omitempty"`
+
+	// Reason `workflows.step_who_unmet`: the step is limited to roles, people or groups the person is not among; `workflows.step_condition_unmet`: its condition over the entry and the person does not hold.
+	Reason BlockedStepReason `json:"reason"`
+
+	// Roles The roles that may take it.
+	Roles []string `json:"roles"`
+	To    string   `json:"to"`
+}
+
+// BlockedStepReason `workflows.step_who_unmet`: the step is limited to roles, people or groups the person is not among; `workflows.step_condition_unmet`: its condition over the entry and the person does not hold.
+type BlockedStepReason string
+
+// BoardPreview defines model for BoardPreview.
+type BoardPreview struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// ColumnOnly Of them, those whose status stays.
+	ColumnOnly int `json:"column_only"`
+	Columns    []struct {
+		BucketId openapi_types.UUID `json:"bucket_id"`
+
+		// Completes Whether an entry in it is done after.
+		Completes    bool   `json:"completes"`
+		IsDoneBucket bool   `json:"is_done_bucket"`
+		Name         string `json:"name"`
+
+		// Statuses The statuses it shows after.
+		Statuses []string `json:"statuses"`
+	} `json:"columns"`
+
+	// DoneBucketId Without a workflow after, the column that is the done column; null otherwise.
+	DoneBucketId *openapi_types.UUID `json:"done_bucket_id"`
+
+	// LevelAfter Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+	LevelAfter StateMode `json:"level_after"`
+
+	// LevelBefore Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+	LevelBefore StateMode `json:"level_before"`
+
+	// Moved Entries whose column changes.
+	Moved int `json:"moved"`
+
+	// Unmapped The statuses no column shows after (*Ohne Spalte*), each with where it would fit.
+	Unmapped []struct {
+		Status            string              `json:"status"`
+		SuggestedBucketId *openapi_types.UUID `json:"suggested_bucket_id"`
+	} `json:"unmapped"`
+}
+
+// BoardSwitch defines model for BoardSwitch.
+type BoardSwitch struct {
+	ColumnsCreated int  `json:"columns_created"`
+	ColumnsRemoved int  `json:"columns_removed"`
+	DryRun         bool `json:"dry_run"`
+
+	// EntriesPlaced Entries put into a column, or out of one.
+	EntriesPlaced int `json:"entries_placed"`
+
+	// LevelAfter Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+	LevelAfter StateMode `json:"level_after"`
+
+	// LevelBefore Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+	LevelBefore StateMode `json:"level_before"`
+}
+
+// BoardWorkflow defines model for BoardWorkflow.
+type BoardWorkflow struct {
+	DryRun bool `json:"dry_run"`
+
+	// Entries Entries that take a status.
+	Entries  int `json:"entries"`
+	Statuses []struct {
+		BucketId openapi_types.UUID            `json:"bucket_id"`
+		Category BoardWorkflowStatusesCategory `json:"category"`
+
+		// Count Entries that take this status.
+		Count int    `json:"count"`
+		Key   string `json:"key"`
+		Name  string `json:"name"`
+	} `json:"statuses"`
+
+	// Workflow The new workflow's key.
+	Workflow string `json:"workflow"`
+}
+
+// BoardWorkflowStatusesCategory defines model for BoardWorkflow.Statuses.Category.
+type BoardWorkflowStatusesCategory string
+
 // Bucket A column of a collection's board - the "list" of the requirements. It belongs to exactly one collection, and its name is unique there, compared without regard to case or accents.
 type Bucket struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
@@ -13797,6 +14887,9 @@ type Bucket struct {
 
 	// OrderKey The rank on the board - a fractional index rather than a number.
 	OrderKey string `json:"order_key"`
+
+	// Statuses Under a workflow, the statuses the column shows; empty without one. Answered where the board is listed.
+	Statuses *[]string `json:"statuses,omitempty"`
 
 	// Version The optimistic lock, returned as the ETag and sent back as If-Match.
 	Version int `json:"version"`
@@ -13820,10 +14913,13 @@ type BucketCreate struct {
 type BucketDeletion struct {
 	BucketId openapi_types.UUID `json:"bucket_id"`
 
+	// DoneBucketId The column that took the done mark where the deleted one carried it - the rightmost column left. Null otherwise.
+	DoneBucketId *openapi_types.UUID `json:"done_bucket_id,omitempty"`
+
 	// MovedItems How many entries were moved.
 	MovedItems int `json:"moved_items"`
 
-	// TargetBucketId The column the entries moved to - the leftmost remaining one. Null when this was the last column on the board, in which case the entries now carry none.
+	// TargetBucketId The column the entries moved to: the done column's successor where the done column was deleted, under a workflow mapped onto the board none (the statuses it showed are unmapped now), else the first open column left. Null where none is.
 	TargetBucketId *openapi_types.UUID `json:"target_bucket_id"`
 }
 
@@ -14109,10 +15205,11 @@ type Capabilities struct {
 	EventTypes   *[]string          `json:"event_types,omitempty"`
 
 	// Features Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering "send by email" where there is no SMTP server, or "summarise this" where no AI provider is configured, is a dead end the manifest can prevent.
-	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter`, `structure`, `structure_enforced`, `setup_open`, `mail_domain` (the operator's receiving domain is set, so a workspace's mail intake has an address there) and `encryption` (the installation holds an encryption key, so a secret a workspace keeps - a webhook's signing secret, a backup target's or a connector's credentials - can be stored; without one, a client does not offer the form that would be refused).
+	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `query_from_words`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter`, `structure`, `structure_enforced`, `setup_open`, `mail_domain` (the operator's receiving domain is set, so a workspace's mail intake has an address there) and `encryption` (the installation holds an encryption key, so a secret a workspace keeps - a webhook's signing secret, a backup target's or a connector's credentials - can be stored; without one, a client does not offer the form that would be refused).
 	// `setup_open` is `true` exactly while the installation has no workspace and nobody in its operator register: then `POST /auth/installation:set-up` is offered, and a client shows the setup in place of the sign-in.
 	// Two of them describe this version rather than its configuration, and every installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is served) and `search_filter` (`POST /search` takes a `filter`, and answers one without `words`). They are here for a client that also talks to an older server, which does not answer them: it can tell rather than probe.
 	// `structure`, a property of this version as well, says that `/presets` is served, that every container read answers its `structure` and `GET /tenant` the workspace's, and that both can be written (`PATCH /containers/{containerId}/structure`, `PATCH /tenant/structure`). It does not say that entries already obey `levels` and `fields`; a client offers only what they allow either way.
+	// `query_from_words` says that `POST /query:ask` can answer the caller: it follows `ai_suggestions`, and a client without it draws no question field beside the query.
 	// `ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both, and so does a person who keeps their own content out of AI - no AI action is offered to them. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.
 	// `natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.
 	Features *map[string]bool `json:"features,omitempty"`
@@ -14160,6 +15257,9 @@ type Capabilities struct {
 
 	// QueryFields What `POST /items:query` accepts. A client builds its filter editor from this rather than from a hard-coded list, because the set grows with the installation's features - a field whose use case this version does not have is not in it, and filtering on it is refused rather than silently matching nothing.
 	QueryFields *[]QueryField `json:"query_fields,omitempty"`
+
+	// QueryKeys The keys of the Hubtask query's `field: value` spelling, in the order a client offers them: only keys this installation answers. A client names them in its own language; the key, the value words and the examples stay English, so a saved query survives a change of language.
+	QueryKeys *[]QueryKey `json:"query_keys,omitempty"`
 
 	// RetentionDataKinds The classes of data a retention rule may name, and what this build can do to each. A client builds its rule editor from this rather than from a table compiled into it: a new kind is configurable through the API as soon as the server knows it, and a client with its own list would be the one place that still needed a code change.
 	// `actions` is empty for a kind this build names and nothing removes yet. That is not the same as a kind that does not exist, and it is why the entry is answered at all: a rule for one of those is refused with a code that says which of the two it is.
@@ -14384,7 +15484,10 @@ type CiAsset struct {
 		Certificate string              `json:"certificate"`
 		Method      string              `json:"method"`
 	} `json:"disposal"`
-	HubId         openapi_types.UUID  `json:"hub_id"`
+	HubId openapi_types.UUID `json:"hub_id"`
+
+	// Moves The steps of its life, oldest first - the state reached on being registered and at each move, when, by whom and with whom or in which stockroom. Answered by the reads and writes of one register record, not by the register's list; a register record made before the steps were kept has none, its state alone.
+	Moves         *[]CiAssetStep      `json:"moves,omitempty"`
 	Name          *string             `json:"name,omitempty"`
 	PurchasedOn   *openapi_types.Date `json:"purchased_on"`
 	RequestId     *openapi_types.UUID `json:"request_id"`
@@ -14438,6 +15541,24 @@ type CiAssetRegister struct {
 
 // CiAssetRegisterState defines model for CiAssetRegister.State.
 type CiAssetRegisterState string
+
+// CiAssetStep defines model for CiAssetStep.
+type CiAssetStep struct {
+	AssignedTo  *openapi_types.UUID `json:"assigned_to"`
+	At          time.Time           `json:"at"`
+	By          *openapi_types.UUID `json:"by"`
+	State       CiAssetStepState    `json:"state"`
+	StockroomId *openapi_types.UUID `json:"stockroom_id"`
+}
+
+// CiAssetStepState defines model for CiAssetStep.State.
+type CiAssetStepState string
+
+// CiAttachments The files one object holds. Returned by attaching and detaching rather than the object itself: neither touches the object's own row or version.
+type CiAttachments struct {
+	CiId     openapi_types.UUID   `json:"ci_id"`
+	MediaIds []openapi_types.UUID `json:"media_ids"`
+}
 
 // CiAttest defines model for CiAttest.
 type CiAttest struct {
@@ -14567,6 +15688,12 @@ type CiCampaignList struct {
 	Data []CiCampaign `json:"data"`
 }
 
+// CiCampaignReminded defines model for CiCampaignReminded.
+type CiCampaignReminded struct {
+	// Reminded How many people were reminded.
+	Reminded int `json:"reminded"`
+}
+
 // CiCampaignStart defines model for CiCampaignStart.
 type CiCampaignStart struct {
 	Classes      *[]string           `json:"classes,omitempty"`
@@ -14576,7 +15703,7 @@ type CiCampaignStart struct {
 	ReviewMonths *int                `json:"review_months,omitempty"`
 }
 
-// CiClass A configuration item class. A shipped class has no `name`: a client shows its own word for the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days` include what it inherits.
+// CiClass An object type. A shipped object type has no `name`: a client shows its own word for the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days` include what it inherits.
 type CiClass struct {
 	Abstract        *bool              `json:"abstract,omitempty"`
 	AllAttributes   []CiAttribute      `json:"all_attributes"`
@@ -14588,7 +15715,7 @@ type CiClass struct {
 	Lineage         []string           `json:"lineage"`
 	Name            *string            `json:"name,omitempty"`
 
-	// OwnStalenessDays The staleness period the class sets itself; 0 where it inherits.
+	// OwnStalenessDays The staleness period the object type sets itself; 0 where it inherits.
 	OwnStalenessDays  *int                 `json:"own_staleness_days,omitempty"`
 	Parent            string               `json:"parent"`
 	RequiredRelations []CiRequiredRelation `json:"required_relations"`
@@ -14627,7 +15754,7 @@ type CiCompliance struct {
 	OwnerAccountId *openapi_types.UUID `json:"owner_account_id,omitempty"`
 	OwnerGroupId   *openapi_types.UUID `json:"owner_group_id,omitempty"`
 
-	// Protection The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`.
+	// Protection The need a person set. A dimension in `fixed` is not raised by what depends on the object and carries a `reason`.
 	Protection *CiOwnProtection    `json:"protection,omitempty"`
 	Quantity   *int                `json:"quantity,omitempty"`
 	ReviewDue  *openapi_types.Date `json:"review_due,omitempty"`
@@ -14641,7 +15768,13 @@ type CiComplianceStage string
 // CiComplianceStatus defines model for CiCompliance.Status.
 type CiComplianceStatus string
 
-// CiConnector A program a hub's CIs are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.
+// CiConfirm defines model for CiConfirm.
+type CiConfirm struct {
+	// ReviewMonths How far the next review moves on from today; 12 when not given.
+	ReviewMonths *int `json:"review_months,omitempty"`
+}
+
+// CiConnector A program a hub's objects are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.
 type CiConnector struct {
 	AllowedHosts  []string            `json:"allowed_hosts"`
 	BaseUrl       *string             `json:"base_url,omitempty"`
@@ -14657,7 +15790,7 @@ type CiConnector struct {
 	HubId openapi_types.UUID `json:"hub_id"`
 	Id    openapi_types.UUID `json:"id"`
 
-	// Inventory An intake posted CIs rather than alerts.
+	// Inventory An intake posted objects rather than alerts.
 	Inventory *bool           `json:"inventory,omitempty"`
 	Key       string          `json:"key"`
 	Kind      CiConnectorKind `json:"kind"`
@@ -14713,7 +15846,7 @@ type CiConnectorList struct {
 
 // CiConnectorRun defines model for CiConnectorRun.
 type CiConnectorRun struct {
-	// Connector A program a hub's CIs are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.
+	// Connector A program a hub's objects are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.
 	Connector CiConnector   `json:"connector"`
 	Counts    CiRunCounts   `json:"counts"`
 	Decisions *[]CiDecision `json:"decisions,omitempty"`
@@ -14770,11 +15903,11 @@ type CiDuplicateList struct {
 
 // CiDuplicateResolve defines model for CiDuplicateResolve.
 type CiDuplicateResolve struct {
-	// SurvivorId The CI that stays; absent says the CIs are distinct.
+	// SurvivorId The object that stays; absent says the objects are distinct.
 	SurvivorId *openapi_types.UUID `json:"survivor_id,omitempty"`
 }
 
-// CiDuplicateResolved The survivor after a merge, or the duplicate's identifier when the CIs are distinct.
+// CiDuplicateResolved The survivor after a merge, or the duplicate's identifier when the objects are distinct.
 type CiDuplicateResolved struct {
 	Class   *string             `json:"class,omitempty"`
 	HubId   *openapi_types.UUID `json:"hub_id,omitempty"`
@@ -14791,7 +15924,7 @@ type CiFileImport struct {
 	DryRun  *bool              `json:"dry_run,omitempty"`
 	Format  CiFileImportFormat `json:"format"`
 
-	// Mapping How a CSV table's or a JSON array's columns become a configuration item.
+	// Mapping How a CSV table's or a JSON array's columns become an object.
 	Mapping *CiFileMapping `json:"mapping,omitempty"`
 	Source  string         `json:"source"`
 }
@@ -14799,7 +15932,7 @@ type CiFileImport struct {
 // CiFileImportFormat defines model for CiFileImport.Format.
 type CiFileImportFormat string
 
-// CiFileMapping How a CSV table's or a JSON array's columns become a configuration item.
+// CiFileMapping How a CSV table's or a JSON array's columns become an object.
 type CiFileMapping struct {
 	Class           string             `json:"class"`
 	ClassColumn     *string            `json:"class_column,omitempty"`
@@ -14816,7 +15949,7 @@ type CiGroup struct {
 	Id     openapi_types.UUID `json:"id"`
 	Key    string             `json:"key"`
 
-	// Members How many CIs it holds now.
+	// Members How many objects it holds now.
 	Members   *int                `json:"members,omitempty"`
 	Name      string              `json:"name"`
 	ServiceId *openapi_types.UUID `json:"service_id"`
@@ -14833,10 +15966,28 @@ type CiGroupDefine struct {
 
 // CiGroupFilter defines model for CiGroupFilter.
 type CiGroupFilter struct {
-	Attributes *map[string]string     `json:"attributes,omitempty"`
-	Classes    *[]string              `json:"classes,omitempty"`
-	NameHas    *string                `json:"name_has,omitempty"`
-	Stages     *[]CiGroupFilterStages `json:"stages,omitempty"`
+	Attributes *map[string]string `json:"attributes,omitempty"`
+	Classes    *[]string          `json:"classes,omitempty"`
+
+	// Locations The location is one of these location objects (or none, with no_location) - asset.location.
+	Locations *[]openapi_types.UUID `json:"locations,omitempty"`
+	NameHas   *string               `json:"name_has,omitempty"`
+
+	// NoLocation Also
+	NoLocation *bool `json:"no_location,omitempty"`
+
+	// NoOwner Also
+	NoOwner *bool `json:"no_owner,omitempty"`
+
+	// NoTag Also
+	NoTag *bool `json:"no_tag,omitempty"`
+
+	// Owners The owner is one of these people or groups (or nobody, with no_owner) - the inventory line's asset.owner.
+	Owners *[]openapi_types.UUID  `json:"owners,omitempty"`
+	Stages *[]CiGroupFilterStages `json:"stages,omitempty"`
+
+	// Tags The inventory number is one of these, compared lowered (or none, with no_tag) - asset.tag. Kept lowered.
+	Tags *[]string `json:"tags,omitempty"`
 }
 
 // CiGroupFilterStages defines model for CiGroupFilter.Stages.
@@ -14857,6 +16008,32 @@ type CiGroupMembers struct {
 	} `json:"data"`
 	Group CiGroup `json:"group"`
 }
+
+// CiHistoryPage defines model for CiHistoryPage.
+type CiHistoryPage struct {
+	Data []CiHistoryStep `json:"data"`
+	Page PageInfo        `json:"page"`
+}
+
+// CiHistoryStep One step of an object's history. Append-only: nothing edits one, and what removes one is the removal of the object it belongs to.
+type CiHistoryStep struct {
+	Actor struct {
+		Id   *openapi_types.UUID    `json:"id"`
+		Type CiHistoryStepActorType `json:"type"`
+	} `json:"actor"`
+
+	// ChangeSet What moved, keyed by field: `from` and `to` where the history keeps the values - the stage, a person, a place, an object at the other end, a file, the source that wrote - and `changed: true` for an attribute, whose value the object itself shows.
+	ChangeSet map[string]interface{} `json:"change_set"`
+	CiId      openapi_types.UUID     `json:"ci_id"`
+
+	// Code The message the client renders, from locales/*.json - activity.ci_created and the rest.
+	Code       string             `json:"code"`
+	Id         openapi_types.UUID `json:"id"`
+	OccurredAt time.Time          `json:"occurred_at"`
+}
+
+// CiHistoryStepActorType defines model for CiHistoryStep.Actor.Type.
+type CiHistoryStepActorType string
 
 // CiHold defines model for CiHold.
 type CiHold struct {
@@ -14884,7 +16061,7 @@ type CiHoldList struct {
 type CiIdentifierRule struct {
 	Attributes []string `json:"attributes"`
 
-	// Class The class that declared the rule.
+	// Class The object type that declared the rule.
 	Class *string `json:"class,omitempty"`
 }
 
@@ -14915,7 +16092,7 @@ type CiInventoryReceipt struct {
 // CiInventoryReceiptStatus defines model for CiInventoryReceipt.Status.
 type CiInventoryReceiptStatus string
 
-// CiOwnProtection The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`.
+// CiOwnProtection The need a person set. A dimension in `fixed` is not raised by what depends on the object and carries a `reason`.
 type CiOwnProtection struct {
 	A      *CiOwnProtectionA       `json:"a,omitempty"`
 	C      *CiOwnProtectionC       `json:"c,omitempty"`
@@ -15055,7 +16232,7 @@ type CiRelationTypeList struct {
 
 // CiRequiredRelation defines model for CiRequiredRelation.
 type CiRequiredRelation struct {
-	// Class The class that declared it; left out where it is defined.
+	// Class The object type that declared it; left out where it is defined.
 	Class    *string  `json:"class,omitempty"`
 	Outgoing bool     `json:"outgoing"`
 	Types    []string `json:"types"`
@@ -15114,7 +16291,7 @@ type CiSourceDefine struct {
 	Classes *[]string          `json:"classes,omitempty"`
 	Kind    CiSourceDefineKind `json:"kind"`
 
-	// Mapping How a CSV table's or a JSON array's columns become a configuration item.
+	// Mapping How a CSV table's or a JSON array's columns become an object.
 	Mapping   *CiFileMapping `json:"mapping,omitempty"`
 	MayCreate *bool          `json:"may_create,omitempty"`
 	Rank      int            `json:"rank"`
@@ -15128,7 +16305,63 @@ type CiSourceList struct {
 	Data []CiSource `json:"data"`
 }
 
-// CmdbHealth A hub's active configuration items judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate CIs, CIs without an owner and reviews overdue, per class, and the CIs found wanting with the kinds of problem; the relations a program reported and has not confirmed within the staleness period of their source's class; each service scored by the share of the CIs it rests on - itself and what its failure follows from - found wanting in nothing, worst first; and each source's conflict rate over the hub's latest twenty runs - of the attributes it reported with another value, the share a better source kept.
+// CiWork defines model for CiWork.
+type CiWork struct {
+	CiId openapi_types.UUID `json:"ci_id"`
+
+	// Data Open entries first, then at most twenty completed ones; within each, the latest named first.
+	Data []CiWorkEntry `json:"data"`
+}
+
+// CiWorkCounts defines model for CiWorkCounts.
+type CiWorkCounts struct {
+	Data []struct {
+		CiId openapi_types.UUID `json:"ci_id"`
+
+		// Open The open entries the reader may see that name the object.
+		Open int `json:"open"`
+	} `json:"data"`
+
+	// Truncated The count stopped at 5000 namings; the numbers are then too low.
+	Truncated bool `json:"truncated"`
+}
+
+// CiWorkEntry defines model for CiWorkEntry.
+type CiWorkEntry struct {
+	CollectionId openapi_types.UUID  `json:"collection_id"`
+	Completed    bool                `json:"completed"`
+	DueAt        *time.Time          `json:"due_at"`
+	EntryType    string              `json:"entry_type"`
+	HubId        *openapi_types.UUID `json:"hub_id"`
+	ItemId       openapi_types.UUID  `json:"item_id"`
+
+	// Key The entry's key, INC-128; null where the entry has no number or its collection no word.
+	Key *string `json:"key"`
+
+	// Reason NAMES, the entry names this object itself; BENEATH, it names an object whose failure this object suffers.
+	Reason  CiWorkEntryReason `json:"reason"`
+	StartAt *time.Time        `json:"start_at"`
+
+	// Status The entry's status as the workflow in force names it; null where none runs.
+	Status *struct {
+		Category *string `json:"category"`
+		Key      string  `json:"key"`
+		Name     *string `json:"name"`
+	} `json:"status"`
+	Title string `json:"title"`
+
+	// Via The nearest object beneath that the entry names; null for NAMES.
+	Via *struct {
+		CiId  openapi_types.UUID `json:"ci_id"`
+		Class string             `json:"class"`
+		Name  string             `json:"name"`
+	} `json:"via"`
+}
+
+// CiWorkEntryReason NAMES, the entry names this object itself; BENEATH, it names an object whose failure this object suffers.
+type CiWorkEntryReason string
+
+// CmdbHealth A hub's active objects judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate objects, objects without an owner and reviews overdue, per object type, and the objects found wanting with the kinds of problem; the relations a program reported and has not confirmed within the staleness period of their source's object type; each service scored by the share of the objects it rests on - itself and what its failure follows from - found wanting in nothing, worst first; and each source's conflict rate over the hub's latest twenty runs - of the attributes it reported with another value, the share a better source kept.
 type CmdbHealth struct {
 	Classes []struct {
 		Class        string  `json:"class"`
@@ -15152,7 +16385,7 @@ type CmdbHealth struct {
 	Services      []struct {
 		CiId openapi_types.UUID `json:"ci_id"`
 
-		// Cis The active CIs it rests on, itself included.
+		// Cis The active objects it rests on, itself included.
 		Cis   int    `json:"cis"`
 		Class string `json:"class"`
 		Name  string `json:"name"`
@@ -15884,12 +17117,16 @@ type ConfigVersionList struct {
 	Data []ConfigVersion `json:"data"`
 }
 
-// ConfigurationItem A configuration item in a hub. `attributes` hold its class's typed values; `provenance` names per attribute the source that last wrote it. `effective_protection` is given on a single read: the need it inherits from everything that suffers when it fails.
+// ConfigurationItem An object in a hub. `attributes` hold its object type's typed values; `provenance` names per attribute the source that last wrote it. `effective_protection` is given on a single read: the need it inherits from everything that suffers when it fails.
 type ConfigurationItem struct {
 	Attributes map[string]interface{} `json:"attributes"`
 	Class      string                 `json:"class"`
-	CreatedAt  time.Time              `json:"created_at"`
-	CreatedBy  *openapi_types.UUID    `json:"created_by,omitempty"`
+
+	// ConfirmedAt When a person last confirmed it is as recorded, by itself or in a campaign.
+	ConfirmedAt *time.Time          `json:"confirmed_at,omitempty"`
+	ConfirmedBy *openapi_types.UUID `json:"confirmed_by,omitempty"`
+	CreatedAt   time.Time           `json:"created_at"`
+	CreatedBy   *openapi_types.UUID `json:"created_by,omitempty"`
 
 	// Decision What the reconciliation did with one item and why: the rule that matched, the attributes taken, those kept and by which source, a duplicate's candidates, a hold's or refusal's reason as a message code. It names attributes, never values.
 	Decision *CiDecision `json:"decision,omitempty"`
@@ -15897,7 +17134,7 @@ type ConfigurationItem struct {
 	// EffectiveProtection A protection need per confidentiality, integrity and availability.
 	EffectiveProtection *CiProtection `json:"effective_protection,omitempty"`
 
-	// HasAsset Given on a single read: whether it has an asset record. False means `GET /cis/{ciId}/asset` answers not found.
+	// HasAsset Given on a single read: whether it has a register record. False means `GET /cis/{ciId}/asset` answers not found.
 	HasAsset       *bool               `json:"has_asset,omitempty"`
 	HubId          openapi_types.UUID  `json:"hub_id"`
 	Id             openapi_types.UUID  `json:"id"`
@@ -15908,7 +17145,7 @@ type ConfigurationItem struct {
 	OwnerAccountId *openapi_types.UUID `json:"owner_account_id,omitempty"`
 	OwnerGroupId   *openapi_types.UUID `json:"owner_group_id,omitempty"`
 
-	// Protection The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`.
+	// Protection The need a person set. A dimension in `fixed` is not raised by what depends on the object and carries a `reason`.
 	Protection CiOwnProtection         `json:"protection"`
 	Provenance map[string]CiProvenance `json:"provenance"`
 	Quantity   int                     `json:"quantity"`
@@ -16068,6 +17305,12 @@ type Container struct {
 	// Private Whether this hub is private: reached only by people holding a role on it or below it, not by the workspace's own roles - its owners and administrators included. Always false on a collection, which shares its hub's privacy.
 	Private *bool `json:"private,omitempty"`
 
+	// StateMode Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+	StateMode *StateMode `json:"state_mode,omitempty"`
+
+	// StateModes A collection's level per entry type it offers; `state_mode` is the tasks'. Answered when one collection is read, left out on a hub and in lists.
+	StateModes *map[string]StateMode `json:"state_modes,omitempty"`
+
 	// Structure How much structure this hub or collection has, setting by setting, with where each value comes from and which are locked. Answered by every read of the container, by its creation and by a change of its structure; the answer to another change may leave it out.
 	Structure *EffectiveStructure `json:"structure,omitempty"`
 	Type      ContainerType       `json:"type"`
@@ -16175,6 +17418,46 @@ type Cover struct {
 
 // CoverKind defines model for Cover.Kind.
 type CoverKind string
+
+// CoverImageFetched defines model for CoverImageFetched.
+type CoverImageFetched struct {
+	ContentBase64 []byte                       `json:"content_base64"`
+	ContentType   CoverImageFetchedContentType `json:"content_type"`
+
+	// Credit Who made the picture
+	Credit string `json:"credit"`
+}
+
+// CoverImageFetchedContentType defines model for CoverImageFetched.ContentType.
+type CoverImageFetchedContentType string
+
+// CoverImageSearch defines model for CoverImageSearch.
+type CoverImageSearch struct {
+	// Offered Whether the workspace offers an image library for covers.
+	Offered  bool `json:"offered"`
+	Pictures []struct {
+		// Creator Who made the picture
+		Creator string `json:"creator"`
+		Id      string `json:"id"`
+
+		// Preview A small rendition as a data: URL.
+		Preview string `json:"preview"`
+	} `json:"pictures"`
+}
+
+// CoverImagesPolicy defines model for CoverImagesPolicy.
+type CoverImagesPolicy struct {
+	Library CoverImagesPolicyLibrary `json:"library"`
+
+	// LockedBy The level that locked it
+	LockedBy *string `json:"locked_by,omitempty"`
+
+	// Source The level whose value is in force.
+	Source string `json:"source"`
+}
+
+// CoverImagesPolicyLibrary defines model for CoverImagesPolicy.Library.
+type CoverImagesPolicyLibrary string
 
 // CoverInput What the cover shall be: a colour token from the design system's vocabulary, or an image by its media identifier - exactly one of the two, matching the kind.
 type CoverInput struct {
@@ -16365,6 +17648,9 @@ type DailyNoteOpen struct {
 
 // Dashboard defines model for Dashboard.
 type Dashboard struct {
+	// Filter The dashboard's filter as a Hubtask query; empty without one.
+	Filter *string `json:"filter,omitempty"`
+
 	// GroupIds For GROUPS: the groups whose members see it, each where they read its place.
 	GroupIds *[]openapi_types.UUID `json:"group_ids,omitempty"`
 	HubId    *openapi_types.UUID   `json:"hub_id"`
@@ -16381,6 +17667,9 @@ type DashboardSharing string
 
 // DashboardCreate defines model for DashboardCreate.
 type DashboardCreate struct {
+	// Filter The dashboard's filter as a Hubtask query without an order, names as identifiers: every QUERY widget inherits it but for the fields it released.
+	Filter *string `json:"filter,omitempty"`
+
 	// GroupIds For GROUPS: the groups whose members see it, each where they read its place.
 	GroupIds *[]openapi_types.UUID `json:"group_ids,omitempty"`
 
@@ -16431,6 +17720,13 @@ type DashboardDigestWrite struct {
 // DashboardDigestWriteCadence defines model for DashboardDigestWrite.Cadence.
 type DashboardDigestWriteCadence string
 
+// DashboardDraft defines model for DashboardDraft.
+type DashboardDraft struct {
+	// Filter The filter as it is being edited; every QUERY widget inherits it but for the fields it released.
+	Filter  *string                `json:"filter,omitempty"`
+	Widgets []DashboardWidgetWrite `json:"widgets"`
+}
+
 // DashboardFigures defines model for DashboardFigures.
 type DashboardFigures struct {
 	ComputedAt  time.Time          `json:"computed_at"`
@@ -16443,7 +17739,7 @@ type DashboardFigures struct {
 			Truncated bool                     `json:"truncated"`
 		} `json:"compare"`
 
-		// Data A summary's rows (count, group, period, value, and running for a cumulative widget), or a GOALS widget's goals (goal_id, title, status, progress).
+		// Data A summary's rows (count, group, period, value, and running for a cumulative widget), a GOALS widget's goals (goal_id, title, status, progress), or a LIST widget's first entries as POST /items:query answers them; empty for TEXT.
 		Data []map[string]interface{} `json:"data"`
 
 		// Error The error code of a widget the caller cannot run.
@@ -16469,19 +17765,34 @@ type DashboardList struct {
 
 // DashboardWidget defines model for DashboardWidget.
 type DashboardWidget struct {
-	Chart      DashboardWidgetChart    `json:"chart"`
+	Chart DashboardWidgetChart `json:"chart"`
+
+	// Column A LIST widget's column; empty for any other.
+	Column     *string                 `json:"column,omitempty"`
 	Compare    *DashboardWidgetCompare `json:"compare"`
 	Cumulative bool                    `json:"cumulative"`
 	GoalIds    []openapi_types.UUID    `json:"goal_ids"`
 	H          int                     `json:"h"`
 	Id         openapi_types.UUID      `json:"id"`
 	Query      *map[string]interface{} `json:"query"`
-	Source     DashboardWidgetSource   `json:"source"`
-	Title      string                  `json:"title"`
-	ViewId     *openapi_types.UUID     `json:"view_id"`
-	W          int                     `json:"w"`
-	X          int                     `json:"x"`
-	Y          int                     `json:"y"`
+
+	// Released The dashboard filter's fields this widget does not inherit.
+	Released *[]string             `json:"released,omitempty"`
+	Source   DashboardWidgetSource `json:"source"`
+
+	// Target The widget's goal; null without one.
+	Target *float32 `json:"target,omitempty"`
+
+	// Text A TEXT widget's words; empty for any other.
+	Text   *string             `json:"text,omitempty"`
+	Title  string              `json:"title"`
+	ViewId *openapi_types.UUID `json:"view_id"`
+	W      int                 `json:"w"`
+
+	// WarnAt The widget's warning line; null without one.
+	WarnAt *float32 `json:"warn_at,omitempty"`
+	X      int      `json:"x"`
+	Y      int      `json:"y"`
 }
 
 // DashboardWidgetChart defines model for DashboardWidget.Chart.
@@ -16504,7 +17815,11 @@ type DashboardWidgetCompare struct {
 
 // DashboardWidgetWrite defines model for DashboardWidgetWrite.
 type DashboardWidgetWrite struct {
+	// Chart LIST shows a query's first entries, TEXT a short text with links.
 	Chart DashboardWidgetWriteChart `json:"chart"`
+
+	// Column The one field a LIST widget shows beside key and title, e.g. due_at, status, assignee_id.
+	Column *string `json:"column,omitempty"`
 
 	// Compare A second series beside the widget's own - resolved beside created -, for BAR, LINE and TABLE.
 	Compare *DashboardWidgetCompare `json:"compare,omitempty"`
@@ -16517,26 +17832,43 @@ type DashboardWidgetWrite struct {
 	H       *int                  `json:"h,omitempty"`
 	Id      *openapi_types.UUID   `json:"id,omitempty"`
 
-	// Query A POST /items:aggregate document, for QUERY.
-	Query  *map[string]interface{}    `json:"query,omitempty"`
+	// Query A POST /items:aggregate document, for QUERY; for a LIST widget a POST /items:query document (q or filter, scope, sort).
+	Query *map[string]interface{} `json:"query,omitempty"`
+
+	// Released Fields of the dashboard's filter this QUERY widget does not inherit, e.g. created_at.
+	Released *[]string `json:"released,omitempty"`
+
+	// Source TEXT for a TEXT widget, which runs nothing.
 	Source DashboardWidgetWriteSource `json:"source"`
-	Title  string                     `json:"title"`
+
+	// Target A NUMBER or LINE widget's goal, drawn beside its figure or as a line.
+	Target *float32 `json:"target,omitempty"`
+
+	// Text A TEXT widget's words: plain text, **bold** and [links](/path).
+	Text  *string `json:"text,omitempty"`
+	Title string  `json:"title"`
 
 	// ViewId A saved summary view, for VIEW.
 	ViewId *openapi_types.UUID `json:"view_id,omitempty"`
 	W      *int                `json:"w,omitempty"`
-	X      *int                `json:"x,omitempty"`
-	Y      *int                `json:"y,omitempty"`
+
+	// WarnAt A NUMBER or LINE widget's warning line, with a target; above the target, lower is better.
+	WarnAt *float32 `json:"warn_at,omitempty"`
+	X      *int     `json:"x,omitempty"`
+	Y      *int     `json:"y,omitempty"`
 }
 
-// DashboardWidgetWriteChart defines model for DashboardWidgetWrite.Chart.
+// DashboardWidgetWriteChart LIST shows a query's first entries, TEXT a short text with links.
 type DashboardWidgetWriteChart string
 
-// DashboardWidgetWriteSource defines model for DashboardWidgetWrite.Source.
+// DashboardWidgetWriteSource TEXT for a TEXT widget, which runs nothing.
 type DashboardWidgetWriteSource string
 
 // DashboardWrite defines model for DashboardWrite.
 type DashboardWrite struct {
+	// Filter The dashboard's filter as a Hubtask query without an order, names as identifiers: every QUERY widget inherits it but for the fields it released.
+	Filter *string `json:"filter,omitempty"`
+
 	// GroupIds For GROUPS: the groups whose members see it, each where they read its place.
 	GroupIds *[]openapi_types.UUID `json:"group_ids,omitempty"`
 	Name     string                `json:"name"`
@@ -16779,6 +18111,31 @@ type DeadLetterPage struct {
 	Page PageInfo     `json:"page"`
 }
 
+// DeadlinesKept defines model for DeadlinesKept.
+type DeadlinesKept struct {
+	// Data One row per kind that ended in the window, the requester's goals first, then each group's.
+	Data []struct {
+		// Ended Deadlines of the kind that were met or breached in the window.
+		Ended int                   `json:"ended"`
+		Goal  DeadlinesKeptDataGoal `json:"goal"`
+
+		// GroupId The team an OLA is the group's of; null for the requester's goals.
+		GroupId *openapi_types.UUID `json:"group_id"`
+
+		// Kept Of them, met without being breached.
+		Kept int                   `json:"kept"`
+		Kind DeadlinesKeptDataKind `json:"kind"`
+	} `json:"data"`
+	From time.Time `json:"from"`
+	To   time.Time `json:"to"`
+}
+
+// DeadlinesKeptDataGoal defines model for DeadlinesKept.Data.Goal.
+type DeadlinesKeptDataGoal string
+
+// DeadlinesKeptDataKind defines model for DeadlinesKept.Data.Kind.
+type DeadlinesKeptDataKind string
+
 // DegradedFeature defines model for DegradedFeature.
 type DegradedFeature struct {
 	Feature    string    `json:"feature"`
@@ -16882,6 +18239,39 @@ type DeviceListEntryState struct {
 	Entry       string `json:"entry"`
 	Host        string `json:"host"`
 }
+
+// DocumentServer defines model for DocumentServer.
+type DocumentServer struct {
+	Kind DocumentServerKind `json:"kind"`
+
+	// Url The server's https origin; absent for NONE.
+	Url *string `json:"url,omitempty"`
+}
+
+// DocumentServerKind defines model for DocumentServer.Kind.
+type DocumentServerKind string
+
+// DocumentServerCheck defines model for DocumentServerCheck.
+type DocumentServerCheck struct {
+	// Reached The server answered its WOPI discovery.
+	Reached bool `json:"reached"`
+}
+
+// DropAnswer defines model for DropAnswer.
+type DropAnswer struct {
+	Item    WorkItem          `json:"item"`
+	Outcome DropAnswerOutcome `json:"outcome"`
+
+	// Steps The step taken, or the steps to choose among.
+	Steps []struct {
+		Key  string  `json:"key"`
+		Name *string `json:"name"`
+		To   string  `json:"to"`
+	} `json:"steps"`
+}
+
+// DropAnswerOutcome defines model for DropAnswer.Outcome.
+type DropAnswerOutcome string
 
 // DroppedReference defines model for DroppedReference.
 type DroppedReference struct {
@@ -16999,11 +18389,11 @@ type EntryCis struct {
 		Stage   string             `json:"stage"`
 	} `json:"cis"`
 
-	// Collisions The entries planned on an affected CI, or one it reaches, in an overlapping window.
+	// Collisions The entries planned on an affected object, or one it reaches, in an overlapping window.
 	Collisions []struct {
 		CiId openapi_types.UUID `json:"ci_id"`
 
-		// Direct Both entries name the CI itself.
+		// Direct Both entries name the object itself.
 		Direct    bool               `json:"direct"`
 		DueAt     *time.Time         `json:"due_at"`
 		EntryType string             `json:"entry_type"`
@@ -17018,10 +18408,10 @@ type EntryCis struct {
 	} `json:"collisions"`
 	ItemId openapi_types.UUID `json:"item_id"`
 
-	// Related The other open entries naming an affected CI or one it reaches.
+	// Related The other open entries naming an affected object or one it reaches.
 	Related []EntryOnCi `json:"related"`
 
-	// Services The active services and offerings the affected CIs' failure reaches.
+	// Services The active services and offerings the affected objects' failure reaches.
 	Services []struct {
 		CiId  openapi_types.UUID `json:"ci_id"`
 		Class string             `json:"class"`
@@ -17281,7 +18671,7 @@ type EntryOnCi struct {
 type EntryRequester struct {
 	AccountId openapi_types.UUID `json:"account_id"`
 
-	// Assets The configuration items the requester owns that the reader may read, by name, at most 20.
+	// Assets The objects the requester owns that the reader may read, by name, at most 20.
 	Assets []struct {
 		Class string             `json:"class"`
 		HubId openapi_types.UUID `json:"hub_id"`
@@ -17347,12 +18737,46 @@ type EntrySlaList struct {
 
 // EntrySteps defines model for EntrySteps.
 type EntrySteps struct {
-	Status   *string       `json:"status"`
-	Steps    []StepVerdict `json:"steps"`
-	Workflow *string       `json:"workflow"`
+	// Blocked The steps from the status the person may not take, in the workflow's order; empty for a reader.
+	Blocked *[]BlockedStep `json:"blocked,omitempty"`
+
+	// ByDefault True where no workflow runs: the picture is the default one, every status is reachable, and completing the entry reaches done.
+	ByDefault *bool `json:"by_default,omitempty"`
+
+	// ColumnId At `COLUMNS` the column the entry reads as; null otherwise.
+	ColumnId *openapi_types.UUID `json:"column_id,omitempty"`
+
+	// Columns At `COLUMNS` the board's columns, left to right, as the entry's states; `completes` marks the done column, which completes what enters it. Empty otherwise.
+	Columns *[]struct {
+		Completes bool               `json:"completes"`
+		Id        openapi_types.UUID `json:"id"`
+		Name      string             `json:"name"`
+	} `json:"columns,omitempty"`
+
+	// DoneRoute The fewest steps from the status into a done one, whoever may take them; empty from a done status, where no step leads there, and where no workflow runs.
+	DoneRoute *[]struct {
+		Key  string  `json:"key"`
+		Name *string `json:"name"`
+		To   string  `json:"to"`
+	} `json:"done_route,omitempty"`
+
+	// MayDesign Whether the person may open the workflow in the designer.
+	MayDesign *bool `json:"may_design,omitempty"`
+
+	// Picture A workflow drawn read-only - its statuses and the steps between them, without who may take them.
+	Picture *WorkflowPicture `json:"picture,omitempty"`
+
+	// StateMode How the entry's type says where an entry stands in its collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - `columns` are the states; `WORKFLOW` the status decides.
+	StateMode *EntryStepsStateMode `json:"state_mode,omitempty"`
+	Status    *string              `json:"status"`
+	Steps     []StepVerdict        `json:"steps"`
+	Workflow  *string              `json:"workflow"`
 }
 
-// EntryType A kind of entry a workspace names on one level - a bug, a feature, a purchase, a configuration item - with its icon, its colour and the behaviours of its entries.
+// EntryStepsStateMode How the entry's type says where an entry stands in its collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - `columns` are the states; `WORKFLOW` the status decides.
+type EntryStepsStateMode string
+
+// EntryType A kind of entry a workspace names on one level - a bug, a feature, a purchase, an inventory object - with its icon, its colour and the behaviours of its entries.
 type EntryType struct {
 	// AllowedChildren The keys of the types of the level below that may sit underneath; empty allows every one.
 	AllowedChildren []string `json:"allowed_children"`
@@ -17846,7 +19270,13 @@ type Goal struct {
 		Completed    bool               `json:"completed"`
 		Id           openapi_types.UUID `json:"id"`
 		Key          *string            `json:"key"`
-		Title        string             `json:"title"`
+
+		// StatusCategory The status's category; null where no workflow runs, where `completed` says done or open.
+		StatusCategory *GoalLinkedEntriesStatusCategory `json:"status_category"`
+
+		// StatusName The entry's status as the workflow in force names it; null where no workflow runs or the status has no name of its own, which a client words by `status_category`.
+		StatusName *string `json:"status_name"`
+		Title      string  `json:"title"`
 	} `json:"linked_entries,omitempty"`
 	OwnerId  *openapi_types.UUID `json:"owner_id"`
 	ParentId *openapi_types.UUID `json:"parent_id"`
@@ -17858,6 +19288,9 @@ type Goal struct {
 	Title    string     `json:"title"`
 	Version  int        `json:"version"`
 }
+
+// GoalLinkedEntriesStatusCategory The status's category; null where no workflow runs, where `completed` says done or open.
+type GoalLinkedEntriesStatusCategory string
 
 // GoalStatus defines model for Goal.Status.
 type GoalStatus string
@@ -17930,6 +19363,27 @@ type GoalPeriodWrite struct {
 	EndOn   openapi_types.Date `json:"end_on"`
 	Name    string             `json:"name"`
 	StartOn openapi_types.Date `json:"start_on"`
+}
+
+// GoalSet defines model for GoalSet.
+type GoalSet struct {
+	EndOn    openapi_types.Date `json:"end_on"`
+	Key      string             `json:"key"`
+	Name     string             `json:"name"`
+	PeriodId openapi_types.UUID `json:"period_id"`
+	StartOn  openapi_types.Date `json:"start_on"`
+}
+
+// GoalSetGoal defines model for GoalSetGoal.
+type GoalSetGoal struct {
+	Description *string           `json:"description,omitempty"`
+	KeyResults  *[]KeyResultWrite `json:"key_results,omitempty"`
+	Title       string            `json:"title"`
+}
+
+// GoalSetList defines model for GoalSetList.
+type GoalSetList struct {
+	Data []GoalSet `json:"data"`
 }
 
 // GoalWrite defines model for GoalWrite.
@@ -18124,6 +19578,9 @@ type HubQueue struct {
 // HubQueueList defines model for HubQueueList.
 type HubQueueList struct {
 	Data []HubQueue `json:"data"`
+
+	// Desks The hub's collections that act as a desk - those offering a type the requester portal takes - over which the standard queues count; empty where the hub has none. A client names a desk by this, not by reading the entry types itself.
+	Desks *[]openapi_types.UUID `json:"desks,omitempty"`
 }
 
 // HubTemplatePage defines model for HubTemplatePage.
@@ -18787,9 +20244,15 @@ type InvitedAccount struct {
 	// `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
 	// stays so that the workspace's own content is still readable, and everything of the
 	// person's in it is gone.
-	Status    InvitedAccountStatus     `json:"status"`
-	TimeZone  *string                  `json:"time_zone,omitempty"`
-	WeekStart *InvitedAccountWeekStart `json:"week_start,omitempty"`
+	Status   InvitedAccountStatus `json:"status"`
+	TimeZone *string              `json:"time_zone,omitempty"`
+
+	// TodaySections The order the person gave *Today*'s cards and tiles. Absent or empty: the product's own order; a section not named keeps its own place after those named.
+	TodaySections *[]TodaySection `json:"today_sections,omitempty"`
+
+	// TodaySectionsHidden The cards and tiles the person hid on *Today*. Absent or empty: every section the person's roles and modules give is shown.
+	TodaySectionsHidden *[]TodaySection          `json:"today_sections_hidden,omitempty"`
+	WeekStart           *InvitedAccountWeekStart `json:"week_start,omitempty"`
 }
 
 // InvitedAccountKind defines model for InvitedAccount.Kind.
@@ -18827,7 +20290,7 @@ type ItemAggregateQuery struct {
 			WeekStart *ItemAggregateQueryAggregateBucketWeekStart `json:"week_start,omitempty"`
 		} `json:"bucket,omitempty"`
 
-		// Field The measure: `custom_fields.<key>` of a number, money or a duration, or a built-in quantity in minutes - `lead_time`, creation to completion, or `scheduled_span`, start to due; an entry missing a stamp holds none -, or `satisfaction`, the requester's score from 1 to 5 of a resolved request, which an entry nobody rated does not hold -, or from the status history: `cycle_time`, the first entry into an in-progress status to completion, `wip_age`, that entry to now for an open entry, and `time_in_status`, the current status's latest entry to now for an open entry; an entry without history holds none. For a `time` summary, `minutes` alone. Required for every function but `COUNT`, refused for `COUNT`.
+		// Field The measure: `custom_fields.<key>` of a number, money or a duration, or a built-in quantity in minutes - `lead_time`, creation to completion, or `scheduled_span`, start to due; an entry missing a stamp holds none -, or `satisfaction`, the requester's score from 1 to 5 of a resolved request, which an entry nobody rated does not hold -, or from the status history: `cycle_time`, the first entry into an in-progress status to completion, `wip_age`, that entry to now for an open entry, and `time_in_status`, the current status's latest entry to now for an open entry; an entry without history holds none -, or `slip_days`, the days an entry's due date lies after its latest baseline's (`plan.slip`), which an entry outside every baseline or without a due date does not hold. For a `time` summary, `minutes` alone. Required for every function but `COUNT`, refused for `COUNT`.
 		Field *string `json:"field,omitempty"`
 
 		// Function `P50`, `P85` and `P95` are the continuous percentiles of the measure - the median cycle time, the cycle time 85 of 100 entries stay within; an entry holding none is left out, as for `AVG`.
@@ -18849,6 +20312,9 @@ type ItemAggregateQuery struct {
 	Filter          *FilterNode `json:"filter,omitempty"`
 	IncludeArchived *bool       `json:"include_archived,omitempty"`
 	IncludeTrashed  *bool       `json:"include_trashed,omitempty"`
+
+	// Q The filter as one Hubtask query instead of `filter`, in either spelling `POST /items:query` takes - what a query line counts while somebody types (`who: me is: open` with `scope.workspace` and `COUNT`), and, grouped by a field, the values it suggests with their counts. Free words count the entries they find; a `sort:` is refused with `query.sort_not_here`, and a line sent with `filter` with `query.line_with_filter`.
+	Q *string `json:"q,omitempty"`
 
 	// Scope Where to look, exactly as `POST /items:query` takes it - or `workspace`, instead of either identifier, for every collection the caller may read (at most 2000; archived ones with `include_archived`), and every entry shared with the caller alone in a collection they do not read (at most 5000).
 	Scope struct {
@@ -18991,7 +20457,7 @@ type ItemQuery struct {
 		Size   *int    `json:"size,omitempty"`
 	} `json:"page,omitempty"`
 
-	// Q The filter and the order as one line instead of `filter` and `sort`, for example `status = open AND custom_fields.priority >= 3 ORDER BY due_at DESC`. Comparisons are `=`, `!=`, `<`, `<=`, `>`, `>=`, `~` (contains), `IN (…)`, `NOT IN (…)`, `IS EMPTY`, `IS NOT EMPTY`, `BETWEEN … AND …`, `CONTAINS`, `CONTAINS ANY (…)`, `CONTAINS ALL (…)`, `STARTS WITH` and `MATCHES`, joined by `AND`, `OR`, `NOT` and brackets; a text is quoted with `'` or `"` and a backslash escapes the next character. The line is read into the same filter and order, so the fields, operators and bounds are the same; a line that cannot be read is `query.line_malformed` with the character it stops at, and a line sent with `filter` or `sort` is `query.line_with_filter`.
+	// Q The filter and the order as one Hubtask query instead of `filter` and `sort`, in either of its two spellings. The first is `field: value` - `who: me, none is: open due: <today -label: intern sort: -updated`: a comma is or, a space and, a leading `-` not, `<`, `<=`, `>`, `>=` compare, `a..b` is a range, `( … OR … )` and `NOT` group, words without a field find entries by their words, `today`, `-7d`, `+2w`, `this-week` and `overdue` are times the server resolves, `me` and `none` are people; `GET /meta/capabilities` lists the keys under `query_keys`. A key or value it cannot read is `query.field_unknown` or `query.value_unknown` with the character it stops at (`at`) and, where one is near, a `suggestion`. The second is `status = open AND custom_fields.priority >= 3 ORDER BY due_at DESC`. Comparisons are `=`, `!=`, `<`, `<=`, `>`, `>=`, `~` (contains), `IN (…)`, `NOT IN (…)`, `IS EMPTY`, `IS NOT EMPTY`, `BETWEEN … AND …`, `CONTAINS`, `CONTAINS ANY (…)`, `CONTAINS ALL (…)`, `STARTS WITH` and `MATCHES`, joined by `AND`, `OR`, `NOT` and brackets; a text is quoted with `'` or `"` and a backslash escapes the next character. The line is read into the same filter and order, so the fields, operators and bounds are the same; a line that cannot be read is `query.line_malformed` with the character it stops at, and a line sent with `filter` or `sort` is `query.line_with_filter`.
 	Q *string `json:"q,omitempty"`
 
 	// Scope Where to look. Exactly one of `container_id` and `item_id`, and it is required: an unanchored query is a scan of the whole tenant, and the permission is checked against this scope once for the whole result.
@@ -19073,6 +20539,9 @@ type ItemSearchQuery struct {
 	//
 	// **The last word is also matched as a beginning**, so that a search answers while it is still being typed: `Ann` finds *Anna's moments*, and `Momente Chall` finds an entry holding both. Only the last word, and only where it is one plain word - a quoted phrase, an exclusion and a word followed by a space are all finished, and are matched whole. A hit on a beginning ranks below one on a whole word, because it is weaker evidence that these are the words somebody meant.
 	Q *string `json:"q,omitempty"`
+
+	// Query The search as one Hubtask query instead of `q`, `filter` and `sort`: its free words and phrases are what is looked for and ranked, every `field: value` narrows - `passkey "zweites Gerät" who: me is: open`. Either spelling `POST /items:query` takes; `GET /meta/capabilities` lists the keys under `query_keys`. A `type:` other than an entry's level is `query.kind_not_here`, and the query sent with `q`, `filter` or `sort` is `query.line_with_filter`.
+	Query *string `json:"query,omitempty"`
 
 	// Sort Only meaningful without `q`: with words there is a ranking and it is the ranking. Sent with words it is refused by `search.sort_with_words`, rather than being ignored. Without them it defaults to `due_at ASC NULLS LAST`, because a filtered workspace read with no words is a work list and a work list is ordered by when it is due. Always completed by `id ASC`, so a cursor is unambiguous.
 	Sort *[]SortTerm `json:"sort,omitempty"`
@@ -19282,7 +20751,7 @@ type KeyResultWrite struct {
 	Id   *openapi_types.UUID `json:"id,omitempty"`
 	Kind KeyResultWriteKind  `json:"kind"`
 
-	// Source VIEW takes the total of a saved summary view.
+	// Source VIEW takes a saved view's number: a summary view's total, any other view's count of what it lists.
 	Source *KeyResultWriteSource `json:"source,omitempty"`
 	Start  *float32              `json:"start,omitempty"`
 	Target *float32              `json:"target,omitempty"`
@@ -19294,7 +20763,7 @@ type KeyResultWrite struct {
 // KeyResultWriteKind defines model for KeyResultWrite.Kind.
 type KeyResultWriteKind string
 
-// KeyResultWriteSource VIEW takes the total of a saved summary view.
+// KeyResultWriteSource VIEW takes a saved view's number: a summary view's total, any other view's count of what it lists.
 type KeyResultWriteSource string
 
 // Kudos defines model for Kudos.
@@ -20019,6 +21488,22 @@ type ManagedAccountCreated struct {
 	StartPassword string `json:"start_password"`
 }
 
+// MediaEditingSession defines model for MediaEditingSession.
+type MediaEditingSession struct {
+	// AccessToken Shown once, to hand to the document server; never logged.
+	AccessToken string `json:"access_token"`
+
+	// AccessTokenTtl When the token expires, in milliseconds since the epoch - the protocol's unit.
+	AccessTokenTtl int64 `json:"access_token_ttl"`
+
+	// ActionUrl Where the browser posts the token, in a frame: the document server's editor for this kind of file, from its discovery, with the WOPI source in its query. Always on the server's own origin, which is the only one the interface's policy lets a form post to and a frame show.
+	ActionUrl string         `json:"action_url"`
+	Server    DocumentServer `json:"server"`
+
+	// WopiSrc The file's WOPI address the document server reads and saves through.
+	WopiSrc string `json:"wopi_src"`
+}
+
 // MediaObject defines model for MediaObject.
 type MediaObject struct {
 	Checksum *string `json:"checksum,omitempty"`
@@ -20031,9 +21516,18 @@ type MediaObject struct {
 	// Download Where to fetch the bytes, present on a GET once the object is READY.
 	Download *MediaTransfer `json:"download,omitempty"`
 
+	// Editable Whether this person may open the file for editing in the workspace's document server (`:edit`): an office file, a server chosen, and a right to change what holds it.
+	Editable *bool `json:"editable,omitempty"`
+
 	// FileName The name the file arrived under, for the download - never a storage path.
 	FileName *string            `json:"file_name,omitempty"`
 	Id       openapi_types.UUID `json:"id"`
+
+	// Inline Whether a browser may decode the bytes itself from the download URL: a READY image, audio or video in a format whose decoding executes nothing. Every other file is fetched and drawn by the client - a PDF page, text, a table, an archive's listing - or downloaded; none is ever opened as a document.
+	Inline *bool `json:"inline,omitempty"`
+
+	// Office Whether the file is an office document - shown as a PDF converted by the workspace's document server (`:pdf`), or as a card where there is none.
+	Office *bool `json:"office,omitempty"`
 
 	// RefCount How many covers, attachments and avatars point at the object. Zero and READY means the reconciliation job will remove it after its grace period; deletion by hand is only possible at zero.
 	RefCount int `json:"ref_count"`
@@ -20742,9 +22236,12 @@ type Page struct {
 	Body *string `json:"body,omitempty"`
 
 	// ContentLanguage The BCP-47 tag search stems the page by; null for the workspace's.
-	ContentLanguage *string            `json:"content_language"`
-	CreatedAt       time.Time          `json:"created_at"`
-	CreatedBy       openapi_types.UUID `json:"created_by"`
+	ContentLanguage *string `json:"content_language"`
+
+	// Cover The picture over the page's content; null for none. Absent in a tree's rows.
+	Cover     *PageCover         `json:"cover,omitempty"`
+	CreatedAt time.Time          `json:"created_at"`
+	CreatedBy openapi_types.UUID `json:"created_by"`
 
 	// DailyFor The day a daily note of a personal space is for.
 	DailyFor *openapi_types.Date `json:"daily_for"`
@@ -20757,6 +22254,9 @@ type Page struct {
 
 	// DueForReview Its verification has run out.
 	DueForReview bool `json:"due_for_review"`
+
+	// Excerpt The body's opening words as plain text, cut short; present in a tree's rows, where the body is not.
+	Excerpt *string `json:"excerpt,omitempty"`
 
 	// HubId The hub whose space the page is in.
 	HubId openapi_types.UUID `json:"hub_id"`
@@ -20832,6 +22332,9 @@ type PageArticle struct {
 
 	// Views Openings in the portal.
 	Views int64 `json:"views"`
+
+	// WithSubpages Shared as a space: every page under it reaches the portal too.
+	WithSubpages bool `json:"with_subpages"`
 }
 
 // PageBacklinkList defines model for PageBacklinkList.
@@ -20859,9 +22362,12 @@ type PageChange struct {
 	Archived        *bool   `json:"archived,omitempty"`
 	Body            *string `json:"body,omitempty"`
 	ContentLanguage *string `json:"content_language,omitempty"`
-	Icon            *string `json:"icon,omitempty"`
-	Template        *bool   `json:"template,omitempty"`
-	Title           *string `json:"title,omitempty"`
+
+	// Cover The picture over the page's content; null takes it away.
+	Cover    *PageCover `json:"cover,omitempty"`
+	Icon     *string    `json:"icon,omitempty"`
+	Template *bool      `json:"template,omitempty"`
+	Title    *string    `json:"title,omitempty"`
 }
 
 // PageComment defines model for PageComment.
@@ -20907,6 +22413,22 @@ type PageCommentCreate struct {
 type PageCommentList struct {
 	Data []PageComment `json:"data"`
 }
+
+// PageCover A page's cover: one of the gradients or gallery pictures the clients draw by their key, or an image of the media context by its id. A key a client does not know draws as no cover there.
+type PageCover struct {
+	// Credit Who made an image library's picture, named at the cover; only an image carries one.
+	Credit *string `json:"credit,omitempty"`
+
+	// Key A gradient's or a gallery picture's key (lowercase letters, digits, hyphens), or the image's media id.
+	Key string `json:"key"`
+
+	// Position How far down the picture is shown from: 0 its top, 100 its foot.
+	Position int             `json:"position"`
+	Source   PageCoverSource `json:"source"`
+}
+
+// PageCoverSource defines model for PageCover.Source.
+type PageCoverSource string
 
 // PageCreate defines model for PageCreate.
 type PageCreate struct {
@@ -20984,6 +22506,9 @@ type PageHitList struct {
 		Rank      float32             `json:"rank"`
 		Title     string              `json:"title"`
 		UpdatedAt time.Time           `json:"updated_at"`
+
+		// VerifiedUntil When the page's verification lapses; null for a page never verified. Among equally good hits a page verified now comes first; a past date is a page due for review.
+		VerifiedUntil *time.Time `json:"verified_until,omitempty"`
 	} `json:"data"`
 }
 
@@ -21090,9 +22615,12 @@ type PageRead struct {
 	Body string `json:"body"`
 
 	// ContentLanguage The BCP-47 tag search stems the page by; null for the workspace's.
-	ContentLanguage *string            `json:"content_language"`
-	CreatedAt       time.Time          `json:"created_at"`
-	CreatedBy       openapi_types.UUID `json:"created_by"`
+	ContentLanguage *string `json:"content_language"`
+
+	// Cover The picture over the page's content; null for none. Absent in a tree's rows.
+	Cover     *PageCover         `json:"cover,omitempty"`
+	CreatedAt time.Time          `json:"created_at"`
+	CreatedBy openapi_types.UUID `json:"created_by"`
 
 	// DailyFor The day a daily note of a personal space is for.
 	DailyFor *openapi_types.Date `json:"daily_for"`
@@ -21105,6 +22633,9 @@ type PageRead struct {
 
 	// DueForReview Its verification has run out.
 	DueForReview bool `json:"due_for_review"`
+
+	// Excerpt The body's opening words as plain text, cut short; present in a tree's rows, where the body is not.
+	Excerpt *string `json:"excerpt,omitempty"`
 
 	// HubId The hub whose space the page is in.
 	HubId openapi_types.UUID `json:"hub_id"`
@@ -21896,7 +23427,10 @@ type PlanScheduleEntry struct {
 
 	// ParentId The parent entry within the plan; null for a top-level or outside entry.
 	ParentId *openapi_types.UUID `json:"parent_id"`
-	Start    openapi_types.Date  `json:"start"`
+
+	// ReleaseId The release the entry ships with; null when none.
+	ReleaseId *openapi_types.UUID `json:"release_id,omitempty"`
+	Start     openapi_types.Date  `json:"start"`
 
 	// Summary A parent whose dates are its children's span.
 	Summary bool   `json:"summary"`
@@ -22049,6 +23583,27 @@ type PolicyLock string
 // PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 type PolicySource string
 
+// PortalKnowledge defines model for PortalKnowledge.
+type PortalKnowledge struct {
+	// Data What a service's portal shares, in the order it was shared.
+	Data []struct {
+		Icon   string             `json:"icon"`
+		PageId openapi_types.UUID `json:"page_id"`
+
+		// Pages The pages under a space a requester reads, parents before their children and in their order; empty for a single article.
+		Pages []struct {
+			Icon     string             `json:"icon"`
+			PageId   openapi_types.UUID `json:"page_id"`
+			ParentId openapi_types.UUID `json:"parent_id"`
+			Title    string             `json:"title"`
+		} `json:"pages"`
+		Title string `json:"title"`
+
+		// WithSubpages A space: `pages` holds what lies under it.
+		WithSubpages bool `json:"with_subpages"`
+	} `json:"data"`
+}
+
 // PortalMergedRequest The request a requester's own was merged into, as its requester reads it: where it stands, the team's public replies and its SLA goals - never an internal note, the team's fields or what its own requester wrote. When the caller may not raise requests where it now is, only its number is given and `readable` is false.
 type PortalMergedRequest struct {
 	// Comments The team's public replies, oldest first; at most 200, the newest.
@@ -22060,8 +23615,17 @@ type PortalMergedRequest struct {
 	Readable    bool               `json:"readable"`
 	Sla         []EntrySlaGoal     `json:"sla"`
 	Status      *string            `json:"status"`
-	Title       *string            `json:"title"`
+
+	// StatusCategory The status's category; null where no workflow runs or when not readable.
+	StatusCategory *PortalMergedRequestStatusCategory `json:"status_category,omitempty"`
+
+	// StatusName The status as the desk's workflow names it, as on PortalRequest; null when not readable.
+	StatusName *string `json:"status_name,omitempty"`
+	Title      *string `json:"title"`
 }
+
+// PortalMergedRequestStatusCategory The status's category; null where no workflow runs or when not readable.
+type PortalMergedRequestStatusCategory string
 
 // PortalOrganisation The organisation a requester belongs to, as the portal names it.
 type PortalOrganisation struct {
@@ -22092,13 +23656,28 @@ type PortalRequest struct {
 	IsCompleted  bool               `json:"is_completed"`
 
 	// IsOwn Whether the caller raised it; false for a colleague's request of their organisation.
-	IsOwn     *bool     `json:"is_own,omitempty"`
-	Notes     *string   `json:"notes"`
-	Number    int64     `json:"number"`
-	Status    *string   `json:"status"`
-	Title     string    `json:"title"`
-	UpdatedAt time.Time `json:"updated_at"`
+	IsOwn *bool `json:"is_own,omitempty"`
+
+	// LastReplyAt When the team last answered in public; null while it has not, and never for an internal note.
+	LastReplyAt *time.Time `json:"last_reply_at,omitempty"`
+
+	// NextDueAt The earliest moment the desk promised the requester to act by - its running SLA goals' next due time; null while none runs. A team's internal promise is never told.
+	NextDueAt *time.Time `json:"next_due_at,omitempty"`
+	Notes     *string    `json:"notes"`
+	Number    int64      `json:"number"`
+	Status    *string    `json:"status"`
+
+	// StatusCategory The status's category; null where no workflow runs.
+	StatusCategory *PortalRequestStatusCategory `json:"status_category,omitempty"`
+
+	// StatusName The status as the desk's workflow names it; null where no workflow runs or the status has no name of its own, which a client words by `status_category`.
+	StatusName *string   `json:"status_name,omitempty"`
+	Title      string    `json:"title"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
+
+// PortalRequestStatusCategory The status's category; null where no workflow runs.
+type PortalRequestStatusCategory string
 
 // PortalRequestDetail defines model for PortalRequestDetail.
 type PortalRequestDetail struct {
@@ -22125,18 +23704,33 @@ type PortalRequestDetail struct {
 	// IsOwn Whether the caller raised it; false for a colleague's request of their organisation.
 	IsOwn *bool `json:"is_own,omitempty"`
 
+	// LastReplyAt When the team last answered in public; null while it has not, and never for an internal note.
+	LastReplyAt *time.Time `json:"last_reply_at,omitempty"`
+
 	// MergedInto The request this one was merged into, which carries the answer from then on; null when it was not merged.
 	MergedInto *PortalMergedRequest `json:"merged_into,omitempty"`
-	Notes      *string              `json:"notes"`
-	Number     int64                `json:"number"`
+
+	// NextDueAt The earliest moment the desk promised the requester to act by - its running SLA goals' next due time; null while none runs. A team's internal promise is never told.
+	NextDueAt *time.Time `json:"next_due_at,omitempty"`
+	Notes     *string    `json:"notes"`
+	Number    int64      `json:"number"`
 
 	// Satisfaction The caller's own score of the resolved request; null while they gave none.
 	Satisfaction *RequestSatisfaction `json:"satisfaction"`
 	Sla          []EntrySlaGoal       `json:"sla"`
 	Status       *string              `json:"status"`
-	Title        string               `json:"title"`
-	UpdatedAt    time.Time            `json:"updated_at"`
+
+	// StatusCategory The status's category; null where no workflow runs.
+	StatusCategory *PortalRequestDetailStatusCategory `json:"status_category,omitempty"`
+
+	// StatusName The status as the desk's workflow names it; null where no workflow runs or the status has no name of its own, which a client words by `status_category`.
+	StatusName *string   `json:"status_name,omitempty"`
+	Title      string    `json:"title"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
+
+// PortalRequestDetailStatusCategory The status's category; null where no workflow runs.
+type PortalRequestDetailStatusCategory string
 
 // PortalRequestPage defines model for PortalRequestPage.
 type PortalRequestPage struct {
@@ -22320,6 +23914,196 @@ type PortfolioWriteItemsStatus string
 
 // PortfolioWriteStatus defines model for PortfolioWrite.Status.
 type PortfolioWriteStatus string
+
+// Post defines model for Post.
+type Post struct {
+	Audience  PostAudience `json:"audience"`
+	ConfirmBy *time.Time   `json:"confirm_by"`
+
+	// Confirmations For a writer of the hub, how the read confirmation stands.
+	Confirmations *PostConfirmations `json:"confirmations,omitempty"`
+
+	// Confirmed Whether the caller confirmed reading it.
+	Confirmed bool `json:"confirmed"`
+
+	// Cover The picture over its words, as its page carries it.
+	Cover      *PageCover          `json:"cover"`
+	CreatedAt  time.Time           `json:"created_at"`
+	CreatedBy  *openapi_types.UUID `json:"created_by"`
+	Discussion bool                `json:"discussion"`
+
+	// EveryoneInWorkspace For a writer: the audience is the hub's readers and every member of the workspace reads the hub.
+	EveryoneInWorkspace bool `json:"everyone_in_workspace"`
+
+	// Excerpt Its opening words without their marks, for a list.
+	Excerpt string `json:"excerpt"`
+
+	// Featured Whether it stands on top of the hub's posts now.
+	Featured      bool                 `json:"featured"`
+	FeaturedUntil *time.Time           `json:"featured_until"`
+	GroupIds      []openapi_types.UUID `json:"group_ids"`
+	HubId         openapi_types.UUID   `json:"hub_id"`
+	Icon          *string              `json:"icon"`
+
+	// Labels Its page's labels.
+	Labels []string `json:"labels"`
+
+	// MayWrite Whether the caller writes in the hub.
+	MayWrite bool `json:"may_write"`
+	Notify   bool `json:"notify"`
+
+	// PageId The page that holds its words.
+	PageId      openapi_types.UUID `json:"page_id"`
+	PublishAt   *time.Time         `json:"publish_at"`
+	PublishedAt *time.Time         `json:"published_at"`
+
+	// ReadingMinutes About how long reading it takes.
+	ReadingMinutes int `json:"reading_minutes"`
+
+	// ReplyCount How many replies its discussion holds.
+	ReplyCount int `json:"reply_count"`
+
+	// Seen Whether the caller has seen it.
+	Seen bool `json:"seen"`
+
+	// SeenCount How many have seen it; never who.
+	SeenCount int           `json:"seen_count"`
+	State     PostState     `json:"state"`
+	Template  *PostTemplate `json:"template"`
+	Title     string        `json:"title"`
+}
+
+// PostAudience defines model for Post.Audience.
+type PostAudience string
+
+// PostState defines model for Post.State.
+type PostState string
+
+// PostTemplate defines model for Post.Template.
+type PostTemplate string
+
+// PostConfirmations defines model for PostConfirmations.
+type PostConfirmations struct {
+	Audience  int       `json:"audience"`
+	ConfirmBy time.Time `json:"confirm_by"`
+	Confirmed int       `json:"confirmed"`
+
+	// ConfirmedIds Who confirmed it, for the post's writers.
+	ConfirmedIds *[]openapi_types.UUID `json:"confirmed_ids,omitempty"`
+	MayRemind    bool                  `json:"may_remind"`
+	Overdue      bool                  `json:"overdue"`
+}
+
+// PostCreate defines model for PostCreate.
+type PostCreate struct {
+	Audience *PostCreateAudience `json:"audience,omitempty"`
+
+	// Body Markdown; without it, the template's.
+	Body          *string               `json:"body,omitempty"`
+	ConfirmBy     *time.Time            `json:"confirm_by,omitempty"`
+	Discussion    *bool                 `json:"discussion,omitempty"`
+	FeaturedUntil *time.Time            `json:"featured_until,omitempty"`
+	GroupIds      *[]openapi_types.UUID `json:"group_ids,omitempty"`
+	Notify        *bool                 `json:"notify,omitempty"`
+	PublishAt     *time.Time            `json:"publish_at,omitempty"`
+	Template      *PostCreateTemplate   `json:"template,omitempty"`
+	Title         string                `json:"title"`
+}
+
+// PostCreateAudience defines model for PostCreate.Audience.
+type PostCreateAudience string
+
+// PostCreateTemplate defines model for PostCreate.Template.
+type PostCreateTemplate string
+
+// PostFollowing defines model for PostFollowing.
+type PostFollowing struct {
+	// Following Whether the caller follows the hub's posts.
+	Following bool `json:"following"`
+}
+
+// PostList defines model for PostList.
+type PostList struct {
+	Data []Post `json:"data"`
+
+	// Following Whether the caller follows the hub's posts and is told when one goes out.
+	Following *bool `json:"following,omitempty"`
+
+	// MayWrite Whether the caller may write posts here.
+	MayWrite bool `json:"may_write"`
+
+	// WorkspaceWide For a writer: every member of the workspace reads the hub, so its readers are everyone in the workspace.
+	WorkspaceWide bool `json:"workspace_wide"`
+}
+
+// PostReminded defines model for PostReminded.
+type PostReminded struct {
+	// Reminded How many were reminded.
+	Reminded int `json:"reminded"`
+}
+
+// PostReply defines model for PostReply.
+type PostReply struct {
+	AuthorId *openapi_types.UUID `json:"author_id"`
+
+	// Body Markdown; empty once taken back.
+	Body      string              `json:"body"`
+	CreatedAt time.Time           `json:"created_at"`
+	Deleted   bool                `json:"deleted"`
+	Id        openapi_types.UUID  `json:"id"`
+	PageId    openapi_types.UUID  `json:"page_id"`
+	ParentId  *openapi_types.UUID `json:"parent_id"`
+	Reactions []struct {
+		Count    int                        `json:"count"`
+		Mine     bool                       `json:"mine"`
+		Reaction PostReplyReactionsReaction `json:"reaction"`
+	} `json:"reactions"`
+}
+
+// PostReplyReactionsReaction defines model for PostReply.Reactions.Reaction.
+type PostReplyReactionsReaction string
+
+// PostReplyCreate defines model for PostReplyCreate.
+type PostReplyCreate struct {
+	Body string `json:"body"`
+
+	// ParentId The reply it answers.
+	ParentId *openapi_types.UUID `json:"parent_id,omitempty"`
+}
+
+// PostReplyList defines model for PostReplyList.
+type PostReplyList struct {
+	Data []PostReply `json:"data"`
+}
+
+// PostSettings defines model for PostSettings.
+type PostSettings struct {
+	// Audience The hub's readers, or those of them in the groups named.
+	Audience *PostSettingsAudience `json:"audience,omitempty"`
+
+	// ConfirmBy Asks its audience to confirm they read it by then.
+	ConfirmBy *time.Time `json:"confirm_by,omitempty"`
+
+	// Discussion Whether the discussion under it is open.
+	Discussion *bool `json:"discussion,omitempty"`
+
+	// FeaturedUntil Keeps it on top of the hub's posts until then.
+	FeaturedUntil *time.Time            `json:"featured_until,omitempty"`
+	GroupIds      *[]openapi_types.UUID `json:"group_ids,omitempty"`
+
+	// Notify Whether the hub's followers are told once it is published.
+	Notify *bool `json:"notify,omitempty"`
+
+	// PublishAt When it goes out: now or earlier publishes at once, ahead schedules it, none keeps a draft.
+	PublishAt *time.Time            `json:"publish_at,omitempty"`
+	Template  *PostSettingsTemplate `json:"template,omitempty"`
+}
+
+// PostSettingsAudience The hub's readers, or those of them in the groups named.
+type PostSettingsAudience string
+
+// PostSettingsTemplate defines model for PostSettings.Template.
+type PostSettingsTemplate string
 
 // Preset A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. One of Hubtask's carries its stable `key`, which a client translates; a saved one - the installation's, the workspace's or the caller's own - its `id`, the `name` given it and its `version`.
 type Preset struct {
@@ -22725,6 +24509,32 @@ type QueryField struct {
 // QueryFieldKind What a value for this field looks like. `text` is free text a full-text operator reads, `id_set` a relation an entry has several of.
 type QueryFieldKind string
 
+// QueryKey One key of the Hubtask query's `field: value` spelling.
+type QueryKey struct {
+	Examples []string `json:"examples"`
+
+	// Field The `query_fields` field the key compares; absent for `is`, `type` and `sort`, which choose a state, the kinds or the order. A key of one kind other than entries (`asset.`, `page.`, `goal.`) names itself: it is answered by that kind's search in `POST /search:all` and refused by a query of entries.
+	Field *string `json:"field,omitempty"`
+
+	// Key What is typed before the colon: `who`, `desk.standing`; `cf.` is the prefix of the custom fields, followed by a custom field's key.
+	Key string `json:"key"`
+
+	// Kinds The kinds of object the key asks about.
+	Kinds []string `json:"kinds"`
+
+	// Product The product the key's prefix belongs to (`desk`, `plan`, `time`, `asset`, `page`, `goal`, `cf`); absent for the keys of every kind.
+	Product *string `json:"product,omitempty"`
+
+	// Value What kind of value the key takes, which decides the suggestions a client offers.
+	Value QueryKeyValue `json:"value"`
+
+	// Values The words a key with a closed list takes; empty for the others.
+	Values []string `json:"values"`
+}
+
+// QueryKeyValue What kind of value the key takes, which decides the suggestions a client offers.
+type QueryKeyValue string
+
 // QuotaSource Which level set the ceiling in force: Hubtask's default for the mode, the installation, the workspace's plan, the operator's exception for this one workspace, or - for the workspace's own AI budget only - the workspace itself.
 type QuotaSource string
 
@@ -22828,11 +24638,14 @@ type ReferenceStrength string
 
 // ReferenceTarget What a reference shows the reader. Where the reader may not see the object, or it is not there, only `kind`, `id`, `anchor` and `available: false` are present.
 type ReferenceTarget struct {
-	Anchor    *string `json:"anchor"`
-	Archived  *bool   `json:"archived,omitempty"`
-	Available bool    `json:"available"`
+	Anchor   *string `json:"anchor"`
+	Archived *bool   `json:"archived,omitempty"`
 
-	// CiClass A configuration item's class.
+	// AssigneeId The account an entry is on; null where nobody is.
+	AssigneeId *openapi_types.UUID `json:"assignee_id,omitempty"`
+	Available  bool                `json:"available"`
+
+	// CiClass An object's object type.
 	CiClass      *string             `json:"ci_class,omitempty"`
 	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
 	Completed    *bool               `json:"completed,omitempty"`
@@ -22845,7 +24658,7 @@ type ReferenceTarget struct {
 	ElementCount *int    `json:"element_count,omitempty"`
 	EntryType    *string `json:"entry_type,omitempty"`
 
-	// HubId The hub a page, a whiteboard, a configuration item, or a goal or dashboard of a hub is in.
+	// HubId The hub a page, a whiteboard, an object, or a goal or dashboard of a hub is in.
 	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
 
 	// Icon A page's icon.
@@ -22865,16 +24678,25 @@ type ReferenceTarget struct {
 	Level  *ItemType `json:"level,omitempty"`
 	Number *int64    `json:"number,omitempty"`
 
-	// Stage A configuration item's lifecycle stage.
+	// Stage An object's lifecycle stage.
 	Stage   *string    `json:"stage,omitempty"`
 	StartAt *time.Time `json:"start_at,omitempty"`
 
 	// Status A goal's status.
 	Status *string `json:"status,omitempty"`
 
-	// Title The entry's, page's or goal's title, the container's, view's, dashboard's or configuration item's name.
+	// StatusCategory An entry's status's category; null where no workflow runs, where `completed` says done or to do.
+	StatusCategory *ReferenceTargetStatusCategory `json:"status_category,omitempty"`
+
+	// StatusName An entry's status as the workflow in force names it; null where no workflow runs or the status has no name of its own, which a client words by `status_category`.
+	StatusName *string `json:"status_name,omitempty"`
+
+	// Title The entry's, page's or goal's title, the container's, view's, dashboard's or object's name.
 	Title *string `json:"title,omitempty"`
 }
+
+// ReferenceTargetStatusCategory An entry's status's category; null where no workflow runs, where `completed` says done or to do.
+type ReferenceTargetStatusCategory string
 
 // Release defines model for Release.
 type Release struct {
@@ -22905,7 +24727,16 @@ type ReleaseDetail struct {
 		CollectionId openapi_types.UUID `json:"collection_id"`
 		Done         bool               `json:"done"`
 		ItemId       openapi_types.UUID `json:"item_id"`
-		Title        string             `json:"title"`
+
+		// Key The entry's key (`WEB-128`), where its collection gives one.
+		Key *string `json:"key"`
+
+		// StatusCategory The status's category; null where no workflow runs, where `done` says done or open.
+		StatusCategory *ReleaseDetailEntriesStatusCategory `json:"status_category"`
+
+		// StatusName The entry's status as the workflow in force names it; null where no workflow runs or the status has no name of its own, which a client words by `status_category`.
+		StatusName *string `json:"status_name"`
+		Title      string  `json:"title"`
 
 		// TypeName The name of the entry's type; empty without one.
 		TypeName string `json:"type_name"`
@@ -22925,13 +24756,42 @@ type ReleaseDetail struct {
 	Version    int                `json:"version"`
 }
 
+// ReleaseDetailEntriesStatusCategory The status's category; null where no workflow runs, where `done` says done or open.
+type ReleaseDetailEntriesStatusCategory string
+
 // ReleaseDetailState defines model for ReleaseDetail.State.
 type ReleaseDetailState string
 
 // ReleaseList defines model for ReleaseList.
 type ReleaseList struct {
-	Data []Release `json:"data"`
+	Data []ReleaseListItem `json:"data"`
 }
+
+// ReleaseListItem defines model for ReleaseListItem.
+type ReleaseListItem struct {
+	Description string `json:"description"`
+
+	// DoneCount Its entries the reader may see that are done.
+	DoneCount int                `json:"done_count"`
+	HubId     openapi_types.UUID `json:"hub_id"`
+	Id        openapi_types.UUID `json:"id"`
+	Name      string             `json:"name"`
+
+	// NotesPageId The page its notes were written to.
+	NotesPageId *openapi_types.UUID `json:"notes_page_id"`
+
+	// OpenCount Its entries the reader may see that are still open.
+	OpenCount int `json:"open_count"`
+
+	// ReleaseOn The day it is meant to go out.
+	ReleaseOn  openapi_types.Date   `json:"release_on"`
+	ReleasedAt *time.Time           `json:"released_at"`
+	State      ReleaseListItemState `json:"state"`
+	Version    int                  `json:"version"`
+}
+
+// ReleaseListItemState defines model for ReleaseListItem.State.
+type ReleaseListItemState string
 
 // Reminder defines model for Reminder.
 type Reminder struct {
@@ -23609,9 +25469,11 @@ type SatisfactionLinkAnswer struct {
 
 // SavedView A saved query with the layout it is drawn in. The server stores the query, validates it against the same catalogue as POST /items:query, and interprets neither the layout nor the visible fields - both are the client's vocabulary, echoed back exactly as stored.
 type SavedView struct {
-	CreatedAt *time.Time             `json:"created_at,omitempty"`
-	Grouping  map[string]interface{} `json:"grouping"`
-	Id        openapi_types.UUID     `json:"id"`
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+
+	// Grouping The client's grouping hint, stored whole. Three keys are checked against the field catalogue: `field`, what the list groups by and the board's columns follow, a field one can group by; `lanes_by`, the board's lanes, a second such field; `date_field`, the timestamp a CALENDAR layout places the entries on (`due_at`, `start_at`, …). Any other key is stored and echoed.
+	Grouping map[string]interface{} `json:"grouping"`
+	Id       openapi_types.UUID     `json:"id"`
 
 	// Key The view's stable key where it lives, by which the configuration document names it: unique in its scope, drawn from the name when the writer named none, kept by a rename.
 	Key string `json:"key"`
@@ -23652,6 +25514,7 @@ type SavedViewSharing string
 
 // SavedViewCreate defines model for SavedViewCreate.
 type SavedViewCreate struct {
+	// Grouping The client's grouping hint, stored whole. Three keys are checked against the field catalogue: `field`, what the list groups by and the board's columns follow, a field one can group by; `lanes_by`, the board's lanes, a second such field; `date_field`, the timestamp a CALENDAR layout places the entries on (`due_at`, `start_at`, …). Any other key is stored and echoed.
 	Grouping *map[string]interface{} `json:"grouping,omitempty"`
 
 	// Key The view's stable key in its scope. Omitted draws one from the name; one the scope already holds is refused.
@@ -23659,7 +25522,7 @@ type SavedViewCreate struct {
 	Layout string  `json:"layout"`
 	Name   string  `json:"name"`
 
-	// Query The query, anchored, in the use case's input shape - `scope_container_id`, not a nested `scope` object. See `SavedView.query`; both shapes are refused here rather than at the first export.
+	// Query The query, anchored, in the use case's input shape - `scope_container_id`, not a nested `scope` object. See `SavedView.query`; both shapes are refused here rather than at the first export. A search saved as a view holds its line as `q`, the Hubtask query `POST /search:all` takes, read here by the same parser and refused where it does not read.
 	Query map[string]interface{} `json:"query"`
 
 	// Queue Marks a HUB-scoped view as one of the hub's queues; any other scope is refused as `views.queue_hub_only`. Omitted is false.
@@ -23693,6 +25556,7 @@ type SavedViewShareSharing string
 
 // SavedViewUpdate JSON Merge Patch; a field that is not sent is left alone. The scope and the sharing are not here - where a view lives is decided at creation, and sharing is :share.
 type SavedViewUpdate struct {
+	// Grouping The client's grouping hint, stored whole. Three keys are checked against the field catalogue: `field`, what the list groups by and the board's columns follow, a field one can group by; `lanes_by`, the board's lanes, a second such field; `date_field`, the timestamp a CALENDAR layout places the entries on (`due_at`, `start_at`, …). Any other key is stored and echoed.
 	Grouping *map[string]interface{} `json:"grouping,omitempty"`
 	Layout   *string                 `json:"layout,omitempty"`
 	Name     *string                 `json:"name,omitempty"`
@@ -23777,6 +25641,85 @@ type ScimUser struct {
 	AdditionalProperties map[string]interface{} `json:"-"`
 }
 
+// SearchAllAnswer defines model for SearchAllAnswer.
+type SearchAllAnswer struct {
+	Data   []SearchAllHit `json:"data"`
+	Facets []SearchFacet  `json:"facets"`
+}
+
+// SearchAllHit One object as a hit row draws it.
+type SearchAllHit struct {
+	// AuthorId The account that made it; for entries, tickets, pages and posts, null for the other kinds.
+	AuthorId *openapi_types.UUID `json:"author_id"`
+
+	// CollectionId An entry's or a sprint's collection, or that of the entry a comment or file is on.
+	CollectionId *openapi_types.UUID `json:"collection_id"`
+
+	// CreatedAt When it was made, for a post when it was published; for entries, tickets, pages and posts, null for the other kinds.
+	CreatedAt *time.Time `json:"created_at"`
+
+	// HubId The hub it stands in; null for the workspace's own, for portfolios and for people.
+	HubId *openapi_types.UUID `json:"hub_id"`
+	Id    openapi_types.UUID  `json:"id"`
+
+	// Key An entry's or a ticket's key where its collection has a handle or a key prefix.
+	Key  *string    `json:"key"`
+	Kind SearchKind `json:"kind"`
+
+	// On What a comment or a file belongs to; null for every other kind.
+	On *struct {
+		Id   openapi_types.UUID `json:"id"`
+		Kind SearchAllHitOnKind `json:"kind"`
+	} `json:"on"`
+
+	// Snippet The passage that matched, the words found between « and »; for pages, posts, comments, and entries and tickets whose notes hold a word asked for.
+	Snippet *string `json:"snippet"`
+
+	// State An entry's or a ticket's OPEN or DONE, a page's VERIFIED or REVIEW_DUE (null when never verified), a goal's or a portfolio's status, a release's or a sprint's state, an inventory object's stage, a dashboard's sharing, a person's account status.
+	State *string `json:"state"`
+
+	// Status An entry's or a ticket's workflow status key, which the client names as its board and list do; null where the entry stands in no workflow and for every other kind.
+	Status *string `json:"status"`
+
+	// Tile What its tile shows: an entry's or a ticket's level (TASK, WORK_PACKAGE, ACTIVITY), a page's or a post's icon, an inventory object's object type key, a file's media type, a person's account kind.
+	Tile *string `json:"tile"`
+
+	// Title The title, a name, a file name, or for a comment the title of what it is on.
+	Title     string     `json:"title"`
+	UpdatedAt *time.Time `json:"updated_at"`
+}
+
+// SearchAllHitOnKind defines model for SearchAllHit.On.Kind.
+type SearchAllHitOnKind string
+
+// SearchAllRequest defines model for SearchAllRequest.
+type SearchAllRequest struct {
+	// HubId Only this hub's objects; people are not narrowed.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+
+	// Kinds The kinds to search, in the order the answer groups them; omitted is every kind. `TICKET` is the entries of the collections that act as a service desk; where it is asked, `ENTRY` holds the other entries, and where it is not, every entry.
+	Kinds *[]SearchKind `json:"kinds,omitempty"`
+
+	// Q The search as one Hubtask query: every free word must occur, every key narrows. A key of one kind (`asset.class`, `asset.stage`, `asset.owner`, `asset.location`, `asset.tag`, `page.verified`, `page.owner`, `goal.state`) keeps the search to that kind and a key of entries to entries, the other kinds counting none; `type:` chooses kinds; keys alone need no words. Keys of two kinds, or keys of one kind bracketed together, are refused (`query.kinds_mixed`, `query.kind_filter_grouped`). A `q` that is one ticket key, `SA-12`, finds that entry first wherever the caller may read it.
+	Q string `json:"q"`
+
+	// Size At most this many hits per kind.
+	Size *int `json:"size,omitempty"`
+}
+
+// SearchFacet defines model for SearchFacet.
+type SearchFacet struct {
+	// Count The hits of this kind the caller may read.
+	Count int        `json:"count"`
+	Kind  SearchKind `json:"kind"`
+
+	// More True when there may be more than count.
+	More bool `json:"more"`
+}
+
+// SearchKind defines model for SearchKind.
+type SearchKind string
+
 // SearchMode How much of the search to use.
 // `AUTO` is the default and searches by words and, where the installation has it, by meaning. `LEXICAL` searches by words only: it asks no provider, spends no budget and waits on nothing, which is what a caller in a loop - an automation, an import, a client's own type-ahead - wants. There is deliberately no `SEMANTIC`: an installation may not have it, and a mode the server cannot promise is a mode that would have to fail.
 type SearchMode string
@@ -23815,7 +25758,7 @@ type ServiceMap struct {
 		Stage string `json:"stage"`
 	} `json:"nodes"`
 
-	// Truncated The map stopped at 2000 CIs.
+	// Truncated The map stopped at 2000 objects.
 	Truncated bool `json:"truncated"`
 }
 
@@ -24511,6 +26454,9 @@ type StarterSet struct {
 // StarterSetHubPreset The preset the hub starts from; required without `template`. With one and none given, the hub starts from the workspace's default and takes the template's hub part.
 type StarterSetHubPreset string
 
+// StateMode Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+type StateMode string
+
 // StepUpGrant defines model for StepUpGrant.
 type StepUpGrant struct {
 	ExpiresAt time.Time `json:"expires_at"`
@@ -24554,9 +26500,12 @@ type StepUpRequest struct {
 // StepVerdict defines model for StepVerdict.
 type StepVerdict struct {
 	// Allowed Whether the person may take it.
-	Allowed bool     `json:"allowed"`
-	Asks    []string `json:"asks"`
-	Checks  []struct {
+	Allowed bool `json:"allowed"`
+
+	// ApprovalLevels How many levels of approval taking it opens; 0 moves the entry at once.
+	ApprovalLevels *int     `json:"approval_levels,omitempty"`
+	Asks           []string `json:"asks"`
+	Checks         []struct {
 		Holds   bool    `json:"holds"`
 		Key     string  `json:"key"`
 		Message *string `json:"message,omitempty"`
@@ -25585,6 +27534,9 @@ type TimesheetWeek struct {
 // TimesheetWeekState defines model for TimesheetWeek.State.
 type TimesheetWeekState string
 
+// TodaySection A card or a tile of *Today* a person may hide and order: the cards overdue, due today, needs your reply, time today and waits for your yes; the tiles your collections, new for you (the posts not read yet), inbox and recently opened.
+type TodaySection string
+
 // TotpConfirmation defines model for TotpConfirmation.
 type TotpConfirmation struct {
 	Code string `json:"code"`
@@ -25686,6 +27638,11 @@ type TriggerEvent map[string]interface{}
 type TriggerEventPage struct {
 	Data []TriggerEvent `json:"data"`
 	Page PageInfo       `json:"page"`
+}
+
+// UnreadPostList defines model for UnreadPostList.
+type UnreadPostList struct {
+	Data []Post `json:"data"`
 }
 
 // UsageDay defines model for UsageDay.
@@ -26335,6 +28292,21 @@ type WhiteboardVersionRead struct {
 	Title        string              `json:"title"`
 }
 
+// WopiFileInfo defines model for WopiFileInfo.
+type WopiFileInfo struct {
+	BaseFileName            string `json:"BaseFileName"`
+	OwnerId                 string `json:"OwnerId"`
+	ReadOnly                *bool  `json:"ReadOnly,omitempty"`
+	Size                    int64  `json:"Size"`
+	SupportsGetLock         *bool  `json:"SupportsGetLock,omitempty"`
+	SupportsLocks           *bool  `json:"SupportsLocks,omitempty"`
+	SupportsUpdate          *bool  `json:"SupportsUpdate,omitempty"`
+	UserCanNotWriteRelative *bool  `json:"UserCanNotWriteRelative,omitempty"`
+	UserCanWrite            *bool  `json:"UserCanWrite,omitempty"`
+	UserId                  string `json:"UserId"`
+	Version                 string `json:"Version"`
+}
+
 // WorkItem defines model for WorkItem.
 type WorkItem struct {
 	// Amount How much of it - "2", "1 kg" - beside the title rather than in it. Up to 40 characters on one line, trimmed; empty or null is none. Only where the collection's structure in force carries AMOUNT for the entry's type (`structure.settings.fields`); elsewhere `capability_not_supported`. Nothing sums it or reads a unit out of it.
@@ -26569,10 +28541,31 @@ type WorkflowList struct {
 	} `json:"scheme"`
 }
 
+// WorkflowPicture A workflow drawn read-only - its statuses and the steps between them, without who may take them.
+type WorkflowPicture struct {
+	Initial  string           `json:"initial"`
+	Statuses []WorkflowStatus `json:"statuses"`
+	Steps    []struct {
+		// Approval Whether taking it waits for an approval.
+		Approval bool `json:"approval"`
+
+		// From Empty is any status but its target.
+		From []string `json:"from"`
+		Key  string   `json:"key"`
+
+		// Limited Whether only some people may take it.
+		Limited bool    `json:"limited"`
+		Name    *string `json:"name"`
+		To      string  `json:"to"`
+	} `json:"steps"`
+}
+
 // WorkflowPreview defines model for WorkflowPreview.
 type WorkflowPreview struct {
-	ColumnsAfter  []string `json:"columns_after"`
-	ColumnsBefore []string `json:"columns_before"`
+	// Boards Per collection reached that has board columns: its level before and after, its columns with the statuses each would show, the statuses no column would show with a suggested column, and how many entries change column.
+	Boards        *[]BoardPreview `json:"boards,omitempty"`
+	ColumnsAfter  []string        `json:"columns_after"`
+	ColumnsBefore []string        `json:"columns_before"`
 
 	// Entries How many entries move.
 	Entries int `json:"entries"`
@@ -26605,6 +28598,12 @@ type WorkflowPublishPreview struct {
 
 // WorkflowSchemeChange defines model for WorkflowSchemeChange.
 type WorkflowSchemeChange struct {
+	// Columns The statuses each board column shows under the workflow. A board shows the statuses of every workflow its entry types run, so a change for one type reaches the boards whose types it touches and takes their columns too. A board one of whose columns is named here takes exactly this mapping; every other board the proposal of the preview (`boards`). Ignored where the workflow leaves.
+	Columns *[]struct {
+		BucketId openapi_types.UUID `json:"bucket_id"`
+		Statuses []string           `json:"statuses"`
+	} `json:"columns,omitempty"`
+
 	// Confirm True once the person has seen the preview.
 	Confirm     *bool              `json:"confirm,omitempty"`
 	ContainerId openapi_types.UUID `json:"container_id"`
@@ -27231,6 +29230,9 @@ type WeekOfTimesheet = openapi_types.Date
 // WhiteboardId defines model for WhiteboardId.
 type WhiteboardId = openapi_types.UUID
 
+// WopiAccessToken defines model for WopiAccessToken.
+type WopiAccessToken = string
+
 // ScimError A SCIM error (RFC 7644 section 3.12): the status, a `scimType` where the RFC names one, and as `detail` the message code - never a sentence.
 type ScimError = ScimErrorBody
 
@@ -27573,7 +29575,7 @@ type RunAgentEvaluationJSONBody struct {
 	// CollectionId The collection whose labels a ticket triage chooses from; without it no labels are answered.
 	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
 
-	// HubId The hub whose CIs a CI suggestion or a triage matches; required for those two.
+	// HubId The hub whose objects an object suggestion or a triage matches; required for those two.
 	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
 }
 
@@ -27880,10 +29882,22 @@ type MoveCiAssetParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ListCiAttachmentsParams defines parameters for ListCiAttachments.
+type ListCiAttachmentsParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+}
+
 // SetCiComplianceParams defines parameters for SetCiCompliance.
 type SetCiComplianceParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ListCiHistoryParams defines parameters for ListCiHistory.
+type ListCiHistoryParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
 }
 
 // ReadCiImpactParams defines parameters for ReadCiImpact.
@@ -28090,8 +30104,28 @@ type RenameContainerParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SwitchBoardJSONBody defines parameters for SwitchBoard.
+type SwitchBoardJSONBody struct {
+	DryRun *bool                 `json:"dry_run,omitempty"`
+	To     SwitchBoardJSONBodyTo `json:"to"`
+}
+
+// SwitchBoardJSONBodyTo defines parameters for SwitchBoard.
+type SwitchBoardJSONBodyTo string
+
+// MakeBoardWorkflowJSONBody defines parameters for MakeBoardWorkflow.
+type MakeBoardWorkflowJSONBody struct {
+	DryRun *bool `json:"dry_run,omitempty"`
+
+	// Name The workflow's name; the collection's by default.
+	Name *string `json:"name,omitempty"`
+}
+
 // DeleteBucketParams defines parameters for DeleteBucket.
 type DeleteBucketParams struct {
+	// NewDoneBucketId Where the done column is deleted: the column that takes the done mark and its entries. Its open entries are completed with the mark. Read only when the done column goes.
+	NewDoneBucketId *openapi_types.UUID `form:"new_done_bucket_id,omitempty" json:"new_done_bucket_id,omitempty"`
+
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
@@ -28310,6 +30344,11 @@ type UpdateDashboardParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ReadMyDeadlinesKeptParams defines parameters for ReadMyDeadlinesKept.
+type ReadMyDeadlinesKeptParams struct {
+	Days *int `form:"days,omitempty" json:"days,omitempty"`
+}
+
 // RemoveLdapDirectoryParams defines parameters for RemoveLdapDirectory.
 type RemoveLdapDirectoryParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -28369,6 +30408,17 @@ type CloseGoalPeriodJSONBody struct {
 type CloseGoalPeriodParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// AddGoalSetJSONBody defines parameters for AddGoalSet.
+type AddGoalSetJSONBody struct {
+	EndOn openapi_types.Date `json:"end_on"`
+
+	// Goals The workspace's goals of the period, each written as creating a goal writes it.
+	Goals   *[]GoalSetGoal     `json:"goals,omitempty"`
+	Key     string             `json:"key"`
+	Name    string             `json:"name"`
+	StartOn openapi_types.Date `json:"start_on"`
 }
 
 // ListGoalsParams defines parameters for ListGoals.
@@ -28482,6 +30532,12 @@ type ListCiDuplicatesParams struct {
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// DeleteCiGroupParams defines parameters for DeleteCiGroup.
+type DeleteCiGroupParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // DefineCiGroupParams defines parameters for DefineCiGroup.
 type DefineCiGroupParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -28522,6 +30578,14 @@ type ListPagesParams struct {
 	IncludeArchived *bool `form:"include_archived,omitempty" json:"include_archived,omitempty"`
 	Templates       *bool `form:"templates,omitempty" json:"templates,omitempty"`
 }
+
+// ListHubPostsParams defines parameters for ListHubPosts.
+type ListHubPostsParams struct {
+	Filter *ListHubPostsParamsFilter `form:"filter,omitempty" json:"filter,omitempty"`
+}
+
+// ListHubPostsParamsFilter defines parameters for ListHubPosts.
+type ListHubPostsParamsFilter string
 
 // ListReleasesParams defines parameters for ListReleases.
 type ListReleasesParams struct {
@@ -28927,6 +30991,18 @@ type SuggestDecompositionParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// DropItemOnColumnJSONBody defines parameters for DropItemOnColumn.
+type DropItemOnColumnJSONBody struct {
+	BucketId *openapi_types.UUID `json:"bucket_id,omitempty"`
+	Step     *string             `json:"step,omitempty"`
+}
+
+// DropItemOnColumnParams defines parameters for DropItemOnColumn.
+type DropItemOnColumnParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // DuplicateWorkItemJSONBody defines parameters for DuplicateWorkItem.
 type DuplicateWorkItemJSONBody struct {
 	// IncludeSubtree Whether everything below the entry is copied with it. Omitted copies the entry alone, and its children stay where they are.
@@ -29235,6 +31311,9 @@ type UploadMediaContentParams struct {
 	Token string `form:"token" json:"token"`
 }
 
+// ConvertMediaToPdfJSONBody defines parameters for ConvertMediaToPdf.
+type ConvertMediaToPdfJSONBody = map[string]interface{}
+
 // ListMembershipsParams defines parameters for ListMemberships.
 type ListMembershipsParams struct {
 	ScopeType MembershipScope `form:"scope_type" json:"scope_type"`
@@ -29268,8 +31347,9 @@ type RegisterOauthClientParams struct {
 
 // GetDataFeedEntriesParams defines parameters for GetDataFeedEntries.
 type GetDataFeedEntriesParams struct {
-	Top  *int `form:"$top,omitempty" json:"$top,omitempty"`
-	Skip *int `form:"$skip,omitempty" json:"$skip,omitempty"`
+	Filter *string `form:"$filter,omitempty" json:"$filter,omitempty"`
+	Top    *int    `form:"$top,omitempty" json:"$top,omitempty"`
+	Skip   *int    `form:"$skip,omitempty" json:"$skip,omitempty"`
 }
 
 // ChangePageCommentParams defines parameters for ChangePageComment.
@@ -29287,6 +31367,14 @@ type UpdatePageParams struct {
 // PublishPageToPortalJSONBody defines parameters for PublishPageToPortal.
 type PublishPageToPortalJSONBody struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// WithSubpages Share the page with everything under it, as a knowledge space.
+	WithSubpages *bool `json:"with_subpages,omitempty"`
+}
+
+// SearchCoverImagesParams defines parameters for SearchCoverImages.
+type SearchCoverImagesParams struct {
+	Query *string `form:"query,omitempty" json:"query,omitempty"`
 }
 
 // ListPageVersionsParams defines parameters for ListPageVersions.
@@ -29326,6 +31414,14 @@ type PublishPageParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
+
+// SetCoverImagesPolicyJSONBody defines parameters for SetCoverImagesPolicy.
+type SetCoverImagesPolicyJSONBody struct {
+	Library SetCoverImagesPolicyJSONBodyLibrary `json:"library"`
+}
+
+// SetCoverImagesPolicyJSONBodyLibrary defines parameters for SetCoverImagesPolicy.
+type SetCoverImagesPolicyJSONBodyLibrary string
 
 // SetPublicLinksPolicyJSONBody defines parameters for SetPublicLinksPolicy.
 type SetPublicLinksPolicyJSONBody struct {
@@ -29433,6 +31529,11 @@ type ReadWorkloadParams struct {
 type SetWorkspaceToleranceJSONBody struct {
 	Lock              *bool `json:"lock,omitempty"`
 	TimeToleranceDays *int  `json:"time_tolerance_days,omitempty"`
+}
+
+// ListPortalKnowledgeParams defines parameters for ListPortalKnowledge.
+type ListPortalKnowledgeParams struct {
+	CollectionId CollectionId `form:"collection_id" json:"collection_id"`
 }
 
 // DeletePortfolioParams defines parameters for DeletePortfolio.
@@ -30190,6 +32291,30 @@ type MoveWhiteboardParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// CheckWopiFileInfoParams defines parameters for CheckWopiFileInfo.
+type CheckWopiFileInfoParams struct {
+	// AccessToken The WOPI access token: one person, one file, read or write, for a short while. The protocol carries it in the query; it is never logged.
+	AccessToken WopiAccessToken `form:"access_token" json:"access_token"`
+}
+
+// LockWopiFileParams defines parameters for LockWopiFile.
+type LockWopiFileParams struct {
+	// AccessToken The WOPI access token: one person, one file, read or write, for a short while. The protocol carries it in the query; it is never logged.
+	AccessToken WopiAccessToken `form:"access_token" json:"access_token"`
+}
+
+// GetWopiFileParams defines parameters for GetWopiFile.
+type GetWopiFileParams struct {
+	// AccessToken The WOPI access token: one person, one file, read or write, for a short while. The protocol carries it in the query; it is never logged.
+	AccessToken WopiAccessToken `form:"access_token" json:"access_token"`
+}
+
+// PutWopiFileParams defines parameters for PutWopiFile.
+type PutWopiFileParams struct {
+	// AccessToken The WOPI access token: one person, one file, read or write, for a short while. The protocol carries it in the query; it is never logged.
+	AccessToken WopiAccessToken `form:"access_token" json:"access_token"`
+}
+
 // SaveWorkflowDraftParams defines parameters for SaveWorkflowDraft.
 type SaveWorkflowDraftParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -30568,6 +32693,9 @@ type MoveCiAssetJSONRequestBody = CiAssetMove
 // SetCiComplianceJSONRequestBody defines body for SetCiCompliance for application/json ContentType.
 type SetCiComplianceJSONRequestBody = CiCompliance
 
+// ConfirmCiJSONRequestBody defines body for ConfirmCi for application/json ContentType.
+type ConfirmCiJSONRequestBody = CiConfirm
+
 // SetCiConnectorCredentialJSONRequestBody defines body for SetCiConnectorCredential for application/json ContentType.
 type SetCiConnectorCredentialJSONRequestBody = CiConnectorCredential
 
@@ -30639,6 +32767,12 @@ type CreateContainerJSONRequestBody = ContainerCreate
 
 // RenameContainerApplicationMergePatchPlusJSONRequestBody defines body for RenameContainer for application/merge-patch+json ContentType.
 type RenameContainerApplicationMergePatchPlusJSONRequestBody = ContainerUpdate
+
+// SwitchBoardJSONRequestBody defines body for SwitchBoard for application/json ContentType.
+type SwitchBoardJSONRequestBody SwitchBoardJSONBody
+
+// MakeBoardWorkflowJSONRequestBody defines body for MakeBoardWorkflow for application/json ContentType.
+type MakeBoardWorkflowJSONRequestBody MakeBoardWorkflowJSONBody
 
 // CreateBucketJSONRequestBody defines body for CreateBucket for application/json ContentType.
 type CreateBucketJSONRequestBody = BucketCreate
@@ -30712,6 +32846,9 @@ type UpdateDashboardJSONRequestBody = DashboardWrite
 // SetDashboardDigestJSONRequestBody defines body for SetDashboardDigest for application/json ContentType.
 type SetDashboardDigestJSONRequestBody = DashboardDigestWrite
 
+// DraftDashboardFiguresJSONRequestBody defines body for DraftDashboardFigures for application/json ContentType.
+type DraftDashboardFiguresJSONRequestBody = DashboardDraft
+
 // ConfigureLdapDirectoryJSONRequestBody defines body for ConfigureLdapDirectory for application/json ContentType.
 type ConfigureLdapDirectoryJSONRequestBody = LdapDirectoryConfiguration
 
@@ -30744,6 +32881,9 @@ type ChangeGoalPeriodJSONRequestBody = GoalPeriodWrite
 
 // CloseGoalPeriodJSONRequestBody defines body for CloseGoalPeriod for application/json ContentType.
 type CloseGoalPeriodJSONRequestBody CloseGoalPeriodJSONBody
+
+// AddGoalSetJSONRequestBody defines body for AddGoalSet for application/json ContentType.
+type AddGoalSetJSONRequestBody AddGoalSetJSONBody
 
 // CreateGoalJSONRequestBody defines body for CreateGoal for application/json ContentType.
 type CreateGoalJSONRequestBody = GoalCreate
@@ -30795,6 +32935,12 @@ type SetSpaceDraftsJSONRequestBody SetSpaceDraftsJSONBody
 
 // CreatePageJSONRequestBody defines body for CreatePage for application/json ContentType.
 type CreatePageJSONRequestBody = PageCreate
+
+// CreatePostJSONRequestBody defines body for CreatePost for application/json ContentType.
+type CreatePostJSONRequestBody = PostCreate
+
+// FollowHubPostsJSONRequestBody defines body for FollowHubPosts for application/json ContentType.
+type FollowHubPostsJSONRequestBody = PostFollowing
 
 // CreateReleaseJSONRequestBody defines body for CreateRelease for application/json ContentType.
 type CreateReleaseJSONRequestBody CreateReleaseJSONBody
@@ -30910,6 +33056,9 @@ type AiClassifyJSONRequestBody = AiAsk
 // CompleteWorkItemJSONRequestBody defines body for CompleteWorkItem for application/json ContentType.
 type CompleteWorkItemJSONRequestBody CompleteWorkItemJSONBody
 
+// DropItemOnColumnJSONRequestBody defines body for DropItemOnColumn for application/json ContentType.
+type DropItemOnColumnJSONRequestBody DropItemOnColumnJSONBody
+
 // DuplicateWorkItemJSONRequestBody defines body for DuplicateWorkItem for application/json ContentType.
 type DuplicateWorkItemJSONRequestBody DuplicateWorkItemJSONBody
 
@@ -31012,6 +33161,15 @@ type SaveMailSettingsJSONRequestBody = MailSettings
 // RequestMediaUploadJSONRequestBody defines body for RequestMediaUpload for application/json ContentType.
 type RequestMediaUploadJSONRequestBody = MediaUploadRequest
 
+// ConvertMediaToPdfJSONRequestBody defines body for ConvertMediaToPdf for application/json ContentType.
+type ConvertMediaToPdfJSONRequestBody = ConvertMediaToPdfJSONBody
+
+// SetDocumentServerJSONRequestBody defines body for SetDocumentServer for application/json ContentType.
+type SetDocumentServerJSONRequestBody = DocumentServer
+
+// CheckDocumentServerJSONRequestBody defines body for CheckDocumentServer for application/json ContentType.
+type CheckDocumentServerJSONRequestBody = DocumentServer
+
 // GrantMembershipJSONRequestBody defines body for GrantMembership for application/json ContentType.
 type GrantMembershipJSONRequestBody = MembershipGrant
 
@@ -31069,6 +33227,9 @@ type RestrictPageJSONRequestBody = PageRestrict
 // VerifyPageJSONRequestBody defines body for VerifyPage for application/json ContentType.
 type VerifyPageJSONRequestBody = PageVerify
 
+// SetCoverImagesPolicyJSONRequestBody defines body for SetCoverImagesPolicy for application/json ContentType.
+type SetCoverImagesPolicyJSONRequestBody SetCoverImagesPolicyJSONBody
+
 // SetPublicLinksPolicyJSONRequestBody defines body for SetPublicLinksPolicy for application/json ContentType.
 type SetPublicLinksPolicyJSONRequestBody SetPublicLinksPolicyJSONBody
 
@@ -31111,6 +33272,12 @@ type ReportPortfolioStatusJSONRequestBody ReportPortfolioStatusJSONBody
 // SetPublicRoadmapsPolicyJSONRequestBody defines body for SetPublicRoadmapsPolicy for application/json ContentType.
 type SetPublicRoadmapsPolicyJSONRequestBody SetPublicRoadmapsPolicyJSONBody
 
+// SetPostSettingsJSONRequestBody defines body for SetPostSettings for application/json ContentType.
+type SetPostSettingsJSONRequestBody = PostSettings
+
+// AddPostReplyJSONRequestBody defines body for AddPostReply for application/json ContentType.
+type AddPostReplyJSONRequestBody = PostReplyCreate
+
 // SavePresetJSONRequestBody defines body for SavePreset for application/json ContentType.
 type SavePresetJSONRequestBody = PresetCreate
 
@@ -31143,6 +33310,9 @@ type SubmitPublicFormJSONRequestBody = PublicFormSubmission
 
 // AnswerSatisfactionLinkJSONRequestBody defines body for AnswerSatisfactionLink for application/json ContentType.
 type AnswerSatisfactionLinkJSONRequestBody = SatisfactionLinkAnswer
+
+// AskQueryJSONRequestBody defines body for AskQuery for application/json ContentType.
+type AskQueryJSONRequestBody = AskQueryRequest
 
 // ResolveReferencesJSONRequestBody defines body for ResolveReferences for application/json ContentType.
 type ResolveReferencesJSONRequestBody ResolveReferencesJSONBody
@@ -31230,6 +33400,9 @@ type ReplaceScimUserApplicationScimPlusJSONRequestBody = ScimUser
 
 // SearchItemsJSONRequestBody defines body for SearchItems for application/json ContentType.
 type SearchItemsJSONRequestBody = ItemSearchQuery
+
+// SearchAllJSONRequestBody defines body for SearchAll for application/json ContentType.
+type SearchAllJSONRequestBody = SearchAllRequest
 
 // DefineSlaPolicyJSONRequestBody defines body for DefineSlaPolicy for application/json ContentType.
 type DefineSlaPolicyJSONRequestBody = SlaPolicyDefine
@@ -33592,7 +35765,7 @@ type ClientInterface interface {
 
 	// ListAgents The workspace's agents
 	//
-	// Whoever administers agents reads all of them; anybody else the agents acting for them.
+	// Whoever administers agents reads all of them; anybody else the agents acting for them. Each with what it spent this hour and today and when its latest job started.
 	//
 	// Corresponds with GET /agents (the `ListAgents` operationId).
 	ListAgents(ctx context.Context, params *ListAgentsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -33698,7 +35871,7 @@ type ClientInterface interface {
 
 	// RunAgentEvaluationWithBody Have a shipped agent answer its own evaluation set
 	//
-	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, an object suggestion and a ticket triage answer `cis`, the names of the hub's objects the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -33707,7 +35880,7 @@ type ClientInterface interface {
 
 	// RunAgentEvaluation Have a shipped agent answer its own evaluation set
 	//
-	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, an object suggestion and a ticket triage answer `cis`, the names of the hub's objects the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -33723,7 +35896,7 @@ type ClientInterface interface {
 
 	// StartAgentJobWithBody Start a shipped agent's job on one target
 	//
-	// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+	// Ticket triage, object suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -33732,7 +35905,7 @@ type ClientInterface interface {
 
 	// StartAgentJob Start a shipped agent's job on one target
 	//
-	// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+	// Ticket triage, object suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -35528,25 +37701,25 @@ type ClientInterface interface {
 	// Corresponds with POST /chat-intake/{tenantId}/{botId} (the `DeliverChat` operationId).
 	DeliverChatWithFormdataBody(ctx context.Context, tenantId openapi_types.UUID, botId openapi_types.UUID, body DeliverChatFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ReadCiCampaign A certification campaign with every CI asked
+	// ReadCiCampaign A certification campaign with every object asked
 	//
-	// Its score and each CI's verdict, who gave it and when. Needs READ on the hub.
+	// Its score and each object's verdict, who gave it and when. Needs READ on the hub.
 	//
 	// Corresponds with GET /ci-campaigns/{campaignId} (the `ReadCiCampaign` operationId).
 	ReadCiCampaign(ctx context.Context, campaignId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// AttestCiWithBody Answer a campaign's question about a configuration item
+	// AttestCiWithBody Answer a campaign's question about an object
 	//
-	// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+	// CONFIRMED moves the object's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with PUT /ci-campaigns/{campaignId}/cis/{ciId} (the `AttestCi` operationId).
 	AttestCiWithBody(ctx context.Context, campaignId openapi_types.UUID, ciId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// AttestCi Answer a campaign's question about a configuration item
+	// AttestCi Answer a campaign's question about an object
 	//
-	// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+	// CONFIRMED moves the object's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -35560,9 +37733,16 @@ type ClientInterface interface {
 	// Corresponds with POST /ci-campaigns/{campaignId}:close (the `CloseCiCampaign` operationId).
 	CloseCiCampaign(ctx context.Context, campaignId openapi_types.UUID, params *CloseCiCampaignParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// RemindCiCampaign Remind the owners who have not answered yet
+	//
+	// Tells each owning person of a still pending object once per call, naming how many of their objects wait. Refused `cmdb.nobody_to_remind` when no pending object has an owning person, and `cmdb.campaign_closed` on a closed campaign. Needs WRITE_ITEMS on the hub.
+	//
+	// Corresponds with POST /ci-campaigns/{campaignId}:remind (the `RemindCiCampaign` operationId).
+	RemindCiCampaign(ctx context.Context, campaignId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ResolveCiDuplicateWithBody Merge a duplicate or call it distinct
 	//
-	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the objects are recorded as distinct. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -35571,14 +37751,14 @@ type ClientInterface interface {
 
 	// ResolveCiDuplicate Merge a duplicate or call it distinct
 	//
-	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the objects are recorded as distinct. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /ci-duplicates/{duplicateId}:resolve (the `ResolveCiDuplicate` operationId).
 	ResolveCiDuplicate(ctx context.Context, duplicateId openapi_types.UUID, body ResolveCiDuplicateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListCiGroupMembers The configuration items a group holds now
+	// ListCiGroupMembers The objects a group holds now
 	//
 	// Needs READ on the hub.
 	//
@@ -35592,18 +37772,18 @@ type ClientInterface interface {
 	// Corresponds with POST /ci-holds/{holdId}:dismiss (the `DismissCiHold` operationId).
 	DismissCiHold(ctx context.Context, holdId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// RelateCisWithBody Join two configuration items
+	// RelateCisWithBody Join two objects
 	//
-	// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+	// By a relation type, read from the source; the type's object type pairs decide whether it may join them. Both objects are in one hub. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /ci-relations (the `RelateCis` operationId).
 	RelateCisWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// RelateCis Join two configuration items
+	// RelateCis Join two objects
 	//
-	// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+	// By a relation type, read from the source; the type's object type pairs decide whether it may join them. Both objects are in one hub. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -35619,44 +37799,44 @@ type ClientInterface interface {
 
 	// ReadCiRun One reconciliation run with its decisions
 	//
-	// Every item's outcome, CI, matching rule and the attributes taken or kept, by name. Needs READ on the hub.
+	// Every item's outcome, object, matching rule and the attributes taken or kept, by name. Needs READ on the hub.
 	//
 	// Corresponds with GET /ci-runs/{runId} (the `ReadCiRun` operationId).
 	ReadCiRun(ctx context.Context, runId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ReadCi Read a configuration item
+	// ReadCi Read an object
 	//
 	// With its relations both ways and the protection need it inherits from everything that suffers when it fails. Needs READ on the hub.
 	//
 	// Corresponds with GET /cis/{ciId} (the `ReadCi` operationId).
 	ReadCi(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// UpdateCiWithBody Change a configuration item by hand
+	// UpdateCiWithBody Change an object by hand
 	//
-	// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+	// Its name, attributes (null clears one) or a more specific object type, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with PATCH /cis/{ciId} (the `UpdateCi` operationId).
 	UpdateCiWithBody(ctx context.Context, ciId openapi_types.UUID, params *UpdateCiParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// UpdateCi Change a configuration item by hand
+	// UpdateCi Change an object by hand
 	//
-	// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+	// Its name, attributes (null clears one) or a more specific object type, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with PATCH /cis/{ciId} (the `UpdateCi` operationId).
 	UpdateCi(ctx context.Context, ciId openapi_types.UUID, params *UpdateCiParams, body UpdateCiJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ReadCiAsset A configuration item's asset record
+	// ReadCiAsset An object's register record
 	//
-	// Not found when it has none. Needs READ on the hub.
+	// With the steps of its life, oldest first. Not found when it has none. Needs READ on the hub.
 	//
 	// Corresponds with GET /cis/{ciId}/asset (the `ReadCiAsset` operationId).
 	ReadCiAsset(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// RegisterCiAssetWithBody Write a configuration item's asset record
+	// RegisterCiAssetWithBody Write an object's register record
 	//
 	// Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 	//
@@ -35665,7 +37845,7 @@ type ClientInterface interface {
 	// Corresponds with PUT /cis/{ciId}/asset (the `RegisterCiAsset` operationId).
 	RegisterCiAssetWithBody(ctx context.Context, ciId openapi_types.UUID, params *RegisterCiAssetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// RegisterCiAsset Write a configuration item's asset record
+	// RegisterCiAsset Write an object's register record
 	//
 	// Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 	//
@@ -35674,32 +37854,53 @@ type ClientInterface interface {
 	// Corresponds with PUT /cis/{ciId}/asset (the `RegisterCiAsset` operationId).
 	RegisterCiAsset(ctx context.Context, ciId openapi_types.UUID, params *RegisterCiAssetParams, body RegisterCiAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// MoveCiAssetWithBody Move an asset through its life
+	// MoveCiAssetWithBody Move a register record through its life
 	//
-	// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+	// The object's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed object moves no more. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /cis/{ciId}/asset:move (the `MoveCiAsset` operationId).
 	MoveCiAssetWithBody(ctx context.Context, ciId openapi_types.UUID, params *MoveCiAssetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// MoveCiAsset Move an asset through its life
+	// MoveCiAsset Move a register record through its life
 	//
-	// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+	// The object's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed object moves no more. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /cis/{ciId}/asset:move (the `MoveCiAsset` operationId).
 	MoveCiAsset(ctx context.Context, ciId openapi_types.UUID, params *MoveCiAssetParams, body MoveCiAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListCiBacklinks What points at a configuration item
+	// ListCiAttachments An object's files
+	//
+	// The object's files as media objects, oldest upload first, without a download target per row - one is read for one file. Needs READ on the hub.
+	//
+	// Corresponds with GET /cis/{ciId}/attachments (the `ListCiAttachments` operationId).
+	ListCiAttachments(ctx context.Context, ciId openapi_types.UUID, params *ListCiAttachmentsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DetachCiMedia Take a file off an object
+	//
+	// Idempotent: an object that does not hold it succeeds. The media object itself stays; once nothing references it, the reconciliation job removes it. Needs WRITE_ITEMS on the hub.
+	//
+	// Corresponds with DELETE /cis/{ciId}/attachments/{mediaId} (the `DetachCiMedia` operationId).
+	DetachCiMedia(ctx context.Context, ciId openapi_types.UUID, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AttachCiMedia Put a file on an object
+	//
+	// Idempotent: an object that already holds it succeeds. The media object has to be READY, of usage ATTACHMENT and of this workspace; it is one the caller uploaded or one an object of a hub they read already holds. Attaching raises the object's reference count; the bytes are shared, never copied. At most 500 files an object (`cmdb.files_full`, 409). Needs WRITE_ITEMS on the hub.
+	//
+	// Corresponds with PUT /cis/{ciId}/attachments/{mediaId} (the `AttachCiMedia` operationId).
+	AttachCiMedia(ctx context.Context, ciId openapi_types.UUID, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCiBacklinks What points at an object
 	//
 	// The pages, entries' notes and comments and whiteboards that mention it, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
 	//
 	// Corresponds with GET /cis/{ciId}/backlinks (the `ListCiBacklinks` operationId).
 	ListCiBacklinks(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// SetCiComplianceWithBody Set a configuration item's lifecycle and compliance fields
+	// SetCiComplianceWithBody Set an object's lifecycle and compliance fields
 	//
 	// Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 	//
@@ -35708,7 +37909,7 @@ type ClientInterface interface {
 	// Corresponds with PUT /cis/{ciId}/compliance (the `SetCiCompliance` operationId).
 	SetCiComplianceWithBody(ctx context.Context, ciId openapi_types.UUID, params *SetCiComplianceParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// SetCiCompliance Set a configuration item's lifecycle and compliance fields
+	// SetCiCompliance Set an object's lifecycle and compliance fields
 	//
 	// Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 	//
@@ -35717,12 +37918,44 @@ type ClientInterface interface {
 	// Corresponds with PUT /cis/{ciId}/compliance (the `SetCiCompliance` operationId).
 	SetCiCompliance(ctx context.Context, ciId openapi_types.UUID, params *SetCiComplianceParams, body SetCiComplianceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ReadCiImpact What a configuration item's failure reaches
+	// ListCiHistory An object's history
+	//
+	// The object's own history, newest first: who did what, and when - made, changed by hand or by a source, its stage, owner, location or protection need changed, related and unrelated, confirmed and attested, registered and moved, files put on and taken off. It is the product's record and not the audit trail: readable by whoever reads the hub, deleted with the object. Each step carries a message code the client renders. Needs READ on the hub.
+	//
+	// Corresponds with GET /cis/{ciId}/history (the `ListCiHistory` operationId).
+	ListCiHistory(ctx context.Context, ciId openapi_types.UUID, params *ListCiHistoryParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadCiImpact What an object's failure reaches
 	//
 	// DOWNSTREAM, everything that suffers when it fails, with the services among them; UPSTREAM, everything whose failure it suffers. Needs READ on the hub.
 	//
 	// Corresponds with GET /cis/{ciId}/impact (the `ReadCiImpact` operationId).
 	ReadCiImpact(ctx context.Context, ciId openapi_types.UUID, params *ReadCiImpactParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCiWork The entries an object is part of
+	//
+	// Every entry - a ticket, a change, a task - that names the object as affected, or names an object beneath it, one whose failure it suffers up to eight steps, each once: open ones first, then at most twenty completed ones. Only entries the reader may see, never archived ones. Needs READ on the hub.
+	//
+	// Corresponds with GET /cis/{ciId}/work (the `ListCiWork` operationId).
+	ListCiWork(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfirmCiWithBody Confirm an object is as recorded
+	//
+	// Its next review moves review_months on from today (12 when not given), and the object records who confirmed it and when. A pending question of an open campaign about it is answered CONFIRMED at the same time. The owning person confirms with READ on the hub, anybody else with WRITE_ITEMS.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /cis/{ciId}:confirm (the `ConfirmCi` operationId).
+	ConfirmCiWithBody(ctx context.Context, ciId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfirmCi Confirm an object is as recorded
+	//
+	// Its next review moves review_months on from today (12 when not given), and the object records who confirmed it and when. A pending question of an open campaign about it is answered CONFIRMED at the same time. The owning person confirms with READ on the hub, anybody else with WRITE_ITEMS.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /cis/{ciId}:confirm (the `ConfirmCi` operationId).
+	ConfirmCi(ctx context.Context, ciId openapi_types.UUID, body ConfirmCiJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetCiConnectorCredentialWithBody Set a connector's credential
 	//
@@ -35762,7 +37995,7 @@ type ClientInterface interface {
 
 	// DeliverCiAlertsWithBody Post alerts to an intake
 	//
-	// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+	// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the object its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
 	// Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
 	//
 	// Takes any type of body and a specified content type.
@@ -35772,7 +38005,7 @@ type ClientInterface interface {
 
 	// DeliverCiAlerts Post alerts to an intake
 	//
-	// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+	// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the object its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
 	// Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
 	//
 	// Takes a body of the `application/json` content type.
@@ -35780,25 +38013,25 @@ type ClientInterface interface {
 	// Corresponds with POST /cmdb/alert-intake/{tenantId}/{connectorId} (the `DeliverCiAlerts` operationId).
 	DeliverCiAlerts(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiAlertsParams, body DeliverCiAlertsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListCiClasses The configuration item classes
+	// ListCiClasses The object types
 	//
-	// The class hierarchy Hubtask ships and the workspace's own classes beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations a CI of it needs. Needs READ in the workspace and the assets module switched on.
+	// The object type hierarchy Hubtask ships and the workspace's own object types beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations an object of it needs. Needs READ in the workspace and the inventory module switched on.
 	//
 	// Corresponds with GET /cmdb/classes (the `ListCiClasses` operationId).
 	ListCiClasses(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// DefineCiClassWithBody Add or change a class of the workspace's own
+	// DefineCiClassWithBody Add or change an object type of the workspace's own
 	//
-	// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+	// Adds an object type beneath a shipped or an own object type, or changes an own object type. A shipped object type is not changed. Needs STRUCTURE in the workspace.
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with PUT /cmdb/classes/{classKey} (the `DefineCiClass` operationId).
 	DefineCiClassWithBody(ctx context.Context, classKey string, params *DefineCiClassParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// DefineCiClass Add or change a class of the workspace's own
+	// DefineCiClass Add or change an object type of the workspace's own
 	//
-	// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+	// Adds an object type beneath a shipped or an own object type, or changes an own object type. A shipped object type is not changed. Needs STRUCTURE in the workspace.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -35823,16 +38056,16 @@ type ClientInterface interface {
 	// Corresponds with POST /cmdb/inventory-intake/{tenantId}/{connectorId} (the `DeliverCiInventory` operationId).
 	DeliverCiInventory(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiInventoryParams, body DeliverCiInventoryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListCiRelationTypes The relation types between configuration items
+	// ListCiRelationTypes The relation types between objects
 	//
-	// The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the class pairs it may join.
+	// The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the object type pairs it may join.
 	//
 	// Corresponds with GET /cmdb/relation-types (the `ListCiRelationTypes` operationId).
 	ListCiRelationTypes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DefineCiRelationTypeWithBody Add or change a relation type of the workspace's own
 	//
-	// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+	// Its words both ways, its impact (which end suffers when the other fails) and the object type pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -35841,14 +38074,14 @@ type ClientInterface interface {
 
 	// DefineCiRelationType Add or change a relation type of the workspace's own
 	//
-	// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+	// Its words both ways, its impact (which end suffers when the other fails) and the object type pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with PUT /cmdb/relation-types/{typeKey} (the `DefineCiRelationType` operationId).
 	DefineCiRelationType(ctx context.Context, typeKey string, params *DefineCiRelationTypeParams, body DefineCiRelationTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListCiSources The sources configuration items come from
+	// ListCiSources The sources objects come from
 	//
 	// People (`manual`), files, programs and connectors by precedence, a lower rank first.
 	//
@@ -35857,7 +38090,7 @@ type ClientInterface interface {
 
 	// DefineCiSourceWithBody Add or change a source
 	//
-	// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+	// Its kind, rank, the object types it may write, whether it may make new objects and a file source's mapping. Needs STRUCTURE in the workspace.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -35866,7 +38099,7 @@ type ClientInterface interface {
 
 	// DefineCiSource Add or change a source
 	//
-	// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+	// Its kind, rank, the object types it may write, whether it may make new objects and a file source's mapping. Needs STRUCTURE in the workspace.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -36295,6 +38528,64 @@ type ClientInterface interface {
 	// Changes a container's own descriptive fields. A field that is not sent is left alone; sending description, icon or color_token as null clears it. The name stays unique among the containers at the same level. The policies are not here - they are their own sub-resource, so that a rename and a change of the way a collection works are two operations with two audit entries.
 	RenameContainerWithApplicationMergePatchPlusJSONBody(ctx context.Context, containerId ContainerId, params *RenameContainerParams, body RenameContainerApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// SwitchBoardWithBody Show a collection's tasks as a board, or as a list again
+	//
+	// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
+	// language), the completed entries in the done one and the open ones in the other. `NONE`
+	// takes the columns off again, the done column last; completion stays as it is. Refused with
+	// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
+	// where the collection already stands there. `dry_run` counts and writes nothing. Needs
+	// STRUCTURE where the collection is.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /containers/{containerId}/board:switch (the `SwitchBoard` operationId).
+	SwitchBoardWithBody(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SwitchBoard Show a collection's tasks as a board, or as a list again
+	//
+	// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
+	// language), the completed entries in the done one and the open ones in the other. `NONE`
+	// takes the columns off again, the done column last; completion stays as it is. Refused with
+	// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
+	// where the collection already stands there. `dry_run` counts and writes nothing. Needs
+	// STRUCTURE where the collection is.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /containers/{containerId}/board:switch (the `SwitchBoard` operationId).
+	SwitchBoard(ctx context.Context, containerId ContainerId, body SwitchBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MakeBoardWorkflowWithBody Make a workflow from a board's columns
+	//
+	// A workflow of the collection's hub with one status per column - the first column's the
+	// initial status, the done column's done, the rest in progress, every step free -, run for
+	// the collection's tasks with each column showing its own status; every entry takes the
+	// status of the column it stands in. One transaction. Refused with `board.no_columns`
+	// without columns and `board.workflow_runs` where a workflow already runs for tasks.
+	// `dry_run` answers the statuses and counts and writes nothing. Needs STRUCTURE where the
+	// collection is and at its hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /containers/{containerId}/board:workflow (the `MakeBoardWorkflow` operationId).
+	MakeBoardWorkflowWithBody(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MakeBoardWorkflow Make a workflow from a board's columns
+	//
+	// A workflow of the collection's hub with one status per column - the first column's the
+	// initial status, the done column's done, the rest in progress, every step free -, run for
+	// the collection's tasks with each column showing its own status; every entry takes the
+	// status of the column it stands in. One transaction. Refused with `board.no_columns`
+	// without columns and `board.workflow_runs` where a workflow already runs for tasks.
+	// `dry_run` answers the statuses and counts and writes nothing. Needs STRUCTURE where the
+	// collection is and at its hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /containers/{containerId}/board:workflow (the `MakeBoardWorkflow` operationId).
+	MakeBoardWorkflow(ctx context.Context, containerId ContainerId, body MakeBoardWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListBuckets performs a GET /containers/{containerId}/buckets (the `ListBuckets` operationId) request.
 	ListBuckets(ctx context.Context, containerId ContainerId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -36308,7 +38599,7 @@ type ClientInterface interface {
 
 	// DeleteBucket performs a DELETE /containers/{containerId}/buckets/{bucketId} (the `DeleteBucket` operationId) request.
 	//
-	// Takes the column off the board. Its entries are not deleted with it: they move to the leftmost remaining column, or out of any column when this was the last one. What became of them is in the answer rather than left to be discovered.
+	// Takes the column off the board. Its entries are not deleted with it: they move to the leftmost remaining column, or out of any column when this was the last one. What became of them is in the answer rather than left to be discovered. The done column of a board without a workflow is deleted only with `new_done_bucket_id`, the column that means done instead: without it, where other columns are left, the deletion is refused with `buckets.done_successor_required`, the suggested column in its `suggested_bucket_id`.
 	DeleteBucket(ctx context.Context, containerId ContainerId, bucketId BucketId, params *DeleteBucketParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// UpdateBucketWithBody performs a PATCH /containers/{containerId}/buckets/{bucketId} (the `UpdateBucket` operationId) request,
@@ -36809,6 +39100,31 @@ type ClientInterface interface {
 	// Corresponds with GET /dashboards/{dashboardId}/figures (the `ReadDashboardFigures` operationId).
 	ReadDashboardFigures(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DraftDashboardFiguresWithBody A dashboard's numbers for a definition not saved yet
+	//
+	// Computes widgets and a filter as they are being edited, exactly as GET /dashboards/{dashboardId}/figures computes the saved ones, as the caller: the same checks as a save, nothing stored. Only a dashboard the caller sees; its name and sharing stay as they are.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /dashboards/{dashboardId}/figures:draft (the `DraftDashboardFigures` operationId).
+	DraftDashboardFiguresWithBody(ctx context.Context, dashboardId DashboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DraftDashboardFigures A dashboard's numbers for a definition not saved yet
+	//
+	// Computes widgets and a filter as they are being edited, exactly as GET /dashboards/{dashboardId}/figures computes the saved ones, as the caller: the same checks as a save, nothing stored. Only a dashboard the caller sees; its name and sharing stay as they are.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /dashboards/{dashboardId}/figures:draft (the `DraftDashboardFigures` operationId).
+	DraftDashboardFigures(ctx context.Context, dashboardId DashboardId, body DraftDashboardFiguresJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadMyDeadlinesKept How many of the deadlines on my own tickets I kept
+	//
+	// For the signed-in person, over the entries assigned to them: the deadlines that ended in the window - met or breached -, per kind - the requester's goals (first response, next response, resolution) and each team's OLA by its group and goal - with how many were kept. Never another person's; no report permission needed. The window ends now and reaches back `days` days, 30 when left out.
+	//
+	// Corresponds with GET /deadlines-kept (the `ReadMyDeadlinesKept` operationId).
+	ReadMyDeadlinesKept(ctx context.Context, params *ReadMyDeadlinesKeptParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// RemoveLdapDirectory Stop synchronising from the LDAP directory
 	//
 	// The configuration and its sealed password go and no run follows. The people and groups it provisioned stay as they are, with their roles. Needs a fresh step-up. Auditable.
@@ -37058,6 +39374,31 @@ type ClientInterface interface {
 	// Corresponds with POST /goal-periods/{periodId}:close (the `CloseGoalPeriod` operationId).
 	CloseGoalPeriod(ctx context.Context, periodId openapi_types.UUID, params *CloseGoalPeriodParams, body CloseGoalPeriodJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListGoalSets The goal periods a template brought
+	//
+	// The goal periods a template brought to the workspace - a quarter's objectives with their key results, or a period alone - marked under their key. Needs STRUCTURE or READ_CONFIGURATION at the workspace.
+	//
+	// Corresponds with GET /goal-sets (the `ListGoalSets` operationId).
+	ListGoalSets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddGoalSetWithBody Add a template's goal set
+	//
+	// Opens a goal period with the workspace's goals and their key results in one write, marked under its key, as the workspace's configuration document does for a template's goal sets. A key the workspace already marks is refused (`config.goal_set_taken`). Needs STRUCTURE at the workspace and what opening the period and writing each goal needs.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /goal-sets (the `AddGoalSet` operationId).
+	AddGoalSetWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddGoalSet Add a template's goal set
+	//
+	// Opens a goal period with the workspace's goals and their key results in one write, marked under its key, as the workspace's configuration document does for a template's goal sets. A key the workspace already marks is refused (`config.goal_set_taken`). Needs STRUCTURE at the workspace and what opening the period and writing each goal needs.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /goal-sets (the `AddGoalSet` operationId).
+	AddGoalSet(ctx context.Context, body AddGoalSetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListGoals The goals the caller may read
 	//
 	// The workspace's goals and those of the hubs the caller reads, narrowed by period, hub, owner or parent; each with its key results and its progress as the caller sees it - the mean of its key results, its goals below and the share of its linked entries completed. The alignment tree is drawn from `parent_id`.
@@ -37234,9 +39575,9 @@ type ClientInterface interface {
 	// Corresponds with PATCH /groups/{groupId} (the `UpdateGroup` operationId).
 	UpdateGroupWithApplicationMergePatchPlusJSONBody(ctx context.Context, groupId GroupId, params *UpdateGroupParams, body UpdateGroupApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListCiAssets A hub's asset register
+	// ListCiAssets A hub's register records
 	//
-	// In CI order after a cursor, narrowed to a state when given. Needs READ on the hub.
+	// In object order after a cursor, narrowed to a state when given. Needs READ on the hub.
 	//
 	// Corresponds with GET /hubs/{hubId}/assets (the `ListCiAssets` operationId).
 	ListCiAssets(ctx context.Context, hubId openapi_types.UUID, params *ListCiAssetsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -37300,7 +39641,7 @@ type ClientInterface interface {
 
 	// ListCiAlerts A hub's alerts
 	//
-	// The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the CI its host names and the entry opened for it. Needs READ on the hub.
+	// The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the object its host names and the entry opened for it. Needs READ on the hub.
 	//
 	// Corresponds with GET /hubs/{hubId}/ci-alerts (the `ListCiAlerts` operationId).
 	ListCiAlerts(ctx context.Context, hubId openapi_types.UUID, params *ListCiAlertsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -37312,18 +39653,18 @@ type ClientInterface interface {
 	// Corresponds with GET /hubs/{hubId}/ci-campaigns (the `ListCiCampaigns` operationId).
 	ListCiCampaigns(ctx context.Context, hubId openapi_types.UUID, params *ListCiCampaignsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// StartCiCampaignWithBody Ask the owners of a hub's CIs to attest them
+	// StartCiCampaignWithBody Ask the owners of a hub's objects to attest them
 	//
-	// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+	// Every active object of the object types named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /hubs/{hubId}/ci-campaigns (the `StartCiCampaign` operationId).
 	StartCiCampaignWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// StartCiCampaign Ask the owners of a hub's CIs to attest them
+	// StartCiCampaign Ask the owners of a hub's objects to attest them
 	//
-	// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+	// Every active object of the object types named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -37332,30 +39673,37 @@ type ClientInterface interface {
 
 	// ListCiDuplicates Open duplicates
 	//
-	// Sets of CIs one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
+	// Sets of objects one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
 	//
 	// Corresponds with GET /hubs/{hubId}/ci-duplicates (the `ListCiDuplicates` operationId).
 	ListCiDuplicates(ctx context.Context, hubId openapi_types.UUID, params *ListCiDuplicatesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListCiGroups A hub's CI groups
+	// ListCiGroups A hub's object groups
 	//
-	// Each with how many CIs it holds now. Needs READ on the hub.
+	// Each with how many objects it holds now. Needs READ on the hub.
 	//
 	// Corresponds with GET /hubs/{hubId}/ci-groups (the `ListCiGroups` operationId).
 	ListCiGroups(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// DefineCiGroupWithBody Define or change a CI group by its key
+	// DeleteCiGroup Delete an object group by its key
 	//
-	// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+	// The group is gone; the objects it held are unchanged. Needs WRITE_ITEMS on the hub.
+	//
+	// Corresponds with DELETE /hubs/{hubId}/ci-groups/{groupKey} (the `DeleteCiGroup` operationId).
+	DeleteCiGroup(ctx context.Context, hubId openapi_types.UUID, groupKey string, params *DeleteCiGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DefineCiGroupWithBody Define or change an object group by its key
+	//
+	// A name and a filter on object types, stages, a text the name holds and attribute values; at least one. A group naming a service object is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with PUT /hubs/{hubId}/ci-groups/{groupKey} (the `DefineCiGroup` operationId).
 	DefineCiGroupWithBody(ctx context.Context, hubId openapi_types.UUID, groupKey string, params *DefineCiGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// DefineCiGroup Define or change a CI group by its key
+	// DefineCiGroup Define or change an object group by its key
 	//
-	// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+	// A name and a filter on object types, stages, a text the name holds and attribute values; at least one. A group naming a service object is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -37364,7 +39712,7 @@ type ClientInterface interface {
 
 	// ListCiHolds Items held for review
 	//
-	// What the reconciliation held instead of making a CI, newest first. Needs READ on the hub.
+	// What the reconciliation held instead of making an object, newest first. Needs READ on the hub.
 	//
 	// Corresponds with GET /hubs/{hubId}/ci-holds (the `ListCiHolds` operationId).
 	ListCiHolds(ctx context.Context, hubId openapi_types.UUID, params *ListCiHoldsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -37376,32 +39724,39 @@ type ClientInterface interface {
 	// Corresponds with GET /hubs/{hubId}/ci-runs (the `ListCiRuns` operationId).
 	ListCiRuns(ctx context.Context, hubId openapi_types.UUID, params *ListCiRunsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListCis A hub's configuration items
+	// ListHubCiWork How many open entries name each object of a hub
 	//
-	// A page of the hub's CIs in a stable order, narrowed to a class and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.
+	// For each object of the hub, the open, unarchived entries the reader may see that name it as affected; objects with none are left out. Needs READ on the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/ci-work (the `ListHubCiWork` operationId).
+	ListHubCiWork(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCis A hub's objects
+	//
+	// A page of the hub's objects in a stable order, narrowed to an object type and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.
 	//
 	// Corresponds with GET /hubs/{hubId}/cis (the `ListCis` operationId).
 	ListCis(ctx context.Context, hubId openapi_types.UUID, params *ListCisParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateCiWithBody Make a configuration item by hand
+	// CreateCiWithBody Make an object by hand
 	//
-	// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+	// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds an object its identifiers name, nothing is made and the problem names that object (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /hubs/{hubId}/cis (the `CreateCi` operationId).
 	CreateCiWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateCi Make a configuration item by hand
+	// CreateCi Make an object by hand
 	//
-	// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+	// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds an object its identifiers name, nothing is made and the problem names that object (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /hubs/{hubId}/cis (the `CreateCi` operationId).
 	CreateCi(ctx context.Context, hubId openapi_types.UUID, body CreateCiJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ImportCiFileWithBody Import a file of configuration items
+	// ImportCiFileWithBody Import a file of objects
 	//
 	// A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 	//
@@ -37410,7 +39765,7 @@ type ClientInterface interface {
 	// Corresponds with POST /hubs/{hubId}/cis:import (the `ImportCiFile` operationId).
 	ImportCiFileWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ImportCiFile Import a file of configuration items
+	// ImportCiFile Import a file of objects
 	//
 	// A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 	//
@@ -37421,7 +39776,7 @@ type ClientInterface interface {
 
 	// ReconcileCisWithBody Reconcile a source's payload
 	//
-	// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+	// Each item is identified - by the source's own key, then by its object type's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -37430,7 +39785,7 @@ type ClientInterface interface {
 
 	// ReconcileCis Reconcile a source's payload
 	//
-	// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+	// Each item is identified - by the source's own key, then by its object type's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -37439,7 +39794,7 @@ type ClientInterface interface {
 
 	// ListCiConnectors A hub's connectors
 	//
-	// The programs the hub's configuration items are pulled from and the monitoring programs that post alerts to it, with the source each writes as, the hosts it may reach, its period, whether a credential is set - never the credential - and how its last run ended. Needs READ on the hub.
+	// The programs the hub's objects are pulled from and the monitoring programs that post alerts to it, with the source each writes as, the hosts it may reach, its period, whether a credential is set - never the credential - and how its last run ended. Needs READ on the hub.
 	//
 	// Corresponds with GET /hubs/{hubId}/cmdb-connectors (the `ListCiConnectors` operationId).
 	ListCiConnectors(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -37464,7 +39819,7 @@ type ClientInterface interface {
 
 	// ReadCmdbHealth A hub's inventory judged
 	//
-	// Completeness, correctness (stale, orphaned, duplicate), CIs without an owner and reviews overdue, per class and in all, with the CIs found wanting. Needs READ on the hub.
+	// Completeness, correctness (stale, orphaned, duplicate), objects without an owner and reviews overdue, per object type and in all, with the objects found wanting. Needs READ on the hub.
 	//
 	// Corresponds with GET /hubs/{hubId}/cmdb-health (the `ReadCmdbHealth` operationId).
 	ReadCmdbHealth(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -37551,16 +39906,59 @@ type ClientInterface interface {
 	// Corresponds with POST /hubs/{hubId}/pages (the `CreatePage` operationId).
 	CreatePage(ctx context.Context, hubId openapi_types.UUID, body CreatePageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListHubPosts A hub's posts
+	//
+	// The hub's posts the caller sees, featured ones first, then newest first: published ones for their audience, drafts and scheduled ones for the hub's writers only. `filter` narrows to the unread ones, the caller's own, or the scheduled ones. A post never reaches anybody who may not read its hub. Needs READ on the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/posts (the `ListHubPosts` operationId).
+	ListHubPosts(ctx context.Context, hubId openapi_types.UUID, params *ListHubPostsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreatePostWithBody Write a new post
+	//
+	// Writes a post in the hub: a page with a date, started from one of the post templates or empty, published now (`publish_at` now or earlier), scheduled (`publish_at` ahead) or kept as a draft (no `publish_at`). Its audience is the hub's readers or those of them in the groups named. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/posts (the `CreatePost` operationId).
+	CreatePostWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreatePost Write a new post
+	//
+	// Writes a post in the hub: a page with a date, started from one of the post templates or empty, published now (`publish_at` now or earlier), scheduled (`publish_at` ahead) or kept as a draft (no `publish_at`). Its audience is the hub's readers or those of them in the groups named. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/posts (the `CreatePost` operationId).
+	CreatePost(ctx context.Context, hubId openapi_types.UUID, body CreatePostJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// FollowHubPostsWithBody Follow a hub's posts
+	//
+	// Follows the hub's posts, or stops. A follower is told when a post that asks for it goes out - only one that is for them; a post never reaches anybody beyond its audience. Only a person follows: an agent or a service account is refused `posts.person_follows`. Needs READ on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /hubs/{hubId}/posts/following (the `FollowHubPosts` operationId).
+	FollowHubPostsWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// FollowHubPosts Follow a hub's posts
+	//
+	// Follows the hub's posts, or stops. A follower is told when a post that asks for it goes out - only one that is for them; a post never reaches anybody beyond its audience. Only a person follows: an agent or a service account is refused `posts.person_follows`. Needs READ on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /hubs/{hubId}/posts/following (the `FollowHubPosts` operationId).
+	FollowHubPosts(ctx context.Context, hubId openapi_types.UUID, body FollowHubPostsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListHubQueues A hub's queues with their counts
 	//
-	// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
+	// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. `desks` names the hub's desks either way. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
 	//
 	// Corresponds with GET /hubs/{hubId}/queues (the `ListHubQueues` operationId).
 	ListHubQueues(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListReleases A hub's releases
 	//
-	// The hub's releases, the latest day first, at most 200. Needs READ at the hub.
+	// The hub's releases, the latest day first, at most 200, each with how many of its entries the reader may see are done and open. Needs READ at the hub.
 	//
 	// Corresponds with GET /hubs/{hubId}/releases (the `ListReleases` operationId).
 	ListReleases(ctx context.Context, hubId HubId, params *ListReleasesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -37624,7 +40022,7 @@ type ClientInterface interface {
 
 	// ListSoftwareProducts A hub's software, normalised
 	//
-	// Its software CIs grouped by the product an alias names or by their folded names, with their versions and installations. Needs READ on the hub.
+	// Its software objects grouped by the product an alias names or by their folded names, with their versions and installations. Needs READ on the hub.
 	//
 	// Corresponds with GET /hubs/{hubId}/software (the `ListSoftwareProducts` operationId).
 	ListSoftwareProducts(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -38230,23 +40628,23 @@ type ClientInterface interface {
 	// Attaches a media object to the entry. Idempotent: an entry that already carries it succeeds. The object has to be READY, of usage ATTACHMENT and of this workspace, and the entry's type has to carry the ATTACHMENTS capability - an activity does not. Attaching raises the object's reference count; the bytes are shared, never copied.
 	AttachMedia(ctx context.Context, itemId ItemId, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListEntryCis The configuration items an entry names as affected
+	// ListEntryCis The objects an entry names as affected
 	//
-	// Those the reader may read, the active services and offerings their failure reaches, the other open entries naming them or a CI they reach, and the entries planned on them in a window overlapping the entry's start and due. Needs READ on the entry.
+	// Those the reader may read, the active services and offerings their failure reaches, the other open entries naming them or an object they reach, and the entries planned on them in a window overlapping the entry's start and due. Needs READ on the entry.
 	//
 	// Corresponds with GET /items/{itemId}/cis (the `ListEntryCis` operationId).
 	ListEntryCis(ctx context.Context, itemId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// UnaffectEntryCi Remove a configuration item from an entry's affected ones
+	// UnaffectEntryCi Remove an object from an entry's affected ones
 	//
 	// Needs WRITE_ITEMS on the entry.
 	//
 	// Corresponds with DELETE /items/{itemId}/cis/{ciId} (the `UnaffectEntryCi` operationId).
 	UnaffectEntryCi(ctx context.Context, itemId openapi_types.UUID, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// AffectEntryCi Name a configuration item as affected by an entry
+	// AffectEntryCi Name an object as affected by an entry
 	//
-	// At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and READ on the CI's hub.
+	// At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and READ on the object's hub.
 	//
 	// Corresponds with PUT /items/{itemId}/cis/{ciId} (the `AffectEntryCi` operationId).
 	AffectEntryCi(ctx context.Context, itemId openapi_types.UUID, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -38551,7 +40949,7 @@ type ClientInterface interface {
 
 	// ReadEntryRequester Who raised the entry, and their organisation
 	//
-	// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. Also up to 20 configuration items the requester owns, by name, of the hubs where the reader may read them and assets are switched on; merged and disposed ones are left out. The address itself is not answered. Needs READ on the entry and the service desk switched on.
+	// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. Also up to 20 objects the requester owns, by name, of the hubs where the reader may read them and the inventory is switched on; merged and disposed ones are left out. The address itself is not answered. Needs READ on the entry and the service desk switched on.
 	//
 	// Corresponds with GET /items/{itemId}/requester (the `ReadEntryRequester` operationId).
 	ReadEntryRequester(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -38583,7 +40981,7 @@ type ClientInterface interface {
 
 	// ListEntrySteps The entry's status and the steps the person may take
 	//
-	// The workflow the entry's collection runs for its type, the entry's status, and the steps the person may take from it, each with what it asks for, what it still needs and whether its checks hold. `workflow` is null where none runs; a reader gets no steps.
+	// The workflow the entry's collection runs for its type, the entry's status, and the steps the person may take from it, each with what it asks for, what it still needs and whether its checks hold. `workflow` is null where none runs; a reader gets no steps. Beside them the steps from the status the person may not take, each with a reason code and who may; the fewest steps into done; the workflow's picture, read-only for every reader; and whether the person may open it in the designer. Where no workflow runs the picture is the default one, every status reachable, and completing the entry reaches done.
 	//
 	// Corresponds with GET /items/{itemId}/steps (the `ListEntrySteps` operationId).
 	ListEntrySteps(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -38644,6 +41042,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /items/{itemId}:decompose (the `SuggestDecomposition` operationId).
 	SuggestDecomposition(ctx context.Context, itemId ItemId, params *SuggestDecompositionParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DropItemOnColumnWithBody Drop an entry onto a board's column
+	//
+	// Drops the entry onto a column of its collection's board - `bucket_id` omitted is the column of the statuses no column shows. Without a workflow the entry moves (`MOVED`), and entering or leaving the done column completes or reopens it. Under a workflow the one step reaching the column is taken (`STEP_TAKEN`); where several do, they are answered (`CHOOSE`) and nothing is written - asked again with `step`, that step is taken; a status the entry already has is `MOVED` without a write. Refused with `board.no_columns`, `board.column_required`, `board.column_without_status`, `board.no_step` (the workflow has no such step) or `board.step_blocked` (the person may not take it), and the refusals of the column move or the step.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /items/{itemId}:drop (the `DropItemOnColumn` operationId).
+	DropItemOnColumnWithBody(ctx context.Context, itemId ItemId, params *DropItemOnColumnParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DropItemOnColumn Drop an entry onto a board's column
+	//
+	// Drops the entry onto a column of its collection's board - `bucket_id` omitted is the column of the statuses no column shows. Without a workflow the entry moves (`MOVED`), and entering or leaving the done column completes or reopens it. Under a workflow the one step reaching the column is taken (`STEP_TAKEN`); where several do, they are answered (`CHOOSE`) and nothing is written - asked again with `step`, that step is taken; a status the entry already has is `MOVED` without a write. Refused with `board.no_columns`, `board.column_required`, `board.column_without_status`, `board.no_step` (the workflow has no such step) or `board.step_blocked` (the person may not take it), and the refusals of the column move or the step.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /items/{itemId}:drop (the `DropItemOnColumn` operationId).
+	DropItemOnColumn(ctx context.Context, itemId ItemId, params *DropItemOnColumnParams, body DropItemOnColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DuplicateWorkItemWithBody performs a POST /items/{itemId}:duplicate (the `DuplicateWorkItem` operationId) request,
 	// with any type of body and a specified content type.
@@ -39518,6 +41934,66 @@ type ClientInterface interface {
 	// The upload target of a local-storage installation: the bytes, streamed, judged by the upload guard as they pass. On an object-storage installation the upload goes to the presigned URL instead and this route answers that the token is not one it minted.
 	UploadMediaContentWithBody(ctx context.Context, mediaId MediaId, params *UploadMediaContentParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// StartMediaEditing performs a POST /media/{mediaId}:edit (the `StartMediaEditing` operationId) request.
+	//
+	// Opens an office file for editing in the workspace's document server: a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry, a board or a page holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
+	StartMediaEditing(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConvertMediaToPdfWithBody performs a POST /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file; a read by `POST`, as an export is, so that a client fetches it as a document with its bearer. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+	ConvertMediaToPdfWithBody(ctx context.Context, mediaId MediaId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConvertMediaToPdf performs a POST /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request.
+	// Takes a body of the `application/json` content type.
+	//
+	// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file; a read by `POST`, as an export is, so that a client fetches it as a document with its bearer. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+	ConvertMediaToPdf(ctx context.Context, mediaId MediaId, body ConvertMediaToPdfJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadDocumentServer The workspace's document server
+	//
+	// Where the workspace's office files are shown and edited: none, or a server's kind and its https origin. Readable by every member - the viewer asks it; set under STRUCTURE.
+	//
+	// Corresponds with GET /media:document-server (the `ReadDocumentServer` operationId).
+	ReadDocumentServer(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetDocumentServerWithBody Choose the workspace's document server
+	//
+	// NONE, or a kind with the server's https origin - no credentials, query or fragment. Needs STRUCTURE at the workspace; an agent never decides it.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /media:document-server (the `SetDocumentServer` operationId).
+	SetDocumentServerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetDocumentServer Choose the workspace's document server
+	//
+	// NONE, or a kind with the server's https origin - no credentials, query or fragment. Needs STRUCTURE at the workspace; an agent never decides it.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /media:document-server (the `SetDocumentServer` operationId).
+	SetDocumentServer(ctx context.Context, body SetDocumentServerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CheckDocumentServerWithBody Test a document server before choosing it
+	//
+	// Asks the server at the given https origin for its WOPI discovery, without storing anything, so the administration sees whether the workspace can reach it. Needs STRUCTURE at the workspace; an agent never asks. Refused with `media.document_server_private_network` for an address inside a private network, which this installation does not call; with `media.document_server_unreachable` where nothing answers; and with `media.document_server_no_discovery` where something answers that is not a document server.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /media:document-server-check (the `CheckDocumentServer` operationId).
+	CheckDocumentServerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CheckDocumentServer Test a document server before choosing it
+	//
+	// Asks the server at the given https origin for its WOPI discovery, without storing anything, so the administration sees whether the workspace can reach it. Needs STRUCTURE at the workspace; an agent never asks. Refused with `media.document_server_private_network` for an address inside a private network, which this installation does not call; with `media.document_server_unreachable` where nothing answers; and with `media.document_server_no_discovery` where something answers that is not a document server.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /media:document-server-check (the `CheckDocumentServer` operationId).
+	CheckDocumentServer(ctx context.Context, body CheckDocumentServerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListMemberships Who holds a role at a scope
 	//
 	// The memberships granted **at** the scope named — an account or a group, a role, an
@@ -39755,7 +42231,7 @@ type ClientInterface interface {
 
 	// GetDataFeedEntries A data feed's rows
 	//
-	// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says, and other query options are not served.
+	// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says. `$filter` takes a Hubtask query in either spelling (`is: open who: me`, `is_completed = false AND due_at < @today`), which narrows the view's rows and never widens them; a sort or a kind other than entries in it is refused. Other query options are not served.
 	//
 	// Corresponds with GET /odata/{token}/Entries (the `GetDataFeedEntries` operationId).
 	GetDataFeedEntries(ctx context.Context, token DataFeedToken, params *GetDataFeedEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -39826,7 +42302,7 @@ type ClientInterface interface {
 
 	// PublishPageToPortalWithBody Publish a page to a service's portal
 	//
-	// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+	// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. With `with_subpages`, the page is shared as a space: every page under it reaches the same requesters, as it stands at each reading, except a page behind a restriction and everything under that. Never a page behind a restriction (`pages.article_restricted`); publishing twice the same way changes nothing, publishing again the other way changes only `with_subpages`. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -39835,7 +42311,7 @@ type ClientInterface interface {
 
 	// PublishPageToPortal Publish a page to a service's portal
 	//
-	// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+	// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. With `with_subpages`, the page is shared as a space: every page under it reaches the same requesters, as it stands at each reading, except a page behind a restriction and everything under that. Never a page behind a restriction (`pages.article_restricted`); publishing twice the same way changes nothing, publishing again the other way changes only `with_subpages`. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -39880,6 +42356,20 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
 	AddPageComment(ctx context.Context, pageId PageId, body AddPageCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SearchCoverImages Search an image library for a page's cover
+	//
+	// Whether the workspace offers an image library for covers and, with a query, up to twelve of its openly licensed pictures, each with who made it and a small preview the server fetched. Without a query or with the library switched off it asks nothing outside. Needs WRITE_ITEMS on the page's hub.
+	//
+	// Corresponds with GET /pages/{pageId}/cover-images (the `SearchCoverImages` operationId).
+	SearchCoverImages(ctx context.Context, pageId PageId, params *SearchCoverImagesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// FetchCoverImage Fetch an image library's picture for a page's cover
+	//
+	// The picture's larger rendition, fetched by the server, with who made it: the client uploads it as the page's cover image and names its maker as the cover's credit. Refused `pages.cover_images_off` while the workspace offers no library. Needs WRITE_ITEMS on the page's hub.
+	//
+	// Corresponds with POST /pages/{pageId}/cover-images/{pictureId}:fetch (the `FetchCoverImage` operationId).
+	FetchCoverImage(ctx context.Context, pageId PageId, pictureId string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DiscardPageDraft Throw a page's draft away
 	//
@@ -40144,6 +42634,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /pages/{pageId}:verify (the `VerifyPage` operationId).
 	VerifyPage(ctx context.Context, pageId PageId, body VerifyPageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadCoverImagesPolicy Which image library covers may take pictures from
+	//
+	// The workspace's choice of an image library offered as a cover's fourth source, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Corresponds with GET /pages:cover-images (the `ReadCoverImagesPolicy` operationId).
+	ReadCoverImagesPolicy(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetCoverImagesPolicyWithBody Offer an image library for covers, or none
+	//
+	// Off by default, since every search leaves the installation; the installation or the plan may lock it (`setting.locked`). Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /pages:cover-images (the `SetCoverImagesPolicy` operationId).
+	SetCoverImagesPolicyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetCoverImagesPolicy Offer an image library for covers, or none
+	//
+	// Off by default, since every search leaves the installation; the installation or the plan may lock it (`setting.locked`). Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /pages:cover-images (the `SetCoverImagesPolicy` operationId).
+	SetCoverImagesPolicy(ctx context.Context, body SetCoverImagesPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadPersonalSpace My own notes' space
 	//
@@ -40416,6 +42931,13 @@ type ClientInterface interface {
 	// Corresponds with PUT /plans:tolerance (the `SetWorkspaceTolerance` operationId).
 	SetWorkspaceTolerance(ctx context.Context, body SetWorkspaceToleranceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListPortalKnowledge What a service's portal shares of the knowledge base
+	//
+	// Every article and every space published to the service's portal, each space with the pages under it a requester reads: live, never behind a restriction nor under one, never a language variant (opening a page answers it in the reader's language). At most 500 pages per space. Needs REQUEST at the collection.
+	//
+	// Corresponds with GET /portal-knowledge (the `ListPortalKnowledge` operationId).
+	ListPortalKnowledge(ctx context.Context, params *ListPortalKnowledgeParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListPortfolios The portfolios
 	//
 	// By name, nested by `parent_id`, each with the projects the caller may read. Needs READ at the workspace.
@@ -40550,6 +43072,119 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /portfolios:public-links (the `SetPublicRoadmapsPolicy` operationId).
 	SetPublicRoadmapsPolicy(ctx context.Context, body SetPublicRoadmapsPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListUnreadPosts The posts new for the caller
+	//
+	// The published posts the caller has not seen yet, across every hub they read, featured ones first, then newest first, at most 20. Each post is judged at its own hub as on the hub's list: a post never reaches anybody who may not read its hub or is outside its audience.
+	//
+	// Corresponds with GET /posts (the `ListUnreadPosts` operationId).
+	ListUnreadPosts(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadPost Read a post
+	//
+	// The post's date, audience and state, how many have seen it, and whether the caller has seen and confirmed it; its words are its page's. A writer of the hub also gets the read confirmation's standing. Not found for anybody it is not for.
+	//
+	// Corresponds with GET /posts/{pageId} (the `ReadPost` operationId).
+	ReadPost(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetPostSettingsWithBody Schedule, feature or narrow a post
+	//
+	// Sets when the post goes out, until when it stays on top, for whom, whether it is discussed, whether the hub's followers are told and until when its readers are asked to confirm it. A published post keeps its publishing moment. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /posts/{pageId} (the `SetPostSettings` operationId).
+	SetPostSettingsWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetPostSettings Schedule, feature or narrow a post
+	//
+	// Sets when the post goes out, until when it stays on top, for whom, whether it is discussed, whether the hub's followers are told and until when its readers are asked to confirm it. A published post keeps its publishing moment. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /posts/{pageId} (the `SetPostSettings` operationId).
+	SetPostSettings(ctx context.Context, pageId PageId, body SetPostSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadPostConfirmations Who confirmed a post
+	//
+	// How many of the post's audience confirmed it by when, and who did. Needs WRITE_ITEMS on the hub: read confirmations are shown to the post's writers only.
+	//
+	// Corresponds with GET /posts/{pageId}/confirmations (the `ReadPostConfirmations` operationId).
+	ReadPostConfirmations(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListPostReplies A post's discussion
+	//
+	// The replies under the post, oldest first, one level deep, each with its reactions counted and whether the caller gave them.
+	//
+	// Corresponds with GET /posts/{pageId}/replies (the `ListPostReplies` operationId).
+	ListPostReplies(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddPostReplyWithBody Reply in a post's discussion
+	//
+	// Adds a reply under a published post whose discussion is open, or an answer to a reply. Anybody the post is for may reply.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /posts/{pageId}/replies (the `AddPostReply` operationId).
+	AddPostReplyWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddPostReply Reply in a post's discussion
+	//
+	// Adds a reply under a published post whose discussion is open, or an answer to a reply. Anybody the post is for may reply.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /posts/{pageId}/replies (the `AddPostReply` operationId).
+	AddPostReply(ctx context.Context, pageId PageId, body AddPostReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeletePostReply Take a reply back
+	//
+	// The caller's own reply, or any for a writer of the hub; its place stays, its words go.
+	//
+	// Corresponds with DELETE /posts/{pageId}/replies/{replyId} (the `DeletePostReply` operationId).
+	DeletePostReply(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UnreactToPostReply Take a reaction back
+	//
+	// Takes the caller's reaction of that kind back.
+	//
+	// Corresponds with DELETE /posts/{pageId}/replies/{replyId}/reactions/{reaction} (the `UnreactToPostReply` operationId).
+	UnreactToPostReply(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reaction string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReactToPostReply React to a reply
+	//
+	// Gives one of the few fixed reactions to a reply, once per person and kind.
+	//
+	// Corresponds with PUT /posts/{pageId}/replies/{replyId}/reactions/{reaction} (the `ReactToPostReply` operationId).
+	ReactToPostReply(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reaction string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfirmPost Confirm having read a post
+	//
+	// Confirms that the caller read a published post that asks its audience for it; refused `posts.confirmation_not_asked` for one that does not. Shown to the hub's writers only.
+	//
+	// Corresponds with POST /posts/{pageId}:confirm (the `ConfirmPost` operationId).
+	ConfirmPost(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PublishPost Publish a post now
+	//
+	// Publishes a draft or a scheduled post at once for its audience. Needs WRITE_ITEMS on the hub; a published post answers as it stands.
+	//
+	// Corresponds with POST /posts/{pageId}:publish (the `PublishPost` operationId).
+	PublishPost(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemindPost Remind those who have not confirmed a post
+	//
+	// Tells each of the post's audience who has not confirmed it yet, once per call. Refused `posts.nobody_to_remind` when everybody has. Needs WRITE_ITEMS on the hub.
+	//
+	// Corresponds with POST /posts/{pageId}:remind (the `RemindPost` operationId).
+	RemindPost(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MarkPostSeen Mark a post seen
+	//
+	// Counts the caller among those who have seen the published post; the count is shown to everybody, the names to nobody.
+	//
+	// Corresponds with POST /posts/{pageId}:seen (the `MarkPostSeen` operationId).
+	MarkPostSeen(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListPresets The presets a hub or collection can start from
 	//
@@ -40944,6 +43579,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /public/satisfaction/{token} (the `AnswerSatisfactionLink` operationId).
 	AnswerSatisfactionLink(ctx context.Context, token string, body AnswerSatisfactionLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AskQueryWithBody Write a Hubtask query from a question in words
+	//
+	// Asks the workspace's AI provider to write the question as a Hubtask query, and answers the query as text in the `field: value` spelling - read by the same parser `POST /items:query` uses and written back in its canonical form, so it holds only keys this installation answers. **Nothing is run and nothing is stored**: the person sees the query, changes it and runs it themselves. Offered where `features.query_from_words` in `GET /meta/manifest` is true; every way of not getting an answer - no provider, no consent, a spent budget, a slow model, an answer that is not a query - is `503` with `ai.unavailable`, and a person who keeps their own content out of AI is refused the same way. The audit records that a query was asked for, never the question. A `POST` because the question is content.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /query:ask (the `AskQuery` operationId).
+	AskQueryWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AskQuery Write a Hubtask query from a question in words
+	//
+	// Asks the workspace's AI provider to write the question as a Hubtask query, and answers the query as text in the `field: value` spelling - read by the same parser `POST /items:query` uses and written back in its canonical form, so it holds only keys this installation answers. **Nothing is run and nothing is stored**: the person sees the query, changes it and runs it themselves. Offered where `features.query_from_words` in `GET /meta/manifest` is true; every way of not getting an answer - no provider, no consent, a spent budget, a slow model, an answer that is not a query - is `503` with `ai.unavailable`, and a person who keeps their own content out of AI is refused the same way. The audit records that a query was asked for, never the question. A `POST` because the question is content.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /query:ask (the `AskQuery` operationId).
+	AskQuery(ctx context.Context, body AskQueryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadQuotas The workspace's quota standing
 	//
@@ -41721,6 +44374,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /search (the `SearchItems` operationId).
 	SearchItems(ctx context.Context, body SearchItemsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SearchAllWithBody One search over every kind of object the caller may read
+	//
+	// Entries, tickets, pages, whiteboards, goals, dashboards, inventory objects, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /search:all (the `SearchAll` operationId).
+	SearchAllWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SearchAll One search over every kind of object the caller may read
+	//
+	// Entries, tickets, pages, whiteboards, goals, dashboards, inventory objects, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /search:all (the `SearchAll` operationId).
+	SearchAll(ctx context.Context, body SearchAllJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReindexSearch Bring the workspace's search documents current
 	//
@@ -43174,6 +45845,27 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /whiteboards/{whiteboardId}:restore (the `RestoreWhiteboard` operationId).
 	RestoreWhiteboard(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CheckWopiFileInfo performs a GET /wopi/files/{mediaId} (the `CheckWopiFileInfo` operationId) request.
+	//
+	// WOPI CheckFileInfo, called by the document server with the access token: the file's name, size, version and whether this person may save. Answers in the protocol's own shape, not as a Hubtask resource.
+	CheckWopiFileInfo(ctx context.Context, mediaId MediaId, params *CheckWopiFileInfoParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// LockWopiFile performs a POST /wopi/files/{mediaId} (the `LockWopiFile` operationId) request.
+	//
+	// WOPI Lock, RefreshLock, Unlock, UnlockAndRelock and GetLock, by `X-WOPI-Override`, with the lock in `X-WOPI-Lock` and the replaced one in `X-WOPI-OldLock`. A mismatch answers 409 with the lock that holds in `X-WOPI-Lock`.
+	LockWopiFile(ctx context.Context, mediaId MediaId, params *LockWopiFileParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetWopiFile performs a GET /wopi/files/{mediaId}/contents (the `GetWopiFile` operationId) request.
+	//
+	// WOPI GetFile - the file's bytes, with its version in `X-WOPI-ItemVersion`.
+	GetWopiFile(ctx context.Context, mediaId MediaId, params *GetWopiFileParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutWopiFileWithBody performs a POST /wopi/files/{mediaId}/contents (the `PutWopiFile` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// WOPI PutFile - the document server saves; the file keeps its identity and the bytes it had become its earlier version. Only under the lock that holds (or into an empty file), and only for a person who may still change what holds it.
+	PutWopiFileWithBody(ctx context.Context, mediaId MediaId, params *PutWopiFileParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetWorkflowSchemeWithBody Use a workflow in a hub or collection
 	//
@@ -46549,7 +49241,7 @@ func (c *Client) DecideAgentRequest(ctx context.Context, requestId openapi_types
 
 // ListAgents The workspace's agents
 //
-// Whoever administers agents reads all of them; anybody else the agents acting for them.
+// Whoever administers agents reads all of them; anybody else the agents acting for them. Each with what it spent this hour and today and when its latest job started.
 //
 // Corresponds with GET /agents (the `ListAgents` operationId).
 func (c *Client) ListAgents(ctx context.Context, params *ListAgentsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -46795,7 +49487,7 @@ func (c *Client) RecordAgentEvaluation(ctx context.Context, agentId AgentId, bod
 
 // RunAgentEvaluationWithBody Have a shipped agent answer its own evaluation set
 //
-// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, an object suggestion and a ticket triage answer `cis`, the names of the hub's objects the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 //
 // Takes any type of body and a specified content type.
 //
@@ -46814,7 +49506,7 @@ func (c *Client) RunAgentEvaluationWithBody(ctx context.Context, agentId AgentId
 
 // RunAgentEvaluation Have a shipped agent answer its own evaluation set
 //
-// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, an object suggestion and a ticket triage answer `cis`, the names of the hub's objects the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -46850,7 +49542,7 @@ func (c *Client) ListAgentJobs(ctx context.Context, agentId AgentId, reqEditors 
 
 // StartAgentJobWithBody Start a shipped agent's job on one target
 //
-// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+// Ticket triage, object suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
 //
 // Takes any type of body and a specified content type.
 //
@@ -46869,7 +49561,7 @@ func (c *Client) StartAgentJobWithBody(ctx context.Context, agentId AgentId, con
 
 // StartAgentJob Start a shipped agent's job on one target
 //
-// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+// Ticket triage, object suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -50465,9 +53157,9 @@ func (c *Client) DeliverChatWithFormdataBody(ctx context.Context, tenantId opena
 	return c.Client.Do(req)
 }
 
-// ReadCiCampaign A certification campaign with every CI asked
+// ReadCiCampaign A certification campaign with every object asked
 //
-// Its score and each CI's verdict, who gave it and when. Needs READ on the hub.
+// Its score and each object's verdict, who gave it and when. Needs READ on the hub.
 //
 // Corresponds with GET /ci-campaigns/{campaignId} (the `ReadCiCampaign` operationId).
 func (c *Client) ReadCiCampaign(ctx context.Context, campaignId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -50482,9 +53174,9 @@ func (c *Client) ReadCiCampaign(ctx context.Context, campaignId openapi_types.UU
 	return c.Client.Do(req)
 }
 
-// AttestCiWithBody Answer a campaign's question about a configuration item
+// AttestCiWithBody Answer a campaign's question about an object
 //
-// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+// CONFIRMED moves the object's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
 //
 // Takes any type of body and a specified content type.
 //
@@ -50501,9 +53193,9 @@ func (c *Client) AttestCiWithBody(ctx context.Context, campaignId openapi_types.
 	return c.Client.Do(req)
 }
 
-// AttestCi Answer a campaign's question about a configuration item
+// AttestCi Answer a campaign's question about an object
 //
-// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+// CONFIRMED moves the object's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -50537,9 +53229,26 @@ func (c *Client) CloseCiCampaign(ctx context.Context, campaignId openapi_types.U
 	return c.Client.Do(req)
 }
 
+// RemindCiCampaign Remind the owners who have not answered yet
+//
+// Tells each owning person of a still pending object once per call, naming how many of their objects wait. Refused `cmdb.nobody_to_remind` when no pending object has an owning person, and `cmdb.campaign_closed` on a closed campaign. Needs WRITE_ITEMS on the hub.
+//
+// Corresponds with POST /ci-campaigns/{campaignId}:remind (the `RemindCiCampaign` operationId).
+func (c *Client) RemindCiCampaign(ctx context.Context, campaignId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemindCiCampaignRequest(c.Server, campaignId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ResolveCiDuplicateWithBody Merge a duplicate or call it distinct
 //
-// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the objects are recorded as distinct. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -50558,7 +53267,7 @@ func (c *Client) ResolveCiDuplicateWithBody(ctx context.Context, duplicateId ope
 
 // ResolveCiDuplicate Merge a duplicate or call it distinct
 //
-// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the objects are recorded as distinct. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -50575,7 +53284,7 @@ func (c *Client) ResolveCiDuplicate(ctx context.Context, duplicateId openapi_typ
 	return c.Client.Do(req)
 }
 
-// ListCiGroupMembers The configuration items a group holds now
+// ListCiGroupMembers The objects a group holds now
 //
 // Needs READ on the hub.
 //
@@ -50609,9 +53318,9 @@ func (c *Client) DismissCiHold(ctx context.Context, holdId openapi_types.UUID, r
 	return c.Client.Do(req)
 }
 
-// RelateCisWithBody Join two configuration items
+// RelateCisWithBody Join two objects
 //
-// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+// By a relation type, read from the source; the type's object type pairs decide whether it may join them. Both objects are in one hub. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -50628,9 +53337,9 @@ func (c *Client) RelateCisWithBody(ctx context.Context, contentType string, body
 	return c.Client.Do(req)
 }
 
-// RelateCis Join two configuration items
+// RelateCis Join two objects
 //
-// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+// By a relation type, read from the source; the type's object type pairs decide whether it may join them. Both objects are in one hub. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -50666,7 +53375,7 @@ func (c *Client) UnrelateCis(ctx context.Context, relationId openapi_types.UUID,
 
 // ReadCiRun One reconciliation run with its decisions
 //
-// Every item's outcome, CI, matching rule and the attributes taken or kept, by name. Needs READ on the hub.
+// Every item's outcome, object, matching rule and the attributes taken or kept, by name. Needs READ on the hub.
 //
 // Corresponds with GET /ci-runs/{runId} (the `ReadCiRun` operationId).
 func (c *Client) ReadCiRun(ctx context.Context, runId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -50681,7 +53390,7 @@ func (c *Client) ReadCiRun(ctx context.Context, runId openapi_types.UUID, reqEdi
 	return c.Client.Do(req)
 }
 
-// ReadCi Read a configuration item
+// ReadCi Read an object
 //
 // With its relations both ways and the protection need it inherits from everything that suffers when it fails. Needs READ on the hub.
 //
@@ -50698,9 +53407,9 @@ func (c *Client) ReadCi(ctx context.Context, ciId openapi_types.UUID, reqEditors
 	return c.Client.Do(req)
 }
 
-// UpdateCiWithBody Change a configuration item by hand
+// UpdateCiWithBody Change an object by hand
 //
-// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+// Its name, attributes (null clears one) or a more specific object type, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -50717,9 +53426,9 @@ func (c *Client) UpdateCiWithBody(ctx context.Context, ciId openapi_types.UUID, 
 	return c.Client.Do(req)
 }
 
-// UpdateCi Change a configuration item by hand
+// UpdateCi Change an object by hand
 //
-// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+// Its name, attributes (null clears one) or a more specific object type, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -50736,9 +53445,9 @@ func (c *Client) UpdateCi(ctx context.Context, ciId openapi_types.UUID, params *
 	return c.Client.Do(req)
 }
 
-// ReadCiAsset A configuration item's asset record
+// ReadCiAsset An object's register record
 //
-// Not found when it has none. Needs READ on the hub.
+// With the steps of its life, oldest first. Not found when it has none. Needs READ on the hub.
 //
 // Corresponds with GET /cis/{ciId}/asset (the `ReadCiAsset` operationId).
 func (c *Client) ReadCiAsset(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -50753,7 +53462,7 @@ func (c *Client) ReadCiAsset(ctx context.Context, ciId openapi_types.UUID, reqEd
 	return c.Client.Do(req)
 }
 
-// RegisterCiAssetWithBody Write a configuration item's asset record
+// RegisterCiAssetWithBody Write an object's register record
 //
 // Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 //
@@ -50772,7 +53481,7 @@ func (c *Client) RegisterCiAssetWithBody(ctx context.Context, ciId openapi_types
 	return c.Client.Do(req)
 }
 
-// RegisterCiAsset Write a configuration item's asset record
+// RegisterCiAsset Write an object's register record
 //
 // Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 //
@@ -50791,9 +53500,9 @@ func (c *Client) RegisterCiAsset(ctx context.Context, ciId openapi_types.UUID, p
 	return c.Client.Do(req)
 }
 
-// MoveCiAssetWithBody Move an asset through its life
+// MoveCiAssetWithBody Move a register record through its life
 //
-// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+// The object's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed object moves no more. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -50810,9 +53519,9 @@ func (c *Client) MoveCiAssetWithBody(ctx context.Context, ciId openapi_types.UUI
 	return c.Client.Do(req)
 }
 
-// MoveCiAsset Move an asset through its life
+// MoveCiAsset Move a register record through its life
 //
-// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+// The object's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed object moves no more. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -50829,7 +53538,58 @@ func (c *Client) MoveCiAsset(ctx context.Context, ciId openapi_types.UUID, param
 	return c.Client.Do(req)
 }
 
-// ListCiBacklinks What points at a configuration item
+// ListCiAttachments An object's files
+//
+// The object's files as media objects, oldest upload first, without a download target per row - one is read for one file. Needs READ on the hub.
+//
+// Corresponds with GET /cis/{ciId}/attachments (the `ListCiAttachments` operationId).
+func (c *Client) ListCiAttachments(ctx context.Context, ciId openapi_types.UUID, params *ListCiAttachmentsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCiAttachmentsRequest(c.Server, ciId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DetachCiMedia Take a file off an object
+//
+// Idempotent: an object that does not hold it succeeds. The media object itself stays; once nothing references it, the reconciliation job removes it. Needs WRITE_ITEMS on the hub.
+//
+// Corresponds with DELETE /cis/{ciId}/attachments/{mediaId} (the `DetachCiMedia` operationId).
+func (c *Client) DetachCiMedia(ctx context.Context, ciId openapi_types.UUID, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDetachCiMediaRequest(c.Server, ciId, mediaId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AttachCiMedia Put a file on an object
+//
+// Idempotent: an object that already holds it succeeds. The media object has to be READY, of usage ATTACHMENT and of this workspace; it is one the caller uploaded or one an object of a hub they read already holds. Attaching raises the object's reference count; the bytes are shared, never copied. At most 500 files an object (`cmdb.files_full`, 409). Needs WRITE_ITEMS on the hub.
+//
+// Corresponds with PUT /cis/{ciId}/attachments/{mediaId} (the `AttachCiMedia` operationId).
+func (c *Client) AttachCiMedia(ctx context.Context, ciId openapi_types.UUID, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAttachCiMediaRequest(c.Server, ciId, mediaId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListCiBacklinks What points at an object
 //
 // The pages, entries' notes and comments and whiteboards that mention it, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
 //
@@ -50846,7 +53606,7 @@ func (c *Client) ListCiBacklinks(ctx context.Context, ciId openapi_types.UUID, r
 	return c.Client.Do(req)
 }
 
-// SetCiComplianceWithBody Set a configuration item's lifecycle and compliance fields
+// SetCiComplianceWithBody Set an object's lifecycle and compliance fields
 //
 // Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 //
@@ -50865,7 +53625,7 @@ func (c *Client) SetCiComplianceWithBody(ctx context.Context, ciId openapi_types
 	return c.Client.Do(req)
 }
 
-// SetCiCompliance Set a configuration item's lifecycle and compliance fields
+// SetCiCompliance Set an object's lifecycle and compliance fields
 //
 // Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 //
@@ -50884,13 +53644,85 @@ func (c *Client) SetCiCompliance(ctx context.Context, ciId openapi_types.UUID, p
 	return c.Client.Do(req)
 }
 
-// ReadCiImpact What a configuration item's failure reaches
+// ListCiHistory An object's history
+//
+// The object's own history, newest first: who did what, and when - made, changed by hand or by a source, its stage, owner, location or protection need changed, related and unrelated, confirmed and attested, registered and moved, files put on and taken off. It is the product's record and not the audit trail: readable by whoever reads the hub, deleted with the object. Each step carries a message code the client renders. Needs READ on the hub.
+//
+// Corresponds with GET /cis/{ciId}/history (the `ListCiHistory` operationId).
+func (c *Client) ListCiHistory(ctx context.Context, ciId openapi_types.UUID, params *ListCiHistoryParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCiHistoryRequest(c.Server, ciId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadCiImpact What an object's failure reaches
 //
 // DOWNSTREAM, everything that suffers when it fails, with the services among them; UPSTREAM, everything whose failure it suffers. Needs READ on the hub.
 //
 // Corresponds with GET /cis/{ciId}/impact (the `ReadCiImpact` operationId).
 func (c *Client) ReadCiImpact(ctx context.Context, ciId openapi_types.UUID, params *ReadCiImpactParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReadCiImpactRequest(c.Server, ciId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListCiWork The entries an object is part of
+//
+// Every entry - a ticket, a change, a task - that names the object as affected, or names an object beneath it, one whose failure it suffers up to eight steps, each once: open ones first, then at most twenty completed ones. Only entries the reader may see, never archived ones. Needs READ on the hub.
+//
+// Corresponds with GET /cis/{ciId}/work (the `ListCiWork` operationId).
+func (c *Client) ListCiWork(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCiWorkRequest(c.Server, ciId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfirmCiWithBody Confirm an object is as recorded
+//
+// Its next review moves review_months on from today (12 when not given), and the object records who confirmed it and when. A pending question of an open campaign about it is answered CONFIRMED at the same time. The owning person confirms with READ on the hub, anybody else with WRITE_ITEMS.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /cis/{ciId}:confirm (the `ConfirmCi` operationId).
+func (c *Client) ConfirmCiWithBody(ctx context.Context, ciId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfirmCiRequestWithBody(c.Server, ciId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfirmCi Confirm an object is as recorded
+//
+// Its next review moves review_months on from today (12 when not given), and the object records who confirmed it and when. A pending question of an open campaign about it is answered CONFIRMED at the same time. The owning person confirms with READ on the hub, anybody else with WRITE_ITEMS.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /cis/{ciId}:confirm (the `ConfirmCi` operationId).
+func (c *Client) ConfirmCi(ctx context.Context, ciId openapi_types.UUID, body ConfirmCiJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfirmCiRequest(c.Server, ciId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -50979,7 +53811,7 @@ func (c *Client) RunCiConnector(ctx context.Context, connectorId openapi_types.U
 
 // DeliverCiAlertsWithBody Post alerts to an intake
 //
-// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the object its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
 // Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
 //
 // Takes any type of body and a specified content type.
@@ -50999,7 +53831,7 @@ func (c *Client) DeliverCiAlertsWithBody(ctx context.Context, tenantId openapi_t
 
 // DeliverCiAlerts Post alerts to an intake
 //
-// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the object its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
 // Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
 //
 // Takes a body of the `application/json` content type.
@@ -51017,9 +53849,9 @@ func (c *Client) DeliverCiAlerts(ctx context.Context, tenantId openapi_types.UUI
 	return c.Client.Do(req)
 }
 
-// ListCiClasses The configuration item classes
+// ListCiClasses The object types
 //
-// The class hierarchy Hubtask ships and the workspace's own classes beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations a CI of it needs. Needs READ in the workspace and the assets module switched on.
+// The object type hierarchy Hubtask ships and the workspace's own object types beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations an object of it needs. Needs READ in the workspace and the inventory module switched on.
 //
 // Corresponds with GET /cmdb/classes (the `ListCiClasses` operationId).
 func (c *Client) ListCiClasses(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -51034,9 +53866,9 @@ func (c *Client) ListCiClasses(ctx context.Context, reqEditors ...RequestEditorF
 	return c.Client.Do(req)
 }
 
-// DefineCiClassWithBody Add or change a class of the workspace's own
+// DefineCiClassWithBody Add or change an object type of the workspace's own
 //
-// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+// Adds an object type beneath a shipped or an own object type, or changes an own object type. A shipped object type is not changed. Needs STRUCTURE in the workspace.
 //
 // Takes any type of body and a specified content type.
 //
@@ -51053,9 +53885,9 @@ func (c *Client) DefineCiClassWithBody(ctx context.Context, classKey string, par
 	return c.Client.Do(req)
 }
 
-// DefineCiClass Add or change a class of the workspace's own
+// DefineCiClass Add or change an object type of the workspace's own
 //
-// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+// Adds an object type beneath a shipped or an own object type, or changes an own object type. A shipped object type is not changed. Needs STRUCTURE in the workspace.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -51110,9 +53942,9 @@ func (c *Client) DeliverCiInventory(ctx context.Context, tenantId openapi_types.
 	return c.Client.Do(req)
 }
 
-// ListCiRelationTypes The relation types between configuration items
+// ListCiRelationTypes The relation types between objects
 //
-// The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the class pairs it may join.
+// The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the object type pairs it may join.
 //
 // Corresponds with GET /cmdb/relation-types (the `ListCiRelationTypes` operationId).
 func (c *Client) ListCiRelationTypes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -51129,7 +53961,7 @@ func (c *Client) ListCiRelationTypes(ctx context.Context, reqEditors ...RequestE
 
 // DefineCiRelationTypeWithBody Add or change a relation type of the workspace's own
 //
-// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+// Its words both ways, its impact (which end suffers when the other fails) and the object type pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
 //
 // Takes any type of body and a specified content type.
 //
@@ -51148,7 +53980,7 @@ func (c *Client) DefineCiRelationTypeWithBody(ctx context.Context, typeKey strin
 
 // DefineCiRelationType Add or change a relation type of the workspace's own
 //
-// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+// Its words both ways, its impact (which end suffers when the other fails) and the object type pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -51165,7 +53997,7 @@ func (c *Client) DefineCiRelationType(ctx context.Context, typeKey string, param
 	return c.Client.Do(req)
 }
 
-// ListCiSources The sources configuration items come from
+// ListCiSources The sources objects come from
 //
 // People (`manual`), files, programs and connectors by precedence, a lower rank first.
 //
@@ -51184,7 +54016,7 @@ func (c *Client) ListCiSources(ctx context.Context, reqEditors ...RequestEditorF
 
 // DefineCiSourceWithBody Add or change a source
 //
-// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+// Its kind, rank, the object types it may write, whether it may make new objects and a file source's mapping. Needs STRUCTURE in the workspace.
 //
 // Takes any type of body and a specified content type.
 //
@@ -51203,7 +54035,7 @@ func (c *Client) DefineCiSourceWithBody(ctx context.Context, sourceKey string, p
 
 // DefineCiSource Add or change a source
 //
-// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+// Its kind, rank, the object types it may write, whether it may make new objects and a file source's mapping. Needs STRUCTURE in the workspace.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -52182,6 +55014,104 @@ func (c *Client) RenameContainerWithApplicationMergePatchPlusJSONBody(ctx contex
 	return c.Client.Do(req)
 }
 
+// SwitchBoardWithBody Show a collection's tasks as a board, or as a list again
+//
+// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
+// language), the completed entries in the done one and the open ones in the other. `NONE`
+// takes the columns off again, the done column last; completion stays as it is. Refused with
+// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
+// where the collection already stands there. `dry_run` counts and writes nothing. Needs
+// STRUCTURE where the collection is.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /containers/{containerId}/board:switch (the `SwitchBoard` operationId).
+func (c *Client) SwitchBoardWithBody(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSwitchBoardRequestWithBody(c.Server, containerId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SwitchBoard Show a collection's tasks as a board, or as a list again
+//
+// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
+// language), the completed entries in the done one and the open ones in the other. `NONE`
+// takes the columns off again, the done column last; completion stays as it is. Refused with
+// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
+// where the collection already stands there. `dry_run` counts and writes nothing. Needs
+// STRUCTURE where the collection is.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /containers/{containerId}/board:switch (the `SwitchBoard` operationId).
+func (c *Client) SwitchBoard(ctx context.Context, containerId ContainerId, body SwitchBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSwitchBoardRequest(c.Server, containerId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MakeBoardWorkflowWithBody Make a workflow from a board's columns
+//
+// A workflow of the collection's hub with one status per column - the first column's the
+// initial status, the done column's done, the rest in progress, every step free -, run for
+// the collection's tasks with each column showing its own status; every entry takes the
+// status of the column it stands in. One transaction. Refused with `board.no_columns`
+// without columns and `board.workflow_runs` where a workflow already runs for tasks.
+// `dry_run` answers the statuses and counts and writes nothing. Needs STRUCTURE where the
+// collection is and at its hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /containers/{containerId}/board:workflow (the `MakeBoardWorkflow` operationId).
+func (c *Client) MakeBoardWorkflowWithBody(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMakeBoardWorkflowRequestWithBody(c.Server, containerId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MakeBoardWorkflow Make a workflow from a board's columns
+//
+// A workflow of the collection's hub with one status per column - the first column's the
+// initial status, the done column's done, the rest in progress, every step free -, run for
+// the collection's tasks with each column showing its own status; every entry takes the
+// status of the column it stands in. One transaction. Refused with `board.no_columns`
+// without columns and `board.workflow_runs` where a workflow already runs for tasks.
+// `dry_run` answers the statuses and counts and writes nothing. Needs STRUCTURE where the
+// collection is and at its hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /containers/{containerId}/board:workflow (the `MakeBoardWorkflow` operationId).
+func (c *Client) MakeBoardWorkflow(ctx context.Context, containerId ContainerId, body MakeBoardWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMakeBoardWorkflowRequest(c.Server, containerId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListBuckets performs a GET /containers/{containerId}/buckets (the `ListBuckets` operationId) request.
 func (c *Client) ListBuckets(ctx context.Context, containerId ContainerId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListBucketsRequest(c.Server, containerId)
@@ -52225,7 +55155,7 @@ func (c *Client) CreateBucket(ctx context.Context, containerId ContainerId, body
 
 // DeleteBucket performs a DELETE /containers/{containerId}/buckets/{bucketId} (the `DeleteBucket` operationId) request.
 //
-// Takes the column off the board. Its entries are not deleted with it: they move to the leftmost remaining column, or out of any column when this was the last one. What became of them is in the answer rather than left to be discovered.
+// Takes the column off the board. Its entries are not deleted with it: they move to the leftmost remaining column, or out of any column when this was the last one. What became of them is in the answer rather than left to be discovered. The done column of a board without a workflow is deleted only with `new_done_bucket_id`, the column that means done instead: without it, where other columns are left, the deletion is refused with `buckets.done_successor_required`, the suggested column in its `suggested_bucket_id`.
 func (c *Client) DeleteBucket(ctx context.Context, containerId ContainerId, bucketId BucketId, params *DeleteBucketParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDeleteBucketRequest(c.Server, containerId, bucketId, params)
 	if err != nil {
@@ -53396,6 +56326,61 @@ func (c *Client) ReadDashboardFigures(ctx context.Context, dashboardId Dashboard
 	return c.Client.Do(req)
 }
 
+// DraftDashboardFiguresWithBody A dashboard's numbers for a definition not saved yet
+//
+// Computes widgets and a filter as they are being edited, exactly as GET /dashboards/{dashboardId}/figures computes the saved ones, as the caller: the same checks as a save, nothing stored. Only a dashboard the caller sees; its name and sharing stay as they are.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /dashboards/{dashboardId}/figures:draft (the `DraftDashboardFigures` operationId).
+func (c *Client) DraftDashboardFiguresWithBody(ctx context.Context, dashboardId DashboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDraftDashboardFiguresRequestWithBody(c.Server, dashboardId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DraftDashboardFigures A dashboard's numbers for a definition not saved yet
+//
+// Computes widgets and a filter as they are being edited, exactly as GET /dashboards/{dashboardId}/figures computes the saved ones, as the caller: the same checks as a save, nothing stored. Only a dashboard the caller sees; its name and sharing stay as they are.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /dashboards/{dashboardId}/figures:draft (the `DraftDashboardFigures` operationId).
+func (c *Client) DraftDashboardFigures(ctx context.Context, dashboardId DashboardId, body DraftDashboardFiguresJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDraftDashboardFiguresRequest(c.Server, dashboardId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadMyDeadlinesKept How many of the deadlines on my own tickets I kept
+//
+// For the signed-in person, over the entries assigned to them: the deadlines that ended in the window - met or breached -, per kind - the requester's goals (first response, next response, resolution) and each team's OLA by its group and goal - with how many were kept. Never another person's; no report permission needed. The window ends now and reaches back `days` days, 30 when left out.
+//
+// Corresponds with GET /deadlines-kept (the `ReadMyDeadlinesKept` operationId).
+func (c *Client) ReadMyDeadlinesKept(ctx context.Context, params *ReadMyDeadlinesKeptParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadMyDeadlinesKeptRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // RemoveLdapDirectory Stop synchronising from the LDAP directory
 //
 // The configuration and its sealed password go and no run follows. The people and groups it provisioned stay as they are, with their roles. Needs a fresh step-up. Auditable.
@@ -53935,6 +56920,61 @@ func (c *Client) CloseGoalPeriod(ctx context.Context, periodId openapi_types.UUI
 	return c.Client.Do(req)
 }
 
+// ListGoalSets The goal periods a template brought
+//
+// The goal periods a template brought to the workspace - a quarter's objectives with their key results, or a period alone - marked under their key. Needs STRUCTURE or READ_CONFIGURATION at the workspace.
+//
+// Corresponds with GET /goal-sets (the `ListGoalSets` operationId).
+func (c *Client) ListGoalSets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListGoalSetsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddGoalSetWithBody Add a template's goal set
+//
+// Opens a goal period with the workspace's goals and their key results in one write, marked under its key, as the workspace's configuration document does for a template's goal sets. A key the workspace already marks is refused (`config.goal_set_taken`). Needs STRUCTURE at the workspace and what opening the period and writing each goal needs.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /goal-sets (the `AddGoalSet` operationId).
+func (c *Client) AddGoalSetWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddGoalSetRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddGoalSet Add a template's goal set
+//
+// Opens a goal period with the workspace's goals and their key results in one write, marked under its key, as the workspace's configuration document does for a template's goal sets. A key the workspace already marks is refused (`config.goal_set_taken`). Needs STRUCTURE at the workspace and what opening the period and writing each goal needs.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /goal-sets (the `AddGoalSet` operationId).
+func (c *Client) AddGoalSet(ctx context.Context, body AddGoalSetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddGoalSetRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListGoals The goals the caller may read
 //
 // The workspace's goals and those of the hubs the caller reads, narrowed by period, hub, owner or parent; each with its key results and its progress as the caller sees it - the mean of its key results, its goals below and the share of its linked entries completed. The alignment tree is drawn from `parent_id`.
@@ -54311,9 +57351,9 @@ func (c *Client) UpdateGroupWithApplicationMergePatchPlusJSONBody(ctx context.Co
 	return c.Client.Do(req)
 }
 
-// ListCiAssets A hub's asset register
+// ListCiAssets A hub's register records
 //
-// In CI order after a cursor, narrowed to a state when given. Needs READ on the hub.
+// In object order after a cursor, narrowed to a state when given. Needs READ on the hub.
 //
 // Corresponds with GET /hubs/{hubId}/assets (the `ListCiAssets` operationId).
 func (c *Client) ListCiAssets(ctx context.Context, hubId openapi_types.UUID, params *ListCiAssetsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -54457,7 +57497,7 @@ func (c *Client) CreateChatBot(ctx context.Context, hubId HubId, body CreateChat
 
 // ListCiAlerts A hub's alerts
 //
-// The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the CI its host names and the entry opened for it. Needs READ on the hub.
+// The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the object its host names and the entry opened for it. Needs READ on the hub.
 //
 // Corresponds with GET /hubs/{hubId}/ci-alerts (the `ListCiAlerts` operationId).
 func (c *Client) ListCiAlerts(ctx context.Context, hubId openapi_types.UUID, params *ListCiAlertsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -54489,9 +57529,9 @@ func (c *Client) ListCiCampaigns(ctx context.Context, hubId openapi_types.UUID, 
 	return c.Client.Do(req)
 }
 
-// StartCiCampaignWithBody Ask the owners of a hub's CIs to attest them
+// StartCiCampaignWithBody Ask the owners of a hub's objects to attest them
 //
-// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+// Every active object of the object types named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -54508,9 +57548,9 @@ func (c *Client) StartCiCampaignWithBody(ctx context.Context, hubId openapi_type
 	return c.Client.Do(req)
 }
 
-// StartCiCampaign Ask the owners of a hub's CIs to attest them
+// StartCiCampaign Ask the owners of a hub's objects to attest them
 //
-// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+// Every active object of the object types named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -54529,7 +57569,7 @@ func (c *Client) StartCiCampaign(ctx context.Context, hubId openapi_types.UUID, 
 
 // ListCiDuplicates Open duplicates
 //
-// Sets of CIs one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
+// Sets of objects one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
 //
 // Corresponds with GET /hubs/{hubId}/ci-duplicates (the `ListCiDuplicates` operationId).
 func (c *Client) ListCiDuplicates(ctx context.Context, hubId openapi_types.UUID, params *ListCiDuplicatesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -54544,9 +57584,9 @@ func (c *Client) ListCiDuplicates(ctx context.Context, hubId openapi_types.UUID,
 	return c.Client.Do(req)
 }
 
-// ListCiGroups A hub's CI groups
+// ListCiGroups A hub's object groups
 //
-// Each with how many CIs it holds now. Needs READ on the hub.
+// Each with how many objects it holds now. Needs READ on the hub.
 //
 // Corresponds with GET /hubs/{hubId}/ci-groups (the `ListCiGroups` operationId).
 func (c *Client) ListCiGroups(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -54561,9 +57601,26 @@ func (c *Client) ListCiGroups(ctx context.Context, hubId openapi_types.UUID, req
 	return c.Client.Do(req)
 }
 
-// DefineCiGroupWithBody Define or change a CI group by its key
+// DeleteCiGroup Delete an object group by its key
 //
-// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+// The group is gone; the objects it held are unchanged. Needs WRITE_ITEMS on the hub.
+//
+// Corresponds with DELETE /hubs/{hubId}/ci-groups/{groupKey} (the `DeleteCiGroup` operationId).
+func (c *Client) DeleteCiGroup(ctx context.Context, hubId openapi_types.UUID, groupKey string, params *DeleteCiGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteCiGroupRequest(c.Server, hubId, groupKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DefineCiGroupWithBody Define or change an object group by its key
+//
+// A name and a filter on object types, stages, a text the name holds and attribute values; at least one. A group naming a service object is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -54580,9 +57637,9 @@ func (c *Client) DefineCiGroupWithBody(ctx context.Context, hubId openapi_types.
 	return c.Client.Do(req)
 }
 
-// DefineCiGroup Define or change a CI group by its key
+// DefineCiGroup Define or change an object group by its key
 //
-// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+// A name and a filter on object types, stages, a text the name holds and attribute values; at least one. A group naming a service object is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -54601,7 +57658,7 @@ func (c *Client) DefineCiGroup(ctx context.Context, hubId openapi_types.UUID, gr
 
 // ListCiHolds Items held for review
 //
-// What the reconciliation held instead of making a CI, newest first. Needs READ on the hub.
+// What the reconciliation held instead of making an object, newest first. Needs READ on the hub.
 //
 // Corresponds with GET /hubs/{hubId}/ci-holds (the `ListCiHolds` operationId).
 func (c *Client) ListCiHolds(ctx context.Context, hubId openapi_types.UUID, params *ListCiHoldsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -54633,9 +57690,26 @@ func (c *Client) ListCiRuns(ctx context.Context, hubId openapi_types.UUID, param
 	return c.Client.Do(req)
 }
 
-// ListCis A hub's configuration items
+// ListHubCiWork How many open entries name each object of a hub
 //
-// A page of the hub's CIs in a stable order, narrowed to a class and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.
+// For each object of the hub, the open, unarchived entries the reader may see that name it as affected; objects with none are left out. Needs READ on the hub.
+//
+// Corresponds with GET /hubs/{hubId}/ci-work (the `ListHubCiWork` operationId).
+func (c *Client) ListHubCiWork(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListHubCiWorkRequest(c.Server, hubId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListCis A hub's objects
+//
+// A page of the hub's objects in a stable order, narrowed to an object type and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.
 //
 // Corresponds with GET /hubs/{hubId}/cis (the `ListCis` operationId).
 func (c *Client) ListCis(ctx context.Context, hubId openapi_types.UUID, params *ListCisParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -54650,9 +57724,9 @@ func (c *Client) ListCis(ctx context.Context, hubId openapi_types.UUID, params *
 	return c.Client.Do(req)
 }
 
-// CreateCiWithBody Make a configuration item by hand
+// CreateCiWithBody Make an object by hand
 //
-// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds an object its identifiers name, nothing is made and the problem names that object (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -54669,9 +57743,9 @@ func (c *Client) CreateCiWithBody(ctx context.Context, hubId openapi_types.UUID,
 	return c.Client.Do(req)
 }
 
-// CreateCi Make a configuration item by hand
+// CreateCi Make an object by hand
 //
-// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds an object its identifiers name, nothing is made and the problem names that object (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -54688,7 +57762,7 @@ func (c *Client) CreateCi(ctx context.Context, hubId openapi_types.UUID, body Cr
 	return c.Client.Do(req)
 }
 
-// ImportCiFileWithBody Import a file of configuration items
+// ImportCiFileWithBody Import a file of objects
 //
 // A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 //
@@ -54707,7 +57781,7 @@ func (c *Client) ImportCiFileWithBody(ctx context.Context, hubId openapi_types.U
 	return c.Client.Do(req)
 }
 
-// ImportCiFile Import a file of configuration items
+// ImportCiFile Import a file of objects
 //
 // A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 //
@@ -54728,7 +57802,7 @@ func (c *Client) ImportCiFile(ctx context.Context, hubId openapi_types.UUID, bod
 
 // ReconcileCisWithBody Reconcile a source's payload
 //
-// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+// Each item is identified - by the source's own key, then by its object type's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -54747,7 +57821,7 @@ func (c *Client) ReconcileCisWithBody(ctx context.Context, hubId openapi_types.U
 
 // ReconcileCis Reconcile a source's payload
 //
-// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+// Each item is identified - by the source's own key, then by its object type's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -54766,7 +57840,7 @@ func (c *Client) ReconcileCis(ctx context.Context, hubId openapi_types.UUID, bod
 
 // ListCiConnectors A hub's connectors
 //
-// The programs the hub's configuration items are pulled from and the monitoring programs that post alerts to it, with the source each writes as, the hosts it may reach, its period, whether a credential is set - never the credential - and how its last run ended. Needs READ on the hub.
+// The programs the hub's objects are pulled from and the monitoring programs that post alerts to it, with the source each writes as, the hosts it may reach, its period, whether a credential is set - never the credential - and how its last run ended. Needs READ on the hub.
 //
 // Corresponds with GET /hubs/{hubId}/cmdb-connectors (the `ListCiConnectors` operationId).
 func (c *Client) ListCiConnectors(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -54821,7 +57895,7 @@ func (c *Client) DefineCiConnector(ctx context.Context, hubId openapi_types.UUID
 
 // ReadCmdbHealth A hub's inventory judged
 //
-// Completeness, correctness (stale, orphaned, duplicate), CIs without an owner and reviews overdue, per class and in all, with the CIs found wanting. Needs READ on the hub.
+// Completeness, correctness (stale, orphaned, duplicate), objects without an owner and reviews overdue, per object type and in all, with the objects found wanting. Needs READ on the hub.
 //
 // Corresponds with GET /hubs/{hubId}/cmdb-health (the `ReadCmdbHealth` operationId).
 func (c *Client) ReadCmdbHealth(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -55018,9 +58092,102 @@ func (c *Client) CreatePage(ctx context.Context, hubId openapi_types.UUID, body 
 	return c.Client.Do(req)
 }
 
+// ListHubPosts A hub's posts
+//
+// The hub's posts the caller sees, featured ones first, then newest first: published ones for their audience, drafts and scheduled ones for the hub's writers only. `filter` narrows to the unread ones, the caller's own, or the scheduled ones. A post never reaches anybody who may not read its hub. Needs READ on the hub.
+//
+// Corresponds with GET /hubs/{hubId}/posts (the `ListHubPosts` operationId).
+func (c *Client) ListHubPosts(ctx context.Context, hubId openapi_types.UUID, params *ListHubPostsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListHubPostsRequest(c.Server, hubId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreatePostWithBody Write a new post
+//
+// Writes a post in the hub: a page with a date, started from one of the post templates or empty, published now (`publish_at` now or earlier), scheduled (`publish_at` ahead) or kept as a draft (no `publish_at`). Its audience is the hub's readers or those of them in the groups named. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /hubs/{hubId}/posts (the `CreatePost` operationId).
+func (c *Client) CreatePostWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreatePostRequestWithBody(c.Server, hubId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreatePost Write a new post
+//
+// Writes a post in the hub: a page with a date, started from one of the post templates or empty, published now (`publish_at` now or earlier), scheduled (`publish_at` ahead) or kept as a draft (no `publish_at`). Its audience is the hub's readers or those of them in the groups named. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /hubs/{hubId}/posts (the `CreatePost` operationId).
+func (c *Client) CreatePost(ctx context.Context, hubId openapi_types.UUID, body CreatePostJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreatePostRequest(c.Server, hubId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// FollowHubPostsWithBody Follow a hub's posts
+//
+// Follows the hub's posts, or stops. A follower is told when a post that asks for it goes out - only one that is for them; a post never reaches anybody beyond its audience. Only a person follows: an agent or a service account is refused `posts.person_follows`. Needs READ on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /hubs/{hubId}/posts/following (the `FollowHubPosts` operationId).
+func (c *Client) FollowHubPostsWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewFollowHubPostsRequestWithBody(c.Server, hubId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// FollowHubPosts Follow a hub's posts
+//
+// Follows the hub's posts, or stops. A follower is told when a post that asks for it goes out - only one that is for them; a post never reaches anybody beyond its audience. Only a person follows: an agent or a service account is refused `posts.person_follows`. Needs READ on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /hubs/{hubId}/posts/following (the `FollowHubPosts` operationId).
+func (c *Client) FollowHubPosts(ctx context.Context, hubId openapi_types.UUID, body FollowHubPostsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewFollowHubPostsRequest(c.Server, hubId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListHubQueues A hub's queues with their counts
 //
-// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
+// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. `desks` names the hub's desks either way. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
 //
 // Corresponds with GET /hubs/{hubId}/queues (the `ListHubQueues` operationId).
 func (c *Client) ListHubQueues(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -55037,7 +58204,7 @@ func (c *Client) ListHubQueues(ctx context.Context, hubId HubId, reqEditors ...R
 
 // ListReleases A hub's releases
 //
-// The hub's releases, the latest day first, at most 200. Needs READ at the hub.
+// The hub's releases, the latest day first, at most 200, each with how many of its entries the reader may see are done and open. Needs READ at the hub.
 //
 // Corresponds with GET /hubs/{hubId}/releases (the `ListReleases` operationId).
 func (c *Client) ListReleases(ctx context.Context, hubId HubId, params *ListReleasesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -55181,7 +58348,7 @@ func (c *Client) ReadServiceMap(ctx context.Context, hubId openapi_types.UUID, p
 
 // ListSoftwareProducts A hub's software, normalised
 //
-// Its software CIs grouped by the product an alias names or by their folded names, with their versions and installations. Needs READ on the hub.
+// Its software objects grouped by the product an alias names or by their folded names, with their versions and installations. Needs READ on the hub.
 //
 // Corresponds with GET /hubs/{hubId}/software (the `ListSoftwareProducts` operationId).
 func (c *Client) ListSoftwareProducts(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -56486,9 +59653,9 @@ func (c *Client) AttachMedia(ctx context.Context, itemId ItemId, mediaId MediaId
 	return c.Client.Do(req)
 }
 
-// ListEntryCis The configuration items an entry names as affected
+// ListEntryCis The objects an entry names as affected
 //
-// Those the reader may read, the active services and offerings their failure reaches, the other open entries naming them or a CI they reach, and the entries planned on them in a window overlapping the entry's start and due. Needs READ on the entry.
+// Those the reader may read, the active services and offerings their failure reaches, the other open entries naming them or an object they reach, and the entries planned on them in a window overlapping the entry's start and due. Needs READ on the entry.
 //
 // Corresponds with GET /items/{itemId}/cis (the `ListEntryCis` operationId).
 func (c *Client) ListEntryCis(ctx context.Context, itemId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -56503,7 +59670,7 @@ func (c *Client) ListEntryCis(ctx context.Context, itemId openapi_types.UUID, re
 	return c.Client.Do(req)
 }
 
-// UnaffectEntryCi Remove a configuration item from an entry's affected ones
+// UnaffectEntryCi Remove an object from an entry's affected ones
 //
 // Needs WRITE_ITEMS on the entry.
 //
@@ -56520,9 +59687,9 @@ func (c *Client) UnaffectEntryCi(ctx context.Context, itemId openapi_types.UUID,
 	return c.Client.Do(req)
 }
 
-// AffectEntryCi Name a configuration item as affected by an entry
+// AffectEntryCi Name an object as affected by an entry
 //
-// At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and READ on the CI's hub.
+// At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and READ on the object's hub.
 //
 // Corresponds with PUT /items/{itemId}/cis/{ciId} (the `AffectEntryCi` operationId).
 func (c *Client) AffectEntryCi(ctx context.Context, itemId openapi_types.UUID, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -57307,7 +60474,7 @@ func (c *Client) RenderReplyTemplate(ctx context.Context, itemId ItemId, templat
 
 // ReadEntryRequester Who raised the entry, and their organisation
 //
-// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. Also up to 20 configuration items the requester owns, by name, of the hubs where the reader may read them and assets are switched on; merged and disposed ones are left out. The address itself is not answered. Needs READ on the entry and the service desk switched on.
+// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. Also up to 20 objects the requester owns, by name, of the hubs where the reader may read them and the inventory is switched on; merged and disposed ones are left out. The address itself is not answered. Needs READ on the entry and the service desk switched on.
 //
 // Corresponds with GET /items/{itemId}/requester (the `ReadEntryRequester` operationId).
 func (c *Client) ReadEntryRequester(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -57379,7 +60546,7 @@ func (c *Client) ReadEntrySla(ctx context.Context, itemId ItemId, reqEditors ...
 
 // ListEntrySteps The entry's status and the steps the person may take
 //
-// The workflow the entry's collection runs for its type, the entry's status, and the steps the person may take from it, each with what it asks for, what it still needs and whether its checks hold. `workflow` is null where none runs; a reader gets no steps.
+// The workflow the entry's collection runs for its type, the entry's status, and the steps the person may take from it, each with what it asks for, what it still needs and whether its checks hold. `workflow` is null where none runs; a reader gets no steps. Beside them the steps from the status the person may not take, each with a reason code and who may; the fewest steps into done; the workflow's picture, read-only for every reader; and whether the person may open it in the designer. Where no workflow runs the picture is the default one, every status reachable, and completing the entry reaches done.
 //
 // Corresponds with GET /items/{itemId}/steps (the `ListEntrySteps` operationId).
 func (c *Client) ListEntrySteps(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -57531,6 +60698,44 @@ func (c *Client) CompleteWorkItem(ctx context.Context, itemId ItemId, params *Co
 // Corresponds with POST /items/{itemId}:decompose (the `SuggestDecomposition` operationId).
 func (c *Client) SuggestDecomposition(ctx context.Context, itemId ItemId, params *SuggestDecompositionParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSuggestDecompositionRequest(c.Server, itemId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DropItemOnColumnWithBody Drop an entry onto a board's column
+//
+// Drops the entry onto a column of its collection's board - `bucket_id` omitted is the column of the statuses no column shows. Without a workflow the entry moves (`MOVED`), and entering or leaving the done column completes or reopens it. Under a workflow the one step reaching the column is taken (`STEP_TAKEN`); where several do, they are answered (`CHOOSE`) and nothing is written - asked again with `step`, that step is taken; a status the entry already has is `MOVED` without a write. Refused with `board.no_columns`, `board.column_required`, `board.column_without_status`, `board.no_step` (the workflow has no such step) or `board.step_blocked` (the person may not take it), and the refusals of the column move or the step.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /items/{itemId}:drop (the `DropItemOnColumn` operationId).
+func (c *Client) DropItemOnColumnWithBody(ctx context.Context, itemId ItemId, params *DropItemOnColumnParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDropItemOnColumnRequestWithBody(c.Server, itemId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DropItemOnColumn Drop an entry onto a board's column
+//
+// Drops the entry onto a column of its collection's board - `bucket_id` omitted is the column of the statuses no column shows. Without a workflow the entry moves (`MOVED`), and entering or leaving the done column completes or reopens it. Under a workflow the one step reaching the column is taken (`STEP_TAKEN`); where several do, they are answered (`CHOOSE`) and nothing is written - asked again with `step`, that step is taken; a status the entry already has is `MOVED` without a write. Refused with `board.no_columns`, `board.column_required`, `board.column_without_status`, `board.no_step` (the workflow has no such step) or `board.step_blocked` (the person may not take it), and the refusals of the column move or the step.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /items/{itemId}:drop (the `DropItemOnColumn` operationId).
+func (c *Client) DropItemOnColumn(ctx context.Context, itemId ItemId, params *DropItemOnColumnParams, body DropItemOnColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDropItemOnColumnRequest(c.Server, itemId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -59384,6 +62589,146 @@ func (c *Client) UploadMediaContentWithBody(ctx context.Context, mediaId MediaId
 	return c.Client.Do(req)
 }
 
+// StartMediaEditing performs a POST /media/{mediaId}:edit (the `StartMediaEditing` operationId) request.
+//
+// Opens an office file for editing in the workspace's document server: a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry, a board or a page holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
+func (c *Client) StartMediaEditing(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartMediaEditingRequest(c.Server, mediaId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConvertMediaToPdfWithBody performs a POST /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request,
+// with any type of body and a specified content type.
+//
+// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file; a read by `POST`, as an export is, so that a client fetches it as a document with its bearer. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+func (c *Client) ConvertMediaToPdfWithBody(ctx context.Context, mediaId MediaId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConvertMediaToPdfRequestWithBody(c.Server, mediaId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConvertMediaToPdf performs a POST /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request.
+// Takes a body of the `application/json` content type.
+//
+// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file; a read by `POST`, as an export is, so that a client fetches it as a document with its bearer. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+func (c *Client) ConvertMediaToPdf(ctx context.Context, mediaId MediaId, body ConvertMediaToPdfJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConvertMediaToPdfRequest(c.Server, mediaId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadDocumentServer The workspace's document server
+//
+// Where the workspace's office files are shown and edited: none, or a server's kind and its https origin. Readable by every member - the viewer asks it; set under STRUCTURE.
+//
+// Corresponds with GET /media:document-server (the `ReadDocumentServer` operationId).
+func (c *Client) ReadDocumentServer(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadDocumentServerRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetDocumentServerWithBody Choose the workspace's document server
+//
+// NONE, or a kind with the server's https origin - no credentials, query or fragment. Needs STRUCTURE at the workspace; an agent never decides it.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /media:document-server (the `SetDocumentServer` operationId).
+func (c *Client) SetDocumentServerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetDocumentServerRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetDocumentServer Choose the workspace's document server
+//
+// NONE, or a kind with the server's https origin - no credentials, query or fragment. Needs STRUCTURE at the workspace; an agent never decides it.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /media:document-server (the `SetDocumentServer` operationId).
+func (c *Client) SetDocumentServer(ctx context.Context, body SetDocumentServerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetDocumentServerRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CheckDocumentServerWithBody Test a document server before choosing it
+//
+// Asks the server at the given https origin for its WOPI discovery, without storing anything, so the administration sees whether the workspace can reach it. Needs STRUCTURE at the workspace; an agent never asks. Refused with `media.document_server_private_network` for an address inside a private network, which this installation does not call; with `media.document_server_unreachable` where nothing answers; and with `media.document_server_no_discovery` where something answers that is not a document server.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /media:document-server-check (the `CheckDocumentServer` operationId).
+func (c *Client) CheckDocumentServerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCheckDocumentServerRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CheckDocumentServer Test a document server before choosing it
+//
+// Asks the server at the given https origin for its WOPI discovery, without storing anything, so the administration sees whether the workspace can reach it. Needs STRUCTURE at the workspace; an agent never asks. Refused with `media.document_server_private_network` for an address inside a private network, which this installation does not call; with `media.document_server_unreachable` where nothing answers; and with `media.document_server_no_discovery` where something answers that is not a document server.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /media:document-server-check (the `CheckDocumentServer` operationId).
+func (c *Client) CheckDocumentServer(ctx context.Context, body CheckDocumentServerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCheckDocumentServerRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListMemberships Who holds a role at a scope
 //
 // The memberships granted **at** the scope named — an account or a group, a role, an
@@ -59831,7 +63176,7 @@ func (c *Client) GetDataFeedMetadata(ctx context.Context, token DataFeedToken, r
 
 // GetDataFeedEntries A data feed's rows
 //
-// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says, and other query options are not served.
+// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says. `$filter` takes a Hubtask query in either spelling (`is: open who: me`, `is_completed = false AND due_at < @today`), which narrows the view's rows and never widens them; a sort or a kind other than entries in it is refused. Other query options are not served.
 //
 // Corresponds with GET /odata/{token}/Entries (the `GetDataFeedEntries` operationId).
 func (c *Client) GetDataFeedEntries(ctx context.Context, token DataFeedToken, params *GetDataFeedEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -59992,7 +63337,7 @@ func (c *Client) ReadPageAccess(ctx context.Context, pageId PageId, reqEditors .
 
 // PublishPageToPortalWithBody Publish a page to a service's portal
 //
-// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. With `with_subpages`, the page is shared as a space: every page under it reaches the same requesters, as it stands at each reading, except a page behind a restriction and everything under that. Never a page behind a restriction (`pages.article_restricted`); publishing twice the same way changes nothing, publishing again the other way changes only `with_subpages`. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
 //
 // Takes any type of body and a specified content type.
 //
@@ -60011,7 +63356,7 @@ func (c *Client) PublishPageToPortalWithBody(ctx context.Context, pageId PageId,
 
 // PublishPageToPortal Publish a page to a service's portal
 //
-// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. With `with_subpages`, the page is shared as a space: every page under it reaches the same requesters, as it stands at each reading, except a page behind a restriction and everything under that. Never a page behind a restriction (`pages.article_restricted`); publishing twice the same way changes nothing, publishing again the other way changes only `with_subpages`. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -60107,6 +63452,40 @@ func (c *Client) AddPageCommentWithBody(ctx context.Context, pageId PageId, cont
 // Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
 func (c *Client) AddPageComment(ctx context.Context, pageId PageId, body AddPageCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewAddPageCommentRequest(c.Server, pageId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SearchCoverImages Search an image library for a page's cover
+//
+// Whether the workspace offers an image library for covers and, with a query, up to twelve of its openly licensed pictures, each with who made it and a small preview the server fetched. Without a query or with the library switched off it asks nothing outside. Needs WRITE_ITEMS on the page's hub.
+//
+// Corresponds with GET /pages/{pageId}/cover-images (the `SearchCoverImages` operationId).
+func (c *Client) SearchCoverImages(ctx context.Context, pageId PageId, params *SearchCoverImagesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchCoverImagesRequest(c.Server, pageId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// FetchCoverImage Fetch an image library's picture for a page's cover
+//
+// The picture's larger rendition, fetched by the server, with who made it: the client uploads it as the page's cover image and names its maker as the cover's credit. Refused `pages.cover_images_off` while the workspace offers no library. Needs WRITE_ITEMS on the page's hub.
+//
+// Corresponds with POST /pages/{pageId}/cover-images/{pictureId}:fetch (the `FetchCoverImage` operationId).
+func (c *Client) FetchCoverImage(ctx context.Context, pageId PageId, pictureId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewFetchCoverImageRequest(c.Server, pageId, pictureId)
 	if err != nil {
 		return nil, err
 	}
@@ -60691,6 +64070,61 @@ func (c *Client) VerifyPageWithBody(ctx context.Context, pageId PageId, contentT
 // Corresponds with POST /pages/{pageId}:verify (the `VerifyPage` operationId).
 func (c *Client) VerifyPage(ctx context.Context, pageId PageId, body VerifyPageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewVerifyPageRequest(c.Server, pageId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadCoverImagesPolicy Which image library covers may take pictures from
+//
+// The workspace's choice of an image library offered as a cover's fourth source, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+//
+// Corresponds with GET /pages:cover-images (the `ReadCoverImagesPolicy` operationId).
+func (c *Client) ReadCoverImagesPolicy(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadCoverImagesPolicyRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetCoverImagesPolicyWithBody Offer an image library for covers, or none
+//
+// Off by default, since every search leaves the installation; the installation or the plan may lock it (`setting.locked`). Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /pages:cover-images (the `SetCoverImagesPolicy` operationId).
+func (c *Client) SetCoverImagesPolicyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetCoverImagesPolicyRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetCoverImagesPolicy Offer an image library for covers, or none
+//
+// Off by default, since every search leaves the installation; the installation or the plan may lock it (`setting.locked`). Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /pages:cover-images (the `SetCoverImagesPolicy` operationId).
+func (c *Client) SetCoverImagesPolicy(ctx context.Context, body SetCoverImagesPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetCoverImagesPolicyRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -61302,6 +64736,23 @@ func (c *Client) SetWorkspaceTolerance(ctx context.Context, body SetWorkspaceTol
 	return c.Client.Do(req)
 }
 
+// ListPortalKnowledge What a service's portal shares of the knowledge base
+//
+// Every article and every space published to the service's portal, each space with the pages under it a requester reads: live, never behind a restriction nor under one, never a language variant (opening a page answers it in the reader's language). At most 500 pages per space. Needs REQUEST at the collection.
+//
+// Corresponds with GET /portal-knowledge (the `ListPortalKnowledge` operationId).
+func (c *Client) ListPortalKnowledge(ctx context.Context, params *ListPortalKnowledgeParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPortalKnowledgeRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListPortfolios The portfolios
 //
 // By name, nested by `parent_id`, each with the projects the caller may read. Needs READ at the workspace.
@@ -61597,6 +65048,269 @@ func (c *Client) SetPublicRoadmapsPolicyWithBody(ctx context.Context, contentTyp
 // Corresponds with PUT /portfolios:public-links (the `SetPublicRoadmapsPolicy` operationId).
 func (c *Client) SetPublicRoadmapsPolicy(ctx context.Context, body SetPublicRoadmapsPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetPublicRoadmapsPolicyRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListUnreadPosts The posts new for the caller
+//
+// The published posts the caller has not seen yet, across every hub they read, featured ones first, then newest first, at most 20. Each post is judged at its own hub as on the hub's list: a post never reaches anybody who may not read its hub or is outside its audience.
+//
+// Corresponds with GET /posts (the `ListUnreadPosts` operationId).
+func (c *Client) ListUnreadPosts(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListUnreadPostsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadPost Read a post
+//
+// The post's date, audience and state, how many have seen it, and whether the caller has seen and confirmed it; its words are its page's. A writer of the hub also gets the read confirmation's standing. Not found for anybody it is not for.
+//
+// Corresponds with GET /posts/{pageId} (the `ReadPost` operationId).
+func (c *Client) ReadPost(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadPostRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetPostSettingsWithBody Schedule, feature or narrow a post
+//
+// Sets when the post goes out, until when it stays on top, for whom, whether it is discussed, whether the hub's followers are told and until when its readers are asked to confirm it. A published post keeps its publishing moment. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /posts/{pageId} (the `SetPostSettings` operationId).
+func (c *Client) SetPostSettingsWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetPostSettingsRequestWithBody(c.Server, pageId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetPostSettings Schedule, feature or narrow a post
+//
+// Sets when the post goes out, until when it stays on top, for whom, whether it is discussed, whether the hub's followers are told and until when its readers are asked to confirm it. A published post keeps its publishing moment. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /posts/{pageId} (the `SetPostSettings` operationId).
+func (c *Client) SetPostSettings(ctx context.Context, pageId PageId, body SetPostSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetPostSettingsRequest(c.Server, pageId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadPostConfirmations Who confirmed a post
+//
+// How many of the post's audience confirmed it by when, and who did. Needs WRITE_ITEMS on the hub: read confirmations are shown to the post's writers only.
+//
+// Corresponds with GET /posts/{pageId}/confirmations (the `ReadPostConfirmations` operationId).
+func (c *Client) ReadPostConfirmations(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadPostConfirmationsRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListPostReplies A post's discussion
+//
+// The replies under the post, oldest first, one level deep, each with its reactions counted and whether the caller gave them.
+//
+// Corresponds with GET /posts/{pageId}/replies (the `ListPostReplies` operationId).
+func (c *Client) ListPostReplies(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPostRepliesRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddPostReplyWithBody Reply in a post's discussion
+//
+// Adds a reply under a published post whose discussion is open, or an answer to a reply. Anybody the post is for may reply.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /posts/{pageId}/replies (the `AddPostReply` operationId).
+func (c *Client) AddPostReplyWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddPostReplyRequestWithBody(c.Server, pageId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddPostReply Reply in a post's discussion
+//
+// Adds a reply under a published post whose discussion is open, or an answer to a reply. Anybody the post is for may reply.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /posts/{pageId}/replies (the `AddPostReply` operationId).
+func (c *Client) AddPostReply(ctx context.Context, pageId PageId, body AddPostReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddPostReplyRequest(c.Server, pageId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeletePostReply Take a reply back
+//
+// The caller's own reply, or any for a writer of the hub; its place stays, its words go.
+//
+// Corresponds with DELETE /posts/{pageId}/replies/{replyId} (the `DeletePostReply` operationId).
+func (c *Client) DeletePostReply(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeletePostReplyRequest(c.Server, pageId, replyId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UnreactToPostReply Take a reaction back
+//
+// Takes the caller's reaction of that kind back.
+//
+// Corresponds with DELETE /posts/{pageId}/replies/{replyId}/reactions/{reaction} (the `UnreactToPostReply` operationId).
+func (c *Client) UnreactToPostReply(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reaction string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUnreactToPostReplyRequest(c.Server, pageId, replyId, reaction)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReactToPostReply React to a reply
+//
+// Gives one of the few fixed reactions to a reply, once per person and kind.
+//
+// Corresponds with PUT /posts/{pageId}/replies/{replyId}/reactions/{reaction} (the `ReactToPostReply` operationId).
+func (c *Client) ReactToPostReply(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reaction string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReactToPostReplyRequest(c.Server, pageId, replyId, reaction)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfirmPost Confirm having read a post
+//
+// Confirms that the caller read a published post that asks its audience for it; refused `posts.confirmation_not_asked` for one that does not. Shown to the hub's writers only.
+//
+// Corresponds with POST /posts/{pageId}:confirm (the `ConfirmPost` operationId).
+func (c *Client) ConfirmPost(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfirmPostRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PublishPost Publish a post now
+//
+// Publishes a draft or a scheduled post at once for its audience. Needs WRITE_ITEMS on the hub; a published post answers as it stands.
+//
+// Corresponds with POST /posts/{pageId}:publish (the `PublishPost` operationId).
+func (c *Client) PublishPost(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPublishPostRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemindPost Remind those who have not confirmed a post
+//
+// Tells each of the post's audience who has not confirmed it yet, once per call. Refused `posts.nobody_to_remind` when everybody has. Needs WRITE_ITEMS on the hub.
+//
+// Corresponds with POST /posts/{pageId}:remind (the `RemindPost` operationId).
+func (c *Client) RemindPost(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemindPostRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MarkPostSeen Mark a post seen
+//
+// Counts the caller among those who have seen the published post; the count is shown to everybody, the names to nobody.
+//
+// Corresponds with POST /posts/{pageId}:seen (the `MarkPostSeen` operationId).
+func (c *Client) MarkPostSeen(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMarkPostSeenRequest(c.Server, pageId)
 	if err != nil {
 		return nil, err
 	}
@@ -62351,6 +66065,44 @@ func (c *Client) AnswerSatisfactionLinkWithBody(ctx context.Context, token strin
 // Corresponds with POST /public/satisfaction/{token} (the `AnswerSatisfactionLink` operationId).
 func (c *Client) AnswerSatisfactionLink(ctx context.Context, token string, body AnswerSatisfactionLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewAnswerSatisfactionLinkRequest(c.Server, token, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AskQueryWithBody Write a Hubtask query from a question in words
+//
+// Asks the workspace's AI provider to write the question as a Hubtask query, and answers the query as text in the `field: value` spelling - read by the same parser `POST /items:query` uses and written back in its canonical form, so it holds only keys this installation answers. **Nothing is run and nothing is stored**: the person sees the query, changes it and runs it themselves. Offered where `features.query_from_words` in `GET /meta/manifest` is true; every way of not getting an answer - no provider, no consent, a spent budget, a slow model, an answer that is not a query - is `503` with `ai.unavailable`, and a person who keeps their own content out of AI is refused the same way. The audit records that a query was asked for, never the question. A `POST` because the question is content.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /query:ask (the `AskQuery` operationId).
+func (c *Client) AskQueryWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAskQueryRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AskQuery Write a Hubtask query from a question in words
+//
+// Asks the workspace's AI provider to write the question as a Hubtask query, and answers the query as text in the `field: value` spelling - read by the same parser `POST /items:query` uses and written back in its canonical form, so it holds only keys this installation answers. **Nothing is run and nothing is stored**: the person sees the query, changes it and runs it themselves. Offered where `features.query_from_words` in `GET /meta/manifest` is true; every way of not getting an answer - no provider, no consent, a spent budget, a slow model, an answer that is not a query - is `503` with `ai.unavailable`, and a person who keeps their own content out of AI is refused the same way. The audit records that a query was asked for, never the question. A `POST` because the question is content.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /query:ask (the `AskQuery` operationId).
+func (c *Client) AskQuery(ctx context.Context, body AskQueryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAskQueryRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -63928,6 +67680,44 @@ func (c *Client) SearchItemsWithBody(ctx context.Context, contentType string, bo
 // Corresponds with POST /search (the `SearchItems` operationId).
 func (c *Client) SearchItems(ctx context.Context, body SearchItemsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSearchItemsRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SearchAllWithBody One search over every kind of object the caller may read
+//
+// Entries, tickets, pages, whiteboards, goals, dashboards, inventory objects, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /search:all (the `SearchAll` operationId).
+func (c *Client) SearchAllWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchAllRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SearchAll One search over every kind of object the caller may read
+//
+// Entries, tickets, pages, whiteboards, goals, dashboards, inventory objects, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /search:all (the `SearchAll` operationId).
+func (c *Client) SearchAll(ctx context.Context, body SearchAllJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchAllRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -67031,6 +70821,67 @@ func (c *Client) MoveWhiteboard(ctx context.Context, whiteboardId WhiteboardId, 
 // Corresponds with POST /whiteboards/{whiteboardId}:restore (the `RestoreWhiteboard` operationId).
 func (c *Client) RestoreWhiteboard(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRestoreWhiteboardRequest(c.Server, whiteboardId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CheckWopiFileInfo performs a GET /wopi/files/{mediaId} (the `CheckWopiFileInfo` operationId) request.
+//
+// WOPI CheckFileInfo, called by the document server with the access token: the file's name, size, version and whether this person may save. Answers in the protocol's own shape, not as a Hubtask resource.
+func (c *Client) CheckWopiFileInfo(ctx context.Context, mediaId MediaId, params *CheckWopiFileInfoParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCheckWopiFileInfoRequest(c.Server, mediaId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// LockWopiFile performs a POST /wopi/files/{mediaId} (the `LockWopiFile` operationId) request.
+//
+// WOPI Lock, RefreshLock, Unlock, UnlockAndRelock and GetLock, by `X-WOPI-Override`, with the lock in `X-WOPI-Lock` and the replaced one in `X-WOPI-OldLock`. A mismatch answers 409 with the lock that holds in `X-WOPI-Lock`.
+func (c *Client) LockWopiFile(ctx context.Context, mediaId MediaId, params *LockWopiFileParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLockWopiFileRequest(c.Server, mediaId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetWopiFile performs a GET /wopi/files/{mediaId}/contents (the `GetWopiFile` operationId) request.
+//
+// WOPI GetFile - the file's bytes, with its version in `X-WOPI-ItemVersion`.
+func (c *Client) GetWopiFile(ctx context.Context, mediaId MediaId, params *GetWopiFileParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetWopiFileRequest(c.Server, mediaId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PutWopiFileWithBody performs a POST /wopi/files/{mediaId}/contents (the `PutWopiFile` operationId) request,
+// with any type of body and a specified content type.
+//
+// WOPI PutFile - the document server saves; the file keeps its identity and the bytes it had become its earlier version. Only under the lock that holds (or into an empty file), and only for a person who may still change what holds it.
+func (c *Client) PutWopiFileWithBody(ctx context.Context, mediaId MediaId, params *PutWopiFileParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutWopiFileRequestWithBody(c.Server, mediaId, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -77877,6 +81728,40 @@ func NewCloseCiCampaignRequest(server string, campaignId openapi_types.UUID, par
 	return req, nil
 }
 
+// NewRemindCiCampaignRequest constructs an http.Request for the RemindCiCampaign method
+func NewRemindCiCampaignRequest(server string, campaignId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "campaignId", campaignId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ci-campaigns/%s:remind", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewResolveCiDuplicateRequest calls the generic ResolveCiDuplicate builder with application/json body
 func NewResolveCiDuplicateRequest(server string, duplicateId openapi_types.UUID, body ResolveCiDuplicateJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -78354,6 +82239,161 @@ func NewMoveCiAssetRequestWithBody(server string, ciId openapi_types.UUID, param
 	return req, nil
 }
 
+// NewListCiAttachmentsRequest constructs an http.Request for the ListCiAttachments method
+func NewListCiAttachmentsRequest(server string, ciId openapi_types.UUID, params *ListCiAttachmentsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "ciId", ciId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cis/%s/attachments", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "cursor", *params.Cursor, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Size != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "size", *params.Size, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDetachCiMediaRequest constructs an http.Request for the DetachCiMedia method
+func NewDetachCiMediaRequest(server string, ciId openapi_types.UUID, mediaId MediaId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "ciId", ciId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "mediaId", mediaId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cis/%s/attachments/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAttachCiMediaRequest constructs an http.Request for the AttachCiMedia method
+func NewAttachCiMediaRequest(server string, ciId openapi_types.UUID, mediaId MediaId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "ciId", ciId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "mediaId", mediaId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cis/%s/attachments/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListCiBacklinksRequest constructs an http.Request for the ListCiBacklinks method
 func NewListCiBacklinksRequest(server string, ciId openapi_types.UUID) (*http.Request, error) {
 	var err error
@@ -78450,6 +82490,79 @@ func NewSetCiComplianceRequestWithBody(server string, ciId openapi_types.UUID, p
 	return req, nil
 }
 
+// NewListCiHistoryRequest constructs an http.Request for the ListCiHistory method
+func NewListCiHistoryRequest(server string, ciId openapi_types.UUID, params *ListCiHistoryParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "ciId", ciId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cis/%s/history", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "cursor", *params.Cursor, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Size != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "size", *params.Size, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewReadCiImpactRequest constructs an http.Request for the ReadCiImpact method
 func NewReadCiImpactRequest(server string, ciId openapi_types.UUID, params *ReadCiImpactParams) (*http.Request, error) {
 	var err error
@@ -78519,6 +82632,87 @@ func NewReadCiImpactRequest(server string, ciId openapi_types.UUID, params *Read
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewListCiWorkRequest constructs an http.Request for the ListCiWork method
+func NewListCiWorkRequest(server string, ciId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "ciId", ciId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cis/%s/work", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewConfirmCiRequest calls the generic ConfirmCi builder with application/json body
+func NewConfirmCiRequest(server string, ciId openapi_types.UUID, body ConfirmCiJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewConfirmCiRequestWithBody(server, ciId, "application/json", bodyReader)
+}
+
+// NewConfirmCiRequestWithBody constructs an http.Request for the ConfirmCi method, with any body, and a specified content type
+func NewConfirmCiRequestWithBody(server string, ciId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "ciId", ciId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cis/%s:confirm", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -80984,6 +85178,100 @@ func NewRenameContainerRequestWithBody(server string, containerId ContainerId, p
 	return req, nil
 }
 
+// NewSwitchBoardRequest calls the generic SwitchBoard builder with application/json body
+func NewSwitchBoardRequest(server string, containerId ContainerId, body SwitchBoardJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSwitchBoardRequestWithBody(server, containerId, "application/json", bodyReader)
+}
+
+// NewSwitchBoardRequestWithBody constructs an http.Request for the SwitchBoard method, with any body, and a specified content type
+func NewSwitchBoardRequestWithBody(server string, containerId ContainerId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "containerId", containerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/containers/%s/board:switch", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewMakeBoardWorkflowRequest calls the generic MakeBoardWorkflow builder with application/json body
+func NewMakeBoardWorkflowRequest(server string, containerId ContainerId, body MakeBoardWorkflowJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewMakeBoardWorkflowRequestWithBody(server, containerId, "application/json", bodyReader)
+}
+
+// NewMakeBoardWorkflowRequestWithBody constructs an http.Request for the MakeBoardWorkflow method, with any body, and a specified content type
+func NewMakeBoardWorkflowRequestWithBody(server string, containerId ContainerId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "containerId", containerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/containers/%s/board:workflow", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListBucketsRequest constructs an http.Request for the ListBuckets method
 func NewListBucketsRequest(server string, containerId ContainerId) (*http.Request, error) {
 	var err error
@@ -81096,6 +85384,33 @@ func NewDeleteBucketRequest(server string, containerId ContainerId, bucketId Buc
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.NewDoneBucketId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "new_done_bucket_id", *params.NewDoneBucketId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
@@ -83335,6 +87650,107 @@ func NewReadDashboardFiguresRequest(server string, dashboardId DashboardId) (*ht
 	return req, nil
 }
 
+// NewDraftDashboardFiguresRequest calls the generic DraftDashboardFigures builder with application/json body
+func NewDraftDashboardFiguresRequest(server string, dashboardId DashboardId, body DraftDashboardFiguresJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDraftDashboardFiguresRequestWithBody(server, dashboardId, "application/json", bodyReader)
+}
+
+// NewDraftDashboardFiguresRequestWithBody constructs an http.Request for the DraftDashboardFigures method, with any body, and a specified content type
+func NewDraftDashboardFiguresRequestWithBody(server string, dashboardId DashboardId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "dashboardId", dashboardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/dashboards/%s/figures:draft", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReadMyDeadlinesKeptRequest constructs an http.Request for the ReadMyDeadlinesKept method
+func NewReadMyDeadlinesKeptRequest(server string, params *ReadMyDeadlinesKeptParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/deadlines-kept")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Days != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "days", *params.Days, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewRemoveLdapDirectoryRequest constructs an http.Request for the RemoveLdapDirectory method
 func NewRemoveLdapDirectoryRequest(server string, params *RemoveLdapDirectoryParams) (*http.Request, error) {
 	var err error
@@ -84160,6 +88576,73 @@ func NewCloseGoalPeriodRequestWithBody(server string, periodId openapi_types.UUI
 		}
 
 	}
+
+	return req, nil
+}
+
+// NewListGoalSetsRequest constructs an http.Request for the ListGoalSets method
+func NewListGoalSetsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/goal-sets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAddGoalSetRequest calls the generic AddGoalSet builder with application/json body
+func NewAddGoalSetRequest(server string, body AddGoalSetJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddGoalSetRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewAddGoalSetRequestWithBody constructs an http.Request for the AddGoalSet method, with any body, and a specified content type
+func NewAddGoalSetRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/goal-sets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -85483,6 +89966,62 @@ func NewListCiGroupsRequest(server string, hubId openapi_types.UUID) (*http.Requ
 	return req, nil
 }
 
+// NewDeleteCiGroupRequest constructs an http.Request for the DeleteCiGroup method
+func NewDeleteCiGroupRequest(server string, hubId openapi_types.UUID, groupKey string, params *DeleteCiGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "groupKey", groupKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/ci-groups/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewDefineCiGroupRequest calls the generic DefineCiGroup builder with application/json body
 func NewDefineCiGroupRequest(server string, hubId openapi_types.UUID, groupKey string, params *DefineCiGroupParams, body DefineCiGroupJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -85664,6 +90203,40 @@ func NewListCiRunsRequest(server string, hubId openapi_types.UUID, params *ListC
 			rawQueryFragments = append(rawQueryFragments, encoded)
 		}
 		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListHubCiWorkRequest constructs an http.Request for the ListHubCiWork method
+func NewListHubCiWorkRequest(server string, hubId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/ci-work", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -86356,6 +90929,161 @@ func NewCreatePageRequestWithBody(server string, hubId openapi_types.UUID, conte
 	}
 
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListHubPostsRequest constructs an http.Request for the ListHubPosts method
+func NewListHubPostsRequest(server string, hubId openapi_types.UUID, params *ListHubPostsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/posts", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Filter != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "filter", *params.Filter, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreatePostRequest calls the generic CreatePost builder with application/json body
+func NewCreatePostRequest(server string, hubId openapi_types.UUID, body CreatePostJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreatePostRequestWithBody(server, hubId, "application/json", bodyReader)
+}
+
+// NewCreatePostRequestWithBody constructs an http.Request for the CreatePost method, with any body, and a specified content type
+func NewCreatePostRequestWithBody(server string, hubId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/posts", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewFollowHubPostsRequest calls the generic FollowHubPosts builder with application/json body
+func NewFollowHubPostsRequest(server string, hubId openapi_types.UUID, body FollowHubPostsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewFollowHubPostsRequestWithBody(server, hubId, "application/json", bodyReader)
+}
+
+// NewFollowHubPostsRequestWithBody constructs an http.Request for the FollowHubPosts method, with any body, and a specified content type
+func NewFollowHubPostsRequestWithBody(server string, hubId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/posts/following", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -91465,6 +96193,68 @@ func NewSuggestDecompositionRequest(server string, itemId ItemId, params *Sugges
 	return req, nil
 }
 
+// NewDropItemOnColumnRequest calls the generic DropItemOnColumn builder with application/json body
+func NewDropItemOnColumnRequest(server string, itemId ItemId, params *DropItemOnColumnParams, body DropItemOnColumnJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDropItemOnColumnRequestWithBody(server, itemId, params, "application/json", bodyReader)
+}
+
+// NewDropItemOnColumnRequestWithBody constructs an http.Request for the DropItemOnColumn method, with any body, and a specified content type
+func NewDropItemOnColumnRequestWithBody(server string, itemId ItemId, params *DropItemOnColumnParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s:drop", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewDuplicateWorkItemRequest calls the generic DuplicateWorkItem builder with application/json body
 func NewDuplicateWorkItemRequest(server string, itemId ItemId, params *DuplicateWorkItemParams, body DuplicateWorkItemJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -94566,6 +99356,194 @@ func NewUploadMediaContentRequestWithBody(server string, mediaId MediaId, params
 	return req, nil
 }
 
+// NewStartMediaEditingRequest constructs an http.Request for the StartMediaEditing method
+func NewStartMediaEditingRequest(server string, mediaId MediaId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "mediaId", mediaId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/media/%s:edit", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewConvertMediaToPdfRequest calls the generic ConvertMediaToPdf builder with application/json body
+func NewConvertMediaToPdfRequest(server string, mediaId MediaId, body ConvertMediaToPdfJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewConvertMediaToPdfRequestWithBody(server, mediaId, "application/json", bodyReader)
+}
+
+// NewConvertMediaToPdfRequestWithBody constructs an http.Request for the ConvertMediaToPdf method, with any body, and a specified content type
+func NewConvertMediaToPdfRequestWithBody(server string, mediaId MediaId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "mediaId", mediaId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/media/%s:pdf", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReadDocumentServerRequest constructs an http.Request for the ReadDocumentServer method
+func NewReadDocumentServerRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/media:document-server")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetDocumentServerRequest calls the generic SetDocumentServer builder with application/json body
+func NewSetDocumentServerRequest(server string, body SetDocumentServerJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetDocumentServerRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetDocumentServerRequestWithBody constructs an http.Request for the SetDocumentServer method, with any body, and a specified content type
+func NewSetDocumentServerRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/media:document-server")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewCheckDocumentServerRequest calls the generic CheckDocumentServer builder with application/json body
+func NewCheckDocumentServerRequest(server string, body CheckDocumentServerJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCheckDocumentServerRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCheckDocumentServerRequestWithBody constructs an http.Request for the CheckDocumentServer method, with any body, and a specified content type
+func NewCheckDocumentServerRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/media:document-server-check")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListMembershipsRequest constructs an http.Request for the ListMemberships method
 func NewListMembershipsRequest(server string, params *ListMembershipsParams) (*http.Request, error) {
 	var err error
@@ -95253,6 +100231,18 @@ func NewGetDataFeedEntriesRequest(server string, token DataFeedToken, params *Ge
 		// per the OpenAPI spec (e.g. "color=blue,black,brown").
 		var rawQueryFragments []string
 
+		if params.Filter != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "$filter", *params.Filter, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
 		if params.Top != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "$top", *params.Top, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
@@ -95750,6 +100740,108 @@ func NewAddPageCommentRequestWithBody(server string, pageId PageId, contentType 
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewSearchCoverImagesRequest constructs an http.Request for the SearchCoverImages method
+func NewSearchCoverImagesRequest(server string, pageId PageId, params *SearchCoverImagesParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/cover-images", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Query != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "query", *params.Query, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewFetchCoverImageRequest constructs an http.Request for the FetchCoverImage method
+func NewFetchCoverImageRequest(server string, pageId PageId, pictureId string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "pictureId", pictureId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/cover-images/%s:fetch", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -96735,6 +101827,73 @@ func NewVerifyPageRequestWithBody(server string, pageId PageId, contentType stri
 	}
 
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReadCoverImagesPolicyRequest constructs an http.Request for the ReadCoverImagesPolicy method
+func NewReadCoverImagesPolicyRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages:cover-images")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetCoverImagesPolicyRequest calls the generic SetCoverImagesPolicy builder with application/json body
+func NewSetCoverImagesPolicyRequest(server string, body SetCoverImagesPolicyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetCoverImagesPolicyRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetCoverImagesPolicyRequestWithBody constructs an http.Request for the SetCoverImagesPolicy method, with any body, and a specified content type
+func NewSetCoverImagesPolicyRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages:cover-images")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -97808,6 +102967,56 @@ func NewSetWorkspaceToleranceRequestWithBody(server string, contentType string, 
 	return req, nil
 }
 
+// NewListPortalKnowledgeRequest constructs an http.Request for the ListPortalKnowledge method
+func NewListPortalKnowledgeRequest(server string, params *ListPortalKnowledgeParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/portal-knowledge")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "collection_id", params.CollectionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListPortfoliosRequest constructs an http.Request for the ListPortfolios method
 func NewListPortfoliosRequest(server string) (*http.Request, error) {
 	var err error
@@ -98327,6 +103536,502 @@ func NewSetPublicRoadmapsPolicyRequestWithBody(server string, contentType string
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListUnreadPostsRequest constructs an http.Request for the ListUnreadPosts method
+func NewListUnreadPostsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadPostRequest constructs an http.Request for the ReadPost method
+func NewReadPostRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetPostSettingsRequest calls the generic SetPostSettings builder with application/json body
+func NewSetPostSettingsRequest(server string, pageId PageId, body SetPostSettingsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetPostSettingsRequestWithBody(server, pageId, "application/json", bodyReader)
+}
+
+// NewSetPostSettingsRequestWithBody constructs an http.Request for the SetPostSettings method, with any body, and a specified content type
+func NewSetPostSettingsRequestWithBody(server string, pageId PageId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReadPostConfirmationsRequest constructs an http.Request for the ReadPostConfirmations method
+func NewReadPostConfirmationsRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s/confirmations", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListPostRepliesRequest constructs an http.Request for the ListPostReplies method
+func NewListPostRepliesRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s/replies", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAddPostReplyRequest calls the generic AddPostReply builder with application/json body
+func NewAddPostReplyRequest(server string, pageId PageId, body AddPostReplyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddPostReplyRequestWithBody(server, pageId, "application/json", bodyReader)
+}
+
+// NewAddPostReplyRequestWithBody constructs an http.Request for the AddPostReply method, with any body, and a specified content type
+func NewAddPostReplyRequestWithBody(server string, pageId PageId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s/replies", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeletePostReplyRequest constructs an http.Request for the DeletePostReply method
+func NewDeletePostReplyRequest(server string, pageId PageId, replyId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "replyId", replyId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s/replies/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUnreactToPostReplyRequest constructs an http.Request for the UnreactToPostReply method
+func NewUnreactToPostReplyRequest(server string, pageId PageId, replyId openapi_types.UUID, reaction string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "replyId", replyId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithOptions("simple", false, "reaction", reaction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s/replies/%s/reactions/%s", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReactToPostReplyRequest constructs an http.Request for the ReactToPostReply method
+func NewReactToPostReplyRequest(server string, pageId PageId, replyId openapi_types.UUID, reaction string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "replyId", replyId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithOptions("simple", false, "reaction", reaction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s/replies/%s/reactions/%s", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewConfirmPostRequest constructs an http.Request for the ConfirmPost method
+func NewConfirmPostRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s:confirm", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPublishPostRequest constructs an http.Request for the PublishPost method
+func NewPublishPostRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s:publish", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRemindPostRequest constructs an http.Request for the RemindPost method
+func NewRemindPostRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s:remind", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewMarkPostSeenRequest constructs an http.Request for the MarkPostSeen method
+func NewMarkPostSeenRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s:seen", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -99467,6 +105172,46 @@ func NewAnswerSatisfactionLinkRequestWithBody(server string, token string, conte
 	}
 
 	operationPath := fmt.Sprintf("/public/satisfaction/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewAskQueryRequest calls the generic AskQuery builder with application/json body
+func NewAskQueryRequest(server string, body AskQueryJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAskQueryRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewAskQueryRequestWithBody constructs an http.Request for the AskQuery method, with any body, and a specified content type
+func NewAskQueryRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/query:ask")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -101816,6 +107561,46 @@ func NewSearchItemsRequestWithBody(server string, contentType string, body io.Re
 	}
 
 	operationPath := fmt.Sprintf("/search")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewSearchAllRequest calls the generic SearchAll builder with application/json body
+func NewSearchAllRequest(server string, body SearchAllJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSearchAllRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSearchAllRequestWithBody constructs an http.Request for the SearchAll method, with any body, and a specified content type
+func NewSearchAllRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/search:all")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -107096,6 +112881,236 @@ func NewRestoreWhiteboardRequest(server string, whiteboardId WhiteboardId) (*htt
 	return req, nil
 }
 
+// NewCheckWopiFileInfoRequest constructs an http.Request for the CheckWopiFileInfo method
+func NewCheckWopiFileInfoRequest(server string, mediaId MediaId, params *CheckWopiFileInfoParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "mediaId", mediaId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/wopi/files/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "access_token", params.AccessToken, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewLockWopiFileRequest constructs an http.Request for the LockWopiFile method
+func NewLockWopiFileRequest(server string, mediaId MediaId, params *LockWopiFileParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "mediaId", mediaId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/wopi/files/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "access_token", params.AccessToken, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetWopiFileRequest constructs an http.Request for the GetWopiFile method
+func NewGetWopiFileRequest(server string, mediaId MediaId, params *GetWopiFileParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "mediaId", mediaId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/wopi/files/%s/contents", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "access_token", params.AccessToken, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutWopiFileRequestWithBody constructs an http.Request for the PutWopiFile method, with any body, and a specified content type
+func NewPutWopiFileRequestWithBody(server string, mediaId MediaId, params *PutWopiFileParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "mediaId", mediaId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/wopi/files/%s/contents", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "access_token", params.AccessToken, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewSetWorkflowSchemeRequest calls the generic SetWorkflowScheme builder with application/json body
 func NewSetWorkflowSchemeRequest(server string, body SetWorkflowSchemeJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -109412,7 +115427,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListAgentsWithResponse The workspace's agents
 	//
-	// Whoever administers agents reads all of them; anybody else the agents acting for them.
+	// Whoever administers agents reads all of them; anybody else the agents acting for them. Each with what it spent this hour and today and when its latest job started.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -109530,7 +115545,7 @@ type ClientWithResponsesInterface interface {
 
 	// RunAgentEvaluationWithBodyWithResponse Have a shipped agent answer its own evaluation set
 	//
-	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, an object suggestion and a ticket triage answer `cis`, the names of the hub's objects the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -109539,7 +115554,7 @@ type ClientWithResponsesInterface interface {
 
 	// RunAgentEvaluationWithResponse Have a shipped agent answer its own evaluation set
 	//
-	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, an object suggestion and a ticket triage answer `cis`, the names of the hub's objects the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -109557,7 +115572,7 @@ type ClientWithResponsesInterface interface {
 
 	// StartAgentJobWithBodyWithResponse Start a shipped agent's job on one target
 	//
-	// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+	// Ticket triage, object suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -109566,7 +115581,7 @@ type ClientWithResponsesInterface interface {
 
 	// StartAgentJobWithResponse Start a shipped agent's job on one target
 	//
-	// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+	// Ticket triage, object suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -111482,27 +117497,27 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /chat-intake/{tenantId}/{botId} (the `DeliverChat` operationId).
 	DeliverChatWithFormdataBodyWithResponse(ctx context.Context, tenantId openapi_types.UUID, botId openapi_types.UUID, body DeliverChatFormdataRequestBody, reqEditors ...RequestEditorFn) (*DeliverChatResult, error)
 
-	// ReadCiCampaignWithResponse A certification campaign with every CI asked
+	// ReadCiCampaignWithResponse A certification campaign with every object asked
 	//
-	// Its score and each CI's verdict, who gave it and when. Needs READ on the hub.
+	// Its score and each object's verdict, who gave it and when. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /ci-campaigns/{campaignId} (the `ReadCiCampaign` operationId).
 	ReadCiCampaignWithResponse(ctx context.Context, campaignId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReadCiCampaignResult, error)
 
-	// AttestCiWithBodyWithResponse Answer a campaign's question about a configuration item
+	// AttestCiWithBodyWithResponse Answer a campaign's question about an object
 	//
-	// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+	// CONFIRMED moves the object's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PUT /ci-campaigns/{campaignId}/cis/{ciId} (the `AttestCi` operationId).
 	AttestCiWithBodyWithResponse(ctx context.Context, campaignId openapi_types.UUID, ciId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AttestCiResult, error)
 
-	// AttestCiWithResponse Answer a campaign's question about a configuration item
+	// AttestCiWithResponse Answer a campaign's question about an object
 	//
-	// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+	// CONFIRMED moves the object's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -111518,9 +117533,18 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /ci-campaigns/{campaignId}:close (the `CloseCiCampaign` operationId).
 	CloseCiCampaignWithResponse(ctx context.Context, campaignId openapi_types.UUID, params *CloseCiCampaignParams, reqEditors ...RequestEditorFn) (*CloseCiCampaignResult, error)
 
+	// RemindCiCampaignWithResponse Remind the owners who have not answered yet
+	//
+	// Tells each owning person of a still pending object once per call, naming how many of their objects wait. Refused `cmdb.nobody_to_remind` when no pending object has an owning person, and `cmdb.campaign_closed` on a closed campaign. Needs WRITE_ITEMS on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /ci-campaigns/{campaignId}:remind (the `RemindCiCampaign` operationId).
+	RemindCiCampaignWithResponse(ctx context.Context, campaignId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RemindCiCampaignResult, error)
+
 	// ResolveCiDuplicateWithBodyWithResponse Merge a duplicate or call it distinct
 	//
-	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the objects are recorded as distinct. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -111529,14 +117553,14 @@ type ClientWithResponsesInterface interface {
 
 	// ResolveCiDuplicateWithResponse Merge a duplicate or call it distinct
 	//
-	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the objects are recorded as distinct. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /ci-duplicates/{duplicateId}:resolve (the `ResolveCiDuplicate` operationId).
 	ResolveCiDuplicateWithResponse(ctx context.Context, duplicateId openapi_types.UUID, body ResolveCiDuplicateJSONRequestBody, reqEditors ...RequestEditorFn) (*ResolveCiDuplicateResult, error)
 
-	// ListCiGroupMembersWithResponse The configuration items a group holds now
+	// ListCiGroupMembersWithResponse The objects a group holds now
 	//
 	// Needs READ on the hub.
 	//
@@ -111554,18 +117578,18 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /ci-holds/{holdId}:dismiss (the `DismissCiHold` operationId).
 	DismissCiHoldWithResponse(ctx context.Context, holdId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DismissCiHoldResult, error)
 
-	// RelateCisWithBodyWithResponse Join two configuration items
+	// RelateCisWithBodyWithResponse Join two objects
 	//
-	// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+	// By a relation type, read from the source; the type's object type pairs decide whether it may join them. Both objects are in one hub. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /ci-relations (the `RelateCis` operationId).
 	RelateCisWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RelateCisResult, error)
 
-	// RelateCisWithResponse Join two configuration items
+	// RelateCisWithResponse Join two objects
 	//
-	// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+	// By a relation type, read from the source; the type's object type pairs decide whether it may join them. Both objects are in one hub. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -111583,14 +117607,14 @@ type ClientWithResponsesInterface interface {
 
 	// ReadCiRunWithResponse One reconciliation run with its decisions
 	//
-	// Every item's outcome, CI, matching rule and the attributes taken or kept, by name. Needs READ on the hub.
+	// Every item's outcome, object, matching rule and the attributes taken or kept, by name. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /ci-runs/{runId} (the `ReadCiRun` operationId).
 	ReadCiRunWithResponse(ctx context.Context, runId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReadCiRunResult, error)
 
-	// ReadCiWithResponse Read a configuration item
+	// ReadCiWithResponse Read an object
 	//
 	// With its relations both ways and the protection need it inherits from everything that suffers when it fails. Needs READ on the hub.
 	//
@@ -111599,34 +117623,34 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /cis/{ciId} (the `ReadCi` operationId).
 	ReadCiWithResponse(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReadCiResult, error)
 
-	// UpdateCiWithBodyWithResponse Change a configuration item by hand
+	// UpdateCiWithBodyWithResponse Change an object by hand
 	//
-	// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+	// Its name, attributes (null clears one) or a more specific object type, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PATCH /cis/{ciId} (the `UpdateCi` operationId).
 	UpdateCiWithBodyWithResponse(ctx context.Context, ciId openapi_types.UUID, params *UpdateCiParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateCiResult, error)
 
-	// UpdateCiWithResponse Change a configuration item by hand
+	// UpdateCiWithResponse Change an object by hand
 	//
-	// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+	// Its name, attributes (null clears one) or a more specific object type, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PATCH /cis/{ciId} (the `UpdateCi` operationId).
 	UpdateCiWithResponse(ctx context.Context, ciId openapi_types.UUID, params *UpdateCiParams, body UpdateCiJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateCiResult, error)
 
-	// ReadCiAssetWithResponse A configuration item's asset record
+	// ReadCiAssetWithResponse An object's register record
 	//
-	// Not found when it has none. Needs READ on the hub.
+	// With the steps of its life, oldest first. Not found when it has none. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /cis/{ciId}/asset (the `ReadCiAsset` operationId).
 	ReadCiAssetWithResponse(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReadCiAssetResult, error)
 
-	// RegisterCiAssetWithBodyWithResponse Write a configuration item's asset record
+	// RegisterCiAssetWithBodyWithResponse Write an object's register record
 	//
 	// Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 	//
@@ -111635,7 +117659,7 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /cis/{ciId}/asset (the `RegisterCiAsset` operationId).
 	RegisterCiAssetWithBodyWithResponse(ctx context.Context, ciId openapi_types.UUID, params *RegisterCiAssetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RegisterCiAssetResult, error)
 
-	// RegisterCiAssetWithResponse Write a configuration item's asset record
+	// RegisterCiAssetWithResponse Write an object's register record
 	//
 	// Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 	//
@@ -111644,25 +117668,52 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /cis/{ciId}/asset (the `RegisterCiAsset` operationId).
 	RegisterCiAssetWithResponse(ctx context.Context, ciId openapi_types.UUID, params *RegisterCiAssetParams, body RegisterCiAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*RegisterCiAssetResult, error)
 
-	// MoveCiAssetWithBodyWithResponse Move an asset through its life
+	// MoveCiAssetWithBodyWithResponse Move a register record through its life
 	//
-	// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+	// The object's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed object moves no more. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /cis/{ciId}/asset:move (the `MoveCiAsset` operationId).
 	MoveCiAssetWithBodyWithResponse(ctx context.Context, ciId openapi_types.UUID, params *MoveCiAssetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MoveCiAssetResult, error)
 
-	// MoveCiAssetWithResponse Move an asset through its life
+	// MoveCiAssetWithResponse Move a register record through its life
 	//
-	// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+	// The object's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed object moves no more. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /cis/{ciId}/asset:move (the `MoveCiAsset` operationId).
 	MoveCiAssetWithResponse(ctx context.Context, ciId openapi_types.UUID, params *MoveCiAssetParams, body MoveCiAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*MoveCiAssetResult, error)
 
-	// ListCiBacklinksWithResponse What points at a configuration item
+	// ListCiAttachmentsWithResponse An object's files
+	//
+	// The object's files as media objects, oldest upload first, without a download target per row - one is read for one file. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /cis/{ciId}/attachments (the `ListCiAttachments` operationId).
+	ListCiAttachmentsWithResponse(ctx context.Context, ciId openapi_types.UUID, params *ListCiAttachmentsParams, reqEditors ...RequestEditorFn) (*ListCiAttachmentsResult, error)
+
+	// DetachCiMediaWithResponse Take a file off an object
+	//
+	// Idempotent: an object that does not hold it succeeds. The media object itself stays; once nothing references it, the reconciliation job removes it. Needs WRITE_ITEMS on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /cis/{ciId}/attachments/{mediaId} (the `DetachCiMedia` operationId).
+	DetachCiMediaWithResponse(ctx context.Context, ciId openapi_types.UUID, mediaId MediaId, reqEditors ...RequestEditorFn) (*DetachCiMediaResult, error)
+
+	// AttachCiMediaWithResponse Put a file on an object
+	//
+	// Idempotent: an object that already holds it succeeds. The media object has to be READY, of usage ATTACHMENT and of this workspace; it is one the caller uploaded or one an object of a hub they read already holds. Attaching raises the object's reference count; the bytes are shared, never copied. At most 500 files an object (`cmdb.files_full`, 409). Needs WRITE_ITEMS on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /cis/{ciId}/attachments/{mediaId} (the `AttachCiMedia` operationId).
+	AttachCiMediaWithResponse(ctx context.Context, ciId openapi_types.UUID, mediaId MediaId, reqEditors ...RequestEditorFn) (*AttachCiMediaResult, error)
+
+	// ListCiBacklinksWithResponse What points at an object
 	//
 	// The pages, entries' notes and comments and whiteboards that mention it, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
 	//
@@ -111671,7 +117722,7 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /cis/{ciId}/backlinks (the `ListCiBacklinks` operationId).
 	ListCiBacklinksWithResponse(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListCiBacklinksResult, error)
 
-	// SetCiComplianceWithBodyWithResponse Set a configuration item's lifecycle and compliance fields
+	// SetCiComplianceWithBodyWithResponse Set an object's lifecycle and compliance fields
 	//
 	// Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 	//
@@ -111680,7 +117731,7 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /cis/{ciId}/compliance (the `SetCiCompliance` operationId).
 	SetCiComplianceWithBodyWithResponse(ctx context.Context, ciId openapi_types.UUID, params *SetCiComplianceParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetCiComplianceResult, error)
 
-	// SetCiComplianceWithResponse Set a configuration item's lifecycle and compliance fields
+	// SetCiComplianceWithResponse Set an object's lifecycle and compliance fields
 	//
 	// Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 	//
@@ -111689,7 +117740,16 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /cis/{ciId}/compliance (the `SetCiCompliance` operationId).
 	SetCiComplianceWithResponse(ctx context.Context, ciId openapi_types.UUID, params *SetCiComplianceParams, body SetCiComplianceJSONRequestBody, reqEditors ...RequestEditorFn) (*SetCiComplianceResult, error)
 
-	// ReadCiImpactWithResponse What a configuration item's failure reaches
+	// ListCiHistoryWithResponse An object's history
+	//
+	// The object's own history, newest first: who did what, and when - made, changed by hand or by a source, its stage, owner, location or protection need changed, related and unrelated, confirmed and attested, registered and moved, files put on and taken off. It is the product's record and not the audit trail: readable by whoever reads the hub, deleted with the object. Each step carries a message code the client renders. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /cis/{ciId}/history (the `ListCiHistory` operationId).
+	ListCiHistoryWithResponse(ctx context.Context, ciId openapi_types.UUID, params *ListCiHistoryParams, reqEditors ...RequestEditorFn) (*ListCiHistoryResult, error)
+
+	// ReadCiImpactWithResponse What an object's failure reaches
 	//
 	// DOWNSTREAM, everything that suffers when it fails, with the services among them; UPSTREAM, everything whose failure it suffers. Needs READ on the hub.
 	//
@@ -111697,6 +117757,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /cis/{ciId}/impact (the `ReadCiImpact` operationId).
 	ReadCiImpactWithResponse(ctx context.Context, ciId openapi_types.UUID, params *ReadCiImpactParams, reqEditors ...RequestEditorFn) (*ReadCiImpactResult, error)
+
+	// ListCiWorkWithResponse The entries an object is part of
+	//
+	// Every entry - a ticket, a change, a task - that names the object as affected, or names an object beneath it, one whose failure it suffers up to eight steps, each once: open ones first, then at most twenty completed ones. Only entries the reader may see, never archived ones. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /cis/{ciId}/work (the `ListCiWork` operationId).
+	ListCiWorkWithResponse(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListCiWorkResult, error)
+
+	// ConfirmCiWithBodyWithResponse Confirm an object is as recorded
+	//
+	// Its next review moves review_months on from today (12 when not given), and the object records who confirmed it and when. A pending question of an open campaign about it is answered CONFIRMED at the same time. The owning person confirms with READ on the hub, anybody else with WRITE_ITEMS.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /cis/{ciId}:confirm (the `ConfirmCi` operationId).
+	ConfirmCiWithBodyWithResponse(ctx context.Context, ciId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfirmCiResult, error)
+
+	// ConfirmCiWithResponse Confirm an object is as recorded
+	//
+	// Its next review moves review_months on from today (12 when not given), and the object records who confirmed it and when. A pending question of an open campaign about it is answered CONFIRMED at the same time. The owning person confirms with READ on the hub, anybody else with WRITE_ITEMS.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /cis/{ciId}:confirm (the `ConfirmCi` operationId).
+	ConfirmCiWithResponse(ctx context.Context, ciId openapi_types.UUID, body ConfirmCiJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfirmCiResult, error)
 
 	// SetCiConnectorCredentialWithBodyWithResponse Set a connector's credential
 	//
@@ -111736,7 +117823,7 @@ type ClientWithResponsesInterface interface {
 
 	// DeliverCiAlertsWithBodyWithResponse Post alerts to an intake
 	//
-	// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+	// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the object its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
 	// Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -111746,7 +117833,7 @@ type ClientWithResponsesInterface interface {
 
 	// DeliverCiAlertsWithResponse Post alerts to an intake
 	//
-	// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+	// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the object its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
 	// Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -111754,27 +117841,27 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /cmdb/alert-intake/{tenantId}/{connectorId} (the `DeliverCiAlerts` operationId).
 	DeliverCiAlertsWithResponse(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiAlertsParams, body DeliverCiAlertsJSONRequestBody, reqEditors ...RequestEditorFn) (*DeliverCiAlertsResult, error)
 
-	// ListCiClassesWithResponse The configuration item classes
+	// ListCiClassesWithResponse The object types
 	//
-	// The class hierarchy Hubtask ships and the workspace's own classes beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations a CI of it needs. Needs READ in the workspace and the assets module switched on.
+	// The object type hierarchy Hubtask ships and the workspace's own object types beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations an object of it needs. Needs READ in the workspace and the inventory module switched on.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /cmdb/classes (the `ListCiClasses` operationId).
 	ListCiClassesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListCiClassesResult, error)
 
-	// DefineCiClassWithBodyWithResponse Add or change a class of the workspace's own
+	// DefineCiClassWithBodyWithResponse Add or change an object type of the workspace's own
 	//
-	// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+	// Adds an object type beneath a shipped or an own object type, or changes an own object type. A shipped object type is not changed. Needs STRUCTURE in the workspace.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PUT /cmdb/classes/{classKey} (the `DefineCiClass` operationId).
 	DefineCiClassWithBodyWithResponse(ctx context.Context, classKey string, params *DefineCiClassParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineCiClassResult, error)
 
-	// DefineCiClassWithResponse Add or change a class of the workspace's own
+	// DefineCiClassWithResponse Add or change an object type of the workspace's own
 	//
-	// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+	// Adds an object type beneath a shipped or an own object type, or changes an own object type. A shipped object type is not changed. Needs STRUCTURE in the workspace.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -111799,9 +117886,9 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /cmdb/inventory-intake/{tenantId}/{connectorId} (the `DeliverCiInventory` operationId).
 	DeliverCiInventoryWithResponse(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiInventoryParams, body DeliverCiInventoryJSONRequestBody, reqEditors ...RequestEditorFn) (*DeliverCiInventoryResult, error)
 
-	// ListCiRelationTypesWithResponse The relation types between configuration items
+	// ListCiRelationTypesWithResponse The relation types between objects
 	//
-	// The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the class pairs it may join.
+	// The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the object type pairs it may join.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -111810,7 +117897,7 @@ type ClientWithResponsesInterface interface {
 
 	// DefineCiRelationTypeWithBodyWithResponse Add or change a relation type of the workspace's own
 	//
-	// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+	// Its words both ways, its impact (which end suffers when the other fails) and the object type pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -111819,14 +117906,14 @@ type ClientWithResponsesInterface interface {
 
 	// DefineCiRelationTypeWithResponse Add or change a relation type of the workspace's own
 	//
-	// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+	// Its words both ways, its impact (which end suffers when the other fails) and the object type pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PUT /cmdb/relation-types/{typeKey} (the `DefineCiRelationType` operationId).
 	DefineCiRelationTypeWithResponse(ctx context.Context, typeKey string, params *DefineCiRelationTypeParams, body DefineCiRelationTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineCiRelationTypeResult, error)
 
-	// ListCiSourcesWithResponse The sources configuration items come from
+	// ListCiSourcesWithResponse The sources objects come from
 	//
 	// People (`manual`), files, programs and connectors by precedence, a lower rank first.
 	//
@@ -111837,7 +117924,7 @@ type ClientWithResponsesInterface interface {
 
 	// DefineCiSourceWithBodyWithResponse Add or change a source
 	//
-	// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+	// Its kind, rank, the object types it may write, whether it may make new objects and a file source's mapping. Needs STRUCTURE in the workspace.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -111846,7 +117933,7 @@ type ClientWithResponsesInterface interface {
 
 	// DefineCiSourceWithResponse Add or change a source
 	//
-	// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+	// Its kind, rank, the object types it may write, whether it may make new objects and a file source's mapping. Needs STRUCTURE in the workspace.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -112319,6 +118406,64 @@ type ClientWithResponsesInterface interface {
 	// Changes a container's own descriptive fields. A field that is not sent is left alone; sending description, icon or color_token as null clears it. The name stays unique among the containers at the same level. The policies are not here - they are their own sub-resource, so that a rename and a change of the way a collection works are two operations with two audit entries.
 	RenameContainerWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, containerId ContainerId, params *RenameContainerParams, body RenameContainerApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*RenameContainerResult, error)
 
+	// SwitchBoardWithBodyWithResponse Show a collection's tasks as a board, or as a list again
+	//
+	// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
+	// language), the completed entries in the done one and the open ones in the other. `NONE`
+	// takes the columns off again, the done column last; completion stays as it is. Refused with
+	// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
+	// where the collection already stands there. `dry_run` counts and writes nothing. Needs
+	// STRUCTURE where the collection is.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /containers/{containerId}/board:switch (the `SwitchBoard` operationId).
+	SwitchBoardWithBodyWithResponse(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SwitchBoardResult, error)
+
+	// SwitchBoardWithResponse Show a collection's tasks as a board, or as a list again
+	//
+	// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
+	// language), the completed entries in the done one and the open ones in the other. `NONE`
+	// takes the columns off again, the done column last; completion stays as it is. Refused with
+	// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
+	// where the collection already stands there. `dry_run` counts and writes nothing. Needs
+	// STRUCTURE where the collection is.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /containers/{containerId}/board:switch (the `SwitchBoard` operationId).
+	SwitchBoardWithResponse(ctx context.Context, containerId ContainerId, body SwitchBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*SwitchBoardResult, error)
+
+	// MakeBoardWorkflowWithBodyWithResponse Make a workflow from a board's columns
+	//
+	// A workflow of the collection's hub with one status per column - the first column's the
+	// initial status, the done column's done, the rest in progress, every step free -, run for
+	// the collection's tasks with each column showing its own status; every entry takes the
+	// status of the column it stands in. One transaction. Refused with `board.no_columns`
+	// without columns and `board.workflow_runs` where a workflow already runs for tasks.
+	// `dry_run` answers the statuses and counts and writes nothing. Needs STRUCTURE where the
+	// collection is and at its hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /containers/{containerId}/board:workflow (the `MakeBoardWorkflow` operationId).
+	MakeBoardWorkflowWithBodyWithResponse(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MakeBoardWorkflowResult, error)
+
+	// MakeBoardWorkflowWithResponse Make a workflow from a board's columns
+	//
+	// A workflow of the collection's hub with one status per column - the first column's the
+	// initial status, the done column's done, the rest in progress, every step free -, run for
+	// the collection's tasks with each column showing its own status; every entry takes the
+	// status of the column it stands in. One transaction. Refused with `board.no_columns`
+	// without columns and `board.workflow_runs` where a workflow already runs for tasks.
+	// `dry_run` answers the statuses and counts and writes nothing. Needs STRUCTURE where the
+	// collection is and at its hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /containers/{containerId}/board:workflow (the `MakeBoardWorkflow` operationId).
+	MakeBoardWorkflowWithResponse(ctx context.Context, containerId ContainerId, body MakeBoardWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*MakeBoardWorkflowResult, error)
+
 	// ListBucketsWithResponse performs a GET /containers/{containerId}/buckets (the `ListBuckets` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -112336,7 +118481,7 @@ type ClientWithResponsesInterface interface {
 
 	// DeleteBucketWithResponse performs a DELETE /containers/{containerId}/buckets/{bucketId} (the `DeleteBucket` operationId) request.
 	//
-	// Takes the column off the board. Its entries are not deleted with it: they move to the leftmost remaining column, or out of any column when this was the last one. What became of them is in the answer rather than left to be discovered.
+	// Takes the column off the board. Its entries are not deleted with it: they move to the leftmost remaining column, or out of any column when this was the last one. What became of them is in the answer rather than left to be discovered. The done column of a board without a workflow is deleted only with `new_done_bucket_id`, the column that means done instead: without it, where other columns are left, the deletion is refused with `buckets.done_successor_required`, the suggested column in its `suggested_bucket_id`.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	DeleteBucketWithResponse(ctx context.Context, containerId ContainerId, bucketId BucketId, params *DeleteBucketParams, reqEditors ...RequestEditorFn) (*DeleteBucketResult, error)
@@ -112903,6 +119048,33 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /dashboards/{dashboardId}/figures (the `ReadDashboardFigures` operationId).
 	ReadDashboardFiguresWithResponse(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*ReadDashboardFiguresResult, error)
 
+	// DraftDashboardFiguresWithBodyWithResponse A dashboard's numbers for a definition not saved yet
+	//
+	// Computes widgets and a filter as they are being edited, exactly as GET /dashboards/{dashboardId}/figures computes the saved ones, as the caller: the same checks as a save, nothing stored. Only a dashboard the caller sees; its name and sharing stay as they are.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /dashboards/{dashboardId}/figures:draft (the `DraftDashboardFigures` operationId).
+	DraftDashboardFiguresWithBodyWithResponse(ctx context.Context, dashboardId DashboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DraftDashboardFiguresResult, error)
+
+	// DraftDashboardFiguresWithResponse A dashboard's numbers for a definition not saved yet
+	//
+	// Computes widgets and a filter as they are being edited, exactly as GET /dashboards/{dashboardId}/figures computes the saved ones, as the caller: the same checks as a save, nothing stored. Only a dashboard the caller sees; its name and sharing stay as they are.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /dashboards/{dashboardId}/figures:draft (the `DraftDashboardFigures` operationId).
+	DraftDashboardFiguresWithResponse(ctx context.Context, dashboardId DashboardId, body DraftDashboardFiguresJSONRequestBody, reqEditors ...RequestEditorFn) (*DraftDashboardFiguresResult, error)
+
+	// ReadMyDeadlinesKeptWithResponse How many of the deadlines on my own tickets I kept
+	//
+	// For the signed-in person, over the entries assigned to them: the deadlines that ended in the window - met or breached -, per kind - the requester's goals (first response, next response, resolution) and each team's OLA by its group and goal - with how many were kept. Never another person's; no report permission needed. The window ends now and reaches back `days` days, 30 when left out.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /deadlines-kept (the `ReadMyDeadlinesKept` operationId).
+	ReadMyDeadlinesKeptWithResponse(ctx context.Context, params *ReadMyDeadlinesKeptParams, reqEditors ...RequestEditorFn) (*ReadMyDeadlinesKeptResult, error)
+
 	// RemoveLdapDirectoryWithResponse Stop synchronising from the LDAP directory
 	//
 	// The configuration and its sealed password go and no run follows. The people and groups it provisioned stay as they are, with their roles. Needs a fresh step-up. Auditable.
@@ -113166,6 +119338,33 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /goal-periods/{periodId}:close (the `CloseGoalPeriod` operationId).
 	CloseGoalPeriodWithResponse(ctx context.Context, periodId openapi_types.UUID, params *CloseGoalPeriodParams, body CloseGoalPeriodJSONRequestBody, reqEditors ...RequestEditorFn) (*CloseGoalPeriodResult, error)
 
+	// ListGoalSetsWithResponse The goal periods a template brought
+	//
+	// The goal periods a template brought to the workspace - a quarter's objectives with their key results, or a period alone - marked under their key. Needs STRUCTURE or READ_CONFIGURATION at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /goal-sets (the `ListGoalSets` operationId).
+	ListGoalSetsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListGoalSetsResult, error)
+
+	// AddGoalSetWithBodyWithResponse Add a template's goal set
+	//
+	// Opens a goal period with the workspace's goals and their key results in one write, marked under its key, as the workspace's configuration document does for a template's goal sets. A key the workspace already marks is refused (`config.goal_set_taken`). Needs STRUCTURE at the workspace and what opening the period and writing each goal needs.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /goal-sets (the `AddGoalSet` operationId).
+	AddGoalSetWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddGoalSetResult, error)
+
+	// AddGoalSetWithResponse Add a template's goal set
+	//
+	// Opens a goal period with the workspace's goals and their key results in one write, marked under its key, as the workspace's configuration document does for a template's goal sets. A key the workspace already marks is refused (`config.goal_set_taken`). Needs STRUCTURE at the workspace and what opening the period and writing each goal needs.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /goal-sets (the `AddGoalSet` operationId).
+	AddGoalSetWithResponse(ctx context.Context, body AddGoalSetJSONRequestBody, reqEditors ...RequestEditorFn) (*AddGoalSetResult, error)
+
 	// ListGoalsWithResponse The goals the caller may read
 	//
 	// The workspace's goals and those of the hubs the caller reads, narrowed by period, hub, owner or parent; each with its key results and its progress as the caller sees it - the mean of its key results, its goals below and the share of its linked entries completed. The alignment tree is drawn from `parent_id`.
@@ -113358,9 +119557,9 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /groups/{groupId} (the `UpdateGroup` operationId).
 	UpdateGroupWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, groupId GroupId, params *UpdateGroupParams, body UpdateGroupApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateGroupResult, error)
 
-	// ListCiAssetsWithResponse A hub's asset register
+	// ListCiAssetsWithResponse A hub's register records
 	//
-	// In CI order after a cursor, narrowed to a state when given. Needs READ on the hub.
+	// In object order after a cursor, narrowed to a state when given. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -113432,7 +119631,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListCiAlertsWithResponse A hub's alerts
 	//
-	// The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the CI its host names and the entry opened for it. Needs READ on the hub.
+	// The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the object its host names and the entry opened for it. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -113448,18 +119647,18 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /hubs/{hubId}/ci-campaigns (the `ListCiCampaigns` operationId).
 	ListCiCampaignsWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCiCampaignsParams, reqEditors ...RequestEditorFn) (*ListCiCampaignsResult, error)
 
-	// StartCiCampaignWithBodyWithResponse Ask the owners of a hub's CIs to attest them
+	// StartCiCampaignWithBodyWithResponse Ask the owners of a hub's objects to attest them
 	//
-	// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+	// Every active object of the object types named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /hubs/{hubId}/ci-campaigns (the `StartCiCampaign` operationId).
 	StartCiCampaignWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartCiCampaignResult, error)
 
-	// StartCiCampaignWithResponse Ask the owners of a hub's CIs to attest them
+	// StartCiCampaignWithResponse Ask the owners of a hub's objects to attest them
 	//
-	// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+	// Every active object of the object types named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -113468,34 +119667,43 @@ type ClientWithResponsesInterface interface {
 
 	// ListCiDuplicatesWithResponse Open duplicates
 	//
-	// Sets of CIs one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
+	// Sets of objects one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /hubs/{hubId}/ci-duplicates (the `ListCiDuplicates` operationId).
 	ListCiDuplicatesWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCiDuplicatesParams, reqEditors ...RequestEditorFn) (*ListCiDuplicatesResult, error)
 
-	// ListCiGroupsWithResponse A hub's CI groups
+	// ListCiGroupsWithResponse A hub's object groups
 	//
-	// Each with how many CIs it holds now. Needs READ on the hub.
+	// Each with how many objects it holds now. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /hubs/{hubId}/ci-groups (the `ListCiGroups` operationId).
 	ListCiGroupsWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListCiGroupsResult, error)
 
-	// DefineCiGroupWithBodyWithResponse Define or change a CI group by its key
+	// DeleteCiGroupWithResponse Delete an object group by its key
 	//
-	// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+	// The group is gone; the objects it held are unchanged. Needs WRITE_ITEMS on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /hubs/{hubId}/ci-groups/{groupKey} (the `DeleteCiGroup` operationId).
+	DeleteCiGroupWithResponse(ctx context.Context, hubId openapi_types.UUID, groupKey string, params *DeleteCiGroupParams, reqEditors ...RequestEditorFn) (*DeleteCiGroupResult, error)
+
+	// DefineCiGroupWithBodyWithResponse Define or change an object group by its key
+	//
+	// A name and a filter on object types, stages, a text the name holds and attribute values; at least one. A group naming a service object is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PUT /hubs/{hubId}/ci-groups/{groupKey} (the `DefineCiGroup` operationId).
 	DefineCiGroupWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, groupKey string, params *DefineCiGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineCiGroupResult, error)
 
-	// DefineCiGroupWithResponse Define or change a CI group by its key
+	// DefineCiGroupWithResponse Define or change an object group by its key
 	//
-	// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+	// A name and a filter on object types, stages, a text the name holds and attribute values; at least one. A group naming a service object is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -113504,7 +119712,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListCiHoldsWithResponse Items held for review
 	//
-	// What the reconciliation held instead of making a CI, newest first. Needs READ on the hub.
+	// What the reconciliation held instead of making an object, newest first. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -113520,34 +119728,43 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /hubs/{hubId}/ci-runs (the `ListCiRuns` operationId).
 	ListCiRunsWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCiRunsParams, reqEditors ...RequestEditorFn) (*ListCiRunsResult, error)
 
-	// ListCisWithResponse A hub's configuration items
+	// ListHubCiWorkWithResponse How many open entries name each object of a hub
 	//
-	// A page of the hub's CIs in a stable order, narrowed to a class and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.
+	// For each object of the hub, the open, unarchived entries the reader may see that name it as affected; objects with none are left out. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/ci-work (the `ListHubCiWork` operationId).
+	ListHubCiWorkWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListHubCiWorkResult, error)
+
+	// ListCisWithResponse A hub's objects
+	//
+	// A page of the hub's objects in a stable order, narrowed to an object type and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /hubs/{hubId}/cis (the `ListCis` operationId).
 	ListCisWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCisParams, reqEditors ...RequestEditorFn) (*ListCisResult, error)
 
-	// CreateCiWithBodyWithResponse Make a configuration item by hand
+	// CreateCiWithBodyWithResponse Make an object by hand
 	//
-	// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+	// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds an object its identifiers name, nothing is made and the problem names that object (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /hubs/{hubId}/cis (the `CreateCi` operationId).
 	CreateCiWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateCiResult, error)
 
-	// CreateCiWithResponse Make a configuration item by hand
+	// CreateCiWithResponse Make an object by hand
 	//
-	// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+	// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds an object its identifiers name, nothing is made and the problem names that object (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /hubs/{hubId}/cis (the `CreateCi` operationId).
 	CreateCiWithResponse(ctx context.Context, hubId openapi_types.UUID, body CreateCiJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateCiResult, error)
 
-	// ImportCiFileWithBodyWithResponse Import a file of configuration items
+	// ImportCiFileWithBodyWithResponse Import a file of objects
 	//
 	// A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 	//
@@ -113556,7 +119773,7 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /hubs/{hubId}/cis:import (the `ImportCiFile` operationId).
 	ImportCiFileWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ImportCiFileResult, error)
 
-	// ImportCiFileWithResponse Import a file of configuration items
+	// ImportCiFileWithResponse Import a file of objects
 	//
 	// A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 	//
@@ -113567,7 +119784,7 @@ type ClientWithResponsesInterface interface {
 
 	// ReconcileCisWithBodyWithResponse Reconcile a source's payload
 	//
-	// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+	// Each item is identified - by the source's own key, then by its object type's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -113576,7 +119793,7 @@ type ClientWithResponsesInterface interface {
 
 	// ReconcileCisWithResponse Reconcile a source's payload
 	//
-	// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+	// Each item is identified - by the source's own key, then by its object type's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -113585,7 +119802,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListCiConnectorsWithResponse A hub's connectors
 	//
-	// The programs the hub's configuration items are pulled from and the monitoring programs that post alerts to it, with the source each writes as, the hosts it may reach, its period, whether a credential is set - never the credential - and how its last run ended. Needs READ on the hub.
+	// The programs the hub's objects are pulled from and the monitoring programs that post alerts to it, with the source each writes as, the hosts it may reach, its period, whether a credential is set - never the credential - and how its last run ended. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -113612,7 +119829,7 @@ type ClientWithResponsesInterface interface {
 
 	// ReadCmdbHealthWithResponse A hub's inventory judged
 	//
-	// Completeness, correctness (stale, orphaned, duplicate), CIs without an owner and reviews overdue, per class and in all, with the CIs found wanting. Needs READ on the hub.
+	// Completeness, correctness (stale, orphaned, duplicate), objects without an owner and reviews overdue, per object type and in all, with the objects found wanting. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -113709,9 +119926,54 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /hubs/{hubId}/pages (the `CreatePage` operationId).
 	CreatePageWithResponse(ctx context.Context, hubId openapi_types.UUID, body CreatePageJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePageResult, error)
 
+	// ListHubPostsWithResponse A hub's posts
+	//
+	// The hub's posts the caller sees, featured ones first, then newest first: published ones for their audience, drafts and scheduled ones for the hub's writers only. `filter` narrows to the unread ones, the caller's own, or the scheduled ones. A post never reaches anybody who may not read its hub. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/posts (the `ListHubPosts` operationId).
+	ListHubPostsWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListHubPostsParams, reqEditors ...RequestEditorFn) (*ListHubPostsResult, error)
+
+	// CreatePostWithBodyWithResponse Write a new post
+	//
+	// Writes a post in the hub: a page with a date, started from one of the post templates or empty, published now (`publish_at` now or earlier), scheduled (`publish_at` ahead) or kept as a draft (no `publish_at`). Its audience is the hub's readers or those of them in the groups named. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/posts (the `CreatePost` operationId).
+	CreatePostWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreatePostResult, error)
+
+	// CreatePostWithResponse Write a new post
+	//
+	// Writes a post in the hub: a page with a date, started from one of the post templates or empty, published now (`publish_at` now or earlier), scheduled (`publish_at` ahead) or kept as a draft (no `publish_at`). Its audience is the hub's readers or those of them in the groups named. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/posts (the `CreatePost` operationId).
+	CreatePostWithResponse(ctx context.Context, hubId openapi_types.UUID, body CreatePostJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePostResult, error)
+
+	// FollowHubPostsWithBodyWithResponse Follow a hub's posts
+	//
+	// Follows the hub's posts, or stops. A follower is told when a post that asks for it goes out - only one that is for them; a post never reaches anybody beyond its audience. Only a person follows: an agent or a service account is refused `posts.person_follows`. Needs READ on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /hubs/{hubId}/posts/following (the `FollowHubPosts` operationId).
+	FollowHubPostsWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*FollowHubPostsResult, error)
+
+	// FollowHubPostsWithResponse Follow a hub's posts
+	//
+	// Follows the hub's posts, or stops. A follower is told when a post that asks for it goes out - only one that is for them; a post never reaches anybody beyond its audience. Only a person follows: an agent or a service account is refused `posts.person_follows`. Needs READ on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /hubs/{hubId}/posts/following (the `FollowHubPosts` operationId).
+	FollowHubPostsWithResponse(ctx context.Context, hubId openapi_types.UUID, body FollowHubPostsJSONRequestBody, reqEditors ...RequestEditorFn) (*FollowHubPostsResult, error)
+
 	// ListHubQueuesWithResponse A hub's queues with their counts
 	//
-	// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
+	// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. `desks` names the hub's desks either way. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -113720,7 +119982,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListReleasesWithResponse A hub's releases
 	//
-	// The hub's releases, the latest day first, at most 200. Needs READ at the hub.
+	// The hub's releases, the latest day first, at most 200, each with how many of its entries the reader may see are done and open. Needs READ at the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -113792,7 +120054,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListSoftwareProductsWithResponse A hub's software, normalised
 	//
-	// Its software CIs grouped by the product an alias names or by their folded names, with their versions and installations. Needs READ on the hub.
+	// Its software objects grouped by the product an alias names or by their folded names, with their versions and installations. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -114464,16 +120726,16 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	AttachMediaWithResponse(ctx context.Context, itemId ItemId, mediaId MediaId, reqEditors ...RequestEditorFn) (*AttachMediaResult, error)
 
-	// ListEntryCisWithResponse The configuration items an entry names as affected
+	// ListEntryCisWithResponse The objects an entry names as affected
 	//
-	// Those the reader may read, the active services and offerings their failure reaches, the other open entries naming them or a CI they reach, and the entries planned on them in a window overlapping the entry's start and due. Needs READ on the entry.
+	// Those the reader may read, the active services and offerings their failure reaches, the other open entries naming them or an object they reach, and the entries planned on them in a window overlapping the entry's start and due. Needs READ on the entry.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /items/{itemId}/cis (the `ListEntryCis` operationId).
 	ListEntryCisWithResponse(ctx context.Context, itemId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListEntryCisResult, error)
 
-	// UnaffectEntryCiWithResponse Remove a configuration item from an entry's affected ones
+	// UnaffectEntryCiWithResponse Remove an object from an entry's affected ones
 	//
 	// Needs WRITE_ITEMS on the entry.
 	//
@@ -114482,9 +120744,9 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with DELETE /items/{itemId}/cis/{ciId} (the `UnaffectEntryCi` operationId).
 	UnaffectEntryCiWithResponse(ctx context.Context, itemId openapi_types.UUID, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*UnaffectEntryCiResult, error)
 
-	// AffectEntryCiWithResponse Name a configuration item as affected by an entry
+	// AffectEntryCiWithResponse Name an object as affected by an entry
 	//
-	// At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and READ on the CI's hub.
+	// At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and READ on the object's hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -114853,7 +121115,7 @@ type ClientWithResponsesInterface interface {
 
 	// ReadEntryRequesterWithResponse Who raised the entry, and their organisation
 	//
-	// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. Also up to 20 configuration items the requester owns, by name, of the hubs where the reader may read them and assets are switched on; merged and disposed ones are left out. The address itself is not answered. Needs READ on the entry and the service desk switched on.
+	// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. Also up to 20 objects the requester owns, by name, of the hubs where the reader may read them and the inventory is switched on; merged and disposed ones are left out. The address itself is not answered. Needs READ on the entry and the service desk switched on.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -114889,7 +121151,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListEntryStepsWithResponse The entry's status and the steps the person may take
 	//
-	// The workflow the entry's collection runs for its type, the entry's status, and the steps the person may take from it, each with what it asks for, what it still needs and whether its checks hold. `workflow` is null where none runs; a reader gets no steps.
+	// The workflow the entry's collection runs for its type, the entry's status, and the steps the person may take from it, each with what it asks for, what it still needs and whether its checks hold. `workflow` is null where none runs; a reader gets no steps. Beside them the steps from the status the person may not take, each with a reason code and who may; the fewest steps into done; the workflow's picture, read-only for every reader; and whether the person may open it in the designer. Where no workflow runs the picture is the default one, every status reachable, and completing the entry reaches done.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -114962,6 +121224,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /items/{itemId}:decompose (the `SuggestDecomposition` operationId).
 	SuggestDecompositionWithResponse(ctx context.Context, itemId ItemId, params *SuggestDecompositionParams, reqEditors ...RequestEditorFn) (*SuggestDecompositionResult, error)
+
+	// DropItemOnColumnWithBodyWithResponse Drop an entry onto a board's column
+	//
+	// Drops the entry onto a column of its collection's board - `bucket_id` omitted is the column of the statuses no column shows. Without a workflow the entry moves (`MOVED`), and entering or leaving the done column completes or reopens it. Under a workflow the one step reaching the column is taken (`STEP_TAKEN`); where several do, they are answered (`CHOOSE`) and nothing is written - asked again with `step`, that step is taken; a status the entry already has is `MOVED` without a write. Refused with `board.no_columns`, `board.column_required`, `board.column_without_status`, `board.no_step` (the workflow has no such step) or `board.step_blocked` (the person may not take it), and the refusals of the column move or the step.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items/{itemId}:drop (the `DropItemOnColumn` operationId).
+	DropItemOnColumnWithBodyWithResponse(ctx context.Context, itemId ItemId, params *DropItemOnColumnParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DropItemOnColumnResult, error)
+
+	// DropItemOnColumnWithResponse Drop an entry onto a board's column
+	//
+	// Drops the entry onto a column of its collection's board - `bucket_id` omitted is the column of the statuses no column shows. Without a workflow the entry moves (`MOVED`), and entering or leaving the done column completes or reopens it. Under a workflow the one step reaching the column is taken (`STEP_TAKEN`); where several do, they are answered (`CHOOSE`) and nothing is written - asked again with `step`, that step is taken; a status the entry already has is `MOVED` without a write. Refused with `board.no_columns`, `board.column_required`, `board.column_without_status`, `board.no_step` (the workflow has no such step) or `board.step_blocked` (the person may not take it), and the refusals of the column move or the step.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items/{itemId}:drop (the `DropItemOnColumn` operationId).
+	DropItemOnColumnWithResponse(ctx context.Context, itemId ItemId, params *DropItemOnColumnParams, body DropItemOnColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*DropItemOnColumnResult, error)
 
 	// DuplicateWorkItemWithBodyWithResponse performs a POST /items/{itemId}:duplicate (the `DuplicateWorkItem` operationId) request,
 	// with any type of body and a specified content type.
@@ -115904,6 +122184,72 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	UploadMediaContentWithBodyWithResponse(ctx context.Context, mediaId MediaId, params *UploadMediaContentParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UploadMediaContentResult, error)
 
+	// StartMediaEditingWithResponse performs a POST /media/{mediaId}:edit (the `StartMediaEditing` operationId) request.
+	//
+	// Opens an office file for editing in the workspace's document server: a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry, a board or a page holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	StartMediaEditingWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*StartMediaEditingResult, error)
+
+	// ConvertMediaToPdfWithBodyWithResponse performs a POST /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file; a read by `POST`, as an export is, so that a client fetches it as a document with its bearer. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ConvertMediaToPdfWithBodyWithResponse(ctx context.Context, mediaId MediaId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConvertMediaToPdfResult, error)
+
+	// ConvertMediaToPdfWithResponse performs a POST /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file; a read by `POST`, as an export is, so that a client fetches it as a document with its bearer. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+	ConvertMediaToPdfWithResponse(ctx context.Context, mediaId MediaId, body ConvertMediaToPdfJSONRequestBody, reqEditors ...RequestEditorFn) (*ConvertMediaToPdfResult, error)
+
+	// ReadDocumentServerWithResponse The workspace's document server
+	//
+	// Where the workspace's office files are shown and edited: none, or a server's kind and its https origin. Readable by every member - the viewer asks it; set under STRUCTURE.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /media:document-server (the `ReadDocumentServer` operationId).
+	ReadDocumentServerWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadDocumentServerResult, error)
+
+	// SetDocumentServerWithBodyWithResponse Choose the workspace's document server
+	//
+	// NONE, or a kind with the server's https origin - no credentials, query or fragment. Needs STRUCTURE at the workspace; an agent never decides it.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /media:document-server (the `SetDocumentServer` operationId).
+	SetDocumentServerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetDocumentServerResult, error)
+
+	// SetDocumentServerWithResponse Choose the workspace's document server
+	//
+	// NONE, or a kind with the server's https origin - no credentials, query or fragment. Needs STRUCTURE at the workspace; an agent never decides it.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /media:document-server (the `SetDocumentServer` operationId).
+	SetDocumentServerWithResponse(ctx context.Context, body SetDocumentServerJSONRequestBody, reqEditors ...RequestEditorFn) (*SetDocumentServerResult, error)
+
+	// CheckDocumentServerWithBodyWithResponse Test a document server before choosing it
+	//
+	// Asks the server at the given https origin for its WOPI discovery, without storing anything, so the administration sees whether the workspace can reach it. Needs STRUCTURE at the workspace; an agent never asks. Refused with `media.document_server_private_network` for an address inside a private network, which this installation does not call; with `media.document_server_unreachable` where nothing answers; and with `media.document_server_no_discovery` where something answers that is not a document server.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /media:document-server-check (the `CheckDocumentServer` operationId).
+	CheckDocumentServerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CheckDocumentServerResult, error)
+
+	// CheckDocumentServerWithResponse Test a document server before choosing it
+	//
+	// Asks the server at the given https origin for its WOPI discovery, without storing anything, so the administration sees whether the workspace can reach it. Needs STRUCTURE at the workspace; an agent never asks. Refused with `media.document_server_private_network` for an address inside a private network, which this installation does not call; with `media.document_server_unreachable` where nothing answers; and with `media.document_server_no_discovery` where something answers that is not a document server.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /media:document-server-check (the `CheckDocumentServer` operationId).
+	CheckDocumentServerWithResponse(ctx context.Context, body CheckDocumentServerJSONRequestBody, reqEditors ...RequestEditorFn) (*CheckDocumentServerResult, error)
+
 	// ListMembershipsWithResponse Who holds a role at a scope
 	//
 	// The memberships granted **at** the scope named — an account or a group, a role, an
@@ -116165,7 +122511,7 @@ type ClientWithResponsesInterface interface {
 
 	// GetDataFeedEntriesWithResponse A data feed's rows
 	//
-	// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says, and other query options are not served.
+	// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says. `$filter` takes a Hubtask query in either spelling (`is: open who: me`, `is_completed = false AND due_at < @today`), which narrows the view's rows and never widens them; a sort or a kind other than entries in it is refused. Other query options are not served.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -116246,7 +122592,7 @@ type ClientWithResponsesInterface interface {
 
 	// PublishPageToPortalWithBodyWithResponse Publish a page to a service's portal
 	//
-	// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+	// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. With `with_subpages`, the page is shared as a space: every page under it reaches the same requesters, as it stands at each reading, except a page behind a restriction and everything under that. Never a page behind a restriction (`pages.article_restricted`); publishing twice the same way changes nothing, publishing again the other way changes only `with_subpages`. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -116255,7 +122601,7 @@ type ClientWithResponsesInterface interface {
 
 	// PublishPageToPortalWithResponse Publish a page to a service's portal
 	//
-	// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+	// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. With `with_subpages`, the page is shared as a space: every page under it reaches the same requesters, as it stands at each reading, except a page behind a restriction and everything under that. Never a page behind a restriction (`pages.article_restricted`); publishing twice the same way changes nothing, publishing again the other way changes only `with_subpages`. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -116306,6 +122652,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
 	AddPageCommentWithResponse(ctx context.Context, pageId PageId, body AddPageCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*AddPageCommentResult, error)
+
+	// SearchCoverImagesWithResponse Search an image library for a page's cover
+	//
+	// Whether the workspace offers an image library for covers and, with a query, up to twelve of its openly licensed pictures, each with who made it and a small preview the server fetched. Without a query or with the library switched off it asks nothing outside. Needs WRITE_ITEMS on the page's hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /pages/{pageId}/cover-images (the `SearchCoverImages` operationId).
+	SearchCoverImagesWithResponse(ctx context.Context, pageId PageId, params *SearchCoverImagesParams, reqEditors ...RequestEditorFn) (*SearchCoverImagesResult, error)
+
+	// FetchCoverImageWithResponse Fetch an image library's picture for a page's cover
+	//
+	// The picture's larger rendition, fetched by the server, with who made it: the client uploads it as the page's cover image and names its maker as the cover's credit. Refused `pages.cover_images_off` while the workspace offers no library. Needs WRITE_ITEMS on the page's hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}/cover-images/{pictureId}:fetch (the `FetchCoverImage` operationId).
+	FetchCoverImageWithResponse(ctx context.Context, pageId PageId, pictureId string, reqEditors ...RequestEditorFn) (*FetchCoverImageResult, error)
 
 	// DiscardPageDraftWithResponse Throw a page's draft away
 	//
@@ -116594,6 +122958,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /pages/{pageId}:verify (the `VerifyPage` operationId).
 	VerifyPageWithResponse(ctx context.Context, pageId PageId, body VerifyPageJSONRequestBody, reqEditors ...RequestEditorFn) (*VerifyPageResult, error)
+
+	// ReadCoverImagesPolicyWithResponse Which image library covers may take pictures from
+	//
+	// The workspace's choice of an image library offered as a cover's fourth source, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /pages:cover-images (the `ReadCoverImagesPolicy` operationId).
+	ReadCoverImagesPolicyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadCoverImagesPolicyResult, error)
+
+	// SetCoverImagesPolicyWithBodyWithResponse Offer an image library for covers, or none
+	//
+	// Off by default, since every search leaves the installation; the installation or the plan may lock it (`setting.locked`). Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /pages:cover-images (the `SetCoverImagesPolicy` operationId).
+	SetCoverImagesPolicyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetCoverImagesPolicyResult, error)
+
+	// SetCoverImagesPolicyWithResponse Offer an image library for covers, or none
+	//
+	// Off by default, since every search leaves the installation; the installation or the plan may lock it (`setting.locked`). Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /pages:cover-images (the `SetCoverImagesPolicy` operationId).
+	SetCoverImagesPolicyWithResponse(ctx context.Context, body SetCoverImagesPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetCoverImagesPolicyResult, error)
 
 	// ReadPersonalSpaceWithResponse My own notes' space
 	//
@@ -116892,6 +123283,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /plans:tolerance (the `SetWorkspaceTolerance` operationId).
 	SetWorkspaceToleranceWithResponse(ctx context.Context, body SetWorkspaceToleranceJSONRequestBody, reqEditors ...RequestEditorFn) (*SetWorkspaceToleranceResult, error)
 
+	// ListPortalKnowledgeWithResponse What a service's portal shares of the knowledge base
+	//
+	// Every article and every space published to the service's portal, each space with the pages under it a requester reads: live, never behind a restriction nor under one, never a language variant (opening a page answers it in the reader's language). At most 500 pages per space. Needs REQUEST at the collection.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /portal-knowledge (the `ListPortalKnowledge` operationId).
+	ListPortalKnowledgeWithResponse(ctx context.Context, params *ListPortalKnowledgeParams, reqEditors ...RequestEditorFn) (*ListPortalKnowledgeResult, error)
+
 	// ListPortfoliosWithResponse The portfolios
 	//
 	// By name, nested by `parent_id`, each with the projects the caller may read. Needs READ at the workspace.
@@ -117044,6 +123444,141 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PUT /portfolios:public-links (the `SetPublicRoadmapsPolicy` operationId).
 	SetPublicRoadmapsPolicyWithResponse(ctx context.Context, body SetPublicRoadmapsPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetPublicRoadmapsPolicyResult, error)
+
+	// ListUnreadPostsWithResponse The posts new for the caller
+	//
+	// The published posts the caller has not seen yet, across every hub they read, featured ones first, then newest first, at most 20. Each post is judged at its own hub as on the hub's list: a post never reaches anybody who may not read its hub or is outside its audience.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /posts (the `ListUnreadPosts` operationId).
+	ListUnreadPostsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListUnreadPostsResult, error)
+
+	// ReadPostWithResponse Read a post
+	//
+	// The post's date, audience and state, how many have seen it, and whether the caller has seen and confirmed it; its words are its page's. A writer of the hub also gets the read confirmation's standing. Not found for anybody it is not for.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /posts/{pageId} (the `ReadPost` operationId).
+	ReadPostWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ReadPostResult, error)
+
+	// SetPostSettingsWithBodyWithResponse Schedule, feature or narrow a post
+	//
+	// Sets when the post goes out, until when it stays on top, for whom, whether it is discussed, whether the hub's followers are told and until when its readers are asked to confirm it. A published post keeps its publishing moment. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /posts/{pageId} (the `SetPostSettings` operationId).
+	SetPostSettingsWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetPostSettingsResult, error)
+
+	// SetPostSettingsWithResponse Schedule, feature or narrow a post
+	//
+	// Sets when the post goes out, until when it stays on top, for whom, whether it is discussed, whether the hub's followers are told and until when its readers are asked to confirm it. A published post keeps its publishing moment. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /posts/{pageId} (the `SetPostSettings` operationId).
+	SetPostSettingsWithResponse(ctx context.Context, pageId PageId, body SetPostSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*SetPostSettingsResult, error)
+
+	// ReadPostConfirmationsWithResponse Who confirmed a post
+	//
+	// How many of the post's audience confirmed it by when, and who did. Needs WRITE_ITEMS on the hub: read confirmations are shown to the post's writers only.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /posts/{pageId}/confirmations (the `ReadPostConfirmations` operationId).
+	ReadPostConfirmationsWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ReadPostConfirmationsResult, error)
+
+	// ListPostRepliesWithResponse A post's discussion
+	//
+	// The replies under the post, oldest first, one level deep, each with its reactions counted and whether the caller gave them.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /posts/{pageId}/replies (the `ListPostReplies` operationId).
+	ListPostRepliesWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ListPostRepliesResult, error)
+
+	// AddPostReplyWithBodyWithResponse Reply in a post's discussion
+	//
+	// Adds a reply under a published post whose discussion is open, or an answer to a reply. Anybody the post is for may reply.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /posts/{pageId}/replies (the `AddPostReply` operationId).
+	AddPostReplyWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddPostReplyResult, error)
+
+	// AddPostReplyWithResponse Reply in a post's discussion
+	//
+	// Adds a reply under a published post whose discussion is open, or an answer to a reply. Anybody the post is for may reply.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /posts/{pageId}/replies (the `AddPostReply` operationId).
+	AddPostReplyWithResponse(ctx context.Context, pageId PageId, body AddPostReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*AddPostReplyResult, error)
+
+	// DeletePostReplyWithResponse Take a reply back
+	//
+	// The caller's own reply, or any for a writer of the hub; its place stays, its words go.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /posts/{pageId}/replies/{replyId} (the `DeletePostReply` operationId).
+	DeletePostReplyWithResponse(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeletePostReplyResult, error)
+
+	// UnreactToPostReplyWithResponse Take a reaction back
+	//
+	// Takes the caller's reaction of that kind back.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /posts/{pageId}/replies/{replyId}/reactions/{reaction} (the `UnreactToPostReply` operationId).
+	UnreactToPostReplyWithResponse(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reaction string, reqEditors ...RequestEditorFn) (*UnreactToPostReplyResult, error)
+
+	// ReactToPostReplyWithResponse React to a reply
+	//
+	// Gives one of the few fixed reactions to a reply, once per person and kind.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /posts/{pageId}/replies/{replyId}/reactions/{reaction} (the `ReactToPostReply` operationId).
+	ReactToPostReplyWithResponse(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reaction string, reqEditors ...RequestEditorFn) (*ReactToPostReplyResult, error)
+
+	// ConfirmPostWithResponse Confirm having read a post
+	//
+	// Confirms that the caller read a published post that asks its audience for it; refused `posts.confirmation_not_asked` for one that does not. Shown to the hub's writers only.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /posts/{pageId}:confirm (the `ConfirmPost` operationId).
+	ConfirmPostWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ConfirmPostResult, error)
+
+	// PublishPostWithResponse Publish a post now
+	//
+	// Publishes a draft or a scheduled post at once for its audience. Needs WRITE_ITEMS on the hub; a published post answers as it stands.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /posts/{pageId}:publish (the `PublishPost` operationId).
+	PublishPostWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*PublishPostResult, error)
+
+	// RemindPostWithResponse Remind those who have not confirmed a post
+	//
+	// Tells each of the post's audience who has not confirmed it yet, once per call. Refused `posts.nobody_to_remind` when everybody has. Needs WRITE_ITEMS on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /posts/{pageId}:remind (the `RemindPost` operationId).
+	RemindPostWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*RemindPostResult, error)
+
+	// MarkPostSeenWithResponse Mark a post seen
+	//
+	// Counts the caller among those who have seen the published post; the count is shown to everybody, the names to nobody.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /posts/{pageId}:seen (the `MarkPostSeen` operationId).
+	MarkPostSeenWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*MarkPostSeenResult, error)
 
 	// ListPresetsWithResponse The presets a hub or collection can start from
 	//
@@ -117466,6 +124001,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /public/satisfaction/{token} (the `AnswerSatisfactionLink` operationId).
 	AnswerSatisfactionLinkWithResponse(ctx context.Context, token string, body AnswerSatisfactionLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*AnswerSatisfactionLinkResult, error)
+
+	// AskQueryWithBodyWithResponse Write a Hubtask query from a question in words
+	//
+	// Asks the workspace's AI provider to write the question as a Hubtask query, and answers the query as text in the `field: value` spelling - read by the same parser `POST /items:query` uses and written back in its canonical form, so it holds only keys this installation answers. **Nothing is run and nothing is stored**: the person sees the query, changes it and runs it themselves. Offered where `features.query_from_words` in `GET /meta/manifest` is true; every way of not getting an answer - no provider, no consent, a spent budget, a slow model, an answer that is not a query - is `503` with `ai.unavailable`, and a person who keeps their own content out of AI is refused the same way. The audit records that a query was asked for, never the question. A `POST` because the question is content.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /query:ask (the `AskQuery` operationId).
+	AskQueryWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AskQueryResult, error)
+
+	// AskQueryWithResponse Write a Hubtask query from a question in words
+	//
+	// Asks the workspace's AI provider to write the question as a Hubtask query, and answers the query as text in the `field: value` spelling - read by the same parser `POST /items:query` uses and written back in its canonical form, so it holds only keys this installation answers. **Nothing is run and nothing is stored**: the person sees the query, changes it and runs it themselves. Offered where `features.query_from_words` in `GET /meta/manifest` is true; every way of not getting an answer - no provider, no consent, a spent budget, a slow model, an answer that is not a query - is `503` with `ai.unavailable`, and a person who keeps their own content out of AI is refused the same way. The audit records that a query was asked for, never the question. A `POST` because the question is content.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /query:ask (the `AskQuery` operationId).
+	AskQueryWithResponse(ctx context.Context, body AskQueryJSONRequestBody, reqEditors ...RequestEditorFn) (*AskQueryResult, error)
 
 	// ReadQuotasWithResponse The workspace's quota standing
 	//
@@ -118299,6 +124852,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /search (the `SearchItems` operationId).
 	SearchItemsWithResponse(ctx context.Context, body SearchItemsJSONRequestBody, reqEditors ...RequestEditorFn) (*SearchItemsResult, error)
+
+	// SearchAllWithBodyWithResponse One search over every kind of object the caller may read
+	//
+	// Entries, tickets, pages, whiteboards, goals, dashboards, inventory objects, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /search:all (the `SearchAll` operationId).
+	SearchAllWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SearchAllResult, error)
+
+	// SearchAllWithResponse One search over every kind of object the caller may read
+	//
+	// Entries, tickets, pages, whiteboards, goals, dashboards, inventory objects, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /search:all (the `SearchAll` operationId).
+	SearchAllWithResponse(ctx context.Context, body SearchAllJSONRequestBody, reqEditors ...RequestEditorFn) (*SearchAllResult, error)
 
 	// ReindexSearchWithResponse Bring the workspace's search documents current
 	//
@@ -119886,6 +126457,35 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /whiteboards/{whiteboardId}:restore (the `RestoreWhiteboard` operationId).
 	RestoreWhiteboardWithResponse(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*RestoreWhiteboardResult, error)
+
+	// CheckWopiFileInfoWithResponse performs a GET /wopi/files/{mediaId} (the `CheckWopiFileInfo` operationId) request.
+	//
+	// WOPI CheckFileInfo, called by the document server with the access token: the file's name, size, version and whether this person may save. Answers in the protocol's own shape, not as a Hubtask resource.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CheckWopiFileInfoWithResponse(ctx context.Context, mediaId MediaId, params *CheckWopiFileInfoParams, reqEditors ...RequestEditorFn) (*CheckWopiFileInfoResult, error)
+
+	// LockWopiFileWithResponse performs a POST /wopi/files/{mediaId} (the `LockWopiFile` operationId) request.
+	//
+	// WOPI Lock, RefreshLock, Unlock, UnlockAndRelock and GetLock, by `X-WOPI-Override`, with the lock in `X-WOPI-Lock` and the replaced one in `X-WOPI-OldLock`. A mismatch answers 409 with the lock that holds in `X-WOPI-Lock`.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	LockWopiFileWithResponse(ctx context.Context, mediaId MediaId, params *LockWopiFileParams, reqEditors ...RequestEditorFn) (*LockWopiFileResult, error)
+
+	// GetWopiFileWithResponse performs a GET /wopi/files/{mediaId}/contents (the `GetWopiFile` operationId) request.
+	//
+	// WOPI GetFile - the file's bytes, with its version in `X-WOPI-ItemVersion`.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetWopiFileWithResponse(ctx context.Context, mediaId MediaId, params *GetWopiFileParams, reqEditors ...RequestEditorFn) (*GetWopiFileResult, error)
+
+	// PutWopiFileWithBodyWithResponse performs a POST /wopi/files/{mediaId}/contents (the `PutWopiFile` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// WOPI PutFile - the document server saves; the file keeps its identity and the bytes it had become its earlier version. Only under the lock that holds (or into an empty file), and only for a person who may still change what holds it.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	PutWopiFileWithBodyWithResponse(ctx context.Context, mediaId MediaId, params *PutWopiFileParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutWopiFileResult, error)
 
 	// SetWorkflowSchemeWithBodyWithResponse Use a workflow in a hub or collection
 	//
@@ -131568,6 +138168,54 @@ func (r CloseCiCampaignResult) ContentType() string {
 	return ""
 }
 
+type RemindCiCampaignResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiCampaignReminded
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RemindCiCampaignResult) GetJSON200() *CiCampaignReminded {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemindCiCampaignResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemindCiCampaignResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemindCiCampaignResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemindCiCampaignResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemindCiCampaignResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ResolveCiDuplicateResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -132096,6 +138744,150 @@ func (r MoveCiAssetResult) ContentType() string {
 	return ""
 }
 
+type ListCiAttachmentsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *MediaPage
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCiAttachmentsResult) GetJSON200() *MediaPage {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCiAttachmentsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCiAttachmentsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCiAttachmentsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCiAttachmentsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCiAttachmentsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DetachCiMediaResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiAttachments
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DetachCiMediaResult) GetJSON200() *CiAttachments {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DetachCiMediaResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DetachCiMediaResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DetachCiMediaResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DetachCiMediaResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DetachCiMediaResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AttachCiMediaResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiAttachments
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r AttachCiMediaResult) GetJSON200() *CiAttachments {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AttachCiMediaResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AttachCiMediaResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AttachCiMediaResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AttachCiMediaResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AttachCiMediaResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListCiBacklinksResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -132192,6 +138984,54 @@ func (r SetCiComplianceResult) ContentType() string {
 	return ""
 }
 
+type ListCiHistoryResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiHistoryPage
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCiHistoryResult) GetJSON200() *CiHistoryPage {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCiHistoryResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCiHistoryResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCiHistoryResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCiHistoryResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCiHistoryResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ReadCiImpactResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -132234,6 +139074,102 @@ func (r ReadCiImpactResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ReadCiImpactResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListCiWorkResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiWork
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCiWorkResult) GetJSON200() *CiWork {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCiWorkResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCiWorkResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCiWorkResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCiWorkResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCiWorkResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ConfirmCiResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigurationItem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ConfirmCiResult) GetJSON200() *ConfigurationItem {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ConfirmCiResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ConfirmCiResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ConfirmCiResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConfirmCiResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ConfirmCiResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -134497,6 +141433,102 @@ func (r RenameContainerResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r RenameContainerResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SwitchBoardResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *BoardSwitch
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SwitchBoardResult) GetJSON200() *BoardSwitch {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SwitchBoardResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SwitchBoardResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SwitchBoardResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SwitchBoardResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SwitchBoardResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type MakeBoardWorkflowResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *BoardWorkflow
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r MakeBoardWorkflowResult) GetJSON200() *BoardWorkflow {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r MakeBoardWorkflowResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r MakeBoardWorkflowResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r MakeBoardWorkflowResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r MakeBoardWorkflowResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r MakeBoardWorkflowResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -136816,6 +143848,102 @@ func (r ReadDashboardFiguresResult) ContentType() string {
 	return ""
 }
 
+type DraftDashboardFiguresResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DashboardFigures
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DraftDashboardFiguresResult) GetJSON200() *DashboardFigures {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DraftDashboardFiguresResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DraftDashboardFiguresResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DraftDashboardFiguresResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DraftDashboardFiguresResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DraftDashboardFiguresResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadMyDeadlinesKeptResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DeadlinesKept
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadMyDeadlinesKeptResult) GetJSON200() *DeadlinesKept {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadMyDeadlinesKeptResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadMyDeadlinesKeptResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadMyDeadlinesKeptResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadMyDeadlinesKeptResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadMyDeadlinesKeptResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type RemoveLdapDirectoryResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -137653,6 +144781,102 @@ func (r CloseGoalPeriodResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CloseGoalPeriodResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListGoalSetsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GoalSetList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListGoalSetsResult) GetJSON200() *GoalSetList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListGoalSetsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListGoalSetsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListGoalSetsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListGoalSetsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListGoalSetsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AddGoalSetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *GoalSet
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r AddGoalSetResult) GetJSON201() *GoalSet {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AddGoalSetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AddGoalSetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AddGoalSetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AddGoalSetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AddGoalSetResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -138859,6 +146083,47 @@ func (r ListCiGroupsResult) ContentType() string {
 	return ""
 }
 
+type DeleteCiGroupResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeleteCiGroupResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteCiGroupResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteCiGroupResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteCiGroupResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteCiGroupResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type DefineCiGroupResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -138997,6 +146262,54 @@ func (r ListCiRunsResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ListCiRunsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListHubCiWorkResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiWorkCounts
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListHubCiWorkResult) GetJSON200() *CiWorkCounts {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListHubCiWorkResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListHubCiWorkResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListHubCiWorkResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListHubCiWorkResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListHubCiWorkResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -139669,6 +146982,150 @@ func (r CreatePageResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CreatePageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListHubPostsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PostList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListHubPostsResult) GetJSON200() *PostList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListHubPostsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListHubPostsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListHubPostsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListHubPostsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListHubPostsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreatePostResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Post
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreatePostResult) GetJSON201() *Post {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreatePostResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreatePostResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreatePostResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreatePostResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreatePostResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type FollowHubPostsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PostFollowing
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r FollowHubPostsResult) GetJSON200() *PostFollowing {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r FollowHubPostsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r FollowHubPostsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r FollowHubPostsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r FollowHubPostsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r FollowHubPostsResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -144805,6 +152262,54 @@ func (r SuggestDecompositionResult) ContentType() string {
 	return ""
 }
 
+type DropItemOnColumnResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DropAnswer
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DropItemOnColumnResult) GetJSON200() *DropAnswer {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DropItemOnColumnResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DropItemOnColumnResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DropItemOnColumnResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DropItemOnColumnResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DropItemOnColumnResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 // DuplicateWorkItemResult201Headers the declared response headers of an HTTP 201 response for DuplicateWorkItem
 type DuplicateWorkItemResult201Headers struct {
 	ETag     *string
@@ -147995,6 +155500,246 @@ func (r UploadMediaContentResult) ContentType() string {
 	return ""
 }
 
+type StartMediaEditingResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *MediaEditingSession
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r StartMediaEditingResult) GetJSON200() *MediaEditingSession {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r StartMediaEditingResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r StartMediaEditingResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r StartMediaEditingResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StartMediaEditingResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r StartMediaEditingResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ConvertMediaToPdfResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ConvertMediaToPdfResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ConvertMediaToPdfResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ConvertMediaToPdfResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConvertMediaToPdfResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ConvertMediaToPdfResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadDocumentServerResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DocumentServer
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadDocumentServerResult) GetJSON200() *DocumentServer {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadDocumentServerResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadDocumentServerResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadDocumentServerResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadDocumentServerResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadDocumentServerResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetDocumentServerResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DocumentServer
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetDocumentServerResult) GetJSON200() *DocumentServer {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetDocumentServerResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetDocumentServerResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetDocumentServerResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetDocumentServerResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetDocumentServerResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CheckDocumentServerResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DocumentServerCheck
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// ApplicationproblemJSON503 the response for an HTTP 503 `application/problem+json` response
+	ApplicationproblemJSON503 *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CheckDocumentServerResult) GetJSON200() *DocumentServerCheck {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CheckDocumentServerResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetApplicationproblemJSON503 returns the response for an HTTP 503 `application/problem+json` response
+func (r CheckDocumentServerResult) GetApplicationproblemJSON503() *Problem {
+	return r.ApplicationproblemJSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r CheckDocumentServerResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CheckDocumentServerResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CheckDocumentServerResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CheckDocumentServerResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListMembershipsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -149304,6 +157049,102 @@ func (r AddPageCommentResult) ContentType() string {
 	return ""
 }
 
+type SearchCoverImagesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CoverImageSearch
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SearchCoverImagesResult) GetJSON200() *CoverImageSearch {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SearchCoverImagesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SearchCoverImagesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SearchCoverImagesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SearchCoverImagesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SearchCoverImagesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type FetchCoverImageResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CoverImageFetched
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r FetchCoverImageResult) GetJSON200() *CoverImageFetched {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r FetchCoverImageResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r FetchCoverImageResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r FetchCoverImageResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r FetchCoverImageResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r FetchCoverImageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type DiscardPageDraftResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -150326,6 +158167,102 @@ func (r VerifyPageResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r VerifyPageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadCoverImagesPolicyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CoverImagesPolicy
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadCoverImagesPolicyResult) GetJSON200() *CoverImagesPolicy {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadCoverImagesPolicyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadCoverImagesPolicyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadCoverImagesPolicyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadCoverImagesPolicyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadCoverImagesPolicyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetCoverImagesPolicyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CoverImagesPolicy
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetCoverImagesPolicyResult) GetJSON200() *CoverImagesPolicy {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetCoverImagesPolicyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetCoverImagesPolicyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetCoverImagesPolicyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetCoverImagesPolicyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetCoverImagesPolicyResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -151422,6 +159359,54 @@ func (r SetWorkspaceToleranceResult) ContentType() string {
 	return ""
 }
 
+type ListPortalKnowledgeResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PortalKnowledge
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPortalKnowledgeResult) GetJSON200() *PortalKnowledge {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListPortalKnowledgeResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPortalKnowledgeResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPortalKnowledgeResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPortalKnowledgeResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPortalKnowledgeResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListPortfoliosResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -152026,6 +160011,623 @@ func (r SetPublicRoadmapsPolicyResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SetPublicRoadmapsPolicyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListUnreadPostsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *UnreadPostList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListUnreadPostsResult) GetJSON200() *UnreadPostList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListUnreadPostsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListUnreadPostsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListUnreadPostsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListUnreadPostsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListUnreadPostsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadPostResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Post
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadPostResult) GetJSON200() *Post {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadPostResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadPostResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadPostResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadPostResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadPostResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetPostSettingsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Post
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetPostSettingsResult) GetJSON200() *Post {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetPostSettingsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetPostSettingsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetPostSettingsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetPostSettingsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetPostSettingsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadPostConfirmationsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PostConfirmations
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadPostConfirmationsResult) GetJSON200() *PostConfirmations {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadPostConfirmationsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadPostConfirmationsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadPostConfirmationsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadPostConfirmationsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadPostConfirmationsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListPostRepliesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PostReplyList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPostRepliesResult) GetJSON200() *PostReplyList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListPostRepliesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPostRepliesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPostRepliesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPostRepliesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPostRepliesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AddPostReplyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *PostReply
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r AddPostReplyResult) GetJSON201() *PostReply {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AddPostReplyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AddPostReplyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AddPostReplyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AddPostReplyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AddPostReplyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeletePostReplyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeletePostReplyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeletePostReplyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeletePostReplyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeletePostReplyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeletePostReplyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UnreactToPostReplyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PostReply
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UnreactToPostReplyResult) GetJSON200() *PostReply {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UnreactToPostReplyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UnreactToPostReplyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UnreactToPostReplyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UnreactToPostReplyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UnreactToPostReplyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReactToPostReplyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PostReply
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReactToPostReplyResult) GetJSON200() *PostReply {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReactToPostReplyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReactToPostReplyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReactToPostReplyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReactToPostReplyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReactToPostReplyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ConfirmPostResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Post
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ConfirmPostResult) GetJSON200() *Post {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ConfirmPostResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ConfirmPostResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ConfirmPostResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConfirmPostResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ConfirmPostResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PublishPostResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Post
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PublishPostResult) GetJSON200() *Post {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r PublishPostResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r PublishPostResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PublishPostResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PublishPostResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PublishPostResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemindPostResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PostReminded
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RemindPostResult) GetJSON200() *PostReminded {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemindPostResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemindPostResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemindPostResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemindPostResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemindPostResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type MarkPostSeenResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Post
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r MarkPostSeenResult) GetJSON200() *Post {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r MarkPostSeenResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r MarkPostSeenResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r MarkPostSeenResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r MarkPostSeenResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r MarkPostSeenResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -153215,6 +161817,61 @@ func (r AnswerSatisfactionLinkResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r AnswerSatisfactionLinkResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AskQueryResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AskedQuery
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// ApplicationproblemJSON503 the response for an HTTP 503 `application/problem+json` response
+	ApplicationproblemJSON503 *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r AskQueryResult) GetJSON200() *AskedQuery {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AskQueryResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetApplicationproblemJSON503 returns the response for an HTTP 503 `application/problem+json` response
+func (r AskQueryResult) GetApplicationproblemJSON503() *Problem {
+	return r.ApplicationproblemJSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r AskQueryResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AskQueryResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AskQueryResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AskQueryResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -155649,6 +164306,54 @@ func (r SearchItemsResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SearchItemsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SearchAllResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SearchAllAnswer
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SearchAllResult) GetJSON200() *SearchAllAnswer {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SearchAllResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SearchAllResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SearchAllResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SearchAllResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SearchAllResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -161070,6 +169775,149 @@ func (r RestoreWhiteboardResult) ContentType() string {
 	return ""
 }
 
+type CheckWopiFileInfoResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WopiFileInfo
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CheckWopiFileInfoResult) GetJSON200() *WopiFileInfo {
+	return r.JSON200
+}
+
+// GetBody returns the raw response body bytes
+func (r CheckWopiFileInfoResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CheckWopiFileInfoResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CheckWopiFileInfoResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CheckWopiFileInfoResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type LockWopiFileResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// GetBody returns the raw response body bytes
+func (r LockWopiFileResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r LockWopiFileResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r LockWopiFileResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r LockWopiFileResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetWopiFileResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// GetBody returns the raw response body bytes
+func (r GetWopiFileResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetWopiFileResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetWopiFileResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetWopiFileResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PutWopiFileResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// GetBody returns the raw response body bytes
+func (r PutWopiFileResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PutWopiFileResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutWopiFileResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PutWopiFileResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type SetWorkflowSchemeResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -164296,7 +173144,7 @@ func (c *ClientWithResponses) DecideAgentRequestWithResponse(ctx context.Context
 
 // ListAgentsWithResponse The workspace's agents
 //
-// Whoever administers agents reads all of them; anybody else the agents acting for them.
+// Whoever administers agents reads all of them; anybody else the agents acting for them. Each with what it spent this hour and today and when its latest job started.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -164498,7 +173346,7 @@ func (c *ClientWithResponses) RecordAgentEvaluationWithResponse(ctx context.Cont
 
 // RunAgentEvaluationWithBodyWithResponse Have a shipped agent answer its own evaluation set
 //
-// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, an object suggestion and a ticket triage answer `cis`, the names of the hub's objects the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -164513,7 +173361,7 @@ func (c *ClientWithResponses) RunAgentEvaluationWithBodyWithResponse(ctx context
 
 // RunAgentEvaluationWithResponse Have a shipped agent answer its own evaluation set
 //
-// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, an object suggestion and a ticket triage answer `cis`, the names of the hub's objects the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -164543,7 +173391,7 @@ func (c *ClientWithResponses) ListAgentJobsWithResponse(ctx context.Context, age
 
 // StartAgentJobWithBodyWithResponse Start a shipped agent's job on one target
 //
-// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+// Ticket triage, object suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -164558,7 +173406,7 @@ func (c *ClientWithResponses) StartAgentJobWithBodyWithResponse(ctx context.Cont
 
 // StartAgentJobWithResponse Start a shipped agent's job on one target
 //
-// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+// Ticket triage, object suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -167554,9 +176402,9 @@ func (c *ClientWithResponses) DeliverChatWithFormdataBodyWithResponse(ctx contex
 	return ParseDeliverChatResult(rsp)
 }
 
-// ReadCiCampaignWithResponse A certification campaign with every CI asked
+// ReadCiCampaignWithResponse A certification campaign with every object asked
 //
-// Its score and each CI's verdict, who gave it and when. Needs READ on the hub.
+// Its score and each object's verdict, who gave it and when. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -167569,9 +176417,9 @@ func (c *ClientWithResponses) ReadCiCampaignWithResponse(ctx context.Context, ca
 	return ParseReadCiCampaignResult(rsp)
 }
 
-// AttestCiWithBodyWithResponse Answer a campaign's question about a configuration item
+// AttestCiWithBodyWithResponse Answer a campaign's question about an object
 //
-// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+// CONFIRMED moves the object's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -167584,9 +176432,9 @@ func (c *ClientWithResponses) AttestCiWithBodyWithResponse(ctx context.Context, 
 	return ParseAttestCiResult(rsp)
 }
 
-// AttestCiWithResponse Answer a campaign's question about a configuration item
+// AttestCiWithResponse Answer a campaign's question about an object
 //
-// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+// CONFIRMED moves the object's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -167614,9 +176462,24 @@ func (c *ClientWithResponses) CloseCiCampaignWithResponse(ctx context.Context, c
 	return ParseCloseCiCampaignResult(rsp)
 }
 
+// RemindCiCampaignWithResponse Remind the owners who have not answered yet
+//
+// Tells each owning person of a still pending object once per call, naming how many of their objects wait. Refused `cmdb.nobody_to_remind` when no pending object has an owning person, and `cmdb.campaign_closed` on a closed campaign. Needs WRITE_ITEMS on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /ci-campaigns/{campaignId}:remind (the `RemindCiCampaign` operationId).
+func (c *ClientWithResponses) RemindCiCampaignWithResponse(ctx context.Context, campaignId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RemindCiCampaignResult, error) {
+	rsp, err := c.RemindCiCampaign(ctx, campaignId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemindCiCampaignResult(rsp)
+}
+
 // ResolveCiDuplicateWithBodyWithResponse Merge a duplicate or call it distinct
 //
-// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the objects are recorded as distinct. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -167631,7 +176494,7 @@ func (c *ClientWithResponses) ResolveCiDuplicateWithBodyWithResponse(ctx context
 
 // ResolveCiDuplicateWithResponse Merge a duplicate or call it distinct
 //
-// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the objects are recorded as distinct. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -167644,7 +176507,7 @@ func (c *ClientWithResponses) ResolveCiDuplicateWithResponse(ctx context.Context
 	return ParseResolveCiDuplicateResult(rsp)
 }
 
-// ListCiGroupMembersWithResponse The configuration items a group holds now
+// ListCiGroupMembersWithResponse The objects a group holds now
 //
 // Needs READ on the hub.
 //
@@ -167674,9 +176537,9 @@ func (c *ClientWithResponses) DismissCiHoldWithResponse(ctx context.Context, hol
 	return ParseDismissCiHoldResult(rsp)
 }
 
-// RelateCisWithBodyWithResponse Join two configuration items
+// RelateCisWithBodyWithResponse Join two objects
 //
-// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+// By a relation type, read from the source; the type's object type pairs decide whether it may join them. Both objects are in one hub. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -167689,9 +176552,9 @@ func (c *ClientWithResponses) RelateCisWithBodyWithResponse(ctx context.Context,
 	return ParseRelateCisResult(rsp)
 }
 
-// RelateCisWithResponse Join two configuration items
+// RelateCisWithResponse Join two objects
 //
-// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+// By a relation type, read from the source; the type's object type pairs decide whether it may join them. Both objects are in one hub. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -167721,7 +176584,7 @@ func (c *ClientWithResponses) UnrelateCisWithResponse(ctx context.Context, relat
 
 // ReadCiRunWithResponse One reconciliation run with its decisions
 //
-// Every item's outcome, CI, matching rule and the attributes taken or kept, by name. Needs READ on the hub.
+// Every item's outcome, object, matching rule and the attributes taken or kept, by name. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -167734,7 +176597,7 @@ func (c *ClientWithResponses) ReadCiRunWithResponse(ctx context.Context, runId o
 	return ParseReadCiRunResult(rsp)
 }
 
-// ReadCiWithResponse Read a configuration item
+// ReadCiWithResponse Read an object
 //
 // With its relations both ways and the protection need it inherits from everything that suffers when it fails. Needs READ on the hub.
 //
@@ -167749,9 +176612,9 @@ func (c *ClientWithResponses) ReadCiWithResponse(ctx context.Context, ciId opena
 	return ParseReadCiResult(rsp)
 }
 
-// UpdateCiWithBodyWithResponse Change a configuration item by hand
+// UpdateCiWithBodyWithResponse Change an object by hand
 //
-// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+// Its name, attributes (null clears one) or a more specific object type, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -167764,9 +176627,9 @@ func (c *ClientWithResponses) UpdateCiWithBodyWithResponse(ctx context.Context, 
 	return ParseUpdateCiResult(rsp)
 }
 
-// UpdateCiWithResponse Change a configuration item by hand
+// UpdateCiWithResponse Change an object by hand
 //
-// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+// Its name, attributes (null clears one) or a more specific object type, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -167779,9 +176642,9 @@ func (c *ClientWithResponses) UpdateCiWithResponse(ctx context.Context, ciId ope
 	return ParseUpdateCiResult(rsp)
 }
 
-// ReadCiAssetWithResponse A configuration item's asset record
+// ReadCiAssetWithResponse An object's register record
 //
-// Not found when it has none. Needs READ on the hub.
+// With the steps of its life, oldest first. Not found when it has none. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -167794,7 +176657,7 @@ func (c *ClientWithResponses) ReadCiAssetWithResponse(ctx context.Context, ciId 
 	return ParseReadCiAssetResult(rsp)
 }
 
-// RegisterCiAssetWithBodyWithResponse Write a configuration item's asset record
+// RegisterCiAssetWithBodyWithResponse Write an object's register record
 //
 // Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 //
@@ -167809,7 +176672,7 @@ func (c *ClientWithResponses) RegisterCiAssetWithBodyWithResponse(ctx context.Co
 	return ParseRegisterCiAssetResult(rsp)
 }
 
-// RegisterCiAssetWithResponse Write a configuration item's asset record
+// RegisterCiAssetWithResponse Write an object's register record
 //
 // Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 //
@@ -167824,9 +176687,9 @@ func (c *ClientWithResponses) RegisterCiAssetWithResponse(ctx context.Context, c
 	return ParseRegisterCiAssetResult(rsp)
 }
 
-// MoveCiAssetWithBodyWithResponse Move an asset through its life
+// MoveCiAssetWithBodyWithResponse Move a register record through its life
 //
-// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+// The object's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed object moves no more. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -167839,9 +176702,9 @@ func (c *ClientWithResponses) MoveCiAssetWithBodyWithResponse(ctx context.Contex
 	return ParseMoveCiAssetResult(rsp)
 }
 
-// MoveCiAssetWithResponse Move an asset through its life
+// MoveCiAssetWithResponse Move a register record through its life
 //
-// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+// The object's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed object moves no more. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -167854,7 +176717,52 @@ func (c *ClientWithResponses) MoveCiAssetWithResponse(ctx context.Context, ciId 
 	return ParseMoveCiAssetResult(rsp)
 }
 
-// ListCiBacklinksWithResponse What points at a configuration item
+// ListCiAttachmentsWithResponse An object's files
+//
+// The object's files as media objects, oldest upload first, without a download target per row - one is read for one file. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /cis/{ciId}/attachments (the `ListCiAttachments` operationId).
+func (c *ClientWithResponses) ListCiAttachmentsWithResponse(ctx context.Context, ciId openapi_types.UUID, params *ListCiAttachmentsParams, reqEditors ...RequestEditorFn) (*ListCiAttachmentsResult, error) {
+	rsp, err := c.ListCiAttachments(ctx, ciId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCiAttachmentsResult(rsp)
+}
+
+// DetachCiMediaWithResponse Take a file off an object
+//
+// Idempotent: an object that does not hold it succeeds. The media object itself stays; once nothing references it, the reconciliation job removes it. Needs WRITE_ITEMS on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /cis/{ciId}/attachments/{mediaId} (the `DetachCiMedia` operationId).
+func (c *ClientWithResponses) DetachCiMediaWithResponse(ctx context.Context, ciId openapi_types.UUID, mediaId MediaId, reqEditors ...RequestEditorFn) (*DetachCiMediaResult, error) {
+	rsp, err := c.DetachCiMedia(ctx, ciId, mediaId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDetachCiMediaResult(rsp)
+}
+
+// AttachCiMediaWithResponse Put a file on an object
+//
+// Idempotent: an object that already holds it succeeds. The media object has to be READY, of usage ATTACHMENT and of this workspace; it is one the caller uploaded or one an object of a hub they read already holds. Attaching raises the object's reference count; the bytes are shared, never copied. At most 500 files an object (`cmdb.files_full`, 409). Needs WRITE_ITEMS on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /cis/{ciId}/attachments/{mediaId} (the `AttachCiMedia` operationId).
+func (c *ClientWithResponses) AttachCiMediaWithResponse(ctx context.Context, ciId openapi_types.UUID, mediaId MediaId, reqEditors ...RequestEditorFn) (*AttachCiMediaResult, error) {
+	rsp, err := c.AttachCiMedia(ctx, ciId, mediaId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAttachCiMediaResult(rsp)
+}
+
+// ListCiBacklinksWithResponse What points at an object
 //
 // The pages, entries' notes and comments and whiteboards that mention it, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
 //
@@ -167869,7 +176777,7 @@ func (c *ClientWithResponses) ListCiBacklinksWithResponse(ctx context.Context, c
 	return ParseListCiBacklinksResult(rsp)
 }
 
-// SetCiComplianceWithBodyWithResponse Set a configuration item's lifecycle and compliance fields
+// SetCiComplianceWithBodyWithResponse Set an object's lifecycle and compliance fields
 //
 // Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 //
@@ -167884,7 +176792,7 @@ func (c *ClientWithResponses) SetCiComplianceWithBodyWithResponse(ctx context.Co
 	return ParseSetCiComplianceResult(rsp)
 }
 
-// SetCiComplianceWithResponse Set a configuration item's lifecycle and compliance fields
+// SetCiComplianceWithResponse Set an object's lifecycle and compliance fields
 //
 // Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 //
@@ -167899,7 +176807,22 @@ func (c *ClientWithResponses) SetCiComplianceWithResponse(ctx context.Context, c
 	return ParseSetCiComplianceResult(rsp)
 }
 
-// ReadCiImpactWithResponse What a configuration item's failure reaches
+// ListCiHistoryWithResponse An object's history
+//
+// The object's own history, newest first: who did what, and when - made, changed by hand or by a source, its stage, owner, location or protection need changed, related and unrelated, confirmed and attested, registered and moved, files put on and taken off. It is the product's record and not the audit trail: readable by whoever reads the hub, deleted with the object. Each step carries a message code the client renders. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /cis/{ciId}/history (the `ListCiHistory` operationId).
+func (c *ClientWithResponses) ListCiHistoryWithResponse(ctx context.Context, ciId openapi_types.UUID, params *ListCiHistoryParams, reqEditors ...RequestEditorFn) (*ListCiHistoryResult, error) {
+	rsp, err := c.ListCiHistory(ctx, ciId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCiHistoryResult(rsp)
+}
+
+// ReadCiImpactWithResponse What an object's failure reaches
 //
 // DOWNSTREAM, everything that suffers when it fails, with the services among them; UPSTREAM, everything whose failure it suffers. Needs READ on the hub.
 //
@@ -167912,6 +176835,51 @@ func (c *ClientWithResponses) ReadCiImpactWithResponse(ctx context.Context, ciId
 		return nil, err
 	}
 	return ParseReadCiImpactResult(rsp)
+}
+
+// ListCiWorkWithResponse The entries an object is part of
+//
+// Every entry - a ticket, a change, a task - that names the object as affected, or names an object beneath it, one whose failure it suffers up to eight steps, each once: open ones first, then at most twenty completed ones. Only entries the reader may see, never archived ones. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /cis/{ciId}/work (the `ListCiWork` operationId).
+func (c *ClientWithResponses) ListCiWorkWithResponse(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListCiWorkResult, error) {
+	rsp, err := c.ListCiWork(ctx, ciId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCiWorkResult(rsp)
+}
+
+// ConfirmCiWithBodyWithResponse Confirm an object is as recorded
+//
+// Its next review moves review_months on from today (12 when not given), and the object records who confirmed it and when. A pending question of an open campaign about it is answered CONFIRMED at the same time. The owning person confirms with READ on the hub, anybody else with WRITE_ITEMS.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /cis/{ciId}:confirm (the `ConfirmCi` operationId).
+func (c *ClientWithResponses) ConfirmCiWithBodyWithResponse(ctx context.Context, ciId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfirmCiResult, error) {
+	rsp, err := c.ConfirmCiWithBody(ctx, ciId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfirmCiResult(rsp)
+}
+
+// ConfirmCiWithResponse Confirm an object is as recorded
+//
+// Its next review moves review_months on from today (12 when not given), and the object records who confirmed it and when. A pending question of an open campaign about it is answered CONFIRMED at the same time. The owning person confirms with READ on the hub, anybody else with WRITE_ITEMS.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /cis/{ciId}:confirm (the `ConfirmCi` operationId).
+func (c *ClientWithResponses) ConfirmCiWithResponse(ctx context.Context, ciId openapi_types.UUID, body ConfirmCiJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfirmCiResult, error) {
+	rsp, err := c.ConfirmCi(ctx, ciId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfirmCiResult(rsp)
 }
 
 // SetCiConnectorCredentialWithBodyWithResponse Set a connector's credential
@@ -167976,7 +176944,7 @@ func (c *ClientWithResponses) RunCiConnectorWithResponse(ctx context.Context, co
 
 // DeliverCiAlertsWithBodyWithResponse Post alerts to an intake
 //
-// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the object its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
 // Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -167992,7 +176960,7 @@ func (c *ClientWithResponses) DeliverCiAlertsWithBodyWithResponse(ctx context.Co
 
 // DeliverCiAlertsWithResponse Post alerts to an intake
 //
-// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the object its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
 // Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -168006,9 +176974,9 @@ func (c *ClientWithResponses) DeliverCiAlertsWithResponse(ctx context.Context, t
 	return ParseDeliverCiAlertsResult(rsp)
 }
 
-// ListCiClassesWithResponse The configuration item classes
+// ListCiClassesWithResponse The object types
 //
-// The class hierarchy Hubtask ships and the workspace's own classes beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations a CI of it needs. Needs READ in the workspace and the assets module switched on.
+// The object type hierarchy Hubtask ships and the workspace's own object types beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations an object of it needs. Needs READ in the workspace and the inventory module switched on.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -168021,9 +176989,9 @@ func (c *ClientWithResponses) ListCiClassesWithResponse(ctx context.Context, req
 	return ParseListCiClassesResult(rsp)
 }
 
-// DefineCiClassWithBodyWithResponse Add or change a class of the workspace's own
+// DefineCiClassWithBodyWithResponse Add or change an object type of the workspace's own
 //
-// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+// Adds an object type beneath a shipped or an own object type, or changes an own object type. A shipped object type is not changed. Needs STRUCTURE in the workspace.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -168036,9 +177004,9 @@ func (c *ClientWithResponses) DefineCiClassWithBodyWithResponse(ctx context.Cont
 	return ParseDefineCiClassResult(rsp)
 }
 
-// DefineCiClassWithResponse Add or change a class of the workspace's own
+// DefineCiClassWithResponse Add or change an object type of the workspace's own
 //
-// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+// Adds an object type beneath a shipped or an own object type, or changes an own object type. A shipped object type is not changed. Needs STRUCTURE in the workspace.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -168081,9 +177049,9 @@ func (c *ClientWithResponses) DeliverCiInventoryWithResponse(ctx context.Context
 	return ParseDeliverCiInventoryResult(rsp)
 }
 
-// ListCiRelationTypesWithResponse The relation types between configuration items
+// ListCiRelationTypesWithResponse The relation types between objects
 //
-// The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the class pairs it may join.
+// The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the object type pairs it may join.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -168098,7 +177066,7 @@ func (c *ClientWithResponses) ListCiRelationTypesWithResponse(ctx context.Contex
 
 // DefineCiRelationTypeWithBodyWithResponse Add or change a relation type of the workspace's own
 //
-// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+// Its words both ways, its impact (which end suffers when the other fails) and the object type pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -168113,7 +177081,7 @@ func (c *ClientWithResponses) DefineCiRelationTypeWithBodyWithResponse(ctx conte
 
 // DefineCiRelationTypeWithResponse Add or change a relation type of the workspace's own
 //
-// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+// Its words both ways, its impact (which end suffers when the other fails) and the object type pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -168126,7 +177094,7 @@ func (c *ClientWithResponses) DefineCiRelationTypeWithResponse(ctx context.Conte
 	return ParseDefineCiRelationTypeResult(rsp)
 }
 
-// ListCiSourcesWithResponse The sources configuration items come from
+// ListCiSourcesWithResponse The sources objects come from
 //
 // People (`manual`), files, programs and connectors by precedence, a lower rank first.
 //
@@ -168143,7 +177111,7 @@ func (c *ClientWithResponses) ListCiSourcesWithResponse(ctx context.Context, req
 
 // DefineCiSourceWithBodyWithResponse Add or change a source
 //
-// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+// Its kind, rank, the object types it may write, whether it may make new objects and a file source's mapping. Needs STRUCTURE in the workspace.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -168158,7 +177126,7 @@ func (c *ClientWithResponses) DefineCiSourceWithBodyWithResponse(ctx context.Con
 
 // DefineCiSourceWithResponse Add or change a source
 //
-// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+// Its kind, rank, the object types it may write, whether it may make new objects and a file source's mapping. Needs STRUCTURE in the workspace.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -168961,6 +177929,88 @@ func (c *ClientWithResponses) RenameContainerWithApplicationMergePatchPlusJSONBo
 	return ParseRenameContainerResult(rsp)
 }
 
+// SwitchBoardWithBodyWithResponse Show a collection's tasks as a board, or as a list again
+//
+// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
+// language), the completed entries in the done one and the open ones in the other. `NONE`
+// takes the columns off again, the done column last; completion stays as it is. Refused with
+// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
+// where the collection already stands there. `dry_run` counts and writes nothing. Needs
+// STRUCTURE where the collection is.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /containers/{containerId}/board:switch (the `SwitchBoard` operationId).
+func (c *ClientWithResponses) SwitchBoardWithBodyWithResponse(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SwitchBoardResult, error) {
+	rsp, err := c.SwitchBoardWithBody(ctx, containerId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSwitchBoardResult(rsp)
+}
+
+// SwitchBoardWithResponse Show a collection's tasks as a board, or as a list again
+//
+// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
+// language), the completed entries in the done one and the open ones in the other. `NONE`
+// takes the columns off again, the done column last; completion stays as it is. Refused with
+// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
+// where the collection already stands there. `dry_run` counts and writes nothing. Needs
+// STRUCTURE where the collection is.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /containers/{containerId}/board:switch (the `SwitchBoard` operationId).
+func (c *ClientWithResponses) SwitchBoardWithResponse(ctx context.Context, containerId ContainerId, body SwitchBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*SwitchBoardResult, error) {
+	rsp, err := c.SwitchBoard(ctx, containerId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSwitchBoardResult(rsp)
+}
+
+// MakeBoardWorkflowWithBodyWithResponse Make a workflow from a board's columns
+//
+// A workflow of the collection's hub with one status per column - the first column's the
+// initial status, the done column's done, the rest in progress, every step free -, run for
+// the collection's tasks with each column showing its own status; every entry takes the
+// status of the column it stands in. One transaction. Refused with `board.no_columns`
+// without columns and `board.workflow_runs` where a workflow already runs for tasks.
+// `dry_run` answers the statuses and counts and writes nothing. Needs STRUCTURE where the
+// collection is and at its hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /containers/{containerId}/board:workflow (the `MakeBoardWorkflow` operationId).
+func (c *ClientWithResponses) MakeBoardWorkflowWithBodyWithResponse(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MakeBoardWorkflowResult, error) {
+	rsp, err := c.MakeBoardWorkflowWithBody(ctx, containerId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMakeBoardWorkflowResult(rsp)
+}
+
+// MakeBoardWorkflowWithResponse Make a workflow from a board's columns
+//
+// A workflow of the collection's hub with one status per column - the first column's the
+// initial status, the done column's done, the rest in progress, every step free -, run for
+// the collection's tasks with each column showing its own status; every entry takes the
+// status of the column it stands in. One transaction. Refused with `board.no_columns`
+// without columns and `board.workflow_runs` where a workflow already runs for tasks.
+// `dry_run` answers the statuses and counts and writes nothing. Needs STRUCTURE where the
+// collection is and at its hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /containers/{containerId}/board:workflow (the `MakeBoardWorkflow` operationId).
+func (c *ClientWithResponses) MakeBoardWorkflowWithResponse(ctx context.Context, containerId ContainerId, body MakeBoardWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*MakeBoardWorkflowResult, error) {
+	rsp, err := c.MakeBoardWorkflow(ctx, containerId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMakeBoardWorkflowResult(rsp)
+}
+
 // ListBucketsWithResponse performs a GET /containers/{containerId}/buckets (the `ListBuckets` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -168996,7 +178046,7 @@ func (c *ClientWithResponses) CreateBucketWithResponse(ctx context.Context, cont
 
 // DeleteBucketWithResponse performs a DELETE /containers/{containerId}/buckets/{bucketId} (the `DeleteBucket` operationId) request.
 //
-// Takes the column off the board. Its entries are not deleted with it: they move to the leftmost remaining column, or out of any column when this was the last one. What became of them is in the answer rather than left to be discovered.
+// Takes the column off the board. Its entries are not deleted with it: they move to the leftmost remaining column, or out of any column when this was the last one. What became of them is in the answer rather than left to be discovered. The done column of a board without a workflow is deleted only with `new_done_bucket_id`, the column that means done instead: without it, where other columns are left, the deletion is refused with `buckets.done_successor_required`, the suggested column in its `suggested_bucket_id`.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) DeleteBucketWithResponse(ctx context.Context, containerId ContainerId, bucketId BucketId, params *DeleteBucketParams, reqEditors ...RequestEditorFn) (*DeleteBucketResult, error) {
@@ -169965,6 +179015,51 @@ func (c *ClientWithResponses) ReadDashboardFiguresWithResponse(ctx context.Conte
 	return ParseReadDashboardFiguresResult(rsp)
 }
 
+// DraftDashboardFiguresWithBodyWithResponse A dashboard's numbers for a definition not saved yet
+//
+// Computes widgets and a filter as they are being edited, exactly as GET /dashboards/{dashboardId}/figures computes the saved ones, as the caller: the same checks as a save, nothing stored. Only a dashboard the caller sees; its name and sharing stay as they are.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /dashboards/{dashboardId}/figures:draft (the `DraftDashboardFigures` operationId).
+func (c *ClientWithResponses) DraftDashboardFiguresWithBodyWithResponse(ctx context.Context, dashboardId DashboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DraftDashboardFiguresResult, error) {
+	rsp, err := c.DraftDashboardFiguresWithBody(ctx, dashboardId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDraftDashboardFiguresResult(rsp)
+}
+
+// DraftDashboardFiguresWithResponse A dashboard's numbers for a definition not saved yet
+//
+// Computes widgets and a filter as they are being edited, exactly as GET /dashboards/{dashboardId}/figures computes the saved ones, as the caller: the same checks as a save, nothing stored. Only a dashboard the caller sees; its name and sharing stay as they are.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /dashboards/{dashboardId}/figures:draft (the `DraftDashboardFigures` operationId).
+func (c *ClientWithResponses) DraftDashboardFiguresWithResponse(ctx context.Context, dashboardId DashboardId, body DraftDashboardFiguresJSONRequestBody, reqEditors ...RequestEditorFn) (*DraftDashboardFiguresResult, error) {
+	rsp, err := c.DraftDashboardFigures(ctx, dashboardId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDraftDashboardFiguresResult(rsp)
+}
+
+// ReadMyDeadlinesKeptWithResponse How many of the deadlines on my own tickets I kept
+//
+// For the signed-in person, over the entries assigned to them: the deadlines that ended in the window - met or breached -, per kind - the requester's goals (first response, next response, resolution) and each team's OLA by its group and goal - with how many were kept. Never another person's; no report permission needed. The window ends now and reaches back `days` days, 30 when left out.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /deadlines-kept (the `ReadMyDeadlinesKept` operationId).
+func (c *ClientWithResponses) ReadMyDeadlinesKeptWithResponse(ctx context.Context, params *ReadMyDeadlinesKeptParams, reqEditors ...RequestEditorFn) (*ReadMyDeadlinesKeptResult, error) {
+	rsp, err := c.ReadMyDeadlinesKept(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadMyDeadlinesKeptResult(rsp)
+}
+
 // RemoveLdapDirectoryWithResponse Stop synchronising from the LDAP directory
 //
 // The configuration and its sealed password go and no run follows. The people and groups it provisioned stay as they are, with their roles. Needs a fresh step-up. Auditable.
@@ -170402,6 +179497,51 @@ func (c *ClientWithResponses) CloseGoalPeriodWithResponse(ctx context.Context, p
 	return ParseCloseGoalPeriodResult(rsp)
 }
 
+// ListGoalSetsWithResponse The goal periods a template brought
+//
+// The goal periods a template brought to the workspace - a quarter's objectives with their key results, or a period alone - marked under their key. Needs STRUCTURE or READ_CONFIGURATION at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /goal-sets (the `ListGoalSets` operationId).
+func (c *ClientWithResponses) ListGoalSetsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListGoalSetsResult, error) {
+	rsp, err := c.ListGoalSets(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListGoalSetsResult(rsp)
+}
+
+// AddGoalSetWithBodyWithResponse Add a template's goal set
+//
+// Opens a goal period with the workspace's goals and their key results in one write, marked under its key, as the workspace's configuration document does for a template's goal sets. A key the workspace already marks is refused (`config.goal_set_taken`). Needs STRUCTURE at the workspace and what opening the period and writing each goal needs.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /goal-sets (the `AddGoalSet` operationId).
+func (c *ClientWithResponses) AddGoalSetWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddGoalSetResult, error) {
+	rsp, err := c.AddGoalSetWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddGoalSetResult(rsp)
+}
+
+// AddGoalSetWithResponse Add a template's goal set
+//
+// Opens a goal period with the workspace's goals and their key results in one write, marked under its key, as the workspace's configuration document does for a template's goal sets. A key the workspace already marks is refused (`config.goal_set_taken`). Needs STRUCTURE at the workspace and what opening the period and writing each goal needs.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /goal-sets (the `AddGoalSet` operationId).
+func (c *ClientWithResponses) AddGoalSetWithResponse(ctx context.Context, body AddGoalSetJSONRequestBody, reqEditors ...RequestEditorFn) (*AddGoalSetResult, error) {
+	rsp, err := c.AddGoalSet(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddGoalSetResult(rsp)
+}
+
 // ListGoalsWithResponse The goals the caller may read
 //
 // The workspace's goals and those of the hubs the caller reads, narrowed by period, hub, owner or parent; each with its key results and its progress as the caller sees it - the mean of its key results, its goals below and the share of its linked entries completed. The alignment tree is drawn from `parent_id`.
@@ -170714,9 +179854,9 @@ func (c *ClientWithResponses) UpdateGroupWithApplicationMergePatchPlusJSONBodyWi
 	return ParseUpdateGroupResult(rsp)
 }
 
-// ListCiAssetsWithResponse A hub's asset register
+// ListCiAssetsWithResponse A hub's register records
 //
-// In CI order after a cursor, narrowed to a state when given. Needs READ on the hub.
+// In object order after a cursor, narrowed to a state when given. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -170836,7 +179976,7 @@ func (c *ClientWithResponses) CreateChatBotWithResponse(ctx context.Context, hub
 
 // ListCiAlertsWithResponse A hub's alerts
 //
-// The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the CI its host names and the entry opened for it. Needs READ on the hub.
+// The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the object its host names and the entry opened for it. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -170864,9 +180004,9 @@ func (c *ClientWithResponses) ListCiCampaignsWithResponse(ctx context.Context, h
 	return ParseListCiCampaignsResult(rsp)
 }
 
-// StartCiCampaignWithBodyWithResponse Ask the owners of a hub's CIs to attest them
+// StartCiCampaignWithBodyWithResponse Ask the owners of a hub's objects to attest them
 //
-// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+// Every active object of the object types named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -170879,9 +180019,9 @@ func (c *ClientWithResponses) StartCiCampaignWithBodyWithResponse(ctx context.Co
 	return ParseStartCiCampaignResult(rsp)
 }
 
-// StartCiCampaignWithResponse Ask the owners of a hub's CIs to attest them
+// StartCiCampaignWithResponse Ask the owners of a hub's objects to attest them
 //
-// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+// Every active object of the object types named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -170896,7 +180036,7 @@ func (c *ClientWithResponses) StartCiCampaignWithResponse(ctx context.Context, h
 
 // ListCiDuplicatesWithResponse Open duplicates
 //
-// Sets of CIs one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
+// Sets of objects one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -170909,9 +180049,9 @@ func (c *ClientWithResponses) ListCiDuplicatesWithResponse(ctx context.Context, 
 	return ParseListCiDuplicatesResult(rsp)
 }
 
-// ListCiGroupsWithResponse A hub's CI groups
+// ListCiGroupsWithResponse A hub's object groups
 //
-// Each with how many CIs it holds now. Needs READ on the hub.
+// Each with how many objects it holds now. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -170924,9 +180064,24 @@ func (c *ClientWithResponses) ListCiGroupsWithResponse(ctx context.Context, hubI
 	return ParseListCiGroupsResult(rsp)
 }
 
-// DefineCiGroupWithBodyWithResponse Define or change a CI group by its key
+// DeleteCiGroupWithResponse Delete an object group by its key
 //
-// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+// The group is gone; the objects it held are unchanged. Needs WRITE_ITEMS on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /hubs/{hubId}/ci-groups/{groupKey} (the `DeleteCiGroup` operationId).
+func (c *ClientWithResponses) DeleteCiGroupWithResponse(ctx context.Context, hubId openapi_types.UUID, groupKey string, params *DeleteCiGroupParams, reqEditors ...RequestEditorFn) (*DeleteCiGroupResult, error) {
+	rsp, err := c.DeleteCiGroup(ctx, hubId, groupKey, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteCiGroupResult(rsp)
+}
+
+// DefineCiGroupWithBodyWithResponse Define or change an object group by its key
+//
+// A name and a filter on object types, stages, a text the name holds and attribute values; at least one. A group naming a service object is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -170939,9 +180094,9 @@ func (c *ClientWithResponses) DefineCiGroupWithBodyWithResponse(ctx context.Cont
 	return ParseDefineCiGroupResult(rsp)
 }
 
-// DefineCiGroupWithResponse Define or change a CI group by its key
+// DefineCiGroupWithResponse Define or change an object group by its key
 //
-// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+// A name and a filter on object types, stages, a text the name holds and attribute values; at least one. A group naming a service object is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -170956,7 +180111,7 @@ func (c *ClientWithResponses) DefineCiGroupWithResponse(ctx context.Context, hub
 
 // ListCiHoldsWithResponse Items held for review
 //
-// What the reconciliation held instead of making a CI, newest first. Needs READ on the hub.
+// What the reconciliation held instead of making an object, newest first. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -170984,9 +180139,24 @@ func (c *ClientWithResponses) ListCiRunsWithResponse(ctx context.Context, hubId 
 	return ParseListCiRunsResult(rsp)
 }
 
-// ListCisWithResponse A hub's configuration items
+// ListHubCiWorkWithResponse How many open entries name each object of a hub
 //
-// A page of the hub's CIs in a stable order, narrowed to a class and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.
+// For each object of the hub, the open, unarchived entries the reader may see that name it as affected; objects with none are left out. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/ci-work (the `ListHubCiWork` operationId).
+func (c *ClientWithResponses) ListHubCiWorkWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListHubCiWorkResult, error) {
+	rsp, err := c.ListHubCiWork(ctx, hubId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListHubCiWorkResult(rsp)
+}
+
+// ListCisWithResponse A hub's objects
+//
+// A page of the hub's objects in a stable order, narrowed to an object type and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -170999,9 +180169,9 @@ func (c *ClientWithResponses) ListCisWithResponse(ctx context.Context, hubId ope
 	return ParseListCisResult(rsp)
 }
 
-// CreateCiWithBodyWithResponse Make a configuration item by hand
+// CreateCiWithBodyWithResponse Make an object by hand
 //
-// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds an object its identifiers name, nothing is made and the problem names that object (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -171014,9 +180184,9 @@ func (c *ClientWithResponses) CreateCiWithBodyWithResponse(ctx context.Context, 
 	return ParseCreateCiResult(rsp)
 }
 
-// CreateCiWithResponse Make a configuration item by hand
+// CreateCiWithResponse Make an object by hand
 //
-// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds an object its identifiers name, nothing is made and the problem names that object (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -171029,7 +180199,7 @@ func (c *ClientWithResponses) CreateCiWithResponse(ctx context.Context, hubId op
 	return ParseCreateCiResult(rsp)
 }
 
-// ImportCiFileWithBodyWithResponse Import a file of configuration items
+// ImportCiFileWithBodyWithResponse Import a file of objects
 //
 // A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 //
@@ -171044,7 +180214,7 @@ func (c *ClientWithResponses) ImportCiFileWithBodyWithResponse(ctx context.Conte
 	return ParseImportCiFileResult(rsp)
 }
 
-// ImportCiFileWithResponse Import a file of configuration items
+// ImportCiFileWithResponse Import a file of objects
 //
 // A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 //
@@ -171061,7 +180231,7 @@ func (c *ClientWithResponses) ImportCiFileWithResponse(ctx context.Context, hubI
 
 // ReconcileCisWithBodyWithResponse Reconcile a source's payload
 //
-// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+// Each item is identified - by the source's own key, then by its object type's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -171076,7 +180246,7 @@ func (c *ClientWithResponses) ReconcileCisWithBodyWithResponse(ctx context.Conte
 
 // ReconcileCisWithResponse Reconcile a source's payload
 //
-// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+// Each item is identified - by the source's own key, then by its object type's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -171091,7 +180261,7 @@ func (c *ClientWithResponses) ReconcileCisWithResponse(ctx context.Context, hubI
 
 // ListCiConnectorsWithResponse A hub's connectors
 //
-// The programs the hub's configuration items are pulled from and the monitoring programs that post alerts to it, with the source each writes as, the hosts it may reach, its period, whether a credential is set - never the credential - and how its last run ended. Needs READ on the hub.
+// The programs the hub's objects are pulled from and the monitoring programs that post alerts to it, with the source each writes as, the hosts it may reach, its period, whether a credential is set - never the credential - and how its last run ended. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -171136,7 +180306,7 @@ func (c *ClientWithResponses) DefineCiConnectorWithResponse(ctx context.Context,
 
 // ReadCmdbHealthWithResponse A hub's inventory judged
 //
-// Completeness, correctness (stale, orphaned, duplicate), CIs without an owner and reviews overdue, per class and in all, with the CIs found wanting. Needs READ on the hub.
+// Completeness, correctness (stale, orphaned, duplicate), objects without an owner and reviews overdue, per object type and in all, with the objects found wanting. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -171299,9 +180469,84 @@ func (c *ClientWithResponses) CreatePageWithResponse(ctx context.Context, hubId 
 	return ParseCreatePageResult(rsp)
 }
 
+// ListHubPostsWithResponse A hub's posts
+//
+// The hub's posts the caller sees, featured ones first, then newest first: published ones for their audience, drafts and scheduled ones for the hub's writers only. `filter` narrows to the unread ones, the caller's own, or the scheduled ones. A post never reaches anybody who may not read its hub. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/posts (the `ListHubPosts` operationId).
+func (c *ClientWithResponses) ListHubPostsWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListHubPostsParams, reqEditors ...RequestEditorFn) (*ListHubPostsResult, error) {
+	rsp, err := c.ListHubPosts(ctx, hubId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListHubPostsResult(rsp)
+}
+
+// CreatePostWithBodyWithResponse Write a new post
+//
+// Writes a post in the hub: a page with a date, started from one of the post templates or empty, published now (`publish_at` now or earlier), scheduled (`publish_at` ahead) or kept as a draft (no `publish_at`). Its audience is the hub's readers or those of them in the groups named. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/posts (the `CreatePost` operationId).
+func (c *ClientWithResponses) CreatePostWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreatePostResult, error) {
+	rsp, err := c.CreatePostWithBody(ctx, hubId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreatePostResult(rsp)
+}
+
+// CreatePostWithResponse Write a new post
+//
+// Writes a post in the hub: a page with a date, started from one of the post templates or empty, published now (`publish_at` now or earlier), scheduled (`publish_at` ahead) or kept as a draft (no `publish_at`). Its audience is the hub's readers or those of them in the groups named. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/posts (the `CreatePost` operationId).
+func (c *ClientWithResponses) CreatePostWithResponse(ctx context.Context, hubId openapi_types.UUID, body CreatePostJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePostResult, error) {
+	rsp, err := c.CreatePost(ctx, hubId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreatePostResult(rsp)
+}
+
+// FollowHubPostsWithBodyWithResponse Follow a hub's posts
+//
+// Follows the hub's posts, or stops. A follower is told when a post that asks for it goes out - only one that is for them; a post never reaches anybody beyond its audience. Only a person follows: an agent or a service account is refused `posts.person_follows`. Needs READ on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /hubs/{hubId}/posts/following (the `FollowHubPosts` operationId).
+func (c *ClientWithResponses) FollowHubPostsWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*FollowHubPostsResult, error) {
+	rsp, err := c.FollowHubPostsWithBody(ctx, hubId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseFollowHubPostsResult(rsp)
+}
+
+// FollowHubPostsWithResponse Follow a hub's posts
+//
+// Follows the hub's posts, or stops. A follower is told when a post that asks for it goes out - only one that is for them; a post never reaches anybody beyond its audience. Only a person follows: an agent or a service account is refused `posts.person_follows`. Needs READ on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /hubs/{hubId}/posts/following (the `FollowHubPosts` operationId).
+func (c *ClientWithResponses) FollowHubPostsWithResponse(ctx context.Context, hubId openapi_types.UUID, body FollowHubPostsJSONRequestBody, reqEditors ...RequestEditorFn) (*FollowHubPostsResult, error) {
+	rsp, err := c.FollowHubPosts(ctx, hubId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseFollowHubPostsResult(rsp)
+}
+
 // ListHubQueuesWithResponse A hub's queues with their counts
 //
-// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
+// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. `desks` names the hub's desks either way. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -171316,7 +180561,7 @@ func (c *ClientWithResponses) ListHubQueuesWithResponse(ctx context.Context, hub
 
 // ListReleasesWithResponse A hub's releases
 //
-// The hub's releases, the latest day first, at most 200. Needs READ at the hub.
+// The hub's releases, the latest day first, at most 200, each with how many of its entries the reader may see are done and open. Needs READ at the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -171436,7 +180681,7 @@ func (c *ClientWithResponses) ReadServiceMapWithResponse(ctx context.Context, hu
 
 // ListSoftwareProductsWithResponse A hub's software, normalised
 //
-// Its software CIs grouped by the product an alias names or by their folded names, with their versions and installations. Needs READ on the hub.
+// Its software objects grouped by the product an alias names or by their folded names, with their versions and installations. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -172528,9 +181773,9 @@ func (c *ClientWithResponses) AttachMediaWithResponse(ctx context.Context, itemI
 	return ParseAttachMediaResult(rsp)
 }
 
-// ListEntryCisWithResponse The configuration items an entry names as affected
+// ListEntryCisWithResponse The objects an entry names as affected
 //
-// Those the reader may read, the active services and offerings their failure reaches, the other open entries naming them or a CI they reach, and the entries planned on them in a window overlapping the entry's start and due. Needs READ on the entry.
+// Those the reader may read, the active services and offerings their failure reaches, the other open entries naming them or an object they reach, and the entries planned on them in a window overlapping the entry's start and due. Needs READ on the entry.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -172543,7 +181788,7 @@ func (c *ClientWithResponses) ListEntryCisWithResponse(ctx context.Context, item
 	return ParseListEntryCisResult(rsp)
 }
 
-// UnaffectEntryCiWithResponse Remove a configuration item from an entry's affected ones
+// UnaffectEntryCiWithResponse Remove an object from an entry's affected ones
 //
 // Needs WRITE_ITEMS on the entry.
 //
@@ -172558,9 +181803,9 @@ func (c *ClientWithResponses) UnaffectEntryCiWithResponse(ctx context.Context, i
 	return ParseUnaffectEntryCiResult(rsp)
 }
 
-// AffectEntryCiWithResponse Name a configuration item as affected by an entry
+// AffectEntryCiWithResponse Name an object as affected by an entry
 //
-// At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and READ on the CI's hub.
+// At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and READ on the object's hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -173217,7 +182462,7 @@ func (c *ClientWithResponses) RenderReplyTemplateWithResponse(ctx context.Contex
 
 // ReadEntryRequesterWithResponse Who raised the entry, and their organisation
 //
-// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. Also up to 20 configuration items the requester owns, by name, of the hubs where the reader may read them and assets are switched on; merged and disposed ones are left out. The address itself is not answered. Needs READ on the entry and the service desk switched on.
+// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. Also up to 20 objects the requester owns, by name, of the hubs where the reader may read them and the inventory is switched on; merged and disposed ones are left out. The address itself is not answered. Needs READ on the entry and the service desk switched on.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -173277,7 +182522,7 @@ func (c *ClientWithResponses) ReadEntrySlaWithResponse(ctx context.Context, item
 
 // ListEntryStepsWithResponse The entry's status and the steps the person may take
 //
-// The workflow the entry's collection runs for its type, the entry's status, and the steps the person may take from it, each with what it asks for, what it still needs and whether its checks hold. `workflow` is null where none runs; a reader gets no steps.
+// The workflow the entry's collection runs for its type, the entry's status, and the steps the person may take from it, each with what it asks for, what it still needs and whether its checks hold. `workflow` is null where none runs; a reader gets no steps. Beside them the steps from the status the person may not take, each with a reason code and who may; the fewest steps into done; the workflow's picture, read-only for every reader; and whether the person may open it in the designer. Where no workflow runs the picture is the default one, every status reachable, and completing the entry reaches done.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -173409,6 +182654,36 @@ func (c *ClientWithResponses) SuggestDecompositionWithResponse(ctx context.Conte
 		return nil, err
 	}
 	return ParseSuggestDecompositionResult(rsp)
+}
+
+// DropItemOnColumnWithBodyWithResponse Drop an entry onto a board's column
+//
+// Drops the entry onto a column of its collection's board - `bucket_id` omitted is the column of the statuses no column shows. Without a workflow the entry moves (`MOVED`), and entering or leaving the done column completes or reopens it. Under a workflow the one step reaching the column is taken (`STEP_TAKEN`); where several do, they are answered (`CHOOSE`) and nothing is written - asked again with `step`, that step is taken; a status the entry already has is `MOVED` without a write. Refused with `board.no_columns`, `board.column_required`, `board.column_without_status`, `board.no_step` (the workflow has no such step) or `board.step_blocked` (the person may not take it), and the refusals of the column move or the step.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items/{itemId}:drop (the `DropItemOnColumn` operationId).
+func (c *ClientWithResponses) DropItemOnColumnWithBodyWithResponse(ctx context.Context, itemId ItemId, params *DropItemOnColumnParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DropItemOnColumnResult, error) {
+	rsp, err := c.DropItemOnColumnWithBody(ctx, itemId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDropItemOnColumnResult(rsp)
+}
+
+// DropItemOnColumnWithResponse Drop an entry onto a board's column
+//
+// Drops the entry onto a column of its collection's board - `bucket_id` omitted is the column of the statuses no column shows. Without a workflow the entry moves (`MOVED`), and entering or leaving the done column completes or reopens it. Under a workflow the one step reaching the column is taken (`STEP_TAKEN`); where several do, they are answered (`CHOOSE`) and nothing is written - asked again with `step`, that step is taken; a status the entry already has is `MOVED` without a write. Refused with `board.no_columns`, `board.column_required`, `board.column_without_status`, `board.no_step` (the workflow has no such step) or `board.step_blocked` (the person may not take it), and the refusals of the column move or the step.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items/{itemId}:drop (the `DropItemOnColumn` operationId).
+func (c *ClientWithResponses) DropItemOnColumnWithResponse(ctx context.Context, itemId ItemId, params *DropItemOnColumnParams, body DropItemOnColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*DropItemOnColumnResult, error) {
+	rsp, err := c.DropItemOnColumn(ctx, itemId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDropItemOnColumnResult(rsp)
 }
 
 // DuplicateWorkItemWithBodyWithResponse performs a POST /items/{itemId}:duplicate (the `DuplicateWorkItem` operationId) request,
@@ -174934,6 +184209,120 @@ func (c *ClientWithResponses) UploadMediaContentWithBodyWithResponse(ctx context
 	return ParseUploadMediaContentResult(rsp)
 }
 
+// StartMediaEditingWithResponse performs a POST /media/{mediaId}:edit (the `StartMediaEditing` operationId) request.
+//
+// Opens an office file for editing in the workspace's document server: a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry, a board or a page holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) StartMediaEditingWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*StartMediaEditingResult, error) {
+	rsp, err := c.StartMediaEditing(ctx, mediaId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartMediaEditingResult(rsp)
+}
+
+// ConvertMediaToPdfWithBodyWithResponse performs a POST /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request,
+// with any type of body and a specified content type.
+//
+// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file; a read by `POST`, as an export is, so that a client fetches it as a document with its bearer. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ConvertMediaToPdfWithBodyWithResponse(ctx context.Context, mediaId MediaId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConvertMediaToPdfResult, error) {
+	rsp, err := c.ConvertMediaToPdfWithBody(ctx, mediaId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConvertMediaToPdfResult(rsp)
+}
+
+// ConvertMediaToPdfWithResponse performs a POST /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file; a read by `POST`, as an export is, so that a client fetches it as a document with its bearer. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+func (c *ClientWithResponses) ConvertMediaToPdfWithResponse(ctx context.Context, mediaId MediaId, body ConvertMediaToPdfJSONRequestBody, reqEditors ...RequestEditorFn) (*ConvertMediaToPdfResult, error) {
+	rsp, err := c.ConvertMediaToPdf(ctx, mediaId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConvertMediaToPdfResult(rsp)
+}
+
+// ReadDocumentServerWithResponse The workspace's document server
+//
+// Where the workspace's office files are shown and edited: none, or a server's kind and its https origin. Readable by every member - the viewer asks it; set under STRUCTURE.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /media:document-server (the `ReadDocumentServer` operationId).
+func (c *ClientWithResponses) ReadDocumentServerWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadDocumentServerResult, error) {
+	rsp, err := c.ReadDocumentServer(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadDocumentServerResult(rsp)
+}
+
+// SetDocumentServerWithBodyWithResponse Choose the workspace's document server
+//
+// NONE, or a kind with the server's https origin - no credentials, query or fragment. Needs STRUCTURE at the workspace; an agent never decides it.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /media:document-server (the `SetDocumentServer` operationId).
+func (c *ClientWithResponses) SetDocumentServerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetDocumentServerResult, error) {
+	rsp, err := c.SetDocumentServerWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetDocumentServerResult(rsp)
+}
+
+// SetDocumentServerWithResponse Choose the workspace's document server
+//
+// NONE, or a kind with the server's https origin - no credentials, query or fragment. Needs STRUCTURE at the workspace; an agent never decides it.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /media:document-server (the `SetDocumentServer` operationId).
+func (c *ClientWithResponses) SetDocumentServerWithResponse(ctx context.Context, body SetDocumentServerJSONRequestBody, reqEditors ...RequestEditorFn) (*SetDocumentServerResult, error) {
+	rsp, err := c.SetDocumentServer(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetDocumentServerResult(rsp)
+}
+
+// CheckDocumentServerWithBodyWithResponse Test a document server before choosing it
+//
+// Asks the server at the given https origin for its WOPI discovery, without storing anything, so the administration sees whether the workspace can reach it. Needs STRUCTURE at the workspace; an agent never asks. Refused with `media.document_server_private_network` for an address inside a private network, which this installation does not call; with `media.document_server_unreachable` where nothing answers; and with `media.document_server_no_discovery` where something answers that is not a document server.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /media:document-server-check (the `CheckDocumentServer` operationId).
+func (c *ClientWithResponses) CheckDocumentServerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CheckDocumentServerResult, error) {
+	rsp, err := c.CheckDocumentServerWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCheckDocumentServerResult(rsp)
+}
+
+// CheckDocumentServerWithResponse Test a document server before choosing it
+//
+// Asks the server at the given https origin for its WOPI discovery, without storing anything, so the administration sees whether the workspace can reach it. Needs STRUCTURE at the workspace; an agent never asks. Refused with `media.document_server_private_network` for an address inside a private network, which this installation does not call; with `media.document_server_unreachable` where nothing answers; and with `media.document_server_no_discovery` where something answers that is not a document server.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /media:document-server-check (the `CheckDocumentServer` operationId).
+func (c *ClientWithResponses) CheckDocumentServerWithResponse(ctx context.Context, body CheckDocumentServerJSONRequestBody, reqEditors ...RequestEditorFn) (*CheckDocumentServerResult, error) {
+	rsp, err := c.CheckDocumentServer(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCheckDocumentServerResult(rsp)
+}
+
 // ListMembershipsWithResponse Who holds a role at a scope
 //
 // The memberships granted **at** the scope named — an account or a group, a role, an
@@ -175321,7 +184710,7 @@ func (c *ClientWithResponses) GetDataFeedMetadataWithResponse(ctx context.Contex
 
 // GetDataFeedEntriesWithResponse A data feed's rows
 //
-// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says, and other query options are not served.
+// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says. `$filter` takes a Hubtask query in either spelling (`is: open who: me`, `is_completed = false AND due_at < @today`), which narrows the view's rows and never widens them; a sort or a kind other than entries in it is refused. Other query options are not served.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -175456,7 +184845,7 @@ func (c *ClientWithResponses) ReadPageAccessWithResponse(ctx context.Context, pa
 
 // PublishPageToPortalWithBodyWithResponse Publish a page to a service's portal
 //
-// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. With `with_subpages`, the page is shared as a space: every page under it reaches the same requesters, as it stands at each reading, except a page behind a restriction and everything under that. Never a page behind a restriction (`pages.article_restricted`); publishing twice the same way changes nothing, publishing again the other way changes only `with_subpages`. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -175471,7 +184860,7 @@ func (c *ClientWithResponses) PublishPageToPortalWithBodyWithResponse(ctx contex
 
 // PublishPageToPortalWithResponse Publish a page to a service's portal
 //
-// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. With `with_subpages`, the page is shared as a space: every page under it reaches the same requesters, as it stands at each reading, except a page behind a restriction and everything under that. Never a page behind a restriction (`pages.article_restricted`); publishing twice the same way changes nothing, publishing again the other way changes only `with_subpages`. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -175557,6 +184946,36 @@ func (c *ClientWithResponses) AddPageCommentWithResponse(ctx context.Context, pa
 		return nil, err
 	}
 	return ParseAddPageCommentResult(rsp)
+}
+
+// SearchCoverImagesWithResponse Search an image library for a page's cover
+//
+// Whether the workspace offers an image library for covers and, with a query, up to twelve of its openly licensed pictures, each with who made it and a small preview the server fetched. Without a query or with the library switched off it asks nothing outside. Needs WRITE_ITEMS on the page's hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /pages/{pageId}/cover-images (the `SearchCoverImages` operationId).
+func (c *ClientWithResponses) SearchCoverImagesWithResponse(ctx context.Context, pageId PageId, params *SearchCoverImagesParams, reqEditors ...RequestEditorFn) (*SearchCoverImagesResult, error) {
+	rsp, err := c.SearchCoverImages(ctx, pageId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSearchCoverImagesResult(rsp)
+}
+
+// FetchCoverImageWithResponse Fetch an image library's picture for a page's cover
+//
+// The picture's larger rendition, fetched by the server, with who made it: the client uploads it as the page's cover image and names its maker as the cover's credit. Refused `pages.cover_images_off` while the workspace offers no library. Needs WRITE_ITEMS on the page's hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}/cover-images/{pictureId}:fetch (the `FetchCoverImage` operationId).
+func (c *ClientWithResponses) FetchCoverImageWithResponse(ctx context.Context, pageId PageId, pictureId string, reqEditors ...RequestEditorFn) (*FetchCoverImageResult, error) {
+	rsp, err := c.FetchCoverImage(ctx, pageId, pictureId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseFetchCoverImageResult(rsp)
 }
 
 // DiscardPageDraftWithResponse Throw a page's draft away
@@ -176037,6 +185456,51 @@ func (c *ClientWithResponses) VerifyPageWithResponse(ctx context.Context, pageId
 		return nil, err
 	}
 	return ParseVerifyPageResult(rsp)
+}
+
+// ReadCoverImagesPolicyWithResponse Which image library covers may take pictures from
+//
+// The workspace's choice of an image library offered as a cover's fourth source, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /pages:cover-images (the `ReadCoverImagesPolicy` operationId).
+func (c *ClientWithResponses) ReadCoverImagesPolicyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadCoverImagesPolicyResult, error) {
+	rsp, err := c.ReadCoverImagesPolicy(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadCoverImagesPolicyResult(rsp)
+}
+
+// SetCoverImagesPolicyWithBodyWithResponse Offer an image library for covers, or none
+//
+// Off by default, since every search leaves the installation; the installation or the plan may lock it (`setting.locked`). Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /pages:cover-images (the `SetCoverImagesPolicy` operationId).
+func (c *ClientWithResponses) SetCoverImagesPolicyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetCoverImagesPolicyResult, error) {
+	rsp, err := c.SetCoverImagesPolicyWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetCoverImagesPolicyResult(rsp)
+}
+
+// SetCoverImagesPolicyWithResponse Offer an image library for covers, or none
+//
+// Off by default, since every search leaves the installation; the installation or the plan may lock it (`setting.locked`). Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /pages:cover-images (the `SetCoverImagesPolicy` operationId).
+func (c *ClientWithResponses) SetCoverImagesPolicyWithResponse(ctx context.Context, body SetCoverImagesPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetCoverImagesPolicyResult, error) {
+	rsp, err := c.SetCoverImagesPolicy(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetCoverImagesPolicyResult(rsp)
 }
 
 // ReadPersonalSpaceWithResponse My own notes' space
@@ -176534,6 +185998,21 @@ func (c *ClientWithResponses) SetWorkspaceToleranceWithResponse(ctx context.Cont
 	return ParseSetWorkspaceToleranceResult(rsp)
 }
 
+// ListPortalKnowledgeWithResponse What a service's portal shares of the knowledge base
+//
+// Every article and every space published to the service's portal, each space with the pages under it a requester reads: live, never behind a restriction nor under one, never a language variant (opening a page answers it in the reader's language). At most 500 pages per space. Needs REQUEST at the collection.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /portal-knowledge (the `ListPortalKnowledge` operationId).
+func (c *ClientWithResponses) ListPortalKnowledgeWithResponse(ctx context.Context, params *ListPortalKnowledgeParams, reqEditors ...RequestEditorFn) (*ListPortalKnowledgeResult, error) {
+	rsp, err := c.ListPortalKnowledge(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPortalKnowledgeResult(rsp)
+}
+
 // ListPortfoliosWithResponse The portfolios
 //
 // By name, nested by `parent_id`, each with the projects the caller may read. Needs READ at the workspace.
@@ -176787,6 +186266,231 @@ func (c *ClientWithResponses) SetPublicRoadmapsPolicyWithResponse(ctx context.Co
 		return nil, err
 	}
 	return ParseSetPublicRoadmapsPolicyResult(rsp)
+}
+
+// ListUnreadPostsWithResponse The posts new for the caller
+//
+// The published posts the caller has not seen yet, across every hub they read, featured ones first, then newest first, at most 20. Each post is judged at its own hub as on the hub's list: a post never reaches anybody who may not read its hub or is outside its audience.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /posts (the `ListUnreadPosts` operationId).
+func (c *ClientWithResponses) ListUnreadPostsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListUnreadPostsResult, error) {
+	rsp, err := c.ListUnreadPosts(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListUnreadPostsResult(rsp)
+}
+
+// ReadPostWithResponse Read a post
+//
+// The post's date, audience and state, how many have seen it, and whether the caller has seen and confirmed it; its words are its page's. A writer of the hub also gets the read confirmation's standing. Not found for anybody it is not for.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /posts/{pageId} (the `ReadPost` operationId).
+func (c *ClientWithResponses) ReadPostWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ReadPostResult, error) {
+	rsp, err := c.ReadPost(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadPostResult(rsp)
+}
+
+// SetPostSettingsWithBodyWithResponse Schedule, feature or narrow a post
+//
+// Sets when the post goes out, until when it stays on top, for whom, whether it is discussed, whether the hub's followers are told and until when its readers are asked to confirm it. A published post keeps its publishing moment. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /posts/{pageId} (the `SetPostSettings` operationId).
+func (c *ClientWithResponses) SetPostSettingsWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetPostSettingsResult, error) {
+	rsp, err := c.SetPostSettingsWithBody(ctx, pageId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetPostSettingsResult(rsp)
+}
+
+// SetPostSettingsWithResponse Schedule, feature or narrow a post
+//
+// Sets when the post goes out, until when it stays on top, for whom, whether it is discussed, whether the hub's followers are told and until when its readers are asked to confirm it. A published post keeps its publishing moment. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /posts/{pageId} (the `SetPostSettings` operationId).
+func (c *ClientWithResponses) SetPostSettingsWithResponse(ctx context.Context, pageId PageId, body SetPostSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*SetPostSettingsResult, error) {
+	rsp, err := c.SetPostSettings(ctx, pageId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetPostSettingsResult(rsp)
+}
+
+// ReadPostConfirmationsWithResponse Who confirmed a post
+//
+// How many of the post's audience confirmed it by when, and who did. Needs WRITE_ITEMS on the hub: read confirmations are shown to the post's writers only.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /posts/{pageId}/confirmations (the `ReadPostConfirmations` operationId).
+func (c *ClientWithResponses) ReadPostConfirmationsWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ReadPostConfirmationsResult, error) {
+	rsp, err := c.ReadPostConfirmations(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadPostConfirmationsResult(rsp)
+}
+
+// ListPostRepliesWithResponse A post's discussion
+//
+// The replies under the post, oldest first, one level deep, each with its reactions counted and whether the caller gave them.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /posts/{pageId}/replies (the `ListPostReplies` operationId).
+func (c *ClientWithResponses) ListPostRepliesWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ListPostRepliesResult, error) {
+	rsp, err := c.ListPostReplies(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPostRepliesResult(rsp)
+}
+
+// AddPostReplyWithBodyWithResponse Reply in a post's discussion
+//
+// Adds a reply under a published post whose discussion is open, or an answer to a reply. Anybody the post is for may reply.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /posts/{pageId}/replies (the `AddPostReply` operationId).
+func (c *ClientWithResponses) AddPostReplyWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddPostReplyResult, error) {
+	rsp, err := c.AddPostReplyWithBody(ctx, pageId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddPostReplyResult(rsp)
+}
+
+// AddPostReplyWithResponse Reply in a post's discussion
+//
+// Adds a reply under a published post whose discussion is open, or an answer to a reply. Anybody the post is for may reply.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /posts/{pageId}/replies (the `AddPostReply` operationId).
+func (c *ClientWithResponses) AddPostReplyWithResponse(ctx context.Context, pageId PageId, body AddPostReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*AddPostReplyResult, error) {
+	rsp, err := c.AddPostReply(ctx, pageId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddPostReplyResult(rsp)
+}
+
+// DeletePostReplyWithResponse Take a reply back
+//
+// The caller's own reply, or any for a writer of the hub; its place stays, its words go.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /posts/{pageId}/replies/{replyId} (the `DeletePostReply` operationId).
+func (c *ClientWithResponses) DeletePostReplyWithResponse(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeletePostReplyResult, error) {
+	rsp, err := c.DeletePostReply(ctx, pageId, replyId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeletePostReplyResult(rsp)
+}
+
+// UnreactToPostReplyWithResponse Take a reaction back
+//
+// Takes the caller's reaction of that kind back.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /posts/{pageId}/replies/{replyId}/reactions/{reaction} (the `UnreactToPostReply` operationId).
+func (c *ClientWithResponses) UnreactToPostReplyWithResponse(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reaction string, reqEditors ...RequestEditorFn) (*UnreactToPostReplyResult, error) {
+	rsp, err := c.UnreactToPostReply(ctx, pageId, replyId, reaction, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUnreactToPostReplyResult(rsp)
+}
+
+// ReactToPostReplyWithResponse React to a reply
+//
+// Gives one of the few fixed reactions to a reply, once per person and kind.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /posts/{pageId}/replies/{replyId}/reactions/{reaction} (the `ReactToPostReply` operationId).
+func (c *ClientWithResponses) ReactToPostReplyWithResponse(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reaction string, reqEditors ...RequestEditorFn) (*ReactToPostReplyResult, error) {
+	rsp, err := c.ReactToPostReply(ctx, pageId, replyId, reaction, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReactToPostReplyResult(rsp)
+}
+
+// ConfirmPostWithResponse Confirm having read a post
+//
+// Confirms that the caller read a published post that asks its audience for it; refused `posts.confirmation_not_asked` for one that does not. Shown to the hub's writers only.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /posts/{pageId}:confirm (the `ConfirmPost` operationId).
+func (c *ClientWithResponses) ConfirmPostWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ConfirmPostResult, error) {
+	rsp, err := c.ConfirmPost(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfirmPostResult(rsp)
+}
+
+// PublishPostWithResponse Publish a post now
+//
+// Publishes a draft or a scheduled post at once for its audience. Needs WRITE_ITEMS on the hub; a published post answers as it stands.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /posts/{pageId}:publish (the `PublishPost` operationId).
+func (c *ClientWithResponses) PublishPostWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*PublishPostResult, error) {
+	rsp, err := c.PublishPost(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePublishPostResult(rsp)
+}
+
+// RemindPostWithResponse Remind those who have not confirmed a post
+//
+// Tells each of the post's audience who has not confirmed it yet, once per call. Refused `posts.nobody_to_remind` when everybody has. Needs WRITE_ITEMS on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /posts/{pageId}:remind (the `RemindPost` operationId).
+func (c *ClientWithResponses) RemindPostWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*RemindPostResult, error) {
+	rsp, err := c.RemindPost(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemindPostResult(rsp)
+}
+
+// MarkPostSeenWithResponse Mark a post seen
+//
+// Counts the caller among those who have seen the published post; the count is shown to everybody, the names to nobody.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /posts/{pageId}:seen (the `MarkPostSeen` operationId).
+func (c *ClientWithResponses) MarkPostSeenWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*MarkPostSeenResult, error) {
+	rsp, err := c.MarkPostSeen(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMarkPostSeenResult(rsp)
 }
 
 // ListPresetsWithResponse The presets a hub or collection can start from
@@ -177425,6 +187129,36 @@ func (c *ClientWithResponses) AnswerSatisfactionLinkWithResponse(ctx context.Con
 		return nil, err
 	}
 	return ParseAnswerSatisfactionLinkResult(rsp)
+}
+
+// AskQueryWithBodyWithResponse Write a Hubtask query from a question in words
+//
+// Asks the workspace's AI provider to write the question as a Hubtask query, and answers the query as text in the `field: value` spelling - read by the same parser `POST /items:query` uses and written back in its canonical form, so it holds only keys this installation answers. **Nothing is run and nothing is stored**: the person sees the query, changes it and runs it themselves. Offered where `features.query_from_words` in `GET /meta/manifest` is true; every way of not getting an answer - no provider, no consent, a spent budget, a slow model, an answer that is not a query - is `503` with `ai.unavailable`, and a person who keeps their own content out of AI is refused the same way. The audit records that a query was asked for, never the question. A `POST` because the question is content.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /query:ask (the `AskQuery` operationId).
+func (c *ClientWithResponses) AskQueryWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AskQueryResult, error) {
+	rsp, err := c.AskQueryWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAskQueryResult(rsp)
+}
+
+// AskQueryWithResponse Write a Hubtask query from a question in words
+//
+// Asks the workspace's AI provider to write the question as a Hubtask query, and answers the query as text in the `field: value` spelling - read by the same parser `POST /items:query` uses and written back in its canonical form, so it holds only keys this installation answers. **Nothing is run and nothing is stored**: the person sees the query, changes it and runs it themselves. Offered where `features.query_from_words` in `GET /meta/manifest` is true; every way of not getting an answer - no provider, no consent, a spent budget, a slow model, an answer that is not a query - is `503` with `ai.unavailable`, and a person who keeps their own content out of AI is refused the same way. The audit records that a query was asked for, never the question. A `POST` because the question is content.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /query:ask (the `AskQuery` operationId).
+func (c *ClientWithResponses) AskQueryWithResponse(ctx context.Context, body AskQueryJSONRequestBody, reqEditors ...RequestEditorFn) (*AskQueryResult, error) {
+	rsp, err := c.AskQuery(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAskQueryResult(rsp)
 }
 
 // ReadQuotasWithResponse The workspace's quota standing
@@ -178738,6 +188472,36 @@ func (c *ClientWithResponses) SearchItemsWithResponse(ctx context.Context, body 
 		return nil, err
 	}
 	return ParseSearchItemsResult(rsp)
+}
+
+// SearchAllWithBodyWithResponse One search over every kind of object the caller may read
+//
+// Entries, tickets, pages, whiteboards, goals, dashboards, inventory objects, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /search:all (the `SearchAll` operationId).
+func (c *ClientWithResponses) SearchAllWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SearchAllResult, error) {
+	rsp, err := c.SearchAllWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSearchAllResult(rsp)
+}
+
+// SearchAllWithResponse One search over every kind of object the caller may read
+//
+// Entries, tickets, pages, whiteboards, goals, dashboards, inventory objects, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /search:all (the `SearchAll` operationId).
+func (c *ClientWithResponses) SearchAllWithResponse(ctx context.Context, body SearchAllJSONRequestBody, reqEditors ...RequestEditorFn) (*SearchAllResult, error) {
+	rsp, err := c.SearchAll(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSearchAllResult(rsp)
 }
 
 // ReindexSearchWithResponse Bring the workspace's search documents current
@@ -181315,6 +191079,59 @@ func (c *ClientWithResponses) RestoreWhiteboardWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParseRestoreWhiteboardResult(rsp)
+}
+
+// CheckWopiFileInfoWithResponse performs a GET /wopi/files/{mediaId} (the `CheckWopiFileInfo` operationId) request.
+//
+// WOPI CheckFileInfo, called by the document server with the access token: the file's name, size, version and whether this person may save. Answers in the protocol's own shape, not as a Hubtask resource.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CheckWopiFileInfoWithResponse(ctx context.Context, mediaId MediaId, params *CheckWopiFileInfoParams, reqEditors ...RequestEditorFn) (*CheckWopiFileInfoResult, error) {
+	rsp, err := c.CheckWopiFileInfo(ctx, mediaId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCheckWopiFileInfoResult(rsp)
+}
+
+// LockWopiFileWithResponse performs a POST /wopi/files/{mediaId} (the `LockWopiFile` operationId) request.
+//
+// WOPI Lock, RefreshLock, Unlock, UnlockAndRelock and GetLock, by `X-WOPI-Override`, with the lock in `X-WOPI-Lock` and the replaced one in `X-WOPI-OldLock`. A mismatch answers 409 with the lock that holds in `X-WOPI-Lock`.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) LockWopiFileWithResponse(ctx context.Context, mediaId MediaId, params *LockWopiFileParams, reqEditors ...RequestEditorFn) (*LockWopiFileResult, error) {
+	rsp, err := c.LockWopiFile(ctx, mediaId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseLockWopiFileResult(rsp)
+}
+
+// GetWopiFileWithResponse performs a GET /wopi/files/{mediaId}/contents (the `GetWopiFile` operationId) request.
+//
+// WOPI GetFile - the file's bytes, with its version in `X-WOPI-ItemVersion`.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetWopiFileWithResponse(ctx context.Context, mediaId MediaId, params *GetWopiFileParams, reqEditors ...RequestEditorFn) (*GetWopiFileResult, error) {
+	rsp, err := c.GetWopiFile(ctx, mediaId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetWopiFileResult(rsp)
+}
+
+// PutWopiFileWithBodyWithResponse performs a POST /wopi/files/{mediaId}/contents (the `PutWopiFile` operationId) request,
+// with any type of body and a specified content type.
+//
+// WOPI PutFile - the document server saves; the file keeps its identity and the bytes it had become its earlier version. Only under the lock that holds (or into an empty file), and only for a person who may still change what holds it.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) PutWopiFileWithBodyWithResponse(ctx context.Context, mediaId MediaId, params *PutWopiFileParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutWopiFileResult, error) {
+	rsp, err := c.PutWopiFileWithBody(ctx, mediaId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutWopiFileResult(rsp)
 }
 
 // SetWorkflowSchemeWithBodyWithResponse Use a workflow in a hub or collection
@@ -189646,6 +199463,39 @@ func ParseCloseCiCampaignResult(rsp *http.Response) (*CloseCiCampaignResult, err
 	return response, nil
 }
 
+// ParseRemindCiCampaignResult parses an HTTP response from a RemindCiCampaignWithResponse call
+func ParseRemindCiCampaignResult(rsp *http.Response) (*RemindCiCampaignResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemindCiCampaignResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiCampaignReminded
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseResolveCiDuplicateResult parses an HTTP response from a ResolveCiDuplicateWithResponse call
 func ParseResolveCiDuplicateResult(rsp *http.Response) (*ResolveCiDuplicateResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -190009,6 +199859,105 @@ func ParseMoveCiAssetResult(rsp *http.Response) (*MoveCiAssetResult, error) {
 	return response, nil
 }
 
+// ParseListCiAttachmentsResult parses an HTTP response from a ListCiAttachmentsWithResponse call
+func ParseListCiAttachmentsResult(rsp *http.Response) (*ListCiAttachmentsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCiAttachmentsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MediaPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDetachCiMediaResult parses an HTTP response from a DetachCiMediaWithResponse call
+func ParseDetachCiMediaResult(rsp *http.Response) (*DetachCiMediaResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DetachCiMediaResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiAttachments
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAttachCiMediaResult parses an HTTP response from a AttachCiMediaWithResponse call
+func ParseAttachCiMediaResult(rsp *http.Response) (*AttachCiMediaResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AttachCiMediaResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiAttachments
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListCiBacklinksResult parses an HTTP response from a ListCiBacklinksWithResponse call
 func ParseListCiBacklinksResult(rsp *http.Response) (*ListCiBacklinksResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -190075,6 +200024,39 @@ func ParseSetCiComplianceResult(rsp *http.Response) (*SetCiComplianceResult, err
 	return response, nil
 }
 
+// ParseListCiHistoryResult parses an HTTP response from a ListCiHistoryWithResponse call
+func ParseListCiHistoryResult(rsp *http.Response) (*ListCiHistoryResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCiHistoryResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiHistoryPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseReadCiImpactResult parses an HTTP response from a ReadCiImpactWithResponse call
 func ParseReadCiImpactResult(rsp *http.Response) (*ReadCiImpactResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -190091,6 +200073,72 @@ func ParseReadCiImpactResult(rsp *http.Response) (*ReadCiImpactResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest CiImpact
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListCiWorkResult parses an HTTP response from a ListCiWorkWithResponse call
+func ParseListCiWorkResult(rsp *http.Response) (*ListCiWorkResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCiWorkResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiWork
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseConfirmCiResult parses an HTTP response from a ConfirmCiWithResponse call
+func ParseConfirmCiResult(rsp *http.Response) (*ConfirmCiResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConfirmCiResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigurationItem
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -191694,6 +201742,72 @@ func ParseRenameContainerResult(rsp *http.Response) (*RenameContainerResult, err
 			headers.ETag = &value
 		}
 		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseSwitchBoardResult parses an HTTP response from a SwitchBoardWithResponse call
+func ParseSwitchBoardResult(rsp *http.Response) (*SwitchBoardResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SwitchBoardResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BoardSwitch
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseMakeBoardWorkflowResult parses an HTTP response from a MakeBoardWorkflowWithResponse call
+func ParseMakeBoardWorkflowResult(rsp *http.Response) (*MakeBoardWorkflowResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &MakeBoardWorkflowResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BoardWorkflow
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil
@@ -193439,6 +203553,72 @@ func ParseReadDashboardFiguresResult(rsp *http.Response) (*ReadDashboardFiguresR
 	return response, nil
 }
 
+// ParseDraftDashboardFiguresResult parses an HTTP response from a DraftDashboardFiguresWithResponse call
+func ParseDraftDashboardFiguresResult(rsp *http.Response) (*DraftDashboardFiguresResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DraftDashboardFiguresResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DashboardFigures
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadMyDeadlinesKeptResult parses an HTTP response from a ReadMyDeadlinesKeptWithResponse call
+func ParseReadMyDeadlinesKeptResult(rsp *http.Response) (*ReadMyDeadlinesKeptResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadMyDeadlinesKeptResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DeadlinesKept
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseRemoveLdapDirectoryResult parses an HTTP response from a RemoveLdapDirectoryWithResponse call
 func ParseRemoveLdapDirectoryResult(rsp *http.Response) (*RemoveLdapDirectoryResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -194008,6 +204188,72 @@ func ParseCloseGoalPeriodResult(rsp *http.Response) (*CloseGoalPeriodResult, err
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListGoalSetsResult parses an HTTP response from a ListGoalSetsWithResponse call
+func ParseListGoalSetsResult(rsp *http.Response) (*ListGoalSetsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListGoalSetsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GoalSetList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAddGoalSetResult parses an HTTP response from a AddGoalSetWithResponse call
+func ParseAddGoalSetResult(rsp *http.Response) (*AddGoalSetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AddGoalSetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest GoalSet
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -194873,6 +205119,35 @@ func ParseListCiGroupsResult(rsp *http.Response) (*ListCiGroupsResult, error) {
 	return response, nil
 }
 
+// ParseDeleteCiGroupResult parses an HTTP response from a DeleteCiGroupWithResponse call
+func ParseDeleteCiGroupResult(rsp *http.Response) (*DeleteCiGroupResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteCiGroupResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseDefineCiGroupResult parses an HTTP response from a DefineCiGroupWithResponse call
 func ParseDefineCiGroupResult(rsp *http.Response) (*DefineCiGroupResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -194955,6 +205230,39 @@ func ParseListCiRunsResult(rsp *http.Response) (*ListCiRunsResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest CiRunList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListHubCiWorkResult parses an HTTP response from a ListHubCiWorkWithResponse call
+func ParseListHubCiWorkResult(rsp *http.Response) (*ListHubCiWorkResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListHubCiWorkResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiWorkCounts
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -195421,6 +205729,105 @@ func ParseCreatePageResult(rsp *http.Response) (*CreatePageResult, error) {
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListHubPostsResult parses an HTTP response from a ListHubPostsWithResponse call
+func ParseListHubPostsResult(rsp *http.Response) (*ListHubPostsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListHubPostsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PostList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreatePostResult parses an HTTP response from a CreatePostWithResponse call
+func ParseCreatePostResult(rsp *http.Response) (*CreatePostResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreatePostResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Post
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseFollowHubPostsResult parses an HTTP response from a FollowHubPostsWithResponse call
+func ParseFollowHubPostsResult(rsp *http.Response) (*FollowHubPostsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &FollowHubPostsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PostFollowing
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -199118,6 +209525,39 @@ func ParseSuggestDecompositionResult(rsp *http.Response) (*SuggestDecompositionR
 	return response, nil
 }
 
+// ParseDropItemOnColumnResult parses an HTTP response from a DropItemOnColumnWithResponse call
+func ParseDropItemOnColumnResult(rsp *http.Response) (*DropItemOnColumnResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DropItemOnColumnResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DropAnswer
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseDuplicateWorkItemResult parses an HTTP response from a DuplicateWorkItemWithResponse call
 func ParseDuplicateWorkItemResult(rsp *http.Response) (*DuplicateWorkItemResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -201448,6 +211888,171 @@ func ParseUploadMediaContentResult(rsp *http.Response) (*UploadMediaContentResul
 	return response, nil
 }
 
+// ParseStartMediaEditingResult parses an HTTP response from a StartMediaEditingWithResponse call
+func ParseStartMediaEditingResult(rsp *http.Response) (*StartMediaEditingResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StartMediaEditingResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MediaEditingSession
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseConvertMediaToPdfResult parses an HTTP response from a ConvertMediaToPdfWithResponse call
+func ParseConvertMediaToPdfResult(rsp *http.Response) (*ConvertMediaToPdfResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConvertMediaToPdfResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadDocumentServerResult parses an HTTP response from a ReadDocumentServerWithResponse call
+func ParseReadDocumentServerResult(rsp *http.Response) (*ReadDocumentServerResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadDocumentServerResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DocumentServer
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetDocumentServerResult parses an HTTP response from a SetDocumentServerWithResponse call
+func ParseSetDocumentServerResult(rsp *http.Response) (*SetDocumentServerResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetDocumentServerResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DocumentServer
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCheckDocumentServerResult parses an HTTP response from a CheckDocumentServerWithResponse call
+func ParseCheckDocumentServerResult(rsp *http.Response) (*CheckDocumentServerResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CheckDocumentServerResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DocumentServerCheck
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListMembershipsResult parses an HTTP response from a ListMembershipsWithResponse call
 func ParseListMembershipsResult(rsp *http.Response) (*ListMembershipsResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -202352,6 +212957,72 @@ func ParseAddPageCommentResult(rsp *http.Response) (*AddPageCommentResult, error
 	return response, nil
 }
 
+// ParseSearchCoverImagesResult parses an HTTP response from a SearchCoverImagesWithResponse call
+func ParseSearchCoverImagesResult(rsp *http.Response) (*SearchCoverImagesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SearchCoverImagesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CoverImageSearch
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseFetchCoverImageResult parses an HTTP response from a FetchCoverImageWithResponse call
+func ParseFetchCoverImageResult(rsp *http.Response) (*FetchCoverImageResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &FetchCoverImageResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CoverImageFetched
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseDiscardPageDraftResult parses an HTTP response from a DiscardPageDraftWithResponse call
 func ParseDiscardPageDraftResult(rsp *http.Response) (*DiscardPageDraftResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -203045,6 +213716,72 @@ func ParseVerifyPageResult(rsp *http.Response) (*VerifyPageResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest Page
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadCoverImagesPolicyResult parses an HTTP response from a ReadCoverImagesPolicyWithResponse call
+func ParseReadCoverImagesPolicyResult(rsp *http.Response) (*ReadCoverImagesPolicyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadCoverImagesPolicyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CoverImagesPolicy
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetCoverImagesPolicyResult parses an HTTP response from a SetCoverImagesPolicyWithResponse call
+func ParseSetCoverImagesPolicyResult(rsp *http.Response) (*SetCoverImagesPolicyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetCoverImagesPolicyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CoverImagesPolicy
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -203813,6 +214550,39 @@ func ParseSetWorkspaceToleranceResult(rsp *http.Response) (*SetWorkspaceToleranc
 	return response, nil
 }
 
+// ParseListPortalKnowledgeResult parses an HTTP response from a ListPortalKnowledgeWithResponse call
+func ParseListPortalKnowledgeResult(rsp *http.Response) (*ListPortalKnowledgeResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPortalKnowledgeResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PortalKnowledge
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListPortfoliosResult parses an HTTP response from a ListPortfoliosWithResponse call
 func ParseListPortfoliosResult(rsp *http.Response) (*ListPortfoliosResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -204217,6 +214987,431 @@ func ParseSetPublicRoadmapsPolicyResult(rsp *http.Response) (*SetPublicRoadmapsP
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest PublicLinksPolicy
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListUnreadPostsResult parses an HTTP response from a ListUnreadPostsWithResponse call
+func ParseListUnreadPostsResult(rsp *http.Response) (*ListUnreadPostsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListUnreadPostsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest UnreadPostList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadPostResult parses an HTTP response from a ReadPostWithResponse call
+func ParseReadPostResult(rsp *http.Response) (*ReadPostResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadPostResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Post
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetPostSettingsResult parses an HTTP response from a SetPostSettingsWithResponse call
+func ParseSetPostSettingsResult(rsp *http.Response) (*SetPostSettingsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetPostSettingsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Post
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadPostConfirmationsResult parses an HTTP response from a ReadPostConfirmationsWithResponse call
+func ParseReadPostConfirmationsResult(rsp *http.Response) (*ReadPostConfirmationsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadPostConfirmationsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PostConfirmations
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListPostRepliesResult parses an HTTP response from a ListPostRepliesWithResponse call
+func ParseListPostRepliesResult(rsp *http.Response) (*ListPostRepliesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPostRepliesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PostReplyList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAddPostReplyResult parses an HTTP response from a AddPostReplyWithResponse call
+func ParseAddPostReplyResult(rsp *http.Response) (*AddPostReplyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AddPostReplyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest PostReply
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeletePostReplyResult parses an HTTP response from a DeletePostReplyWithResponse call
+func ParseDeletePostReplyResult(rsp *http.Response) (*DeletePostReplyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeletePostReplyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUnreactToPostReplyResult parses an HTTP response from a UnreactToPostReplyWithResponse call
+func ParseUnreactToPostReplyResult(rsp *http.Response) (*UnreactToPostReplyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UnreactToPostReplyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PostReply
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReactToPostReplyResult parses an HTTP response from a ReactToPostReplyWithResponse call
+func ParseReactToPostReplyResult(rsp *http.Response) (*ReactToPostReplyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReactToPostReplyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PostReply
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseConfirmPostResult parses an HTTP response from a ConfirmPostWithResponse call
+func ParseConfirmPostResult(rsp *http.Response) (*ConfirmPostResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConfirmPostResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Post
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePublishPostResult parses an HTTP response from a PublishPostWithResponse call
+func ParsePublishPostResult(rsp *http.Response) (*PublishPostResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PublishPostResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Post
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemindPostResult parses an HTTP response from a RemindPostWithResponse call
+func ParseRemindPostResult(rsp *http.Response) (*RemindPostResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemindPostResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PostReminded
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseMarkPostSeenResult parses an HTTP response from a MarkPostSeenWithResponse call
+func ParseMarkPostSeenResult(rsp *http.Response) (*MarkPostSeenResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &MarkPostSeenResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Post
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -205058,6 +216253,46 @@ func ParseAnswerSatisfactionLinkResult(rsp *http.Response) (*AnswerSatisfactionL
 			return nil, err
 		}
 		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAskQueryResult parses an HTTP response from a AskQueryWithResponse call
+func ParseAskQueryResult(rsp *http.Response) (*AskQueryResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AskQueryResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AskedQuery
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON503 = &dest
 
 	}
 
@@ -206745,6 +217980,39 @@ func ParseSearchItemsResult(rsp *http.Response) (*SearchItemsResult, error) {
 			return nil, err
 		}
 		response.ApplicationproblemJSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSearchAllResult parses an HTTP response from a SearchAllWithResponse call
+func ParseSearchAllResult(rsp *http.Response) (*SearchAllResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SearchAllResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SearchAllAnswer
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -210586,6 +221854,86 @@ func ParseRestoreWhiteboardResult(rsp *http.Response) (*RestoreWhiteboardResult,
 		}
 		response.ApplicationproblemJSON4XX = &dest
 
+	}
+
+	return response, nil
+}
+
+// ParseCheckWopiFileInfoResult parses an HTTP response from a CheckWopiFileInfoWithResponse call
+func ParseCheckWopiFileInfoResult(rsp *http.Response) (*CheckWopiFileInfoResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CheckWopiFileInfoResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WopiFileInfo
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case rsp.StatusCode == 401:
+		break // No content-type
+
+	case rsp.StatusCode == 404:
+		break // No content-type
+
+	}
+
+	return response, nil
+}
+
+// ParseLockWopiFileResult parses an HTTP response from a LockWopiFileWithResponse call
+func ParseLockWopiFileResult(rsp *http.Response) (*LockWopiFileResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &LockWopiFileResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseGetWopiFileResult parses an HTTP response from a GetWopiFileWithResponse call
+func ParseGetWopiFileResult(rsp *http.Response) (*GetWopiFileResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetWopiFileResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParsePutWopiFileResult parses an HTTP response from a PutWopiFileWithResponse call
+func ParsePutWopiFileResult(rsp *http.Response) (*PutWopiFileResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutWopiFileResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
 	}
 
 	return response, nil

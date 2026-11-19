@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ITEMS, OTHER, signedIn, stub } from './fixture.mjs';
@@ -41,7 +41,7 @@ async function composeFor(browser, assignee) {
     return stub(route);
   });
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
-  await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
   await unfoldFields(page);
   await page.locator('[data-detail="reminders"]').click();
   const editor = page.getByRole('dialog', { name: 'Reminders' });
@@ -52,8 +52,7 @@ async function composeFor(browser, assignee) {
 }
 
 test('a reminder by mail to an assignee without a mailbox says it does not reach them', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { editor, failures, close } = await composeFor(browser, LENA);
   t.after(close);
 
@@ -63,8 +62,7 @@ test('a reminder by mail to an assignee without a mailbox says it does not reach
 });
 
 test('a reminder by mail to an assignee with an address says nothing of a mailbox', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { editor, failures, close } = await composeFor(browser, MARA);
   t.after(close);
 

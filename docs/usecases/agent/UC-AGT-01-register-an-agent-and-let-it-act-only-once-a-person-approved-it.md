@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/agent/Agent_test.go, core/application/service/agent/Agent_test.go, test/integration/agent_repository_test.go, apps/webapp/src/lib/data/agents.test.ts, test/architecture/doorsalike_test.go, apps/webapp/e2e/agentswalk.test.mjs]
+checked_by: [core/domain/model/agent/Agent_test.go, core/application/service/agent/Agent_test.go, test/integration/agent_repository_test.go, apps/webapp/src/lib/data/agents.test.ts, test/architecture/doorsalike_test.go, apps/webapp/e2e/agentswalk.test.mjs, core/application/service/agent/Registry_test.go, apps/webapp/e2e/productsband.test.mjs]
 ---
 
 # Register an agent and let it act only once a person approved it
@@ -44,6 +44,8 @@ does and puts it live. When it misbehaves, Ana pulls its switch and it stops mid
 8. REST, MCP and hubctl register, read, approve, put live, stop and retire agents alike.
 9. The web app's administration lists the agents with their state and lets an administrator
    approve, put live, stop and retire them.
+10. The agents' home shows first the held acts the reader may decide, then the agents as cards,
+    each with its state, its share of the day's budget and its last run.
 
 ## Where it ends
 

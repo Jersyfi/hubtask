@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, HUB, signedIn, stub } from './fixture.mjs';
@@ -27,8 +27,7 @@ const BOARD = {
 };
 
 test('chromium: choosing templates in the gallery puts nothing; the button puts the one chosen, once', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context } = await signedIn(browser, 1440, 900);
   t.after(() => context.close());
   await context.unroute('**/api/v1/**');

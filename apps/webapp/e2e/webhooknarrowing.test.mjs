@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { COLLECTION, HUB, MANIFEST, signedIn, stub } from './fixture.mjs';
@@ -46,8 +46,7 @@ const HELD = {
 };
 
 test('chromium: a subscription takes a condition and a scope, and says both back', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 1400);
   t.after(() => context.close());
 
@@ -107,8 +106,7 @@ test('chromium: a subscription takes a condition and a scope, and says both back
 // The column counts a connection switched off after failures on the *Webhooks* row, on every
 // screen of the administration, before the webhooks are opened (user-experience.md §7.10).
 test('chromium: the column counts a webhook switched off after failures', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   const OFF = { ...SUBSCRIPTION, id: '01a0e2e0-0000-7000-8000-000000001803', state: 'DISABLED', failure_count: 12 };

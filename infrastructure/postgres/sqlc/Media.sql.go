@@ -35,6 +35,47 @@ func (q *Queries) AdjustMediaRefCount(ctx context.Context, arg AdjustMediaRefCou
 	return result.RowsAffected(), nil
 }
 
+const countCiMedia = `-- name: CountCiMedia :one
+SELECT count(*)::int AS total FROM cmdb_ci_media WHERE ci_id = $1::uuid
+`
+
+func (q *Queries) CountCiMedia(ctx context.Context, ciID pgtype.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, countCiMedia, ciID)
+	var total int32
+	err := row.Scan(&total)
+	return total, err
+}
+
+const deleteCiMedia = `-- name: DeleteCiMedia :execrows
+DELETE FROM cmdb_ci_media
+WHERE ci_id = $1::uuid AND media_id = $2::uuid
+`
+
+type DeleteCiMediaParams struct {
+	CiID    pgtype.UUID
+	MediaID pgtype.UUID
+}
+
+func (q *Queries) DeleteCiMedia(ctx context.Context, arg DeleteCiMediaParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteCiMedia, arg.CiID, arg.MediaID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteDocumentServer = `-- name: DeleteDocumentServer :execrows
+DELETE FROM document_server WHERE tenant_id = current_tenant_id()
+`
+
+func (q *Queries) DeleteDocumentServer(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteDocumentServer)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteItemAttachment = `-- name: DeleteItemAttachment :execrows
 DELETE FROM item_attachment
 WHERE item_id = $1::uuid AND media_id = $2::uuid
@@ -47,6 +88,18 @@ type DeleteItemAttachmentParams struct {
 
 func (q *Queries) DeleteItemAttachment(ctx context.Context, arg DeleteItemAttachmentParams) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteItemAttachment, arg.ItemID, arg.MediaID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteMediaLock = `-- name: DeleteMediaLock :execrows
+DELETE FROM media_lock WHERE media_id = $1
+`
+
+func (q *Queries) DeleteMediaLock(ctx context.Context, mediaID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteMediaLock, mediaID)
 	if err != nil {
 		return 0, err
 	}
@@ -71,6 +124,40 @@ func (q *Queries) DeleteMediaObjectRow(ctx context.Context, arg DeleteMediaObjec
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const findDocumentServer = `-- name: FindDocumentServer :one
+SELECT kind, url FROM document_server WHERE tenant_id = current_tenant_id()
+`
+
+type FindDocumentServerRow struct {
+	Kind string
+	Url  string
+}
+
+// The workspace's document server; no row is none (UC-MED-06).
+func (q *Queries) FindDocumentServer(ctx context.Context) (FindDocumentServerRow, error) {
+	row := q.db.QueryRow(ctx, findDocumentServer)
+	var i FindDocumentServerRow
+	err := row.Scan(&i.Kind, &i.Url)
+	return i, err
+}
+
+const findMediaLock = `-- name: FindMediaLock :one
+SELECT lock_id, expires_at FROM media_lock WHERE media_id = $1
+`
+
+type FindMediaLockRow struct {
+	LockID    string
+	ExpiresAt pgtype.Timestamptz
+}
+
+// The lock a document server holds on a file, expired or not: the domain decides whether it holds.
+func (q *Queries) FindMediaLock(ctx context.Context, mediaID pgtype.UUID) (FindMediaLockRow, error) {
+	row := q.db.QueryRow(ctx, findMediaLock, mediaID)
+	var i FindMediaLockRow
+	err := row.Scan(&i.LockID, &i.ExpiresAt)
+	return i, err
 }
 
 const findMediaObject = `-- name: FindMediaObject :one
@@ -115,6 +202,27 @@ func (q *Queries) FindMediaObject(ctx context.Context, id pgtype.UUID) (FindMedi
 		&i.DeletedAt,
 	)
 	return i, err
+}
+
+const insertCiMedia = `-- name: InsertCiMedia :execrows
+INSERT INTO cmdb_ci_media (tenant_id, ci_id, media_id)
+VALUES (current_tenant_id(), $1, $2)
+ON CONFLICT DO NOTHING
+`
+
+type InsertCiMediaParams struct {
+	CiID    pgtype.UUID
+	MediaID pgtype.UUID
+}
+
+// ON CONFLICT DO NOTHING, for the reason InsertItemAttachment gives: zero rows is how the caller
+// knows not to raise the reference count twice.
+func (q *Queries) InsertCiMedia(ctx context.Context, arg InsertCiMediaParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertCiMedia, arg.CiID, arg.MediaID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const insertItemAttachment = `-- name: InsertItemAttachment :execrows
@@ -180,6 +288,173 @@ func (q *Queries) InsertMediaObject(ctx context.Context, arg InsertMediaObjectPa
 		arg.CreatedAt,
 	)
 	return err
+}
+
+const insertMediaVersion = `-- name: InsertMediaVersion :exec
+INSERT INTO media_version (tenant_id, media_id, number, earlier_media_id, saved_by, saved_at)
+VALUES (current_tenant_id(), $1, $2, $3,
+        $4, $5)
+`
+
+type InsertMediaVersionParams struct {
+	MediaID        pgtype.UUID
+	Number         int32
+	EarlierMediaID pgtype.UUID
+	SavedBy        pgtype.UUID
+	SavedAt        pgtype.Timestamptz
+}
+
+func (q *Queries) InsertMediaVersion(ctx context.Context, arg InsertMediaVersionParams) error {
+	_, err := q.db.Exec(ctx, insertMediaVersion,
+		arg.MediaID,
+		arg.Number,
+		arg.EarlierMediaID,
+		arg.SavedBy,
+		arg.SavedAt,
+	)
+	return err
+}
+
+const insertReadyMediaObject = `-- name: InsertReadyMediaObject :exec
+INSERT INTO media_object (
+  id, tenant_id, storage_key, file_name, mime_type, byte_size, usage, status,
+  ref_count, created_by, created_at
+) VALUES (
+  $1, current_tenant_id(), $2, $3,
+  $4, $5, $6, 'READY',
+  1, $7, $8
+)
+`
+
+type InsertReadyMediaObjectParams struct {
+	ID         pgtype.UUID
+	StorageKey string
+	FileName   *string
+	MimeType   string
+	ByteSize   int64
+	Usage      string
+	CreatedBy  pgtype.UUID
+	CreatedAt  pgtype.Timestamptz
+}
+
+// An earlier version's object: the bytes the file had, READY because they were judged when they
+// arrived.
+func (q *Queries) InsertReadyMediaObject(ctx context.Context, arg InsertReadyMediaObjectParams) error {
+	_, err := q.db.Exec(ctx, insertReadyMediaObject,
+		arg.ID,
+		arg.StorageKey,
+		arg.FileName,
+		arg.MimeType,
+		arg.ByteSize,
+		arg.Usage,
+		arg.CreatedBy,
+		arg.CreatedAt,
+	)
+	return err
+}
+
+const listCiMedia = `-- name: ListCiMedia :many
+SELECT m.id, m.tenant_id, m.storage_key, m.file_name, m.mime_type, m.byte_size, m.checksum,
+       m.usage, m.status, m.ref_count, m.created_by, m.created_at, m.deleted_at
+FROM cmdb_ci_media a
+JOIN media_object m ON m.id = a.media_id
+WHERE a.ci_id = $1::uuid
+  AND (
+    $2::timestamptz IS NULL
+    OR (m.created_at, m.id) > ($2::timestamptz, $3::uuid)
+  )
+ORDER BY m.created_at, m.id
+LIMIT $4
+`
+
+type ListCiMediaParams struct {
+	CiID            pgtype.UUID
+	CursorCreatedAt pgtype.Timestamptz
+	CursorID        pgtype.UUID
+	PageSize        int32
+}
+
+type ListCiMediaRow struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	StorageKey string
+	FileName   *string
+	MimeType   string
+	ByteSize   int64
+	Checksum   *string
+	Usage      string
+	Status     string
+	RefCount   int32
+	CreatedBy  pgtype.UUID
+	CreatedAt  pgtype.Timestamptz
+	DeletedAt  pgtype.Timestamptz
+}
+
+// One page of an object's files as media objects, oldest upload first, keyed as
+// ListItemAttachments is (api-guidelines.md §4).
+func (q *Queries) ListCiMedia(ctx context.Context, arg ListCiMediaParams) ([]ListCiMediaRow, error) {
+	rows, err := q.db.Query(ctx, listCiMedia,
+		arg.CiID,
+		arg.CursorCreatedAt,
+		arg.CursorID,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCiMediaRow{}
+	for rows.Next() {
+		var i ListCiMediaRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.StorageKey,
+			&i.FileName,
+			&i.MimeType,
+			&i.ByteSize,
+			&i.Checksum,
+			&i.Usage,
+			&i.Status,
+			&i.RefCount,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCiMediaIDs = `-- name: ListCiMediaIDs :many
+SELECT media_id FROM cmdb_ci_media
+WHERE ci_id = $1::uuid
+ORDER BY media_id
+`
+
+func (q *Queries) ListCiMediaIDs(ctx context.Context, ciID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listCiMediaIDs, ciID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var media_id pgtype.UUID
+		if err := rows.Scan(&media_id); err != nil {
+			return nil, err
+		}
+		items = append(items, media_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listHeldMediaObjects = `-- name: ListHeldMediaObjects :many
@@ -378,6 +653,35 @@ func (q *Queries) ListMediaReferencingBoards(ctx context.Context, mediaID pgtype
 	return items, nil
 }
 
+const listMediaReferencingCis = `-- name: ListMediaReferencingCis :many
+SELECT DISTINCT c.hub_id
+FROM cmdb_ci_media m JOIN cmdb_ci c ON c.tenant_id = m.tenant_id AND c.id = m.ci_id
+WHERE m.media_id = $1::uuid
+LIMIT 50
+`
+
+// The hubs of the inventory objects that hold an object, for GetMedia's authorisation: whoever may
+// read one of those hubs may read the object, as they read the inventory object itself.
+func (q *Queries) ListMediaReferencingCis(ctx context.Context, mediaID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listMediaReferencingCis, mediaID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var hub_id pgtype.UUID
+		if err := rows.Scan(&hub_id); err != nil {
+			return nil, err
+		}
+		items = append(items, hub_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMediaReferencingItems = `-- name: ListMediaReferencingItems :many
 SELECT id, collection_id FROM work_item WHERE cover_media_id = $1::uuid
 UNION
@@ -474,6 +778,56 @@ func (q *Queries) ListMediaServedDesks(ctx context.Context, mediaID pgtype.UUID)
 	return items, nil
 }
 
+const listMediaVersions = `-- name: ListMediaVersions :many
+SELECT number, earlier_media_id, saved_by, saved_at FROM media_version
+WHERE media_id = $1 ORDER BY number DESC LIMIT 100
+`
+
+type ListMediaVersionsRow struct {
+	Number         int32
+	EarlierMediaID pgtype.UUID
+	SavedBy        pgtype.UUID
+	SavedAt        pgtype.Timestamptz
+}
+
+func (q *Queries) ListMediaVersions(ctx context.Context, mediaID pgtype.UUID) ([]ListMediaVersionsRow, error) {
+	rows, err := q.db.Query(ctx, listMediaVersions, mediaID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMediaVersionsRow{}
+	for rows.Next() {
+		var i ListMediaVersionsRow
+		if err := rows.Scan(
+			&i.Number,
+			&i.EarlierMediaID,
+			&i.SavedBy,
+			&i.SavedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lockMediaObjectForSave = `-- name: LockMediaObjectForSave :one
+SELECT id FROM media_object WHERE id = $1 AND deleted_at IS NULL FOR UPDATE
+`
+
+// A save's first statement: the row is held until the transaction ends, so two saves of one file
+// number their versions one after the other.
+func (q *Queries) LockMediaObjectForSave(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, lockMediaObjectForSave, id)
+	var id_2 pgtype.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
 const markMediaOrphans = `-- name: MarkMediaOrphans :execrows
 UPDATE media_object SET deleted_at = $1
 WHERE deleted_at IS NULL
@@ -524,6 +878,17 @@ func (q *Queries) MediaServesAvatar(ctx context.Context, mediaID pgtype.UUID) (b
 	return serves, err
 }
 
+const nextMediaVersionNumber = `-- name: NextMediaVersionNumber :one
+SELECT COALESCE(max(number), 0)::int + 1 AS next FROM media_version WHERE media_id = $1
+`
+
+func (q *Queries) NextMediaVersionNumber(ctx context.Context, mediaID pgtype.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, nextMediaVersionNumber, mediaID)
+	var next int32
+	err := row.Scan(&next)
+	return next, err
+}
+
 const recountMediaReferences = `-- name: RecountMediaReferences :exec
 UPDATE media_object m SET
   ref_count = c.total,
@@ -545,7 +910,11 @@ FROM (
     -- A board's pictures and files, trashed boards included: they may come back.
     + (SELECT count(*) FROM whiteboard_media b WHERE b.media_id = o.id)
     -- A page's pictures and files, trashed pages included, for the same reason.
-    + (SELECT count(*) FROM page_media g WHERE g.media_id = o.id) AS total
+    + (SELECT count(*) FROM page_media g WHERE g.media_id = o.id)
+    -- An inventory object's files, until the object goes.
+    + (SELECT count(*) FROM cmdb_ci_media c WHERE c.media_id = o.id)
+    -- A file's earlier version is kept while the file lives (UC-MED-06).
+    + (SELECT count(*) FROM media_version v WHERE v.earlier_media_id = o.id) AS total
   FROM media_object o
   WHERE o.deleted_at IS NULL
 ) c
@@ -583,6 +952,34 @@ DELETE FROM media_object WHERE id = ANY($1::uuid[])
 // job, which retries - at least once, idempotent at the store (core/port/storage).
 func (q *Queries) RemoveMediaObjectRows(ctx context.Context, ids []pgtype.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, removeMediaObjectRows, ids)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const replaceMediaContent = `-- name: ReplaceMediaContent :execrows
+UPDATE media_object SET storage_key = $1, mime_type = $2,
+  byte_size = $3
+WHERE id = $4 AND deleted_at IS NULL AND status = 'READY'
+`
+
+type ReplaceMediaContentParams struct {
+	StorageKey string
+	MimeType   string
+	ByteSize   int64
+	ID         pgtype.UUID
+}
+
+// A save's last write: the file keeps its id and takes the new bytes; the bytes it had are the
+// earlier version's object, written before this in the same transaction.
+func (q *Queries) ReplaceMediaContent(ctx context.Context, arg ReplaceMediaContentParams) (int64, error) {
+	result, err := q.db.Exec(ctx, replaceMediaContent,
+		arg.StorageKey,
+		arg.MimeType,
+		arg.ByteSize,
+		arg.ID,
+	)
 	if err != nil {
 		return 0, err
 	}
@@ -679,4 +1076,46 @@ func (q *Queries) TakeMediaOrphans(ctx context.Context, arg TakeMediaOrphansPara
 		return nil, err
 	}
 	return items, nil
+}
+
+const upsertDocumentServer = `-- name: UpsertDocumentServer :exec
+INSERT INTO document_server (tenant_id, kind, url, set_by, updated_at)
+VALUES (current_tenant_id(), $1, $2, $3, $4)
+ON CONFLICT (tenant_id) DO UPDATE
+  SET kind = excluded.kind, url = excluded.url, set_by = excluded.set_by, updated_at = excluded.updated_at
+`
+
+type UpsertDocumentServerParams struct {
+	Kind      string
+	Url       string
+	SetBy     pgtype.UUID
+	UpdatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) UpsertDocumentServer(ctx context.Context, arg UpsertDocumentServerParams) error {
+	_, err := q.db.Exec(ctx, upsertDocumentServer,
+		arg.Kind,
+		arg.Url,
+		arg.SetBy,
+		arg.UpdatedAt,
+	)
+	return err
+}
+
+const upsertMediaLock = `-- name: UpsertMediaLock :exec
+INSERT INTO media_lock (tenant_id, media_id, lock_id, expires_at)
+VALUES (current_tenant_id(), $1, $2, $3)
+ON CONFLICT (tenant_id, media_id) DO UPDATE
+  SET lock_id = excluded.lock_id, expires_at = excluded.expires_at
+`
+
+type UpsertMediaLockParams struct {
+	MediaID   pgtype.UUID
+	LockID    string
+	ExpiresAt pgtype.Timestamptz
+}
+
+func (q *Queries) UpsertMediaLock(ctx context.Context, arg UpsertMediaLockParams) error {
+	_, err := q.db.Exec(ctx, upsertMediaLock, arg.MediaID, arg.LockID, arg.ExpiresAt)
+	return err
 }

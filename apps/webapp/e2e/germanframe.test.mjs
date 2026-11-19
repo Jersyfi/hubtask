@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, COLLECTION, HUB, ITEMS, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -50,8 +50,7 @@ async function german(browser, width = 1280, answer = () => undefined) {
 const isGerman = (page) => page.waitForFunction(() => document.documentElement.lang === 'de', null, { timeout: 15_000 });
 
 test('chromium: 1280 px — the frame of a collection speaks German: the hub level, the sync, the pane', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await german(browser);
   t.after(() => context.close());
 
@@ -89,8 +88,7 @@ test('chromium: 1280 px — the frame of a collection speaks German: the hub lev
 });
 
 test('chromium: 1280 px — on an entry\'s page the sidebar marks its collection, not *Heute*', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await german(browser);
   t.after(() => context.close());
 
@@ -109,8 +107,7 @@ test('chromium: 1280 px — on an entry\'s page the sidebar marks its collection
 });
 
 test('chromium: 1280 px — *Du* offers the workspace\'s language and zone in grammatical German', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await german(browser);
   t.after(() => context.close());
 
@@ -126,8 +123,7 @@ test('chromium: 1280 px — *Du* offers the workspace\'s language and zone in gr
 
 // UC-INS-04 check 2: the proof is asked once, and nothing is read before it.
 test('chromium: 1280 px — the installation asks for its proof once and reads nothing before it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   let proven = false;
   const { context, page, failures, requests } = await german(browser, 1280, (route, path) => {
     if (path === '/auth/sessions:elevate' && !proven) {

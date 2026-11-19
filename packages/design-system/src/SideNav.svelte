@@ -442,7 +442,7 @@
                      reaching the row, which would navigate. -->
                 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
                 <span class="more" onclick={(event) => event.stopPropagation()}>
-                  <Menu
+                  <Menu isAnchored
                     label={menu.label}
                     items={menu.items}
                     placement={{ side: 'block-end', align: 'end' }}

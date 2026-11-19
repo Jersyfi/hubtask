@@ -274,7 +274,8 @@ type Erasure interface {
 	// people, about both, and evidence of nothing (UC-WRK-29 check 5).
 	DiscardKudos(ctx context.Context, accountID shared.ID) (int, error)
 
-	// DiscardArrangements removes what stands in the person's name alone: the digests mailed to
+	// DiscardArrangements removes what stands in the person's name alone - which posts they saw,
+	// confirmed and reacted to among it: the digests mailed to
 	// them, the dashboards only they see and the approval delegations by and to them.
 	DiscardArrangements(ctx context.Context, accountID shared.ID) (int, error)
 
@@ -339,6 +340,7 @@ const (
 	ContributedCheckIn         ContributionKind = "GOAL_CHECK_IN"
 	ContributedPortfolioUpdate ContributionKind = "PORTFOLIO_UPDATE"
 	ContributedPageDraft       ContributionKind = "PAGE_DRAFT"
+	ContributedPostReply       ContributionKind = "POST_REPLY"
 )
 
 // Contribution is one row of the person's on an entry, and where that entry is.

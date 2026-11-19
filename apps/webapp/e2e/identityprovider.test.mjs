@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, MANIFEST, REDIRECT_URI as REDIRECT, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -102,8 +102,7 @@ for (const locale of ['en', 'de']) {
   const words = WORDS[locale];
 
   test(`chromium, ${locale}: the three answers in plain words, newcomers where they arrive, the address copied whole`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, sent, close } = await open(browser, locale);
     t.after(close);
 
@@ -189,8 +188,7 @@ for (const locale of ['en', 'de']) {
 // UC-ID-11: a workspace choosing Google has its one issuer filled in; another provider takes
 // it out again.
 test('chromium: choosing Google fills its issuer in a workspace too', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, 'en');
   t.after(close);
 
@@ -209,8 +207,7 @@ test('chromium: choosing Google fills its issuer in a workspace too', async (t) 
 // under *Anyone this provider knows* the form asks for them there and sends them; a directory's own
 // issuer under the same mode asks for none, and a list typed under another mode is not sent unseen.
 test('chromium: a shared endpoint under Anyone asks for the directories and sends them', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser, 'en');
   t.after(close);
 
@@ -248,8 +245,7 @@ test('chromium: a shared endpoint under Anyone asks for the directories and send
 // (identity_provider.provisioning_personal), so the form does not offer it there (P-05); chosen
 // before the issuer was typed, it stays chosen and the form says why, rather than moving silently.
 test('chromium: Anyone is not offered on an issuer that serves personal accounts', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, 'en');
   t.after(close);
 
@@ -280,8 +276,7 @@ test('chromium: Anyone is not offered on an issuer that serves personal accounts
 // typed and *Save* waits for it (P-05) - in any case and spacing, as the server compares it - while
 // under *Only people invited here* the list only narrows and may name it.
 test('chromium: the personal directory is refused in the list before the save, except where the list only narrows', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser, 'en');
   t.after(close);
 

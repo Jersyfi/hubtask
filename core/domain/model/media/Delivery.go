@@ -32,12 +32,22 @@ const (
 )
 
 // inlineTypes is the allowlist. Short on purpose: a type is added here when somebody shows its
-// rendering path executes nothing, not removed when somebody shows it does.
+// rendering path executes nothing, not removed when somebody shows it does. The audio and video
+// formats are decoded by the browser's media pipeline, which runs no script and builds no
+// document; the file viewer plays them by their URL. PDF, SVG, text and office files stay off it:
+// the viewer draws those itself from the fetched bytes, never by handing a URL to the browser.
 var inlineTypes = map[string]bool{
 	"image/png":  true,
 	"image/jpeg": true,
 	"image/gif":  true,
 	"image/webp": true,
+	"video/mp4":  true,
+	"video/webm": true,
+	"audio/mpeg": true,
+	"audio/wave": true,
+	"audio/wav":  true,
+	"audio/ogg":  true,
+	"audio/webm": true,
 }
 
 // DeliveryFor answers how an object of this content type may be served. Called with the stored
@@ -81,7 +91,24 @@ func AcceptClaim(claimed, sniffed string) (string, error) {
 		return claimedEssence, nil
 	}
 
+	// ZIP is a container: an office document is a ZIP the sniff cannot see into, so a claim of a
+	// format built on ZIP - none of them inline - sharpens it.
+	if sniffedEssence == "application/zip" && zipFormats[claimedEssence] {
+		return claimedEssence, nil
+	}
+
 	return "", typeMismatch(claimed, sniffed)
+}
+
+// zipFormats are the office formats whose files are ZIP archives (OOXML, ODF).
+var zipFormats = map[string]bool{
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document":   true,
+	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":         true,
+	"application/vnd.openxmlformats-officedocument.presentationml.presentation": true,
+	"application/vnd.oasis.opendocument.text":                                   true,
+	"application/vnd.oasis.opendocument.spreadsheet":                            true,
+	"application/vnd.oasis.opendocument.presentation":                           true,
+	"application/vnd.oasis.opendocument.graphics":                               true,
 }
 
 // genericTypes is what sniffing answers when it recognised nothing specific.

@@ -30,19 +30,19 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">About</p>
       <h2>What the contract says of itself</h2>
     </div>
-    <div class="narrow">
+    <div class="site-narrow">
       <Markdown source={reference.description} />
     </div>
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">By tag</p>

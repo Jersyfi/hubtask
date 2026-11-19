@@ -37,6 +37,8 @@
   import Icon from './Icon.svelte';
   import Menu from './Menu.svelte';
   import ProductTile from './ProductTile.svelte';
+  import UnreadDot from './UnreadDot.svelte';
+  import VisuallyHidden from './VisuallyHidden.svelte';
   import { indentOf, type MoveKey } from './navtree.ts';
 
   interface Props {
@@ -60,6 +62,8 @@
     /** Heard with the figure where the figure alone would not say it: "14 open". */
     figureLabel?: string;
     badge?: RowBadge;
+    /** News not read yet - a post in the hub column: a neutral dot in the mark's place, these words for a screen reader. */
+    unreadLabel?: string;
     isCurrent?: boolean;
     /** Ordering is allowed here: the grip appears on hover (§5.4). */
     isMovable?: boolean;
@@ -111,6 +115,7 @@
     isFigureUrgent = false,
     figureLabel,
     badge,
+    unreadLabel,
     isCurrent = false,
     isMovable = false,
     menu,
@@ -195,7 +200,7 @@
 
 {#snippet action(kind: 'menu' | 'add', act: RowAction)}
   {#if act.items}
-    <Menu
+    <Menu isAnchored
       label={act.label}
       items={act.items}
       placement={act.heading ? { side: 'inline-end', align: 'start' } : { side: 'block-end', align: 'end' }}
@@ -245,10 +250,10 @@
     {/if}
   {/if}
   <span class="mark" aria-hidden="true">
-    {#if icon && color}<ProductTile {icon} {color} />{:else if icon}<Icon name={icon} size="sm" />{/if}
+    {#if unreadLabel}<UnreadDot />{:else if icon && color}<ProductTile {icon} {color} />{:else if icon}<Icon name={icon} size="sm" />{/if}
   </span>
   {#if !isRail}
-    <span class="name" title={label}>{label}</span>
+    <span class="name" title={label}>{label}{#if unreadLabel}<VisuallyHidden>{unreadLabel}</VisuallyHidden>{/if}</span>
     {#if badge}
       <span class="badge" title={badge.label}><Icon name={badge.icon} label={badge.label} size="sm" /></span>
     {/if}

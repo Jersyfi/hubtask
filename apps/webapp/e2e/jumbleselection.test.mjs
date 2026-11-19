@@ -70,7 +70,8 @@ async function evidence(page, name) {
   await page.screenshot({ path: join(process.env.EVIDENCE, name.replace('.png', `-${process.env.SCHEME ?? 'light'}.png`)), fullPage: true });
 }
 
-for (const width of [1280, 768, 375]) {
+// The middle width only for the screenshots: nothing asserted differs from the large one's.
+for (const width of process.env.EVIDENCE ? [1280, 768, 375] : [1280, 375]) {
   test(`chromium: ${width} px — the selected undecided entries are asked about, each on its own card`, { timeout: 90_000 }, async () => {
     const browser = await chromium.launch();
     const { page, failures, asked, close } = await openJumble(browser, width);

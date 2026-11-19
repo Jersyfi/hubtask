@@ -136,7 +136,11 @@ type CI struct {
 	CreatedAt  time.Time
 	UpdatedBy  shared.ID
 	UpdatedAt  time.Time
-	Version    int
+	// ConfirmedAt and ConfirmedBy are a person's last word that it is as recorded (Confirm, or a
+	// campaign's CONFIRMED); nil and zero while nobody has said so.
+	ConfirmedAt *time.Time
+	ConfirmedBy shared.ID
+	Version     int
 }
 
 // The fields a change of a CI names (audit, history).

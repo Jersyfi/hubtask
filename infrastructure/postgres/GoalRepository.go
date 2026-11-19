@@ -64,6 +64,11 @@ type storedWidget struct {
 	// Compare and Cumulative are named as on the wire: the replica hands the column on as it is.
 	Compare    *storedCompare `json:"compare,omitempty"`
 	Cumulative bool           `json:"cumulative,omitempty"`
+	Text       string         `json:"text,omitempty"`
+	Column     string         `json:"column,omitempty"`
+	Released   []string       `json:"released,omitempty"`
+	Target     *float64       `json:"target,omitempty"`
+	WarnAt     *float64       `json:"warn_at,omitempty"`
 	X          int            `json:"x"`
 	Y          int            `json:"y"`
 	W          int            `json:"w"`
@@ -136,6 +141,7 @@ func encodeWidgets(widgets []domain.Widget) ([]byte, error) {
 		stored = append(stored, storedWidget{
 			ID: w.ID.String(), Title: w.Title, Chart: string(w.Chart), Source: string(w.Source),
 			ViewID: w.ViewID.String(), Query: w.Query, GoalIDs: goals, Compare: compare, Cumulative: w.Cumulative,
+			Text: w.Text, Column: w.Column, Released: w.Released, Target: w.Target, WarnAt: w.WarnAt,
 			X: w.X, Y: w.Y, W: w.W, H: w.H,
 		})
 	}
@@ -164,6 +170,7 @@ func decodeWidgets(raw []byte) ([]domain.Widget, error) {
 		out = append(out, domain.Widget{
 			ID: ids[0], Title: s.Title, Chart: domain.Chart(s.Chart), Source: domain.WidgetSource(s.Source),
 			ViewID: ids[1], Query: s.Query, GoalIDs: goals, Compare: compare, Cumulative: s.Cumulative,
+			Text: s.Text, Column: s.Column, Released: s.Released, Target: s.Target, WarnAt: s.WarnAt,
 			X: s.X, Y: s.Y, W: s.W, H: s.H,
 		})
 	}
@@ -897,7 +904,7 @@ func dashboardOf(r sqlc.ListDashboardsRow) (domain.Dashboard, error) {
 	}
 	return domain.Dashboard{
 		ID: found[0], HubID: found[1], OwnerID: found[2], Name: r.Name, Sharing: domain.Sharing(r.Sharing),
-		GroupIDs: groups, Widgets: widgets, Version: int(r.Version),
+		GroupIDs: groups, Filter: r.Filter, Widgets: widgets, Version: int(r.Version),
 	}, nil
 }
 
@@ -963,7 +970,7 @@ func (GoalRepository) InsertDashboard(ctx context.Context, d domain.Dashboard, a
 	}
 	err = queries.InsertDashboard(ctx, sqlc.InsertDashboardParams{
 		ID: keys[0], HubID: keys[1], OwnerID: keys[2], Name: d.Name, Sharing: string(d.Sharing), GroupIds: groups,
-		Widgets: widgets, At: timestampOf(at),
+		Widgets: widgets, Filter: d.Filter, At: timestampOf(at),
 	})
 	return wrapGoal(err, "writing a dashboard")
 }
@@ -988,7 +995,7 @@ func (GoalRepository) UpdateDashboard(ctx context.Context, d domain.Dashboard, e
 	}
 	//nolint:gosec // G115: a version is bounded by the row
 	affected, err := queries.UpdateDashboard(ctx, sqlc.UpdateDashboardParams{
-		Name: d.Name, Sharing: string(d.Sharing), GroupIds: groups, Widgets: widgets, At: timestampOf(at), By: keys[1],
+		Name: d.Name, Sharing: string(d.Sharing), GroupIds: groups, Widgets: widgets, Filter: d.Filter, At: timestampOf(at), By: keys[1],
 		ID: keys[0], ExpectedVersion: int32(expected),
 	})
 	if err != nil {

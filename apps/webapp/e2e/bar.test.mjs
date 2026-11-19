@@ -17,7 +17,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { COLLECTION as KITCHEN, PERMISSIONS, fallback, signedIn, unstubbedSoFar } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -105,8 +105,7 @@ const ROUTES = [
 ];
 
 test('chromium: 375 px — every page hands its title to the bar', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser);
   t.after(close);
 
@@ -131,8 +130,7 @@ test('chromium: 375 px — every page hands its title to the bar', async (t) => 
 });
 
 test('chromium: the administration is a section, and the tree is not in it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, 1280);
   t.after(close);
 
@@ -190,8 +188,7 @@ const SECTION = [
 ];
 
 test('chromium: every screen of the section says where it is and leads back', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, 1280);
   t.after(close);
 
@@ -238,8 +235,7 @@ test('chromium: every screen of the section says where it is and leads back', as
 });
 
 test('chromium: 375 px — the area is a level of the Browse stack, under the same bottom bar', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser);
   t.after(close);
 
@@ -250,7 +246,7 @@ test('chromium: 375 px — the area is a level of the Browse stack, under the sa
   assert.equal((await back.innerText()).trim(), 'Administration');
   assert.equal(await page.getByRole('button', { name: 'Open the navigation' }).count(), 0, 'the area is behind a drawer on a phone');
   const tabs = page.getByRole('navigation', { name: 'Sections' });
-  assert.deepEqual((await tabs.locator('.word').allInnerTexts()).map((word) => word.trim()), ['Today', 'Browse', 'Capture', 'Inbox', 'Search']);
+  assert.deepEqual((await tabs.locator('.word').allInnerTexts()).map((word) => word.trim()), ['Today', 'Browse', 'Create', 'Inbox', 'Search']);
   assert.equal(await tabs.getByRole('link', { name: 'Browse' }).getAttribute('aria-current'), 'page');
 
   // One level up: the area's groups as a step, its rows leading on, and Browse above it.
@@ -267,8 +263,7 @@ test('chromium: 375 px — the area is a level of the Browse stack, under the sa
 });
 
 test('chromium: 375 px — the page menu is in the bar, and it is the head\'s own list', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   // The shared fixture's owner: a place's own menu holds only what may be done to it, and this
   // walk's own reader holds no role that may do anything to a place.
   const { page, failures, context } = await signedIn(browser, 375, 812);
@@ -295,5 +290,52 @@ test('chromium: 375 px — the page menu is in the bar, and it is the head\'s ow
   const items = (await opened.getByRole('menuitem').allTextContents()).map((item) => item.trim());
   assert.ok(items.length > 0, 'the bar\'s menu is empty');
 
+  // A menu shown as a sheet keeps the menu's keys: focus on its first row, the arrows move, Escape closes.
+  const focused = () => page.evaluate(() => (document.activeElement?.getAttribute('role') === 'menuitem' ? document.activeElement.textContent.trim() : null));
+  await page.waitForFunction(() => document.activeElement?.getAttribute('role') === 'menuitem', null, { timeout: 2_000 }).catch(() => undefined);
+  const rows = await opened.getByRole('menuitem').evaluateAll((all) => all.filter((each) => !each.hasAttribute('data-destructive')).map((each) => each.textContent.trim()));
+  assert.equal(await focused(), rows[0], 'focus does not start on the first row');
+  if (items.length > 1) {
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await focused(), items[1], 'ArrowDown does not move to the next row');
+  }
+  await page.keyboard.press('Escape');
+  await opened.waitFor({ state: 'detached', timeout: 2_000 }).catch(() => undefined);
+  assert.equal(await page.getByRole('menu').count(), 0, 'Escape does not close the menu');
+
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: 375 px — a long title ends in an ellipsis on one line, never over the way up or the buttons', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, close } = await open(browser);
+  t.after(close);
+  const long = { ...COLLECTION, name: 'Plan for the new logistics centre in Hamburg-Billbrook, second stage' };
+  await page.route('**/api/v1/containers**', (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === `/containers/${COLLECTION.id}`) return route.fulfill({ json: long });
+    if (path === '/containers' && new URL(route.request().url()).searchParams.get('type') !== 'HUB') return route.fulfill({ json: { ...PAGE, data: [long] } });
+    return route.fallback();
+  });
+
+  await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
+  const title = page.locator('[data-bar="title"]');
+  await title.filter({ hasText: 'Hamburg' }).waitFor({ timeout: 10_000 });
+  const boxes = await page.locator('[data-phone-bar]').evaluate((bar) => {
+    const box = (node) => { const r = node.getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, height: r.height }; };
+    const name = bar.querySelector('[data-bar="title"]');
+    return {
+      title: box(name),
+      lineHeight: parseFloat(getComputedStyle(name).lineHeight) || 0,
+      cut: name.scrollWidth > name.clientWidth,
+      back: [...bar.querySelectorAll('[data-back]')].map(box),
+      buttons: [...bar.querySelectorAll('.end button')].map(box).filter((each) => each.right > each.left),
+    };
+  });
+  assert.ok(boxes.cut, 'the long title is not cut with an ellipsis');
+  assert.ok(boxes.title.height <= Math.max(boxes.lineHeight, 24) + 1, `the title takes more than one line: ${boxes.title.height}`);
+  for (const back of boxes.back) assert.ok(back.right <= boxes.title.left + 0.5, `the title runs over the way up: ${JSON.stringify([back, boxes.title])}`);
+  for (const button of boxes.buttons) assert.ok(button.left >= boxes.title.right - 0.5, `the title runs under a button: ${JSON.stringify([button, boxes.title])}`);
+  assert.ok(boxes.back.length > 0 && boxes.back[0].right - boxes.back[0].left >= 44, 'the way up gave way below a thumb');
   assert.deepEqual(failures, []);
 });

@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { HUB, signedIn, stub } from './fixture.mjs';
@@ -22,9 +22,8 @@ const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
 test.after(() => served.close());
 
-test('chromium: a refused new whiteboard keeps its dialog open with the reason inside it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+test('chromium: a refused new whiteboard leaves the reader where they were with the reason in words (scene wnew)', async (t) => {
+  const browser = await sharedChromium(t);
   const { page, context } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   await context.unroute('**/api/v1/**');
@@ -42,14 +41,10 @@ test('chromium: a refused new whiteboard keeps its dialog open with the reason i
     return stub(route);
   });
   await page.goto(`${served.origin}/hubs/${HUB.id}/whiteboards`);
+  // A board is made at once, with no dialog: a refusal is said where the reader stands.
   await page.getByRole('button', { name: 'New whiteboard' }).first().click();
-  const dialog = page.getByRole('dialog', { name: 'New whiteboard' });
-  await dialog.getByLabel('Title').fill('Retro');
-  await dialog.getByRole('button', { name: 'Make the whiteboard' }).click();
-
-  await dialog.locator('.banner[data-tone=danger]').first().waitFor({ timeout: 5_000 });
-  assert.equal(await dialog.isVisible(), true, 'the dialog closed on a refusal');
-  assert.equal(await dialog.getByLabel('Title').inputValue(), 'Retro', 'the title was lost');
+  await page.locator('[data-tone=danger]').first().waitFor({ timeout: 5_000 });
+  assert.ok(new URL(page.url()).pathname.startsWith(`/hubs/${HUB.id}/`), 'a refused board was opened');
 });
 
 const SERVER_CLASS = {
@@ -59,8 +54,7 @@ const SERVER_CLASS = {
 };
 
 test('chromium: a refused new configuration item says why inside its dialog', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   await context.unroute('**/api/v1/**');
@@ -78,9 +72,9 @@ test('chromium: a refused new configuration item says why inside its dialog', as
     return stub(route);
   });
   await page.goto(`${served.origin}/hubs/${HUB.id}/assets`);
-  await page.getByRole('button', { name: 'New configuration item' }).first().click();
+  await page.getByRole('button', { name: 'New object', exact: true }).first().click();
   const dialog = page.getByRole('dialog');
-  await dialog.getByLabel('Class', { exact: false }).first().selectOption('server');
+  await dialog.getByLabel('Object type', { exact: false }).first().selectOption('server');
   await dialog.getByLabel('Name', { exact: true }).fill('web-02');
   await dialog.getByRole('button', { name: 'Create', exact: true }).click();
 
@@ -95,8 +89,7 @@ const REFUSED = {
 };
 
 test('chromium: a refused new forge keeps its dialog open with the name and the reason', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context } = await signedIn(browser, 1280, 1000);
   t.after(() => context.close());
   await context.route(`**/api/v1/hubs/${HUB.id}/code-hooks`, (route) =>
@@ -113,8 +106,7 @@ test('chromium: a refused new forge keeps its dialog open with the name and the 
 });
 
 test('chromium: a refused new model says why inside its dialog', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const walk = await productWalk(browser, {
     modules: ['AGENTS'],
     answer: (method, path) => {

@@ -83,6 +83,9 @@ type CompletionWriter struct {
 	// a done status and a reopening one out of it (UC-FLW-03 check 4). A build without it
 	// runs none.
 	Workflow WorkflowGate
+	// Boards keeps the column with completion on a board without a workflow and with the status
+	// under one (domain-model.md §3.5a). A build without it moves no column.
+	Boards Boards
 }
 
 // completionOf is what completing a child does in this collection: the value in force, inherited
@@ -223,6 +226,9 @@ func (w CompletionWriter) change(
 				wanted.Status = step.To
 			}
 		}
+		if wanted, err = w.Boards.couple(ctx, item, wanted, actor.AccountID, now); err != nil {
+			return err
+		}
 		if wanted.Completion.IsCompleted == item.Completion.IsCompleted {
 			// Already in the state asked for. Nothing is written, no version is spent and nothing is
 			// announced - which is what makes a repeat harmless rather than merely accepted, and what
@@ -260,6 +266,42 @@ func (w CompletionWriter) change(
 		return domain.WorkItem{}, err
 	}
 	return changed, nil
+}
+
+// follow writes the completion a column move decided (domain-model.md §3.5a), inside the
+// caller's transaction and with everything a completion owes: its event, history, audit, the
+// roll-up and the milestones. The entry is already in its new column.
+func (w CompletionWriter) follow(
+	ctx context.Context, actor appshared.ActorContext, collection domain.Container, item domain.WorkItem,
+	completed bool, now time.Time,
+) (domain.WorkItem, error) {
+	wanted, want := item.Completed(actor.AccountID, now), completing
+	if !completed {
+		wanted, want = item.Reopened(now), reopening
+	}
+	if wanted.Completion.IsCompleted == item.Completion.IsCompleted {
+		return item, nil
+	}
+	if err := w.completable(ctx, item); err != nil {
+		return domain.WorkItem{}, err
+	}
+	written, announcement, err := w.write(ctx, actor, item, wanted, item.Version, want, now, event.Cause{})
+	if err != nil {
+		return domain.WorkItem{}, err
+	}
+	policy, err := w.completionOf(ctx, collection)
+	if err != nil {
+		return domain.WorkItem{}, err
+	}
+	if err := w.rollUp(ctx, actor, written, policy, now, announcement); err != nil {
+		return domain.WorkItem{}, err
+	}
+	if want == completing {
+		if err := w.recordMilestones(ctx, collection, now); err != nil {
+			return domain.WorkItem{}, err
+		}
+	}
+	return written, nil
 }
 
 // recordMilestones records the collection, and then its hub, when this completion left nothing
@@ -336,6 +378,9 @@ func (w CompletionWriter) rollUp(
 			if wanted.Status, err = w.Workflow.rolledStatus(ctx, collection, wanted); err != nil {
 				return err
 			}
+		}
+		if wanted, err = w.Boards.couple(ctx, parent, wanted, actor.AccountID, now); err != nil {
+			return err
 		}
 
 		// The parent's event is caused by the child's - the same correlation, one level deeper. That chain
@@ -507,6 +552,8 @@ func (w CompletionWriter) recordChange(
 			domain.FieldCompletionCount: snapshot[domain.FieldCompletionCount],
 			// The status rides with the completion that moved it in a workflow collection (UC-FLW-03 check 4).
 			domain.FieldStatus: stringOrNil(item.Status),
+			// So does the column (domain-model.md §3.5a).
+			domain.FieldBucketID: idOrNil(item.BucketID),
 		},
 	})
 }

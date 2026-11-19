@@ -12,6 +12,8 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
+import { sharedChromium } from './browser.mjs';
+
 import { AI_SOURCE, DESTINATIONS, MANIFEST, signedIn, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
@@ -65,8 +67,7 @@ async function evidence(page, name) {
 }
 
 test('chromium: proposals on arrival are off until an administrator switches them on, and off again', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser);
   t.after(close);
 
@@ -87,8 +88,7 @@ test('chromium: proposals on arrival are off until an administrator switches the
 });
 
 test('chromium: with AI off the switch is not there at all', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, { ai: false });
   t.after(close);
 
@@ -154,7 +154,8 @@ async function advance(page, ms, step = 1_000) {
   }
 }
 
-for (const width of [1280, 768, 375]) {
+// The middle width only for the screenshots: nothing asserted differs from the large one's.
+for (const width of process.env.EVIDENCE ? [1280, 768, 375] : [1280, 375]) {
   test(`chromium: ${width} px — a new entry shows the proposal nobody asked for, with its collection`, { timeout: 90_000 }, async () => {
     const browser = await chromium.launch();
     let reads = 0;

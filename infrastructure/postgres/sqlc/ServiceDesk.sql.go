@@ -1269,6 +1269,105 @@ func (q *Queries) ListTimedPendingApprovals(ctx context.Context, arg ListTimedPe
 	return items, nil
 }
 
+const myDeadlinesKeptOla = `-- name: MyDeadlinesKeptOla :many
+SELECT o.group_id, o.goal, count(*)::bigint AS ended,
+       count(*) FILTER (WHERE o.standing = 'MET' AND o.breached_at IS NULL)::bigint AS kept
+FROM entry_ola o
+JOIN work_item w ON w.tenant_id = o.tenant_id AND w.id = o.item_id
+WHERE w.assignee_id = $1 AND w.deleted_at IS NULL
+  AND o.standing IN ('MET', 'BREACHED')
+  AND coalesce(o.breached_at, o.met_at) >= $2
+  AND coalesce(o.breached_at, o.met_at) < $3
+GROUP BY o.group_id, o.goal
+ORDER BY o.group_id, o.goal
+`
+
+type MyDeadlinesKeptOlaParams struct {
+	AccountID pgtype.UUID
+	From      pgtype.Timestamptz
+	To        pgtype.Timestamptz
+}
+
+type MyDeadlinesKeptOlaRow struct {
+	GroupID pgtype.UUID
+	Goal    string
+	Ended   int64
+	Kept    int64
+}
+
+// The teams' OLA goals likewise, per group and goal.
+func (q *Queries) MyDeadlinesKeptOla(ctx context.Context, arg MyDeadlinesKeptOlaParams) ([]MyDeadlinesKeptOlaRow, error) {
+	rows, err := q.db.Query(ctx, myDeadlinesKeptOla, arg.AccountID, arg.From, arg.To)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []MyDeadlinesKeptOlaRow{}
+	for rows.Next() {
+		var i MyDeadlinesKeptOlaRow
+		if err := rows.Scan(
+			&i.GroupID,
+			&i.Goal,
+			&i.Ended,
+			&i.Kept,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const myDeadlinesKeptSla = `-- name: MyDeadlinesKeptSla :many
+SELECT s.goal, count(*)::bigint AS ended,
+       count(*) FILTER (WHERE s.standing = 'MET' AND s.breached_at IS NULL)::bigint AS kept
+FROM entry_sla s
+JOIN work_item w ON w.tenant_id = s.tenant_id AND w.id = s.item_id
+WHERE w.assignee_id = $1 AND w.deleted_at IS NULL
+  AND s.standing IN ('MET', 'BREACHED')
+  AND coalesce(s.breached_at, s.met_at) >= $2
+  AND coalesce(s.breached_at, s.met_at) < $3
+GROUP BY s.goal
+ORDER BY s.goal
+`
+
+type MyDeadlinesKeptSlaParams struct {
+	AccountID pgtype.UUID
+	From      pgtype.Timestamptz
+	To        pgtype.Timestamptz
+}
+
+type MyDeadlinesKeptSlaRow struct {
+	Goal  string
+	Ended int64
+	Kept  int64
+}
+
+// The requester's goals on the entries assigned to one person that ended - met or breached - in a
+// window, per goal, and how many were kept (UC-SVC-02 check 15).
+func (q *Queries) MyDeadlinesKeptSla(ctx context.Context, arg MyDeadlinesKeptSlaParams) ([]MyDeadlinesKeptSlaRow, error) {
+	rows, err := q.db.Query(ctx, myDeadlinesKeptSla, arg.AccountID, arg.From, arg.To)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []MyDeadlinesKeptSlaRow{}
+	for rows.Next() {
+		var i MyDeadlinesKeptSlaRow
+		if err := rows.Scan(&i.Goal, &i.Ended, &i.Kept); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const pendingApprovalOfItem = `-- name: PendingApprovalOfItem :one
 SELECT id, tenant_id, item_id, workflow_key, step_key, item_version, levels, decline_to, due_hours,
        current_level, state, requested_by, requested_at, level_since, decided_at, version
@@ -1406,6 +1505,46 @@ func (q *Queries) ReportEntrySla(ctx context.Context, arg ReportEntrySlaParams) 
 			&i.Standing,
 			&i.Entries,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const requestPaceOf = `-- name: RequestPaceOf :many
+SELECT w.id AS item_id,
+       (SELECT max(c.created_at) FROM comment c
+         WHERE c.tenant_id = w.tenant_id AND c.item_id = w.id AND c.kind = 'USER' AND NOT c.internal AND c.deleted_at IS NULL
+           AND c.author_id <> w.created_by)::timestamptz AS last_reply_at,
+       (SELECT min(s.due_at) FROM entry_sla s
+         WHERE s.tenant_id = w.tenant_id AND s.item_id = w.id AND s.standing = 'RUNNING')::timestamptz AS next_due_at
+FROM work_item w
+WHERE w.id = ANY($1::uuid[])
+`
+
+type RequestPaceOfRow struct {
+	ItemID      pgtype.UUID
+	LastReplyAt pgtype.Timestamptz
+	NextDueAt   pgtype.Timestamptz
+}
+
+// How a page of requests moves for their requesters (UC-SVC-05 check 3): the team's last public
+// reply - what PublicComments keeps, by anybody but whoever raised it - and the requester's next
+// deadline, the earliest running SLA goal; entry_ola, the teams' own promises, is never read.
+func (q *Queries) RequestPaceOf(ctx context.Context, itemIds []pgtype.UUID) ([]RequestPaceOfRow, error) {
+	rows, err := q.db.Query(ctx, requestPaceOf, itemIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RequestPaceOfRow{}
+	for rows.Next() {
+		var i RequestPaceOfRow
+		if err := rows.Scan(&i.ItemID, &i.LastReplyAt, &i.NextDueAt); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

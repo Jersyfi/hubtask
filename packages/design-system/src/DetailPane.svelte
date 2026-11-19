@@ -25,7 +25,6 @@
   import { escapeHandler } from './focus.ts';
   import { layers } from './layers.ts';
   import ViewSwitcher from './ViewSwitcher.svelte';
-  import VisuallyHidden from './VisuallyHidden.svelte';
 
   interface Props {
     /** What is open. Resolved text (ADR-0011). */
@@ -65,11 +64,6 @@
 
   const { title, kind, trail, dismissLabel, onClose, view, resize, children }: Props = $props();
 
-  // Svelte's own id, not a random one: unique per instance and the same on every render, so a
-  // prerendered page is identical between builds and a hydrated one matches its markup.
-  const instanceId = $props.id();
-  const titleId = `pane-${instanceId}`;
-
   // The weakest dismissible layer: `Escape` reaches it last, after any menu or popover opened
   // inside it, and never while a dialog is up.
   $effect(() => {
@@ -83,13 +77,13 @@
   });
 </script>
 
-<aside class="pane" aria-labelledby={titleId}>
+<aside class="pane" aria-label={title}>
   {#if resize}
     <ResizeHandle label={resize.label} value={resize.value} min={resize.min} max={resize.max} reset={resize.reset} edge="inline-start" onresize={resize.onresize} />
   {/if}
   <header class="head">
-    <!-- Where the entry is, small; its name is read rather than drawn, because the entry's own
-         title field is the first thing below. -->
+    <!-- Where the entry is, small; its name is the heading of the object's own head below, so the
+         pane is named by it and draws no second heading. -->
     <div class="names">
       {#if trail && trail.length > 0}
         <span class="trail">
@@ -101,7 +95,6 @@
       {:else if kind}
         <span class="kind">{kind}</span>
       {/if}
-      <VisuallyHidden><h2 id={titleId}>{title}</h2></VisuallyHidden>
     </div>
     <div class="controls">
       {#if view}

@@ -24,7 +24,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, OTHER, OWNER_GRANTS, PAGE, SHAPE_HUB, SHAPE_ITEMS, SHAPES, forgetUnstubbed, showStructures, stub, openSettings, viewLink, openNewCollection, kindChoice } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -104,8 +104,7 @@ async function openPanel(page, name, section = 'Templates and presets') {
 // page. And on *Labels* each colour is named by its colour, not by the name field's label.
 for (const width of [390, 1280]) {
   test(`chromium: ${width} px - every section of the settings is in sight, and a label's colours are named`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await as(browser, 'OWNER', width);
     t.after(() => context.close());
 
@@ -139,8 +138,7 @@ for (const width of [390, 1280]) {
 }
 
 test('chromium: the owner - a list offers what a list offers, and its panel says where each value comes from (checks 1, 3, 4)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures, written } = await as(browser, 'OWNER');
   t.after(() => context.close());
 
@@ -155,10 +153,11 @@ test('chromium: the owner - a list offers what a list offers, and its panel says
   const kept = await page.locator(`[data-row="${SHAPE_ITEMS[0].id}"]`).first().textContent();
   assert.ok(!kept.includes('2026') && !kept.includes('JW'), `the row draws what a list does not carry: ${kept}`);
   // ...and its filter asks about nothing a list does not carry: no due date to order by.
-  await page.getByRole('button', { name: 'Sort' }).click();
-  const orderBy = page.getByRole('menu', { name: 'How the entries are ordered' });
+  // The order is chosen in the View panel (E-21), the one place a list's question is asked.
+  await page.locator('[data-opener="view"]').click();
+  const orderBy = page.locator('[data-view-panel]').getByLabel('Sort by');
   await orderBy.waitFor({ state: 'visible', timeout: 5_000 });
-  const orders = (await orderBy.getByRole('menuitem').allTextContents()).map((each) => each.trim());
+  const orders = await orderBy.locator('option').evaluateAll((all) => all.map((each) => each.value));
   assert.ok(orders.includes('title') && !orders.includes('due_at'), `the list is ordered by ${orders}`);
   await page.keyboard.press('Escape');
 
@@ -171,7 +170,8 @@ test('chromium: the owner - a list offers what a list offers, and its panel says
   }
   assert.equal(await page.getByLabel('Notes').count(), 0, 'a note editor');
   // What the entry still holds from before - a date, a person, a cover - stays stored and is not drawn.
-  assert.equal(await page.evaluate(() => document.querySelector('[data-tour="entry"] .marks')?.children.length), 1, 'a mark beside the type');
+  // The head's action bar draws no person and no date chip for it (§6.9).
+  assert.equal(await page.locator('[data-tour="entry"] .action-bar').locator('.person, .chip').count(), 0, 'a person or a date in the head');
   assert.equal(await page.locator('[data-tour="entry"] .cover-stripe').count(), 0, 'a cover');
   assert.equal(await page.getByRole('button', { name: /^Add (a task|a work package|an activity) inside/ }).count(), 0, 'a child entry');
 
@@ -218,8 +218,7 @@ test('chromium: the owner - a list offers what a list offers, and its panel says
 });
 
 test('chromium: the owner - a narrowing first shows what it would stop showing, Hide by default, Flatten on choice (UC-WRK-24 checks 2, 4, 6)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures, written } = await as(browser, 'OWNER');
   t.after(() => context.close());
 
@@ -256,8 +255,7 @@ test('chromium: the owner - a narrowing first shows what it would stop showing, 
 });
 
 test('chromium: the owner - a hub that narrows names the collections keeping their own value (UC-WRK-24 check 7)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures, written } = await as(browser, 'OWNER');
   t.after(() => context.close());
 
@@ -279,8 +277,7 @@ test('chromium: the owner - a hub that narrows names the collections keeping the
 });
 
 test('chromium: the owner - a level is named by the name given to it, and by its type without one (check 6)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, 'OWNER');
   t.after(() => context.close());
 
@@ -289,25 +286,27 @@ test('chromium: the owner - a level is named by the name given to it, and by its
   await page.getByText(SHAPE_ITEMS[0].title).first().waitFor();
   const said = await page.locator('[data-opener="add-entry"]').evaluateAll((controls) => controls.map((control) => control.textContent.trim()));
   assert.ok(said.length >= 1, `add controls: ${said}`);
-  assert.ok(said.every((text) => text === 'Add item'), `add controls read ${JSON.stringify(said)}`);
-  assert.equal(await page.getByRole('button', { name: 'Add an entry', exact: true }).count(), 0, 'an add left unnamed');
+  // The foot's add says the level and the place: "item in “Shopping”" (work-surface concept §8, L-6).
+  assert.ok(said.every((text) => text === `item in “${SHAPES.list.name}”`), `add controls read ${JSON.stringify(said)}`);
+  assert.ok(!said.some((text) => /^(Add an entry|Entry in)/u.test(text)), 'an add left unnamed');
 
   // An entry's badge names its level by that name.
   await page.goto(`${served.origin}/items/${SHAPE_ITEMS[0].id}`);
   await page.getByRole('heading', { name: SHAPE_ITEMS[0].title }).first().waitFor({ timeout: 15_000 });
   await page.waitForTimeout(600);
-  assert.equal((await page.locator('.marks .badge').first().textContent()).trim(), 'item');
+  // The head's type beside the key names the level (§6.9).
+  assert.match((await page.locator('[data-tour="entry"] .key-row').innerText()).trim(), /\bitem\b/);
 
   // Without a name, the catalogue's words: the project adds "an entry", and no name leaks into it.
   await openCollection(page, SHAPES.locked);
-  assert.ok((await page.getByRole('button', { name: 'Add an entry', exact: true }).count()) > 0, 'the unnamed project lost its add');
-  assert.equal(await page.getByRole('button', { name: 'Add item', exact: true }).count(), 0, 'a name leaked into another collection');
+  await page.locator('[data-opener="add-entry"]').first().waitFor({ timeout: 5_000 }).catch(() => assert.fail('the unnamed project lost its add'));
+  const unnamed = await page.locator('[data-opener="add-entry"]').evaluateAll((controls) => controls.map((control) => control.textContent.trim()));
+  assert.ok(unnamed.every((text) => text === 'Add an entry' || text === `Entry in “${SHAPES.locked.name}”`), `a name leaked into another collection: ${JSON.stringify(unnamed)}`);
   assert.deepEqual(failures, []);
 });
 
 test('chromium: the owner - creating a collection offers the presets, and the one chosen is sent (check 1)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures, written } = await as(browser, 'OWNER');
   t.after(() => context.close());
   await page.goto(`${served.origin}/hubs/${SHAPE_HUB.id}`);
@@ -333,8 +332,7 @@ test('chromium: the owner - creating a collection offers the presets, and the on
 });
 
 test('chromium: the owner - the hub\'s Edit changes its name, description and look, and its default preset (check 1)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures, written } = await as(browser, 'OWNER');
   t.after(() => context.close());
   const renamed = [];
@@ -378,8 +376,7 @@ test('chromium: the owner - the hub\'s Edit changes its name, description and lo
 });
 
 test('chromium: an administrator - a lock shows its value and who set it, and cannot be changed (check 7)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures, written } = await as(browser, 'ADMIN');
   t.after(() => context.close());
 
@@ -421,8 +418,7 @@ test('chromium: an administrator - a lock shows its value and who set it, and ca
 });
 
 test('chromium: a member - the list as its settings make it, and no settings page (check 9)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, 'MEMBER');
   t.after(() => context.close());
 
@@ -469,8 +465,7 @@ for (const place of [
   { kind: 'collection', path: () => `/collections/${SHAPES.list.id}`, name: () => SHAPES.list.name },
 ]) {
   test(`chromium: a ${place.kind}'s settings have the shell's sections, save bar and leave guard`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await as(browser, 'OWNER');
     t.after(() => context.close());
 

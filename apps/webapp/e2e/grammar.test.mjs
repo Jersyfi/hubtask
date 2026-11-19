@@ -6,12 +6,12 @@
 // bar; no word broken across lines and no name cut without an ellipsis; an empty state centred. A
 // screen added later is added to ROUTES with it.
 
-import { test } from 'node:test';
+import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { COLLECTION, HUB, showToday, signedIn } from './fixture.mjs';
@@ -30,21 +30,23 @@ const ROUTES = [
   '/administration/privacy', '/administration/ai', '/installation',
 ];
 
-for (const width of [390, 800, 1280, 1600]) {
-  test(`chromium: ${width} px — every screen keeps the grammar`, async (t) => {
-    showToday();
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
-    const { page, context } = await signedIn(browser, width, 900, { timezoneId: 'UTC' });
-    t.after(() => context.close());
-    const findings = [];
-    for (const route of ROUTES) {
-      await page.goto(`${served.origin}${route}`);
-      await page.locator('main').waitFor({ timeout: 10_000 });
-      // The screen's reads land and its layout settles before it is measured.
-      await page.waitForTimeout(500);
-      for (const found of await page.evaluate(measure)) findings.push(`${route}: ${found}`);
-    }
-    assert.deepEqual(findings, []);
-  });
-}
+// The widths two at a time, each walking every screen in a context of its own.
+describe('every screen keeps the grammar', { concurrency: 2 }, () => {
+  for (const width of [390, 800, 1280, 1600]) {
+    test(`chromium: ${width} px — every screen keeps the grammar`, async (t) => {
+      showToday();
+      const browser = await sharedChromium(t);
+      const { page, context } = await signedIn(browser, width, 900, { timezoneId: 'UTC' });
+      t.after(() => context.close());
+      const findings = [];
+      for (const route of ROUTES) {
+        await page.goto(`${served.origin}${route}`);
+        await page.locator('main').waitFor({ timeout: 10_000 });
+        // The screen's reads land and its layout settles before it is measured.
+        await page.waitForTimeout(500);
+        for (const found of await page.evaluate(measure)) findings.push(`${route}: ${found}`);
+      }
+      assert.deepEqual(findings, []);
+    });
+  }
+});

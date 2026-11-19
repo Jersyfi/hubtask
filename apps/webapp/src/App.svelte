@@ -11,7 +11,7 @@
   // No sentence is written in this file. `Hubtask` is a name rather than a message, and everything
   // else is a code rendered from `locales/en.json` (ADR-0011).
   import { tick, untrack } from 'svelte';
-  import { Spinner } from '@hubtask/design-system/components';
+  import { Spinner, setCloseLabel } from '@hubtask/design-system/components';
   import type { ConnectorLocated } from '@hubtask/sync-engine';
 
   import LazyFrame from './lib/frame/LazyFrame.svelte';
@@ -27,6 +27,8 @@
   import { browseElsewhere, stepOf } from './lib/phone.ts';
   import { viewport } from './lib/frame/viewport.svelte.ts';
   import { actor } from './lib/data/account.svelte.ts';
+  import { isOutsider, isOutsiderRoute, portalStart } from './lib/portal/portal.ts';
+  import { lastPortal } from './lib/portal/lastportal.svelte.ts';
   import { manifest } from './lib/data/capabilities.svelte.ts';
   import ModuleOff from './lib/frame/ModuleOff.svelte';
   import { PRODUCT_HOMES, isProductHome, offModuleOf } from './lib/frame/moduleroute.ts';
@@ -89,6 +91,8 @@
     TokenView: () => import('./views/TokenView.svelte'),
     TrashView: () => import('./views/TrashView.svelte'),
     PagesView: () => import('./views/PagesView.svelte'),
+    PostsView: () => import('./views/PostsView.svelte'),
+    PostView: () => import('./views/PostView.svelte'),
     NotesView: () => import('./views/NotesView.svelte'),
     ProductHomeView: () => import('./views/ProductHomeView.svelte'),
     DeskReportsView: () => import('./views/DeskReportsView.svelte'),
@@ -102,9 +106,15 @@
     PortalView: () => import('./views/PortalView.svelte'),
     PortalRequestView: () => import('./views/PortalRequestView.svelte'),
     PortalArticleView: () => import('./views/PortalArticleView.svelte'),
+    PortalRequestsView: () => import('./views/PortalRequestsView.svelte'),
+    PortalApprovalsView: () => import('./views/PortalApprovalsView.svelte'),
+    PortalKnowledgeView: () => import('./views/PortalKnowledgeView.svelte'),
+    PortalDirectoryView: () => import('./views/PortalDirectoryView.svelte'),
     WhiteboardsView: () => import('./views/WhiteboardsView.svelte'),
     PlanView: () => import('./views/PlanView.svelte'),
+    CollectionTimeline: () => import('./views/CollectionTimeline.svelte'),
     SprintView: () => import('./views/SprintView.svelte'),
+    BacklogView: () => import('./views/BacklogView.svelte'),
     ReleaseView: () => import('./views/ReleaseView.svelte'),
     TimeView: () => import('./views/TimeView.svelte'),
     GoalsView: () => import('./views/GoalsView.svelte'),
@@ -138,6 +148,10 @@
 
   const router = new Router(ROUTES, undefined, { fullLoad: loadReleaseAt, admits: (path) => leaveGuard.admits(path) });
   $effect(() => leaveGuard.connect((path) => router.navigate(path)));
+
+  // Every menu opens as a sheet on a phone (work-surface concept §7); the sheet's close is named here
+  // once, in the reader's language, and follows it when the language changes.
+  $effect(() => setCloseLabel(t('app.sheet_close')));
   let route = $state<Resolution>(router.current);
 
   /**
@@ -212,6 +226,21 @@
   const moved = $derived(movedTo(route.name, route.params, route.query));
   $effect(() => {
     if (moved) router.replace(keepsQuery(route.name) ? movedWith(moved, route.query) : moved);
+  });
+  // Whoever holds READ nowhere stands only in a portal (PO-2, E-13): any other address of the
+  // frame leads to their portal - the one chosen last - rather than to *no access*. An entry's
+  // address stays: it opens as their request (PO-5). The doors refuse them as before.
+  const outsiderStart = $derived(
+    session.isSignedIn && isOutsider(actor.hasNoAccess, actor.portals) && route.name !== null && !isOutsiderRoute(route.name)
+      ? portalStart(true, actor.portals, lastPortal.id)
+      : undefined,
+  );
+  $effect(() => {
+    if (outsiderStart) router.replace(outsiderStart);
+  });
+  $effect(() => {
+    const id = route.name?.startsWith('portal') ? route.params.id : undefined;
+    if (id && actor.portals.some((each) => each.collection_id === id)) lastPortal.remember(id);
   });
 
   /**
@@ -449,7 +478,7 @@
   {:else if reach === false}
     {@render nothingHere()}
   {:else if offModule}
-    <ModuleOff module={offModule} isProduct={route.name !== null && isProductHome(route.name)} />
+    <ModuleOff module={offModule} isProduct={route.name !== null && isProductHome(route.name)} onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'home'}
     <LazyView load={views.TodayView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'installation'}
@@ -519,7 +548,7 @@
     <LazyView load={views.ArchiveView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'item'}
     {#key route.params.id}
-      <LazyView load={views.ItemView} props={{ id: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
+      <LazyView load={views.ItemView} props={{ id: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
     {/key}
   {:else if route.name === 'approvals'}
     <LazyView load={views.ApprovalsView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
@@ -566,8 +595,22 @@
     {/key}
   {:else if route.name === 'portal-request'}
     {#key route.path}
-      <LazyView load={views.PortalRequestView} props={{ id: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
+      <LazyView load={views.PortalRequestView} props={{ id: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
     {/key}
+  {:else if route.name === 'portal-requests'}
+    {#key route.path}
+      <LazyView load={views.PortalRequestsView} props={{ collectionId: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
+  {:else if route.name === 'portal-approvals'}
+    {#key route.path}
+      <LazyView load={views.PortalApprovalsView} props={{}} />
+    {/key}
+  {:else if route.name === 'portal-knowledge'}
+    {#key route.path}
+      <LazyView load={views.PortalKnowledgeView} props={{ collectionId: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
+  {:else if route.name === 'portal-directory'}
+    <LazyView load={views.PortalDirectoryView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'portal-article'}
     {#key route.path}
       <LazyView load={views.PortalArticleView} props={{ collectionId: route.params.id ?? '', pageId: route.params.pageId ?? '', onnavigate: (path: string) => router.navigate(path) }} />
@@ -581,10 +624,19 @@
           pageId: route.name === 'page' ? route.params.id : undefined,
           isCreateAsked: route.query['new'] === '1' || route.query['new'] === 'under',
           isCreateUnder: route.name === 'page' && route.query['new'] === 'under',
+          startWith: route.query['template'],
           onnavigate: (path: string) => router.navigate(path),
           onreplace: (path: string) => router.replace(path),
         }}
       />
+    {/key}
+  {:else if route.name === 'hub-posts'}
+    {#key route.path}
+      <LazyView load={views.PostsView} props={{ hubId: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
+  {:else if route.name === 'post' || route.name === 'post-write'}
+    {#key route.path}
+      <LazyView load={views.PostView} props={{ pageId: route.params.id ?? '', isWriteAsked: route.name === 'post-write', onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
   {:else if route.name === 'whiteboard'}
     {#key route.path}
@@ -592,6 +644,8 @@
         load={views.WhiteboardsView}
         props={{
           boardId: route.params.id,
+          isNew: route.query['new'] === '1',
+          thread: route.query['comment'],
           onnavigate: (path: string) => router.navigate(path),
         }}
       />
@@ -604,7 +658,16 @@
     {#key route.params.id}
       <LazyView load={views.HubDeskView} props={{ hubId: route.params.id ?? '', queue: route.query['queue'], onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
     {/key}
-  {:else if route.name === 'hub-plan' || route.name === 'hub-plan-table' || route.name === 'hub-plan-dependencies' || route.name === 'collection-timeline'}
+  {:else if route.name === 'collection-timeline'}
+    {#key route.params.id}
+      <LazyView load={views.CollectionTimeline} props={{
+        collectionId: route.params.id ?? '',
+        openItemId: pane.kind === 'pane' ? pane.itemId : undefined,
+        viewAsked: route.query['view'],
+        onnavigate: (path: string) => router.navigate(path),
+      }} />
+    {/key}
+  {:else if route.name === 'hub-plan' || route.name === 'hub-plan-table' || route.name === 'hub-plan-dependencies'}
     {#key route.params.id}
       <LazyView load={views.PlanView} props={{ planId: route.params.id, part: route.name === 'hub-plan-table' ? 'table' : route.name === 'hub-plan-dependencies' ? 'dependencies' : 'schedule', onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
@@ -654,9 +717,13 @@
     {#key route.path}
       <LazyView load={views.ReleaseView} props={{ hubId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
-  {:else if route.name === 'collection-sprint' || route.name === 'collection-backlog'}
+  {:else if route.name === 'collection-sprint'}
     {#key route.path}
-      <LazyView load={views.SprintView} props={{ collectionId: route.params.id, isBacklog: route.name === 'collection-backlog', isCreateAsked: route.query['new'] === '1', onnavigate: (path: string) => router.navigate(path) }} />
+      <LazyView load={views.SprintView} props={{ collectionId: route.params.id, isCreateAsked: route.query['new'] === '1', onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
+  {:else if route.name === 'collection-backlog'}
+    {#key route.path}
+      <LazyView load={views.BacklogView} props={{ collectionId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
   {:else if route.name === 'ci'}
     {#key route.path}
@@ -670,6 +737,9 @@
           hubId: route.params.id ?? '',
           section: route.name === 'hub-inventory-section' ? route.params.section : undefined,
           isCreateAsked: route.query['new'] === '1',
+          line: route.query['line'],
+          group: route.query['group'],
+          asset: route.query['asset'],
           onnavigate: (path: string) => router.navigate(path),
         }}
       />

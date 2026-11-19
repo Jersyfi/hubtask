@@ -138,7 +138,7 @@ type RemoveSoftwareAlias struct{ Inventory Inventory }
 func (h RemoveSoftwareAlias) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: RemoveSoftwareAliasName, Permission: service.PermissionStructure,
-		Summary:     "Removes a software alias; what it matched is counted by its own folded names again. No CI changes.",
+		Summary:     "Removes a software alias; what it matched is counted by its own folded names again. No object changes.",
 		SideEffects: "Removes the alias and writes an audit entry.", TokenScope: configWrite,
 		Input: []usecase.Field{{Name: "alias_id", Kind: usecase.KindID, Required: true, Description: "The alias."}},
 		Audit: usecase.AuditDeclaration{Action: AliasRemovedAction, TargetType: aliasTarget, Severity: audit.SeverityInfo, Required: true},
@@ -172,8 +172,8 @@ type ListSoftwareProducts struct{ Inventory Inventory }
 func (h ListSoftwareProducts) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListSoftwareProductsName, Permission: service.PermissionRead,
-		Summary: "Answers a hub's software CIs grouped by product: the publisher and product an alias names, or the " +
-			"folded names otherwise, each with its versions - how many CIs and how many installations (hosts it is " +
+		Summary: "Answers a hub's software objects grouped by product: the publisher and product an alias names, or the " +
+			"folded names otherwise, each with its versions - how many objects and how many installations (hosts it is " +
 			"installed on) each - and whether an alias named it.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Input: []usecase.Field{{Name: "hub_id", Kind: usecase.KindID, Required: true, Description: "The hub."}},

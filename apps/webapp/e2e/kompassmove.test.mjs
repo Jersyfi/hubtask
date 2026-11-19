@@ -9,7 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { id, IT, PD, OTHERS, WEB, HUBS, COLLECTIONS, PD_PAGES, PD_BOARDS, ALL, served, open, side } from './kompassstub.mjs';
 
@@ -91,8 +91,7 @@ async function expectLine(page, target, share) {
 }
 
 test('UC-WRK-38 checks 1-5, UC-CNV-10 check 6: a page carried into a folded page, the reason on a board, Esc, Undo and Cmd/Ctrl+Z', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const record = recorder();
   const { page, failures, close } = await open(browser, { path: `/hubs/${PD.id}`, modulesOn: ALL, owner: true, extra: record.extra });
   t.after(close);
@@ -145,8 +144,7 @@ test('UC-WRK-38 checks 1-5, UC-CNV-10 check 6: a page carried into a folded page
 });
 
 test('UC-WRK-38 checks 6 and 8: Alt+arrows indent a page, M offers greyed places, a move shows waiting until answered', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const record = recorder();
   const { page, failures, close } = await open(browser, { path: `/hubs/${PD.id}`, modulesOn: ALL, owner: true, extra: record.extra });
   t.after(close);
@@ -179,8 +177,7 @@ test('UC-WRK-38 checks 6 and 8: Alt+arrows indent a page, M offers greyed places
 });
 
 test('UC-WRK-38 check 7, UC-WRK-37 check 6: hubs ordered in the shared order with Undo, stars and products personally', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const record = recorder();
   const { page, failures, written, close } = await open(browser, { modulesOn: ALL, owner: true, extra: record.extra, stars: [{ kind: 'HUB', id: IT.id }, { kind: 'COLLECTION', id: WEB.id }] });
   t.after(close);
@@ -243,6 +240,8 @@ async function walkMoveDialog(page, record, isPhone) {
   await dialog.getByRole('radio', { name: /^IT operations/ }).click();
   const checks = dialog.getByRole('list', { name: 'Before moving' });
   await checks.getByText('The name is taken in IT operations.', { exact: false }).waitFor();
+  // The people are named once their names are read, a moment after the line itself.
+  await checks.getByText('2 people will no longer see it: Tim Berg, Ana Ruiz.', { exact: false }).waitFor();
   const said = await checks.innerText();
   for (const words of ['Entries here use a type of Product development', '2 people will no longer see it: Tim Berg, Ana Ruiz.', 'It takes on the fields, views and rules of IT operations.', '4 entries stay in releases of Product development.']) {
     assert.ok(said.includes(words), said);
@@ -269,8 +268,7 @@ async function walkMoveDialog(page, record, isPhone) {
 }
 
 test('UC-WRK-39 checks 6-8: M on a collection row opens the move with its pre-check', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const record = recorder({ preview: PREVIEW });
   const { page, failures, close } = await open(browser, { path: `/hubs/${PD.id}`, modulesOn: ALL, owner: true, extra: record.extra });
   t.after(close);
@@ -286,8 +284,7 @@ const phone = (browser, path, options) =>
   open(browser, { path, modulesOn: ALL, owner: true, width: 390, height: 844, hasTouch: true, ready: (page) => page.locator('[data-phone-bar]'), ...options });
 
 test('UC-WRK-38 check 9, UC-WRK-39 check 8: a long press opens the row\'s sheet; Move to… names the destination on its button', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const record = recorder({ preview: PREVIEW });
   const { page, failures, close } = await phone(browser, `/browse/hubs/${PD.id}`, { extra: record.extra });
   t.after(close);
@@ -305,8 +302,7 @@ test('UC-WRK-38 check 9, UC-WRK-39 check 8: a long press opens the row\'s sheet;
 });
 
 test('UC-WRK-38 check 9: Change order opens reorder mode - grips at the end, Done - and no row drags outside it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const record = recorder();
   const { page, failures, close } = await phone(browser, `/browse/hubs/${PD.id}`, { extra: record.extra });
   t.after(close);
@@ -341,8 +337,7 @@ test('UC-WRK-38 check 9: Change order opens reorder mode - grips at the end, Don
 });
 
 test('UC-WRK-38 check 8: offline a move is not kept to send later, and the sidebar says so', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const record = recorder();
   const { page, failures, close } = await open(browser, { path: `/hubs/${PD.id}`, modulesOn: ALL, owner: true, extra: record.extra });
   t.after(close);
@@ -361,8 +356,7 @@ test('UC-WRK-38 check 8: offline a move is not kept to send later, and the sideb
 });
 
 test('UC-WRK-38: a page\'s ⋯ archives it or puts it in the trash, a board\'s only the trash, each with Undo', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const record = recorder();
   const { page, failures, close } = await open(browser, { path: `/hubs/${PD.id}`, modulesOn: ALL, owner: true, extra: record.extra });
   t.after(close);
@@ -391,8 +385,7 @@ test('UC-WRK-38: a page\'s ⋯ archives it or puts it in the trash, a board\'s o
 });
 
 test('UC-WRK-38 check 9: a page\'s sheet on the phone carries Archive and Move to the trash', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const record = recorder();
   const { page, failures, close } = await phone(browser, `/browse/hubs/${PD.id}`, { extra: record.extra });
   t.after(close);

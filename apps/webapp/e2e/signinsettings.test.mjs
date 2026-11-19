@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, MANIFEST, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -115,8 +115,7 @@ async function sourcesOf(page, label) {
 }
 
 test('chromium: every rule says where it comes from, and looser choices are not offered', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, (route, path) =>
     path === '/tenant' ? route.fulfill({ json: { ...WORKSPACE, sign_in_policy: policy() } }) : undefined);
   t.after(close);
@@ -214,8 +213,7 @@ function planPolicy() {
 }
 
 test('chromium: a workspace on a plan names it, and what the plan set says so', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, (route, path) =>
     path === '/tenant' ? route.fulfill({ json: { ...WORKSPACE, sign_in_policy: planPolicy() } }) : undefined);
   t.after(close);
@@ -247,8 +245,7 @@ test('chromium: a workspace on a plan names it, and what the plan set says so', 
 });
 
 test('chromium: a workspace on no plan names none', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, (route, path) =>
     path === '/tenant' ? route.fulfill({ json: { ...WORKSPACE, sign_in_policy: { ...policy(), plan: null } } }) : undefined);
   t.after(close);
@@ -259,8 +256,7 @@ test('chromium: a workspace on no plan names none', async (t) => {
 });
 
 test('chromium: a refusal is shown at the rule it is about', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, (route, path) => {
     if (path !== '/tenant') return undefined;
     if (route.request().method() === 'PATCH') {
@@ -290,8 +286,7 @@ test('chromium: a refusal is shown at the rule it is about', async (t) => {
 // with its count, Discard puts the rule back, Enter in a field saves as Save does, only what moved
 // is sent, and the save confirms as a passing message.
 test('chromium: the rules save through the save bar, and Enter saves', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const patches = [];
   const { page, close } = await open(browser, (route, path) => {
     if (path !== '/tenant') return undefined;
@@ -323,8 +318,7 @@ test('chromium: the rules save through the save bar, and Enter saves', async (t)
 // counted nor sent by another tab's save, and waits on its own tab until that tab saves; the legal
 // links are a page of their own with their own save.
 test('chromium: each tab saves its own rows, and the legal links are their own page', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const patches = [];
   const { page, close } = await open(browser, (route, path) => {
     if (path !== '/tenant') return undefined;
@@ -373,8 +367,7 @@ test('chromium: each tab saves its own rows, and the legal links are their own p
 // UC-ID-19: the terms' version sits beside their link, says what changing it does, travels in the
 // patch, and a refusal of it lands at its field.
 test('chromium: the terms version is set beside the link and its refusal lands there', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   let patched;
   const { page, close } = await open(browser, (route, path) => {
     if (path !== '/tenant') return undefined;
@@ -405,8 +398,7 @@ test('chromium: the terms version is set beside the link and its refusal lands t
 });
 
 test('chromium: a rule that cannot be read is a sentence and a retry', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   // Refused until the reader asks again: what is asserted is that the screen offers the asking and
   // that asking is what reads the rule again. The stream is held open and silent, because a stream
   // that reconnected would re-read everything on its own and decide the race instead of the click.
@@ -449,8 +441,7 @@ const provider = (id, name, scope, { enabled = true, offered = enabled } = {}) =
 // and the ones the installation offers - is one row with one switch, in one list; the last way in
 // that is on cannot be switched off.
 test('chromium: the ways to sign in are one list, one switch each, and the last cannot go', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const sent = [];
   const onlyProvider = policy();
   onlyProvider.methods = rule(['OIDC'], ['PASSWORD', 'OIDC'], { source: 'WORKSPACE' });
@@ -501,8 +492,7 @@ test('chromium: the ways to sign in are one list, one switch each, and the last 
 // ADR-0076 §2, UC-ID-12 check 6: a provider the installation withdraws says its day under
 // its switch while there is time to act on it, and from the day it has no switch at all.
 test('chromium: a provider the installation withdraws says when, under its switch', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const soon = new Date(Date.now() + 5 * 86_400_000).toISOString();
   const { page, close } = await open(browser, (route, path) => {
     if (path === '/tenant') return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: policy() } });
@@ -533,8 +523,7 @@ test('chromium: a provider the installation withdraws says when, under its switc
 // again, from the same answer the sign-in card reads - in a sentence that names no cause, because the
 // server opens the password whatever left the workspace without a way in (E2).
 test('chromium: a workspace left without a way in is told the password is open again', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const onlyProvider = policy();
   onlyProvider.methods = rule(['OIDC'], ['PASSWORD', 'OIDC'], { source: 'WORKSPACE' });
   const { page, close } = await open(browser, (route, path) => {
@@ -572,8 +561,7 @@ test('chromium: a workspace left without a way in is told the password is open a
 // provider switched on here signs in - the server's number - and says nothing once it is off, or
 // where nobody is without one.
 test('chromium: the password switch says how many people have no provider here before it goes off', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   let count = 3;
   let asked = 0;
   const { page, close } = await open(browser, (route, path) => {
@@ -614,8 +602,7 @@ test('chromium: the password switch says how many people have no provider here b
 // Under the installation's lock the password cannot go off here, so its cost is not said either -
 // the case a provider the lock turns on makes common: a second way in beside a locked password.
 test('chromium: a password the installation locked says no count', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const locked = policy();
   locked.methods = rule(['PASSWORD', 'OIDC'], ['PASSWORD', 'OIDC'], { lock: 'INSTANCE', source: 'INSTANCE', above: 'INSTANCE' });
   const { page, close } = await open(browser, (route, path) => {
@@ -639,8 +626,7 @@ test('chromium: a password the installation locked says no count', async (t) => 
 
 // The password already off: the cost is past, and the row says nothing of it.
 test('chromium: a switched-off password says no count', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const onlyProvider = policy();
   onlyProvider.methods = rule(['OIDC'], ['PASSWORD', 'OIDC'], { source: 'WORKSPACE' });
   const { page, close } = await open(browser, (route, path) => {
@@ -663,8 +649,7 @@ test('chromium: a switched-off password says no count', async (t) => {
 // screen says so - until when, who asked and why - instead of the sentence about no way in, which the
 // sign-in card's fallback flag would otherwise draw: a person opened it, the settings did not.
 test('chromium: an operator\'s opening of the password is said with its end, its requester and its reason', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const onlyProvider = policy();
   onlyProvider.methods = rule(['OIDC'], ['PASSWORD', 'OIDC'], { source: 'WORKSPACE' });
   const opening = {
@@ -704,8 +689,7 @@ test('chromium: an operator\'s opening of the password is said with its end, its
 // A reader without the configuration permission is answered the end alone; the banner says the rest
 // rather than an empty attribution.
 test('chromium: an opening answered without who asked is said without an empty attribution', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, (route, path) =>
     path === '/tenant'
       ? route.fulfill({ json: { ...WORKSPACE, sign_in_policy: policy(), password_opening: { until: '2026-10-07T14:30:00Z' } } })
@@ -721,8 +705,7 @@ test('chromium: an opening answered without who asked is said without an empty a
 // UC-ID-11 check 8: the provider screen configures; it switches nothing - not with a control, and
 // not with the deprecated field in the body it saves (ADR-0076 §5).
 test('chromium: the providers\' configuration has no switch of its own, and its old address lands on its tab', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const saved = [];
   const { page, close } = await open(browser, (route, path) => {
     const request = route.request();
@@ -765,8 +748,7 @@ test('chromium: the providers\' configuration has no switch of its own, and its 
 
 // UC-ID-12 check 9: the screen reads in German, with no rule falling back to English.
 test('chromium: the sign-in rules read in German', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, (route, path) => {
     if (path === '/accounts/me') return route.fulfill({ json: { ...ACCOUNT, locale: 'de' } });
     if (path === '/tenant') return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: policy() } });
@@ -796,8 +778,7 @@ test('chromium: the sign-in rules read in German', async (t) => {
 // admitted as "Only people invited here" is shown on and set by the installation - its switch kept,
 // on, switched off with the reason - while one admitted by domain stays this workspace's switch.
 test('chromium: a provider the installation\'s lock turns on is shown on and set by the installation', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const sent = [];
   const locked = policy();
   locked.methods = rule(['OIDC'], ['OIDC'], { lock: 'INSTANCE', source: 'INSTANCE', above: 'INSTANCE' });
@@ -844,8 +825,7 @@ test('chromium: a provider the installation\'s lock turns on is shown on and set
 // installation's link is said beside it - inherited where the workspace set none, beside its own
 // where both are set, with the lock where the installation fixed it, and nothing where nobody set one.
 test('chromium: a link field holds the workspace\'s own, with the installation\'s beside it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const answer = policy();
   answer.legal = {
     imprint_url: rule('https://provider.example/imprint', 'https://provider.example/imprint', { source: 'INSTANCE', above: 'INSTANCE' }),
@@ -879,8 +859,7 @@ test('chromium: a link field holds the workspace\'s own, with the installation\'
 // installation or by a plan carries one chip with its lock - whose value, and whom to ask - its
 // control is not usable, and the reason is the control's own description.
 test('chromium: a locked rule or link says its lock once', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const locked = policy();
   locked.password.max_age_days = rule(90, 90, { lock: 'PLAN', source: 'PLAN', above: 'INSTANCE' });
   locked.legal.imprint_url = rule('https://provider.example/imprint', 'https://provider.example/imprint', { lock: 'INSTANCE', source: 'INSTANCE', above: 'INSTANCE' });
@@ -912,8 +891,7 @@ test('chromium: a locked rule or link says its lock once', async (t) => {
 });
 
 test('chromium: a provider the plan\'s lock turns on says it is the plan\'s', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const locked = { ...policy(), plan: 'Family' };
   locked.methods = rule(['OIDC'], ['OIDC'], { lock: 'PLAN', source: 'PLAN', above: 'PLAN' });
   const { page, close } = await open(browser, (route, path) => {
@@ -942,8 +920,7 @@ test('chromium: a provider the plan\'s lock turns on says it is the plan\'s', as
 // UC-ID-21 check 8: passkeys switched on and off from the list, and switching the password keeps
 // them as they are.
 test('chromium: passkeys switch on and off beside the password, which keeps them', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const patches = [];
   const offered = policy();
   offered.methods = rule(['PASSWORD', 'OIDC'], ['PASSWORD', 'OIDC', 'PASSKEY']);
@@ -979,8 +956,7 @@ test('chromium: passkeys switch on and off beside the password, which keeps them
 // administrator switches cannot be written back by another who read before them. A switch made
 // after a save states the version that save answered, and a refusal is said at the switch.
 test('chromium: the rules and the ways are saved against the version they were read at', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const preconditions = [];
   const offered = policy();
   offered.methods = rule(['PASSWORD', 'OIDC'], ['PASSWORD', 'OIDC', 'PASSKEY']);
@@ -1034,8 +1010,7 @@ test('chromium: the rules and the ways are saved against the version they were r
 });
 
 test('chromium: the help links are set on the legal page, apart from the footer\'s, and saved with it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   let patched;
   const shown = policy();
   shown.legal.support_url = rule('https://host.example/help', 'https://host.example/help', { source: 'INSTANCE', above: 'INSTANCE' });

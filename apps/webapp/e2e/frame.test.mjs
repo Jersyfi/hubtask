@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { signedIn } from './fixture.mjs';
@@ -28,8 +28,7 @@ async function home(page) {
 const columnWidth = (page) => page.evaluate(() => Math.round(document.querySelector('aside.sidenav').getBoundingClientRect().width));
 
 test('chromium: 1280 px — the navigation is as wide as the person drags it, within its bounds, and stays so', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   await home(page);
@@ -69,8 +68,7 @@ test('chromium: 1280 px — the navigation is as wide as the person drags it, wi
 });
 
 test('chromium: 1280 px — a hub is managed from its own row: the menu holds the hub and opens its dialog', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   await home(page);
@@ -102,8 +100,7 @@ test('chromium: 1280 px — a hub is managed from its own row: the menu holds th
 });
 
 test('chromium: 1280 px — the sync mark opens on a band naming the state, the lines on its text edge', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   await home(page);
@@ -148,8 +145,7 @@ test('chromium: 1280 px — the sync mark opens on a band naming the state, the 
 // A hub named in two words reads whole in the column at a desktop's width: the row keeps no room
 // for its menu until the menu shows, and the default width holds the name beside mark and twist.
 test('chromium: 1280 px — a hub row has room for a two-word name until its menu shows', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   await home(page);

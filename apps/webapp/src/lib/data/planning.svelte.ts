@@ -47,7 +47,7 @@ class Planning {
   }
 
   /**
-   * An entry's dates written from a bar dragged, as `TimelineView` writes them: the start as a
+   * An entry's dates written from a bar dragged, as a timeline without the module writes them: the start as a
    * scalar, the due as an all-day date. The entry is read first, because the schedule carries no
    * version and a write without one would overwrite a change the reader never saw.
    */

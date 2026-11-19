@@ -32,6 +32,7 @@ class ContainerPage(TypedDict, total=False):
 class ItemSearchQuery(TypedDict, total=False):
     """One search of the whole workspace, or of one hub or collection. **At least one of `q` and `filter`** - a request with neither is refused by `search.words_required`, because "everything" is not a question this API answers."""
     q: str
+    query: str
     container_id: str | None
     language: str | None
     mode: "SearchMode"
@@ -73,6 +74,8 @@ class Account(TypedDict, total=False):
     nav_products: list["Module"]
     nav_products_hidden: list["Module"]
     nav_hubs_hidden: list[str]
+    today_sections: list["TodaySection"]
+    today_sections_hidden: list["TodaySection"]
     nav_hubs_order: Literal["MANUAL", "RECENT", "NAME"] | None
     nav_contents_mode: Literal["TREE", "RECENT", "NAME"] | None
     avatar_media_id: str | None
@@ -142,6 +145,8 @@ class InvitedAccount(TypedDict, total=False):
     nav_products: list["Module"]
     nav_products_hidden: list["Module"]
     nav_hubs_hidden: list[str]
+    today_sections: list["TodaySection"]
+    today_sections_hidden: list["TodaySection"]
     nav_hubs_order: Literal["MANUAL", "RECENT", "NAME"] | None
     nav_contents_mode: Literal["TREE", "RECENT", "NAME"] | None
     avatar_media_id: str | None
@@ -185,6 +190,8 @@ class AccountPreferences(TypedDict, total=False):
     nav_products: list["Module"] | None
     nav_products_hidden: list["Module"] | None
     nav_hubs_hidden: list[str] | None
+    today_sections: list["TodaySection"] | None
+    today_sections_hidden: list["TodaySection"] | None
     nav_hubs_order: Literal["MANUAL", "RECENT", "NAME"] | None
     nav_contents_mode: Literal["TREE", "RECENT", "NAME"] | None
 
@@ -387,6 +394,19 @@ class Suggestion(TypedDict, total=False):
     decided_by: str | None
     dropped_nodes: int
     version: Required[int]
+
+class AskQueryRequest(TypedDict, total=False):
+    """A question in words, in any language the provider reads."""
+    question: Required[str]
+
+class AskedQuery(TypedDict, total=False):
+    """The question as a Hubtask query, with the provenance every AI output carries. Not a record and not a result: no entry was read to write it."""
+    query: Required[str]
+    source: Required[Literal["AI"]]
+    model: Required[str]
+    prompt_id: Required[str]
+    prompt_version: Required[str]
+    produced_at: Required[str]
 
 class AiTranslateRequest(TypedDict, total=False):
     """Which language to read the entry in."""
@@ -1342,6 +1362,8 @@ class ResealAccepted(TypedDict, total=False):
     active_key_id: Required[str]
     queued_tenants: Required[int]
 
+TodaySection = Literal["OVERDUE", "DUE_TODAY", "REPLY", "TIME", "APPROVALS", "COLLECTIONS", "NEWS", "INBOX", "RECENT"]
+
 Module = Literal["WORKFLOWS", "PLANNING", "KNOWLEDGE", "WHITEBOARD", "SERVICE_DESK", "ASSETS", "TIME", "GOALS", "AGENTS"]
 
 class OwnSettings(TypedDict, total=False):
@@ -1445,6 +1467,7 @@ class PlanScheduleEntry(TypedDict, total=False):
     milestone: Required[bool]
     done: Required[bool]
     due_only: bool
+    release_id: str | None
 
 class PlanDependency(TypedDict, total=False):
     link_id: Required[str]
@@ -1541,7 +1564,20 @@ class Release(TypedDict, total=False):
     version: Required[int]
 
 class ReleaseList(TypedDict, total=False):
-    data: Required[list["Release"]]
+    data: Required[list["ReleaseListItem"]]
+
+class ReleaseListItem(TypedDict, total=False):
+    id: Required[str]
+    hub_id: Required[str]
+    name: Required[str]
+    description: Required[str]
+    release_on: Required[str]
+    state: Required[Literal["PLANNED", "RELEASED"]]
+    released_at: Required[str | None]
+    notes_page_id: Required[str | None]
+    version: Required[int]
+    done_count: Required[int]
+    open_count: Required[int]
 
 class ReleaseDetail(TypedDict, total=False):
     id: Required[str]
@@ -1856,6 +1892,7 @@ class Agent(TypedDict, total=False):
     created_at: Required[str]
     version: Required[int]
     usage: dict[str, Any]
+    last_run_at: str | None
 
 class AgentList(TypedDict, total=False):
     data: Required[list["Agent"]]
@@ -2043,10 +2080,15 @@ class PortfolioUpdateList(TypedDict, total=False):
 class DashboardWidgetWrite(TypedDict, total=False):
     id: str
     title: Required[str]
-    chart: Required[Literal["NUMBER", "BAR", "PIE", "LINE", "TABLE", "MATRIX", "PROGRESS"]]
-    source: Required[Literal["VIEW", "QUERY", "GOALS"]]
+    chart: Required[Literal["NUMBER", "BAR", "PIE", "LINE", "TABLE", "MATRIX", "PROGRESS", "LIST", "TEXT"]]
+    source: Required[Literal["VIEW", "QUERY", "GOALS", "TEXT"]]
     view_id: str
     query: dict[str, Any]
+    text: str
+    column: str
+    released: list[str]
+    target: float | None
+    warn_at: float | None
     goal_ids: list[str]
     compare: "DashboardWidgetCompare"
     cumulative: bool
@@ -2064,10 +2106,15 @@ class DashboardWidgetCompare(TypedDict, total=False):
 class DashboardWidget(TypedDict, total=False):
     id: Required[str]
     title: Required[str]
-    chart: Required[Literal["NUMBER", "BAR", "PIE", "LINE", "TABLE", "MATRIX", "PROGRESS"]]
-    source: Required[Literal["VIEW", "QUERY", "GOALS"]]
+    chart: Required[Literal["NUMBER", "BAR", "PIE", "LINE", "TABLE", "MATRIX", "PROGRESS", "LIST", "TEXT"]]
+    source: Required[Literal["VIEW", "QUERY", "GOALS", "TEXT"]]
     view_id: Required[str | None]
     query: Required[dict[str, Any] | None]
+    text: str
+    column: str
+    released: list[str]
+    target: float | None
+    warn_at: float | None
     goal_ids: Required[list[str]]
     compare: Required["DashboardWidgetCompare" | Any]
     cumulative: Required[bool]
@@ -2080,12 +2127,18 @@ class DashboardWrite(TypedDict, total=False):
     name: Required[str]
     sharing: Literal["PRIVATE", "SCOPE", "GROUPS"]
     group_ids: list[str]
+    filter: str
     widgets: list["DashboardWidgetWrite"]
+
+class DashboardDraft(TypedDict, total=False):
+    filter: str
+    widgets: Required[list["DashboardWidgetWrite"]]
 
 class DashboardCreate(TypedDict, total=False):
     name: Required[str]
     sharing: Literal["PRIVATE", "SCOPE", "GROUPS"]
     group_ids: list[str]
+    filter: str
     widgets: list["DashboardWidgetWrite"]
     hub_id: str
 
@@ -2096,6 +2149,7 @@ class Dashboard(TypedDict, total=False):
     name: Required[str]
     sharing: Required[Literal["PRIVATE", "SCOPE", "GROUPS"]]
     group_ids: list[str]
+    filter: str
     widgets: Required[list["DashboardWidget"]]
     version: Required[int]
 
@@ -2329,6 +2383,7 @@ class Approval(TypedDict, total=False):
     on_behalf_of: str | None
     workflow: Required[str]
     step: Required[str]
+    step_name: str | None
     item_version: Required[int]
     state: Required[Literal["PENDING", "APPROVED", "DECLINED", "WITHDRAWN"]]
     current_level: Required[int]
@@ -2399,11 +2454,15 @@ class PortalRequest(TypedDict, total=False):
     title: Required[str]
     notes: Required[str | None]
     status: Required[str | None]
+    status_name: str | None
+    status_category: Literal["BACKLOG", "TODO", "IN_PROGRESS", "DONE"] | None
     is_completed: Required[bool]
     completed_at: Required[str | None]
     created_at: Required[str]
     updated_at: Required[str]
     is_own: bool
+    last_reply_at: str | None
+    next_due_at: str | None
 
 class RequestSatisfaction(TypedDict, total=False):
     score: Required[int]
@@ -2448,15 +2507,53 @@ class PortalRequestDetail(TypedDict, total=False):
     title: Required[str]
     notes: Required[str | None]
     status: Required[str | None]
+    status_name: str | None
+    status_category: Literal["BACKLOG", "TODO", "IN_PROGRESS", "DONE"] | None
     is_completed: Required[bool]
     completed_at: Required[str | None]
     created_at: Required[str]
     updated_at: Required[str]
     is_own: bool
+    last_reply_at: str | None
+    next_due_at: str | None
     satisfaction: Required["RequestSatisfaction" | Any]
     comments: Required[list[dict[str, Any]]]
     sla: Required[list["EntrySlaGoal"]]
     merged_into: "PortalMergedRequest" | Any
+
+class SearchAllRequest(TypedDict, total=False):
+    q: Required[str]
+    kinds: list["SearchKind"]
+    hub_id: str
+    size: int
+
+SearchKind = Literal["ENTRY", "TICKET", "PAGE", "WHITEBOARD", "GOAL", "DASHBOARD", "ASSET", "PERSON", "FILE", "COMMENT", "PORTFOLIO", "RELEASE", "SPRINT", "POST"]
+
+class SearchAllAnswer(TypedDict, total=False):
+    data: Required[list["SearchAllHit"]]
+    facets: Required[list["SearchFacet"]]
+
+class SearchFacet(TypedDict, total=False):
+    kind: Required["SearchKind"]
+    count: Required[int]
+    more: Required[bool]
+
+class SearchAllHit(TypedDict, total=False):
+    """One object as a hit row draws it."""
+    kind: Required["SearchKind"]
+    id: Required[str]
+    title: Required[str]
+    hub_id: Required[str | None]
+    collection_id: Required[str | None]
+    tile: Required[str | None]
+    snippet: Required[str | None]
+    state: Required[str | None]
+    status: Required[str | None]
+    key: Required[str | None]
+    updated_at: Required[str | None]
+    created_at: Required[str | None]
+    author_id: Required[str | None]
+    on: Required[Any | dict[str, Any]]
 
 class GlancePage(TypedDict, total=False):
     data: Required[list["GlanceLine"]]
@@ -2480,6 +2577,8 @@ class PortalMergedRequest(TypedDict, total=False):
     readable: Required[bool]
     title: Required[str | None]
     status: Required[str | None]
+    status_name: str | None
+    status_category: Literal["BACKLOG", "TODO", "IN_PROGRESS", "DONE"] | None
     is_completed: Required[bool]
     completed_at: Required[str | None]
     comments: Required[list["PortalReply"]]
@@ -2500,6 +2599,12 @@ class EntrySlaList(TypedDict, total=False):
 
 class SlaReport(TypedDict, total=False):
     data: Required[list[dict[str, Any]]]
+
+DeadlinesKept = TypedDict("DeadlinesKept", {
+    "from": Required[str],
+    "to": Required[str],
+    "data": Required[list[dict[str, Any]]],
+}, total=False)
 
 class LinkType(TypedDict, total=False):
     """A kind of relation between two entries: one of the six every workspace has, or one of its own. What it means is fixed once it is made."""
@@ -2579,8 +2684,11 @@ class ReferenceTarget(TypedDict, total=False):
     level: "ItemType"
     entry_type: str
     completed: bool
+    status_name: str | None
+    status_category: Literal["BACKLOG", "TODO", "IN_PROGRESS", "DONE"] | None
     archived: bool
     collection_id: str
+    assignee_id: str | None
     start_at: str | None
     due_at: str | None
     layout: str
@@ -2661,12 +2769,40 @@ class WorkflowPreview(TypedDict, total=False):
     removed: Required[list[dict[str, Any]]]
     columns_before: Required[list[str]]
     columns_after: Required[list[str]]
+    boards: list["BoardPreview"]
+
+StateMode = Literal["NONE", "COLUMNS", "WORKFLOW"]
+
+class BoardPreview(TypedDict, total=False):
+    collection_id: Required[str]
+    level_before: Required["StateMode"]
+    level_after: Required["StateMode"]
+    done_bucket_id: Required[str | None]
+    columns: Required[list[dict[str, Any]]]
+    unmapped: Required[list[dict[str, Any]]]
+    moved: Required[int]
+    column_only: Required[int]
+
+class BoardSwitch(TypedDict, total=False):
+    dry_run: Required[bool]
+    level_before: Required["StateMode"]
+    level_after: Required["StateMode"]
+    columns_created: Required[int]
+    columns_removed: Required[int]
+    entries_placed: Required[int]
+
+class BoardWorkflow(TypedDict, total=False):
+    dry_run: Required[bool]
+    workflow: Required[str]
+    statuses: Required[list[dict[str, Any]]]
+    entries: Required[int]
 
 class WorkflowSchemeChange(TypedDict, total=False):
     container_id: Required[str]
     entry_type: str
     workflow: str
     confirm: bool
+    columns: list[dict[str, Any]]
 
 class WorkflowSchemeResult(TypedDict, total=False):
     container_id: Required[str]
@@ -2684,17 +2820,48 @@ StepVerdict = TypedDict("StepVerdict", {
     "missing": Required[list[str]],
     "checks": Required[list[dict[str, Any]]],
     "holds": Required[bool],
+    "approval_levels": int,
     "from": str,
     "leaves_from": bool,
 }, total=False)
 
+class DropAnswer(TypedDict, total=False):
+    outcome: Required[Literal["MOVED", "STEP_TAKEN", "CHOOSE"]]
+    steps: Required[list[dict[str, Any]]]
+    item: Required["WorkItem"]
+
 class EntrySteps(TypedDict, total=False):
+    state_mode: Literal["NONE", "COLUMNS", "WORKFLOW"]
+    columns: list[dict[str, Any]]
+    column_id: str | None
     workflow: Required[str | None]
     status: Required[str | None]
     steps: Required[list["StepVerdict"]]
+    blocked: list["BlockedStep"]
+    done_route: list[dict[str, Any]]
+    picture: "WorkflowPicture"
+    by_default: bool
+    may_design: bool
+
+class BlockedStep(TypedDict, total=False):
+    """A step from the entry's status the person may not take, and who may."""
+    key: Required[str]
+    name: Required[str | None]
+    to: Required[str]
+    reason: Required[Literal["workflows.step_who_unmet", "workflows.step_condition_unmet"]]
+    roles: Required[list[str]]
+    people: Required[list[str]]
+    groups: Required[list[str]]
+    permission: str
+
+class WorkflowPicture(TypedDict, total=False):
+    """A workflow drawn read-only - its statuses and the steps between them, without who may take them."""
+    statuses: Required[list["WorkflowStatus"]]
+    initial: Required[str]
+    steps: Required[list[dict[str, Any]]]
 
 class EntryType(TypedDict, total=False):
-    """A kind of entry a workspace names on one level - a bug, a feature, a purchase, a configuration item - with its icon, its colour and the behaviours of its entries."""
+    """A kind of entry a workspace names on one level - a bug, a feature, a purchase, an inventory object - with its icon, its colour and the behaviours of its entries."""
     key: Required[str]
     level: Required["ItemType"]
     system: Required[bool]
@@ -3635,6 +3802,8 @@ class Container(TypedDict, total=False):
     private: bool
     handle: str | None
     key_prefix: str | None
+    state_mode: "StateMode"
+    state_modes: dict[str, Any]
     structure: "EffectiveStructure"
     kept_by_lock: list[str]
     clipped_by_levels: list["StructureSettingName"]
@@ -3730,8 +3899,8 @@ class StructureLevelFields(TypedDict, total=False):
 
 class StructureViews(TypedDict, total=False):
     """The layouts a client offers, and the one it opens with. Applied by clients."""
-    offered: Required[list[Literal["LIST_COLLAPSED", "LIST_EXPANDED", "KANBAN", "TIMELINE"]]]
-    default: Required[Literal["LIST_COLLAPSED", "LIST_EXPANDED", "KANBAN", "TIMELINE"]]
+    offered: Required[list[Literal["LIST_COLLAPSED", "LIST_EXPANDED", "KANBAN", "TIMELINE", "CALENDAR"]]]
+    default: Required[Literal["LIST_COLLAPSED", "LIST_EXPANDED", "KANBAN", "TIMELINE", "CALENDAR"]]
 
 class StructureCounts(TypedDict, total=False):
     """What counts in the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. The server counts the figure and answers it on the collection's read (`figure`); a client draws it. `PROGRESS` is offered only where more than one level is in force: a write that sets it where one is answers `structure.figure_not_offered`, and where layers bring the two together the structure in force says `OPEN` and `counts_clipped` says why."""
@@ -3752,7 +3921,7 @@ class StructurePreview(TypedDict, total=False):
     narrows: Required[bool]
     levels: Required[list[dict[str, Any]]]
     fields: Required[list[dict[str, Any]]]
-    views: Required[list[Literal["LIST_COLLAPSED", "LIST_EXPANDED", "KANBAN", "TIMELINE"]]]
+    views: Required[list[Literal["LIST_COLLAPSED", "LIST_EXPANDED", "KANBAN", "TIMELINE", "CALENDAR"]]]
     automation: Required[list[str]]
     keeping: Required[list[dict[str, Any]]]
 
@@ -3941,6 +4110,7 @@ class SavedViewUpdate(TypedDict, total=False):
 
 class HubQueueList(TypedDict, total=False):
     data: Required[list["HubQueue"]]
+    desks: list[str]
 
 class HubQueue(TypedDict, total=False):
     view_id: Required[str | None]
@@ -4099,6 +4269,7 @@ class AutomationRule(TypedDict, total=False):
     enabled: Required[bool]
     run_as: Required[str]
     trigger: Required["RuleTrigger"]
+    entries: str
     conditions: Required[list["RuleCondition"]]
     actions: Required[list["RuleAction"]]
     throttle: "RuleThrottle"
@@ -4130,6 +4301,7 @@ class AutomationRuleCreate(TypedDict, total=False):
     scope: Required["RuleScope"]
     run_as: Required[str]
     trigger: Required["RuleTrigger"]
+    entries: str
     conditions: list["RuleCondition"]
     actions: Required[list["RuleAction"]]
     throttle: "RuleThrottle"
@@ -4391,6 +4563,7 @@ class AutomationRuleUpdate(TypedDict, total=False):
     scope: "RuleScope"
     run_as: str
     trigger: "RuleTrigger"
+    entries: str
     conditions: list["RuleCondition"]
     actions: list["RuleAction"]
     throttle: "RuleThrottle"
@@ -4638,6 +4811,33 @@ class CustomFieldValue(TypedDict, total=False):
     """One value for one key. `value` is required and may be null, which clears the key - the two are different requests, and a body that left the field out would be neither."""
     value: Required[Any]
 
+class DocumentServer(TypedDict, total=False):
+    kind: Required[Literal["NONE", "COLLABORA_ONLINE", "ONLYOFFICE", "EURO_OFFICE", "MICROSOFT_365"]]
+    url: str
+
+class DocumentServerCheck(TypedDict, total=False):
+    reached: Required[bool]
+
+class MediaEditingSession(TypedDict, total=False):
+    action_url: Required[str]
+    access_token: Required[str]
+    access_token_ttl: Required[int]
+    wopi_src: Required[str]
+    server: Required["DocumentServer"]
+
+class WopiFileInfo(TypedDict, total=False):
+    BaseFileName: Required[str]
+    Size: Required[int]
+    OwnerId: Required[str]
+    UserId: Required[str]
+    Version: Required[str]
+    UserCanWrite: bool
+    ReadOnly: bool
+    SupportsLocks: bool
+    SupportsGetLock: bool
+    SupportsUpdate: bool
+    UserCanNotWriteRelative: bool
+
 class MediaObject(TypedDict, total=False):
     id: Required[str]
     file_name: str | None
@@ -4649,6 +4849,9 @@ class MediaObject(TypedDict, total=False):
     ref_count: Required[int]
     created_by: Required[str]
     created_at: Required[str]
+    inline: bool
+    office: bool
+    editable: bool
     upload: "MediaTransfer" | Any
     download: "MediaTransfer" | Any
 
@@ -4786,6 +4989,7 @@ class FilterNode(TypedDict, total=False):
 
 class ItemAggregateQuery(TypedDict, total=False):
     scope: Required[dict[str, Any]]
+    q: str
     filter: "FilterNode"
     include_archived: bool
     include_trashed: bool
@@ -4875,6 +5079,7 @@ class Bucket(TypedDict, total=False):
     order_key: Required[str]
     wip_limit: Required[int | None]
     is_done_bucket: Required[bool]
+    statuses: list[str]
     color_token: Required[str | None]
     version: Required[int]
 
@@ -4896,6 +5101,7 @@ class BucketDeletion(TypedDict, total=False):
     """What became of the entries that were in a deleted column. Reported rather than left to be discovered: a board that silently reassigned a person's cards would be indistinguishable from one that lost them."""
     bucket_id: Required[str]
     target_bucket_id: Required[str | None]
+    done_bucket_id: str | None
     moved_items: Required[int]
 
 class Label(TypedDict, total=False):
@@ -5123,7 +5329,7 @@ class InvitationDelivery(TypedDict, total=False):
     at: Required[str]
     code: Required[str | None]
     params: dict[str, Any]
-    category: Literal["ASSIGNMENT", "MEMBERSHIP", "COMMENT", "INVITATION", "REMINDER", "INTEGRATION", "RETENTION", "EMERGENCY_ACCESS", "REQUEST_REPLY", "SLA"]
+    category: Literal["ASSIGNMENT", "MEMBERSHIP", "COMMENT", "INVITATION", "REMINDER", "INTEGRATION", "RETENTION", "EMERGENCY_ACCESS", "REQUEST_REPLY", "SLA", "POST", "ATTESTATION"]
 
 class SignInDetail(TypedDict, total=False):
     account_id: Required[str]
@@ -5136,7 +5342,7 @@ class ErasurePreview(TypedDict, total=False):
     lines: Required[list["ErasureLine"]]
 
 class ErasureLine(TypedDict, total=False):
-    kind: Required[Literal["ACCOUNT", "CREDENTIALS", "PERSONAL_RULES", "NOTIFICATIONS", "AI_DRAFTS", "KUDOS", "ARRANGEMENTS", "TIME", "ASSIGNMENTS", "INTAKE", "COMMENTS", "PAGE_COMMENTS", "WHITEBOARD_COMMENTS", "GOAL_CHECK_INS", "PORTFOLIO_UPDATES", "PAGE_DRAFTS", "ENTRIES", "MEDIA"]]
+    kind: Required[Literal["ACCOUNT", "CREDENTIALS", "PERSONAL_RULES", "NOTIFICATIONS", "AI_DRAFTS", "KUDOS", "ARRANGEMENTS", "TIME", "ASSIGNMENTS", "INTAKE", "COMMENTS", "PAGE_COMMENTS", "WHITEBOARD_COMMENTS", "GOAL_CHECK_INS", "PORTFOLIO_UPDATES", "PAGE_DRAFTS", "ENTRIES", "MEDIA", "POST_REPLIES"]]
     fate: Required[Literal["DELETED", "ANONYMISED", "KEPT", "RELEASED"]]
     count: Required[int | None]
 
@@ -5722,6 +5928,16 @@ class QueryField(TypedDict, total=False):
     sortable: Required[bool]
     groupable: Required[bool]
 
+class QueryKey(TypedDict, total=False):
+    """One key of the Hubtask query's `field: value` spelling."""
+    key: Required[str]
+    field: str
+    value: Required[Literal["state", "kind", "person", "place", "label", "time", "number", "text", "words", "choice", "flag", "relation", "sort", "custom"]]
+    product: str
+    kinds: Required[list[str]]
+    examples: Required[list[str]]
+    values: Required[list[str]]
+
 class Capabilities(TypedDict, total=False):
     """Self-description; clients configure themselves from this."""
     product_version: str
@@ -5735,6 +5951,7 @@ class Capabilities(TypedDict, total=False):
     completion_policies: list["CompletionPolicy"]
     auto_assign_strategies: list["AutoAssignStrategy"]
     query_fields: list["QueryField"]
+    query_keys: list["QueryKey"]
     text_languages: list[str]
     supported_locales: list[dict[str, Any]]
     automation: dict[str, Any]
@@ -5790,7 +6007,9 @@ class Page(TypedDict, total=False):
     parent_id: Required[str | None]
     title: Required[str]
     body: str
+    excerpt: str
     icon: Required[str | None]
+    cover: "PageCover" | Any
     position: Required[str]
     template: Required[bool]
     content_language: Required[str | None]
@@ -5848,6 +6067,21 @@ class HubTemplatePage(TypedDict, total=False):
 class HubTemplatePageList(TypedDict, total=False):
     pages: Required[list["HubTemplatePage"]]
 
+class GoalSet(TypedDict, total=False):
+    key: Required[str]
+    period_id: Required[str]
+    name: Required[str]
+    start_on: Required[str]
+    end_on: Required[str]
+
+class GoalSetList(TypedDict, total=False):
+    data: Required[list["GoalSet"]]
+
+class GoalSetGoal(TypedDict, total=False):
+    title: Required[str]
+    description: str
+    key_results: list["KeyResultWrite"]
+
 class PageSpaceDrafts(TypedDict, total=False):
     drafts: Required[bool]
     source: Required[str]
@@ -5861,7 +6095,9 @@ class PageRead(TypedDict, total=False):
     parent_id: Required[str | None]
     title: Required[str]
     body: Required[str]
+    excerpt: str
     icon: Required[str | None]
+    cover: "PageCover" | Any
     position: Required[str]
     template: Required[bool]
     content_language: Required[str | None]
@@ -5914,6 +6150,14 @@ class PageChange(TypedDict, total=False):
     template: bool
     content_language: str
     archived: bool
+    cover: "PageCover" | Any
+
+class PageCover(TypedDict, total=False):
+    """A page's cover: one of the gradients or gallery pictures the clients draw by their key, or an image of the media context by its id. A key a client does not know draws as no cover there."""
+    source: Required[Literal["GRADIENT", "GALLERY", "IMAGE"]]
+    key: Required[str]
+    position: Required[int]
+    credit: str
 
 class PageMove(TypedDict, total=False):
     parent_id: str
@@ -5954,6 +6198,7 @@ class PagePublicLinkMinted(TypedDict, total=False):
 class PageArticle(TypedDict, total=False):
     page_id: Required[str]
     collection_id: Required[str]
+    with_subpages: Required[bool]
     published_by: Required[str | None]
     published_at: Required[str]
     views: Required[int]
@@ -5988,6 +6233,9 @@ class Article(TypedDict, total=False):
     content_language: Required[str | None]
     updated_at: Required[str]
 
+class PortalKnowledge(TypedDict, total=False):
+    data: Required[list[dict[str, Any]]]
+
 class ArticleRating(TypedDict, total=False):
     page_id: Required[str]
     collection_id: Required[str]
@@ -6008,6 +6256,112 @@ class PortfolioPublicLinkMinted(TypedDict, total=False):
     created_by: Required[str | None]
     created_at: Required[str]
     token: Required[str]
+
+class CoverImagesPolicy(TypedDict, total=False):
+    library: Required[Literal["OFF", "OPEN_LIBRARY"]]
+    source: Required[str]
+    locked_by: str
+
+class CoverImageSearch(TypedDict, total=False):
+    offered: Required[bool]
+    pictures: Required[list[dict[str, Any]]]
+
+class PostSettings(TypedDict, total=False):
+    template: Literal["ANNOUNCEMENT", "RELEASE_NOTE", "MONTHLY_REVIEW", "WELCOME"] | None
+    publish_at: str | None
+    featured_until: str | None
+    audience: Literal["HUB", "GROUPS"]
+    group_ids: list[str]
+    discussion: bool
+    notify: bool
+    confirm_by: str | None
+
+class PostCreate(TypedDict, total=False):
+    title: Required[str]
+    body: str
+    template: Literal["ANNOUNCEMENT", "RELEASE_NOTE", "MONTHLY_REVIEW", "WELCOME"] | None
+    publish_at: str | None
+    featured_until: str | None
+    audience: Literal["HUB", "GROUPS"]
+    group_ids: list[str]
+    discussion: bool
+    notify: bool
+    confirm_by: str | None
+
+class Post(TypedDict, total=False):
+    page_id: Required[str]
+    hub_id: Required[str]
+    title: Required[str]
+    icon: Required[str | None]
+    template: Required[Literal["ANNOUNCEMENT", "RELEASE_NOTE", "MONTHLY_REVIEW", "WELCOME"] | None]
+    state: Required[Literal["DRAFT", "SCHEDULED", "PUBLISHED"]]
+    publish_at: Required[str | None]
+    published_at: Required[str | None]
+    featured_until: Required[str | None]
+    featured: Required[bool]
+    audience: Required[Literal["HUB", "GROUPS"]]
+    group_ids: Required[list[str]]
+    everyone_in_workspace: Required[bool]
+    discussion: Required[bool]
+    notify: Required[bool]
+    confirm_by: Required[str | None]
+    created_by: Required[str | None]
+    created_at: Required[str]
+    seen_count: Required[int]
+    seen: Required[bool]
+    confirmed: Required[bool]
+    may_write: Required[bool]
+    cover: Required["PageCover" | Any]
+    excerpt: Required[str]
+    reading_minutes: Required[int]
+    reply_count: Required[int]
+    labels: Required[list[str]]
+    confirmations: "PostConfirmations" | Any
+
+class UnreadPostList(TypedDict, total=False):
+    data: Required[list["Post"]]
+
+class PostList(TypedDict, total=False):
+    data: Required[list["Post"]]
+    may_write: Required[bool]
+    workspace_wide: Required[bool]
+    following: bool
+
+class PostFollowing(TypedDict, total=False):
+    following: Required[bool]
+
+class PostConfirmations(TypedDict, total=False):
+    confirmed: Required[int]
+    audience: Required[int]
+    confirm_by: Required[str]
+    may_remind: Required[bool]
+    overdue: Required[bool]
+    confirmed_ids: list[str]
+
+class PostReminded(TypedDict, total=False):
+    reminded: Required[int]
+
+class PostReply(TypedDict, total=False):
+    id: Required[str]
+    page_id: Required[str]
+    parent_id: Required[str | None]
+    author_id: Required[str | None]
+    body: Required[str]
+    created_at: Required[str]
+    deleted: Required[bool]
+    reactions: Required[list[dict[str, Any]]]
+
+class PostReplyList(TypedDict, total=False):
+    data: Required[list["PostReply"]]
+
+class PostReplyCreate(TypedDict, total=False):
+    body: Required[str]
+    parent_id: str | None
+
+class CoverImageFetched(TypedDict, total=False):
+    content_base64: Required[str]
+    content_type: Required[Literal["image/jpeg", "image/png", "image/webp"]]
+    credit: Required[str]
 
 class PublicLinksPolicy(TypedDict, total=False):
     allowed: Required[bool]
@@ -6215,7 +6569,7 @@ CiRequiredRelation = TypedDict("CiRequiredRelation", {
 }, total=False)
 
 class CiClass(TypedDict, total=False):
-    """A configuration item class. A shipped class has no `name`: a client shows its own word for the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days` include what it inherits."""
+    """An object type. A shipped object type has no `name`: a client shows its own word for the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days` include what it inherits."""
     key: Required[str]
     parent: Required[str]
     name: str
@@ -6309,7 +6663,7 @@ class CiProtection(TypedDict, total=False):
     a: Literal["NORMAL", "HIGH", "VERY_HIGH"] | None
 
 class CiOwnProtection(TypedDict, total=False):
-    """The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`."""
+    """The need a person set. A dimension in `fixed` is not raised by what depends on the object and carries a `reason`."""
     c: Literal["NORMAL", "HIGH", "VERY_HIGH"] | None
     i: Literal["NORMAL", "HIGH", "VERY_HIGH"] | None
     a: Literal["NORMAL", "HIGH", "VERY_HIGH"] | None
@@ -6367,6 +6721,8 @@ ConfigurationItem = TypedDict("ConfigurationItem", {
     "created_at": Required[str],
     "updated_by": str,
     "updated_at": Required[str],
+    "confirmed_at": str | None,
+    "confirmed_by": str | None,
     "version": Required[int],
 }, total=False)
 
@@ -6450,7 +6806,7 @@ class CiRun(TypedDict, total=False):
     skipped_rows: list[int]
 
 class CiConnector(TypedDict, total=False):
-    """A program a hub's CIs are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's."""
+    """A program a hub's objects are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's."""
     id: Required[str]
     hub_id: Required[str]
     key: Required[str]
@@ -6718,6 +7074,46 @@ class EntryCis(TypedDict, total=False):
     related: Required[list["EntryOnCi"]]
     collisions: Required[list["EntryOnCi"]]
 
+class CiAttachments(TypedDict, total=False):
+    """The files one object holds. Returned by attaching and detaching rather than the object itself: neither touches the object's own row or version."""
+    ci_id: Required[str]
+    media_ids: Required[list[str]]
+
+class CiHistoryPage(TypedDict, total=False):
+    data: Required[list["CiHistoryStep"]]
+    page: Required["PageInfo"]
+
+class CiHistoryStep(TypedDict, total=False):
+    """One step of an object's history. Append-only: nothing edits one, and what removes one is the removal of the object it belongs to."""
+    id: Required[str]
+    ci_id: Required[str]
+    code: Required[str]
+    actor: Required[dict[str, Any]]
+    occurred_at: Required[str]
+    change_set: Required[dict[str, Any]]
+
+class CiWork(TypedDict, total=False):
+    ci_id: Required[str]
+    data: Required[list["CiWorkEntry"]]
+
+class CiWorkCounts(TypedDict, total=False):
+    data: Required[list[dict[str, Any]]]
+    truncated: Required[bool]
+
+class CiWorkEntry(TypedDict, total=False):
+    item_id: Required[str]
+    key: Required[str | None]
+    title: Required[str]
+    entry_type: Required[str]
+    collection_id: Required[str]
+    hub_id: Required[str | None]
+    status: Required[dict[str, Any] | None]
+    completed: Required[bool]
+    start_at: Required[str | None]
+    due_at: Required[str | None]
+    reason: Required[Literal["NAMES", "BENEATH"]]
+    via: Required[dict[str, Any] | None]
+
 class EntryOnCi(TypedDict, total=False):
     item_id: Required[str]
     title: Required[str]
@@ -6768,6 +7164,12 @@ class CiCampaignDetail(TypedDict, total=False):
     score: Required[dict[str, Any]]
     attestations: Required[list[dict[str, Any]]]
 
+class CiConfirm(TypedDict, total=False):
+    review_months: int
+
+class CiCampaignReminded(TypedDict, total=False):
+    reminded: Required[int]
+
 class CiAttest(TypedDict, total=False):
     verdict: Required[Literal["CONFIRMED", "DISPUTED"]]
 
@@ -6784,6 +7186,12 @@ class CiGroupFilter(TypedDict, total=False):
     stages: list[Literal["PLANNED", "ORDERED", "IN_STOCK", "IN_USE", "MAINTENANCE", "RETIRED", "DISPOSED"]]
     name_has: str
     attributes: dict[str, Any]
+    owners: list[str]
+    no_owner: bool
+    locations: list[str]
+    no_location: bool
+    tags: list[str]
+    no_tag: bool
 
 class CiGroupDefine(TypedDict, total=False):
     name: Required[str]
@@ -6851,7 +7259,15 @@ CiAsset = TypedDict("CiAsset", {
     "disposal": Required[dict[str, Any] | None],
     "updated_at": Required[str],
     "version": Required[int],
+    "moves": list["CiAssetStep"],
 }, total=False)
+
+class CiAssetStep(TypedDict, total=False):
+    state: Required[Literal["REQUESTED", "ORDERED", "IN_STOCK", "DEPLOYED", "RETIRED", "DISPOSED"]]
+    at: Required[str]
+    by: Required[str | None]
+    assigned_to: Required[str | None]
+    stockroom_id: Required[str | None]
 
 class CiAssetList(TypedDict, total=False):
     data: Required[list["CiAsset"]]
@@ -6908,7 +7324,7 @@ class CiBacklinkList(TypedDict, total=False):
     data: Required[list[dict[str, Any]]]
 
 class CmdbHealth(TypedDict, total=False):
-    """A hub's active configuration items judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate CIs, CIs without an owner and reviews overdue, per class, and the CIs found wanting with the kinds of problem; the relations a program reported and has not confirmed within the staleness period of their source's class; each service scored by the share of the CIs it rests on - itself and what its failure follows from - found wanting in nothing, worst first; and each source's conflict rate over the hub's latest twenty runs - of the attributes it reported with another value, the share a better source kept."""
+    """A hub's active objects judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate objects, objects without an owner and reviews overdue, per object type, and the objects found wanting with the kinds of problem; the relations a program reported and has not confirmed within the staleness period of their source's object type; each service scored by the share of the objects it rests on - itself and what its failure follows from - found wanting in nothing, worst first; and each source's conflict rate over the hub's latest twenty runs - of the attributes it reported with another value, the share a better source kept."""
     total: Required[int]
     completeness: Required[float]
     correctness: Required[float]

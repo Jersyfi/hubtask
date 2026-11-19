@@ -18,8 +18,8 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, CommentThread, Stack, Switch, Textarea } from '@hubtask/design-system/components';
-  import type { ThreadComment } from '@hubtask/design-system/components';
+  import { Button, CommentThread, Composer, Stack } from '@hubtask/design-system/components';
+  import type { ComposerMode, IconName, ThreadComment, ThreadEvent } from '@hubtask/design-system/components';
   import type { Comment, CommentPage, WorkItem } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
@@ -31,12 +31,15 @@
   import { formatDateTime } from '../i18n/datetime.ts';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { viewport } from '../frame/viewport.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import MentionDialog from '../entries/MentionDialog.svelte';
   import ReferenceChip from '../entries/ReferenceChip.svelte';
   import { inserted, referencesIn, resolved } from '../data/links.svelte.ts';
-  import DeskTools from '../servicedesk/DeskTools.svelte';
+  import { DeskTools } from '../servicedesk/desktools.svelte.ts';
   import EntryPresence from '../entries/EntryPresence.svelte';
+  import { quietRowsInView } from './quietrows.ts';
+  import RichText, { type Format } from '../entries/RichText.svelte';
 
   /**
    * `mayComment`: whether the reader may add to this thread, from their role on the entry - a
@@ -54,6 +57,9 @@
     mayComment,
     isClosed = false,
     isDesk = false,
+    show = 'comments',
+    events = [],
+    requester,
   }: {
     item: WorkItem;
     path: Path;
@@ -61,10 +67,20 @@
     isClosed?: boolean;
     /** The service desk is on: an internal note, a canned reply and a macro are offered (UC-SVC-04, 06). */
     isDesk?: boolean;
+    /**
+     * Which posts the conversation shows (§6.9): *all* mixes them with `events` as quiet rows;
+     * on a ticket *replies* and *notes* split the public answers from the internal notes.
+     */
+    show?: 'all' | 'comments' | 'replies' | 'notes';
+    events?: readonly ThreadEvent[];
+    /** Who a public reply on a ticket reaches, for the reply tab's words. */
+    requester?: string;
   } = $props();
 
-  /** Whether the next comment is a note for the team; a reply to an internal note is one anyway. */
-  let isInternal = $state(false);
+  /** Whether the next post is a note for the team (ET-7); a reply to an internal note is one anyway. */
+  let mode = $state<ComposerMode>(untrack(() => (show === 'notes' ? 'note' : 'reply')));
+  const isInternal = $derived(mode === 'note');
+  const tools = untrack(() => (isDesk ? new DeskTools(item.id) : undefined));
 
 
   // The path is taken once, as every other subscription in this application takes one: the view
@@ -74,7 +90,9 @@
   const hasMore = $derived(page.state.status === 'ready' && (page.state.data.page?.has_more ?? false));
   /** Why the last press of *Older comments* brought nothing; cleared by the next press. */
   /** How many threads are drawn, newest first: five, then ten more at a time. */
-  let shownCount = $state(5);
+  let shownCount = $state(3);
+  /** The docked composer's height, kept free under the thread so the last post is not under it. */
+  let dockHeight = $state(0);
   let olderFailed = $state<string | undefined>(undefined);
 
   async function older(): Promise<void> {
@@ -118,11 +136,46 @@
   let isMentionOpen = $state(false);
 
   function mention(text: string) {
-    draft = inserted(draft, draft.length, draft.length, text).text;
+    if (writer) writer.insert(text);
+    else draft = inserted(draft, draft.length, draft.length, text).text;
+  }
+
+  // Written in the pages' editor (E-3, ET-5): the marks a page has, @ for people and entries, / to
+  // insert, still stored as Markdown.
+  let writer = $state<{ format(kind: Format): void; insert(markdown: string): void; reset(markdown: string): void; isAtLineStart(): boolean } | undefined>(undefined);
+  let composer = $state<{ openSnippets(): void } | undefined>(undefined);
+  const WRITE_FORMATS: readonly { id: Format; icon: IconName }[] = [
+    { id: 'bold', icon: 'bold' }, { id: 'italic', icon: 'italic' }, { id: 'strike', icon: 'strikethrough' }, { id: 'code', icon: 'code' },
+    { id: 'link', icon: 'link' }, { id: 'list', icon: 'list' }, { id: 'checklist', icon: 'list-checks' }, { id: 'quote', icon: 'quote' },
+  ];
+  /** What `/` offers where no snippets are: the blocks a comment takes, and a mention. */
+  const BLOCKS: readonly Format[] = ['list', 'checklist', 'quote', 'code'];
+  const insertItems = $derived([
+    ...BLOCKS.map((id) => ({ id, label: t(`app.entry.format_${id}`) })),
+    { id: 'mention', label: t('app.mentions.insert') },
+  ]);
+  function pressFormat(id: string) {
+    if (id === 'mention') isMentionOpen = true;
+    else writer?.format(id as Format);
+  }
+  // Caught before the editor, whose own Ctrl+Enter is a line break.
+  function writingKey(event: KeyboardEvent) {
+    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      send();
+    } else if (event.key === '/' && (writer ? writer.isAtLineStart() : draft === '' || draft.endsWith('\n'))) {
+      event.preventDefault();
+      composer?.openSnippets();
+    }
+  }
+  /** Starts the editor over with what `draft` now holds: one holding the focus takes no value from outside. */
+  function rewrite() {
+    writer?.reset(draft);
   }
 
   function threadRows(): readonly ThreadComment[] {
-    return threadOf(rows).map(({ comment, replies }) => ({
+    const kept = rows.filter((comment) => (show === 'replies' ? !comment.internal : show === 'notes' ? comment.internal : true));
+    return threadOf(kept).map(({ comment, replies }) => ({
       ...renderOne(comment),
       replies: replies.map(renderOne),
     }));
@@ -139,8 +192,8 @@
       when: formatDateTime(comment.created_at, messages.locale),
       at: comment.created_at,
       isRemoved: removed,
-      editedLabel: [comment.internal ? t('app.desk.internal_mark') : '', comment.edited_at ? t('app.comments.edited') : '']
-        .filter((word) => word !== '').join(' · ') || undefined,
+      editedLabel: comment.edited_at ? t('app.comments.edited') : undefined,
+      internalLabel: comment.internal ? t('app.desk.internal_mark') : undefined,
       // Offered to the author and to an administrator, and to nobody else - not drawn off with a
       // sentence on every comment (UC-WRK-19 check 3, P-05) - and to nobody while it is closed.
       isChangeable: moderates && !isClosed,
@@ -169,6 +222,7 @@
       draft = '';
       replyTo = undefined;
       editing = undefined;
+      rewrite();
       await page.refresh();
     }, editing ? t('app.comments.edited_announced') : t('app.comments.posted_announced'));
   }
@@ -184,6 +238,7 @@
     editing = undefined;
     replyTo = id;
     draft = '';
+    rewrite();
   }
 
   function startEdit(id: string) {
@@ -192,6 +247,7 @@
     replyTo = undefined;
     editing = target;
     draft = target.body ?? '';
+    rewrite();
   }
 
   function remove(id: string) {
@@ -207,60 +263,68 @@
 <!-- No gate here: the entry page draws this panel only where the type carries the capability
      (`carries`, ItemView), so a refusal could never reach it - a refused capability is an absent
      row, not a dead one (design-system.md §11.8). -->
+  {#snippet writing()}
+    <div class="writing" role="presentation" onkeydowncapture={writingKey}>
+        <RichText bind:this={writer} value={draft} label={editing ? t('app.comments.editing') : replyTo ? t('app.comments.replying') : t('app.comments.write')} placeholder={t('app.comments.write')} editable onchange={(markdown) => (draft = markdown)} />
+    </div>
+  {/snippet}
+
   <Stack gap="200">
     <EntryPresence itemId={item.id} replying={draft.trim() !== ''} />
     {#if failure}
       <p class="failure" role="alert">{failure.message}</p>
     {/if}
 
-    <!-- Writing first, the newest under it, five of them: a long conversation stays a glance
-         until somebody asks for more (concept round 2, §4). -->
+    <!-- Writing first, the newest three under it (ET-3). One composer for a comment, a reply and
+         an internal note (ET-7): on a ticket two tabs, the note yellow with a lock, the button
+         saying what it does; snippets and macros as its menus (UC-SVC-06). -->
     {#if mayComment}
-      <Stack gap="100">
-        <Textarea
-          label={editing
-            ? t('app.comments.editing')
-            : replyTo
-              ? t('app.comments.replying')
-              : t('app.comments.write')}
+      <!-- On a phone the reply is docked at the screen's foot (the scene's *Comment …*), the thread above it. -->
+      <!-- Docked, it is fixed on the bottom bar and leaves its height as room under the thread: a
+           sticky one stood behind the bar mid-thread and a page's padding above it at the end. -->
+      {#if viewport.isCompact}<div class="dock-room" aria-hidden="true" style:block-size={`${dockHeight}px`}></div>{/if}
+      <div data-composer data-docked={viewport.isCompact ? '' : undefined} bind:clientHeight={dockHeight}>
+        <Composer
+          bind:this={composer}
+          editor={writing}
+          label={editing ? t('app.comments.editing') : replyTo ? t('app.comments.replying') : t('app.comments.write')}
           bind:value={draft}
-          rows={draft.trim() === '' ? 1 : 3}
-          error={tooLong ? t('app.comments.too_long', { limit: String(BODY_LIMIT), length: String(bodyLength(draft)) }) : undefined}
+          bind:mode
+          modes={isDesk && !editing ? { reply: requester ? t('app.desk.reply_to', { name: requester }) : t('app.desk.reply_tab'), note: t('app.desk.note_tab'), label: t('app.desk.modes') } : undefined}
+          audience={isDesk && requester ? t('app.desk.reply_audience', { name: requester }) : undefined}
+          noteAudience={isDesk ? t('app.desk.note_audience') : undefined}
+          sendLabel={editing ? t('app.workspace.save') : isDesk ? t('app.desk.send_reply') : t('app.comments.send')}
+          sendTone={isDesk && !editing ? 'secondary' : 'primary'}
+          noteSendLabel={t('app.desk.save_note')}
+          hint={t('app.comments.send_hint')}
+          isBusy={isSending || (tools?.isBusy ?? false)}
+          busyLabel={t('app.workspace.saving')}
+          onsend={() => send()}
+          format={{ label: t('app.comments.format'), items: [...WRITE_FORMATS.map((each) => ({ id: each.id, label: t(`app.entry.format_${each.id}`), icon: each.icon })), { id: 'mention', label: t('app.mentions.insert'), icon: 'at-sign' }], onformat: pressFormat }}
+          snippets={tools && tools.snippets.length > 0
+            ? { label: t('app.desk.snippets'), items: tools.snippets, onselect: (key) => void tools.insert(key, (text) => (writer ? writer.insert(text) : (draft = draft.trim() === '' ? text : `${draft}\n\n${text}`))) }
+            : { label: t('app.comments.insert'), items: insertItems, onselect: pressFormat }}
+          macros={tools && tools.macros.length > 0 ? { label: t('app.desk.macros'), title: t('app.desk.macros_title'), items: tools.macros, onselect: (id) => void tools.press(id) } : undefined}
         />
-        {#if isDesk && !editing}
-          <Switch label={t('app.desk.internal')} hint={t('app.desk.internal_hint')} checked={isInternal}
-            onchange={(event: Event) => (isInternal = (event.currentTarget as HTMLInputElement).checked)} />
-          <DeskTools itemId={item.id} oninsert={(text) => (draft = draft.trim() === '' ? text : `${draft}\n\n${text}`)} />
-        {/if}
+        {#if tooLong}<p class="failure" role="alert">{t('app.comments.too_long', { limit: String(BODY_LIMIT), length: String(bodyLength(draft)) })}</p>{/if}
+        {#if tools?.refusal}<p class="failure" role="alert">{tools.refusal}</p>{/if}
         {#if writeFailure}<p class="failure" role="alert">{writeFailure}</p>{/if}
-        <div class="actions">
-          <Button isBusy={isSending} busyLabel={t('app.workspace.saving')} onclick={send}>
-            {editing ? t('app.workspace.save') : t('app.comments.send')}
-          </Button>
-          <Button tone="subtle" icon="link" data-mention-in-comment onclick={() => (isMentionOpen = true)}>{t('app.mentions.insert')}</Button>
-          {#if replyTo || editing}
-            <Button
-              tone="secondary"
-              onclick={() => {
-                replyTo = undefined;
-                editing = undefined;
-                draft = '';
-              }}
-            >
-              {t('app.workspace.cancel')}
-            </Button>
-          {/if}
-        </div>
-      </Stack>
+        {#if replyTo || editing}
+          <Button size="sm" tone="secondary" onclick={() => { replyTo = undefined; editing = undefined; draft = ''; rewrite(); }}>{t('app.workspace.cancel')}</Button>
+        {/if}
+      </div>
     {/if}
     <CommentThread
       label={t('app.comments.title')}
       comments={threadRows().slice(0, shownCount)}
+      body={formatted}
+      events={show === 'all' ? quietRowsInView(events, threadRows().slice(0, shownCount)) : []}
       emptyLabel={t(mayComment === false ? 'app.comments.none_closed' : 'app.comments.none')}
       removedLabel={t('app.comments.removed')}
       editLabel={t('app.comments.edit')}
       deleteLabel={t('app.comments.remove')}
       replyLabel={t('app.comments.reply')}
+      moreLabel={t('app.comments.more')}
       hasMore={hasMore || threadRows().length > shownCount}
       loadMoreLabel={t('app.comments.older')}
       loadMoreFailedLabel={olderFailed}
@@ -286,8 +350,22 @@
   </Stack>
   {#if mayComment}<MentionDialog bind:isOpen={isMentionOpen} selfId={item.id} oninsert={mention} />{/if}
 
+{#snippet formatted(markdown: string)}<RichText value={markdown} label={t('app.comments.title')} />{/snippet}
+
 <style>
-  .actions { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
+  [data-composer] { display: flex; flex-direction: column; gap: var(--sp-100); }
+  [data-composer][data-docked] {
+    position: fixed;
+    inset-inline: 0;
+    inset-block-end: calc(var(--layout-bottombar-height) + env(safe-area-inset-bottom, 0));
+    z-index: var(--z-sticky);
+    padding: var(--sp-100) var(--sp-200);
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
+    background: var(--bg-canvas);
+  }
+  /* The composer's own phone dock is this one's: nested, the two offsets added up. */
+  [data-composer][data-docked] :global(.composer) { position: static; box-shadow: none; }
+  .dock-room { order: 1; flex: none; }
 
   .failure { margin: 0; color: var(--text-danger); }
 

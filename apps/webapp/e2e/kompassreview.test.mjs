@@ -9,7 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ALL, APPROVALS, ENTRIES, IT, KB, MAP, MOBILE, PD, PD_BOARDS, WEB, id, open, served } from './kompassstub.mjs';
 
@@ -24,8 +24,7 @@ const main = (page) => page.getByRole('main');
 
 /** Opens a screen, waits for what it must draw, and asserts no boundary and no page error. */
 async function opens(t, path, drawn) {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await walk(browser, path);
   t.after(close);
   await drawn(main(page)).first().waitFor({ timeout: 10_000 });

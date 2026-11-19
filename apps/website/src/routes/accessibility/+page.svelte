@@ -26,7 +26,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">In practice</p>
@@ -81,7 +81,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">The statement</p>
@@ -141,7 +141,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">Scope and limits</p>

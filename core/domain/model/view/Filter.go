@@ -83,6 +83,9 @@ type Node struct {
 	Values []Value
 	// Nodes are what a combination joins, and are empty on a leaf.
 	Nodes []Node
+	// Asked is what the use case learnt for a key the statement cannot answer alone - whose time
+	// `time_logged` counts, which entries are `critical`. Set by Answer, never parsed.
+	Asked *Asked
 }
 
 // IsLeaf reports whether the node compares a field.

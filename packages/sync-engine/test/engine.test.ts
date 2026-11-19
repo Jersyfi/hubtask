@@ -394,6 +394,36 @@ test('a refused exchange ends the session at once', async () => {
   assert.equal(transport.calls.length, 1, 'nothing was retried with a credential nobody replaced');
 });
 
+test('an exchange that could not be made fails the call and keeps the session', async () => {
+  // Shed for load or not reached: the refresh token was never spent, so nothing ended. The call
+  // fails with what the exchange met, and the next refusal exchanges again.
+  const refused = new TransportError('problem', { status: 401, code: 'unauthenticated' });
+  const shed = new TransportError('problem', { status: 429, code: 'rate_limited' });
+  const transport = new FakeTransport().failOnce('/accounts/me', refused).answer('/accounts/me', { id: 'a' });
+  let exchanges = 0;
+  let refusals = 0;
+  const engine = new SyncEngine({
+    transport,
+    onUnauthorized: () => (refusals += 1),
+    onRefresh: async () => {
+      exchanges += 1;
+      if (exchanges === 1) throw shed;
+      return true;
+    },
+  });
+
+  const first = await engine.refresh<{ id: string }>(ME);
+  assert.equal(first.status, 'failed');
+  assert.equal(first.status === 'failed' ? (first.error as TransportError).status : undefined, 429);
+  assert.equal(refusals, 0, 'the session ended on an exchange that never happened');
+
+  transport.failOnce('/accounts/me', refused);
+  const second = await engine.refresh<{ id: string }>(ME);
+  assert.equal(second.status, 'ready');
+  assert.equal(exchanges, 2);
+  assert.equal(refusals, 0);
+});
+
 test('a permission refusal is not a session refusal', async () => {
   // A 403 is an answer, not an expiry. Exchanging on one would be a client asking for a better
   // answer to a question it already got right.
