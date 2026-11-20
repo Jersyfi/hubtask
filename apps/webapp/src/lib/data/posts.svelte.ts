@@ -48,6 +48,11 @@ export const posts = {
     });
   },
 
+  /** A draft with the defaults a writer starts from (B-1), as *New post* and the hub column make one. */
+  draft(hubId: string, title: string): Promise<Post> {
+    return posts.create(hubId, { title, publish_at: null, audience: 'HUB', group_ids: [], discussion: true, notify: true });
+  },
+
   /** Follows a hub's posts or stops (B-5): a follower is told when a post for them goes out. */
   follow(hubId: string, following: boolean): Promise<PostFollowing> {
     return engine.mutate<PostFollowing>('PUT', `${hubPostsPath(hubId)}/following`, { following }, {
