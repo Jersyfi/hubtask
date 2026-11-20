@@ -1016,10 +1016,13 @@
   .read-title { font-weight: var(--fw-semibold); }
   .read-excerpt { display: -webkit-box; overflow: hidden; color: var(--text-secondary); font-size: var(--fs-075); -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
   .pages-pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-200); align-items: start; min-inline-size: 0; }
-  /* design-system-lint-ignore: `primitive.breakpoint.large` (905px); a media query cannot read a custom property. */
+  /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
   @media (width >= 905px) {
     .pages-pair { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
     .pages-pair > [data-pages-verified], .pages-pair > [data-pages-start] { grid-column: -2 / -1; }
+    /* A pair with one part - nothing to review, or nothing changed yet - is that part across the
+       row: the side column alone left the main one an empty field above what follows. */
+    .pages-pair > :only-child { grid-column: 1 / -1; }
   }
   .panel { display: grid; grid-template-columns: minmax(0, 1fr); min-inline-size: 0; border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-raised); }
   .panel > .eyebrow { padding: var(--sp-150) var(--sp-200) var(--sp-050); }
