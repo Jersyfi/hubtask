@@ -17,17 +17,14 @@ import (
 // The slim entry's contract half (versioning-release.md §4, "Scheduled contract steps") drops the
 // eight columns `work_item_side_rows` mirrors. It can land only once no query names them, so the
 // queries that still do are held to this list: a new one fails, and a moved one must leave it.
-// The writers still on it move in the first release after the suite (v0.10.1).
+// Since v0.10.1 moved every writer and reader to the side tables, the list is empty.
 //
 // What does not count as naming an entry's column: a name after AS (an alias of a side table's
 // column), a name inside a string literal (the archive's record keeps the columns' names as its
 // keys), and the side tables' own columns that share a name with the entry's (`flow_*`,
 // `*_announced_at`) - qualified by that side table, its alias or EXCLUDED, or unqualified in a
 // query that names that side table. Such a query qualifies every column of the entry it names.
-var mirroredColumnNamers = map[string][]string{
-	"BackupImport.sql ImportWorkItem": {"due_soon_announced_at", "flow_finished_at", "flow_started_at",
-		"overdue_announced_at", "retention_action", "retention_blocked_by", "retention_pending_until", "retention_rule_id"},
-}
+var mirroredColumnNamers = map[string][]string{}
 
 // sideTableColumns are the side tables' own columns of the same name as the entry's.
 var sideTableColumns = map[string][]string{

@@ -38,6 +38,16 @@ var notImported = map[string]string{
 	"work_item.search_configuration":   "the trigger sets it with the document",
 	"media_object.unreferenced_since":  "the recount's clock; NULL holds the sweep off until it counts",
 	"entry_status_change.seq":          "drawn anew: the identity is installation-wide, and a carried one could meet the next drawn",
+	// The slim entry's columns (F-10): stale since v0.10.1, dropped by the release after. The record
+	// carries the side tables' values under these keys and ImportWorkItemSideRows writes them there.
+	"work_item.due_soon_announced_at":   "written to work_item_announcement by ImportWorkItemSideRows",
+	"work_item.overdue_announced_at":    "written to work_item_announcement by ImportWorkItemSideRows",
+	"work_item.flow_started_at":         "written to work_item_flow by ImportWorkItemSideRows",
+	"work_item.flow_finished_at":        "written to work_item_flow by ImportWorkItemSideRows",
+	"work_item.retention_pending_until": "written to work_item_retention by ImportWorkItemSideRows",
+	"work_item.retention_rule_id":       "written to work_item_retention by ImportWorkItemSideRows",
+	"work_item.retention_action":        "written to work_item_retention by ImportWorkItemSideRows",
+	"work_item.retention_blocked_by":    "written to work_item_retention by ImportWorkItemSideRows",
 }
 
 var (

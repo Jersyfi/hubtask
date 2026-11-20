@@ -237,13 +237,28 @@ FROM (
   LIMIT sqlc.arg('batch')::int;
 
 -- name: ExportWorkItems :many
+-- What background loops keep on an entry lives in the side tables (F-10, 0234), and the record
+-- carries it under the keys the entry's own columns had, which the columns no longer answer: so
+-- an archive keeps its shape across the slim entry's steps, and ImportWorkItemSideRows reads it
+-- back from there.
 SELECT s.record_id, s.changed_at, s.payload
 FROM (
   SELECT (w.id)::text AS record_id,
          w.updated_at AS changed_at,
-         (to_jsonb(w) - 'tenant_id')::jsonb AS payload,
+         ((to_jsonb(w) - 'tenant_id') || jsonb_build_object(
+           'due_soon_announced_at', a.due_soon_announced_at,
+           'overdue_announced_at', a.overdue_announced_at,
+           'flow_started_at', f.flow_started_at,
+           'flow_finished_at', f.flow_finished_at,
+           'retention_pending_until', rt.pending_until,
+           'retention_rule_id', rt.rule_id,
+           'retention_action', rt.action,
+           'retention_blocked_by', rt.blocked_by))::jsonb AS payload,
          w.id AS key_1
   FROM work_item w
+  LEFT JOIN work_item_announcement a ON a.tenant_id = w.tenant_id AND a.item_id = w.id
+  LEFT JOIN work_item_flow f ON f.tenant_id = w.tenant_id AND f.item_id = w.id
+  LEFT JOIN work_item_retention rt ON rt.tenant_id = w.tenant_id AND rt.item_id = w.id
 ) s
   WHERE (sqlc.narg('since')::timestamptz IS NULL OR s.changed_at > sqlc.narg('since')::timestamptz)
     AND (s.changed_at, s.key_1) > (sqlc.arg('after_at')::timestamptz, sqlc.arg('after_id')::uuid)
