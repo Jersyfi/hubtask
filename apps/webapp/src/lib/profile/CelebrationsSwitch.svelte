@@ -9,7 +9,7 @@
   // and put back when a write is refused, so the switch never shows a choice the server did not
   // take.
 
-  import { Stack, Switch } from '@hubtask/design-system/components';
+  import { SettingsSection, Stack, Switch } from '@hubtask/design-system/components';
 
   import { actor } from '../data/account.svelte.ts';
   import { preferences } from '../data/preferences.svelte.ts';
@@ -46,6 +46,8 @@
 </script>
 
 {#if account}
+  <!-- A section as every other of Your settings: across the content's width, in its region. -->
+  <SettingsSection title={t('app.profile.moments_section')}>
   <div class="panel">
     <Stack gap="150">
       <Switch
@@ -60,16 +62,11 @@
       {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
     </Stack>
   </div>
+  </SettingsSection>
 {/if}
 
 <style>
-  .panel {
-    max-inline-size: 52ch;
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-  }
+  .panel { padding: var(--sp-200) var(--sp-250); }
 
   .failure { margin: 0; color: var(--text-danger); }
 </style>
