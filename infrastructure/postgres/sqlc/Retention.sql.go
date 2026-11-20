@@ -41,6 +41,8 @@ INSERT INTO work_item_retention (tenant_id, item_id, pending_until, rule_id, act
 SELECT wi.tenant_id, wi.id, NULL, $1, $2, $3
 FROM work_item wi
 WHERE wi.id = ANY($4::uuid[])
+ORDER BY wi.id
+FOR NO KEY UPDATE OF wi
 ON CONFLICT (tenant_id, item_id) DO UPDATE SET
   rule_id    = EXCLUDED.rule_id,
   action     = EXCLUDED.action,
@@ -143,8 +145,8 @@ type ClearItemRetentionParams struct {
 // entry out - taking it out means the rule no longer owns it - and kept when a stage has acted,
 // because the chain's next stage is what owns it then. A side row left with nothing goes.
 //
-// The entry is written first and the side row after, as the due date and the claims do, so two
-// such writers wait for each other rather than deadlock. Answers how many entries were cleared.
+// The entry is written first and the side row after, the order every writer of both keeps, so
+// two of them wait for each other rather than deadlock. Answers how many entries were cleared.
 func (q *Queries) ClearItemRetention(ctx context.Context, arg ClearItemRetentionParams) (int64, error) {
 	row := q.db.QueryRow(ctx, clearItemRetention, arg.Now, arg.Ids, arg.KeepRule)
 	var count int64
@@ -618,6 +620,8 @@ SELECT wi.tenant_id, wi.id, $1::timestamptz, $2,
        $3, NULL
 FROM work_item wi
 WHERE wi.id = ANY($4::uuid[])
+ORDER BY wi.id
+FOR NO KEY UPDATE OF wi
 ON CONFLICT (tenant_id, item_id) DO UPDATE SET
   pending_until = EXCLUDED.pending_until,
   rule_id       = EXCLUDED.rule_id,
@@ -641,7 +645,9 @@ type MarkItemsForRetentionParams struct {
 //
 // Written to the side row (F-10, 0234): one is created for an entry that has none, and one that
 // already counts down is left alone. The entry is read for its tenant and to keep an identifier
-// that names no entry of this tenant out.
+// that names no entry of this tenant out, and locked before the side row, the order every writer
+// of both keeps (the side row's trigger writes the entry's columns back while v0.10.0 rolls out),
+// so a marking and a clearing of one entry wait for each other rather than deadlock.
 func (q *Queries) MarkItemsForRetention(ctx context.Context, arg MarkItemsForRetentionParams) (int64, error) {
 	result, err := q.db.Exec(ctx, markItemsForRetention,
 		arg.EffectiveAt,

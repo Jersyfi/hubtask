@@ -15,7 +15,9 @@
 -- 0194's rules unchanged; a statement of the older binary that writes the moments itself is left
 -- to the mirror, as 0194 left it to the statement.
 --
--- Both are replaced in one transaction, so no write runs between the two flow triggers.
+-- And the entry's announcement and retention columns follow their side rows again, for the older
+-- binary's reads (below). Everything here is replaced in one transaction, so no write runs between
+-- the two flow triggers. The release that drops the columns drops the `*_follow` triggers with them.
 -- +goose Up
 
 -- +goose StatementBegin
@@ -27,6 +29,9 @@ DECLARE
   c_until boolean; c_rule boolean; c_action boolean; c_blocked boolean;
   v_soon timestamptz; v_over timestamptz; v_start timestamptz; v_finish timestamptz;
   v_until timestamptz; v_rule uuid; v_action text; v_blocked text;
+  had boolean;
+  w_soon timestamptz; w_over timestamptz; w_start timestamptz; w_finish timestamptz;
+  w_until timestamptz; w_rule uuid; w_action text; w_blocked text;
 BEGIN
   IF inserting THEN
     c_soon := NEW.due_soon_announced_at IS NOT NULL;
@@ -51,9 +56,13 @@ BEGIN
   IF c_soon OR c_over THEN
     SELECT a.due_soon_announced_at, a.overdue_announced_at INTO v_soon, v_over
       FROM work_item_announcement a WHERE a.tenant_id = NEW.tenant_id AND a.item_id = NEW.id FOR UPDATE;
+    had := FOUND;
+    w_soon := v_soon; w_over := v_over;
     IF c_soon THEN v_soon := NEW.due_soon_announced_at; END IF;
     IF c_over THEN v_over := NEW.overdue_announced_at; END IF;
-    IF num_nonnulls(v_soon, v_over) = 0 THEN
+    IF had AND (v_soon, v_over) IS NOT DISTINCT FROM (w_soon, w_over) THEN
+      NULL; -- the side row already says so: the columns followed it (work_item_columns_follow)
+    ELSIF num_nonnulls(v_soon, v_over) = 0 THEN
       DELETE FROM work_item_announcement WHERE tenant_id = NEW.tenant_id AND item_id = NEW.id;
     ELSE
       INSERT INTO work_item_announcement (tenant_id, item_id, due_soon_announced_at, overdue_announced_at)
@@ -67,9 +76,13 @@ BEGIN
   IF c_start OR c_finish THEN
     SELECT f.flow_started_at, f.flow_finished_at INTO v_start, v_finish
       FROM work_item_flow f WHERE f.tenant_id = NEW.tenant_id AND f.item_id = NEW.id FOR UPDATE;
+    had := FOUND;
+    w_start := v_start; w_finish := v_finish;
     IF c_start THEN v_start := NEW.flow_started_at; END IF;
     IF c_finish THEN v_finish := NEW.flow_finished_at; END IF;
-    IF num_nonnulls(v_start, v_finish) = 0 THEN
+    IF had AND (v_start, v_finish) IS NOT DISTINCT FROM (w_start, w_finish) THEN
+      NULL;
+    ELSIF num_nonnulls(v_start, v_finish) = 0 THEN
       DELETE FROM work_item_flow WHERE tenant_id = NEW.tenant_id AND item_id = NEW.id;
     ELSE
       INSERT INTO work_item_flow (tenant_id, item_id, flow_started_at, flow_finished_at)
@@ -83,11 +96,16 @@ BEGIN
   IF c_until OR c_rule OR c_action OR c_blocked THEN
     SELECT r.pending_until, r.rule_id, r.action, r.blocked_by INTO v_until, v_rule, v_action, v_blocked
       FROM work_item_retention r WHERE r.tenant_id = NEW.tenant_id AND r.item_id = NEW.id FOR UPDATE;
+    had := FOUND;
+    w_until := v_until; w_rule := v_rule; w_action := v_action; w_blocked := v_blocked;
     IF c_until THEN v_until := NEW.retention_pending_until; END IF;
     IF c_rule THEN v_rule := NEW.retention_rule_id; END IF;
     IF c_action THEN v_action := NEW.retention_action; END IF;
     IF c_blocked THEN v_blocked := NEW.retention_blocked_by; END IF;
-    IF num_nonnulls(v_until, v_rule, v_action, v_blocked) = 0 THEN
+    IF had AND (v_until, v_rule, v_action, v_blocked)
+                  IS NOT DISTINCT FROM (w_until, w_rule, w_action, w_blocked) THEN
+      NULL;
+    ELSIF num_nonnulls(v_until, v_rule, v_action, v_blocked) = 0 THEN
       DELETE FROM work_item_retention WHERE tenant_id = NEW.tenant_id AND item_id = NEW.id;
     ELSE
       INSERT INTO work_item_retention (tenant_id, item_id, pending_until, rule_id, action, blocked_by)
@@ -180,6 +198,66 @@ BEGIN
 END
 $$;
 -- +goose StatementEnd
+
+-- The way back, for the older binary's reads: v0.10.0 decides by the columns which entries it
+-- claims, clears or marks (`retention_pending_until IS NULL`, `due_soon_announced_at IS NULL`, a
+-- rule's marks by `retention_rule_id`), and a column this release left stale would let it announce
+-- twice or miss a person's `:retain` - the mark then stays on the side row and phase two acts on
+-- it. So while both binaries can run, the entry's announcement and retention columns follow their
+-- side rows. Only where they differ, which is also what ends the round trip through the mirror.
+-- The flow moments do not follow: v0.10.0 reads them from the side row already.
+-- +goose StatementBegin
+CREATE OR REPLACE FUNCTION work_item_announcement_follow() RETURNS trigger LANGUAGE plpgsql AS
+$$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    UPDATE work_item SET due_soon_announced_at = NULL, overdue_announced_at = NULL
+     WHERE tenant_id = OLD.tenant_id AND id = OLD.item_id
+       AND num_nonnulls(due_soon_announced_at, overdue_announced_at) > 0;
+  ELSE
+    UPDATE work_item SET due_soon_announced_at = NEW.due_soon_announced_at,
+                         overdue_announced_at  = NEW.overdue_announced_at
+     WHERE tenant_id = NEW.tenant_id AND id = NEW.item_id
+       AND (due_soon_announced_at, overdue_announced_at)
+           IS DISTINCT FROM (NEW.due_soon_announced_at, NEW.overdue_announced_at);
+  END IF;
+  RETURN NULL;
+END
+$$;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+CREATE OR REPLACE FUNCTION work_item_retention_follow() RETURNS trigger LANGUAGE plpgsql AS
+$$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    UPDATE work_item SET retention_pending_until = NULL, retention_rule_id = NULL,
+                         retention_action = NULL, retention_blocked_by = NULL
+     WHERE tenant_id = OLD.tenant_id AND id = OLD.item_id
+       AND num_nonnulls(retention_pending_until, retention_rule_id, retention_action,
+                        retention_blocked_by) > 0;
+  ELSE
+    UPDATE work_item SET retention_pending_until = NEW.pending_until,
+                         retention_rule_id       = NEW.rule_id,
+                         retention_action        = NEW.action,
+                         retention_blocked_by    = NEW.blocked_by
+     WHERE tenant_id = NEW.tenant_id AND id = NEW.item_id
+       AND (retention_pending_until, retention_rule_id, retention_action, retention_blocked_by)
+           IS DISTINCT FROM (NEW.pending_until, NEW.rule_id, NEW.action, NEW.blocked_by);
+  END IF;
+  RETURN NULL;
+END
+$$;
+-- +goose StatementEnd
+
+DROP TRIGGER IF EXISTS work_item_columns_follow ON work_item_announcement;
+CREATE TRIGGER work_item_columns_follow
+  AFTER INSERT OR UPDATE OR DELETE ON work_item_announcement
+  FOR EACH ROW EXECUTE FUNCTION work_item_announcement_follow();
+DROP TRIGGER IF EXISTS work_item_columns_follow ON work_item_retention;
+CREATE TRIGGER work_item_columns_follow
+  AFTER INSERT OR UPDATE OR DELETE ON work_item_retention
+  FOR EACH ROW EXECUTE FUNCTION work_item_retention_follow();
 
 DROP TRIGGER IF EXISTS work_item_flow_moments ON work_item;
 CREATE TRIGGER work_item_flow_moments

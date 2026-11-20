@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	lifecycleRepository "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
@@ -161,7 +162,7 @@ func disagreements(ctx context.Context, t *testing.T, ids ...shared.ID) int {
 
 // F-10's readers move before the columns go: the retention walk, the entry's own marking and the
 // entry read answer from the side table. Proven by a side row that says something the columns do
-// not - only a write past the trigger can make one.
+// not - only a write past the triggers, both ways, can make one.
 func TestTheReadersAnswerFromTheSideTables(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -173,10 +174,21 @@ func TestTheReadersAnswerFromTheSideTables(t *testing.T) {
 		 WHERE id = $1`, item.String()); err != nil {
 		t.Fatalf("marking the entry: %v", err)
 	}
-	if _, err := admin.Exec(ctx, `
+	pastTheTriggers, err := admin.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pastTheTriggers.Exec(ctx, `SET LOCAL session_replication_role = replica`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pastTheTriggers.Exec(ctx, `
 		UPDATE work_item_retention SET action = 'ARCHIVE', pending_until = now() - interval '2 hours'
 		 WHERE item_id = $1`, item.String()); err != nil {
+		_ = pastTheTriggers.Rollback(ctx)
 		t.Fatalf("changing the side row: %v", err)
+	}
+	if err := pastTheTriggers.Commit(ctx); err != nil {
+		t.Fatal(err)
 	}
 	asTenant(ctx, t, tenantA, func(q *sqlc.Queries, _ pgx.Tx) {
 		marking, err := q.FindItemRetention(ctx, uuidOf(item))
@@ -225,6 +237,18 @@ const (
 		WHERE retention_rule_id = $2`
 	olderDueDate = `UPDATE work_item SET due_at = $1, due_soon_announced_at = NULL, overdue_announced_at = NULL,
 		updated_at = $2, version = version + 1 WHERE id = $3::uuid`
+	olderClaimDueSoon = `UPDATE work_item SET due_soon_announced_at = $1
+		WHERE id IN (SELECT due.id FROM work_item AS due
+		  WHERE due.due_at IS NOT NULL AND due.due_at <= $2 AND due.due_soon_announced_at IS NULL
+		    AND due.deleted_at IS NULL AND due.archived_at IS NULL AND due.is_completed = false
+		  ORDER BY due.due_at FOR UPDATE SKIP LOCKED LIMIT 100)
+		RETURNING id`
+	olderClaimOverdue = `UPDATE work_item SET overdue_announced_at = $1
+		WHERE id IN (SELECT due.id FROM work_item AS due
+		  WHERE due.due_at IS NOT NULL AND due.due_at <= $1 AND due.overdue_announced_at IS NULL
+		    AND due.deleted_at IS NULL AND due.archived_at IS NULL AND due.is_completed = false
+		  ORDER BY due.due_at FOR UPDATE SKIP LOCKED LIMIT 100)
+		RETURNING id`
 )
 
 // The mirror and the columns agree after every statement the older binary writes the mirrored
@@ -317,5 +341,118 @@ func TestAColumnWriteLeavesWhatItDidNotChange(t *testing.T) {
 	}
 	if _, f, _ := sideRows(ctx, t, item); f != 1 {
 		t.Error("the flow moment was not carried")
+	}
+}
+
+// The roll-out window, closed: what this release writes to a side row, v0.10.0 reads from the
+// entry's columns, which follow the side rows (work_item_columns_follow). Its clearings find a
+// mark this release set, so phase two no longer sees it; its claims do not announce again what
+// this release announced; its new due date removes the announcement, so the next claim announces
+// the moved deadline.
+func TestTheOlderBinarySeesWhatTheSideRowsSay(t *testing.T) {
+	ctx := context.Background()
+	tenant, author := seedOwnTenant(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenant, author)
+	now := time.Now().UTC()
+	older := func(step, statement string, args ...any) int64 {
+		t.Helper()
+		var n int64
+		asTenant(ctx, t, tenant, func(_ *sqlc.Queries, tx pgx.Tx) {
+			tag, err := tx.Exec(ctx, statement, args...)
+			if err != nil {
+				t.Fatalf("%s: %v", step, err)
+			}
+			n = tag.RowsAffected()
+		})
+		return n
+	}
+	due := func() int {
+		t.Helper()
+		var n int
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			candidates, err := markingRepo().MarkedDue(ctx, now.Add(time.Hour), lifecycleRepository.Position{}, 100)
+			n = len(candidates)
+			return err
+		}); err != nil {
+			t.Fatalf("reading what is due: %v", err)
+		}
+		return n
+	}
+
+	// A person's :retain and a withdrawn rule, served by v0.10.0, on marks this release set.
+	retained, withdrawn := seedTask(ctx, t, tenant, author, collection), seedTask(ctx, t, tenant, author, collection)
+	rule := freshID(t)
+	if err := write(ctx, t, tenant, func(ctx context.Context) error {
+		if _, err := markingRepo().Mark(ctx, []shared.ID{retained}, rule, "ARCHIVE", now); err != nil {
+			return err
+		}
+		_, err := markingRepo().Mark(ctx, []shared.ID{withdrawn}, rule, "ARCHIVE", now)
+		return err
+	}); err != nil {
+		t.Fatalf("marking: %v", err)
+	}
+	if n := due(); n != 2 {
+		t.Fatalf("%d entries are due after marking two", n)
+	}
+	if n := older(":retain", olderClear, false, now, []string{retained.String()}); n != 1 {
+		t.Errorf("v0.10.0's :retain cleared %d entries, want the one this release marked", n)
+	}
+	if n := older("withdrawing the rule", olderClearRule, now, rule.String()); n != 1 {
+		t.Errorf("v0.10.0's withdrawal cleared %d entries, want the one still marked", n)
+	}
+	if n := due(); n != 0 {
+		t.Errorf("phase two still sees %d marks v0.10.0 cleared", n)
+	}
+	for _, id := range []shared.ID{retained, withdrawn} {
+		if _, _, r := sideRows(ctx, t, id); r != 0 {
+			t.Errorf("v0.10.0's clearing left the side mark of %s", id)
+		}
+	}
+
+	// v0.10.0's mark and block land on the side row as before.
+	if n := older("marking", olderMark, now, rule.String(), "ARCHIVE", []string{retained.String()}); n != 1 {
+		t.Errorf("v0.10.0 marked %d entries", n)
+	}
+	if n := older("blocking a marked entry", olderBlock, rule.String(), "ARCHIVE", "legal_hold",
+		[]string{retained.String()}); n != 0 {
+		t.Errorf("v0.10.0 blocked %d marked entries", n)
+	}
+	if n := due(); n != 1 {
+		t.Errorf("%d entries are due after v0.10.0 marked one", n)
+	}
+
+	// Announcements: what this release claimed, v0.10.0 does not claim again; a date it moves is
+	// announced again by this release.
+	deadline := dueTask(ctx, t, tenant, author, collection, now.Add(-time.Hour))
+	if got := claimOverdue(ctx, t, tenant, now); len(got) != 1 {
+		t.Fatalf("this release claimed %v", got)
+	}
+	if got := claimDueSoon(ctx, t, tenant, now); len(got) != 1 {
+		t.Fatalf("this release claimed %v as due soon", got)
+	}
+	if n := older("claiming overdue", olderClaimOverdue, now); n != 0 {
+		t.Errorf("v0.10.0 announced %d deadlines this release announced", n)
+	}
+	if n := older("claiming due soon", olderClaimDueSoon, now, now.Add(24*time.Hour)); n != 0 {
+		t.Errorf("v0.10.0 announced %d approaching deadlines this release announced", n)
+	}
+	if a, _, _ := sideRows(ctx, t, deadline); a != 1 {
+		t.Errorf("the entry has %d announcement rows", a)
+	}
+	if n := older("moving the date", olderDueDate, now.Add(-time.Minute), now, deadline.String()); n != 1 {
+		t.Fatalf("v0.10.0 moved %d dates", n)
+	}
+	if a, _, _ := sideRows(ctx, t, deadline); a != 0 {
+		t.Errorf("v0.10.0's new date left the announcement")
+	}
+	if got := claimOverdue(ctx, t, tenant, now); len(got) != 1 || got[0].ItemID != deadline {
+		t.Errorf("the moved deadline was not announced again: %v", got)
+	}
+	// And a v0.10.0 claim of a stamp the side row lacks lands on the existing row.
+	if n := older("claiming due soon after the move", olderClaimDueSoon, now, now.Add(24*time.Hour)); n != 1 {
+		t.Errorf("v0.10.0 claimed %d", n)
+	}
+	if a, _, _ := sideRows(ctx, t, deadline); a != 1 || columnsLag(ctx, t, deadline) != 0 {
+		t.Errorf("after v0.10.0's claim: %d announcement rows, columns lag %d", a, columnsLag(ctx, t, deadline))
 	}
 }

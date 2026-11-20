@@ -88,7 +88,7 @@ func claimDueSoon(ctx context.Context, t *testing.T, tenant shared.ID, now time.
 }
 
 // Several passes claiming at once - leaders that overlap, a retried job - announce every entry
-// once: the side row's insert is the guard. The claims write the side row alone (F-10).
+// once: the side row's insert is the guard (F-10).
 func TestADueAnnouncementIsClaimedOnceUnderConcurrentClaimers(t *testing.T) {
 	ctx := context.Background()
 	tenant, author := seedOwnTenant(ctx, t)
@@ -150,8 +150,8 @@ func TestADueAnnouncementIsClaimedOnceUnderConcurrentClaimers(t *testing.T) {
 		if soon[id] != 1 || over[id] != 1 {
 			t.Errorf("%s was announced as due soon %d times and as overdue %d times, want once each", id, soon[id], over[id])
 		}
-		if n := entryColumnsSet(ctx, t, id); n != 0 {
-			t.Errorf("a claim set %d of the entry's mirrored columns", n)
+		if columnsLag(ctx, t, id) != 0 {
+			t.Errorf("the columns of %s did not follow its announcement", id)
 		}
 	}
 }

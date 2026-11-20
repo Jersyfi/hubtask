@@ -73,8 +73,8 @@ func TestABackupImportLandsTheSideRows(t *testing.T) {
 			t.Errorf("the restore did not round-trip %s: %v, want %v", key, again[key], row[key])
 		}
 	}
-	if n := entryColumnsSet(ctx, t, id); n != 0 {
-		t.Errorf("the restore set %d of the entry's mirrored columns", n)
+	if columnsLag(ctx, t, id) != 0 {
+		t.Error("the entry's columns did not follow the restored side rows")
 	}
 
 	for _, key := range keys {

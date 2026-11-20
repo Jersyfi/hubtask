@@ -147,11 +147,18 @@ a step that moves its writers lands one release before the drop:
   had named a partial index on `work_item_announcement`; the claim's walk is over the entry). The
   trigger stays for the older binary still rolling out and since 0443 carries only the columns a
   statement changed, so stale columns never undo a side row
-  (`TestTheMirrorAgreesAfterEveryWritePath`, `TestAColumnWriteLeavesWhatItDidNotChange`). While
-  both binaries run, the older one still reads the stamps and marks from the columns, which v0.10.1
-  no longer writes: it may announce a deadline again that v0.10.1 announced, and its `:retain` of
-  an entry v0.10.1 marked finds nothing to clear. The first migration of the release after v0.10.1
-  drops the trigger and `work_item_mirror_side_rows`, the eight columns, `wi_due_announce_idx`,
+  (`TestTheMirrorAgreesAfterEveryWritePath`, `TestAColumnWriteLeavesWhatItDidNotChange`). The
+  older binary decides by the columns which entries it claims, clears and marks, so 0443 also
+  makes the entry's announcement and retention columns follow their side rows
+  (`work_item_columns_follow` on both side tables): its `:retain` and a withdrawn rule clear what
+  v0.10.1 marked, its claims do not announce again what v0.10.1 announced, and its new due date
+  removes the announcement (`TestTheOlderBinarySeesWhatTheSideRowsSay`). What remains of the
+  roll-out window: the flow moments do not follow - v0.10.0 reads them from the side row, but an
+  archive it writes carries the columns' moments, which miss the moves v0.10.1 recorded. The
+  following costs a write of the entry's row per marking and announcement for this release only.
+  The first migration of the release after v0.10.1 drops `work_item_side_rows`, the two
+  `work_item_columns_follow` triggers, their functions and `work_item_mirror_side_rows`, the eight
+  columns, `wi_due_announce_idx`,
   `work_item_retention_idx` and the generated `search_vector`, and raises the compatibility
   floor to 0442. Until then no query names the eight columns: `TestNoNewQueryNamesTheSlimEntrysMirroredColumns`
   holds the queries that do to a list, empty since v0.10.1; it tells a side table's own `flow_*` and
