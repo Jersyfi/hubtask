@@ -301,7 +301,9 @@ jobs:
           "$tools/apksigner" sign --ks "$keystore" --ks-key-alias hubtask \
             --ks-pass env:ANDROID_KEYSTORE_PASSWORD --key-pass env:ANDROID_KEYSTORE_PASSWORD \
             --v4-signing-enabled false --out "$apk" "$RUNNER_TEMP/aligned.apk"
-          signed=$("$tools/apksigner" verify --print-certs "$apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          # build-tools 37 names the signer "V3.0 Signer:" where older ones said "Signer #1"; every
+          # signer the APK carries must hold the recorded certificate.
+          signed=$("$tools/apksigner" verify --print-certs "$apk" | sed -n 's/^.*Signer.* certificate SHA-256 digest: //p' | sort -u)
           recorded=$(node apps/webapp/build/release-apps.js key apk docs/architecture/versioning-release.md)
           if [ "$signed" != "$recorded" ]; then
             echo "::error::the APK's certificate is $signed; versioning-release.md §9 records $recorded"
