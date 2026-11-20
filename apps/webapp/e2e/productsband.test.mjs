@@ -347,7 +347,7 @@ test('chromium 1280 px: Today offers the products that are off, and hides them f
   const more = page.getByRole('region', { name: 'More in Hubtask' });
   await more.waitFor({ timeout: 10_000 });
   const names = (await more.locator('.offer-name').allTextContents()).map((name) => name.trim());
-  assert.deepEqual(names, ['Plans', 'Whiteboards', 'Service desk', 'Inventory', 'Time', 'Goals', 'Agents'], JSON.stringify(names));
+  assert.deepEqual(names, ['Plans', 'Posts', 'Whiteboards', 'Service desk', 'Inventory', 'Time', 'Goals', 'Agents'], JSON.stringify(names));
   await more.getByRole('listitem').filter({ hasText: 'Whiteboards' }).getByRole('button', { name: /Try it/u }).click();
   await page.waitForFunction(() => location.pathname === '/whiteboards', null, { timeout: 5_000 });
   await page.getByRole('button', { name: 'Switch Whiteboards on' }).waitFor({ timeout: 5_000 });
