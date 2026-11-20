@@ -404,7 +404,10 @@ test('chromium: the rail says who answers for it, its protection with its origin
   t.after(() => context.close());
 
   const rail = page.getByRole('complementary', { name: 'Properties of Portal-API' });
-  await rail.locator('[data-rail-owner]').waitFor({ timeout: 20_000 });
+  // The rail is drawn before the object's owner and location arrive; wait for the content, not the box.
+  await rail.locator('[data-rail-owner]', { hasText: 'Location RZ Hamburg' }).waitFor({ timeout: 20_000 });
+  await rail.locator('[data-rail-protection]', { hasText: 'inherited from Kundenportal' }).waitFor({ timeout: 20_000 });
+  await rail.locator('[data-rail-origin]', { hasText: 'glpi' }).waitFor({ timeout: 20_000 });
   const owner = (await rail.locator('[data-rail-owner]').innerText()).replace(/\s+/gu, ' ');
   assert.match(owner, /Person nobody · set/u);
   assert.match(owner, /Location RZ Hamburg/u);
