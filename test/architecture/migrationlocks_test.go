@@ -209,15 +209,22 @@ func releasedTables(files []migrationFile) map[string]bool {
 }
 
 // The constant above follows the release: the newest v* tag without a pre-release suffix carries
-// exactly that many migrations. Skipped where the checkout has no tags (a shallow clone).
+// exactly that many migrations. A tag on the commit under test is the release being cut, which
+// release.yml checks before the constant can name it, so it is passed over. Skipped where the
+// checkout has no tags (a shallow clone).
 func TestTheLastReleasedMigrationIsTheLastReleasesHighest(t *testing.T) {
 	out, err := exec.CommandContext(t.Context(), "git", "tag", "--list", "v*", "--sort=-v:refname").Output()
 	if err != nil {
 		t.Skip("no git here")
 	}
+	here, err := exec.CommandContext(t.Context(), "git", "tag", "--points-at", "HEAD").Output()
+	if err != nil {
+		t.Skip("no git here")
+	}
+	beingCut := strings.Fields(string(here))
 	var tag string
 	for _, line := range strings.Split(string(out), "\n") {
-		if line = strings.TrimSpace(line); line != "" && !strings.Contains(line, "-") {
+		if line = strings.TrimSpace(line); line != "" && !strings.Contains(line, "-") && !slices.Contains(beingCut, line) {
 			tag = line
 			break
 		}
