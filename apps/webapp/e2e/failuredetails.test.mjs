@@ -92,7 +92,8 @@ test('chromium: a list that could not be read folds its reference the same way, 
   assert.match(await region.innerText(), /access\.not_permitted/);
   const before = asked;
   await Promise.all([
-    page.waitForRequest((request) => new URL(request.url()).pathname.endsWith('/api/v1/approvals'), { timeout: 5_000 }),
+    // The answer, not the request: the route counts the ask only once it handles it.
+    page.waitForResponse((response) => new URL(response.url()).pathname.endsWith('/api/v1/approvals'), { timeout: 5_000 }),
     failure.getByRole('button', { name: 'Try again' }).click(),
   ]);
   assert.ok(asked > before, 'Try again did not ask the list again');

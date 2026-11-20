@@ -332,7 +332,9 @@ jobs:
       - name: One checksum file over everything the release publishes
         run: |
           cp sbom.cdx.json THIRD-PARTY-LICENSES.md dist/*.tgz release-record.json release-record.json.sigstore.json \
-            csaf.tar.gz compose.tar.gz release/
+            compose.tar.gz release/
+          # A release without an advisory has no archive of them (the step above writes none).
+          if [ -f csaf.tar.gz ]; then cp csaf.tar.gz release/; fi
           node apps/webapp/build/release-apps.js checksums release
           node apps/webapp/build/release-apps.js check release
           (cd release && sha256sum --check --strict SHA256SUMS)
