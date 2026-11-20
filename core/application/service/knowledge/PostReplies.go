@@ -74,7 +74,7 @@ type ListPostReplies struct{ Space Space }
 
 // Descriptor is the catalogue entry.
 func (h ListPostReplies) Descriptor() usecase.Descriptor {
-	return descriptor(usecase.Descriptor{
+	return postDescriptor(usecase.Descriptor{
 		Name: ListPostRepliesName, Permission: service.PermissionRead,
 		Summary: "Reads the replies under a post, oldest first, one level deep, each with its " +
 			"reactions counted and whether the caller gave them.",
@@ -116,7 +116,7 @@ type AddPostReply struct{ Space Space }
 
 // Descriptor is the catalogue entry.
 func (h AddPostReply) Descriptor() usecase.Descriptor {
-	return descriptor(usecase.Descriptor{
+	return postDescriptor(usecase.Descriptor{
 		Name: AddPostReplyName, Permission: service.PermissionRead,
 		Summary: "Adds a reply under a published post whose discussion is open, or an answer to a " +
 			"reply; anybody the post is for may reply.",
@@ -181,7 +181,7 @@ type DeletePostReply struct{ Space Space }
 
 // Descriptor is the catalogue entry.
 func (h DeletePostReply) Descriptor() usecase.Descriptor {
-	return descriptor(usecase.Descriptor{
+	return postDescriptor(usecase.Descriptor{
 		Name: DeletePostReplyName, Permission: service.PermissionRead,
 		Summary:     "Takes a reply back: the caller's own, or any for a writer of the hub. Its place stays, its words go.",
 		SideEffects: "Empties the reply and writes an audit entry.",
@@ -282,7 +282,7 @@ type ReactToPostReply struct{ Space Space }
 
 // Descriptor is the catalogue entry.
 func (h ReactToPostReply) Descriptor() usecase.Descriptor {
-	return descriptor(usecase.Descriptor{
+	return postDescriptor(usecase.Descriptor{
 		Name: ReactToPostReplyName, Permission: service.PermissionRead,
 		Summary:     "Gives one of the few fixed reactions to a reply in a post's discussion, once per person and kind.",
 		SideEffects: "Records the reaction; no audit entry, since who reacted is personal.",
@@ -300,7 +300,7 @@ type UnreactToPostReply struct{ Space Space }
 
 // Descriptor is the catalogue entry.
 func (h UnreactToPostReply) Descriptor() usecase.Descriptor {
-	return descriptor(usecase.Descriptor{
+	return postDescriptor(usecase.Descriptor{
 		Name: UnreactToPostReplyName, Permission: service.PermissionRead,
 		Summary:     "Takes the caller's reaction of a kind to a reply back.",
 		SideEffects: "Removes the reaction.",

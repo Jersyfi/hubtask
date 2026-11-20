@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/calendar"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/knowledge"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -493,7 +494,7 @@ func (h ListHubPosts) Execute(ctx context.Context, actor appshared.ActorContext,
 
 // Descriptor is the catalogue entry.
 func (h ListHubPosts) Descriptor() usecase.Descriptor {
-	return descriptor(usecase.Descriptor{
+	return postDescriptor(usecase.Descriptor{
 		Name: ListHubPostsName, Permission: service.PermissionRead,
 		Summary: "Reads a hub's posts the caller sees, featured ones first, then newest first: published " +
 			"ones for their audience, drafts and scheduled ones for the hub's writers only.",
@@ -563,7 +564,7 @@ func (h ListUnreadPosts) Execute(ctx context.Context, actor appshared.ActorConte
 
 // Descriptor is the catalogue entry.
 func (h ListUnreadPosts) Descriptor() usecase.Descriptor {
-	return descriptor(usecase.Descriptor{
+	return postDescriptor(usecase.Descriptor{
 		Name: ListUnreadPostsName, Permission: service.PermissionRead,
 		Summary: "Reads the published posts the caller has not seen yet, across every hub they read, " +
 			"featured ones first, then newest first.",
@@ -684,7 +685,7 @@ func postChanges(post domain.Post) []audit.Change {
 
 // Descriptor is the catalogue entry.
 func (h CreatePost) Descriptor() usecase.Descriptor {
-	return descriptor(usecase.Descriptor{
+	return postDescriptor(usecase.Descriptor{
 		Name: CreatePostName, Permission: service.PermissionWriteItems,
 		Summary: "Writes a post in a hub: a page with a date, published now, scheduled or kept as a " +
 			"draft, for the hub's readers or those of them in the groups named.",
@@ -712,7 +713,7 @@ type ReadPost struct{ Space Space }
 
 // Descriptor is the catalogue entry.
 func (h ReadPost) Descriptor() usecase.Descriptor {
-	return descriptor(usecase.Descriptor{
+	return postDescriptor(usecase.Descriptor{
 		Name: ReadPostName, Permission: service.PermissionRead,
 		Summary: "Reads a post's date, audience and state, how many have seen it and whether the " +
 			"caller has seen and confirmed it; a writer also gets the confirmation's standing.",
@@ -781,7 +782,7 @@ type SetPostSettings struct{ Space Space }
 
 // Descriptor is the catalogue entry.
 func (h SetPostSettings) Descriptor() usecase.Descriptor {
-	return descriptor(usecase.Descriptor{
+	return postDescriptor(usecase.Descriptor{
 		Name: SetPostSettingsName, Permission: service.PermissionWriteItems,
 		Summary: "Sets when a post goes out, until when it stays on top, for whom, whether it is " +
 			"discussed and told, and until when its readers confirm it. A published post keeps its moment.",
@@ -810,7 +811,7 @@ type PublishPost struct{ Space Space }
 
 // Descriptor is the catalogue entry.
 func (h PublishPost) Descriptor() usecase.Descriptor {
-	return descriptor(usecase.Descriptor{
+	return postDescriptor(usecase.Descriptor{
 		Name: PublishPostName, Permission: service.PermissionWriteItems,
 		Summary:     "Publishes a draft or a scheduled post at once for its audience.",
 		SideEffects: "Publishes the post, stops its timer, tells its audience, and writes an audit entry.",
@@ -876,7 +877,7 @@ type MarkPostSeen struct{ Space Space }
 
 // Descriptor is the catalogue entry.
 func (h MarkPostSeen) Descriptor() usecase.Descriptor {
-	return descriptor(usecase.Descriptor{
+	return postDescriptor(usecase.Descriptor{
 		Name: MarkPostSeenName, Permission: service.PermissionRead,
 		Summary: "Counts the caller among those who have seen a published post; the count is shown to " +
 			"everybody, the names to nobody. An agent's or a service account's reading is not counted.",
@@ -932,7 +933,7 @@ func (h FollowHubPosts) Execute(ctx context.Context, actor appshared.ActorContex
 
 // Descriptor is the catalogue entry.
 func (h FollowHubPosts) Descriptor() usecase.Descriptor {
-	return descriptor(usecase.Descriptor{
+	return postDescriptor(usecase.Descriptor{
 		Name: FollowHubPostsName, Permission: service.PermissionRead,
 		Summary: "Follows a hub's posts, or stops: a follower is told when a post that asks for it goes " +
 			"out, if the post is for them. Only a person follows, never an agent for them.",
@@ -958,7 +959,7 @@ type ConfirmPost struct{ Space Space }
 
 // Descriptor is the catalogue entry.
 func (h ConfirmPost) Descriptor() usecase.Descriptor {
-	return descriptor(usecase.Descriptor{
+	return postDescriptor(usecase.Descriptor{
 		Name: ConfirmPostName, Permission: service.PermissionRead,
 		Summary: "Confirms that the caller read a published post that asks its audience for it. Only " +
 			"a person confirms, never an agent for them.",
@@ -981,7 +982,7 @@ type ReadPostConfirmations struct{ Space Space }
 
 // Descriptor is the catalogue entry.
 func (h ReadPostConfirmations) Descriptor() usecase.Descriptor {
-	return descriptor(usecase.Descriptor{
+	return postDescriptor(usecase.Descriptor{
 		Name: ReadPostConfirmationsName, Permission: service.PermissionWriteItems,
 		Summary:     "Shows a post's writers how many of its audience confirmed it by when, and who did.",
 		SideEffects: "None. Reads only.",
@@ -1015,7 +1016,7 @@ type RemindPost struct{ Space Space }
 
 // Descriptor is the catalogue entry.
 func (h RemindPost) Descriptor() usecase.Descriptor {
-	return descriptor(usecase.Descriptor{
+	return postDescriptor(usecase.Descriptor{
 		Name: RemindPostName, Permission: service.PermissionWriteItems,
 		Summary:     "Tells each of a post's audience who has not confirmed it yet, once per call.",
 		SideEffects: "Records a reminder for each and writes an audit entry naming how many, never whom.",
@@ -1114,4 +1115,12 @@ func (h PostPublishElapsed) Elapsed(ctx context.Context, _ appshared.ActorContex
 		return nil
 	}
 	return h.Published(ctx, timer.TenantID, post)
+}
+
+// postDescriptor fills what every post use case declares: a page's, under the posts' own switch -
+// a hub may have its pages without its posts (UC-INS-21).
+func postDescriptor(d usecase.Descriptor) usecase.Descriptor {
+	d = descriptor(d)
+	d.Module = module.Posts
+	return d
 }

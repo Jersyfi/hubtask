@@ -18,6 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/calendar"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/knowledge"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -625,5 +626,25 @@ func TestTheHubsFollowersWithinTheAudienceAreTold(t *testing.T) {
 	want := [][]shared.ID{{member, guest}, {member}, {guest}}
 	if !slices.EqualFunc(f.told.published, want, slices.Equal) {
 		t.Errorf("told %v; wants %v", f.told.published, want)
+	}
+}
+
+// Every post use case is switched by the posts' module, not the pages': the module gate refuses
+// it with module.off where posts are off, through every door (UC-INS-21 check 5).
+func TestEveryPostUseCaseIsSwitchedByThePostsModule(t *testing.T) {
+	for _, d := range []usecase.Descriptor{
+		ListHubPosts{}.Descriptor(), ListUnreadPosts{}.Descriptor(), CreatePost{}.Descriptor(),
+		ReadPost{}.Descriptor(), SetPostSettings{}.Descriptor(), PublishPost{}.Descriptor(),
+		MarkPostSeen{}.Descriptor(), FollowHubPosts{}.Descriptor(), ConfirmPost{}.Descriptor(),
+		ReadPostConfirmations{}.Descriptor(), RemindPost{}.Descriptor(), ListPostReplies{}.Descriptor(),
+		AddPostReply{}.Descriptor(), DeletePostReply{}.Descriptor(), ReactToPostReply{}.Descriptor(),
+		UnreactToPostReply{}.Descriptor(),
+	} {
+		if d.Module != module.Posts {
+			t.Errorf("%s is switched by %q, want POSTS", d.Name, d.Module)
+		}
+	}
+	if d := (ReadPage{}).Descriptor(); d.Module != module.Knowledge {
+		t.Errorf("ReadPage is switched by %q, want KNOWLEDGE", d.Module)
 	}
 }
