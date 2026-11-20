@@ -617,9 +617,8 @@ func TestRE2PhaseTwoReadsPastWhatAHoldKeeps(t *testing.T) {
 	marked := func(dueHoursAgo int) shared.ID {
 		id := s.completedItem(t, collectionID, 1)
 		if _, err := s.admin.Exec(s.ctx, `
-			UPDATE work_item SET retention_pending_until = $2, retention_rule_id = $3,
-			       retention_action = 'ARCHIVE'
-			WHERE id = $1`,
+			INSERT INTO work_item_retention (tenant_id, item_id, pending_until, rule_id, action)
+			SELECT tenant_id, id, $2, $3, 'ARCHIVE' FROM work_item WHERE id = $1`,
 			id.String(), now.Add(-time.Duration(dueHoursAgo)*time.Hour), rule.ID.String()); err != nil {
 			t.Fatalf("marking the entry: %v", err)
 		}
@@ -992,7 +991,8 @@ func (s *suite) marking(t *testing.T, id shared.ID) (time.Time, string) {
 	var at *time.Time
 	var action *string
 	if err := s.admin.QueryRow(s.ctx,
-		`SELECT retention_pending_until, retention_action FROM work_item WHERE id = $1`,
+		`SELECT rt.pending_until, rt.action FROM work_item w
+		   LEFT JOIN work_item_retention rt ON rt.tenant_id = w.tenant_id AND rt.item_id = w.id WHERE w.id = $1`,
 		id.String()).Scan(&at, &action); err != nil {
 		t.Fatalf("reading the marking: %v", err)
 	}
@@ -1286,7 +1286,8 @@ func (s *suite) itemRetention(t *testing.T, id shared.ID) (string, string) {
 
 	var action, blockedBy *string
 	if err := s.admin.QueryRow(s.ctx,
-		`SELECT retention_action, retention_blocked_by FROM work_item WHERE id = $1`,
+		`SELECT rt.action, rt.blocked_by FROM work_item w
+		   LEFT JOIN work_item_retention rt ON rt.tenant_id = w.tenant_id AND rt.item_id = w.id WHERE w.id = $1`,
 		id.String()).Scan(&action, &blockedBy); err != nil {
 		t.Fatalf("reading the entry's retention: %v", err)
 	}

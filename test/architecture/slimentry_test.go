@@ -27,17 +27,11 @@ import (
 var mirroredColumnNamers = map[string][]string{
 	"BackupImport.sql ImportWorkItem": {"due_soon_announced_at", "flow_finished_at", "flow_started_at",
 		"overdue_announced_at", "retention_action", "retention_blocked_by", "retention_pending_until", "retention_rule_id"},
-	"Retention.sql MarkItemsForRetention":     retentionColumns,
-	"Retention.sql BlockItemsForRetention":    retentionColumns,
-	"Retention.sql ClearItemRetention":        retentionColumns,
-	"Retention.sql ClearRetentionMarksOfRule": retentionColumns,
-	"Work.sql SetWorkItemDueDate":             {"due_soon_announced_at", "overdue_announced_at"},
-	"Work.sql ClaimDueSoonItems":              {"due_soon_announced_at"},
-	"Work.sql ClaimOverdueItems":              {"overdue_announced_at"},
-	"Work.sql NextDueAnnouncement":            {"due_soon_announced_at", "overdue_announced_at"},
+	"Work.sql SetWorkItemDueDate":  {"due_soon_announced_at", "overdue_announced_at"},
+	"Work.sql ClaimDueSoonItems":   {"due_soon_announced_at"},
+	"Work.sql ClaimOverdueItems":   {"overdue_announced_at"},
+	"Work.sql NextDueAnnouncement": {"due_soon_announced_at", "overdue_announced_at"},
 }
-
-var retentionColumns = []string{"retention_action", "retention_blocked_by", "retention_pending_until", "retention_rule_id"}
 
 // sideTableColumns are the side tables' own columns of the same name as the entry's.
 var sideTableColumns = map[string][]string{
