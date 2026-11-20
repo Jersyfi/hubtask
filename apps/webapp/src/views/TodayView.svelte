@@ -537,7 +537,7 @@
   const sectionHidden = $derived(localHidden ?? actor.account?.today_sections_hidden ?? []);
   const givenCards = $derived(cardsOf(manifest.value?.modules_on));
   // *New for you* (B-5): the published posts the reader has not seen, across every hub they read.
-  const hasPosts = $derived(manifest.value?.modules_on?.includes('KNOWLEDGE') ?? false);
+  const hasPosts = $derived(manifest.value?.modules_on?.includes('POSTS') ?? false);
   const newPosts = $derived(hasPosts ? resource<UnreadPostList>(unreadPostsPath) : undefined);
   const unreadPosts = $derived(newPosts?.state.status === 'ready' ? newPosts.state.data.data : []);
   $effect(() => accounts.resolve(unreadPosts.map((post) => post.created_by)));

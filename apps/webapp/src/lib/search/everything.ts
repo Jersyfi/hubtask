@@ -63,7 +63,7 @@ export const PAGE_KINDS: readonly Kind[] = ['ENTRY', 'TICKET', 'PAGE', 'POST', '
  * asked and never drawn (P-17). Without TICKET asked, the server counts tickets as entries.
  */
 const MODULE: Partial<Record<Kind, string>> = {
-  TICKET: 'SERVICE_DESK', PAGE: 'KNOWLEDGE', POST: 'KNOWLEDGE', WHITEBOARD: 'WHITEBOARD', GOAL: 'GOALS', DASHBOARD: 'GOALS', PORTFOLIO: 'GOALS', ASSET: 'ASSETS',
+  TICKET: 'SERVICE_DESK', PAGE: 'KNOWLEDGE', POST: 'POSTS', WHITEBOARD: 'WHITEBOARD', GOAL: 'GOALS', DASHBOARD: 'GOALS', PORTFOLIO: 'GOALS', ASSET: 'ASSETS',
   RELEASE: 'PLANNING', SPRINT: 'PLANNING',
 };
 

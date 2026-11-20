@@ -380,7 +380,7 @@
   // *All posts*. Who sees which post is the server's to judge; the list only takes the first few.
   let postList = $state<PostList | undefined>(undefined);
   $effect(() => {
-    const at = isOn('KNOWLEDGE') ? hubId : undefined;
+    const at = isOn('POSTS') ? hubId : undefined;
     postList = undefined;
     if (!at) return;
     return untrack(() => engine.subscribe<PostList>({ path: hubPostsPath(at) }, (next) => {

@@ -67,7 +67,7 @@ function hubPosts() {
  * A tab whose server keeps the hub's posts. `writer` decides whether the reader writes in the hub,
  * `wide` whether every member of the workspace reads it.
  */
-async function opened(browser, { width = 1280, writer = false, wide = false, rows = hubPosts(), replies = [], words = {}, media = () => undefined } = {}) {
+async function opened(browser, { width = 1280, modulesOn = ['KNOWLEDGE', 'POSTS'], writer = false, wide = false, rows = hubPosts(), replies = [], words = {}, media = () => undefined } = {}) {
   const written = [];
   const kept = new Map(rows.map((each) => [each.page_id, structuredClone(each)]));
   const bodies = new Map(Object.entries(words));
@@ -91,8 +91,8 @@ async function opened(browser, { width = 1280, writer = false, wide = false, row
     const path = url.pathname.replace('/api/v1', '');
     const method = request.method();
     if (method !== 'GET') written.push({ method, path, body: request.postData() ? request.postDataJSON() : undefined });
-    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: ['KNOWLEDGE'] } });
-    if (/^\/containers\/[^/]+\/modules$/.test(path)) return route.fulfill({ json: { modules_on: ['KNOWLEDGE'] } });
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: modulesOn } });
+    if (/^\/containers\/[^/]+\/modules$/.test(path)) return route.fulfill({ json: { modules_on: modulesOn } });
     if (path === '/groups') return route.fulfill({ json: { ...empty, data: [GROUP] } });
 
     if (path === `/hubs/${HUB.id}/posts` && method === 'GET') {
