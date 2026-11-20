@@ -7335,6 +7335,8 @@
   "app.hub_overview.unit_items": "objects",
   "app.hub_overview.assets_none": "Nothing recorded yet. This hub's objects appear here.",
   "app.hub_overview.unit_changed": "changed this week",
+  "app.hub_overview.unit_unread": "unread",
+  "app.hub_overview.posts_none": "Nothing posted yet. What this hub announces appears here.",
   "app.hub_overview.recent_all": "All",
   "app.hub_overview.recent": "What happened",
   "app.hub_overview.did_created": "{actor} created {object}",

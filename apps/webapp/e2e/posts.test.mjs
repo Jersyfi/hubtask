@@ -195,6 +195,34 @@ async function sent(page, written, method, path, count = 1) {
   return sentTo(written, method, path);
 }
 
+// UC-INS-21 checks 4 and 11 for posts, a module of their own: on at the hub, its overview has a tile
+// of the posts - how many are unread, the newest one, the way to all of them - and its column the
+// section; off, both are gone though the pages stay.
+test("a hub's overview has its posts' tile where posts are on, and none where they are off", async () => {
+  const browser = await chromium.launch();
+  try {
+    const on = await opened(browser);
+    await on.page.goto(`${served.origin}/hubs/${HUB.id}`);
+    const tile = on.page.getByRole('list', { name: 'What the products say here' }).locator('[data-product-line="posts"]');
+    await tile.waitFor({ timeout: 15_000 });
+    assert.match(await tile.innerText(), /^Posts\s+1\s+unread\s+Monday release$/u);
+    assert.equal(await tile.locator('a').getAttribute('href'), `/hubs/${HUB.id}/posts`);
+    assert.deepEqual(on.failures, []);
+    await on.close();
+
+    const off = await opened(browser, { modulesOn: ['KNOWLEDGE'] });
+    await off.page.goto(`${served.origin}/hubs/${HUB.id}`);
+    await off.page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
+    await off.page.waitForTimeout(500);
+    assert.equal(await off.page.locator('[data-product-line="posts"]').count(), 0, 'no tile while posts are off');
+    assert.equal(await off.page.getByRole('link', { name: 'Monday release' }).count(), 0, 'and no post in the column');
+    assert.deepEqual(off.failures, []);
+    await off.close();
+  } finally {
+    await browser.close();
+  }
+});
+
 // UC-DOC-17 check 1: a writer starts a post, writes it from one of its own templates, and schedules
 // it for a day and a time; a second one goes out now. The popover sends what the writer chose.
 test('a writer writes a post from a template and schedules it, or publishes one now (UC-DOC-17/1)', async () => {
