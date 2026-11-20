@@ -2821,7 +2821,7 @@ func run() error {
 		glanceservice.SearchEverywhere{Glance: glance}.Descriptor(),
 		// One search over every kind (UC-WRK-18 check 9): entries and pages through their own searches as the
 		// reader, the other kinds by their names, each narrowed by its own permission question.
-		searchservice.SearchAll{Finders: map[string]searchservice.Finder{
+		searchservice.SearchAll{Modules: modules, Finders: map[string]searchservice.Finder{
 			searchservice.KindEntry:      searchEntries,
 			searchservice.KindTicket:     searchTickets,
 			searchservice.KindPage:       knowledgeservice.PageFinder{Pages: knowledgeservice.SearchPages{Space: pageSpace, Searcher: pageSpace.Pages}},

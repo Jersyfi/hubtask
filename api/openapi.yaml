@@ -20753,7 +20753,8 @@ paths:
         are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where
         the caller may read what it is on. Among equally good pages a verified one comes first. A post is found
         by its title and body once it is published, and only by a person it is for - never as a page, and never
-        a draft or a scheduled one, not even by its writers. A `POST` because what
+        a draft or a scheduled one, not even by its writers, and never in a hub where posts are
+        switched off. A `POST` because what
         somebody looks for is their content.
       requestBody:
         required: true

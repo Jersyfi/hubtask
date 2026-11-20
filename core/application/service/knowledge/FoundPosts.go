@@ -11,6 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/search"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/knowledge"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -54,8 +55,15 @@ func (f PostFinder) Find(ctx context.Context, actor appshared.ActorContext, q se
 	for _, hit := range hits {
 		reader, ok := judged[hit.Post.HubID]
 		if !ok {
-			if reader, err = f.Space.postReader(ctx, actor, hit.Post.HubID); err != nil {
+			// A hub with posts off finds none of them, as its list refuses them with module.off.
+			on, err := q.On(ctx, actor, hit.Post.HubID, module.Posts)
+			if err != nil {
 				return search.Found{}, err
+			}
+			if on {
+				if reader, err = f.Space.postReader(ctx, actor, hit.Post.HubID); err != nil {
+					return search.Found{}, err
+				}
 			}
 			judged[hit.Post.HubID] = reader
 		}
