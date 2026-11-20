@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The administration's advanced rows fold under *More* while the workspace holds one person
-// (user-experience.md §8.2): the column a newcomer meets is short, a folded row opens from *More*,
-// and a reader standing on one finds *More* open. In a workspace of several, nothing folds.
+// The administration's column draws every row, advanced or not, in a workspace of one as of several
+// (user-experience.md §8.9): no row hides under a *More*.
 //
 // Against a stubbed API. Chromium only.
 
@@ -45,33 +44,13 @@ async function column(browser, { severalPeople, path }) {
 
 const visible = async (nav, name) => (await nav.getByText(name, { exact: true }).filter({ visible: true }).count()) > 0;
 
-test('chromium: a workspace of one folds the advanced rows under More, and More opens them', async (t) => {
-  const browser = await sharedChromium(t);
-  const { nav, close } = await column(browser, { severalPeople: false, path: '/administration' });
-  t.after(close);
-
-  await nav.getByText('More', { exact: true }).first().waitFor();
-  assert.equal(await nav.getByText('More', { exact: true }).count(), 2, 'how we work and connections fold');
-  assert.equal(await visible(nav, 'Limits'), true, 'a group folds two rows or none');
-  assert.equal(await visible(nav, 'Voice assistants'), false);
-  assert.equal(await visible(nav, 'Link types'), false);
-  assert.equal(await visible(nav, 'Templates'), true, 'Templates stays where a newcomer starts');
-  await nav.getByText('More', { exact: true }).last().click();  // the connections' More
-  await nav.getByText('Voice assistants', { exact: true }).waitFor();
-});
-
-test('chromium: standing on a folded row finds its More open', async (t) => {
-  const browser = await sharedChromium(t);
-  const { nav, close } = await column(browser, { severalPeople: false, path: '/administration/voice' });
-  t.after(close);
-  // The row's own name, not the trail's last crumb, which names the same page.
-  await nav.getByTitle('Voice assistants', { exact: true }).waitFor({ timeout: 10_000 });
-});
-
-test('chromium: a workspace of several folds nothing', async (t) => {
-  const browser = await sharedChromium(t);
-  const { nav, close } = await column(browser, { severalPeople: true, path: '/administration' });
-  t.after(close);
-  await nav.getByText('Voice assistants', { exact: true }).waitFor({ timeout: 10_000 });
-  assert.equal(await nav.getByText('More', { exact: true }).count(), 0);
-});
+for (const severalPeople of [false, true]) {
+  test(`chromium: a workspace of ${severalPeople ? 'several' : 'one'} draws every row, with no More`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { nav, close } = await column(browser, { severalPeople, path: '/administration' });
+    t.after(close);
+    await nav.getByText('Voice assistants', { exact: true }).waitFor({ timeout: 10_000 });
+    for (const name of ['Limits', 'Link types', 'Templates']) assert.equal(await visible(nav, name), true, name);
+    assert.equal(await nav.getByText('More', { exact: true }).count(), 0);
+  });
+}
