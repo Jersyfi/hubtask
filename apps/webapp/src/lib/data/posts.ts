@@ -27,15 +27,21 @@ export function postMoment(post: Pick<Post, 'published_at' | 'publish_at' | 'cre
   return post.published_at ?? post.publish_at ?? post.created_at;
 }
 
+/** How many posts the hub column's section shows before *n more* (B-2). */
+export const POSTS_SHOWN = 3;
+
 /**
- * The hub column's section *Posts* (B-2): the published posts, newest first, a few of them - the
- * unread ones carry their dot; drafts and scheduled ones stay in the list for writers.
+ * The hub column's section *Posts* (B-2): the published posts, newest first - the unread ones
+ * carry their dot; drafts and scheduled ones stay in the list for writers. The section bounds
+ * them as *Contents* bounds its rows.
  */
-export function sectionPosts(posts: readonly Post[], shown = 3): Post[] {
-  return posts
-    .filter((post) => post.state === 'PUBLISHED')
-    .sort((a, b) => postMoment(b).localeCompare(postMoment(a)))
-    .slice(0, shown);
+export function publishedPosts(posts: readonly Post[]): Post[] {
+  return posts.filter((post) => post.state === 'PUBLISHED').sort((a, b) => postMoment(b).localeCompare(postMoment(a)));
+}
+
+/** The first few of `publishedPosts`: the newest one on a product's line. */
+export function sectionPosts(posts: readonly Post[], shown = POSTS_SHOWN): Post[] {
+  return publishedPosts(posts).slice(0, shown);
 }
 
 /** How many of the published posts the reader has not seen. */

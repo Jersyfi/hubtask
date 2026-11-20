@@ -67,7 +67,7 @@
   import { live } from '../data/live.svelte.ts';
   import { modules, modulesHere } from '../data/modules.svelte.ts';
   import { pagesPath } from '../data/pages.svelte.ts';
-  import { hubPostsPath, postMoment, sectionPosts } from '../data/posts.ts';
+  import { POSTS_SHOWN, hubPostsPath, postMoment, posts, publishedPosts } from '../data/posts.svelte.ts';
   import { people } from '../data/people.svelte.ts';
   import { preferences } from '../data/preferences.svelte.ts';
   import { anchorFor } from '../data/rank.ts';
@@ -376,8 +376,9 @@
       if (next.status === 'ready') boardRows = next.data.data;
     }));
   });
-  // *Posts* at the foot of the hub column (B-2): the newest published ones, unread with a mark, then
-  // *All posts*. Who sees which post is the server's to judge; the list only takes the first few.
+  // *Posts* at the foot of the hub column (B-2), drawn as *Contents* is at every width: the newest
+  // few, *n more* after them, *All* at the head on a phone and in ⋯ beside it, *Write the first
+  // post* where there is none yet. Who sees which post is the server's to judge.
   let postList = $state<PostList | undefined>(undefined);
   $effect(() => {
     const at = isOn('POSTS') ? hubId : undefined;
@@ -387,15 +388,30 @@
       if (next.status === 'ready') postList = next.data;
     }));
   });
-  const postRows = $derived(sectionPosts(postList?.data ?? []));
-  /** The published posts the section does not list: its *N more*, as *Contents* has one. */
-  const postsHidden = $derived((postList?.data.filter((each) => each.state === 'PUBLISHED').length ?? 0) - postRows.length);
-  // The way to every post is the section's head link, *All*, as it is the contents' on a phone -
-  // one way on every width, rather than a link row after the posts that read as a post.
-  const postsAll = $derived(hubId ? { label: t('app.nav.kind_all'), onselect: () => hubId && onnavigate(`/hubs/${hubId}/posts`) } : undefined);
-  const hasPosts = $derived(!!postList && (postList.data.some((each) => each.state === 'PUBLISHED') || postList.may_write));
-  const currentPost = $derived(route.name === 'post' || route.name === 'post-write' ? route.params['id'] : undefined);
   const postDay = (post: Post) => formatShortDay(postMoment(post).slice(0, 10), messages.locale);
+  const postRows = $derived(publishedPosts(postList?.data ?? []));
+  const postNodes = $derived<NavTreeNode[]>(postRows.map((post) => ({
+    id: post.page_id, label: post.title, href: `/posts/${post.page_id}`, figure: postDay(post),
+    unreadLabel: post.seen ? undefined : t('app.posts.nav_unread'),
+  })));
+  const mayWritePosts = $derived(!!hubId && postList?.may_write === true);
+  const currentPost = $derived(route.name === 'post' || route.name === 'post-write' ? route.params['id'] : undefined);
+  const allPosts = () => hubId && onnavigate(`/hubs/${hubId}/posts`);
+  let isWritingPost = $state(false);
+  async function writePost() {
+    if (!hubId || isWritingPost) return;
+    isWritingPost = true;
+    try {
+      const made = await posts.draft(hubId, t('app.posts.untitled'));
+      onnavigate(`/posts/${made.page_id}/write`);
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+    } finally {
+      isWritingPost = false;
+    }
+  }
+  const postsAdd = $derived<RowAction | undefined>(mayWritePosts ? { label: t('app.posts.new'), onselect: () => void writePost() } : undefined);
+  const postsMenu = $derived<RowAction>({ label: t('app.posts.nav_section'), items: [{ id: 'all', label: t('app.posts.nav_all') }], onselect: allPosts });
   const contentsMode = $derived<ContentsMode>((actor.account?.nav_contents_mode as ContentsMode | null | undefined) ?? 'TREE');
   const contentNodes = $derived(contentsTree(pageRows, boardRows, contentsMode, messages.locale));
   const toTree = (node: ContentNode): NavTreeNode => ({
@@ -1296,15 +1312,14 @@
   const refusalLabel = (refusal: 'self' | 'no-children' | 'other-part' | 'too-deep') => t(`app.nav.refused_${refusal.replace('-', '_')}`);
 </script>
 
-{#snippet postItems(size: 'md' | 'touch')}
-  {#each postRows as post (post.page_id)}
-    <NavItem id={post.page_id} label={post.title} href={`/posts/${post.page_id}`} {size} figure={postDay(post)} isCurrent={currentPost === post.page_id}
-      unreadLabel={post.seen ? undefined : t('app.posts.nav_unread')} onnavigate={() => onnavigate(`/posts/${post.page_id}`)} />
-  {/each}
-  {#if hubId && postsHidden > 0}
-    <NavItem label={t('app.nav.more_count', { count: postsHidden })} icon="ellipsis" tone="more" href={`/hubs/${hubId}/posts`} {size} isDrillDown={size === 'touch'}
-      onnavigate={() => hubId && onnavigate(`/hubs/${hubId}/posts`)} />
-  {/if}
+{#snippet phoneMore(hidden: number, onselect: () => void)}
+  <!-- A bounded part's way on, on a phone: *Contents* and *Posts* alike. -->
+  <NavItem label={t('app.nav.more_count', { count: hidden })} icon="ellipsis" size="touch" isDrillDown onnavigate={onselect} />
+{/snippet}
+
+{#snippet firstOne(size: 'md' | 'touch', label: string, onselect: () => void)}
+  <!-- An empty part for whoever may fill it: *Create the first page*, *Write the first post*. -->
+  <NavItem {label} icon="plus" tone="link" {size} onnavigate={onselect} />
 {/snippet}
 
 {#if step}
@@ -1429,18 +1444,26 @@
             ondescend={below > 0 && !reordering ? () => onnavigate(contentsStep(hub.id, node.id)) : undefined} />
         {/each}
         {#if contentNodes.length > CONTENTS_SHOWN}
-          <NavItem label={t('app.nav.more_count', { count: contentNodes.length - CONTENTS_SHOWN })} icon="ellipsis" size="touch" isDrillDown onnavigate={() => onnavigate(contentsStep(hub.id))} />
+          {@render phoneMore(contentNodes.length - CONTENTS_SHOWN, () => onnavigate(contentsStep(hub.id)))}
         {/if}
       </NavGroup>
       </div>
     {:else if hasContents && contentsAdd && !reordering}
       <NavGroup label={t('app.nav.contents')} size="touch">
-        <NavItem label={t(isOn('KNOWLEDGE') ? 'app.nav.create_first_page' : 'app.nav.create_first_whiteboard')} icon="plus" tone="link" size="touch" onnavigate={() => hubId && onnavigate(createPath(hubId, isOn('KNOWLEDGE') ? 'page' : 'whiteboard'))} />
+        {@render firstOne('touch', t(isOn('KNOWLEDGE') ? 'app.nav.create_first_page' : 'app.nav.create_first_whiteboard'), () => hubId && onnavigate(createPath(hubId, isOn('KNOWLEDGE') ? 'page' : 'whiteboard')))}
       </NavGroup>
     {/if}
-    {#if hasPosts && !reordering}
-      <NavGroup label={t('app.posts.nav_section')} size="touch" headLink={postsAll}>
-        {@render postItems('touch')}
+    {#if postRows.length > 0 && !reordering}
+      <NavGroup label={t('app.posts.nav_section')} size="touch" headLink={{ label: t('app.nav.kind_all'), onselect: allPosts }}>
+        {#each postNodes.slice(0, POSTS_SHOWN) as node (node.id)}
+          <NavItem id={node.id} label={node.label} href={node.href} size="touch" figure={node.figure} unreadLabel={node.unreadLabel} isCurrent={currentPost === node.id}
+            onnavigate={() => onnavigate(`/posts/${node.id}`)} />
+        {/each}
+        {#if postNodes.length > POSTS_SHOWN}{@render phoneMore(postNodes.length - POSTS_SHOWN, allPosts)}{/if}
+      </NavGroup>
+    {:else if mayWritePosts && !reordering}
+      <NavGroup label={t('app.posts.nav_section')} size="touch">
+        {@render firstOne('touch', t('app.posts.create_first'), () => void writePost())}
       </NavGroup>
     {/if}
   {:else if hub && step.kind === 'queues'}
@@ -1728,13 +1751,27 @@
         />
       {:else if hasContents && contentsAdd}
         <NavGroup label={t('app.nav.contents')} add={contentsAdd}>
-          <NavItem label={t(isOn('KNOWLEDGE') ? 'app.nav.create_first_page' : 'app.nav.create_first_whiteboard')} icon="plus" tone="link" onnavigate={() => hubId && onnavigate(createPath(hubId, isOn('KNOWLEDGE') ? 'page' : 'whiteboard'))} />
+          {@render firstOne('md', t(isOn('KNOWLEDGE') ? 'app.nav.create_first_page' : 'app.nav.create_first_whiteboard'), () => hubId && onnavigate(createPath(hubId, isOn('KNOWLEDGE') ? 'page' : 'whiteboard')))}
         </NavGroup>
       {/if}
-      {#if hasPosts}
-        <NavGroup label={t('app.posts.nav_section')} count={String(postList?.data.filter((each) => each.state === 'PUBLISHED').length ?? 0)}
-          collapseLabel={t('app.nav.fold', { name: t('app.posts.nav_section') })} bind:isOpen={sections.posts.isOpen} headLink={postsAll}>
-          {@render postItems('md')}
+      {#if postRows.length > 0}
+        <NavGroup
+          label={t('app.posts.nav_section')}
+          count={String(postRows.length)}
+          collapseLabel={t('app.nav.fold', { name: t('app.posts.nav_section') })}
+          bind:isOpen={sections.posts.isOpen}
+          add={postsAdd}
+          menu={postsMenu}
+          tree={postNodes}
+          treeLabel={t('app.posts.nav_of', { hub: hub.name })}
+          current={currentPost}
+          onnavigate={(id) => onnavigate(`/posts/${id}`)}
+          limit={POSTS_SHOWN}
+          moreLabel={(hidden) => t('app.nav.more_count', { count: hidden })}
+        />
+      {:else if postsAdd}
+        <NavGroup label={t('app.posts.nav_section')} add={postsAdd}>
+          {@render firstOne('md', t('app.posts.create_first'), () => void writePost())}
         </NavGroup>
       {/if}
     </NavLevel>

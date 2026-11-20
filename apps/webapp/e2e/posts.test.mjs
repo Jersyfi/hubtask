@@ -67,13 +67,13 @@ function hubPosts() {
  * A tab whose server keeps the hub's posts. `writer` decides whether the reader writes in the hub,
  * `wide` whether every member of the workspace reads it.
  */
-async function opened(browser, { width = 1280, modulesOn = ['KNOWLEDGE', 'POSTS'], writer = false, wide = false, rows = hubPosts(), replies = [], words = {}, media = () => undefined } = {}) {
+async function opened(browser, { width = 1280, isPhone = false, modulesOn = ['KNOWLEDGE', 'POSTS'], writer = false, wide = false, rows = hubPosts(), replies = [], words = {}, media = () => undefined } = {}) {
   const written = [];
   const kept = new Map(rows.map((each) => [each.page_id, structuredClone(each)]));
   const bodies = new Map(Object.entries(words));
   let following = false;
   let thread = structuredClone(replies);
-  const { page, failures, context } = await signedIn(browser, width, 900, { timezoneId: 'UTC' });
+  const { page, failures, context } = await signedIn(browser, isPhone ? 390 : width, isPhone ? 844 : 900, { timezoneId: 'UTC', hasTouch: isPhone });
   await context.unroute('**/api/v1/**');
   const shown = (one) => ({
     ...one, may_write: writer, everyone_in_workspace: writer && wide && one.audience === 'HUB',
@@ -418,24 +418,104 @@ test('a post outside the reader audience is refused as if it were not there (UC-
   }
 });
 
-// UC-DOC-17 check 7: the hub column's *Posts* at its foot - published ones newest first, the unread
-// one with its dot, *All* at the section's head as the contents have it on a phone.
-test("the hub column ends with its posts, unread ones dotted, All at the head (UC-DOC-17/7)", async () => {
+// UC-DOC-17 check 7: the hub column's *Posts* at its foot is drawn as *Contents* is, at every width
+// and in every state - none, a few, more than three. The writes and the reads are the fixture's.
+const many = () => [...hubPosts(), post(7, 'Planning week'), post(9, 'Office move')];
+/** The section *Posts* of the hub column, by its heading's words (drawn in capitals). */
+const postsPart = (scope) => scope.locator('section', { has: scope.page().getByRole('heading', { name: /^Posts\b/u }) });
+/** The rows of a desktop part: one tree, as the contents are, each row by the post it opens. */
+const rowsOf = (part) => part.getByRole('treeitem').evaluateAll((each) => each.map((row) => `/posts/${row.dataset.id}`));
+
+test('on a desktop the posts stand as the contents do: count, ⋯ with All posts, three, then n more in place (UC-DOC-17/7)', async () => {
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, close } = await opened(browser, { rows: many() });
+    await page.goto(`${served.origin}/hubs/${HUB.id}/posts`);
+    const part = postsPart(page.locator('aside.sidenav'));
+    await part.getByRole('heading', { name: 'Posts · 5' }).waitFor({ timeout: 15_000 });
+    assert.equal(await part.getByRole('button', { name: 'All', exact: true }).count(), 0, 'no All at the head beside the count');
+    assert.deepEqual(await rowsOf(part), [`/posts/${id(1)}`, `/posts/${id(3)}`, `/posts/${id(7)}`], 'newest first, three');
+    await part.getByRole('treeitem', { name: /^Monday release\b.*\bunread\b/u }).waitFor();
+    assert.equal(await part.getByRole('treeitem', { name: /^Mine from last week\b.*\bunread\b/u }).count(), 0, 'a post read has no dot');
+    await part.getByRole('button', { name: '2 more' }).click();
+    assert.deepEqual(await rowsOf(part), [1, 3, 7, 9, 40].map((n) => `/posts/${id(n)}`), 'n more opens the rest in place');
+    await part.getByRole('button', { name: 'Posts', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'All posts' }).click();
+    await page.waitForURL(`**/hubs/${HUB.id}/posts`, { timeout: 10_000 });
+    await part.getByRole('treeitem', { name: /^Monday release\b/u }).click();
+    await page.waitForURL(`**/posts/${id(1)}`, { timeout: 10_000 });
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
+test('on a desktop a few posts stand without n more (UC-DOC-17/7)', async () => {
   const browser = await chromium.launch();
   try {
     const { page, failures, close } = await opened(browser);
     await page.goto(`${served.origin}/hubs/${HUB.id}/posts`);
-    const column = page.locator('aside.sidenav');
-    const all = column.getByRole('button', { name: 'All', exact: true });
-    await all.waitFor({ timeout: 15_000 });
-    const links = await column.locator('a[href^="/posts/"], a[href$="/posts"]').evaluateAll((each) => each.map((link) => link.getAttribute('href')));
-    assert.deepEqual(links, [`/posts/${id(1)}`, `/posts/${id(3)}`, `/posts/${id(40)}`], 'newest first, no link row after them');
-    await column.getByRole('link', { name: /^Monday release\b.*\bunread\b/u }).waitFor();
-    assert.equal(await column.getByRole('link', { name: /^Mine from last week\b.*\bunread\b/u }).count(), 0, 'a post read has no dot');
-    await column.getByRole('link', { name: /^Monday release\b.*\bunread\b/u }).click();
-    await page.waitForURL(`**/posts/${id(1)}`, { timeout: 10_000 });
+    const part = postsPart(page.locator('aside.sidenav'));
+    await part.getByRole('heading', { name: 'Posts · 3' }).waitFor({ timeout: 15_000 });
+    assert.deepEqual(await rowsOf(part), [`/posts/${id(1)}`, `/posts/${id(3)}`, `/posts/${id(40)}`]);
+    assert.equal(await part.getByRole('button', { name: /\bmore$/u }).count(), 0);
+    assert.equal(await part.getByRole('button', { name: 'All', exact: true }).count(), 0);
     assert.deepEqual(failures, []);
     await close();
+  } finally {
+    await browser.close();
+  }
+});
+
+test('with no post yet the section is a writer\'s quiet row on a desktop and a phone, and nobody else\'s (UC-DOC-17/7)', async () => {
+  const browser = await chromium.launch();
+  try {
+    for (const isPhone of [false, true]) {
+      const where = isPhone ? `/browse/hubs/${HUB.id}` : `/hubs/${HUB.id}/posts`;
+      const column = (page) => (isPhone ? page.locator('[data-browse-step]') : page.locator('aside.sidenav'));
+      const reader = await opened(browser, { isPhone, rows: [] });
+      await reader.page.goto(`${served.origin}${where}`);
+      await column(reader.page).getByRole('heading', { name: /^Contents\b/u }).or(column(reader.page).getByRole('heading', { name: /^Collections\b/u })).first().waitFor({ timeout: 15_000 });
+      await reader.page.waitForTimeout(500);
+      assert.equal(await postsPart(column(reader.page)).count(), 0, `${isPhone ? 'phone' : 'desktop'}: no part for a reader`);
+      assert.deepEqual(reader.failures, []);
+      await reader.close();
+
+      const writer = await opened(browser, { isPhone, writer: true, rows: [] });
+      await writer.page.goto(`${served.origin}${where}`);
+      const part = postsPart(column(writer.page));
+      await part.getByRole('button', { name: 'Write the first post' }).or(part.getByRole('link', { name: 'Write the first post' })).first().click({ timeout: 15_000 });
+      await writer.page.waitForURL(`**/posts/${id(50)}/write`, { timeout: 10_000 });
+      assert.equal(sentTo(writer.written, 'POST', `/hubs/${HUB.id}/posts`).length, 1, 'one draft made');
+      assert.deepEqual(writer.failures, []);
+      await writer.close();
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('on a phone the posts stand as the contents do: All at the head, three, then n more to every post (UC-DOC-17/7)', async () => {
+  const browser = await chromium.launch();
+  try {
+    for (const [rows, more] of [[hubPosts(), 0], [many(), 2]]) {
+      const { page, failures, close } = await opened(browser, { isPhone: true, rows });
+      await page.goto(`${served.origin}/browse/hubs/${HUB.id}`);
+      const part = postsPart(page.locator('[data-browse-step]'));
+      await part.getByRole('button', { name: 'All', exact: true }).waitFor({ timeout: 15_000 });
+      assert.equal(await part.locator('a[href^="/posts/"]').count(), 3, 'three');
+      assert.equal(await part.getByText(/^\d+ more$/u).count(), more ? 1 : 0, more ? 'n more' : 'no n more');
+      if (more) {
+        await part.getByText(`${more} more`).click();
+        await page.waitForURL(`**/hubs/${HUB.id}/posts`, { timeout: 10_000 });
+      } else {
+        await part.getByRole('button', { name: 'All', exact: true }).click();
+        await page.waitForURL(`**/hubs/${HUB.id}/posts`, { timeout: 10_000 });
+      }
+      assert.deepEqual(failures, []);
+      await close();
+    }
   } finally {
     await browser.close();
   }
