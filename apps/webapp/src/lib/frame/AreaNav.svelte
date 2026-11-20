@@ -12,8 +12,6 @@
   // then being the bar's.
   //
   // It knows no area: each hands it its own `SectionGroup[]`; who reaches it is the frame's.
-  import { untrack } from 'svelte';
-
   import { NavGroup, NavItem, NavLevel, VisuallyHidden } from '@hubtask/design-system/components';
 
   import { t } from '../i18n/i18n.svelte.ts';
@@ -44,14 +42,9 @@
   const parts = $derived(groups.filter((group) => group.code));
   const rows = $derived(groups.flatMap((group) => group.rows).filter((row) => row.id !== 'back'));
 
-  // Every group open at first; folding one is this visit's, as a hub's parts fold.
+  // Every group open at first; folding one is this visit's, as a hub's parts fold. Every row is
+  // drawn: an area hides none under a *More* (user-experience.md §8.9).
   let open = $state<Record<string, boolean>>({});
-  let moreOpen = $state<Record<string, boolean>>({});
-  // The reader standing on a folded row finds its *More* open.
-  $effect(() => {
-    const holding = groups.find((group) => group.rows.some((row) => row.isFolded && row.id === current));
-    if (holding && !untrack(() => moreOpen)[holding.id]) moreOpen = { ...untrack(() => moreOpen), [holding.id]: true };
-  });
 
   // On a phone the installation, the administration's last group, opens as its own step.
   const pathOf = (row: SectionRow) => (size === 'touch' && row.path === '/instance' && row.routes.length === 0 ? AREA_STEP_PATHS.instance : row.path);
@@ -61,12 +54,6 @@
     if (size !== 'touch') return;
     return page.entitle(label);
   });
-  const hidden = (group: SectionGroup) =>
-    group.rows.filter((row) => row.isFolded).map((row) => ({ id: row.id, label: t(row.code), icon: row.icon, href: pathOf(row) }));
-  const goId = (id: string) => {
-    const found = rows.find((row) => row.id === id);
-    if (found) onnavigate(pathOf(found));
-  };
 </script>
 
 {#snippet row(each: SectionRow)}
@@ -95,28 +82,21 @@
       <ul class="card-list">{#each heads as each (each.id)}{@render row(each)}{/each}</ul>
     {/if}
     {#each parts as group (group.id)}
-      {@const shown = group.rows.filter((each) => !each.isFolded)}
-      <NavGroup label={t(group.code ?? '')} size="touch" hiddenRows={hidden(group)} hiddenLabel={t('app.admin.more')}
-        bind:isHiddenOpen={() => moreOpen[group.id] ?? false, (next) => (moreOpen = { ...moreOpen, [group.id]: next })}
-        onnavigate={goId}>
-        {#each shown as each (each.id)}{@render row(each)}{/each}
+      <NavGroup label={t(group.code ?? '')} size="touch">
+        {#each group.rows as each (each.id)}{@render row(each)}{/each}
       </NavGroup>
     {/each}
   {:else if isRail}
     <ul class="rail">
-      {#each rows.filter((each) => !each.isFolded || each.id === current) as each (each.id)}{@render row(each)}{/each}
+      {#each rows as each (each.id)}{@render row(each)}{/each}
     </ul>
   {:else}
     <NavLevel levelKey={label} {label} tools={heads.length > 0 ? headRows : undefined} back={way ? { label: t(way.code), href: way.path, onback: go(way) } : undefined}>
       {#each parts as group (group.id)}
-        {@const shown = group.rows.filter((each) => !each.isFolded)}
         {@const name = t(group.code ?? '')}
         <NavGroup label={name} collapseLabel={t('app.nav.fold', { name })}
-          bind:isOpen={() => open[group.id] ?? true, (next) => (open = { ...open, [group.id]: next })}
-          hiddenRows={hidden(group)} hiddenLabel={t('app.admin.more')} {current}
-          bind:isHiddenOpen={() => moreOpen[group.id] ?? false, (next) => (moreOpen = { ...moreOpen, [group.id]: next })}
-          onnavigate={goId}>
-          {#each shown as each (each.id)}{@render row(each)}{/each}
+          bind:isOpen={() => open[group.id] ?? true, (next) => (open = { ...open, [group.id]: next })}>
+          {#each group.rows as each (each.id)}{@render row(each)}{/each}
         </NavGroup>
       {/each}
     </NavLevel>
@@ -126,7 +106,7 @@
 <style>
   .area { display: flex; flex-direction: column; flex: 1; min-block-size: 0; }
   .area[data-size='touch'] { padding-block-end: calc(var(--density-control-md-min) + var(--sp-200)); }
-  .rail { margin: 0; padding: calc(var(--sp-050) + var(--sp-025)) var(--sp-100); list-style: none; }
+  .rail { flex: 1; min-block-size: 0; margin: 0; padding: calc(var(--sp-050) + var(--sp-025)) var(--sp-100); overflow-x: hidden; overflow-y: auto; list-style: none; }
   .card-list {
     margin: 0 0 var(--sp-150);
     padding: 0;

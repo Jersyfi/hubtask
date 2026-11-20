@@ -7718,7 +7718,6 @@
   "app.webhooks.advanced": "Advanced",
   "app.webhooks.advanced_says": "Events one by one, where it listens, a condition",
   "app.admin.runs": "Rule runs",
-  "app.admin.more": "More",
   "app.admin.figure_no_target": "no target",
   "app.admin.figure_failed": "{count} failed",
   "app.admin.figure_owed": "{count} due",

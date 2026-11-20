@@ -1278,9 +1278,8 @@ The six groups of `configuration/ui.md` §1 stay. Inside them:
   last tab, their old addresses replaced by the tab (`movedTo`). *How we work* keeps *Templates*,
   *Modules* (each module's switch, its card of §2.8, and *Settings* linking to the product's tab),
   *Types & workflows*, *Calendars & SLAs* where shared by several products, *Rules*.
-* **Advanced rows fold under *More*** in their group — link types, rule runs, presets, limits,
-  machines and apps, voice, webhooks — until one is used in this workspace or the workspace holds
-  more than five people. Folded rows are still found by the palette and the settings search.
+* **Every row is drawn** in its group — link types, rule runs, presets, limits, machines and
+  apps, voice and webhooks included; no row hides under a *More* (§8.9).
 
 ### 8.3 Specific screens
 
@@ -1404,14 +1403,9 @@ workspace's — English*), so leaving it says what it means.
 
 ### 8.9 The column, backup and the installation, as built
 
-* **The column's *More*** (§8.2): link types, rule runs, limits, machines and apps, voice and
-  webhooks are advanced rows. They fold under their group's *More* only while the workspace is
-  known to hold one person — the server answers whether there are several (`several_people`), not
-  how many, so "more than five" is read as "more than one", and nothing folds while that answer is
-  still being read. A row already used here stays out (webhooks, where one exists); a group folds
-  two rows or none, since a *More* over one row hides as much as it shows; a reader standing on a
-  folded row finds its *More* open. *Templates* is not folded: it is where a newcomer starts. The
-  palette lists every row, folded or not.
+* **The column has no *More*** (§8.2): every row of the administration and of the installation
+  is drawn, advanced or not, so a reader never looks for a screen behind a fold. The owner
+  withdrew the folding of the advanced rows on 2026-11-20; the palette lists the same rows.
 * **Backup's guided start** (§8.3): the empty screen's one act adds a target in the installation's
   backup volume (`LOCAL`, path `workspaces`, encrypted) and a schedule on it as
   `backup-restore.md` §4's example — incremental every night at 3:00 in the browser's zone, full on
@@ -1662,7 +1656,7 @@ section of the design system it changes, and is walked against the mockups befor
 
 **The administration**
 
-29. The overview's *Getting started* and the folded *More* rows; products' settings moved to their
+29. The overview's *Getting started* and the column without a *More*; products' settings moved to their
     homes (§8.1, §8.2).
 30. Backup's guided start, the mail wording, delivery state and *Copy invitation link* (§8.3).
 31. The installation: health in words, the upgrade row, backlogs, usage, *Templates*, *Modules*,
