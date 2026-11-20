@@ -21,6 +21,9 @@
       },
       "knowledge": {
         "switch": "ON"
+      },
+      "posts": {
+        "switch": "ON"
       }
     },
     "roles": {
@@ -717,6 +720,9 @@
         "switch": "ON"
       },
       "knowledge": {
+        "switch": "ON"
+      },
+      "posts": {
         "switch": "ON"
       }
     },
