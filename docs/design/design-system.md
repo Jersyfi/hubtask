@@ -1102,7 +1102,7 @@ outside a region, nothing in two.
 |---|---|---|
 | *For you* | Today, Inbox, *Waiting for your yes* (where a module producing approvals is on) | Fixed at the top on both levels. Search is the palette's field |
 | The workspace level | *Recent* (a flyout), *Starred* (from the first star), *Products* (one row per product switched on, by default in `Module.Keys()` order, personally ordered and hidden), *Hubs* (the shared order or personally *Recently visited* / *A–Z*; 12, then *n more*; ＋ makes a hub) | The scrolling middle, on Today, search, the inbox, a product home |
-| The hub level | the hub's head (*‹ All hubs*, mark, name with the quick switch, ☆, ⋯), *Overview* and the tools in their fixed order (*Queues*, *Plan*, *Inventory*, *Time*, *Goals*), *Collections*, *Contents* | The scrolling middle, on anything of a hub |
+| The hub level | the hub's head (*‹ All hubs*, mark, name with the quick switch, ☆, ⋯), *Overview* and the tools in their fixed order (*Queues*, *Plan*, *Inventory*, *Time*, *Goals*), *Collections*, *Contents*, *Posts* at the foot (where POSTS is on) | The scrolling middle, on anything of a hub |
 | The foot | *Administration*, only where the manifest's `workspace_permissions` carry `STRUCTURE` or the auditor's `READ_CONFIGURATION` - an address under `/administration` typed by anybody else answers as one that reaches nothing; *Archive*, *Trash* | Fixed at the foot on every width, after a hairline — where a reader looks when something is **missing** |
 
 A row is 30 px high with a 7 px radius; each level indents 12 px, growing to the sixth level and no

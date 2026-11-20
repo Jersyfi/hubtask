@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-06, P-07, P-08, P-10, P-17]
 state: verified
 tasks: []
-checked_by: [core/domain/model/module/Module_test.go, core/domain/model/module/Decisions_test.go, core/application/service/setting/Modules_test.go, core/application/service/setting/ContainerModules_test.go, core/application/service/sync/InitialSyncGoals_test.go, core/application/service/admin/InstanceModules_test.go, presentation/rest/DoorBody_test.go, test/doors/module_off_test.go, cmd/hubctl/Module_test.go, apps/webapp/src/lib/data/modules.test.ts, apps/webapp/src/lib/navigation.test.ts, apps/webapp/src/lib/workspace/placeViews.test.ts, apps/webapp/e2e/kompass.test.mjs, apps/webapp/e2e/kompassphone.test.mjs, apps/webapp/e2e/productsband.test.mjs, test/integration/tenant_export_test.go]
+checked_by: [core/domain/model/module/Module_test.go, core/domain/model/module/Decisions_test.go, core/application/service/setting/Modules_test.go, core/application/service/setting/ContainerModules_test.go, core/application/service/sync/InitialSyncGoals_test.go, core/application/service/knowledge/Posts_test.go, core/application/service/admin/InstanceModules_test.go, presentation/rest/DoorBody_test.go, test/doors/module_off_test.go, cmd/hubctl/Module_test.go, apps/webapp/src/lib/data/modules.test.ts, apps/webapp/src/lib/navigation.test.ts, apps/webapp/src/lib/workspace/placeViews.test.ts, apps/webapp/src/lib/frame/moduleroute.test.ts, apps/webapp/e2e/posts.test.mjs, apps/webapp/e2e/kompass.test.mjs, apps/webapp/e2e/kompassphone.test.mjs, apps/webapp/e2e/productsband.test.mjs, test/integration/tenant_export_test.go]
 ---
 
 # Switch a module on for the workspace, a hub, or a plan

@@ -163,8 +163,8 @@ concept's §2.4 has the tables):
    opens the table.
 5. ***Posts*** at the foot (the work-surface concept's one exception to the navigation, B-2): the
    three newest published posts, an unread one with its dot, *All* at the section's head and *N more*
-   after the posts where there are more, as the contents have them; shown where the hub
-   has a published post or the reader may write one (§7.12).
+   after the posts where there are more, as the contents have them; shown where POSTS is on at the
+   hub and it has a published post or the reader may write one (§7.12).
 
 A part appears only where its product is on at the hub; an empty part only for whoever may create
 in it, as one quiet row (*Create the first page*). **One view bar per object**: a collection, a tool
@@ -1174,7 +1174,9 @@ zone) and *Inventory* (the inventory's total and what needs attention), each lea
 and drawn only once its read answered; *Whiteboards* (the boards changed since the week began,
 drawn only where the hub's list came whole), *Desk* (the desks' open requests and those about to
 breach, as the desk's queues count them), *Time* (the reader's own time recorded here this week)
-and *Goals* (the goals pursued, and how many of them are at risk or off track). Below the cards,
+and *Goals* (the goals pursued, and how many of them are at risk or off track), and *Posts* (how
+many of the hub's published posts the reader has not read, and the newest one's title, or *Nothing
+posted yet*), leading to the hub's *Posts* where POSTS is on there. Below the cards,
 *Recently changed* names the five entries of the hub's collections changed last, as the generic
 query answers them for the reader.
 
@@ -1248,7 +1250,11 @@ changes -, and the report with *See the plan* or *Open the inventory*. Mockup: `
 ### 7.12 Posts
 
 A post is a page with a date (domain-model.md §3.8; UC-DOC-17, UC-DOC-18), written in the pages'
-editor and read in the pages' reading layout, so it needs no editor or reader of its own. A hub's
+editor and read in the pages' reading layout, so it needs no editor or reader of its own. Posts are
+a module of their own, POSTS, switched like every module (§2.8, UC-INS-21) and needing KNOWLEDGE,
+as the desk needs WORKFLOWS: switched off, a hub's *Posts*, the column's section, its overview tile,
+*Today*'s *New for you* and the posts' search kind are gone, and every post operation is refused
+with `module.off`. A hub's
 posts are its *Posts* (`/hubs/{id}/posts`): the featured ones first, then newest first, each with
 its cover, excerpt, writer, date and reading time, narrowed by *All · Unread · By me · Scheduled*
 (*Scheduled* only for its writers). Writing starts from *Blank* or a post template; *Publish* asks
