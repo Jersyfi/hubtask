@@ -673,7 +673,8 @@ jobs:
     name: Integration (PostgreSQL)
     needs: quick
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # About three times the slowest green run, twelve minutes (ci-cd.md §4).
+    timeout-minutes: 40
     # Object storage is deliberately not a service container: the storage and backup tests start
     # their own target through Testcontainers (engineering-guidelines.md §1), which also covers
     # the targets a service container cannot provide (SFTP, WebDAV, SMB).

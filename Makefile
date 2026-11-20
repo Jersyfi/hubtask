@@ -507,10 +507,12 @@ gate-sdk:
 ## gate-integration: Tests against a real PostgreSQL (Testcontainers)
 # test/s3test travels with it: the helper that starts the object store has its own suite, because
 # a container helper that silently does nothing would take every suite that leans on it down with
-# it, green (ADR-0067).
+# it, green (ADR-0067). test/integration alone runs seven to ten minutes on a shared runner, so go
+# test's default of ten minutes would cut a healthy run; the timeout stays below the CI job's limit
+# so that a real hang is named by go test's goroutine dump, not by the job being killed.
 .PHONY: gate-integration
 gate-integration:
-	$(call go_test,integration,./test/integration/... ./test/s3test/...,)
+	$(call go_test,integration,./test/integration/... ./test/s3test/...,-timeout=30m)
 
 ## gate-contract: Responses against openapi.yaml, events against JSON schemas
 .PHONY: gate-contract
