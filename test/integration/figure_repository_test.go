@@ -449,7 +449,9 @@ func TestTheFlowTimesEntriesFromTheFirstColumnToTheLast(t *testing.T) {
 	}
 	var started, finished *time.Time
 	if err := adminPool(ctx, t).QueryRow(ctx,
-		`SELECT flow_started_at, flow_finished_at FROM work_item WHERE id = $1`, straight.id.String(),
+		`SELECT f.flow_started_at, f.flow_finished_at FROM work_item w
+		  LEFT JOIN work_item_flow f ON f.tenant_id = w.tenant_id AND f.item_id = w.id WHERE w.id = $1`,
+		straight.id.String(),
 	).Scan(&started, &finished); err != nil || started != nil || finished != nil {
 		t.Errorf("in another collection, the moments are %v and %v (%v)", started, finished, err)
 	}

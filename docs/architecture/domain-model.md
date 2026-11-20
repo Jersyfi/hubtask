@@ -263,8 +263,8 @@ How the settings resolve (`core/domain/model/work`, `StructureSettings.go`, `Str
   (`hubtask_figure_drift_total`). `FLOW` counts the top-level entries completed in the seven days up to the read, the average
   time from first to last column of those that took that way — from when one first entered the
   board's first column to when it last entered a done column, the moments
-  `work_item.flow_started_at` and `flow_finished_at` that every write changing an entry's column
-  records (migration 0194); one created into a later column or completed without entering a done
+  `work_item_flow.flow_started_at` and `flow_finished_at` that every write changing an entry's column
+  records (migrations 0194, 0443); one created into a later column or completed without entering a done
   column is counted but not timed, and nothing recorded before that migration is — and the board's
   columns holding more open entries than their limit (UC-WRK-31). `automation` is a closed set the server applies: `REQUIRED_BEYOND_FIRST_COLUMN`
   lets an entry enter a column after the board's first only with every required custom field of

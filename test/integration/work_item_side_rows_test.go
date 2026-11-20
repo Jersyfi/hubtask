@@ -205,47 +205,63 @@ func TestTheReadersAnswerFromTheSideTables(t *testing.T) {
 	})
 }
 
-// The mirror and the columns agree after every statement that writes the mirrored columns: the
-// retention marking, its block, its clearing with and without the rule, a withdrawn rule's
-// clearing, a new due date, an announcement and a flow moment.
+// The older binary's statements, as v0.10.0 ran them on the columns: what the mirror stays for
+// while that binary rolls out (versioning-release.md §4).
+const (
+	olderMark = `UPDATE work_item SET retention_pending_until = $1::timestamptz, retention_rule_id = $2,
+		retention_action = $3, retention_blocked_by = NULL
+		WHERE id = ANY($4::uuid[]) AND retention_pending_until IS NULL`
+	olderBlock = `UPDATE work_item SET retention_rule_id = $1, retention_action = $2, retention_blocked_by = $3
+		WHERE id = ANY($4::uuid[]) AND retention_pending_until IS NULL
+		  AND (retention_rule_id IS DISTINCT FROM $1 OR retention_action IS DISTINCT FROM $2
+		    OR retention_blocked_by IS DISTINCT FROM $3)`
+	olderClear = `UPDATE work_item SET retention_pending_until = NULL, retention_action = NULL,
+		retention_blocked_by = NULL,
+		retention_rule_id = CASE WHEN $1::boolean THEN retention_rule_id END,
+		updated_at = $2::timestamptz, version = version + 1
+		WHERE id = ANY($3::uuid[]) AND retention_pending_until IS NOT NULL`
+	olderClearRule = `UPDATE work_item SET retention_pending_until = NULL, retention_action = NULL,
+		retention_blocked_by = NULL, retention_rule_id = NULL, updated_at = $1::timestamptz, version = version + 1
+		WHERE retention_rule_id = $2`
+	olderDueDate = `UPDATE work_item SET due_at = $1, due_soon_announced_at = NULL, overdue_announced_at = NULL,
+		updated_at = $2, version = version + 1 WHERE id = $3::uuid`
+)
+
+// The mirror and the columns agree after every statement the older binary writes the mirrored
+// columns with: the retention marking, its block, its clearing with and without the rule, a
+// withdrawn rule's clearing, a new due date, an announcement and a flow moment.
 func TestTheMirrorAgreesAfterEveryWritePath(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
 	marked, blocked := seedWorkItemForRules(ctx, t, tenantA), seedWorkItemForRules(ctx, t, tenantA)
-	rule := freshID(t)
-	now := pgtype.Timestamptz{Time: time.Now(), Valid: true}
-	action, hold := "DELETE", "legal_hold"
+	rule := freshID(t).String()
+	now := time.Now()
+	ids := func(items ...shared.ID) []string {
+		out := make([]string, len(items))
+		for i, item := range items {
+			out[i] = item.String()
+		}
+		return out
+	}
 	check := func(step string) {
 		t.Helper()
 		if n := disagreements(ctx, t, marked, blocked); n != 0 {
 			t.Fatalf("after %s, %d entries disagree with their side rows", step, n)
 		}
 	}
-	asTenant(ctx, t, tenantA, func(q *sqlc.Queries, _ pgx.Tx) {
-		if _, err := q.MarkItemsForRetention(ctx, sqlc.MarkItemsForRetentionParams{
-			EffectiveAt: now, RuleID: uuidOf(rule), Action: &action, Ids: []pgtype.UUID{uuidOf(marked)},
-		}); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := q.BlockItemsForRetention(ctx, sqlc.BlockItemsForRetentionParams{
-			RuleID: uuidOf(rule), Action: &action, BlockedBy: &hold, Ids: []pgtype.UUID{uuidOf(blocked)},
-		}); err != nil {
-			t.Fatal(err)
-		}
-	})
-	check("marking and blocking")
-	asTenant(ctx, t, tenantA, func(q *sqlc.Queries, _ pgx.Tx) {
-		if _, err := q.ClearItemRetention(ctx, sqlc.ClearItemRetentionParams{KeepRule: true, Now: now, Ids: []pgtype.UUID{uuidOf(marked)}}); err != nil {
-			t.Fatal(err)
-		}
-	})
-	check("clearing a stage that acted")
-	asTenant(ctx, t, tenantA, func(q *sqlc.Queries, _ pgx.Tx) {
-		if _, err := q.ClearRetentionMarksOfRule(ctx, sqlc.ClearRetentionMarksOfRuleParams{Now: now, RuleID: uuidOf(rule)}); err != nil {
-			t.Fatal(err)
-		}
-	})
-	check("withdrawing the rule")
+	older := func(step, statement string, args ...any) {
+		t.Helper()
+		asTenant(ctx, t, tenantA, func(_ *sqlc.Queries, tx pgx.Tx) {
+			if _, err := tx.Exec(ctx, statement, args...); err != nil {
+				t.Fatalf("%s: %v", step, err)
+			}
+		})
+		check(step)
+	}
+	older("marking", olderMark, now, rule, "ARCHIVE", ids(marked))
+	older("blocking", olderBlock, rule, "ARCHIVE", "legal_hold", ids(blocked))
+	older("clearing a stage that acted", olderClear, true, now, ids(marked))
+	older("withdrawing the rule", olderClearRule, now, rule)
 	if _, err := adminPool(ctx, t).Exec(ctx, `
 		UPDATE work_item SET due_at = now(), due_soon_announced_at = now(), overdue_announced_at = now(),
 		       flow_started_at = now() - interval '1 day', flow_finished_at = now()
@@ -253,20 +269,53 @@ func TestTheMirrorAgreesAfterEveryWritePath(t *testing.T) {
 		t.Fatalf("announcing and timing the entry: %v", err)
 	}
 	check("an announcement and a flow moment")
-	asTenant(ctx, t, tenantA, func(q *sqlc.Queries, tx pgx.Tx) {
-		var version int32
-		if err := tx.QueryRow(ctx, `SELECT version FROM work_item WHERE id = $1`, marked.String()).Scan(&version); err != nil {
-			t.Fatal(err)
-		}
-		if n, err := q.SetWorkItemDueDate(ctx, sqlc.SetWorkItemDueDateParams{
-			DueAt: pgtype.Timestamptz{Time: time.Now().Add(48 * time.Hour), Valid: true}, UpdatedAt: now,
-			ID: uuidOf(marked), ExpectedVersion: version,
-		}); err != nil || n != 1 {
-			t.Fatalf("setting the due date: %d, %v", n, err)
-		}
-	})
-	check("a new due date")
+	older("a new due date", olderDueDate, now.Add(48*time.Hour), now, marked.String())
 	if a, _, _ := sideRows(ctx, t, marked); a != 0 {
 		t.Errorf("a new due date left %d announcement rows", a)
+	}
+}
+
+// What this release writes to a side row is not undone by a write of the columns, which this
+// release leaves stale: the mirror carries only the columns a statement changed. A card moved
+// into its first column records its flow moment without touching the announcement claimed on the
+// side row, and the older binary's block keeps the marking's moment it did not write.
+func TestAColumnWriteLeavesWhatItDidNotChange(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	item := seedWorkItemForRules(ctx, t, tenantA)
+	admin := adminPool(ctx, t)
+	if _, err := admin.Exec(ctx, `
+		INSERT INTO work_item_announcement (tenant_id, item_id, due_soon_announced_at)
+		VALUES ($1, $2, now() - interval '1 hour')`, tenantA.String(), item.String()); err != nil {
+		t.Fatalf("claiming on the side row: %v", err)
+	}
+	if _, err := admin.Exec(ctx, `
+		INSERT INTO work_item_retention (tenant_id, item_id, pending_until, rule_id, action)
+		VALUES ($1, $2, now() + interval '1 day', gen_random_uuid(), 'ARCHIVE')`,
+		tenantA.String(), item.String()); err != nil {
+		t.Fatalf("marking on the side row: %v", err)
+	}
+
+	if _, err := admin.Exec(ctx, `
+		UPDATE work_item SET flow_started_at = now(), retention_blocked_by = 'legal_hold' WHERE id = $1`,
+		item.String()); err != nil {
+		t.Fatalf("writing two columns: %v", err)
+	}
+	var soon, pending *time.Time
+	var blockedBy *string
+	if err := admin.QueryRow(ctx, `
+		SELECT a.due_soon_announced_at, r.pending_until, r.blocked_by
+		  FROM work_item_announcement a JOIN work_item_retention r USING (tenant_id, item_id)
+		 WHERE a.item_id = $1`, item.String()).Scan(&soon, &pending, &blockedBy); err != nil {
+		t.Fatalf("reading the side rows: %v", err)
+	}
+	if soon == nil {
+		t.Error("a flow moment undid the announcement claimed on the side row")
+	}
+	if pending == nil || blockedBy == nil || *blockedBy != "legal_hold" {
+		t.Errorf("the retention row is %v / %v, want the side row's moment and the column's block", pending, blockedBy)
+	}
+	if _, f, _ := sideRows(ctx, t, item); f != 1 {
+		t.Error("the flow moment was not carried")
 	}
 }
