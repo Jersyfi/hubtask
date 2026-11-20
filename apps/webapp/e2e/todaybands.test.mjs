@@ -249,10 +249,10 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
     // *Waiting for your yes* counts the review with the approval, as the band does: two.
     if (width >= 1280) await waitingRowOf(page).filter({ has: page.locator('.figure', { hasText: /^2$/u }) }).waitFor({ timeout: 10_000 });
 
-    // The sprint stands under *Needs you*, its act opens it.
+    // The sprint stands under *Needs you*, the whole card the way to it.
     const sprint = page.getByRole('region', { name: SPRINT.name });
     await sprint.waitFor({ timeout: 10_000 });
-    assert.equal(await sprint.getByRole('button', { name: 'Open' }).count(), 1);
+    assert.equal(await sprint.getByRole('link', { name: SPRINT.name }).count(), 1);
     await sprint.getByText(/3 of your entries/u).waitFor({ timeout: 10_000 });
     const words = (await sprint.textContent()) ?? '';
     assert.match(words, /6 days left/u, words);
