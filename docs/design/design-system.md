@@ -507,7 +507,7 @@ otherwise.
 
 ### Wave 7 — the work surface
 `StateLozenge` · `StatusButton` · `ObjectHead` · `Property` · `PropertyRail` · `JumpMarks` ·
-`StepBar` · `FoldingSection` · `ProductBand` · `Widget` · `WidgetStrip` · `SummaryStrip` · `Composer` · `QueryLine` · `PriorityMark` ·
+`StepBar` · `FoldingSection` · `ProductBand` · `Card` · `Widget` · `WidgetStrip` · `SummaryStrip` · `Composer` · `QueryLine` · `PriorityMark` ·
 `DeadlineBar` · `DeadlineList` · `DensitySwitch` · `TrustLine` · `PageOutline` · `FloatingBar` · `FloatingToolbar` ·
 `BlockHandle` · `BoxPopover` · `InsertList` · `LiveBlock`
 
@@ -565,6 +565,10 @@ and every behaviour a test can hold lives in a module beside them: `lozenge.ts`,
   (`ProductTile` `xl` through `product.<id>`) as its mark and the figures as its line, the first
   set bold. On a phone the tile is smaller, two figures stay, and the primary floats above the
   bottom bar as every page's does.
+* **`Card`** — the one surface of a region or an item (the surfaces and levels, 1 and 1′):
+  `bg.surface`, a `border.subtle` hairline, `r.lg`, no shadow, and pressed whole the hover of an
+  item. `Widget` stands on it, and so does every tile beside one - a collection's card, *What
+  happened* on the hub overview - so an overview never mixes two surfaces in either theme.
 * **`Widget`** — one anatomy for Today and the overview (§6.1): tile, title, a quiet count, the one
   act as a button, the figure, a line, the content. With a figure it is a card of Today's strip;
   with content, a tile. While loading its place is held by lines (`aria-busy`). A widget whose
