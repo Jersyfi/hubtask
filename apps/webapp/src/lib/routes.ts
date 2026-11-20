@@ -218,6 +218,7 @@ export const ROUTES: readonly Route[] = [
   // hubs the reader may read. End-user, so the installed clients carry them.
   { name: 'plans-home', pattern: '/plans' },
   { name: 'pages-home', pattern: '/pages' },
+  { name: 'posts-home', pattern: '/posts' },
   { name: 'whiteboards-home', pattern: '/whiteboards' },
   { name: 'desk-home', pattern: '/desk' },
   // The desk's home's other views (§7.4): the desks across hubs and the desk's settings.

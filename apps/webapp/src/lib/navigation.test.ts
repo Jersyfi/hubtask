@@ -63,7 +63,7 @@ test('nothing is in two bands, and nothing is outside one', () => {
 // user-experience.md §2.1: for every module with a home, on draws exactly one products row in the
 // column, the drawer and the phone's *More* (all three draw `products`), off draws none.
 test('a product is one row of the products band where its module is on, and none where it is off', () => {
-  const keys = ['WORKFLOWS', 'PLANNING', 'KNOWLEDGE', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'TIME', 'GOALS', 'AGENTS'];
+  const keys = ['WORKFLOWS', 'PLANNING', 'KNOWLEDGE', 'POSTS', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'TIME', 'GOALS', 'AGENTS'];
   assert.deepEqual(PRODUCTS.map((row) => row.module), keys.filter((key) => key !== 'WORKFLOWS'), 'the band is not in Module.Keys() order');
   assert.deepEqual(products({ modulesOn: [] }), [], 'a household with nothing on sees a products row');
   assert.deepEqual(products({}), []);

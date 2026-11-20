@@ -44,6 +44,7 @@ const ROUTE_MODULES: Readonly<Record<string, string>> = {
 export const PRODUCT_HOMES: Readonly<Record<string, string>> = {
   'plans-home': 'PLANNING',
   'pages-home': 'KNOWLEDGE',
+  'posts-home': 'POSTS',
   'whiteboards-home': 'WHITEBOARD',
   'desk-home': 'SERVICE_DESK',
   'assets-home': 'ASSETS',

@@ -196,7 +196,7 @@ test('the account\'s verbs are rows that perform them', () => {
 // user-experience.md §5.3: every product that is on contributes a source of its own, found by its
 // synonyms too; a product that is off contributes none.
 test('every product that is on is a place of the palette, found by its synonyms', () => {
-  const on = ['PLANNING', 'KNOWLEDGE', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'TIME', 'GOALS', 'AGENTS'];
+  const on = ['PLANNING', 'KNOWLEDGE', 'POSTS', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'TIME', 'GOALS', 'AGENTS'];
   const offers = placeOffers({ ...MEMBER_REACH, modulesOn: on }, t);
   for (const row of PRODUCTS) {
     const offer = offers.find((each) => each.target.kind === 'route' && each.target.path === row.path);

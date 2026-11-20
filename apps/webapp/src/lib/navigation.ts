@@ -186,6 +186,7 @@ export const PRODUCTS: readonly ProductRow[] = [
   { id: 'plans', module: 'PLANNING', icon: 'calendar', code: 'app.nav.plans', words: 'app.nav.words_plans', path: '/plans', routes: ['plans-home'], color: 'orange' },
   // *My notes* is a tab of the pages' home (§2.2); its own address is kept and is this row's.
   { id: 'pages', module: 'KNOWLEDGE', icon: 'book-open', code: 'app.nav.pages', words: 'app.nav.words_pages', path: '/pages', routes: ['pages-home', 'notes'], color: 'teal' },
+  { id: 'posts', module: 'POSTS', icon: 'bell', code: 'app.nav.posts', words: 'app.nav.words_posts', path: '/posts', routes: ['posts-home'], color: 'red' },
   { id: 'whiteboards', module: 'WHITEBOARD', icon: 'layout-template', code: 'app.nav.whiteboards', words: 'app.nav.words_whiteboards', path: '/whiteboards', routes: ['whiteboards-home'], color: 'amber' },
   { id: 'desk', module: 'SERVICE_DESK', icon: 'inbox', code: 'app.nav.desk', words: 'app.nav.words_desk', path: '/desk', routes: ['desk-home', 'desk-desks', 'desk-reports', 'desk-settings', 'desk-settings-section'], color: 'magenta' },
   { id: 'assets', module: 'ASSETS', icon: 'shield', code: 'app.nav.assets', words: 'app.nav.words_assets', path: '/assets', routes: ['assets-home', 'assets-classes', 'assets-class', 'assets-sources', 'assets-settings', 'assets-settings-section'], color: 'slate' },
