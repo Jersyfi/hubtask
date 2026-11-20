@@ -27,10 +27,6 @@ import (
 var mirroredColumnNamers = map[string][]string{
 	"BackupImport.sql ImportWorkItem": {"due_soon_announced_at", "flow_finished_at", "flow_started_at",
 		"overdue_announced_at", "retention_action", "retention_blocked_by", "retention_pending_until", "retention_rule_id"},
-	"Work.sql SetWorkItemDueDate":  {"due_soon_announced_at", "overdue_announced_at"},
-	"Work.sql ClaimDueSoonItems":   {"due_soon_announced_at"},
-	"Work.sql ClaimOverdueItems":   {"overdue_announced_at"},
-	"Work.sql NextDueAnnouncement": {"due_soon_announced_at", "overdue_announced_at"},
 }
 
 // sideTableColumns are the side tables' own columns of the same name as the entry's.

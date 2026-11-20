@@ -91,15 +91,22 @@ func seedEntry(ctx context.Context, t *testing.T, tenant, collection shared.ID, 
 		INSERT INTO work_item (id, tenant_id, collection_id, type, parent_id, path, depth, title, order_key,
 		                       created_by, is_completed, completed_at, completed_by, due_at, due_date_only,
 		                       due_time_zone, archived_at, deleted_at, custom_fields, custom_field_refs,
-		                       due_soon_announced_at, overdue_announced_at, created_at, bucket_id)
+		                       created_at, bucket_id)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, 'Counted', 'a0', $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18,
-		        $12, $12, coalesce($19::timestamptz, now()), $20)`,
+		        coalesce($19::timestamptz, now()), $20)`,
 		id.String(), tenant.String(), collection.String(), string(itemType), parent, entry.path, entry.depth,
 		author.String(), row.completedAt != "", nullable(row.completedAt), completedBy, nullable(row.dueAt),
 		row.dateOnly, nullable(row.dueZone), stamp(row.archived), stamp(row.trashed), string(fields), string(refs),
 		nullable(row.createdAt), nullable(row.bucket.String()),
 	); err != nil {
 		t.Fatalf("seeding an entry: %v", err)
+	}
+	if row.dueAt != "" {
+		if _, err := adminPool(ctx, t).Exec(ctx, `
+			INSERT INTO work_item_announcement (tenant_id, item_id, due_soon_announced_at, overdue_announced_at)
+			VALUES ($1, $2, $3, $3)`, tenant.String(), id.String(), row.dueAt); err != nil {
+			t.Fatalf("announcing the seeded entry: %v", err)
+		}
 	}
 	return entry
 }
