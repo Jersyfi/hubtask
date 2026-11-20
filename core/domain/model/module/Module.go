@@ -25,6 +25,7 @@ const (
 	Workflows   Key = "WORKFLOWS"
 	Planning    Key = "PLANNING"
 	Knowledge   Key = "KNOWLEDGE"
+	Posts       Key = "POSTS"
 	Whiteboard  Key = "WHITEBOARD"
 	ServiceDesk Key = "SERVICE_DESK"
 	Assets      Key = "ASSETS"
@@ -33,7 +34,7 @@ const (
 	Agents      Key = "AGENTS"
 )
 
-var keys = [...]Key{Workflows, Planning, Knowledge, Whiteboard, ServiceDesk, Assets, Time, Goals, Agents}
+var keys = [...]Key{Workflows, Planning, Knowledge, Posts, Whiteboard, ServiceDesk, Assets, Time, Goals, Agents}
 
 // Keys is every module, in the order a screen draws them.
 func Keys() []Key { return keys[:] }
@@ -95,10 +96,14 @@ func (k Key) Definition() setting.Definition {
 func (k Key) NarrowsReplica() bool { return k == Goals }
 
 // Needs answers the modules this one cannot work without, switched on with it: a desk is entry
-// types and their workflows, so its screens read what Workflows serves.
+// types and their workflows, so its screens read what Workflows serves; a post is a page of the
+// hub's space, written and read through what Knowledge serves.
 func (k Key) Needs() []Key {
-	if k == ServiceDesk {
+	switch k {
+	case ServiceDesk:
 		return []Key{Workflows}
+	case Posts:
+		return []Key{Knowledge}
 	}
 	return nil
 }

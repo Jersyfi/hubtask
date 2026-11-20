@@ -1520,6 +1520,37 @@
       ]
     },
     {
+      "key": "module.posts",
+      "kind": "FLAG",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE",
+        "HUB"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "STRUCTURE"
+        },
+        {
+          "level": "HUB",
+          "permission": "STRUCTURE"
+        }
+      ]
+    },
+    {
       "key": "module.whiteboard",
       "kind": "FLAG",
       "levels": [

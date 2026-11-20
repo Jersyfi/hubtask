@@ -7448,6 +7448,7 @@ const (
 	ModuleGOALS       Module = "GOALS"
 	ModuleKNOWLEDGE   Module = "KNOWLEDGE"
 	ModulePLANNING    Module = "PLANNING"
+	ModulePOSTS       Module = "POSTS"
 	ModuleSERVICEDESK Module = "SERVICE_DESK"
 	ModuleTIME        Module = "TIME"
 	ModuleWHITEBOARD  Module = "WHITEBOARD"
@@ -7466,6 +7467,8 @@ func (e Module) Valid() bool {
 	case ModuleKNOWLEDGE:
 		return true
 	case ModulePLANNING:
+		return true
+	case ModulePOSTS:
 		return true
 	case ModuleSERVICEDESK:
 		return true
@@ -20042,7 +20045,7 @@ type InstanceSettings struct {
 	// Metering Whether the use per workspace and day is offered for billing (`GET /admin/usage`). Off by default. The counts are recorded either way; this switch only offers them.
 	Metering *bool `json:"metering,omitempty"`
 
-	// Module The modules by name (`workflows`, `planning`, `knowledge`, `whiteboard`, `service_desk`, `assets`, `time`, `goals`, `agents`), each `FLAG`: on or off for every workspace that switches none itself, and with `locked` held there - a module locked off is not offered, one locked on cannot be switched off. Every module is off where nothing decides it. Switching off hides and never deletes.
+	// Module The modules by name (`workflows`, `planning`, `knowledge`, `posts`, `whiteboard`, `service_desk`, `assets`, `time`, `goals`, `agents`), each `FLAG`: on or off for every workspace that switches none itself, and with `locked` held there - a module locked off is not offered, one locked on cannot be switched off. Every module is off where nothing decides it. Switching off hides and never deletes.
 	Module *map[string]InstanceSetting `json:"module,omitempty"`
 
 	// OwnersChangeAddress Whether a workspace's owners may change its address themselves (`POST /tenant:change-address`), in multi mode. Off by default: the operator's change is the only one. The installation's alone - no workspace switches it for itself.
@@ -23248,7 +23251,7 @@ type Plan struct {
 	LeftOut *[]PlanFeature              `json:"left_out,omitempty"`
 	Legal   *map[string]InstanceSetting `json:"legal,omitempty"`
 
-	// Module The modules by name (`workflows`, `planning`, `knowledge`, `whiteboard`, `service_desk`, `assets`, `time`, `goals`, `agents`), each on or off; with `locked` every workspace on the plan is held there. A module the plan does not offer is locked off. A module the installation locks is refused (`admin.plan_under_installation_lock`).
+	// Module The modules by name (`workflows`, `planning`, `knowledge`, `posts`, `whiteboard`, `service_desk`, `assets`, `time`, `goals`, `agents`), each on or off; with `locked` every workspace on the plan is held there. A module the plan does not offer is locked off. A module the installation locks is refused (`admin.plan_under_installation_lock`).
 	Module *map[string]InstanceSetting `json:"module,omitempty"`
 
 	// Name The short name, which never changes and is never reused.
@@ -23286,7 +23289,7 @@ type PlanChange struct {
 	LeftOut *[]PlanFeature              `json:"left_out,omitempty"`
 	Legal   *map[string]InstanceSetting `json:"legal,omitempty"`
 
-	// Module The modules by name (`workflows`, `planning`, `knowledge`, `whiteboard`, `service_desk`, `assets`, `time`, `goals`, `agents`), each on or off; with `locked` every workspace on the plan is held there. A module the plan does not offer is locked off. A module the installation locks is refused (`admin.plan_under_installation_lock`).
+	// Module The modules by name (`workflows`, `planning`, `knowledge`, `posts`, `whiteboard`, `service_desk`, `assets`, `time`, `goals`, `agents`), each on or off; with `locked` every workspace on the plan is held there. A module the plan does not offer is locked off. A module the installation locks is refused (`admin.plan_under_installation_lock`).
 	Module *map[string]InstanceSetting `json:"module,omitempty"`
 	Quotas *map[string]InstanceSetting `json:"quotas,omitempty"`
 	SignIn *map[string]InstanceSetting `json:"sign_in,omitempty"`
@@ -23314,7 +23317,7 @@ type PlanCreate struct {
 	LeftOut *[]PlanFeature              `json:"left_out,omitempty"`
 	Legal   *map[string]InstanceSetting `json:"legal,omitempty"`
 
-	// Module The modules by name (`workflows`, `planning`, `knowledge`, `whiteboard`, `service_desk`, `assets`, `time`, `goals`, `agents`), each on or off; with `locked` every workspace on the plan is held there. A module the plan does not offer is locked off. A module the installation locks is refused (`admin.plan_under_installation_lock`).
+	// Module The modules by name (`workflows`, `planning`, `knowledge`, `posts`, `whiteboard`, `service_desk`, `assets`, `time`, `goals`, `agents`), each on or off; with `locked` every workspace on the plan is held there. A module the plan does not offer is locked off. A module the installation locks is refused (`admin.plan_under_installation_lock`).
 	Module *map[string]InstanceSetting `json:"module,omitempty"`
 
 	// Name The short name, which never changes and is never reused.
