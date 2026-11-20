@@ -362,6 +362,16 @@ const INSTALLATION_GROUP: SectionGroup = {
 };
 
 /**
+ * Which row of an area's column is current: the row whose own address is the one on show, before
+ * any row that only lists the route - *Modules* is a section of *Defaults* (`/instance/settings/module`),
+ * and naming the route alone marked *Defaults* while the reader stood on *Modules*.
+ */
+export function currentRow(groups: readonly SectionGroup[], route: { readonly name: string | null; readonly path: string }): string | undefined {
+  const rows = groups.flatMap((group) => group.rows);
+  return (rows.find((row) => row.path === route.path) ?? rows.find((row) => row.routes.includes(route.name ?? '')))?.id;
+}
+
+/**
  * The administration's navigation as this reader is shown it: the *Private hubs* row only where
  * the server answers the list and either a private hub exists or the workspace holds more than one
  * person (UC-ID-16 checks 3, 7) - a refusal, or a workspace of one without one, and it is absent;

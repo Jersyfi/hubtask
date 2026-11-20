@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 
 import { SOURCE } from './i18n/source.ts';
 import GERMAN from '../../../../locales/de.json' with { type: 'json' };
-import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, MORE_CODE, PRODUCTS, TRASH, account, administration, administrationFor, bar, currentDestination, firstScreen, installationPlace, instanceSection, leftToWebApp, primary, products, workspaceBand, HUB_TOOLS, hubTools, switchPath, toolOf, toolPath } from './navigation.ts';
+import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, MORE_CODE, PRODUCTS, TRASH, account, administration, administrationFor, bar, currentDestination, currentRow, firstScreen, installationPlace, instanceSection, leftToWebApp, primary, products, workspaceBand, HUB_TOOLS, hubTools, switchPath, toolOf, toolPath } from './navigation.ts';
 import { SECTION_OPEN_AT_FIRST, contentsCount, contentsTree, figureCount, foot, forYou, levelOf, navHubs, navProducts, orderHubs, withHidden, placedIndex, queuePath, queueRows, viewStarPath, type LevelRoute, type NavLevel } from './sidebar.ts';
 import { ROUTES, movedTo } from './routes.ts';
 import { resolve } from './router.ts';
@@ -601,4 +601,11 @@ test('a For you count never says 0, and says n+ where its read goes on', () => {
   assert.equal(figureCount(0), undefined);
   assert.equal(figureCount(5), '5');
   assert.equal(figureCount(50, true), '50+');
+});
+
+test('the installation column marks Modules, not Defaults, on the modules section', () => {
+  const groups = instanceSection({ isSingleWorkspace: false });
+  assert.equal(currentRow(groups, { name: 'instance-settings-section', path: '/instance/settings/module' }), 'modules');
+  assert.equal(currentRow(groups, { name: 'instance-settings-section', path: '/instance/settings/legal' }), 'settings');
+  assert.equal(currentRow(groups, { name: 'instance-settings', path: '/instance/settings' }), 'settings');
 });

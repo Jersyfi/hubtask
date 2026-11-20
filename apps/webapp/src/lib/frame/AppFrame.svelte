@@ -86,7 +86,7 @@
   import { webAppAddress, webAppHost } from '../webApp.ts';
   import { holdsHere, reachesAdministrationArea } from '../data/capability.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
-  import { DESTINATIONS, PRODUCTS, SETTINGS, account, administrationFor, instanceSection, leftToWebApp, type AccountAction } from '../navigation.ts';
+  import { DESTINATIONS, PRODUCTS, SETTINGS, account, administrationFor, currentRow, instanceSection, leftToWebApp, type AccountAction } from '../navigation.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
   import { webhooks } from '../data/webhooks.svelte.ts';
   import { webhookColumnFigure } from '../data/webhooks.ts';
@@ -370,9 +370,7 @@
           : undefined,
   );
   /** Which row of the section's list is current, by the id that list gives it. */
-  const sectionRow = $derived(
-    section?.groups.flatMap((group) => group.rows).find((row) => row.routes.includes(route.name ?? ''))?.id,
-  );
+  const sectionRow = $derived(section ? currentRow(section.groups, route) : undefined);
   const accountGroup = $derived(
     phoneAccount(account({
       isAdministrationReachable,
