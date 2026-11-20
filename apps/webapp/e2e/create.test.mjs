@@ -97,16 +97,16 @@ test('chromium: Create, C, Q and the phone’s ＋ open one menu whose first lin
     const button = page.getByRole('banner').getByRole('button', { name: 'Create' });
     await button.click();
     await lineOf(page).waitFor({ timeout: 5_000 });
-    // Wide, it hangs from the button (create d): its top just under it, its end on the button's
-    // end, with no head of its own; Escape gives the focus back to the button.
+    // Wide, it stands in the middle of the window as every dialog does, with its head; Escape
+    // gives the focus back to the button.
     const hung = await page.getByRole('dialog', { name: 'Create' }).evaluate(async (dialog) => {
       await Promise.all(dialog.getAnimations({ subtree: true }).map((each) => each.finished));
       return dialog.getBoundingClientRect().toJSON();
     });
     const from = await button.evaluate((each) => each.getBoundingClientRect().toJSON());
-    assert.ok(hung.top >= from.bottom && hung.top - from.bottom < 24, `${path}: the panel's top ${hung.top} hangs under the button's foot ${from.bottom}`);
-    assert.ok(Math.abs(hung.right - from.right) <= 2, `${path}: the panel's end ${hung.right} is the button's ${from.right}`);
-    assert.equal(await page.getByRole('dialog', { name: 'Create' }).getByRole('heading', { name: 'Create', exact: true }).isVisible(), false, `${path}: a head`);
+    const middle = await page.evaluate(() => window.innerWidth / 2);
+    assert.ok(Math.abs((hung.left + hung.right) / 2 - middle) <= 2, `${path}: the panel's middle ${(hung.left + hung.right) / 2} is the window's ${middle}`);
+    assert.ok(hung.top > from.bottom, `${path}: the panel stands below the bar`);
     await page.keyboard.press('Escape');
     await lineOf(page).waitFor({ state: 'hidden', timeout: 5_000 });
     assert.equal(await page.evaluate(() => document.activeElement?.closest('header, [role="banner"]') !== null && document.activeElement?.textContent?.trim()), 'Create', `${path}: focus back`);
