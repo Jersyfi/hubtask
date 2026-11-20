@@ -162,7 +162,8 @@ concept's §2.4 has the tables):
    (*All · Pages · Whiteboards*); modes *Tree*, *Recently changed*, *A–Z*, personal; *All contents*
    opens the table.
 5. ***Posts*** at the foot (the work-surface concept's one exception to the navigation, B-2): the
-   three newest published posts, an unread one with its dot, then *All posts*; shown where the hub
+   three newest published posts, an unread one with its dot, *All* at the section's head and *N more*
+   after the posts where there are more, as the contents have them; shown where the hub
    has a published post or the reader may write one (§7.12).
 
 A part appears only where its product is on at the hub; an empty part only for whoever may create

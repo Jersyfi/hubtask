@@ -388,6 +388,11 @@
     }));
   });
   const postRows = $derived(sectionPosts(postList?.data ?? []));
+  /** The published posts the section does not list: its *N more*, as *Contents* has one. */
+  const postsHidden = $derived((postList?.data.filter((each) => each.state === 'PUBLISHED').length ?? 0) - postRows.length);
+  // The way to every post is the section's head link, *All*, as it is the contents' on a phone -
+  // one way on every width, rather than a link row after the posts that read as a post.
+  const postsAll = $derived(hubId ? { label: t('app.nav.kind_all'), onselect: () => hubId && onnavigate(`/hubs/${hubId}/posts`) } : undefined);
   const hasPosts = $derived(!!postList && (postList.data.some((each) => each.state === 'PUBLISHED') || postList.may_write));
   const currentPost = $derived(route.name === 'post' || route.name === 'post-write' ? route.params['id'] : undefined);
   const postDay = (post: Post) => formatShortDay(postMoment(post).slice(0, 10), messages.locale);
@@ -1296,8 +1301,8 @@
     <NavItem id={post.page_id} label={post.title} href={`/posts/${post.page_id}`} {size} figure={postDay(post)} isCurrent={currentPost === post.page_id}
       unreadLabel={post.seen ? undefined : t('app.posts.nav_unread')} onnavigate={() => onnavigate(`/posts/${post.page_id}`)} />
   {/each}
-  {#if hubId}
-    <NavItem label={t('app.posts.nav_all')} icon="chevron-right" tone="link" href={`/hubs/${hubId}/posts`} {size} isCurrent={route.name === 'hub-posts'}
+  {#if hubId && postsHidden > 0}
+    <NavItem label={t('app.nav.more_count', { count: postsHidden })} icon="ellipsis" tone="more" href={`/hubs/${hubId}/posts`} {size} isDrillDown={size === 'touch'}
       onnavigate={() => hubId && onnavigate(`/hubs/${hubId}/posts`)} />
   {/if}
 {/snippet}
@@ -1434,7 +1439,7 @@
       </NavGroup>
     {/if}
     {#if hasPosts && !reordering}
-      <NavGroup label={t('app.posts.nav_section')} size="touch">
+      <NavGroup label={t('app.posts.nav_section')} size="touch" headLink={postsAll}>
         {@render postItems('touch')}
       </NavGroup>
     {/if}
@@ -1728,7 +1733,7 @@
       {/if}
       {#if hasPosts}
         <NavGroup label={t('app.posts.nav_section')} count={String(postList?.data.filter((each) => each.state === 'PUBLISHED').length ?? 0)}
-          collapseLabel={t('app.nav.fold', { name: t('app.posts.nav_section') })} bind:isOpen={sections.posts.isOpen}>
+          collapseLabel={t('app.nav.fold', { name: t('app.posts.nav_section') })} bind:isOpen={sections.posts.isOpen} headLink={postsAll}>
           {@render postItems('md')}
         </NavGroup>
       {/if}

@@ -391,17 +391,17 @@ test('a post outside the reader audience is refused as if it were not there (UC-
 });
 
 // UC-DOC-17 check 7: the hub column's *Posts* at its foot - published ones newest first, the unread
-// one with its dot, then *All posts*.
-test("the hub column ends with its posts, unread ones dotted, then all posts (UC-DOC-17/7)", async () => {
+// one with its dot, *All* at the section's head as the contents have it on a phone.
+test("the hub column ends with its posts, unread ones dotted, All at the head (UC-DOC-17/7)", async () => {
   const browser = await chromium.launch();
   try {
     const { page, failures, close } = await opened(browser);
     await page.goto(`${served.origin}/hubs/${HUB.id}/posts`);
     const column = page.locator('aside.sidenav');
-    const section = column.getByRole('link', { name: 'All posts' });
-    await section.waitFor({ timeout: 15_000 });
+    const all = column.getByRole('button', { name: 'All', exact: true });
+    await all.waitFor({ timeout: 15_000 });
     const links = await column.locator('a[href^="/posts/"], a[href$="/posts"]').evaluateAll((each) => each.map((link) => link.getAttribute('href')));
-    assert.deepEqual(links, [`/posts/${id(1)}`, `/posts/${id(3)}`, `/posts/${id(40)}`, `/hubs/${HUB.id}/posts`], 'newest first, then All posts');
+    assert.deepEqual(links, [`/posts/${id(1)}`, `/posts/${id(3)}`, `/posts/${id(40)}`], 'newest first, no link row after them');
     await column.getByRole('link', { name: /^Monday release\b.*\bunread\b/u }).waitFor();
     assert.equal(await column.getByRole('link', { name: /^Mine from last week\b.*\bunread\b/u }).count(), 0, 'a post read has no dot');
     await column.getByRole('link', { name: /^Monday release\b.*\bunread\b/u }).click();
