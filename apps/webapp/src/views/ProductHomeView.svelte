@@ -1077,10 +1077,13 @@
   .read-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-gallery-card)), 1fr)); gap: var(--sp-150); margin: 0; padding: 0; list-style: none; }
   .read-card {
     display: grid; gap: var(--sp-100); align-content: start; block-size: 100%; padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-raised);
+    border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface);
     color: var(--text-primary); text-decoration: none;
   }
-  .read-card:hover { border-color: var(--border-default); }
+  /* The overview's one surface (1′), as its widgets and the design system's Card have it. */
+  @media (hover: hover) {
+    .read-card:hover { border-color: var(--border-default); background: var(--bg-surface-hover); }
+  }
   .read-card:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
   .read-top { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--sp-100); }
   .read-icon { font-size: var(--fs-300); line-height: var(--lh-tight); }
@@ -1095,7 +1098,7 @@
        row: the side column alone left the main one an empty field above what follows. */
     .pages-pair > :only-child { grid-column: 1 / -1; }
   }
-  .panel { display: grid; grid-template-columns: minmax(0, 1fr); min-inline-size: 0; border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-raised); }
+  .panel { display: grid; grid-template-columns: minmax(0, 1fr); min-inline-size: 0; border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
   .panel > .eyebrow { padding: var(--sp-150) var(--sp-200) var(--sp-050); }
   .panel-head { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-100); padding: var(--sp-150) var(--sp-200); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
   .panel-head .heading { display: inline-flex; gap: var(--sp-050); align-items: center; }
