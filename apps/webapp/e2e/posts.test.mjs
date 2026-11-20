@@ -660,3 +660,57 @@ test("Today's New for you lists the posts not read yet (UC-DOC-18/5)", async () 
     await browser.close();
   }
 });
+
+// user-experience.md §2.2: Posts is a product like the others - its row in the products band where
+// the module is on, its home across hubs with what is new for the reader, the posts gone out newest
+// first and, under *All*, every one of them and the hubs; its create act writes a draft at once.
+test('the posts have a home across hubs, reached from the products band (§2.2)', async () => {
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, written, close } = await opened(browser, { writer: true });
+    await page.goto(`${served.origin}/`);
+    const products = page.locator('aside.sidenav').getByRole('region', { name: 'Products' });
+    const row = products.getByRole('treeitem', { name: 'Posts' });
+    await row.waitFor({ timeout: 15_000 });
+    await row.click();
+    await page.waitForURL('**/posts', { timeout: 10_000 });
+    const fresh = page.locator('[data-posts-new]');
+    await fresh.getByText('New for you').waitFor({ timeout: 15_000 });
+    assert.deepEqual(await fresh.locator('[data-post-row]').evaluateAll((each) => each.map((one) => one.dataset.postRow)), [id(1)]);
+    const recent = page.locator('[data-posts-recent]');
+    await recent.getByText('Recent posts').waitFor();
+    // Gone out only, newest first: the scheduled one stays on the hub's page.
+    assert.deepEqual(await recent.locator('[data-post-row]').evaluateAll((each) => each.map((one) => one.dataset.postRow)), [id(1), id(3), id(40)]);
+
+    await page.goto(`${served.origin}/posts?tab=all`);
+    await page.locator('[data-posts-recent]').getByText('All posts').waitFor({ timeout: 15_000 });
+    await page.getByRole('heading', { name: 'In your hubs' }).waitFor();
+
+    await page.goto(`${served.origin}/posts`);
+    await page.getByRole('button', { name: 'New post' }).first().click();
+    await page.waitForURL(`**/posts/${id(50)}/write`, { timeout: 10_000 });
+    assert.equal((await sent(page, written, 'POST', `/hubs/${HUB.id}/posts`)).length, 1);
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
+// UC-INS-21 check 4: with Posts off the band has no row of it and its home says the module is off.
+test('with posts off there is no Posts row and its home says so (UC-INS-21/4)', async () => {
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, close } = await opened(browser, { modulesOn: ['KNOWLEDGE'] });
+    await page.goto(`${served.origin}/`);
+    const products = page.locator('aside.sidenav').getByRole('region', { name: 'Products' });
+    await products.getByRole('treeitem', { name: 'Pages' }).waitFor({ timeout: 15_000 });
+    assert.equal(await products.getByRole('treeitem', { name: 'Posts' }).count(), 0);
+    await page.goto(`${served.origin}/posts`);
+    await page.locator('[data-module-off-note]').waitFor({ timeout: 15_000 });
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
