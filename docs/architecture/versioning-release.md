@@ -135,24 +135,38 @@ Rules:
 **Scheduled contract steps.** A drop waits until no binary that can still run names the object, so
 a step that moves its writers lands one release before the drop:
 
-* *The slim entry* (F-10, migrations 0234/0235). This release reads the side tables
-  `work_item_retention` and `work_item_flow` - the retention walk and an entry's marking, every
-  entry read (sqlc and the query compiler), the flow figure - and still writes the eight columns,
-  which the trigger `work_item_side_rows` mirrors (`TestTheMirrorAgreesAfterEveryWritePath`). The
-  due announcements' claim and next moment stay on the columns: their exactly-once guard is the
-  re-check of the row the claiming `UPDATE` locks, and `wi_due_announce_idx` is partial over the
-  columns. The first migration of the release after the suite gives `work_item_announcement` its
-  partial index; that release moves every writer to the side tables (the claim an
-  `INSERT … ON CONFLICT DO NOTHING` on the side row), names the columns nowhere and keeps the
-  trigger for the older binary still rolling out. The first migration of the release after it drops
-  the trigger and `work_item_mirror_side_rows`, the eight columns, `wi_due_announce_idx`,
-  `work_item_retention_idx` and the generated `search_vector`. Until then no new query names
-  the eight columns: `TestNoNewQueryNamesTheSlimEntrysMirroredColumns` holds the queries that still
-  do to a list, which each moved writer leaves. Neither step can be forgotten: `make release-tag`
-  counts the releases (pre-releases aside) that already shipped migration 0235 and runs
-  `TestTheSlimEntrysContractStepsAreDueOnTime` with that count, which refuses the release after
-  the suite's while a query on that list other than `CountFigureFlow` remains, and the release
-  after that while no later migration drops `work_item_side_rows`.
+* *The slim entry* (F-10, migrations 0234/0235). v0.10.0 read the side tables
+  `work_item_retention` and `work_item_flow` and still wrote the eight columns, which the trigger
+  `work_item_side_rows` mirrors. v0.10.1 moved every writer and reader (done): the retention
+  marking, block and clearings, the due date, the due announcements' claim - an
+  `INSERT … ON CONFLICT (tenant_id, item_id) DO UPDATE … WHERE` the stamp is still empty, on the
+  entry's row locked `FOR UPDATE SKIP LOCKED` as before - and next moment, the backup's import and
+  export (the archive's record keeps the eight keys), and the flow moments, which a trigger now
+  keeps on `work_item_flow` itself (0443). Its first migration, 0442, builds `wi_due_open_idx` on
+  the entry for the claims, since the announcement's side row is found by its primary key (§4
+  had named a partial index on `work_item_announcement`; the claim's walk is over the entry). The
+  trigger stays for the older binary still rolling out and since 0443 carries only the columns a
+  statement changed, so stale columns never undo a side row
+  (`TestTheMirrorAgreesAfterEveryWritePath`, `TestAColumnWriteLeavesWhatItDidNotChange`). The
+  older binary decides by the columns which entries it claims, clears and marks, so 0443 also
+  makes the entry's announcement and retention columns follow their side rows
+  (`work_item_columns_follow` on both side tables): its `:retain` and a withdrawn rule clear what
+  v0.10.1 marked, its claims do not announce again what v0.10.1 announced, and its new due date
+  removes the announcement (`TestTheOlderBinarySeesWhatTheSideRowsSay`). What remains of the
+  roll-out window: the flow moments do not follow - v0.10.0 reads them from the side row, but an
+  archive it writes carries the columns' moments, which miss the moves v0.10.1 recorded. The
+  following costs a write of the entry's row per marking and announcement for this release only.
+  The first migration of the release after v0.10.1 drops `work_item_side_rows`, the two
+  `work_item_columns_follow` triggers, their functions and `work_item_mirror_side_rows`, the eight
+  columns, `wi_due_announce_idx`,
+  `work_item_retention_idx` and the generated `search_vector`, and raises the compatibility
+  floor to 0442. Until then no query names the eight columns: `TestNoNewQueryNamesTheSlimEntrysMirroredColumns`
+  holds the queries that do to a list, empty since v0.10.1; it tells a side table's own `flow_*` and
+  `*_announced_at` from the entry's by the table or alias that qualifies them. Neither step can be
+  forgotten: `make release-tag` counts the releases (pre-releases aside) that already shipped
+  migration 0235 and runs `TestTheSlimEntrysContractStepsAreDueOnTime` with that count, which
+  refuses the release after the suite's while a query remains on that list, and the release after
+  that while no later migration drops `work_item_side_rows`.
 
 * *The installation events' numbering key.* Released sharing the migrator's advisory lock
   8_010_002, so every installation event written while a migration ran waited for the whole run.

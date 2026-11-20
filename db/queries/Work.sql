@@ -844,7 +844,7 @@ UPDATE work_item SET
   version          = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 
--- name: SetWorkItemDueDate :execrows
+-- name: SetWorkItemDueDate :one
 -- The due trio, set or cleared whole, under the same optimistic lock every write to this row
 -- takes (api-guidelines.md §5).
 --
@@ -855,19 +855,28 @@ WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 -- (i18n-l10n.md §4) - which fields *moved* is the application's answer, recorded in the change
 -- log per field; the row simply says what is now true.
 --
--- The two announcement stamps are cleared with it: a date that moves is a new deadline,
+-- The announcement stamps (the side row, F-10) go with it: a date that moves is a new deadline,
 -- which may be approached and missed again, and a stamp left standing would silence the
 -- announcement for it. Cleared here rather than by the caller, because they are bookkeeping about
--- this column and nothing outside this statement writes it.
-UPDATE work_item SET
-  due_at                = sqlc.narg('due_at'),
-  due_date_only         = coalesce(sqlc.narg('due_date_only'), false),
-  due_time_zone         = sqlc.narg('due_time_zone'),
-  due_soon_announced_at = NULL,
-  overdue_announced_at  = NULL,
-  updated_at            = sqlc.arg('updated_at'),
-  version               = version + 1
-WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
+-- this column and nothing outside this statement and the claims writes them. The entry is written
+-- before the side row, as the claims lock it before they stamp: a claim and a new date wait for
+-- each other instead of deadlocking. Answers 1, or 0 for a version conflict.
+WITH dated AS (
+  UPDATE work_item SET
+    due_at        = sqlc.narg('due_at'),
+    due_date_only = coalesce(sqlc.narg('due_date_only'), false),
+    due_time_zone = sqlc.narg('due_time_zone'),
+    updated_at    = sqlc.arg('updated_at'),
+    version       = version + 1
+  WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version')
+  RETURNING tenant_id, id
+), unannounced AS (
+  DELETE FROM work_item_announcement a
+  USING dated d
+  WHERE a.tenant_id = d.tenant_id AND a.item_id = d.id
+  RETURNING a.item_id
+)
+SELECT count(*) FROM dated;
 
 -- name: FlattenWorkItem :execrows
 -- Makes an entry a top-level entry of another type (UC-WRK-24 check 6): the one statement that
@@ -1053,55 +1062,79 @@ WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 -- The entries whose deadline has come within the lead and have not been announced yet, claimed and
 -- stamped in one statement.
 --
--- One statement rather than a select and an update, which is what makes the announcement
--- exactly-once: the stamp is written by the same UPDATE that returns the row, so two passes over
--- the same entry - another leader, a retried job - cannot both see it as unannounced. The same
--- reasoning as the reminder's guarded transition, in the shape a scan needs.
+-- The stamp is the side row (F-10), and writing it is what makes the announcement exactly-once:
+-- the insert either creates the row, or meets one and stamps it only while it is still unstamped -
+-- ON CONFLICT locks the row it meets and judges its latest version, so of two passes over the
+-- same entry (another leader, a retried job) one stamps and the other gets nothing back. An entry
+-- whose overdue announcement came first already has a row, which is why this is DO UPDATE ... WHERE
+-- and not DO NOTHING. The entry is locked as before, so a new due date (SetWorkItemDueDate) waits
+-- for the claim or is skipped by it, never stamped for the deadline it replaced.
 --
 -- Only open entries: something completed, trashed or archived is not approaching anything, which
--- is also what the index this runs on is partial over.
-UPDATE work_item SET due_soon_announced_at = sqlc.arg('now')
-WHERE id IN (
-  SELECT due.id FROM work_item AS due
-  WHERE due.due_at IS NOT NULL
-    AND due.due_at <= sqlc.arg('threshold')
-    AND due.due_soon_announced_at IS NULL
-    AND due.deleted_at IS NULL AND due.archived_at IS NULL AND due.is_completed = false
-  ORDER BY due.due_at
-  FOR UPDATE SKIP LOCKED
+-- is also what the index this runs on (wi_due_open_idx) is partial over.
+WITH due AS (
+  SELECT wi.id, wi.tenant_id, wi.collection_id, wi.due_at, wi.due_date_only, wi.due_time_zone
+  FROM work_item wi
+  WHERE wi.due_at IS NOT NULL
+    AND wi.due_at <= sqlc.arg('threshold')
+    AND wi.deleted_at IS NULL AND wi.archived_at IS NULL AND wi.is_completed = false
+    AND NOT EXISTS (
+      SELECT 1 FROM work_item_announcement a
+      WHERE a.tenant_id = wi.tenant_id AND a.item_id = wi.id AND a.due_soon_announced_at IS NOT NULL)
+  ORDER BY wi.due_at
   LIMIT sqlc.arg('batch_size')
+  FOR UPDATE OF wi SKIP LOCKED
+), stamped AS (
+  INSERT INTO work_item_announcement AS a (tenant_id, item_id, due_soon_announced_at)
+  SELECT due.tenant_id, due.id, sqlc.arg('now')::timestamptz FROM due
+  ON CONFLICT (tenant_id, item_id) DO UPDATE SET due_soon_announced_at = EXCLUDED.due_soon_announced_at
+  WHERE a.due_soon_announced_at IS NULL
+  RETURNING a.item_id
 )
-RETURNING id, tenant_id, collection_id, due_at, due_date_only, due_time_zone;
+SELECT due.id, due.tenant_id, due.collection_id, due.due_at, due.due_date_only, due.due_time_zone
+FROM due
+JOIN stamped ON stamped.item_id = due.id;
 
 -- name: ClaimOverdueItems :many
 -- The same scan for the deadline itself: entries whose date has passed with the work not done.
-UPDATE work_item SET overdue_announced_at = sqlc.arg('now')
-WHERE id IN (
-  SELECT due.id FROM work_item AS due
-  WHERE due.due_at IS NOT NULL
-    AND due.due_at <= sqlc.arg('now')
-    AND due.overdue_announced_at IS NULL
-    AND due.deleted_at IS NULL AND due.archived_at IS NULL AND due.is_completed = false
-  ORDER BY due.due_at
-  FOR UPDATE SKIP LOCKED
+WITH due AS (
+  SELECT wi.id, wi.tenant_id, wi.collection_id, wi.due_at, wi.due_date_only, wi.due_time_zone
+  FROM work_item wi
+  WHERE wi.due_at IS NOT NULL
+    AND wi.due_at <= sqlc.arg('now')
+    AND wi.deleted_at IS NULL AND wi.archived_at IS NULL AND wi.is_completed = false
+    AND NOT EXISTS (
+      SELECT 1 FROM work_item_announcement a
+      WHERE a.tenant_id = wi.tenant_id AND a.item_id = wi.id AND a.overdue_announced_at IS NOT NULL)
+  ORDER BY wi.due_at
   LIMIT sqlc.arg('batch_size')
+  FOR UPDATE OF wi SKIP LOCKED
+), stamped AS (
+  INSERT INTO work_item_announcement AS a (tenant_id, item_id, overdue_announced_at)
+  SELECT due.tenant_id, due.id, sqlc.arg('now')::timestamptz FROM due
+  ON CONFLICT (tenant_id, item_id) DO UPDATE SET overdue_announced_at = EXCLUDED.overdue_announced_at
+  WHERE a.overdue_announced_at IS NULL
+  RETURNING a.item_id
 )
-RETURNING id, tenant_id, collection_id, due_at, due_date_only, due_time_zone;
+SELECT due.id, due.tenant_id, due.collection_id, due.due_at, due.due_date_only, due.due_time_zone
+FROM due
+JOIN stamped ON stamped.item_id = due.id;
 
 -- name: NextDueAnnouncement :one
 -- When this tenant next owes an announcement: the lead before a deadline that has not been
 -- announced as approaching, or the deadline itself where only the overdue announcement is left.
 -- NULL when it owes none, which is half of what lets the firing job finish.
 SELECT min(
-  CASE WHEN due_soon_announced_at IS NULL
-       THEN due_at - make_interval(secs => sqlc.arg('lead_seconds')::double precision)
-       ELSE due_at
+  CASE WHEN a.due_soon_announced_at IS NULL
+       THEN wi.due_at - make_interval(secs => sqlc.arg('lead_seconds')::double precision)
+       ELSE wi.due_at
   END
 )::timestamptz AS next_at
-FROM work_item
-WHERE due_at IS NOT NULL
-  AND deleted_at IS NULL AND archived_at IS NULL AND is_completed = false
-  AND (due_soon_announced_at IS NULL OR overdue_announced_at IS NULL);
+FROM work_item wi
+LEFT JOIN work_item_announcement a ON a.tenant_id = wi.tenant_id AND a.item_id = wi.id
+WHERE wi.due_at IS NOT NULL
+  AND wi.deleted_at IS NULL AND wi.archived_at IS NULL AND wi.is_completed = false
+  AND (a.due_soon_announced_at IS NULL OR a.overdue_announced_at IS NULL);
 
 -- name: SetWorkItemOrigin :execrows
 -- The provenance a conversion records: which jumble entry this item came from. Set exactly

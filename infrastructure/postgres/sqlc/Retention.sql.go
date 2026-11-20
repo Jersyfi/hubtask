@@ -37,15 +37,19 @@ func (q *Queries) ArchiveItemsForRetention(ctx context.Context, arg ArchiveItems
 }
 
 const blockItemsForRetention = `-- name: BlockItemsForRetention :execrows
-UPDATE work_item SET
-  retention_rule_id    = $1,
-  retention_action     = $2,
-  retention_blocked_by = $3
-WHERE id = ANY($4::uuid[])
-  AND retention_pending_until IS NULL
-  AND (retention_rule_id    IS DISTINCT FROM $1
-    OR retention_action     IS DISTINCT FROM $2
-    OR retention_blocked_by IS DISTINCT FROM $3)
+INSERT INTO work_item_retention (tenant_id, item_id, pending_until, rule_id, action, blocked_by)
+SELECT wi.tenant_id, wi.id, NULL, $1, $2, $3
+FROM work_item wi
+WHERE wi.id = ANY($4::uuid[])
+ORDER BY wi.id
+FOR NO KEY UPDATE OF wi
+ON CONFLICT (tenant_id, item_id) DO UPDATE SET
+  rule_id    = EXCLUDED.rule_id,
+  action     = EXCLUDED.action,
+  blocked_by = EXCLUDED.blocked_by
+WHERE work_item_retention.pending_until IS NULL
+  AND (work_item_retention.rule_id, work_item_retention.action, work_item_retention.blocked_by)
+      IS DISTINCT FROM (EXCLUDED.rule_id, EXCLUDED.action, EXCLUDED.blocked_by)
 `
 
 type BlockItemsForRetentionParams struct {
@@ -57,7 +61,7 @@ type BlockItemsForRetentionParams struct {
 
 // What a rule would do, and what is stopping it (§4, §6).
 //
-// No `retention_pending_until`, deliberately: an entry that is held back has no due moment, and the
+// No `pending_until`, deliberately: an entry that is held back has no due moment, and the
 // absence of one is what keeps phase two off it rather than a flag somebody has to remember to
 // check. Re-run on every pass, because a block is a fact about now - the hold may have been lifted
 // since, and then the marking above takes over. A row that already says so is left alone: a pass
@@ -105,33 +109,49 @@ func (q *Queries) CarryOverRetentionPolicy(ctx context.Context, arg CarryOverRet
 	return err
 }
 
-const clearItemRetention = `-- name: ClearItemRetention :execrows
-UPDATE work_item SET
-  retention_pending_until = NULL,
-  retention_action        = NULL,
-  retention_blocked_by    = NULL,
-  retention_rule_id       = CASE WHEN $1::boolean THEN retention_rule_id END,
-  updated_at              = $2::timestamptz,
-  version                 = version + 1
-WHERE id = ANY($3::uuid[])
-  AND retention_pending_until IS NOT NULL
+const clearItemRetention = `-- name: ClearItemRetention :one
+WITH cleared AS (
+  UPDATE work_item wi SET
+    updated_at = $1::timestamptz,
+    version    = wi.version + 1
+  FROM work_item_retention rt
+  WHERE rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id
+    AND wi.id = ANY($2::uuid[])
+    AND rt.pending_until IS NOT NULL
+  RETURNING wi.tenant_id, wi.id
+), kept AS (
+  UPDATE work_item_retention rt SET pending_until = NULL, action = NULL, blocked_by = NULL
+  FROM cleared c
+  WHERE rt.tenant_id = c.tenant_id AND rt.item_id = c.id
+    AND $3::boolean AND rt.rule_id IS NOT NULL
+  RETURNING rt.item_id
+), dropped AS (
+  DELETE FROM work_item_retention rt
+  USING cleared c
+  WHERE rt.tenant_id = c.tenant_id AND rt.item_id = c.id
+    AND NOT ($3::boolean AND rt.rule_id IS NOT NULL)
+  RETURNING rt.item_id
+)
+SELECT count(*) FROM cleared
 `
 
 type ClearItemRetentionParams struct {
-	KeepRule bool
 	Now      pgtype.Timestamptz
 	Ids      []pgtype.UUID
+	KeepRule bool
 }
 
 // `:retain`, and the end of a stage. The rule reference is cleared with it when a person takes the
 // entry out - taking it out means the rule no longer owns it - and kept when a stage has acted,
-// because the chain's next stage is what owns it then.
+// because the chain's next stage is what owns it then. A side row left with nothing goes.
+//
+// The entry is written first and the side row after, the order every writer of both keeps, so
+// two of them wait for each other rather than deadlock. Answers how many entries were cleared.
 func (q *Queries) ClearItemRetention(ctx context.Context, arg ClearItemRetentionParams) (int64, error) {
-	result, err := q.db.Exec(ctx, clearItemRetention, arg.KeepRule, arg.Now, arg.Ids)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+	row := q.db.QueryRow(ctx, clearItemRetention, arg.Now, arg.Ids, arg.KeepRule)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const clearRetentionCursor = `-- name: ClearRetentionCursor :exec
@@ -154,15 +174,22 @@ func (q *Queries) ClearRetentionCursor(ctx context.Context, arg ClearRetentionCu
 	return err
 }
 
-const clearRetentionMarksOfRule = `-- name: ClearRetentionMarksOfRule :execrows
-UPDATE work_item SET
-  retention_pending_until = NULL,
-  retention_action        = NULL,
-  retention_blocked_by    = NULL,
-  retention_rule_id       = NULL,
-  updated_at              = $1::timestamptz,
-  version                 = version + 1
-WHERE retention_rule_id = $2
+const clearRetentionMarksOfRule = `-- name: ClearRetentionMarksOfRule :one
+WITH cleared AS (
+  UPDATE work_item wi SET
+    updated_at = $1::timestamptz,
+    version    = wi.version + 1
+  FROM work_item_retention rt
+  WHERE rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id
+    AND rt.rule_id = $2
+  RETURNING wi.tenant_id, wi.id
+), dropped AS (
+  DELETE FROM work_item_retention rt
+  USING cleared c
+  WHERE rt.tenant_id = c.tenant_id AND rt.item_id = c.id
+  RETURNING rt.item_id
+)
+SELECT count(*) FROM cleared
 `
 
 type ClearRetentionMarksOfRuleParams struct {
@@ -173,13 +200,12 @@ type ClearRetentionMarksOfRuleParams struct {
 // What a withdrawn rule leaves behind. An entry counting down towards a rule nobody holds any more
 // would be deleted by a rule that does not exist, so the marking goes with the rule - and only the
 // marking: what the rule already did stands, because retention deletes and a deletion is not undone
-// by withdrawing the instruction that caused it.
+// by withdrawing the instruction that caused it. Entry first, side row after, as ClearItemRetention.
 func (q *Queries) ClearRetentionMarksOfRule(ctx context.Context, arg ClearRetentionMarksOfRuleParams) (int64, error) {
-	result, err := q.db.Exec(ctx, clearRetentionMarksOfRule, arg.Now, arg.RuleID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+	row := q.db.QueryRow(ctx, clearRetentionMarksOfRule, arg.Now, arg.RuleID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const clearRuleFailures = `-- name: ClearRuleFailures :execrows
@@ -589,13 +615,19 @@ func (q *Queries) ListRetentionRules(ctx context.Context) ([]RetentionRule, erro
 }
 
 const markItemsForRetention = `-- name: MarkItemsForRetention :execrows
-UPDATE work_item SET
-  retention_pending_until = $1::timestamptz,
-  retention_rule_id       = $2,
-  retention_action        = $3,
-  retention_blocked_by    = NULL
-WHERE id = ANY($4::uuid[])
-  AND retention_pending_until IS NULL
+INSERT INTO work_item_retention (tenant_id, item_id, pending_until, rule_id, action, blocked_by)
+SELECT wi.tenant_id, wi.id, $1::timestamptz, $2,
+       $3, NULL
+FROM work_item wi
+WHERE wi.id = ANY($4::uuid[])
+ORDER BY wi.id
+FOR NO KEY UPDATE OF wi
+ON CONFLICT (tenant_id, item_id) DO UPDATE SET
+  pending_until = EXCLUDED.pending_until,
+  rule_id       = EXCLUDED.rule_id,
+  action        = EXCLUDED.action,
+  blocked_by    = NULL
+WHERE work_item_retention.pending_until IS NULL
 `
 
 type MarkItemsForRetentionParams struct {
@@ -610,6 +642,12 @@ type MarkItemsForRetentionParams struct {
 // The block is cleared with the marking: an entry that was held back and is now announced is an
 // entry whose obstacle has gone, and a stale reason on it would tell somebody a hold is in force
 // that was lifted last week.
+//
+// Written to the side row (F-10, 0234): one is created for an entry that has none, and one that
+// already counts down is left alone. The entry is read for its tenant and to keep an identifier
+// that names no entry of this tenant out, and locked before the side row, the order every writer
+// of both keeps (the side row's trigger writes the entry's columns back while v0.10.0 rolls out),
+// so a marking and a clearing of one entry wait for each other rather than deadlock.
 func (q *Queries) MarkItemsForRetention(ctx context.Context, arg MarkItemsForRetentionParams) (int64, error) {
 	result, err := q.db.Exec(ctx, markItemsForRetention,
 		arg.EffectiveAt,

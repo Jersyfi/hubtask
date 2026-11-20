@@ -133,32 +133,48 @@ LIMIT sqlc.arg('batch')::int;
 -- The block is cleared with the marking: an entry that was held back and is now announced is an
 -- entry whose obstacle has gone, and a stale reason on it would tell somebody a hold is in force
 -- that was lifted last week.
-UPDATE work_item SET
-  retention_pending_until = sqlc.arg('effective_at')::timestamptz,
-  retention_rule_id       = sqlc.arg('rule_id'),
-  retention_action        = sqlc.arg('action'),
-  retention_blocked_by    = NULL
-WHERE id = ANY(sqlc.arg('ids')::uuid[])
-  AND retention_pending_until IS NULL;
+--
+-- Written to the side row (F-10, 0234): one is created for an entry that has none, and one that
+-- already counts down is left alone. The entry is read for its tenant and to keep an identifier
+-- that names no entry of this tenant out, and locked before the side row, the order every writer
+-- of both keeps (the side row's trigger writes the entry's columns back while v0.10.0 rolls out),
+-- so a marking and a clearing of one entry wait for each other rather than deadlock.
+INSERT INTO work_item_retention (tenant_id, item_id, pending_until, rule_id, action, blocked_by)
+SELECT wi.tenant_id, wi.id, sqlc.arg('effective_at')::timestamptz, sqlc.arg('rule_id'),
+       sqlc.arg('action'), NULL
+FROM work_item wi
+WHERE wi.id = ANY(sqlc.arg('ids')::uuid[])
+ORDER BY wi.id
+FOR NO KEY UPDATE OF wi
+ON CONFLICT (tenant_id, item_id) DO UPDATE SET
+  pending_until = EXCLUDED.pending_until,
+  rule_id       = EXCLUDED.rule_id,
+  action        = EXCLUDED.action,
+  blocked_by    = NULL
+WHERE work_item_retention.pending_until IS NULL;
 
 -- name: BlockItemsForRetention :execrows
 -- What a rule would do, and what is stopping it (§4, §6).
 --
--- No `retention_pending_until`, deliberately: an entry that is held back has no due moment, and the
+-- No `pending_until`, deliberately: an entry that is held back has no due moment, and the
 -- absence of one is what keeps phase two off it rather than a flag somebody has to remember to
 -- check. Re-run on every pass, because a block is a fact about now - the hold may have been lifted
 -- since, and then the marking above takes over. A row that already says so is left alone: a pass
 -- reads past held rows on every run, and rewriting each unchanged one would be a row version per
 -- held entry per pass.
-UPDATE work_item SET
-  retention_rule_id    = sqlc.arg('rule_id'),
-  retention_action     = sqlc.arg('action'),
-  retention_blocked_by = sqlc.arg('blocked_by')
-WHERE id = ANY(sqlc.arg('ids')::uuid[])
-  AND retention_pending_until IS NULL
-  AND (retention_rule_id    IS DISTINCT FROM sqlc.arg('rule_id')
-    OR retention_action     IS DISTINCT FROM sqlc.arg('action')
-    OR retention_blocked_by IS DISTINCT FROM sqlc.arg('blocked_by'));
+INSERT INTO work_item_retention (tenant_id, item_id, pending_until, rule_id, action, blocked_by)
+SELECT wi.tenant_id, wi.id, NULL, sqlc.arg('rule_id'), sqlc.arg('action'), sqlc.arg('blocked_by')
+FROM work_item wi
+WHERE wi.id = ANY(sqlc.arg('ids')::uuid[])
+ORDER BY wi.id
+FOR NO KEY UPDATE OF wi
+ON CONFLICT (tenant_id, item_id) DO UPDATE SET
+  rule_id    = EXCLUDED.rule_id,
+  action     = EXCLUDED.action,
+  blocked_by = EXCLUDED.blocked_by
+WHERE work_item_retention.pending_until IS NULL
+  AND (work_item_retention.rule_id, work_item_retention.action, work_item_retention.blocked_by)
+      IS DISTINCT FROM (EXCLUDED.rule_id, EXCLUDED.action, EXCLUDED.blocked_by);
 
 -- name: RetentionMarkedItemsDue :many
 -- Phase two: what the grace period has run out on.
@@ -187,19 +203,36 @@ FROM work_item w
 LEFT JOIN work_item_retention rt ON rt.tenant_id = w.tenant_id AND rt.item_id = w.id
 WHERE w.id = sqlc.arg('id') AND w.deleted_at IS NULL;
 
--- name: ClearItemRetention :execrows
+-- name: ClearItemRetention :one
 -- `:retain`, and the end of a stage. The rule reference is cleared with it when a person takes the
 -- entry out - taking it out means the rule no longer owns it - and kept when a stage has acted,
--- because the chain's next stage is what owns it then.
-UPDATE work_item SET
-  retention_pending_until = NULL,
-  retention_action        = NULL,
-  retention_blocked_by    = NULL,
-  retention_rule_id       = CASE WHEN sqlc.arg('keep_rule')::boolean THEN retention_rule_id END,
-  updated_at              = sqlc.arg('now')::timestamptz,
-  version                 = version + 1
-WHERE id = ANY(sqlc.arg('ids')::uuid[])
-  AND retention_pending_until IS NOT NULL;
+-- because the chain's next stage is what owns it then. A side row left with nothing goes.
+--
+-- The entry is written first and the side row after, the order every writer of both keeps, so
+-- two of them wait for each other rather than deadlock. Answers how many entries were cleared.
+WITH cleared AS (
+  UPDATE work_item wi SET
+    updated_at = sqlc.arg('now')::timestamptz,
+    version    = wi.version + 1
+  FROM work_item_retention rt
+  WHERE rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id
+    AND wi.id = ANY(sqlc.arg('ids')::uuid[])
+    AND rt.pending_until IS NOT NULL
+  RETURNING wi.tenant_id, wi.id
+), kept AS (
+  UPDATE work_item_retention rt SET pending_until = NULL, action = NULL, blocked_by = NULL
+  FROM cleared c
+  WHERE rt.tenant_id = c.tenant_id AND rt.item_id = c.id
+    AND sqlc.arg('keep_rule')::boolean AND rt.rule_id IS NOT NULL
+  RETURNING rt.item_id
+), dropped AS (
+  DELETE FROM work_item_retention rt
+  USING cleared c
+  WHERE rt.tenant_id = c.tenant_id AND rt.item_id = c.id
+    AND NOT (sqlc.arg('keep_rule')::boolean AND rt.rule_id IS NOT NULL)
+  RETURNING rt.item_id
+)
+SELECT count(*) FROM cleared;
 
 -- name: ArchiveItemsForRetention :execrows
 -- The act of an ARCHIVE stage. Only what is not archived already, so a repeated pass writes the
@@ -318,19 +351,26 @@ WHERE id = sqlc.arg('id') AND version = sqlc.arg('expected_version');
 -- name: DeleteRetentionRule :execrows
 DELETE FROM retention_rule WHERE id = sqlc.arg('id');
 
--- name: ClearRetentionMarksOfRule :execrows
+-- name: ClearRetentionMarksOfRule :one
 -- What a withdrawn rule leaves behind. An entry counting down towards a rule nobody holds any more
 -- would be deleted by a rule that does not exist, so the marking goes with the rule - and only the
 -- marking: what the rule already did stands, because retention deletes and a deletion is not undone
--- by withdrawing the instruction that caused it.
-UPDATE work_item SET
-  retention_pending_until = NULL,
-  retention_action        = NULL,
-  retention_blocked_by    = NULL,
-  retention_rule_id       = NULL,
-  updated_at              = sqlc.arg('now')::timestamptz,
-  version                 = version + 1
-WHERE retention_rule_id = sqlc.arg('rule_id');
+-- by withdrawing the instruction that caused it. Entry first, side row after, as ClearItemRetention.
+WITH cleared AS (
+  UPDATE work_item wi SET
+    updated_at = sqlc.arg('now')::timestamptz,
+    version    = wi.version + 1
+  FROM work_item_retention rt
+  WHERE rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id
+    AND rt.rule_id = sqlc.arg('rule_id')
+  RETURNING wi.tenant_id, wi.id
+), dropped AS (
+  DELETE FROM work_item_retention rt
+  USING cleared c
+  WHERE rt.tenant_id = c.tenant_id AND rt.item_id = c.id
+  RETURNING rt.item_id
+)
+SELECT count(*) FROM cleared;
 
 -- name: RecordRuleFailure :execrows
 -- A pass set the rule aside: its condition could not be evaluated on a candidate. The code and the

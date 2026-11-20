@@ -86,7 +86,9 @@ func TestARestrictedPersonsDueEntryIsKeptUntilTheRestrictionIsLifted(t *testing.
 	state := func() (blockedBy *string, trashed bool) {
 		t.Helper()
 		if err := adminPool(ctx, t).QueryRow(ctx,
-			`SELECT retention_blocked_by, deleted_at IS NOT NULL FROM work_item WHERE tenant_id = $1 AND id = $2`,
+			`SELECT rt.blocked_by, w.deleted_at IS NOT NULL FROM work_item w
+			   LEFT JOIN work_item_retention rt ON rt.tenant_id = w.tenant_id AND rt.item_id = w.id
+			  WHERE w.tenant_id = $1 AND w.id = $2`,
 			subject.tenant.String(), subject.item.String()).Scan(&blockedBy, &trashed); err != nil {
 			t.Fatalf("reading the entry: %v", err)
 		}

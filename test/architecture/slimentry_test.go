@@ -17,34 +17,71 @@ import (
 // The slim entry's contract half (versioning-release.md §4, "Scheduled contract steps") drops the
 // eight columns `work_item_side_rows` mirrors. It can land only once no query names them, so the
 // queries that still do are held to this list: a new one fails, and a moved one must leave it.
-// A name after AS is an alias of a side table's column and does not count; the side tables'
-// own columns share two names with the entry's (`flow_*`, `*_announced_at`).
-var mirroredColumnNamers = map[string][]string{
-	// Writers, moved in the first release after the suite.
-	"BackupImport.sql ImportWorkItem": {"due_soon_announced_at", "flow_finished_at", "flow_started_at",
-		"overdue_announced_at", "retention_action", "retention_blocked_by", "retention_pending_until", "retention_rule_id"},
-	"Retention.sql MarkItemsForRetention":     retentionColumns,
-	"Retention.sql BlockItemsForRetention":    retentionColumns,
-	"Retention.sql ClearItemRetention":        retentionColumns,
-	"Retention.sql ClearRetentionMarksOfRule": retentionColumns,
-	"Work.sql SetWorkItemDueDate":             {"due_soon_announced_at", "overdue_announced_at"},
-	// The announcements' claim and next moment, which stay on the columns until that release.
-	"Work.sql ClaimDueSoonItems":   {"due_soon_announced_at"},
-	"Work.sql ClaimOverdueItems":   {"overdue_announced_at"},
-	"Work.sql NextDueAnnouncement": {"due_soon_announced_at", "overdue_announced_at"},
-	// Reads work_item_flow's own columns.
-	"Figures.sql CountFigureFlow": {"flow_finished_at", "flow_started_at"},
+// Since v0.10.1 moved every writer and reader to the side tables, the list is empty.
+//
+// What does not count as naming an entry's column: a name after AS (an alias of a side table's
+// column), a name inside a string literal (the archive's record keeps the columns' names as its
+// keys), and the side tables' own columns that share a name with the entry's (`flow_*`,
+// `*_announced_at`) - qualified by that side table, its alias or EXCLUDED, or unqualified in a
+// query that names that side table. Such a query qualifies every column of the entry it names.
+var mirroredColumnNamers = map[string][]string{}
+
+// sideTableColumns are the side tables' own columns of the same name as the entry's.
+var sideTableColumns = map[string][]string{
+	"work_item_announcement": {"due_soon_announced_at", "overdue_announced_at"},
+	"work_item_flow":         {"flow_started_at", "flow_finished_at"},
 }
 
-// The one entry that stays: it reads work_item_flow's own columns, which share the entry's names.
-var readsTheSideTablesOwnColumns = map[string]bool{"Figures.sql CountFigureFlow": true}
+var (
+	mirroredColumn = regexp.MustCompile(`(?i)(\bAS\s+)?(?:\b([a-z_][a-z0-9_]*)\.)?\b(due_soon_announced_at|` +
+		`overdue_announced_at|flow_started_at|flow_finished_at|retention_pending_until|retention_rule_id|` +
+		`retention_action|retention_blocked_by|search_vector)\b`)
+	stringLiteral = regexp.MustCompile(`'[^']*'`)
+	sideTableRef  = regexp.MustCompile(`(?i)\b(work_item_announcement|work_item_flow)\b(?:\s+(?:AS\s+)?([a-z_][a-z0-9_]*))?`)
+	notAnAlias    = map[string]bool{"on": true, "where": true, "using": true, "set": true, "left": true,
+		"right": true, "inner": true, "join": true, "cross": true, "full": true, "group": true, "order": true,
+		"limit": true, "returning": true, "values": true, "select": true, "from": true, "and": true, "or": true,
+		"do": true, "with": true}
+)
 
-var retentionColumns = []string{"retention_action", "retention_blocked_by", "retention_pending_until", "retention_rule_id"}
+// mirroredColumnsNamed answers the entry's mirrored columns one query's text names.
+func mirroredColumnsNamed(query string) []string {
+	query = stringLiteral.ReplaceAllString(query, "''")
+	// For each column a side table shares with the entry: the qualifiers that mean the side table.
+	sideQualifiers := map[string]map[string]bool{}
+	for _, m := range sideTableRef.FindAllStringSubmatch(query, -1) {
+		table := strings.ToLower(m[1])
+		for _, col := range sideTableColumns[table] {
+			if sideQualifiers[col] == nil {
+				sideQualifiers[col] = map[string]bool{"excluded": true}
+			}
+			sideQualifiers[col][table] = true
+			if alias := strings.ToLower(m[2]); alias != "" && !notAnAlias[alias] {
+				sideQualifiers[col][alias] = true
+			}
+		}
+	}
+	named := map[string]bool{}
+	for _, m := range mirroredColumn.FindAllStringSubmatch(query, -1) {
+		if m[1] != "" {
+			continue
+		}
+		col, qualifier := strings.ToLower(m[3]), strings.ToLower(m[2])
+		side, shared := sideQualifiers[col]
+		if shared && (qualifier == "" || side[qualifier]) {
+			continue
+		}
+		named[col] = true
+	}
+	cols := make([]string, 0, len(named))
+	for c := range named {
+		cols = append(cols, c)
+	}
+	sort.Strings(cols)
+	return cols
+}
 
 func TestNoNewQueryNamesTheSlimEntrysMirroredColumns(t *testing.T) {
-	column := regexp.MustCompile(`(?i)(?:\bAS\s+)?(?:\b[a-z_]+\.)?\b(due_soon_announced_at|overdue_announced_at|` +
-		`flow_started_at|flow_finished_at|retention_pending_until|retention_rule_id|retention_action|` +
-		`retention_blocked_by|search_vector)\b`)
 	name := regexp.MustCompile(`^--\s*name:\s*(\w+)`)
 
 	files, err := filepath.Glob("../../db/queries/*.sql")
@@ -57,32 +94,25 @@ func TestNoNewQueryNamesTheSlimEntrysMirroredColumns(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		query, named := "", map[string]bool{}
+		query, body := "", []string{}
 		flush := func() {
-			if len(named) == 0 {
+			if query == "" {
 				return
 			}
-			cols := make([]string, 0, len(named))
-			for c := range named {
-				cols = append(cols, c)
+			if cols := mirroredColumnsNamed(strings.Join(body, "\n")); len(cols) > 0 {
+				found[filepath.Base(path)+" "+query] = cols
 			}
-			sort.Strings(cols)
-			found[filepath.Base(path)+" "+query] = cols
 		}
 		for _, line := range strings.Split(string(content), "\n") {
 			if m := name.FindStringSubmatch(line); m != nil {
 				flush()
-				query, named = m[1], map[string]bool{}
+				query, body = m[1], nil
 				continue
 			}
 			if strings.HasPrefix(strings.TrimSpace(line), "--") || query == "" {
 				continue
 			}
-			for _, m := range column.FindAllStringSubmatch(line, -1) {
-				if !strings.HasPrefix(strings.ToUpper(m[0]), "AS") {
-					named[strings.ToLower(m[1])] = true
-				}
-			}
+			body = append(body, line)
 		}
 		flush()
 	}
@@ -105,6 +135,29 @@ func TestNoNewQueryNamesTheSlimEntrysMirroredColumns(t *testing.T) {
 	}
 }
 
+func TestTheMatcherTellsTheEntrysColumnsFromTheSideTables(t *testing.T) {
+	for _, tc := range []struct {
+		query string
+		want  []string
+	}{
+		{"UPDATE work_item SET due_soon_announced_at = NULL", []string{"due_soon_announced_at"}},
+		{"SELECT w.flow_started_at FROM work_item w LEFT JOIN work_item_flow f ON f.item_id = w.id",
+			[]string{"flow_started_at"}},
+		{"SELECT f.flow_started_at FROM work_item w LEFT JOIN work_item_flow f ON f.item_id = w.id", []string{}},
+		{"SELECT a.due_soon_announced_at FROM work_item_announcement AS a", []string{}},
+		{"INSERT INTO work_item_announcement (item_id, overdue_announced_at) VALUES ($1, $2) " +
+			"ON CONFLICT (item_id) DO UPDATE SET overdue_announced_at = EXCLUDED.overdue_announced_at", []string{}},
+		{"SELECT rt.pending_until AS retention_pending_until FROM work_item_retention rt", []string{}},
+		{"SELECT j->>'retention_action' FROM t", []string{}},
+		{"SELECT retention_action FROM work_item_retention", []string{"retention_action"}},
+		{"SELECT due_soon_announced_at FROM work_item_flow", []string{"due_soon_announced_at"}},
+	} {
+		if got := mirroredColumnsNamed(tc.query); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("%q names %v, want %v", tc.query, got, tc.want)
+		}
+	}
+}
+
 // releasesSinceSlimExpand names how many releases already shipped migration 0235; `make release-tag`
 // sets it from the tags, so the contract steps cannot be forgotten: the release after the suite's
 // is refused while a writer still names the columns, the one after that while the trigger stands.
@@ -120,9 +173,7 @@ func slimEntryStepsDue(releases int, namers map[string][]string, mirrorDropped b
 	var due []string
 	if releases >= 1 {
 		for query := range namers {
-			if !readsTheSideTablesOwnColumns[query] {
-				due = append(due, query+" still names the mirrored columns: move it to the side tables")
-			}
+			due = append(due, query+" still names the mirrored columns: move it to the side tables")
 		}
 		sort.Strings(due)
 	}
@@ -187,8 +238,7 @@ func TestTheReleaseTagCountsTheReleasesSinceTheSlimExpand(t *testing.T) {
 }
 
 func TestSlimEntryStepsDue(t *testing.T) {
-	namers := map[string][]string{"Work.sql SetWorkItemDueDate": {"overdue_announced_at"},
-		"Figures.sql CountFigureFlow": {"flow_started_at"}}
+	namers := map[string][]string{"Work.sql SetWorkItemDueDate": {"overdue_announced_at"}}
 	for _, tc := range []struct {
 		name     string
 		releases int
@@ -198,7 +248,7 @@ func TestSlimEntryStepsDue(t *testing.T) {
 	}{
 		{"the suite's own release ships with the mirror", 0, namers, false, 0},
 		{"the next release is refused while a writer names the columns", 1, namers, false, 1},
-		{"the next release passes once the writers moved", 1, map[string][]string{"Figures.sql CountFigureFlow": {"flow_started_at"}}, false, 0},
+		{"the next release passes once the writers moved", 1, map[string][]string{}, false, 0},
 		{"the release after is refused while the mirror stands", 2, map[string][]string{}, false, 1},
 		{"the release after passes once the mirror is dropped", 2, map[string][]string{}, true, 0},
 	} {

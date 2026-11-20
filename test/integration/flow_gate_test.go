@@ -276,7 +276,8 @@ func TestAFlowEntryRecordsWhenItEntersTheFirstAndTheDoneColumn(t *testing.T) {
 		t.Helper()
 		var m moments
 		if err := adminPool(ctx, t).QueryRow(ctx,
-			`SELECT created_at, flow_started_at, flow_finished_at FROM work_item WHERE id = $1`, taskID,
+			`SELECT w.created_at, f.flow_started_at, f.flow_finished_at FROM work_item w
+			  LEFT JOIN work_item_flow f ON f.tenant_id = w.tenant_id AND f.item_id = w.id WHERE w.id = $1`, taskID,
 		).Scan(&m.created, &m.started, &m.finished); err != nil {
 			t.Fatalf("reading the moments: %v", err)
 		}

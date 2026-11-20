@@ -346,8 +346,9 @@ reasoning is backup-restore.md §8.4):
   definitions precede the work items, so every value finds the definition it was written under;
   and the references texts hold (`entry_reference`, migration 0220), which the restore's write of
   each entry's notes and each comment rebuilds; and the slim entry's side tables
-  (`work_item_announcement`, `work_item_flow`, `work_item_retention`, migration 0234), mirrors of
-  the entry's own columns that the restore's write of each entry rebuilds.
+  (`work_item_announcement`, `work_item_flow`, `work_item_retention`, migration 0234), which the
+  entry's record carries under the keys of the entry's former columns and the restore writes back
+  with each entry.
 * **Kept figures** (`collection_figure`, `collection_figure_touch`, `collection_figure_stamp`,
   migration 0299): counts kept between reads and the record of when they stop answering; a
   restore's write of each entry records its change, and the first read counts again.

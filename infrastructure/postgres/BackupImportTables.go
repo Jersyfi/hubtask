@@ -1428,7 +1428,12 @@ var importers = map[string]importer{
 	},
 	"work_item": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
-			return queries.ImportWorkItem(ctx, sqlc.ImportWorkItemParams{Payload: payload, Overwrite: overwrite})
+			written, err := queries.ImportWorkItem(ctx, sqlc.ImportWorkItemParams{Payload: payload, Overwrite: overwrite})
+			if err != nil || written == 0 {
+				return written, err
+			}
+			// After the entry, so that the archive's moments replace what the triggers recorded.
+			return written, queries.ImportWorkItemSideRows(ctx, payload)
 		},
 		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
 			return queries.HoldsWorkItem(ctx, payload)

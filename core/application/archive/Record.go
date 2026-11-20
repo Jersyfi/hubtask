@@ -1643,11 +1643,11 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// Written by the trigger of migration 0218 from the entry's custom fields, which the archive
 	// carries: the restore's write of each entry rebuilds it.
 	"entry_field_value": "a typed projection of the custom fields the entries carry, rebuilt by the trigger as each entry is restored",
-	// Mirrored by the trigger of migration 0234 from the entry's own columns, which the archive
-	// carries: the restore's write of each entry rebuilds them.
-	"work_item_announcement": "a mirror of the entry's announcement moments, rebuilt by the trigger as each entry is restored",
-	"work_item_flow":         "a mirror of the entry's flow moments, rebuilt by the trigger as each entry is restored",
-	"work_item_retention":    "a mirror of what a retention run marked on the entry, rebuilt by the trigger as each entry is restored",
+	// The slim entry's side tables (F-10, migration 0234): the entry's record carries them under
+	// the keys of its former columns, and the restore's write of each entry writes them back.
+	"work_item_announcement": "the entry's announcement moments, carried in the entry's own record and restored with it",
+	"work_item_flow":         "the entry's flow moments, carried in the entry's own record and restored with it",
+	"work_item_retention":    "what a retention run marked on the entry, carried in the entry's own record and restored with it",
 	// Migration 0299: counts kept between reads and the bookkeeping that says when they stop
 	// answering. A restore writes its entries, every write records itself, and the first read
 	// counts again.
