@@ -8,7 +8,7 @@ import { SOURCE } from '../i18n/source.ts';
 import { PRODUCTS } from '../navigation.ts';
 import { ROUTES } from '../routes.ts';
 import { resolve } from '../router.ts';
-import { continueReading, daysOverdue, pagesFigures, verifiedBySpace, collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse, placesToCreate, writableHubs, nextReleaseOf, hubsWithAssetsFirst, inventoryByClass, sprintsRunning, pagesChangedSince, boardsChangedSince, goalsStanding, phasesOf, attentionAcross, planCounts } from './home.ts';
+import { continueReading, daysOverdue, pagesFigures, verifiedBySpace, collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, recentPosts, releasesDue, placesByUse, placesToCreate, writableHubs, nextReleaseOf, hubsWithAssetsFirst, inventoryByClass, sprintsRunning, pagesChangedSince, boardsChangedSince, goalsStanding, phasesOf, attentionAcross, planCounts } from './home.ts';
 
 // user-experience.md §2.2: every product's home leads somewhere - to a hub's screen of it or to a
 // workspace-wide screen it already has - and every address resolves to a route.
@@ -31,6 +31,7 @@ test('every product home draws the shared vocabulary of tabs, For you first and 
   const ids = (module: string) => homeTabs(module).map((tab) => tab.id);
   assert.deepEqual(ids('PLANNING'), ['foryou', 'sprints', 'releases', 'roadmaps']);
   assert.deepEqual(ids('KNOWLEDGE'), ['foryou', 'spaces', 'notes']);
+  assert.deepEqual(ids('POSTS'), ['foryou', 'all']);
   assert.deepEqual(ids('WHITEBOARD'), ['foryou', 'all', 'templates']);
   assert.deepEqual(ids('SERVICE_DESK'), ['foryou', 'desks', 'reports', 'settings']);
   assert.deepEqual(ids('ASSETS'), ['inventory', 'classes', 'sources', 'settings']);
@@ -53,7 +54,7 @@ test('My notes keeps its own address, and the assets their settings at the home'
 // user-experience.md §3.3: the switched-off products are offered to whoever may switch one on, and
 // to nobody else; nothing while the manifest is unread.
 test('More in Hubtask lists the products that are off, for a holder of STRUCTURE only', () => {
-  assert.deepEqual(moreInHubtask({ modulesOn: ['KNOWLEDGE', 'TIME'], mayShape: true }).map((row) => row.module), ['PLANNING', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'GOALS', 'AGENTS']);
+  assert.deepEqual(moreInHubtask({ modulesOn: ['KNOWLEDGE', 'TIME'], mayShape: true }).map((row) => row.module), ['PLANNING', 'POSTS', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'GOALS', 'AGENTS']);
   assert.deepEqual(moreInHubtask({ modulesOn: [], mayShape: false }), []);
   assert.deepEqual(moreInHubtask({ modulesOn: undefined, mayShape: true }), []);
   assert.deepEqual(moreInHubtask({ modulesOn: PRODUCTS.map((row) => row.module), mayShape: true }), []);
@@ -71,6 +72,21 @@ test('the boards of every hub are one list, the last changed first, cut where th
   // A hub the module is off at is not listed, even where an earlier answer is still held.
   assert.deepEqual(recentBoards(lists, ['h1'], 10).map((each) => each.id), ['a', 'b']);
   assert.deepEqual(recentBoards({}, ['h1'], 10), []);
+});
+
+// §2.2: the posts' home lists the posts gone out across hubs, newest first; a draft or a scheduled
+// post stays its writers' on the hub's page, and a hub whose posts went off keeps no row.
+test('the posts gone out in every hub are one list, the newest first', () => {
+  const post = (id: string, hub: string, state: string, published: string | null, at = '2026-10-01T08:00:00Z') =>
+    ({ page_id: id, hub_id: hub, state, published_at: published, publish_at: published, created_at: at });
+  const lists = {
+    h1: [post('a', 'h1', 'PUBLISHED', '2026-11-01T10:00:00Z'), post('draft', 'h1', 'DRAFT', null, '2026-11-09T10:00:00Z')],
+    h2: [post('b', 'h2', 'PUBLISHED', '2026-11-02T08:00:00Z'), post('later', 'h2', 'SCHEDULED', null, '2026-11-08T08:00:00Z')],
+  };
+  assert.deepEqual(recentPosts(lists, ['h1', 'h2'], 10).map((each) => each.page_id), ['b', 'a']);
+  assert.deepEqual(recentPosts(lists, ['h1', 'h2'], 1).map((each) => each.page_id), ['b']);
+  assert.deepEqual(recentPosts(lists, ['h1'], 10).map((each) => each.page_id), ['a']);
+  assert.deepEqual(recentPosts({}, ['h1'], 10), []);
 });
 
 // §2.2: the pages' home lists recently changed pages across hubs - the space's content only - and

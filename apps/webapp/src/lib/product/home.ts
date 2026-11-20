@@ -9,6 +9,7 @@
 
 import { PRODUCTS, type ProductRow } from '../navigation.ts';
 import { modulesHere } from '../data/modules.ts';
+import { postMoment } from '../data/posts.ts';
 
 export interface HomeTab {
   readonly id: string;
@@ -36,6 +37,12 @@ export function homeTabs(module: string): readonly HomeTab[] {
         forYou('/pages'),
         { id: 'spaces', code: 'app.product_home.tab_spaces', path: '/pages?tab=spaces' },
         { id: 'notes', code: 'app.nav.notes', path: '/notes' },
+      ];
+    case 'POSTS':
+      // *For you* is what is new for the reader across hubs; *All* every hub's posts and the hubs.
+      return [
+        forYou('/posts'),
+        { id: 'all', code: 'app.product_home.tab_all', path: '/posts?tab=all' },
       ];
     case 'WHITEBOARD':
       return [
@@ -100,6 +107,8 @@ export function hubScreenOf(module: string, hubId: string): string | undefined {
       return `${at}/plan`;
     case 'KNOWLEDGE':
       return `${at}/pages`;
+    case 'POSTS':
+      return `${at}/posts`;
     case 'WHITEBOARD':
       return `${at}/whiteboards`;
     case 'ASSETS':
@@ -125,6 +134,8 @@ export function createOf(module: string): { readonly code: string; readonly leve
       return { code: 'app.sprints.plan', level: 'COLLECTION' };
     case 'KNOWLEDGE':
       return { code: 'app.pages.new', level: 'HUB' };
+    case 'POSTS':
+      return { code: 'app.posts.new', level: 'HUB' };
     case 'WHITEBOARD':
       return { code: 'app.whiteboards.new', level: 'HUB' };
     case 'ASSETS':
@@ -230,6 +241,27 @@ export function recentBoards<B extends { readonly hub_id: string; readonly updat
   return hubIds
     .flatMap((hubId) => lists[hubId] ?? [])
     .sort((a, b) => (a.updated_at < b.updated_at ? 1 : a.updated_at > b.updated_at ? -1 : 0))
+    .slice(0, limit);
+}
+
+/** What the posts' home reads of a post: a row of a hub's `GET /hubs/{id}/posts`. */
+export interface PostRow {
+  readonly hub_id: string;
+  readonly state: string;
+  readonly published_at: string | null;
+  readonly publish_at: string | null;
+  readonly created_at: string;
+}
+
+/**
+ * The posts gone out in the hubs where posts are on, the newest first (§2.2), at most `limit`:
+ * a draft or a scheduled post is its writers' and stays on its hub's page. Only the hubs named, so
+ * a hub whose module went off keeps no row here.
+ */
+export function recentPosts<P extends PostRow>(lists: Readonly<Record<string, readonly P[]>>, hubIds: readonly string[], limit: number): P[] {
+  return hubIds
+    .flatMap((hubId) => (lists[hubId] ?? []).filter((post) => post.state === 'PUBLISHED'))
+    .sort((a, b) => postMoment(b).localeCompare(postMoment(a)))
     .slice(0, limit);
 }
 

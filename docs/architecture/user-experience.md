@@ -101,6 +101,7 @@ By default in `Module.Keys()` order, so the section never reorders itself when a
 | WORKFLOWS | — | — | No home: workflows shape entries in every product. Their screens are the administration's *Types & workflows* (§8) and the entry's status |
 | PLANNING | *Plans* | `/plans` | Every plan the reader may read — hub plans and collections with a plan, sprints running, releases due — with their state; *Roadmaps* as a tab |
 | KNOWLEDGE | *Pages* | `/pages` | The page spaces of the hubs the reader may read, recently changed pages, pages waiting for the reader's review; *My notes* as a tab (today `/notes`, which moves there) |
+| POSTS | *Posts* | `/posts` | What is new for the reader across hubs, the posts gone out newest first; every post and the hubs with posts on as *All* |
 | WHITEBOARD | *Whiteboards* | `/whiteboards` | Every board the reader may read, as preview cards, recent first |
 | SERVICE_DESK | *Service desk* | `/desk` | The handler's queues across every desk collection the reader works in: *Mine*, *Unassigned in my groups*, *About to breach*, *All open*, as saved views; the desks as a tab |
 | ASSETS | *Inventory* | `/assets` | The inventory across hubs and its objects, with a health summary at the top |
@@ -111,7 +112,7 @@ By default in `Module.Keys()` order, so the section never reorders itself when a
 **Each home shows its product across every hub**; what belongs to the workspace or the person
 lives there and never in a hub, with the shared vocabulary of tabs of §5.1 (*For you* first where
 the product holds personal work, *Settings* last): Plans *For you · Sprints · Releases · Roadmaps*;
-Pages *For you · Spaces · My notes*; Whiteboards *For you · All · Templates*; Service desk *For you ·
+Pages *For you · Spaces · My notes*; Posts *For you · All*; Whiteboards *For you · All · Templates*; Service desk *For you ·
 Desks · Reports · Settings*; Inventory *Inventory · Object types · Sources · Settings*; Time *My week · To
 decide · Report · Absences · Settings*; Goals *Goals · Portfolios · Dashboards*; Agents *Agents ·
 Waiting · Runs · Settings*. The rows are ordered personally by drag or `Alt+↑/↓`, and a row's ⋯
