@@ -1422,7 +1422,8 @@ figure its own head shows (UC-WRK-29); one column on `compact`.
 shape (`SettingsLayout`) — the sections as a list at the start saying each one's state, the open
 one beside it with its own save bar, each at its own address; the sections are never links into
 one long page. Below `expanded` the list is the page and a section opens as its own with *‹ back*,
-the tablet's portrait width included (D-4). One save model per section (PS-10); a setting is one
+the tablet's portrait width included (D-4). A page of one section — the administration's legal
+links — draws no list: the section stands alone across the page, with no way back to a list. One save model per section (PS-10); a setting is one
 row, its name, source and help beside its control at the control's width (PS-11, PS-13). The sections are one list in one order
 (`user-experience.md` §5.7; `lib/workspace/placeSections.ts`, its test pinning the order per level):
 a collection's *General · Templates and presets · Types & forms · Fields · Labels · Entry templates · Workflow ·
