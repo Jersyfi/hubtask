@@ -70,7 +70,9 @@ and the pod never starts. It is a defect that hides: the same chart, the same co
 every tag that contains a letter.
 */}}
 {{- define "hubtask.image" -}}
-{{- printf "%s:%s" .Values.image.repository (.Values.image.tag | default .Chart.AppVersion | toString) -}}
+{{- $ref := printf "%s:%s" .Values.image.repository (.Values.image.tag | default .Chart.AppVersion | toString) -}}
+{{- if .Values.image.digest -}}{{- $ref = printf "%s@%s" $ref .Values.image.digest -}}{{- end -}}
+{{- $ref -}}
 {{- end -}}
 
 {{/*

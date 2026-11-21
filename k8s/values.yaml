@@ -2,6 +2,9 @@
 image:
   repository: ghcr.io/jersyfi/hubtask
   tag: ""            # empty = appVersion from Chart.yaml
+  # Optional `sha256:…`: the pods name the image by tag and digest, so a new image under the same
+  # tag rolls out. Never in a label, which holds 63 characters and no `@`.
+  digest: ""
   pullPolicy: IfNotPresent
 
 # Each role as its own deployment: an automation storm must not starve the
