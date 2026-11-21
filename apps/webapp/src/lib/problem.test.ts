@@ -313,6 +313,15 @@ test('the sentence without its reference is handed over for a fold that carries 
 
 // UX-5: an address naming no object - a not-found, or an id in no id's shape - is a not-found
 // state with a way back, not "this version cannot read the answer".
+test('an error that is not a transport failure is said as the floor, not thrown again', () => {
+  // A screen hands every caught error here; one thrown by its own code has no field errors, and
+  // the display of a failure must not become a second one.
+  const rendered = renderProblem(new TypeError('boom') as never, messages);
+  assert.equal(rendered.message, messages.t('app.something_went_wrong'));
+  assert.equal(rendered.fields.size, 0);
+  assert.equal(rendered.isServerFault, true);
+});
+
 test('an address that names no object is told apart from a failure', () => {
   assert.equal(isNoSuchObject(new TransportError('problem', { status: 404, code: 'not_found' })), true);
   assert.equal(isNoSuchObject(new TransportError('problem', { status: 400, code: 'malformed_request', detailCode: 'request.parameter_invalid' })), true);
