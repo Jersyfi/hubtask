@@ -66,7 +66,7 @@ Every job of `ci.yml`, in file order. `ci-required` waits for all of the others 
 | `numbers` | `make gate-numbers`: one file per migration and ADR number in the tree; on a pull request, no number it adds that another open pull request adds (§3.5) |
 | `pr-description` | `make gate-pr` over the description and the title read from the API; not for Dependabot's pull requests (§3.1) |
 | `node` | Per affected workspace package: the workspace map lint, build, lint, typecheck, test; for the website `make website` first |
-| `engines` | The built web app in Chromium through pinned Playwright ([ADR-0048](../adr/ADR-0048-browser-job-driver.md)), asserting [ADR-0044](../adr/ADR-0044-browser-support-row.md)'s feature table, with Firefox and WebKit best effort by hand (`ENGINES=firefox,webkit`); the suites in three shards by file (`node --test --test-shard`), each on its own runner; the one job that runs a browser |
+| `engines` | The built web app in Chromium through pinned Playwright ([ADR-0048](../adr/ADR-0048-browser-job-driver.md)), asserting [ADR-0044](../adr/ADR-0044-browser-support-row.md)'s feature table, with Firefox and WebKit best effort by hand (`ENGINES=firefox,webkit`); the suites in three shards by file (`node --test --test-shard`), each on its own runner; the one job that runs a browser. The walks write down every answer they give for `/api/v1`, and `make gate-walks` then holds this shard's answers to `api/openapi.yaml`: an answer the contract does not allow fails unless `test/contract/testdata/walks-baseline.txt` lists it, and `make gate-pr` refuses a line added to that list. The rules for a walk, and the two counts the `node` job holds (fixed waits, suites that cite no use case check), are in [`apps/webapp/e2e/AGENTS.md`](../../apps/webapp/e2e/AGENTS.md) |
 | `shell` | The installed apps' shell (`apps/webapp/src-tauri/`) on Linux, Windows and Android: the icons generated from the mark and checked, a debug build bundled as `.deb`, NSIS and an x86_64 APK, each with the `walk` feature; on Linux also `cargo-deny` (licences, sources), `rustfmt`, `clippy` and the Rust tests. Then each leg's smoke walk (UC-SYN-07 check 9, `apps/webapp/e2e/webview/smoke.mjs`): sign in, open a hub, create, edit and complete an entry, sign out, against a server built from the commit on the runner's PostgreSQL, through the engine's own WebDriver - WebKitWebDriver, the runner's msedgedriver, its chromedriver with an API 35 emulator. A failure in one engine fails the lane. Behind the `shell` filter: the web app, the packages it is built from, the workspace manifests |
 | `tokens-drift` | `make tokens`; the committed `LabelTokens.go` must not change |
 | `api-client-drift` | `make api-client`, then the workspace built and typechecked against it; nothing generated may be committed |
@@ -152,11 +152,12 @@ with one sentence saying where its content went; and a test the branch removes, 
 deletes and a test it adds a skip to are each named in the description — a Go `Test…` or `Fuzz…`
 function, a `test(` or `it(` of a `*.test.ts`, `*.test.mjs` or `*.test.js`. A name that comes back
 anywhere in the diff is a moved test; a declaration replaced within one run of changed lines is a
-rename. It does not see a weakened assertion, a test deleted with another written in its place, a
+rename. It also refuses a line added to the baseline of the walks' answers outside the contract
+(`test/contract/testdata/walks-baseline.txt`). It does not see a weakened assertion, a test deleted with another written in its place, a
 test removed in one package while one of the same name is added in another, or whether the
 *Review* and the reasons are true. The
-history rules hold pull requests opened from 2026-10-08 on, *Review* and the removed tests those
-opened from 2026-11-21 on. It
+history rules hold pull requests opened from 2026-10-08 on, *Review*, the removed tests and the
+walks' baseline those opened from 2026-11-21 on. It
 reads the description and the title from the API, so a re-run judges them as they stand.
 `make gate-pr BODY=<file> TITLE="<title>"` runs it locally, `BASE=origin/main` with the history;
 `DRAFT=1` lets a draft's *Review* say `not yet: <why>`, which CI — reading only a ready pull

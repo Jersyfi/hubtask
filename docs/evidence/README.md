@@ -132,7 +132,8 @@ one — it keeps the port, the new one dies on `ops: bind`, and the page still a
 binary.
 
 **Scripting a walk.** Playwright lives in `apps/webapp/node_modules`, with the three engines. A
-probe is a temporary file under `apps/webapp/e2e/` that is deleted afterwards.
+probe is a temporary file under `apps/webapp/e2e/` that is deleted afterwards. A walk that stays
+as a test follows the rules in [`apps/webapp/e2e/AGENTS.md`](../../apps/webapp/e2e/AGENTS.md).
 
 - Load each route in a fresh page and read `document.activeElement` before every key press; press
   only what the script named. A keystroke on an unknown focus is a write nobody asked for.

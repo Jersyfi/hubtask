@@ -13,7 +13,7 @@ complements [arc42.md](./arc42.md) chapters 10 and 11.
 | **Application** | Use cases, permissions, idempotency, events | Fakes of the ports beside the tests | `make gate-unit` (coverage ≥ 75 % per package) | < 30 s |
 | **Infrastructure** | Repositories, RLS, queue, outbox, migrations | Testcontainers with a real PostgreSQL — a mock of RLS would only test the mock | `make gate-integration` | < 5 min |
 | **Contract** | REST, events and MCP tools against their schemas | `test/contract` | `make gate-contract` | < 1 min |
-| **End-to-end** | The core paths over HTTP against the whole process | `scripts/hubctl-e2e.sh` on the Compose stack; Playwright for the web app ([ADR-0048](../adr/ADR-0048-browser-job-driver.md)) | `make gate-e2e`, `make gate-compose` | < 5 min |
+| **End-to-end** | The core paths over HTTP against the whole process | `scripts/hubctl-e2e.sh` on the Compose stack; Playwright for the web app ([ADR-0048](../adr/ADR-0048-browser-job-driver.md)), by the rules in [`apps/webapp/e2e/AGENTS.md`](../../apps/webapp/e2e/AGENTS.md) | `make gate-e2e`, `make gate-compose` | < 5 min |
 | **Load** | Query DSL at scale, automation storm, overload | `test/load` against the real binary, two tiers ([observability-reliability.md](./observability-reliability.md) §13.2) | `make gate-load` | Nightly / before a release |
 | **Architecture** | Layers, use case parity, the `go` ban, authorisation, message codes | `depguard`, `test/architecture` ([project-structure.md](./project-structure.md) §2) | `make gate-architecture` | < 10 s |
 
