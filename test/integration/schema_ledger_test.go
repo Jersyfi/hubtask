@@ -73,8 +73,8 @@ func TestTheLedgerReadsBeforeAndAfterItsReaderOnAManagedDatabase(t *testing.T) {
 	}
 }
 
-// The application role reads the compatibility floor (migration 0344); no contract step has raised
-// it yet, so it holds this build back from nothing.
+// The application role reads the compatibility floor (migration 0344), and it never holds this
+// build back.
 func TestTheApplicationRoleReadsTheCompatibilityFloor(t *testing.T) {
 	ctx := context.Background()
 	floor, err := postgres.SchemaLedger{UnitOfWork: postgres.NewUnitOfWork(appPool(ctx, t))}.Floor(ctx)
