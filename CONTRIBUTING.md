@@ -4,6 +4,19 @@ Thanks for your interest. Hubtask's architecture is documented in full, and that
 work from. The rules for changing anything — for a person and for an AI coding agent of any make —
 are in [`AGENTS.md`](AGENTS.md). This file is the human way in.
 
+## Quick start
+
+With Go, Docker, Node.js and `git` installed ("Working from a new machine" below):
+
+```bash
+make tools && make dev   # a database, the server, a demo workspace with content, the web app
+make check               # the checks of what you changed, in about a minute
+make dev-down            # stops and removes everything `make dev` made
+```
+
+`make dev` prints the address to open and the demo people's password, drawn at that start. It uses
+its own database, ports and `.dev/` directory, so it runs beside anything else on your machine.
+
 ## Ways to contribute
 
 - **Report a bug** with the bug form. It becomes a `finding`; the next milestone takes it in.
@@ -73,8 +86,9 @@ maintainers', handed over by the owner on request and never written into this re
 
 ## Signing in locally
 
-`make db-up && make migrate` gives you a database and a schema, but no workspace and nobody to be.
-Four things, once:
+`make dev` does all of this for a demo workspace of its own. By hand, against the development
+database: `make db-up && make migrate` gives you a database and a schema, but no workspace and
+nobody to be. Four things, once:
 
 **1. The application role needs its login.** `make migrate` creates the role without a password;
 the migrator binary grants it:
