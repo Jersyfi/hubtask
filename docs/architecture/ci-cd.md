@@ -484,3 +484,86 @@ Both run after the merge and gate nothing, so their failures would land where no
   account, never the website's. `WORKBENCH_REMOTE_DIR` defaults to that account's home, and the
   step refuses a target that is neither empty nor a previous workbench deploy: `mirror --delete` on
   the wrong directory would replace `hubtask.eu`.
+
+---
+
+## 11. The flow report and its thresholds
+
+`flow.yml` runs `make flowstats` every Monday for the seven days that ended the day before, beside
+the seven before those, and without the session figures: the transcripts are on the owner's
+machine only, where `make flowstats SINCE=… UNTIL=…` prints them too. The report is one comment
+per week on the issue "Flow report", which the job finds by its title and opens if it is missing.
+The job starts no work.
+
+**The thresholds are the owner's to set.** The values below are the first setting, proposed with
+the report on 2026-11-21. Changing one is the owner's decision; it changes this table and
+`tools/flowstats/thresholds.json`, which is what the tool reads, in the same pull request. The
+file stands beside the tool because the tool embeds it, so the report cannot run with thresholds
+other than the ones it was built with; a test of the tool holds the table and the file equal.
+
+A measure over its threshold opens an issue labelled `finding`, titled "Flow report: <measure> is
+over its threshold", with the measure, the value, the threshold and the window. There is one per
+measure: an open one is left as it is, a closed one is opened again. A measure that was not
+measured breaches nothing.
+
+| Measure | Id | Threshold |
+|---|---|---|
+| Pull request run, median wall minutes | `pr_run_median_minutes` | ≤ 20 |
+| Pull request runs failed, percent | `pr_runs_failed_percent` | ≤ 15 |
+| `main` runs needing a second attempt, percent | `main_second_attempt_percent` | ≤ 10 |
+| Hours `main` was red | `main_red_hours` | ≤ 2 |
+| `fix` pull requests merged within seven days of a `feat` touching the same package | `fix_after_feat` | does not rise two windows running |
+| Open `finding` issues, and the oldest | `open_findings` | reported |
+| Open `decision` issues, and the oldest | `open_decisions` | reported |
+| Uncited checks of built use cases | `uncited_checks_built` | does not rise |
+| Fixed waits in the walks (`waitForTimeout`) | `fixed_waits` | does not rise |
+| Timer waits in the walks (`setTimeout`) | `timer_waits` | does not rise |
+| Suites without a use case | `suites_without_use_case` | does not rise |
+| Stub answers outside the contract | `answers_outside_contract` | does not rise |
+| Use cases by state | `use_cases_by_state` | reported |
+| Lines added and removed under `docs/` outside `archive/` | `docs_lines` | reported |
+| Lines of the root `AGENTS.md` | `agents_lines` | reported |
+| Comment blocks of twenty lines or more | `comment_blocks` | does not rise |
+| Tests deleted or skipped in merged pull requests | `lost_tests` | reported |
+| Unreachable Go functions | `unreachable_go_functions` | reported |
+| Unused translation keys | `unused_translation_keys` | reported |
+| CodeRabbit: comments made | `coderabbit_comments` | reported |
+| CodeRabbit: share of comments that led to a change | `coderabbit_share` | reported |
+| Open code scanning alerts, and the oldest | `alerts_code_scanning` | reported |
+| Open secret scanning alerts, and the oldest | `alerts_secret_scanning` | reported |
+| Open Dependabot alerts, and the oldest | `alerts_dependabot` | reported |
+
+Beside the table the report prints the merged pull requests by kind, the CI runs, the ten worst
+jobs by failures and by median minutes, and each test a merged pull request deleted or skipped
+with the line of its description that names it.
+
+How each measure is read:
+
+* **Runs** are `ci.yml`'s finished runs that were not cancelled. A pull request's run that took
+  less than two minutes checked nothing and is left out. A run started by hand counts in no row.
+  A run's wall time ends with its last attempt.
+* **A second attempt** is a run on `main` whose newest attempt is not its first.
+* **Red hours** run from the end of a failed run on `main` to the end of the next one that
+  passed, inside the window. A run that failed and passed when run again counts as passed.
+* **Jobs** are read from every attempt of the window's runs, one request per run.
+* **A package** is a Go file's directory, or the workspace package of a file under `apps/` or
+  `packages/`; a pull request's first hundred changed paths are read.
+* **The tree's measures** are read from the checkout's commit, and beside it from the commit the
+  window started with: the totals of `apps/webapp/e2e/bounds.json`, the lines of
+  `test/contract/testdata/walks-baseline.txt`, the bound `uncitedBuiltAtMost` that
+  `make gate-docs` holds, each use case's `state:`, and the runs of twenty or more `//` lines in
+  the Go files under `core/`, `presentation/`, `infrastructure/` and `cmd/`.
+* **A test deleted or skipped** is read from a pull request's merge commit, by the same reading
+  as `make gate-pr` and with its limits; a skip is named by its file.
+* **Issues and alerts** are counted as they are when the report runs, so they have no value for
+  the window before.
+
+**Not measured** is printed with its reason, never as a zero:
+
+* Unreachable Go functions: `deadcode` is not among the tools `make tools` pins.
+* Unused translation keys: no tool in the repository counts them.
+* CodeRabbit's comments while no review comment of its login is in the window, and the share
+  that led to a change, which nothing records.
+* An alert kind the job's token may not read. Workflow permissions offer `security-events: read`
+  for code scanning and nothing for secret scanning or Dependabot alerts; what the API answers
+  the job's token is seen on its first run.

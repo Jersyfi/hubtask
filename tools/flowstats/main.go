@@ -7,11 +7,16 @@
 // session spends waiting and how many tokens it reads. It prints one Markdown report, so two windows
 // are compared like with like, by the same code.
 //
+// The measures of the weekly flow report (ci-cd.md §11) stand in one table, each beside its value
+// in the window before and its threshold from thresholds.json. A breached threshold is printed as
+// the text of a `finding`; -out writes the report and those texts as JSON for the job that files
+// them. A measure without a source prints "not measured" and why, never a zero.
+//
 // The GitHub part reads through the gh CLI. The transcript part reads the JSON lines Claude Code
 // writes under ~/.claude/projects, only the directories whose name contains the repository's name;
 // it reads usage figures, timestamps and the commands a session ran, and prints no content.
 //
-// Usage: flowstats -since 2026-10-13 -until 2026-10-22 [-transcripts <dir>] [-github=false]
+// Usage: flowstats -since 2026-10-13 -until 2026-10-22 [-transcripts <dir>] [-github=false] [-jobs=false] [-out <file>]
 package main
 
 import (
@@ -37,7 +42,9 @@ func main() {
 	until := flag.String("until", "", "last day of the window, YYYY-MM-DD (UTC), included")
 	repo := flag.String("repo", "Jersyfi/hubtask", "the GitHub repository")
 	transcripts := flag.String("transcripts", defaultTranscripts(), "Claude Code's projects directory; empty skips the transcripts")
-	github := flag.Bool("github", true, "read pull requests and CI runs from GitHub")
+	github := flag.Bool("github", true, "read pull requests, CI runs, issues and alerts from GitHub")
+	jobs := flag.Bool("jobs", true, "read the jobs of the window's runs, one request per run")
+	out := flag.String("out", "", "also write the report and the breaches' texts to this file, as JSON")
 	flag.Parse()
 
 	from, err := time.Parse("2006-01-02", *since)
@@ -49,26 +56,40 @@ func main() {
 		fail("-until: %v", err)
 	}
 	w := window{from: from, to: to.AddDate(0, 0, 1)}
-
-	fmt.Printf("## Flow %s … %s\n\n", *since, *until)
-	if *github {
-		prs, err := mergedPullRequests(*repo, w)
-		if err != nil {
-			fail("pull requests: %v", err)
-		}
-		printPullRequests(prs)
-		runs, err := ciRuns(*repo, w)
-		if err != nil {
-			fail("CI runs: %v", err)
-		}
-		printRuns(runs)
+	limits, err := readThresholds()
+	if err != nil {
+		fail("thresholds: %v", err)
 	}
+
+	b := &bytes.Buffer{}
+	fmt.Fprintf(b, "## Flow %s, beside %s\n\n", w, w.before())
+	found := map[string]measure{}
+	if *github {
+		if err := githubPart(b, found, *repo, w, *jobs); err != nil {
+			fail("%v", err)
+		}
+	}
+	if err := treePart(found, w); err != nil {
+		fail("the tree: %v", err)
+	}
+	measures := inOrder(found, *github)
+	printMeasures(b, measures, limits)
+	breached := breaches(measures, limits, w)
+	printBreaches(b, breached)
 	if *transcripts != "" {
 		s, err := readTranscripts(*transcripts, filepath.Base(*repo), w)
 		if err != nil {
 			fail("transcripts: %v", err)
 		}
-		printSessions(s)
+		printSessions(b, s)
+	}
+	if _, err := os.Stdout.Write(b.Bytes()); err != nil {
+		fail("%v", err)
+	}
+	if *out != "" {
+		if err := writeResult(*out, w, b.String(), breached); err != nil {
+			fail("-out: %v", err)
+		}
 	}
 }
 
@@ -93,7 +114,26 @@ type window struct{ from, to time.Time }
 
 func (w window) has(t time.Time) bool { return !t.Before(w.from) && t.Before(w.to) }
 
+// before is the window of the same length that ends where w starts.
+func (w window) before() window { return window{from: w.from.Add(-w.to.Sub(w.from)), to: w.from} }
+
+// String names the window by its first and last day.
+func (w window) String() string {
+	return w.from.Format("2006-01-02") + " … " + w.to.AddDate(0, 0, -1).Format("2006-01-02")
+}
+
+// serverError is GitHub answering that it failed, which a second request most often survives.
+var serverError = regexp.MustCompile(`HTTP 5\d\d`)
+
 func gh(args ...string) ([]byte, error) {
+	out, err := ghOnce(args...)
+	if err != nil && serverError.MatchString(err.Error()) {
+		return ghOnce(args...)
+	}
+	return out, err
+}
+
+func ghOnce(args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), callTimeout)
 	defer cancel()
 	var stderr bytes.Buffer
@@ -110,7 +150,11 @@ func gh(args ...string) ([]byte, error) {
 
 // pullRequest is a merged pull request, reduced to the moments the report measures.
 type pullRequest struct {
+	number      int
 	kind        string // feat, fix or other, from the Conventional Commit title
+	body        string
+	mergeCommit string
+	files       []string // the first hundred paths it changed
 	firstCommit time.Time
 	opened      time.Time
 	ready       time.Time
@@ -121,7 +165,8 @@ const prQuery = `query($q: String!, $after: String) {
   search(query: $q, type: ISSUE, first: 25, after: $after) {
     pageInfo { hasNextPage endCursor }
     nodes { ... on PullRequest {
-      title createdAt mergedAt headRefName
+      number title body createdAt mergedAt headRefName mergeCommit { oid }
+      files(first: 100) { nodes { path } }
       commits(first: 100) { nodes { commit { authoredDate } } }
       timelineItems(itemTypes: [READY_FOR_REVIEW_EVENT], last: 1) { nodes { ... on ReadyForReviewEvent { createdAt } } }
     } }
@@ -136,7 +181,11 @@ type prPage struct {
 				EndCursor   string
 			}
 			Nodes []struct {
+				Number      int
 				Title       string
+				Body        string
+				MergeCommit struct{ Oid string }
+				Files       struct{ Nodes []struct{ Path string } }
 				CreatedAt   time.Time
 				MergedAt    time.Time
 				HeadRefName string
@@ -176,7 +225,10 @@ func mergedPullRequests(repo string, w window) ([]pullRequest, error) {
 			if strings.HasPrefix(n.HeadRefName, "dependabot/") {
 				continue
 			}
-			pr := pullRequest{kind: "other", opened: n.CreatedAt, ready: n.CreatedAt, merged: n.MergedAt, firstCommit: n.CreatedAt}
+			pr := pullRequest{number: n.Number, kind: "other", body: n.Body, mergeCommit: n.MergeCommit.Oid, opened: n.CreatedAt, ready: n.CreatedAt, merged: n.MergedAt, firstCommit: n.CreatedAt}
+			for _, f := range n.Files.Nodes {
+				pr.files = append(pr.files, f.Path)
+			}
 			if m := titleKind.FindString(n.Title); m == "feat" || m == "fix" {
 				pr.kind = m
 			}
@@ -197,10 +249,10 @@ func mergedPullRequests(repo string, w window) ([]pullRequest, error) {
 	}
 }
 
-func printPullRequests(prs []pullRequest) {
-	fmt.Printf("### Merged pull requests\n\n")
-	fmt.Printf("Hours, median / 75th percentile. Dependabot left out.\n\n")
-	fmt.Printf("| kind | n | first commit → merged | opened → ready | ready → merged |\n|---|---|---|---|---|\n")
+func printPullRequests(b *bytes.Buffer, prs []pullRequest) {
+	fmt.Fprintf(b, "### Merged pull requests\n\n")
+	fmt.Fprintf(b, "Hours, median / 75th percentile. Dependabot left out.\n\n")
+	fmt.Fprintf(b, "| kind | n | first commit → merged | opened → ready | ready → merged |\n|---|---|---|---|---|\n")
 	for _, kind := range []string{"feat", "fix", "other", "all"} {
 		var total, draft, merge []float64
 		for _, p := range prs {
@@ -211,23 +263,29 @@ func printPullRequests(prs []pullRequest) {
 			draft = append(draft, p.ready.Sub(p.opened).Hours())
 			merge = append(merge, p.merged.Sub(p.ready).Hours())
 		}
-		fmt.Printf("| %s | %d | %s | %s | %s |\n", kind, len(total), spread(total), spread(draft), spread(merge))
+		fmt.Fprintf(b, "| %s | %d | %s | %s | %s |\n", kind, len(total), spread(total), spread(draft), spread(merge))
 	}
-	fmt.Println()
+	fmt.Fprintln(b)
 }
 
 // ----------------------------------------------------------------------------- CI
 
 // run is one finished run of ci.yml.
 type run struct {
+	id          int64
 	pullRequest bool
 	failed      bool
+	attempt     int
+	created     time.Time
+	updated     time.Time
 	wall        time.Duration // created → last update: queueing included, as a worker waits it
 }
 
 type runsPage struct {
 	WorkflowRuns []struct {
+		ID         int64
 		Event      string
+		RunAttempt int `json:"run_attempt"`
 		Status     string
 		Conclusion string
 		CreatedAt  time.Time `json:"created_at"`
@@ -262,6 +320,10 @@ func ciRuns(repo string, w window) ([]run, error) {
 					continue
 				}
 				runs = append(runs, run{
+					id:          r.ID,
+					attempt:     r.RunAttempt,
+					created:     r.CreatedAt,
+					updated:     r.UpdatedAt,
 					pullRequest: pullRequest,
 					failed:      r.Conclusion == "failure",
 					wall:        r.UpdatedAt.Sub(r.CreatedAt),
@@ -281,9 +343,9 @@ func runKind(event string) (pullRequest, counts bool) {
 	return false, event == "push"
 }
 
-func printRuns(runs []run) {
-	fmt.Printf("### CI (ci.yml)\n\n")
-	fmt.Printf("| runs | n | wall minutes, median / p75 | failed |\n|---|---|---|---|\n")
+func printRuns(b *bytes.Buffer, runs []run) {
+	fmt.Fprintf(b, "### CI (ci.yml)\n\n")
+	fmt.Fprintf(b, "| runs | n | wall minutes, median / p75 | failed |\n|---|---|---|---|\n")
 	var noOps int
 	var noOpTime time.Duration
 	for _, pr := range []bool{true, false} {
@@ -307,9 +369,9 @@ func printRuns(runs []run) {
 		if !pr {
 			name = "main"
 		}
-		fmt.Printf("| %s | %d | %s | %s |\n", name, len(walls), spread(walls), percent(failed, len(walls)))
+		fmt.Fprintf(b, "| %s | %d | %s | %s |\n", name, len(walls), spread(walls), percent(failed, len(walls)))
 	}
-	fmt.Printf("| pull request, checked nothing (draft) | %d | %.1f h in total | — |\n\n", noOps, noOpTime.Hours())
+	fmt.Fprintf(b, "| pull request, checked nothing (draft) | %d | %.1f h in total | — |\n\n", noOps, noOpTime.Hours())
 }
 
 // ----------------------------------------------------------------------------- transcripts
@@ -459,20 +521,20 @@ func addTranscript(s *sessions, data []byte, w window, seen map[string]bool) boo
 	return counted
 }
 
-func printSessions(s sessions) {
-	fmt.Printf("### Sessions (Claude Code transcripts on this machine)\n\n")
+func printSessions(b *bytes.Buffer, s sessions) {
+	fmt.Fprintf(b, "### Sessions (Claude Code transcripts on this machine)\n\n")
 	if s.calls == 0 {
-		fmt.Printf("No transcript in the window.\n\n")
+		fmt.Fprintf(b, "No transcript in the window.\n\n")
 		return
 	}
-	fmt.Printf("| measure | value |\n|---|---|\n")
-	fmt.Printf("| transcript files (sessions and subagents) | %d |\n", s.files)
-	fmt.Printf("| model calls | %d |\n", s.calls)
-	fmt.Printf("| cache read / cache write / output, million tokens | %.0f / %.0f / %.1f |\n", mil(s.cacheRead), mil(s.cacheWrite), mil(s.output))
-	fmt.Printf("| input tokens in calls with more than 400k context | %s |\n", percent64(s.inputAbove400k, s.inputTotal))
-	fmt.Printf("| whole context written again (cache rebuilds) | %d calls, %.0f M tokens, %s of cache writes |\n", s.rebuilds, mil(s.rebuildTokens), percent64(s.rebuildTokens, s.cacheWrite))
-	fmt.Printf("| active hours / of which waiting in sleep or until loops | %.1f / %.1f (%s) |\n", s.active.Hours(), s.waiting.Hours(), percent64(int64(s.waiting), int64(s.active)))
-	fmt.Printf("| runs of make verify, gate-* or check | %d |\n\n", s.checkRuns)
+	fmt.Fprintf(b, "| measure | value |\n|---|---|\n")
+	fmt.Fprintf(b, "| transcript files (sessions and subagents) | %d |\n", s.files)
+	fmt.Fprintf(b, "| model calls | %d |\n", s.calls)
+	fmt.Fprintf(b, "| cache read / cache write / output, million tokens | %.0f / %.0f / %.1f |\n", mil(s.cacheRead), mil(s.cacheWrite), mil(s.output))
+	fmt.Fprintf(b, "| input tokens in calls with more than 400k context | %s |\n", percent64(s.inputAbove400k, s.inputTotal))
+	fmt.Fprintf(b, "| whole context written again (cache rebuilds) | %d calls, %.0f M tokens, %s of cache writes |\n", s.rebuilds, mil(s.rebuildTokens), percent64(s.rebuildTokens, s.cacheWrite))
+	fmt.Fprintf(b, "| active hours / of which waiting in sleep or until loops | %.1f / %.1f (%s) |\n", s.active.Hours(), s.waiting.Hours(), percent64(int64(s.waiting), int64(s.active)))
+	fmt.Fprintf(b, "| runs of make verify, gate-* or check | %d |\n\n", s.checkRuns)
 }
 
 // ----------------------------------------------------------------------------- figures

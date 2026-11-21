@@ -1,0 +1,13 @@
+{
+  "pr_run_median_minutes": { "max": 20 },
+  "pr_runs_failed_percent": { "max": 15 },
+  "main_second_attempt_percent": { "max": 10 },
+  "main_red_hours": { "max": 2 },
+  "fix_after_feat": { "rule": "no_rise_twice" },
+  "uncited_checks_built": { "rule": "no_rise" },
+  "fixed_waits": { "rule": "no_rise" },
+  "timer_waits": { "rule": "no_rise" },
+  "suites_without_use_case": { "rule": "no_rise" },
+  "answers_outside_contract": { "rule": "no_rise" },
+  "comment_blocks": { "rule": "no_rise" }
+}

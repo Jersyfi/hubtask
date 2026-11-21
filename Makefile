@@ -999,11 +999,12 @@ gate-docs:
 gate-numbers:
 	$(GO) run ./tools/numbers $(if $(BASE),-base $(BASE),) $(if $(PR),-pr $(PR),) $(if $(filter 0,$(OPEN)),-open=false,)
 
-## flowstats: How work flowed over a window - pull requests, CI, sessions (SINCE=, UNTIL=; needs gh)
-# Not a gate: a report, so that a review compares two windows by the same code (ADR-0089).
+## flowstats: The flow report of a window beside the one before it (SINCE=, UNTIL=; needs gh)
+# Not a gate: a report (ci-cd.md §11). The weekly job passes FLOWSTATS_ARGS to leave the
+# transcripts out and to get the breaches as a file.
 .PHONY: flowstats
 flowstats:
-	$(GO) run ./tools/flowstats -since $(SINCE) -until $(UNTIL)
+	@$(GO) run ./tools/flowstats -since $(SINCE) -until $(UNTIL) $(FLOWSTATS_ARGS)
 
 ## gate-main-green: main's newest run is green, or this pull request is its fix (needs gh; PR=<n>)
 # The last step of `CI required` (ADR-0083), which runs the script directly; this target is the
