@@ -4501,7 +4501,7 @@ GRANT SELECT, INSERT ON instance_event TO hubtask_app;
 -- ============ The installation's events =============================
 -- What a provider's purchase platform learns about the workspaces (UC-INS-14, multi-tenancy.md
 -- §4.3). Numbered in commit order: `number` is drawn while the writer holds the advisory lock
--- 8_010_002 until its transaction ends. No row-level-security policy, the journal's
+-- 8_010_004 until its transaction ends. No row-level-security policy, the journal's
 -- reasoning; `tenant_id` is a bare identifier, since the `deleted` event outlives its workspace. See
 -- db/migrations/0180_platform_event.sql.
 CREATE SEQUENCE platform_event_number AS bigint;

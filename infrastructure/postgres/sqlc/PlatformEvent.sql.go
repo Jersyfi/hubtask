@@ -146,18 +146,6 @@ func (q *Queries) LockPlatformEventNumbering(ctx context.Context) error {
 	return err
 }
 
-const lockPlatformEventNumberingOfTheReleaseBefore = `-- name: LockPlatformEventNumberingOfTheReleaseBefore :exec
-SELECT pg_advisory_xact_lock(8010002)
-`
-
-// The key a pod of the release before numbers under, taken after the own one and never before it:
-// two writers of this release taking them in opposite orders would wait for each other. Dropped by
-// the release after (versioning-release.md §4, "Scheduled contract steps").
-func (q *Queries) LockPlatformEventNumberingOfTheReleaseBefore(ctx context.Context) error {
-	_, err := q.db.Exec(ctx, lockPlatformEventNumberingOfTheReleaseBefore)
-	return err
-}
-
 const platformEventsAfter = `-- name: PlatformEventsAfter :many
 SELECT number, id, event_type, tenant_id, occurred_at, actor_type, actor_id, payload
 FROM platform_event
