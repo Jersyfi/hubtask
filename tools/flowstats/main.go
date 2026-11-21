@@ -9,14 +9,14 @@
 //
 // The measures of the weekly flow report (ci-cd.md §11) stand in one table, each beside its value
 // in the window before and its threshold from thresholds.json. A breached threshold is printed as
-// the text of a `finding`; -out writes the report and those texts as JSON for the job that files
-// them. A measure without a source prints "not measured" and why, never a zero.
+// the text of a `finding`; -file-as files the report and the findings as issues, which is what
+// the weekly job does. A measure without a source prints "not measured" and why, never a zero.
 //
 // The GitHub part reads through the gh CLI. The transcript part reads the JSON lines Claude Code
 // writes under ~/.claude/projects, only the directories whose name contains the repository's name;
 // it reads usage figures, timestamps and the commands a session ran, and prints no content.
 //
-// Usage: flowstats -since 2026-10-13 -until 2026-10-22 [-transcripts <dir>] [-github=false] [-jobs=false] [-reviewer <login>] [-out <file>]
+// Usage: flowstats -since 2026-10-13 -until 2026-10-22 [-transcripts <dir>] [-github=false] [-jobs=false] [-reviewer <login>] [-file-as <login>]
 package main
 
 import (
@@ -45,7 +45,7 @@ func main() {
 	github := flag.Bool("github", true, "read pull requests, CI runs, issues and alerts from GitHub")
 	jobs := flag.Bool("jobs", true, "read the jobs of the window's runs, one request per run")
 	reviewer := flag.String("reviewer", "", "the login the outside reviewer comments under; empty leaves its comments unmeasured")
-	out := flag.String("out", "", "also write the report and the breaches' texts to this file, as JSON")
+	filer := flag.String("file-as", "", "file the report and a finding per breach as issues; the login the token acts as, whose issues alone are the job's")
 	flag.Parse()
 
 	from, err := time.Parse("2006-01-02", *since)
@@ -87,9 +87,9 @@ func main() {
 	if _, err := os.Stdout.Write(b.Bytes()); err != nil {
 		fail("%v", err)
 	}
-	if *out != "" {
-		if err := writeResult(*out, w, b.String(), breached); err != nil {
-			fail("-out: %v", err)
+	if *filer != "" {
+		if err := fileWeek(*repo, *filer, b.String(), breached, within(measures, limits)); err != nil {
+			fail("filing: %v", err)
 		}
 	}
 }

@@ -493,8 +493,20 @@ Both run after the merge and gate nothing, so their failures would land where no
 `flow.yml` runs `make flowstats` every Monday for the seven days that ended the day before, beside
 the seven before those, and without the session figures: the transcripts are on the owner's
 machine only, where `make flowstats SINCE=… UNTIL=…` prints them too. The report is one comment
-per week on the issue "Flow report", which the job finds by its title and opens if it is missing.
-The job starts no work.
+per week on the issue "Flow report", which the job opens if it is missing. The job starts no
+work, and one run of it goes at a time: a second waits.
+
+**Which issues are the job's.** The repository is public and anybody can open an issue under
+any title. The tool takes an issue for its own only when the login it files as
+(`-file-as`, in the job `github-actions[bot]`) opened it and the title matches in full, and a
+finding only when it also carries the label `finding`. Where several match, the oldest is it.
+
+**When the job fails.** Filing is part of the tool (`-file-as`), so the job has one step, and it
+fails visibly: when GitHub does not answer for the pull requests or the runs after one retry,
+when an issue cannot be read or written, and when the report is longer than the 65,536
+characters a comment takes. In that last case the findings are filed first and the report stays
+in the run's summary. A single measure GitHub refuses does not fail the job: its row says "not
+measured" and why.
 
 **The thresholds are the owner's to set.** The values below are the first setting, proposed with
 the report on 2026-11-21. Changing one is the owner's decision; it changes this table and
@@ -504,8 +516,19 @@ other than the ones it was built with; a test of the tool holds the table and th
 
 A measure over its threshold opens an issue labelled `finding`, titled "Flow report: <measure> is
 over its threshold", with the measure, the value, the threshold and the window. There is one per
-measure: an open one is left as it is, a closed one is opened again. A measure that was not
-measured breaches nothing.
+measure, and the weeks after go like this:
+
+| The measure this week | Its finding | What the job does |
+|---|---|---|
+| over its threshold | none yet | opens one — so the first run opens one per breached measure |
+| over its threshold | open | nothing: the weekly comment carries the value |
+| over its threshold | closed | opens it again, with one comment that holds this week's text |
+| within its threshold | open | one comment, "Within the threshold again: <value>", and closes it |
+| within its threshold | closed, or none | nothing |
+| not measured, or a rule without the earlier value it compares with | any | nothing |
+
+A "does not rise" measure is within its threshold in the week after it rose, at the higher
+value: the rule is about the rise.
 
 | Measure | Id | Threshold |
 |---|---|---|

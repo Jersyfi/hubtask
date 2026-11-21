@@ -8,7 +8,6 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -153,11 +152,33 @@ func parseThresholds(data []byte) (map[string]threshold, error) {
 }
 
 // finding is the text of the issue a breached threshold opens. The title carries no week: it is
-// how the job finds the open issue of a measure again.
+// how the job finds the issue of a measure again.
 type finding struct {
-	Measure string `json:"measure"`
-	Title   string `json:"title"`
-	Body    string `json:"body"`
+	Measure, Title, Body string
+}
+
+// held says how a measure stands to its threshold. known is false where the measure has no
+// threshold, was not measured, or its rule has no earlier value to hold it against: such a
+// measure neither breaches nor comes back within anything.
+func held(m measure, limits map[string]threshold) (t threshold, over, known bool) {
+	t, ok := limits[m.id]
+	if !ok || !m.now.numeric {
+		return t, false, false
+	}
+	switch {
+	case t.Max != nil:
+		return t, m.now.n > *t.Max, true
+	case t.Rule == noRise:
+		return t, m.before.numeric && m.now.n > m.before.n, m.before.numeric
+	case t.Rule == noRiseTwice:
+		known = m.before.numeric && m.earlier.numeric
+		return t, known && m.now.n > m.before.n && m.before.n > m.earlier.n, known
+	}
+	return t, false, false
+}
+
+func findingTitle(m measure) string {
+	return "Flow report: " + strings.ReplaceAll(m.name, "`", "") + " is over its threshold"
 }
 
 // breaches are the thresholds the measures are over. A measure that was not measured breaches
@@ -165,26 +186,13 @@ type finding struct {
 func breaches(measures []measure, limits map[string]threshold, w window) []finding {
 	var out []finding
 	for _, m := range measures {
-		t, ok := limits[m.id]
-		if !ok || !m.now.numeric {
-			continue
-		}
-		over := false
-		switch {
-		case t.Max != nil:
-			over = m.now.n > *t.Max
-		case t.Rule == noRise:
-			over = m.before.numeric && m.now.n > m.before.n
-		case t.Rule == noRiseTwice:
-			over = m.before.numeric && m.earlier.numeric && m.now.n > m.before.n && m.before.n > m.earlier.n
-		}
+		t, over, _ := held(m, limits)
 		if !over {
 			continue
 		}
-		name := strings.ReplaceAll(m.name, "`", "")
 		out = append(out, finding{
 			Measure: m.id,
-			Title:   "Flow report: " + name + " is over its threshold",
+			Title:   findingTitle(m),
 			Body: strings.Join([]string{
 				"The weekly flow report measured a value over its threshold.",
 				"",
@@ -197,6 +205,23 @@ func breaches(measures []measure, limits map[string]threshold, w window) []findi
 				"The thresholds are the owner's to set (`docs/architecture/ci-cd.md` §11). This issue starts no work by itself.",
 			}, "\n"),
 		})
+	}
+	return out
+}
+
+// standing is a measure that is within its threshold, under the title its finding would carry.
+type standing struct {
+	Measure, Title, Value string
+}
+
+// within are the measures that were measured and hold their threshold: an open finding of one
+// is closed.
+func within(measures []measure, limits map[string]threshold) []standing {
+	var out []standing
+	for _, m := range measures {
+		if _, over, known := held(m, limits); known && !over {
+			out = append(out, standing{Measure: m.id, Title: findingTitle(m), Value: m.now.String()})
+		}
 	}
 	return out
 }
@@ -222,22 +247,4 @@ func printBreaches(b *bytes.Buffer, found []finding) {
 	for _, f := range found {
 		fmt.Fprintf(b, "**%s**\n\n%s\n\n", f.Title, f.Body)
 	}
-}
-
-// result is what the weekly job reads: the report for its one issue, and a finding per breach.
-type result struct {
-	Window   string    `json:"window"`
-	Report   string    `json:"report"`
-	Breaches []finding `json:"breaches"`
-}
-
-func writeResult(path string, w window, report string, found []finding) error {
-	if found == nil {
-		found = []finding{}
-	}
-	data, err := json.MarshalIndent(result{Window: w.String(), Report: report, Breaches: found}, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0o600)
 }

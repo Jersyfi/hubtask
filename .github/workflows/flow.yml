@@ -11,6 +11,12 @@ on:
 permissions:
   contents: read
 
+# One at a time, and none cancelled: two runs side by side would each find no finding and open
+# two. A second run waits for the first.
+concurrency:
+  group: flow-report
+  cancel-in-progress: false
+
 jobs:
   report:
     name: Measure the week, file what is over its threshold
@@ -36,66 +42,16 @@ jobs:
           go-version: "1.27.4"
           cache: true
       # Seven whole days that end yesterday. The transcripts are on the owner's machine only. The
-      # outside reviewer's login is given here: the tool names no product.
-      - name: Measure
+      # outside reviewer's login is given here: the tool names no product. -file-as is the login
+      # this token acts as: the tool takes only issues that login opened for its own, since
+      # anybody can open an issue under the same title.
+      #
+      # The step fails, and with it the job, when GitHub does not answer for the pull requests or
+      # the runs, when an issue cannot be written, and when the report is too long for a comment.
+      # The report is in the step summary before anything is filed.
+      - name: Measure and file
         run: |
           make flowstats SINCE="$(date -u -d '7 days ago' +%F)" UNTIL="$(date -u -d yesterday +%F)" \
-            FLOWSTATS_ARGS="-transcripts= '-reviewer=coderabbitai[bot]' -out=flow.json" >> "$GITHUB_STEP_SUMMARY"
+            FLOWSTATS_ARGS="-transcripts= '-reviewer=coderabbitai[bot]' '-file-as=github-actions[bot]'" >> "$GITHUB_STEP_SUMMARY"
         env:
           GH_TOKEN: ${{ github.token }}
-      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          script: |
-            const result = JSON.parse(require('fs').readFileSync('flow.json', 'utf8'));
-            if (typeof result.report !== 'string' || !Array.isArray(result.breaches)) {
-              throw new Error('flow.json holds no report and no list of breaches - nothing was filed');
-            }
-            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-
-            // The title is the identity of a thread, as in nightly.yml: the search matches a
-            // phrase, so every hit is compared in full - each finding's title starts with the
-            // report's.
-            const threadFor = async (title) => {
-              const found = await github.rest.search.issuesAndPullRequests({
-                q: `repo:${context.repo.owner}/${context.repo.repo} is:issue in:title "${title}"`,
-                per_page: 100,
-              });
-              return found.data.items.find((issue) => issue.title === title);
-            };
-            const reopen = async (issue) => {
-              if (issue.state === 'closed') {
-                await github.rest.issues.update({ ...context.repo, issue_number: issue.number, state: 'open' });
-              }
-            };
-
-            // One issue for the report, a comment per week, so the thread is the trend.
-            const title = 'Flow report';
-            let report = await threadFor(title);
-            if (!report) {
-              report = (await github.rest.issues.create({
-                ...context.repo, title,
-                body: [
-                  'The weekly flow report (`docs/architecture/ci-cd.md` §11): each week is one comment.',
-                  '',
-                  'It starts no work. A measure over its threshold gets a `finding` of its own.',
-                ].join('\n'),
-              })).data;
-            }
-            await github.rest.issues.createComment({
-              ...context.repo, issue_number: report.number,
-              body: [result.report, `* Run: ${run}`, `* Commit: ${context.sha}`].join('\n'),
-            });
-            await reopen(report);
-
-            // A finding per breach, and only one per measure: an open one is left as it is, a
-            // closed one is opened again with this week's text.
-            for (const breach of result.breaches) {
-              const body = [breach.body, '', `* Run: ${run}`, `* Report: #${report.number}`].join('\n');
-              const issue = await threadFor(breach.title);
-              if (!issue) {
-                await github.rest.issues.create({ ...context.repo, title: breach.title, body, labels: ['finding'] });
-              } else if (issue.state === 'closed') {
-                await github.rest.issues.createComment({ ...context.repo, issue_number: issue.number, body });
-                await reopen(issue);
-              }
-            }
