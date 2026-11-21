@@ -19,9 +19,9 @@ const API = '/api/v1';
 /**
  * One answer as the record holds it, or `undefined` for a request outside the API. A body that is
  * not text is kept as base64; one taken from a file or a fetched response is not read, and
- * `body_from` says which.
+ * `body_from` says which. `guess` marks an answer given on a route the fixture `guessed`.
  */
-export function answerOf(method, url, options = {}) {
+export function answerOf(method, url, options = {}, route = undefined) {
   const { pathname } = new URL(url);
   const at = pathname.indexOf(`${API}/`);
   if (at < 0) return undefined;
@@ -38,7 +38,19 @@ export function answerOf(method, url, options = {}) {
   else if (options.body) answer.body_base64 = Buffer.from(options.body).toString('base64');
   else if (options.path) answer.body_from = 'path';
   else if (options.response) answer.body_from = 'response';
+  if (route && guesses.has(route)) answer.guess = true;
   return answer;
+}
+
+const guesses = new WeakSet();
+
+/**
+ * Marks the answer about to be given on `route` as a guess: the fixture's one empty page for a
+ * request nothing stubbed. The contract does not judge a guess - nobody wrote it for the
+ * operation, and which reads a walk leaves unanswered until it ends differs from run to run.
+ */
+export function guessed(route) {
+  guesses.add(route);
 }
 
 /** Writes each distinct answer of this process once: a walk asks the same read many times. */
@@ -77,7 +89,7 @@ function install(write) {
     if (!wrappers.has(handler)) {
       wrappers.set(handler, function recorded(route, request) {
         patch(route, 'fulfill', (fulfill) => function recordedFulfill(options) {
-          const answer = answerOf(this.request().method(), this.request().url(), options);
+          const answer = answerOf(this.request().method(), this.request().url(), options, this);
           if (answer) write(answer);
           return fulfill.call(this, options);
         });

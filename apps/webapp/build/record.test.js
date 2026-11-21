@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { answerOf } from '../e2e/record.mjs';
+import { answerOf, guessed } from '../e2e/record.mjs';
 
 const at = (path) => `http://127.0.0.1:5180${path}`;
 
@@ -35,4 +35,11 @@ test('a body that is not text is kept whole, and one from a file is named, not r
 test('a request outside the API is not an answer of the contract', () => {
   assert.equal(answerOf('GET', at('/assets/index.js'), { body: '' }), undefined);
   assert.equal(answerOf('GET', at('/api/v10/x'), { body: '' }), undefined);
+});
+
+test("the fixture's guess is marked, and only for the route it was made for", () => {
+  const route = {};
+  guessed(route);
+  assert.equal(answerOf('GET', at('/api/v1/quotas'), { json: {} }, route).guess, true);
+  assert.equal('guess' in answerOf('GET', at('/api/v1/quotas'), { json: {} }, {}), false);
 });
