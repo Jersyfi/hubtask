@@ -698,7 +698,7 @@
         {/snippet}
       </SettingRow>
     {/each}
-    <div class="setting" data-setting="fields">
+    <div data-setting="fields">
     {#each offeredTypes as type, index (type)}
       <SettingRow
         label={t('app.structure.fields_of', { level: levelName(type) })}
