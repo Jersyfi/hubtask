@@ -603,7 +603,7 @@ section, "How to write" (about a screen); `AGENTS.md` carries one tagged line th
    `CONTRIBUTING.md` — a newcomer. A sentence that does not help that reader act is left out.
 2. **A sentence stands alone.** A person who has read only this section understands it. A citation
    (`rule 10`, `UC-ID-12/4`, `§9`) supports a sentence and never replaces its content. No coined
-   label, no abbreviation the glossary of `domain-model.md` does not hold, no arrow or symbol
+   label, no abbreviation the glossary (`arc42.md` §12) does not hold, no arrow or symbol
    chain in place of a sentence.
 3. **One word per thing**, the domain model's word.
 4. **The present only.** A document says what holds now. What it was before is the ADR's and the
@@ -724,8 +724,9 @@ its defaults.
 **The configuration**, one file `.coderabbit.yaml` in the repository, which takes precedence over
 the settings on its website: profile `chill`; no poem, no sequence diagrams; drafts not reviewed
 by itself; `dependabot[bot]` ignored; generated code, lock files and `docs/archive/` filtered out;
-the linters that duplicate a gate off (`golangci-lint`, `gitleaks`, `markdownlint`, `actionlint`,
-`yamllint`, `shellcheck` among them); learnings scoped to this repository.
+the linters that duplicate a gate off (`golangci-lint`, `gitleaks`, `actionlint`), and three that
+no gate runs (`markdownlint`, `yamllint`, `shellcheck`), because a rule the repository wants
+becomes a gate; learnings scoped to this repository.
 
 **A trial, not a fixture.** Four weeks; the flow report counts its comments and how many led to a
 change. Proposed bar, the owner's to set: kept if at least one comment in three led to a change;
