@@ -401,7 +401,7 @@ run:
 dev:
 	@scripts/dev.sh up
 
-## dev-down: Stop and remove exactly what `make dev` made
+## dev-down: Stop what `make dev` started, remove its database and .dev/ (node_modules, builds and .tools stay)
 .PHONY: dev-down
 dev-down:
 	@scripts/dev.sh down

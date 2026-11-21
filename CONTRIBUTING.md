@@ -6,16 +6,19 @@ are in [`AGENTS.md`](AGENTS.md). This file is the human way in.
 
 ## Quick start
 
-With Go, Docker, Node.js and `git` installed ("Working from a new machine" below):
+With Go, Docker, Node.js, `git`, `python3`, `curl` and `openssl` installed ("Working from a new
+machine" below):
 
 ```bash
 make tools && make dev   # a database, the server, a demo workspace with content, the web app
 make check               # the checks of what you changed, in about a minute
-make dev-down            # stops and removes everything `make dev` made
+make dev-down            # stops the server and the web app, removes the database and .dev/
 ```
 
 `make dev` prints the address to open and the demo people's password, drawn at that start. It uses
 its own database, ports and `.dev/` directory, so it runs beside anything else on your machine.
+`make dev-down` leaves what the build made outside `.dev/`: `node_modules`, the packages' build
+output and `.tools/`.
 
 ## Ways to contribute
 
@@ -61,6 +64,7 @@ outside this repository.
 - Go (the version in `go.mod`), Docker with Compose (running — the container gates and
   `make db-up` need it), `git`, and the GitHub CLI `gh`.
 - Node.js (the version in `.nvmrc`) only for `apps/` and `packages/`.
+- `python3`, `curl` and `openssl` for `make dev` and the scripts that seed a workspace.
 - `gh auth login` once, as the GitHub account you work with; `gh` opens draft pull requests and
   reads issues, and `make gate-numbers` asks it for the open pull requests.
 
