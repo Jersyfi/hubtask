@@ -210,7 +210,7 @@ Not a feature milestone. It holds exactly the work that can be done neither earl
   rows that name an issue. The capability matrix
   ([ADR-0032](./adr/ADR-0032-client-capability-matrix.md)) is either met or amended by supersede;
   it is not quietly missed.
-* **The maturity stage goes to `stable`.** The preview banner comes off, and from that moment a
+* **The maturity stage goes to `stable`.** The release notes say so, and from that moment a
   client regression blocks a release exactly as an API regression does (ADR-0035 §2).
 * **The scope window closes**, per rule 4 above, on the day this milestone opens.
 * **Everything with external lead time starts here**: the shells cut release candidates and their

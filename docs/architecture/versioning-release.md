@@ -207,7 +207,7 @@ security update remains available as long as the registry keeps it.
 | Deprecation | At least two minor releases of notice: release notes, `Deprecation`/`Sunset` headers, the capability manifest |
 | Security updates | A patch on every supported major; an advisory with CVSS |
 | Pre-releases | `X.Y.Z-rc.N` with the image tag `:rc`, marked as a pre-release on GitHub; never for production |
-| Client maturity | `experimental` → `preview` → `stable`, stated per release in the release notes and by the application until `stable` ([design-system.md](../design/design-system.md)); not a runtime capability, so not in `/meta/capabilities` |
+| Client maturity | `experimental` → `preview` → `stable`, stated per release in the release notes and `CHANGELOG.md`, never in the application ([ADR-0107](../adr/ADR-0107-the-application-does-not-state-its-maturity-stage.md)); not a runtime capability, so not in `/meta/capabilities` |
 
 ---
 

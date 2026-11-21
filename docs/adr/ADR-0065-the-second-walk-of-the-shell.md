@@ -1,6 +1,6 @@
 # ADR-0065 — Sections, and where a statement about the application lives
 
-**Status:** accepted · **Date:** 2026-09-23 · **Accepted:** 2026-09-23
+**Status:** accepted (the stage row of decision 4 superseded by [ADR-0107](./ADR-0107-the-application-does-not-state-its-maturity-stage.md)) · **Date:** 2026-09-23 · **Accepted:** 2026-09-23
 
 **Rule lives in:** [design-system.md](../design/design-system.md) §11
 
