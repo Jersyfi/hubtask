@@ -176,10 +176,21 @@ test('chromium: a mailbox connects through its provider and comes back connected
   let isBack = false;
   let settingsAsked = false;
   let isCompleted = false;
+  let hasPageRead = false;
   let pageReadArrived;
   const pageRead = new Promise((resolve) => (pageReadArrived = resolve));
   let completionAnswered;
   const afterCompletion = new Promise((resolve) => (completionAnswered = resolve));
+  // The walk holds answers back, so a page that asks in another order ends in a timeout that names
+  // a URL or a row. This says which step of the order above did not happen.
+  const orSay = (waited, what) => waited.catch((error) => {
+    const step = !isBack ? 'the browser did not come back from the provider'
+      : !settingsAsked ? 'back from the provider, the page did not read the mail settings'
+      : !hasPageRead ? 'back from the provider, the page did not read its mailboxes after the settings, so the completion was never answered: the page no longer asks in the order this walk gives'
+      : !isCompleted ? 'the page read its mailboxes, and its completion did not arrive to be answered'
+      : 'the completion and the read held back behind it were both answered';
+    throw new Error(`${what}: ${step}. ${error.message}`, { cause: error });
+  });
   await context.route('https://accounts.provider.test/**', (route) => {
     // The provider: the administrator says yes, and the browser goes back with a code.
     const state = new URL(route.request().url()).searchParams.get('state');
@@ -198,7 +209,10 @@ test('chromium: a mailbox connects through its provider and comes back connected
     if (path === '/mail/mailboxes' && request.method() === 'GET') {
       const read = mailboxes;
       if (isBack && !isCompleted) {
-        if (settingsAsked) pageReadArrived();
+        if (settingsAsked) {
+          hasPageRead = true;
+          pageReadArrived();
+        }
         await afterCompletion;
       }
       return route.fulfill({ json: {
@@ -248,10 +262,10 @@ test('chromium: a mailbox connects through its provider and comes back connected
     const completed = page.waitForRequest((request) => request.url().endsWith('/mail/mailboxes:complete'), { timeout: 30_000 });
     await oauth.getByRole('radio', { name: 'Connect with Google' }).check();
     await dialog.getByRole('button', { name: 'Continue to the provider' }).click();
-    await completed;
-    await page.waitForURL(`${served.origin}/administration/mail/mailboxes`, { timeout: 15_000 });
+    await orSay(completed, 'no completion left the page');
+    await orSay(page.waitForURL(`${served.origin}/administration/mail/mailboxes`, { timeout: 15_000 }), 'the page did not go on to its mailboxes');
     const row = rowOf(page, 'familie@gmail.com');
-    await row.getByText('signed in with Google', { exact: false }).waitFor({ timeout: 10_000 });
+    await orSay(row.getByText('signed in with Google', { exact: false }).waitFor({ timeout: 10_000 }), 'the connected mailbox is not on the page');
     assert.deepEqual(writes.find((write) => write.call === 'POST /mail/mailboxes:authorize')?.body, { provider: 'google' });
     assert.deepEqual(writes.find((write) => write.call === 'POST /mail/mailboxes:complete')?.body, { state: 's-1', code: 'c-1' });
     assert.deepEqual(failures, []);
