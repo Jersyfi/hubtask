@@ -151,7 +151,8 @@ jobs:
             .tools/helm upgrade --install hubtask k8s \
               --namespace hubtask \
               --values "$VALUES" \
-              --set-string image.tag="main-${GITHUB_SHA}@${DIGEST}" \
+              --set image.tag="main-${GITHUB_SHA}" \
+              --set-string image.digest="${DIGEST}" \
               --set migration.enabled=false \
               --timeout 10m
             for _ in $(seq 1 60); do
@@ -175,7 +176,8 @@ jobs:
           .tools/helm upgrade --install hubtask k8s \
             --namespace hubtask \
             --values "$VALUES" \
-            --set-string image.tag="main-${GITHUB_SHA}@${DIGEST}" \
+            --set image.tag="main-${GITHUB_SHA}" \
+            --set-string image.digest="${DIGEST}" \
             --wait --timeout 35m
 
       - name: The public path answers
