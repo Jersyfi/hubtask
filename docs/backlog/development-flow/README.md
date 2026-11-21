@@ -100,10 +100,16 @@ Counted in `apps/webapp/e2e/*.test.mjs`:
 | Suites / walks (`test(` calls) / lines | 212 / about 1,135 / 54,378 |
 | Suites that drive a real server | 0 — every `/api/v1` request is answered by `fixture.mjs` or a stub in the suite |
 | Anything that holds those answers to `api/openapi.yaml` | nothing found: the fixture is hand-written objects |
-| Suites with route stubs of their own / calls | 171 / 378 |
-| `waitForTimeout` (a fixed wait) | 351 uses in 93 suites |
-| Suites that cite no `UC-…` | 50 |
+| Suites with route stubs of their own / calls | 172 / 382 |
+| `waitForTimeout` (a fixed wait) | 353 uses in 93 suites, and 2 in two shared helpers |
+| Suites that cite no `UC-…` | 50; another 6 name a use case and no check of it |
 | Skipped or to-do walks | 0 |
+
+The three counts in the middle are those of the branch as stage 2 found it (`main` at
+`5fa8a7c2e`), counted by `apps/webapp/build/walks.test.js`: a call is `.route(` or
+`.waitForTimeout(` in a file's text, and a suite cites a check when its text holds
+`UC-XX-nn check n`, `UC-XX-nn/n` or `UC-XX-nn checks …`. The first count of this document, by
+`grep` on `main` at `77661b5a6`, was 171 / 378, 351 and 50.
 
 A walk is what makes a use case check about a screen `verified`. Today such a check is proven
 against answers a worker typed. If the server answers another shape, the walk stays green and the
@@ -438,10 +444,10 @@ there), each tagged like every other rule:
 
 | Rule | Held by |
 |---|---|
-| A suite's header names the use case checks it proves; a suite that proves none says what it holds | gate: the count of suites without one, 50 today, only falls |
-| No fixed wait; wait for what the person would see | gate: the count of `waitForTimeout`, 351 today, only falls; a new suite has none |
+| A suite's header names the use case checks it proves; a suite that proves none says what it holds | gate: the suites without one, 56 today, are a list that only shrinks; a suite that is not listed has one |
+| No fixed wait; wait for what the person would see | gate: the count of `waitForTimeout` per file, 355 today in all, only falls; a file that is not listed has none |
 | No answer the contract does not allow | gate: recorded stub answers validated against `api/openapi.yaml` (below) |
-| An answer more than one suite needs lives in `fixture.mjs` | reviewed; the count of route stubs in suites, 378 today, is reported weekly |
+| An answer more than one suite needs lives in `fixture.mjs` | reviewed; the count of route stubs in suites, 382 today, is reported weekly |
 | Find by role and name, as a person would; a `data-` hook only where no role exists | reviewed |
 | A write is asserted twice: the request that left, and what the screen shows after | reviewed |
 | The widths and the keyboard path the check names | reviewed |
@@ -456,9 +462,19 @@ them only in passing.
 (`signedIn` in `fixture.mjs`, which already routes `**/api/v1/**`) writes every answer it fulfils —
 method, path, status, body — to a file. A Go test beside `test/contract`, which already validates
 responses against the contract, reads that file and fails on an answer the contract does not allow.
-Suites that stub through their own `context.route` are wrapped by the same recorder. How many
-answers fail today is unknown until it runs; they enter as a bound that only falls, like the
-uncited checks, so the gate is green on the day it lands and can only get stricter.
+Suites that stub through their own `context.route` are wrapped by the same recorder. Built in
+stage 2, the recorder patches Playwright's own `route` instead of `signedIn`, because 38 suites
+launch a browser of their own and never pass through it. One run of every suite recorded
+10,043 distinct answers in 209 suites. A wrong answer is counted once by kind, operation and
+status, not once per suite: 206 leave the contract — 190 bodies outside their schema,
+15 statuses the operation does not declare and one operation the contract does not
+have. They enter as a baseline that only shrinks (`test/contract/testdata/walks-baseline.txt`;
+`make gate-pr` refuses an added line), so the gate is green on the day it lands and can only get
+stricter. Two things were learned by running it. Counted per suite, and with the guess below, the wrong answers were 2,694,
+and 13 of them differed between two runs on one machine, because which reads a walk still gets
+answered before it ends depends on timing; a baseline per suite would have failed by chance. And
+the answers that differ are the fixture's guess — one empty page for any request nothing
+stubbed — so the guess is recorded and counted, 639 of the answers, and not judged.
 
 **Red first, as a tool.** `make proof BASE=origin/main` takes the tests the branch adds or changes,
 runs them against the product code of the merge base, and lists each that passes there — a test
@@ -916,7 +932,7 @@ decision. The whole change is reversible by reverting one pull request; none of 
 * **Unverified until built:** how much dead code and how many unused keys exist; whether
   CodeRabbit reviews a draft on request, what its limits are for a repository without stars, and
   whether its free tier includes every feature named; whether a manual CI run can start before the
-  trigger is on `main`; how many stub answers break the contract; how many of the browser
+  trigger is on `main`; how many of the browser
   job's failures are flakes; what `test/architecture/drafts_test.go` needs for a manual trigger
   (`ci.yml` already treats every event but a pull request as "run everything", and
   `scripts/ci/after-ci.sh` acts on `main` only for pushes to it); how long `make proof` takes for
