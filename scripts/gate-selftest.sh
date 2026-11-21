@@ -1175,6 +1175,52 @@ else
 	printf '  ok      %-44s caught by make gate-pr\n' "the unfilled template as a description"
 fi
 
+# A filled description that lost its Review section. The message is read, not only the status: the
+# gate also goes red when it cannot read the history. BASE=HEAD reads an empty one.
+CHECKS=$((CHECKS + 1))
+without_review="$(mktemp)"
+perl -0pe 's/## Review\n.*?(?=\n## )//s' tools/checkpr/testdata/filled.md >"$without_review"
+out="$(make --no-print-directory gate-pr BODY="$without_review" BASE=HEAD 2>&1 || true)"
+rm -f "$without_review"
+if grep -q 'the section "Review" from the template is missing' <<<"$out"; then
+	printf '  ok      %-44s caught by make gate-pr\n' "a description without its Review section"
+else
+	printf '  FAILED  %-44s make gate-pr did not report it\n' "a description without its Review section"
+	FAILURES=$((FAILURES + 1))
+fi
+
+# A branch that deletes a test its description does not name. The gate reads commits, not the work
+# tree, so the branch lives in a scratch repository and the gate's own program is run there. git
+# runs without the caller's GIT_* variables (known-traps.md, "Tests, gates and tooling").
+CHECKS=$((CHECKS + 1))
+scratch_repo="$(mktemp -d)"
+scratch_git() {
+	env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_COMMON_DIR GIT_CONFIG_NOSYSTEM=1 \
+		git -C "$scratch_repo/repo" -c user.name=selftest -c user.email=selftest@example.invalid -c commit.gpgsign=false "$@"
+}
+go build -o "$scratch_repo/checkpr" ./tools/checkpr
+mkdir -p "$scratch_repo/repo/.github"
+cp .github/PULL_REQUEST_TEMPLATE.md "$scratch_repo/repo/.github/"
+cp tools/checkpr/testdata/filled.md "$scratch_repo/description.md"
+printf 'module selftest\n' >"$scratch_repo/repo/go.mod"
+printf 'package selftest\n\nfunc TestKept(t *testing.T) {}\n\nfunc TestDropped(t *testing.T) {}\n' >"$scratch_repo/repo/selftest_test.go"
+scratch_git init -q -b main
+scratch_git add -A
+scratch_git commit -q -m base
+scratch_git checkout -q -b work
+printf 'package selftest\n\nfunc TestKept(t *testing.T) {}\n' >"$scratch_repo/repo/selftest_test.go"
+scratch_git commit -q -a -m work
+out="$(cd "$scratch_repo/repo" && env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_COMMON_DIR \
+	"$scratch_repo/checkpr" -body "$scratch_repo/description.md" -base main -head work 2>&1 || true)"
+rm -rf "$scratch_repo"
+if grep -q 'no longer has the test "TestDropped"' <<<"$out"; then
+	printf '  ok      %-44s caught by checkpr\n' "a deleted test the description does not name"
+else
+	printf '  FAILED  %-44s checkpr did not report it\n' "a deleted test the description does not name"
+	printf '%s\n' "$out" | sed 's/^/            /'
+	FAILURES=$((FAILURES + 1))
+fi
+
 header "Licences (make gate-licenses)"
 
 # The licence gate cannot be shown a GPL dependency without adding one, so it is shown the other
