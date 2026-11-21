@@ -15,6 +15,7 @@
 import { FetchTransport, SyncEngine, TransportError, collectionOf, type MutateOptions } from '@hubtask/sync-engine';
 
 import { platform } from '../platform/index.ts';
+import { socketAddressOf } from '../platform/server.ts';
 import { currentEntry } from '../frame/chunkfailure.ts';
 import { noteServerBuild } from '../frame/release.ts';
 import { Intents } from './intent.ts';
@@ -199,13 +200,10 @@ export const engine = new IntentEngine({
   // What a write becomes when it has to be queued: the seven mutation kinds, mapped from
   // this application's writes in the same file.
   mutationFor,
-  // A page's live document (offline-sync.md §13): the API's origin, `wss` where the page is
-  // served over TLS. The engine adds the bearer as the subprotocol; the address carries none.
-  socket: (path, protocols) => {
-    const origin = globalThis.location;
-    const scheme = origin.protocol === 'https:' ? 'wss:' : 'ws:';
-    return new WebSocket(`${scheme}//${origin.host}/api/v1${path}`, protocols);
-  },
+  // A page's live document (offline-sync.md §13). The engine adds the bearer as the subprotocol;
+  // the address carries none.
+  socket: (path, protocols) =>
+    new WebSocket(socketAddressOf(platform.apiBase, path, globalThis.location.href), protocols),
   // A file captured offline waits only in a copy that is encrypted: the shells' (offline-sync.md §1).
   holdsFiles: platform.holdsFiles,
   firstSynchronisation: platform.firstSynchronisation,

@@ -31,3 +31,14 @@ export function apiBaseOf(server: string): string | undefined {
   if (url.username !== '' || url.password !== '') return undefined;
   return `${url.origin}${API_PATH}`;
 }
+
+/**
+ * A live document's WebSocket address: below the API base the platform names, `wss` where that is
+ * served over TLS. A relative base - the browser's - is the page's own origin; a shell's page is
+ * served from inside the app, so its own host is never the server.
+ */
+export function socketAddressOf(apiBase: string, path: string, page: string): string {
+  const url = new URL(`${apiBase}${path}`, page);
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+  return url.href;
+}
