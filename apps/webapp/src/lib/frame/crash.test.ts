@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { crashDetails, framesOf, isNoise, newReference, requestIdOf } from './crash.ts';
+import { crashDetails, framesOf, isNoise, logCrash, newReference, requestIdOf } from './crash.ts';
 
 test('a reference is short, readable and differs between failures', () => {
   let n = 0;
@@ -59,4 +59,20 @@ test('the frames say where the code failed, never what the message quoted', () =
   assert.match(details, /frame: at derived \(http:\/\/localhost\/assets\/ContainerView-1a2b\.js:3:1207\)/);
   assert.doesNotMatch(details, /Quarterly|Budget/);
   assert.deepEqual(framesOf('not an error'), []);
+});
+
+test('a failure is written to the console under its reference, without its message', () => {
+  const error = new TypeError('Cannot read properties of undefined (reading "Quarterly plan")');
+  const facts = {
+    reference: 'C-ABCDEFGH', build: '/assets/index-1a2b.js', path: '/collections/7',
+    userAgent: 'Test/1.0', at: new Date('2026-11-01T10:00:00Z'), error,
+  };
+  const written: unknown[][] = [];
+  logCrash(facts, (...args: unknown[]) => written.push(args));
+  assert.equal(written.length, 1);
+  const line = written[0]!.map(String).join(' ');
+  assert.match(line, /C-ABCDEFGH/);
+  assert.equal(line.includes(crashDetails(facts)), true);
+  assert.doesNotMatch(line, /Quarterly plan/);
+  assert.equal(written[0]!.includes(error), false);
 });

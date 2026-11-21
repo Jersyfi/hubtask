@@ -77,6 +77,15 @@ export function crashDetails(facts: CrashFacts): string {
 }
 
 /**
+ * Writes a failure to the console under its reference, so the reference a person reports can be
+ * found there. The same content-free details as the clipboard, never the error object itself: the
+ * console would print its message.
+ */
+export function logCrash(facts: CrashFacts, log: (...args: unknown[]) => void = console.error): void {
+  log(`view failed ${facts.reference}\n${crashDetails(facts)}`);
+}
+
+/**
  * Whether a window-level failure is the browser's noise rather than the application's: a resize
  * observer that skipped a frame, or a request the application itself cancelled.
  */
