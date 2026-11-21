@@ -4,6 +4,7 @@
 package main
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 	"time"
@@ -81,5 +82,19 @@ func TestRunKind(t *testing.T) {
 		if pullRequest != c.pullRequest || counts != c.counts {
 			t.Errorf("runKind(%q) = %v, %v; want %v, %v", c.event, pullRequest, counts, c.pullRequest, c.counts)
 		}
+	}
+}
+
+// The report ends with the part it is handed, and refuses an empty one rather than leave it out.
+func TestAppendPartEndsTheReportAndRefusesAnEmptyPart(t *testing.T) {
+	b := bytes.NewBufferString("## Flow\n")
+	if err := appendPart(b, []byte("\n## The proof state\n\n| State |\n")); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := b.String(), "## Flow\n\n## The proof state\n\n| State |\n\n"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	if err := appendPart(b, []byte(" \n")); err == nil {
+		t.Error("an empty part was appended")
 	}
 }

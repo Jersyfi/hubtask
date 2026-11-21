@@ -262,9 +262,6 @@ generate:
 	@# The settings catalogue, which the web app's tests hold to a screen per setting (model.md §4),
 	@# and the documentation's who-configures-what matrix drawn from it.
 	$(GO) run ./tools/settingscatalogue apps/webapp/src/lib/settings/catalogue.gen.json docs/reference/settings-matrix.md
-	@# The proof state: the use cases by state, the checks a test cites and the falling bounds,
-	@# from what the documentation gate reads (ci-cd.md §12).
-	$(GO) run ./tools/checkdocs -proof-state
 	@$(MAKE) --no-print-directory sdk-go
 	@$(MAKE) --no-print-directory sdk
 
@@ -1028,6 +1025,13 @@ locales:
 .PHONY: gate-docs
 gate-docs:
 	$(GO) run ./tools/checkdocs
+
+## proof-state: Print the use cases by state, the checks a checked_by file cites, and the bounds that only fall
+# A printed table, never a committed page (ci-cd.md §3.5, §12): the `docs` job writes it to the
+# summary of main's run, and the weekly flow report carries it.
+.PHONY: proof-state
+proof-state:
+	@$(GO) run ./tools/checkdocs -proof-state
 
 ## gate-numbers: One file per migration and ADR number, none another open pull request adds (needs gh)
 # Not in `make verify`: it asks GitHub for the open pull requests, and the local gates run offline.

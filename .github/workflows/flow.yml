@@ -52,9 +52,13 @@ jobs:
       # The step fails, and with it the job, when GitHub does not answer for the pull requests or
       # the runs, when an issue cannot be written, and when the report is too long for a comment.
       # The report is in the step summary before anything is filed.
+      #
+      # The proof state (§12) is printed first, by the documentation gate's own code, and the
+      # report carries it as its last part.
       - name: Measure and file
         run: |
+          make proof-state > "$RUNNER_TEMP/proof-state.md"
           make flowstats SINCE="$(date -u -d '7 days ago' +%F)" UNTIL="$(date -u -d yesterday +%F)" \
-            FLOWSTATS_ARGS="-transcripts= '-reviewer=coderabbitai[bot]' '-file-as=github-actions[bot]'" >> "$GITHUB_STEP_SUMMARY"
+            FLOWSTATS_ARGS="-transcripts= '-reviewer=coderabbitai[bot]' '-file-as=github-actions[bot]' '-append=$RUNNER_TEMP/proof-state.md'" >> "$GITHUB_STEP_SUMMARY"
         env:
           GH_TOKEN: ${{ github.token }}

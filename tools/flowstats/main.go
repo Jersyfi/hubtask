@@ -16,7 +16,10 @@
 // writes under ~/.claude/projects, only the directories whose name contains the repository's name;
 // it reads usage figures, timestamps and the commands a session ran, and prints no content.
 //
-// Usage: flowstats -since 2026-10-13 -until 2026-10-22 [-transcripts <dir>] [-github=false] [-jobs=false] [-reviewer <login>] [-file-as <login>]
+// -append names a file whose text ends the report: the weekly job hands it the proof state that
+// `make proof-state` printed, so the report carries that table from the code that counts it.
+//
+// Usage: flowstats -since 2026-10-13 -until 2026-10-22 [-transcripts <dir>] [-github=false] [-jobs=false] [-reviewer <login>] [-file-as <login>] [-append <file>]
 package main
 
 import (
@@ -46,6 +49,7 @@ func main() {
 	jobs := flag.Bool("jobs", true, "read the jobs of the window's runs, one request per run")
 	reviewer := flag.String("reviewer", "", "the login the outside reviewer comments under; empty leaves its comments unmeasured")
 	filer := flag.String("file-as", "", "file the report and a finding per breach as issues; the login the token acts as, whose issues alone are the job's")
+	appended := flag.String("append", "", "a file whose text ends the report, as it is")
 	flag.Parse()
 
 	from, err := time.Parse("2006-01-02", *since)
@@ -84,6 +88,15 @@ func main() {
 		}
 		printSessions(b, s)
 	}
+	if *appended != "" {
+		text, err := os.ReadFile(*appended)
+		if err != nil {
+			fail("-append: %v", err)
+		}
+		if err := appendPart(b, text); err != nil {
+			fail("-append %s: %v", *appended, err)
+		}
+	}
 	if _, err := os.Stdout.Write(b.Bytes()); err != nil {
 		fail("%v", err)
 	}
@@ -92,6 +105,19 @@ func main() {
 			fail("filing: %v", err)
 		}
 	}
+}
+
+// appendPart ends the report with a part another tool printed. An empty part is refused: the tool
+// that should have printed it said nothing, and a report without it would not show that.
+func appendPart(b *bytes.Buffer, text []byte) error {
+	part := bytes.TrimSpace(text)
+	if len(part) == 0 {
+		return fmt.Errorf("the file is empty")
+	}
+	b.WriteString("\n")
+	b.Write(part)
+	b.WriteString("\n\n")
+	return nil
 }
 
 func fail(format string, a ...any) {
