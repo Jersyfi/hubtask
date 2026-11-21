@@ -1,32 +1,42 @@
 # OpenSSF Best Practices badge: the answers
 
 The answers a worker enters on <https://www.bestpractices.dev> for the passing level
-([ci-cd.md](../architecture/ci-cd.md) §12). The criteria are the 67 of the questionnaire's passing
-level, read on 2026-11-21 from the badge project's own criteria file
-(`criteria/criteria.yml` in `coreinfrastructure/best-practices-badge`). Today: 62 Met,
-2 Unmet, 3 N/A; 9 of them are marked **Verify at submission**, because the fact
-behind them was not read when this was written.
+([ci-cd.md](../architecture/ci-cd.md) §12), and for OSPS Baseline level 1 below them. The criteria
+are the 67 of the questionnaire's passing level, read on 2026-11-21 from the badge project's own
+criteria file (`criteria/criteria.yml` in `coreinfrastructure/best-practices-badge`). Today:
+63 Met, 1 Unmet, 3 N/A; one is marked **Verify at submission**, because the fact
+behind it could not be read from the repository or from GitHub. The facts that could were read on
+2026-11-21 and each row says so.
 
 This file stays while the badge is shown: the weekly upkeep compares the badge's state with it.
 The links point at `main`, so they resolve once the change that adds a file has merged.
 
 ## The steps at the close
 
-1. Read each row marked **Verify at submission** against the tracker, the alerts and the
-   advisories, and correct the answer here.
-2. Close each *Unmet* row, or leave it and say so: the badge is granted only when every MUST is
-   Met or N/A.
-3. Open <https://www.bestpractices.dev/en/projects/new> in the browser and bring the page to the
+1. Read each row marked **Verify at submission** and correct the answer here. Read the dated
+   facts again where the submission is later than 2026-11-21.
+2. Put the written summary on the release page of v0.10.2, above the list GitHub generated. Once,
+   and only once - a second run would put it there twice:
+
+   ```bash
+   { cat docs/releases/v0.10.2.md; printf '\n\n'; gh release view v0.10.2 --repo Jersyfi/hubtask --json body --jq .body; } > /tmp/v0.10.2-notes.md
+   gh release edit v0.10.2 --repo Jersyfi/hubtask --notes-file /tmp/v0.10.2-notes.md
+   ```
+
+   Then `release_notes` is Met; change its row and the count above.
+3. Close each remaining *Unmet* row, or leave it and say so: the badge is granted only when every
+   MUST is Met or N/A.
+4. Open <https://www.bestpractices.dev/en/projects/new> in the browser and bring the page to the
    "Log in with GitHub" consent. **The consent is the owner's one act**: it lets the badge site
    read the owner's GitHub identity, and a worker stops there.
-4. After the consent: register `https://github.com/Jersyfi/hubtask`, enter the answers below with
+5. After the consent: register `https://github.com/Jersyfi/hubtask`, enter the answers below with
    their justification and URL, and submit.
-5. Add the badge to the README's "Quality and security" section, with the project id the site
+6. Add the badge to the README's "Quality and security" section, with the project id the site
    assigned in place of `<id>`:
    `[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/<id>/badge)](https://www.bestpractices.dev/projects/<id>)`
-6. OSPS Baseline level 1: the site lists it as a separate set of controls
-   (`criteria/baseline_criteria.yml`). Its answers are not written yet; they are added here before
-   the submission.
+7. OSPS Baseline level 1: enter the answers of the last section. Its *Unknown* row and its three
+   *Unmet* rows come first: the owner's account, one setting of the repository, and one file of
+   the Android build that two rows name.
 
 ## The answers
 
@@ -59,8 +69,8 @@ The links point at `main`, so they resolve once the change that adds a file has 
 | `version_unique` | Met | Every release is a tag `vX.Y.Z`. | <https://github.com/Jersyfi/hubtask/releases> |
 | `version_semver` | Met | Semantic Versioning. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/versioning-release.md> |
 | `version_tags` | Met | Each release is a git tag; `release.yml` runs on it. | <https://github.com/Jersyfi/hubtask/tags> |
-| `release_notes` | Unmet | The release pages hold GitHub's generated list of pull request titles (read: v0.10.2). The criterion asks for a human-readable summary and refuses a raw log. Met by a written summary of the major changes on each release page, which `release.yml` can take from a file. | <https://github.com/Jersyfi/hubtask/releases> |
-| `release_notes_vulns` | N/A | **Verify at submission.** N/A while no release has fixed a publicly known vulnerability that had a CVE; not read here against the advisories. | <https://github.com/Jersyfi/hubtask/security/advisories> |
+| `release_notes` | Unmet | Unmet until step 2 below has run, Met after it. From v0.10.2 on every release has a written summary of its major changes in `docs/releases/vX.Y.Z.md`, which `release.yml` puts above GitHub's generated list and without which it stops (versioning-release.md §3). The published page of v0.10.2 still holds the generated list alone (read 2026-11-21); step 2 puts its summary there. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/versioning-release.md> |
+| `release_notes_vulns` | N/A | No release has fixed a publicly known vulnerability: the repository has published no security advisory (read 2026-11-21, `gh api repos/Jersyfi/hubtask/security-advisories`: none). From then on the release's file names the CVE (versioning-release.md §3). | <https://github.com/Jersyfi/hubtask/security/advisories> |
 
 ### Reporting
 
@@ -68,12 +78,12 @@ The links point at `main`, so they resolve once the change that adds a file has 
 |---|---|---|---|
 | `report_process` | Met | The bug form on GitHub issues. | <https://github.com/Jersyfi/hubtask/blob/main/.github/ISSUE_TEMPLATE/02-bug.yml> |
 | `report_tracker` | Met | GitHub issues. | <https://github.com/Jersyfi/hubtask/issues> |
-| `report_responses` | Met | **Verify at submission.** Bug reports become `finding` issues answered by a worker; the share acknowledged in the last 2 to 12 months was not counted here. | <https://github.com/Jersyfi/hubtask/issues?q=label%3Afinding> |
-| `enhancement_responses` | Met | **Verify at submission.** As above, for the feature form; not counted here. | <https://github.com/Jersyfi/hubtask/issues> |
+| `report_responses` | Met | No account other than the maintainer's and the repository's own jobs has opened an issue (read 2026-11-21), so no report waits for an answer. A bug report becomes a `finding` issue, which a worker answers. | <https://github.com/Jersyfi/hubtask/issues?q=label%3Afinding> |
+| `enhancement_responses` | Met | As above: no enhancement request from another account exists (read 2026-11-21). | <https://github.com/Jersyfi/hubtask/issues> |
 | `report_archive` | Met | GitHub issues are public and searchable. | <https://github.com/Jersyfi/hubtask/issues?q=is%3Aissue> |
 | `vulnerability_report_process` | Met | SECURITY.md. | <https://github.com/Jersyfi/hubtask/blob/main/SECURITY.md> |
 | `vulnerability_report_private` | Met | A private GitHub security advisory, or `security@hubtask.eu`. | <https://github.com/Jersyfi/hubtask/blob/main/SECURITY.md> |
-| `vulnerability_report_response` | N/A | **Verify at submission.** N/A if no vulnerability report arrived in the last six months; with one, the answer is its response time. Not read here. | <https://github.com/Jersyfi/hubtask/blob/main/SECURITY.md> |
+| `vulnerability_report_response` | N/A | **Verify at submission.** No private vulnerability report exists on GitHub (read 2026-11-21: no advisory in any state). The mailbox `security@hubtask.eu` was not read; the owner says whether a report arrived there in the last six months. | <https://github.com/Jersyfi/hubtask/blob/main/SECURITY.md> |
 
 ### Quality
 
@@ -89,9 +99,9 @@ The links point at `main`, so they resolve once the change that adds a file has 
 | `test_policy` | Met | The loop for every task, step 5: tests for the domain, each repository method and each use case check. | <https://github.com/Jersyfi/hubtask/blob/main/AGENTS.md> |
 | `tests_are_added` | Met | The use cases' `checked_by` names the tests added with each change; the proof state counts the checks they cite. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/ci-cd.md#12-what-the-repository-shows> |
 | `tests_documented_added` | Met | The Definition of Done and AGENTS.md's loop. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/engineering-guidelines.md> |
-| `warnings` | Met | `golangci-lint` for Go, ESLint and `tsc` for TypeScript. | <https://github.com/Jersyfi/hubtask/blob/main/.golangci.yml> |
+| `warnings` | Met | `golangci-lint` with fifteen linters for Go; `svelte-check --fail-on-warnings` under TypeScript's `strict` for the clients; `cargo clippy -D warnings` for the Rust shell. | <https://github.com/Jersyfi/hubtask/blob/main/.golangci.yml> |
 | `warnings_fixed` | Met | `make gate-quick` fails on any finding; none is carried. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/ci-cd.md> |
-| `warnings_strict` | Met | The linters run with the project's full rule set and a frozen baseline. | <https://github.com/Jersyfi/hubtask/blob/main/.golangci.yml> |
+| `warnings_strict` | Met | `.golangci.yml` switches the default set off and names fifteen linters, among them `staticcheck`, `gosec`, `revive` and `errorlint`; no finding is carried in a baseline, no preset exclusion applies, and a suppression needs its linter and a reason (`nolintlint`). TypeScript is `strict`, and a warning of `svelte-check` or `clippy` fails the build. It is a chosen list, not every linter there is. | <https://github.com/Jersyfi/hubtask/blob/main/.golangci.yml> |
 
 ### Security
 
@@ -103,15 +113,15 @@ The links point at `main`, so they resolve once the change that adds a file has 
 | `crypto_call` | Met | Go's standard library and `golang.org/x/crypto`; no own primitive (security.md §8). | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/security.md> |
 | `crypto_floss` | Met | Every cryptographic dependency is FLOSS. | <https://github.com/Jersyfi/hubtask/blob/main/THIRD-PARTY-LICENSES.md> |
 | `crypto_keylength` | Met | AES-256, 256-bit secrets (security.md §8). | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/security.md> |
-| `crypto_working` | Met | No MD5, SHA-1, DES or RC4 in a security mechanism (security.md §8); `gosec` flags them. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/security.md> |
-| `crypto_weaknesses` | Met | As crypto_working; AES in GCM mode. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/security.md> |
-| `crypto_pfs` | Met | **Verify at submission.** TLS 1.2 and above, 1.3 as the target, terminated where the operator terminates it; the suites were not read here. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/security.md> |
+| `crypto_working` | Met | No security mechanism depends on a broken algorithm. SHA-1 occurs once, in TOTP (`core/domain/model/identity/Totp.go`): HMAC-SHA-1 is RFC 6238's algorithm, the one authenticator apps expect, and HMAC does not rest on SHA-1's collision resistance (identity.md §8). MD5 occurs once, outside any security mechanism: the generated Zapier app derives an idempotency key with it (`packages/zapier-app/scripts/generate.mjs`). No DES, no RC4 (read 2026-11-21 by a search of the Go imports and the client sources). `gosec` flags an import of a weak hash; the one in TOTP is suppressed with its reason. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/identity.md> |
+| `crypto_weaknesses` | Met | A SHOULD. Everything else is HMAC-SHA-256, AES-256-GCM, Argon2id and HKDF-SHA256 (security.md §8). The one algorithm with a known weakness is SHA-1 inside TOTP's HMAC, as crypto_working says; the weakness is of its collision resistance, which HMAC does not use. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/security.md> |
+| `crypto_pfs` | Met | A SHOULD. The server speaks plain HTTP behind the operator's proxy, which terminates TLS (security.md §8: TLS 1.2 and above). Every TLS client in the code - outbound HTTP, SMTP, IMAP, LDAP - sets TLS 1.2 as its minimum and leaves the cipher suites to Go's defaults, which agree keys by ECDHE (read 2026-11-21: no `CipherSuites` is set anywhere). | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/security.md> |
 | `crypto_password_storage` | Met | Argon2id with a per-password salt (identity.md §5.3). | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/identity.md> |
 | `crypto_random` | Met | Keys and tokens come from the `RandomSource` port, backed by `crypto/rand` (rule 4). | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/security.md> |
 | `delivery_mitm` | Met | The image from ghcr.io and the release files from GitHub, both over HTTPS, signed. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/security.md> |
 | `delivery_unsigned` | Met | `SHA256SUMS` is served over HTTPS, and the image and the release record are signed. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/security.md> |
-| `vulnerabilities_fixed_60_days` | Unmet | **Verify at submission.** Three Dependabot alerts were open when this was written, their severity and age not read here. Met once none of medium or higher severity is older than 60 days. | <https://github.com/Jersyfi/hubtask/security/dependabot> |
-| `vulnerabilities_critical_fixed` | Met | **Verify at submission.** SECURITY.md: critical first. No critical report is known; not read against the alerts here. | <https://github.com/Jersyfi/hubtask/blob/main/SECURITY.md> |
+| `vulnerabilities_fixed_60_days` | Met | Read 2026-11-21: three Dependabot alerts are open, all of medium severity, on `pnpm-lock.yaml`: `qs` (advisory published 2026-10-27), `glob` and `minimatch` (both 2026-10-30). None is older than 60 days; the first would be on 2026-12-26. The change that adds this file lifts all three to their patched versions, so the alerts close when it merges. No code scanning alert and no secret scanning alert is open. | <https://github.com/Jersyfi/hubtask/security/dependabot> |
+| `vulnerabilities_critical_fixed` | Met | A SHOULD. No critical vulnerability is reported: the three open Dependabot alerts are medium, no code scanning or secret scanning alert is open, and no advisory exists (read 2026-11-21). SECURITY.md: critical first. | <https://github.com/Jersyfi/hubtask/blob/main/SECURITY.md> |
 | `no_leaked_credentials` | Met | Secret scanning as a push rule and gitleaks over the history (SG-7). | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/security.md> |
 
 ### Analysis
@@ -120,9 +130,44 @@ The links point at `main`, so they resolve once the change that adds a file has 
 |---|---|---|---|
 | `static_analysis` | Met | `gosec` in `golangci-lint` on every pull request; CodeQL for Go, JavaScript and TypeScript, and the workflows. | <https://github.com/Jersyfi/hubtask/blob/main/.github/workflows/codeql.yml> |
 | `static_analysis_common_vulnerabilities` | Met | `gosec` and CodeQL's `security-extended` queries. | <https://github.com/Jersyfi/hubtask/blob/main/.github/workflows/codeql.yml> |
-| `static_analysis_fixed` | Met | **Verify at submission.** A red CodeQL is a finding to fix (ci-cd.md §2); the open code scanning alerts were not read here. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/ci-cd.md> |
+| `static_analysis_fixed` | Met | No code scanning alert is open on `main` (read 2026-11-21; the newest CodeQL analysis of `main` is of that day). Six alerts are dismissed; their reasons were not read here. A red CodeQL is a finding to fix (ci-cd.md §2). | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/ci-cd.md> |
 | `static_analysis_often` | Met | On every ready pull request and every push to `main`. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/ci-cd.md> |
 | `dynamic_analysis` | Met | Fuzzing of the parsers that take untrusted input, nightly (SG-8). | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/security.md> |
 | `dynamic_analysis_unsafe` | N/A | Go, TypeScript and Rust: no memory-unsafe language. | <https://github.com/Jersyfi/hubtask/blob/main/go.mod> |
 | `dynamic_analysis_enable_assertions` | Met | The unit tests run with Go's race detector (`make gate-unit`). | <https://github.com/Jersyfi/hubtask/blob/main/Makefile> |
-| `dynamic_analysis_fixed` | Met | **Verify at submission.** A fuzz crash fails the nightly and files a `finding`; whether one is open was not read here. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/security.md> |
+| `dynamic_analysis_fixed` | Met | The eight fuzz targets of the nightly of 2026-11-21 passed, and no open `finding` names a fuzz crash (read 2026-11-21). A crash fails the nightly and files a `finding`. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/security.md> |
+
+## OSPS Baseline level 1
+
+The site's criteria page lists *Baseline Level 1* as a set of its own beside passing, silver and
+gold (read 2026-11-21, <https://www.bestpractices.dev/en/criteria>); the page does not say whether
+it is granted as a badge of its own. The controls are the 24 of `baseline-1` in the badge project's
+`criteria/baseline_criteria.yml`, drawn from the Baseline of 2026-08-28. Today: 20 Met, 3 Unmet,
+1 Unknown. Every control allows N/A with a justification; none is answered that way.
+
+| Control | Answer | Justification | URL |
+|---|---|---|---|
+| `osps_ac_01_01` | Unknown | Whether the maintainer's GitHub account requires a second factor: the API answers this to the account's owner alone, and not to a worker's token (read 2026-11-21: no value). The owner says. | <https://github.com/Jersyfi> |
+| `osps_ac_02_01` | Met | The repository belongs to a personal account and has one collaborator, its owner (read 2026-11-21). GitHub adds a collaborator only by an invitation the owner sends by hand. | <https://github.com/Jersyfi/hubtask> |
+| `osps_ac_03_01` | Unmet | `main` is protected: a pull request and the check `CI required` are required, force pushes are off. The protection does not apply to administrators (read 2026-11-21: `enforce_admins` is off), so the owner's account can still push to `main` directly. Met once "Do not allow bypassing the above settings" is on; that is a repository setting, the owner's to change. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/ci-cd.md> |
+| `osps_ac_03_02` | Met | The branch protection of `main` forbids its deletion (read 2026-11-21). | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/ci-cd.md> |
+| `osps_br_01_01` | Met | `after-ci.yml`, the workflow that runs with write rights after a fork's run, hands what the run carries to its script as environment variables, not as script text; CodeQL reads every workflow for injection. The other workflows were not read line by line here. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/ci-cd.md> |
+| `osps_br_01_03` | Met | No workflow runs on `pull_request_target`; a fork's pull request runs without secrets. `after-ci.yml` runs on `workflow_run` with write rights and checks out the default branch's scripts only, nothing of the run (ci-cd.md §3.5). | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/ci-cd.md> |
+| `osps_br_03_01` | Met | The repository, the releases, the registry and hubtask.eu are served over HTTPS only. | <https://github.com/Jersyfi/hubtask> |
+| `osps_br_03_02` | Met | The image comes from ghcr.io and the release files from GitHub, over HTTPS; the image and the release record are signed, and `SHA256SUMS` covers every file (security.md §11). | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/security.md> |
+| `osps_br_07_01` | Met | Secret scanning as a push rule, and gitleaks over the history in CI (SG-7). No secret scanning alert is open (read 2026-11-21). | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/security.md> |
+| `osps_do_01_01` | Met | The README's quick start, the installation and operation documents, and the use cases, which say for each function what a person does and sees. | <https://github.com/Jersyfi/hubtask/blob/main/docs/README.md> |
+| `osps_do_02_01` | Met | CONTRIBUTING.md, "Ways to contribute", and the bug form. | <https://github.com/Jersyfi/hubtask/blob/main/CONTRIBUTING.md> |
+| `osps_gv_02_01` | Met | GitHub issues and GitHub Discussions, both open (read 2026-11-21). | <https://github.com/Jersyfi/hubtask/discussions> |
+| `osps_gv_03_01` | Met | CONTRIBUTING.md explains the way a contribution takes. | <https://github.com/Jersyfi/hubtask/blob/main/CONTRIBUTING.md> |
+| `osps_le_02_01` | Met | Apache-2.0, approved by the OSI. | <https://github.com/Jersyfi/hubtask/blob/main/LICENSE> |
+| `osps_le_02_02` | Met | The released image, apps and chart are under Apache-2.0 as the source is. | <https://github.com/Jersyfi/hubtask/blob/main/LICENSE> |
+| `osps_le_03_01` | Met | `LICENSE` in the repository's root. | <https://github.com/Jersyfi/hubtask/blob/main/LICENSE> |
+| `osps_le_03_02` | Met | Every release carries GitHub's source archive, which holds `LICENSE`; `THIRD-PARTY-LICENSES.md` stands beside the release's files (read 2026-11-21 on v0.10.2). | <https://github.com/Jersyfi/hubtask/releases> |
+| `osps_qa_01_01` | Met | <https://github.com/Jersyfi/hubtask>, public. | <https://github.com/Jersyfi/hubtask> |
+| `osps_qa_01_02` | Met | git records every change, its author and its time, publicly. | <https://github.com/Jersyfi/hubtask/commits/main> |
+| `osps_qa_02_01` | Met | `go.mod` with `go.sum`, `pnpm-lock.yaml` with each `package.json`, and `Cargo.lock`. | <https://github.com/Jersyfi/hubtask/blob/main/go.mod> |
+| `osps_qa_04_01` | Met | The project is this one repository (read 2026-11-21: the account holds no other repository of the project), and the map in AGENTS.md names its parts. | <https://github.com/Jersyfi/hubtask/blob/main/AGENTS.md> |
+| `osps_qa_05_01` | Unmet | One generated executable is committed: `apps/webapp/src-tauri/gen/android/gradle/wrapper/gradle-wrapper.jar`, the Android build's Gradle wrapper (read 2026-11-21 over the tracked files). Met once the file is gone from the repository and the build fetches or checks it; that is a change to the Android build, not made here. | <https://github.com/Jersyfi/hubtask/tree/main/apps/webapp/src-tauri/gen/android/gradle/wrapper> |
+| `osps_qa_05_02` | Unmet | The same file is the one binary a person cannot review. The other tracked binaries are images, which the control leaves out, and a 66-byte test fixture of data (`apps/webapp/src-tauri/fixtures/update/package.bin`). | <https://github.com/Jersyfi/hubtask/tree/main/apps/webapp/src-tauri/gen/android/gradle/wrapper> |
+| `osps_vm_02_01` | Met | SECURITY.md: a private GitHub security advisory, or `security@hubtask.eu`. | <https://github.com/Jersyfi/hubtask/blob/main/SECURITY.md> |
