@@ -102,6 +102,7 @@ Counted in `apps/webapp/e2e/*.test.mjs`:
 | Anything that holds those answers to `api/openapi.yaml` | nothing found: the fixture is hand-written objects |
 | Suites with route stubs of their own / calls | 172 / 382 |
 | `waitForTimeout` (a fixed wait) | 353 uses in 93 suites, and 2 in two shared helpers |
+| A timer (`setTimeout`), the other way to wait a fixed time | 35 uses in 23 suites, and 2 in two shared helpers |
 | Suites that cite no `UC-…` | 50; another 6 name a use case and no check of it |
 | Skipped or to-do walks | 0 |
 
@@ -445,7 +446,7 @@ there), each tagged like every other rule:
 | Rule | Held by |
 |---|---|
 | A suite's header names the use case checks it proves; a suite that proves none says what it holds | gate: the suites without one, 56 today, are a list that only shrinks; a suite that is not listed has one |
-| No fixed wait; wait for what the person would see | gate: the count of `waitForTimeout` per file, 355 today in all, only falls; a file that is not listed has none |
+| No fixed wait; wait for what the person would see | gate: the counts per file of `waitForTimeout`, 355 today in all, and of a timer (`setTimeout`), 37 today in 25 files, only fall; a file that is not listed has none |
 | No answer the contract does not allow | gate: recorded stub answers validated against `api/openapi.yaml` (below) |
 | An answer more than one suite needs lives in `fixture.mjs` | reviewed; the count of route stubs in suites, 382 today, is reported weekly |
 | Find by role and name, as a person would; a `data-` hook only where no role exists | reviewed |

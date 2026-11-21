@@ -23,11 +23,13 @@ in [`docs/evidence/README.md`](../../../docs/evidence/README.md), "How to walk".
   fails without one of the two.
   `[partial: ci:node; open: a citation below the top comment counts too, whether the walk proves the check it cites, a suite added to the list]`
 * **No fixed wait.** A walk waits for what the person would see — an element, a text, a request
-  that left — never for a number of milliseconds (`waitForTimeout`): a fixed wait is too short on
-  a slow machine and wasted time on a fast one. `bounds.json` lists under `fixed_waits` how many
-  each file still has, 355 in all; a file may have fewer and never more, and a file that is not
-  listed has none.
-  `[partial: ci:node; open: a wait written another way, a number raised in the list]`
+  that left — never for a number of milliseconds: a fixed wait is too short on a slow machine and
+  wasted time on a fast one. It is written in two ways, and `bounds.json` lists how many of each
+  a file still has: under `fixed_waits` Playwright's `waitForTimeout`, 355 in all, and under
+  `timer_waits` a timer (`setTimeout`), 37 in all. A file may have fewer and never more, and a
+  file that is not listed has none. The timers include a stub that answers late on purpose and a
+  loop that asks again until a request has left; the count does not tell them from a plain wait.
+  `[partial: ci:node; open: a wait written a third way, a number raised in the list]`
 * **No answer the contract does not allow.** What a walk answers for `/api/v1` is what the server
   could answer: an operation `api/openapi.yaml` declares, with a status it declares and a body its
   schema allows. The walks write their answers down and `test/contract` judges them. A wrong
@@ -77,7 +79,7 @@ runs stay until somebody removes them. `ENGINES=firefox,webkit` walks the other 
 ## How to check a change
 
 ```bash
-node --test apps/webapp/build/walks.test.js   # the two lists in bounds.json, in seconds
+node --test apps/webapp/build/walks.test.js   # the lists in bounds.json, in seconds
 make gate-walks                               # after a recorded walk: the answers against the contract
 ```
 

@@ -2,9 +2,10 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // The rules for a walk that a count can hold (ci-cd.md §3, `engines`), against e2e/bounds.json:
-// the fixed waits each file has left, and the suites that neither cite a use case check nor say
-// what they hold instead. Both lists only shrink - a file or suite that is not listed has none,
-// so a new suite starts clean, and an entry that got better fails until it is lowered or removed.
+// the fixed waits each file has left, by Playwright and by a timer, and the suites that neither
+// cite a use case check nor say what they hold instead. The lists only shrink - a file or suite
+// that is not listed has none, so a new suite starts clean, and an entry that got better fails
+// until it is lowered or removed.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -25,6 +26,13 @@ const HOLDS_INSTEAD = /^\/\/ No use case check: \S/m;
 /** A file's fixed waits: its calls of Playwright's `waitForTimeout`. */
 export const fixedWaits = (source) => (source.match(/\.waitForTimeout\(/g) ?? []).length;
 
+/**
+ * A file's timers: its calls of `setTimeout`, the other way to wait a number of milliseconds
+ * (`await new Promise((done) => setTimeout(done, 300))`). A stub that answers late and a loop that
+ * asks again count too - no count tells them apart.
+ */
+export const timerWaits = (source) => (source.match(/\bsetTimeout\(/g) ?? []).length;
+
 /** A suite's own stubs: its calls of `route(` on a context or a page. */
 export const routeStubs = (source) => (source.match(/\.route\(/g) ?? []).length;
 
@@ -41,38 +49,48 @@ export const saysWhatItProves = (source) => CHECK_CITED.test(source) || HOLDS_IN
 export function boundProblems(files, bounds) {
   const problems = [];
   for (const [name, source] of Object.entries(files)) {
-    const waits = fixedWaits(source);
-    const allowed = bounds.fixed_waits[name] ?? 0;
-    if (waits > allowed) problems.push(`${name} has ${waits} fixed waits (waitForTimeout), at most ${allowed} may be: wait for what the person would see`);
-    if (waits < allowed) problems.push(`${name} has ${waits} fixed waits, fewer than its bound: ${waits === 0 ? 'remove its entry from' : `lower it to ${waits} in`} fixed_waits in ${BOUNDS}`);
+    for (const [list, count, what] of [['fixed_waits', fixedWaits, 'fixed waits (waitForTimeout)'], ['timer_waits', timerWaits, 'timers (setTimeout)']]) {
+      const waits = count(source);
+      const allowed = bounds[list][name] ?? 0;
+      if (waits > allowed) problems.push(`${name} has ${waits} ${what}, at most ${allowed} may be: wait for what the person would see`);
+      if (waits < allowed) problems.push(`${name} has ${waits} ${what}, fewer than its bound: ${waits === 0 ? 'remove its entry from' : `lower it to ${waits} in`} ${list} in ${BOUNDS}`);
+    }
     if (!name.endsWith('.test.mjs')) continue;
     const listed = bounds.no_check_cited.includes(name);
     const says = saysWhatItProves(source);
     if (!says && !listed) problems.push(`${name} cites no use case check (UC-XX-nn check n, UC-XX-nn/n) and has no "// No use case check: …" line in its header`);
     if (says && listed) problems.push(`${name} says what it proves now: remove it from no_check_cited in ${BOUNDS}`);
   }
-  for (const name of [...Object.keys(bounds.fixed_waits), ...bounds.no_check_cited]) {
+  for (const name of [...Object.keys(bounds.fixed_waits), ...Object.keys(bounds.timer_waits), ...bounds.no_check_cited]) {
     if (!(name in files)) problems.push(`${name} is listed in ${BOUNDS} and does not exist: remove its entry`);
   }
   return problems;
 }
 
 const suite = (source = '') => `// A walk.\n\nimport { test } from 'node:test';\n${source}`;
-const none = { fixed_waits: {}, no_check_cited: [] };
+const none = { fixed_waits: {}, timer_waits: {}, no_check_cited: [] };
 
 test('a fixed wait beyond the bound is refused, in a new suite and in a listed one', () => {
   const cited = suite("test('UC-WRK-01 check 2', async () => { await page.waitForTimeout(50); });");
   assert.match(boundProblems({ 'new.test.mjs': cited }, none)[0], /new\.test\.mjs has 1 fixed waits .* at most 0/);
-  assert.deepEqual(boundProblems({ 'old.test.mjs': cited }, { fixed_waits: { 'old.test.mjs': 1 }, no_check_cited: [] }), []);
+  assert.deepEqual(boundProblems({ 'old.test.mjs': cited }, { ...none, fixed_waits: { 'old.test.mjs': 1 } }), []);
   assert.match(boundProblems({ 'helper.mjs': 'await page.waitForTimeout(50);' }, none)[0], /helper\.mjs has 1 fixed waits/);
+});
+
+test('a timer beyond the bound is refused like a fixed wait, and its bound falls the same way', () => {
+  const timer = suite("test('UC-WRK-01 check 2', async () => { await new Promise((done) => setTimeout(done, 300)); });");
+  assert.match(boundProblems({ 'new.test.mjs': timer }, none)[0], /new\.test\.mjs has 1 timers \(setTimeout\), at most 0/);
+  assert.deepEqual(boundProblems({ 'old.test.mjs': timer }, { ...none, timer_waits: { 'old.test.mjs': 1 } }), []);
+  assert.match(boundProblems({ 'old.test.mjs': timer }, { ...none, timer_waits: { 'old.test.mjs': 2 } })[0], /lower it to 1 in timer_waits/);
+  assert.match(boundProblems({}, { ...none, timer_waits: { 'gone.test.mjs': 1 } })[0], /does not exist/);
 });
 
 test('a bound that was beaten fails until it is lowered', () => {
   const cited = suite('// UC-WRK-01/2');
-  assert.match(boundProblems({ 'old.test.mjs': cited }, { fixed_waits: { 'old.test.mjs': 2 }, no_check_cited: [] })[0], /remove its entry/);
-  assert.match(boundProblems({ 'old.test.mjs': `${cited} x.waitForTimeout(1)` }, { fixed_waits: { 'old.test.mjs': 2 }, no_check_cited: [] })[0], /lower it to 1/);
-  assert.match(boundProblems({ 'old.test.mjs': cited }, { fixed_waits: {}, no_check_cited: ['old.test.mjs'] })[0], /remove it from no_check_cited/);
-  assert.match(boundProblems({}, { fixed_waits: { 'gone.test.mjs': 1 }, no_check_cited: [] })[0], /does not exist/);
+  assert.match(boundProblems({ 'old.test.mjs': cited }, { ...none, fixed_waits: { 'old.test.mjs': 2 } })[0], /remove its entry/);
+  assert.match(boundProblems({ 'old.test.mjs': `${cited} x.waitForTimeout(1)` }, { ...none, fixed_waits: { 'old.test.mjs': 2 } })[0], /lower it to 1/);
+  assert.match(boundProblems({ 'old.test.mjs': cited }, { ...none, no_check_cited: ['old.test.mjs'] })[0], /remove it from no_check_cited/);
+  assert.match(boundProblems({}, { ...none, fixed_waits: { 'gone.test.mjs': 1 } })[0], /does not exist/);
 });
 
 test('a suite cites a check, or its header says what it holds instead', () => {
@@ -92,8 +110,9 @@ test('the walks keep to their bounds', (t) => {
   const bounds = JSON.parse(fs.readFileSync(path.join(E2E, 'bounds.json'), 'utf8'));
   const suites = Object.entries(files).filter(([name]) => name.endsWith('.test.mjs'));
   const waits = Object.values(bounds.fixed_waits);
+  const timers = Object.values(bounds.timer_waits);
   const stubs = suites.map(([, source]) => routeStubs(source)).filter(Boolean);
-  t.diagnostic(`${suites.length} suites; ${waits.reduce((sum, n) => sum + n, 0)} fixed waits in ${waits.length} files; ${bounds.no_check_cited.length} suites cite no check`);
+  t.diagnostic(`${suites.length} suites; ${waits.reduce((sum, n) => sum + n, 0)} fixed waits in ${waits.length} files; ${timers.reduce((sum, n) => sum + n, 0)} timers in ${timers.length} files; ${bounds.no_check_cited.length} suites cite no check`);
   // Reported, not bounded: whether a stub belongs in the fixture is the reviewer's question.
   t.diagnostic(`${stubs.reduce((sum, n) => sum + n, 0)} route stubs in ${stubs.length} suites`);
   assert.deepEqual(boundProblems(files, bounds), []);

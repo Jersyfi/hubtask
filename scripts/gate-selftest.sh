@@ -1285,7 +1285,7 @@ expect_walk_bound_failure() {
 
 if ! command -v node >/dev/null 2>&1; then
 	printf '  skipped %-44s node is not installed\n' "the walks' bounds"
-	SKIPPED=$((SKIPPED + 2))
+	SKIPPED=$((SKIPPED + 3))
 else
 	# The use case is split in two quotes: written whole, it would be a citation in this script.
 	expect_walk_bound_failure "a fixed wait in a suite" "has 1 fixed waits" \
@@ -1294,6 +1294,13 @@ else
 import { test } from "node:test";
 
 test("waits", async () => { await page.waitForTimeout(50); });'
+
+	expect_walk_bound_failure "a timer in a suite" "has 1 timers" \
+'// Proves UC-''ID-01/1.
+
+import { test } from "node:test";
+
+test("waits", async () => { await new Promise((done) => setTimeout(done, 50)); });'
 
 	expect_walk_bound_failure "a suite that cites no use case check" "cites no use case check" \
 '// A walk that says nothing about what it proves.
