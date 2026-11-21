@@ -83,12 +83,12 @@ func TestTheUnfilledTemplateIsRefused(t *testing.T) {
 	}
 	required, _ := templateHeadings(root)
 	known, _ := knownUseCases(root)
-	problems := check(string(raw), required, known)
+	problems := append(check(string(raw), required, known), reviewProblems(string(raw), false)...)
 	if len(problems) == 0 {
 		t.Fatal("the unfilled template passed")
 	}
 	joined := strings.Join(problems, "\n")
-	for _, want := range []string{"no issue is closed", "answers ticked", "placeholder"} {
+	for _, want := range []string{"no issue is closed", "answers ticked", "placeholder", "who reviewed and when", "found, fixed and left open"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("the unfilled template was not refused for %q:\n%s", want, joined)
 		}

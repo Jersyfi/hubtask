@@ -554,13 +554,13 @@ gate-api-compat:
 gate-privacy:
 	$(call go_test,,./test/privacy/...,)
 
-## gate-pr: The pull request description against the template (BODY=<file>, or stdin); TITLE=<title> checks the title; BASE=<ref> also reads the branch's history
+## gate-pr: The pull request description against the template (BODY=<file>, or stdin); TITLE=<title> checks the title; BASE=<ref> also reads the branch's history; DRAFT=1 lets Review say "not yet"
 # The title is read by the shell from the environment rather than pasted into the recipe, where its
 # quotes would be the shell's. Given on make's command line, a `$` in it is make's and is written
 # `$$`; given in the environment (TITLE="…" make gate-pr), it is taken as it is.
 .PHONY: gate-pr
 gate-pr:
-	$(GO) run ./tools/checkpr $(if $(BODY),-body $(BODY),) $(if $(TITLE),-title "$$TITLE",) -base $(if $(BASE),$(BASE),origin/main) $(if $(HEAD_REF),-head $(HEAD_REF),) $(if $(OPENED),-opened $(OPENED),)
+	$(GO) run ./tools/checkpr $(if $(BODY),-body $(BODY),) $(if $(TITLE),-title "$$TITLE",) -base $(if $(BASE),$(BASE),origin/main) $(if $(HEAD_REF),-head $(HEAD_REF),) $(if $(OPENED),-opened $(OPENED),) $(if $(DRAFT),-draft,)
 
 ## gate-privacy-full: PG-2 and PG-7 against a real PostgreSQL (every pull request, and the nightly on arm64)
 .PHONY: gate-privacy-full

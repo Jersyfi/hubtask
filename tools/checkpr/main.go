@@ -10,7 +10,8 @@
 // who opens the form. This reads the description the way a reviewer would and names what is missing.
 //
 // Usage: checkpr -body <file> [-title <title>] [-opened <RFC 3339>] [-base <ref> [-head <ref>]]
-// (or the description on stdin). The title is a Conventional Commit (title.go).
+// [-draft] (or the description on stdin). The title is a Conventional Commit (title.go); a draft's
+// Review may say `not yet` (review.go).
 // With -base it also reads the branch's history: merged migrations it changes, use cases it
 // deletes, settled ADRs it rewrites, section numbers of subject documents it drops (rules.go).
 // A rule added after a pull
@@ -32,6 +33,7 @@ func main() {
 	head := flag.String("head", "HEAD", "the pull request's head")
 	openedAt := flag.String("opened", "", "when the pull request was opened, RFC 3339")
 	title := flag.String("title", "", "the pull request's title; not checked when the flag is absent")
+	draft := flag.Bool("draft", false, "the pull request is a draft: its Review may say `not yet: <why>`")
 	flag.Parse()
 	titleGiven := false
 	flag.Visit(func(f *flag.Flag) { titleGiven = titleGiven || f.Name == "title" })
@@ -73,7 +75,10 @@ func main() {
 		}
 	}
 
-	problems := check(string(raw), required, useCases)
+	problems := check(string(raw), requiredOf(required, opened), useCases)
+	if heldTo(opened, reviewSince) {
+		problems = append(problems, reviewProblems(string(raw), *draft)...)
+	}
 	if titleGiven && heldTo(opened, titleSince) {
 		problems = append(problems, titleProblems(*title)...)
 	}

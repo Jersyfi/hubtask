@@ -28,6 +28,7 @@ import (
 //     "Which one" names it.
 //   - Premises says which claims about today's code were false and what was corrected, or that
 //     none was and what was checked: the worker checks them itself (ADR-0089).
+//   - Review names a reviewer and a date and gives its counts (review.go).
 //   - Impact's four lines no longer carry the template's placeholders.
 
 var (
