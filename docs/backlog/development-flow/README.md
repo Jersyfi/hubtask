@@ -412,13 +412,17 @@ what the second work-surface build did by hand:
 4. **A coherence pass** by one reviewer over the whole inventory, then the presentation.
 
 *CI at a checkpoint without leaving draft:* `ci.yml` gains a manual trigger (`workflow_dispatch`).
-The worker pushes the branch and starts one run on it; it runs every job, as `main` does, and
-gates nothing: its summary job is named `CI by hand`, because a green `CI required` on the
-branch's head would be the draft's. A draft pull request still starts no run by itself. The
+The worker pushes the branch and starts one run on it; it runs the jobs `main` runs, on the
+branch's head, and gates nothing: its summary job is named `CI by hand`, because a green
+`CI required` on the branch's head would be the draft's. It is not a ready pull request's run:
+`ci-cd.md` §3.4 lists every job that differs. GitHub starts it once `ci.yml` exists on `main` and
+uses the branch's version of the file; the first one ran on this concept's branch on 2026-11-21.
+A draft pull request still starts no run by itself. The
 repository is public and its CI minutes are free (ADR-0089's measurement), so the cost is the
 wait, which the worker spends on the next family. `test/architecture` holds the trigger, the push
-to `main` alone, the summary's three names and that no job asks for more than "is this a pull
-request" (`ci-cd.md` §3.4).
+to `main` alone, the summary's three names, that no job reads the event beyond "is this a pull
+request" or reads the branch, and what `api-compat` and `numbers` compare with on a manual run
+(`ci-cd.md` §3.4).
 
 **The design brief.** Before a *structural* change, the worker writes one screen into the draft
 pull request and builds only after it stands. Structural means any of: a migration that changes an
@@ -917,10 +921,12 @@ The target was dropped on 2026-11-21: the tagged rule lists alone take about 166
 could only be met by dropping rules, and no rule is dropped. The file's length is reported weekly
 instead (§5.6).
 
+**What the first manual run shows**, read off it by the orchestrator: that its `CI by hand`
+leaves the pull request's required check alone, and that `api-compat` and `numbers` find their
+base on a branch.
+
 **What can only be seen after the merge**, and is checked then by the orchestrator or the next
-worker: a CI run started by hand on a branch (GitHub starts a manual run only for a workflow
-whose file on the default branch has the trigger, as its documentation of `workflow_dispatch`
-says), and with it that the run's `CI by hand` leaves the pull request's required check alone; the first Scorecard result and its badge, which exist only once the workflow has run on `main`;
+worker: the first Scorecard result and its badge, which exist only once the workflow has run on `main`;
 the first weekly report on its issue, which closes issue 1309; the pull
 request median falling in the report.
 
@@ -961,8 +967,7 @@ decision. The whole change is reversible by reverting one pull request; none of 
   CodeRabbit's comments are followed blindly — each is fixed or answered, and the gates decide.
 * **Unverified until built:** how much dead code and how many unused keys exist; whether
   CodeRabbit reviews a draft on request, what its limits are for a repository without stars, and
-  whether its free tier includes every feature named; whether a manual CI run can start before the
-  trigger is on `main`; how many of the browser
+  whether its free tier includes every feature named; how many of the browser
   job's failures are flakes; what `test/architecture/drafts_test.go` needs for a manual trigger
   (`ci.yml` already treats every event but a pull request as "run everything", and
   `scripts/ci/after-ci.sh` acts on `main` only for pushes to it); how long `make proof` takes for

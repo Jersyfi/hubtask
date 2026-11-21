@@ -63,7 +63,7 @@ Every job of `ci.yml`, in file order. `ci-required` waits for all of the others 
 | `security` | `make gate-security` (`govulncheck`, `test/security`: cross-tenant, RLS, SSRF, uploads, authorisation, redaction) and `make gate-privacy` (PG-1, PG-3…PG-6, PG-8) |
 | `data` | `make gate-data` (RE-1…RE-9, BK-1 for every target, SY-1…SY-12, audit) and `make gate-privacy-full` (PG-2, PG-7) |
 | `docs` | `make gate-docs` (§3.1) |
-| `numbers` | `make gate-numbers`: one file per migration and ADR number in the tree; on a pull request, no number it adds that another open pull request adds (§3.5) |
+| `numbers` | `make gate-numbers`: one file per migration and ADR number in the tree; on a pull request and on a manual run, no number the branch adds that another open pull request adds (§3.5) |
 | `pr-description` | `make gate-pr` over the description and the title read from the API; not for Dependabot's pull requests (§3.1) |
 | `node` | Per affected workspace package: the workspace map lint, build, lint, typecheck, test; for the website `make website` first |
 | `engines` | The built web app in Chromium through pinned Playwright ([ADR-0048](../adr/ADR-0048-browser-job-driver.md)), asserting [ADR-0044](../adr/ADR-0044-browser-support-row.md)'s feature table, with Firefox and WebKit best effort by hand (`ENGINES=firefox,webkit`); the suites in three shards by file (`node --test --test-shard`), each on its own runner; the one job that runs a browser. The walks write down every answer they give for `/api/v1`, and `make gate-walks` then holds this shard's answers to `api/openapi.yaml`: an answer the contract does not allow fails unless `test/contract/testdata/walks-baseline.txt` lists it, and `make gate-pr` refuses a line added to that list. The rules for a walk, and the two counts the `node` job holds (fixed waits, suites that cite no use case check), are in [`apps/webapp/e2e/AGENTS.md`](../../apps/webapp/e2e/AGENTS.md) |
@@ -85,7 +85,7 @@ commit through `oasdiff`, a pinned development tool that never ships, and classi
 [versioning-release.md](./versioning-release.md) §2: a new value in a response enum is lowered to
 compatible, the rest is `oasdiff`'s own judgement. Only the breaking changes the pull request adds
 to those already on its base are judged — on a push to `main`, those of the pushed commit; on a
-manual run, which has no base, every break since the tag against every commit since it — and
+manual run, those since the branch left `main` — and
 each one fails unless the change is marked: `!` in a commit's or the pull request's title, or a
 `BREAKING CHANGE:` footer in a commit message or the description. A break already on the base was
 judged when it landed. The job checks out the whole history; with no tag behind the commit it
@@ -128,7 +128,7 @@ Every job decides from the `changes` outputs whether it has work.
 | anything, on a draft | Nothing. Every job is skipped and `ci-required` reports as `CI not run (draft)` (§3.4) |
 
 On a push to `main` every filter output is `true`: the branch that gets released is never filtered.
-A manual run (§3.4) is no pull request either, so it runs the same jobs. `dorny/paths-filter` runs
+A manual run (§3.4) is no pull request either, so no filter applies to it. `dorny/paths-filter` runs
 on a pull request only; on any other event it would compare with the default branch through git.
 
 **Five jobs are behind no filter.** A key or a copyleft dependency gets in through any path, so
@@ -209,9 +209,10 @@ It fails if any dependency ended `failure` or `cancelled`, and passes when all e
 `CI required` there would satisfy branch protection without a gate having run. Its name is an
 expression: `CI not run (draft)` on a draft, `CI by hand` on a manual run (§3.4), `CI required`
 otherwise. A manual run checks the branch's head — the commit a draft's pull request shows —
-without the description, the dependency review and the guard for a green `main`, so its green
-must not be that commit's `CI required` either. `test/architecture` holds the
-expression, and `make gate-selftest` proves that test goes red without the draft's name.
+without what reads a pull request and without the guard for a green `main` (§3.4 lists both), so
+its green must not be that commit's `CI required` either. `test/architecture` holds the
+expression, and `make gate-selftest` proves that test goes red without the draft's name and
+without the manual run's.
 
 A gate whose subject does not exist yet reports that it is skipping and stays green; it never
 swallows a real failure, and the `selftest` job checks that the difference holds.
@@ -244,20 +245,33 @@ The rules of [ADR-0079](../adr/ADR-0079-a-draft-is-checked-locally.md) and
   fixed by a push to the ready pull request. The hook in `.claude/settings.json` refuses
   `gh pr create` without `--draft`, and `gh pr ready` while `HEAD` is not pushed.
 * **A manual run checks a pushed branch while its pull request stays a draft.** `ci.yml` triggers
-  on `workflow_dispatch`: `gh workflow run ci.yml --ref <branch>` starts one run of every job on the
-  branch's head, as a push to `main` does. It is for a concept's checkpoint (`build-concept`) and
+  on `workflow_dispatch`: `gh workflow run ci.yml --ref <branch>` starts one run on the branch's
+  head, with the jobs a push to `main` runs. It is for a concept's checkpoint (`build-concept`) and
   gates nothing: its summary job is named `CI by hand`, never `CI required` (§3.2), and leaving
-  draft still starts the pull request's own run.
-  Three jobs differ from a ready pull request's: `dependencies` and `pr-description` run on a pull
-  request only, and `api-compat` reads no pull request title, so a break is marked in a commit.
-  `CI required`'s guard for a green `main` does not run. After CI neither re-runs a failed manual
-  run nor files it as a red `main`, and the guard reads pushes to `main` only. No job of `ci.yml`
+  draft still starts the pull request's own run. GitHub starts it when `ci.yml` exists on the
+  default branch, and runs the branch's version of the file — the trigger need not be on `main`.
+  The first manual run was started on 2026-11-21, from the branch that added the trigger.
+
+  It differs from a ready pull request's run in these ways, and in no other:
+  - every job checks the branch's head, where a pull request's run checks the merge with `main`;
+  - `changes` filters nothing, so the jobs a pull request skips for what it did not touch run too;
+  - `dependencies` and `pr-description` do not run: they read a pull request;
+  - `api-compat` judges the breaks added since the branch left `main`, where a pull request's run
+    judges those added to its base, and reads no title and no description, so a break is marked
+    in a commit;
+  - `numbers` compares what the branch adds over `main` with the open pull requests, its own
+    among them — the same file in both is no collision — and holds the branch's tree, not the
+    merge, so a number `main` took since the branch left it shows only at *Ready*;
+  - `CI required`'s guard for a green `main` does not run.
+
+  After CI starts when a manual run ends and acts on nothing: it neither re-runs a failed one nor
+  files it as a red `main`; the guard reads pushes to `main` only. No job of `ci.yml`
   publishes, deploys or pushes an image; a run on a branch writes caches in that branch's scope,
   which `main` never restores, though they count towards the repository's 10 GB. A push to a
   draft's branch still starts nothing. `test/architecture` holds the trigger, the push to `main`
-  alone, and that no job asks for more than "is this a pull request". GitHub starts a manual run
-  only for a workflow whose file on the default branch has the trigger, so the first manual run
-  is possible only after this trigger is merged.
+  alone, that no job reads the event beyond "is this a pull request" or reads the branch, and the
+  bases of `api-compat` and `numbers`; `make gate-selftest` takes the trigger away and plants a
+  job that reads the branch.
 * **A pull request runs what it can break.** `selftest` proves the gates and runs when one changes
   (the `gates` filter); the connectors (`n8n-nodes-hubtask`, `zapier-app`) run when they change;
   the browser job runs Chromium, with Firefox and WebKit best effort (support-matrix.md §5). `main`
