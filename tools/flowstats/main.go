@@ -16,7 +16,7 @@
 // writes under ~/.claude/projects, only the directories whose name contains the repository's name;
 // it reads usage figures, timestamps and the commands a session ran, and prints no content.
 //
-// Usage: flowstats -since 2026-10-13 -until 2026-10-22 [-transcripts <dir>] [-github=false] [-jobs=false] [-out <file>]
+// Usage: flowstats -since 2026-10-13 -until 2026-10-22 [-transcripts <dir>] [-github=false] [-jobs=false] [-reviewer <login>] [-out <file>]
 package main
 
 import (
@@ -44,6 +44,7 @@ func main() {
 	transcripts := flag.String("transcripts", defaultTranscripts(), "Claude Code's projects directory; empty skips the transcripts")
 	github := flag.Bool("github", true, "read pull requests, CI runs, issues and alerts from GitHub")
 	jobs := flag.Bool("jobs", true, "read the jobs of the window's runs, one request per run")
+	reviewer := flag.String("reviewer", "", "the login the outside reviewer comments under; empty leaves its comments unmeasured")
 	out := flag.String("out", "", "also write the report and the breaches' texts to this file, as JSON")
 	flag.Parse()
 
@@ -65,7 +66,7 @@ func main() {
 	fmt.Fprintf(b, "## Flow %s, beside %s\n\n", w, w.before())
 	found := map[string]measure{}
 	if *github {
-		if err := githubPart(b, found, *repo, w, *jobs); err != nil {
+		if err := githubPart(b, found, *repo, *reviewer, w, *jobs); err != nil {
 			fail("%v", err)
 		}
 	}

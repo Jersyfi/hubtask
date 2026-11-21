@@ -19,7 +19,7 @@ import (
 )
 
 // githubPart prints the sections read from GitHub and fills in its rows of the measures.
-func githubPart(b *bytes.Buffer, found map[string]measure, repo string, w window, withJobs bool) error {
+func githubPart(b *bytes.Buffer, found map[string]measure, repo, reviewer string, w window, withJobs bool) error {
 	p := w.before()
 	pp := p.before()
 	// A fix is held against the feats of the seven days before it, so the read starts that early.
@@ -65,9 +65,9 @@ func githubPart(b *bytes.Buffer, found map[string]measure, repo string, w window
 	for id, kind := range map[string]string{"alerts_code_scanning": "code-scanning", "alerts_secret_scanning": "secret-scanning", "alerts_dependabot": "dependabot"} {
 		found[id] = measure{now: openAlerts(repo, kind), before: state}
 	}
-	found["coderabbit_comments"] = measure{now: reviewerComments(repo, w), before: reviewerComments(repo, p)}
+	found["outside_reviewer_comments"] = measure{now: reviewerComments(repo, reviewer, w), before: reviewerComments(repo, reviewer, p)}
 	share := unmeasured("nothing records which comment led to a change")
-	found["coderabbit_share"] = measure{now: share, before: share}
+	found["outside_reviewer_share"] = measure{now: share, before: share}
 
 	lost, unread := lostTests(mergedIn(prs, w))
 	printLostTests(b, lost, unread)
@@ -383,8 +383,8 @@ func openIssues(repo, label string) value {
 	return v
 }
 
-// openAlerts counts the open alerts of one kind. A token that may not read them is refused by the
-// API, and the row says so.
+// openAlerts counts the open alerts of one kind. Where the API does not hand them out, the row
+// says what it answered.
 func openAlerts(repo, kind string) value {
 	out, err := gh("api", "--paginate", fmt.Sprintf("repos/%s/%s/alerts?state=open&per_page=100", repo, kind), "--jq", ".[].created_at")
 	if err != nil {
@@ -399,35 +399,52 @@ func openAlerts(repo, kind string) value {
 	return v
 }
 
-var httpStatus = regexp.MustCompile(`HTTP \d{3}`)
+var httpStatus = regexp.MustCompile(`HTTP (\d)\d\d`)
 
-// refusal is the API's own answer out of gh's error, or the error where it carries none.
+// refusal is the API's own answer out of gh's error, or the error where it carries none. A 404
+// is what the API says for a feature that is off and for one the token may not see; a 5xx is no
+// answer at all, after the one retry.
 func refusal(err error) string {
-	if m := httpStatus.FindString(err.Error()); m != "" {
-		return "the API refused this token (" + m + ")"
+	m := httpStatus.FindStringSubmatch(err.Error())
+	switch {
+	case m == nil:
+		return err.Error()
+	case m[0] == "HTTP 404":
+		return "the feature is off or the token may not read it (" + m[0] + ")"
+	case m[1] == "5":
+		return "the API did not answer (" + m[0] + ")"
 	}
-	return err.Error()
+	return "the API refused the request (" + m[0] + ")"
 }
 
-// reviewer is the login the advisory reviewer comments under (ci-cd.md §5).
-const reviewer = "coderabbitai[bot]"
-
-func reviewerComments(repo string, w window) value {
+// reviewerComments counts the review comments the outside reviewer made in the window (ci-cd.md
+// §5). Its login is the caller's to give: the tool names no product.
+func reviewerComments(repo, login string, w window) value {
+	if login == "" {
+		return unmeasured("no login of an outside reviewer was given (-reviewer)")
+	}
 	out, err := gh("api", "--paginate", fmt.Sprintf("repos/%s/pulls/comments?per_page=100&since=%s", repo, w.from.Format(time.RFC3339)),
-		"--jq", fmt.Sprintf(".[] | select(.user.login == %q) | .created_at", reviewer))
+		"--jq", fmt.Sprintf(".[] | select(.user.login == %q) | .created_at", login))
 	if err != nil {
 		return unmeasured("%s", refusal(err))
 	}
+	return commentsIn(string(out), w)
+}
+
+// commentsIn counts the moments inside the window. None is a count, not a missing measure: why
+// there are none - not installed, not asked - is not something the API says.
+func commentsIn(stamps string, w window) value {
 	n := 0
-	for _, stamp := range strings.Fields(string(out)) {
+	for _, stamp := range strings.Fields(stamps) {
 		if t, err := time.Parse(time.RFC3339, stamp); err == nil && w.has(t) {
 			n++
 		}
 	}
+	v := count(n)
 	if n == 0 {
-		return unmeasured("no review comment by %s in the window: the app is not installed, or was not asked", reviewer)
+		v.text = "none in the window"
 	}
-	return count(n)
+	return v
 }
 
 // ----------------------------------------------------------------------------- fix after feat

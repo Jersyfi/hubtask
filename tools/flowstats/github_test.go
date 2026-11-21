@@ -251,9 +251,28 @@ func TestReasonFor(t *testing.T) {
 }
 
 func TestRefusal(t *testing.T) {
-	err := errString("gh api: exit status 1: gh: Resource not accessible by integration (HTTP 403)")
-	if got := refusal(err); got != "the API refused this token (HTTP 403)" {
-		t.Errorf("refusal %q", got)
+	for answer, want := range map[string]string{
+		"gh api: exit status 1: gh: Resource not accessible by integration (HTTP 403)": "the API refused the request (HTTP 403)",
+		"gh api: exit status 1: gh: Not Found (HTTP 404)":                              "the feature is off or the token may not read it (HTTP 404)",
+		"gh api: exit status 1: gh: Server Error (HTTP 502)":                           "the API did not answer (HTTP 502)",
+		"gh api: context deadline exceeded":                                            "gh api: context deadline exceeded",
+	} {
+		if got := refusal(errString(answer)); got != want {
+			t.Errorf("%q reads %q, want %q", answer, got, want)
+		}
+	}
+}
+
+func TestCommentsIn(t *testing.T) {
+	stamps := "2026-11-13T23:59:59Z\n2026-11-14T00:00:00Z\n2026-11-20T23:59:59Z\n2026-11-21T00:00:00Z\n"
+	if got := commentsIn(stamps, week); !got.numeric || got.n != 2 || got.String() != "2" {
+		t.Errorf("comments %v %q, want the two inside the window", got.n, got)
+	}
+	if got := commentsIn("", week); !got.numeric || got.n != 0 || got.String() != "none in the window" {
+		t.Errorf("no comment reads %q", got)
+	}
+	if got := reviewerComments("o/r", "", week); got.why == "" {
+		t.Errorf("without a login the comments read %q", got)
 	}
 }
 

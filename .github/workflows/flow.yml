@@ -35,11 +35,12 @@ jobs:
         with:
           go-version: "1.27.4"
           cache: true
-      # Seven whole days that end yesterday. The transcripts are on the owner's machine only.
+      # Seven whole days that end yesterday. The transcripts are on the owner's machine only. The
+      # outside reviewer's login is given here: the tool names no product.
       - name: Measure
         run: |
           make flowstats SINCE="$(date -u -d '7 days ago' +%F)" UNTIL="$(date -u -d yesterday +%F)" \
-            FLOWSTATS_ARGS="-transcripts= -out=flow.json" >> "$GITHUB_STEP_SUMMARY"
+            FLOWSTATS_ARGS="-transcripts= '-reviewer=coderabbitai[bot]' -out=flow.json" >> "$GITHUB_STEP_SUMMARY"
         env:
           GH_TOKEN: ${{ github.token }}
       - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0

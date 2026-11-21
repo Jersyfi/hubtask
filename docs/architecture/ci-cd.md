@@ -528,8 +528,8 @@ measured breaches nothing.
 | Tests deleted or skipped in merged pull requests | `lost_tests` | reported |
 | Unreachable Go functions | `unreachable_go_functions` | reported |
 | Unused translation keys | `unused_translation_keys` | reported |
-| CodeRabbit: comments made | `coderabbit_comments` | reported |
-| CodeRabbit: share of comments that led to a change | `coderabbit_share` | reported |
+| Outside reviewer: comments made | `outside_reviewer_comments` | reported |
+| Outside reviewer: share of comments that led to a change | `outside_reviewer_share` | reported |
 | Open code scanning alerts, and the oldest | `alerts_code_scanning` | reported |
 | Open secret scanning alerts, and the oldest | `alerts_secret_scanning` | reported |
 | Open Dependabot alerts, and the oldest | `alerts_dependabot` | reported |
@@ -580,8 +580,12 @@ How each measure is read:
 
 * Unreachable Go functions: `deadcode` is not among the tools `make tools` pins.
 * Unused translation keys: no tool in the repository counts them.
-* CodeRabbit's comments while no review comment of its login is in the window, and the share
-  that led to a change, which nothing records.
-* An alert kind the job's token may not read. Workflow permissions offer `security-events: read`
-  for code scanning and nothing for secret scanning or Dependabot alerts; what the API answers
-  the job's token is seen on its first run.
+* The outside reviewer's comments where no login was given: the tool names no product, so
+  `flow.yml` passes the login (`-reviewer`), as a local run does through `FLOWSTATS_ARGS`. With
+  a login and no comment the row reads "none in the window". The share that led to a change is
+  never measured: nothing records it.
+* An alert kind the API does not hand out. The row prints the status it answered: a 404 means
+  the feature is off or the token may not read it, a 5xx that the API did not answer after one
+  retry, anything else a refusal. Workflow permissions offer `security-events: read` for code
+  scanning and nothing for secret scanning or Dependabot alerts; what the API answers the job's
+  token is seen on its first run.
