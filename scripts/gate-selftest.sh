@@ -1222,6 +1222,34 @@ else
 	FAILURES=$((FAILURES + 1))
 fi
 
+# A branch that adds a line to the baseline of the walks' answers outside the contract: the way
+# around `make gate-walks` that only the history shows. A scratch repository again.
+CHECKS=$((CHECKS + 1))
+scratch_repo="$(mktemp -d)"
+walk_baseline="test/contract/testdata/walks-baseline.txt"
+go build -o "$scratch_repo/checkpr" ./tools/checkpr
+mkdir -p "$scratch_repo/repo/.github" "$scratch_repo/repo/$(dirname "$walk_baseline")"
+cp .github/PULL_REQUEST_TEMPLATE.md "$scratch_repo/repo/.github/"
+cp tools/checkpr/testdata/filled.md "$scratch_repo/description.md"
+printf 'module selftest\n' >"$scratch_repo/repo/go.mod"
+printf '# known answers\nbody-mismatch GET /meta/health 200\n' >"$scratch_repo/repo/$walk_baseline"
+scratch_git init -q -b main
+scratch_git add -A
+scratch_git commit -q -m base
+scratch_git checkout -q -b work
+printf 'status-undeclared GET /meta/health 302\n' >>"$scratch_repo/repo/$walk_baseline"
+scratch_git commit -q -a -m work
+out="$(cd "$scratch_repo/repo" && env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_COMMON_DIR \
+	"$scratch_repo/checkpr" -body "$scratch_repo/description.md" -base main -head work 2>&1 || true)"
+rm -rf "$scratch_repo"
+if grep -q "$walk_baseline gains 1 entries" <<<"$out"; then
+	printf '  ok      %-44s caught by checkpr\n' "a line added to the walks' baseline"
+else
+	printf '  FAILED  %-44s checkpr did not report it\n' "a line added to the walks' baseline"
+	printf '%s\n' "$out" | sed 's/^/            /'
+	FAILURES=$((FAILURES + 1))
+fi
+
 header "Licences (make gate-licenses)"
 
 # The licence gate cannot be shown a GPL dependency without adding one, so it is shown the other
