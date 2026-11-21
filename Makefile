@@ -1167,6 +1167,8 @@ capacity:
 release-tag:
 	@test -n "$(VERSION_TO_TAG)" || { echo "Usage: make release-tag VERSION_TO_TAG=1.2.3"; exit 1; }
 	@git diff --quiet || { echo "Working tree is not clean"; exit 1; }
+	@# The release page opens with this file (versioning-release.md §3); release.yml refuses a tag without it.
+	@test -s "docs/releases/v$(VERSION_TO_TAG).md" || { echo "docs/releases/v$(VERSION_TO_TAG).md is missing or empty: write the release's summary first"; exit 1; }
 	@$(MAKE) verify
 	@# A scheduled contract step falls due by the releases that shipped its expand half
 	@# (versioning-release.md §4); a pre-release does not count.
