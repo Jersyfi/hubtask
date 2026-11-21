@@ -130,12 +130,40 @@ func TestJobStats(t *testing.T) {
 	}
 }
 
+func TestPackagesOf(t *testing.T) {
+	got := packagesOf([]string{
+		"core/application/items/create.go",
+		"apps/webapp/src/lib/board/Column.svelte",
+		"apps/webapp/src/lib/board/cards/Card.svelte", // deeper than an area: still the area
+		"apps/webapp/src/lib/motion.ts",
+		"apps/webapp/e2e/board.test.mjs",
+		"apps/webapp/package.json",
+		"packages/sync-engine/src/storage/idb.ts",
+		"packages/sdk/go/client.go",
+		"docs/architecture/ci-cd.md",
+		"Makefile",
+	})
+	want := []string{
+		"core/application/items", "apps/webapp/src/lib/board", "apps/webapp/src/lib", "apps/webapp/e2e", "apps/webapp",
+		"packages/sync-engine/src/storage", "packages/sdk/go",
+	}
+	if len(got) != len(want) {
+		t.Errorf("packages %v, want %v", got, want)
+	}
+	for _, name := range want {
+		if !got[name] {
+			t.Errorf("packages %v lack %s", got, name)
+		}
+	}
+}
+
 func TestFixAfterFeat(t *testing.T) {
-	feat := pullRequest{kind: "feat", merged: at("2026-11-10 12:00"), files: []string{"core/application/items/create.go", "apps/webapp/src/lib/a.ts"}}
+	feat := pullRequest{kind: "feat", merged: at("2026-11-10 12:00"), files: []string{"core/application/items/create.go", "apps/webapp/src/lib/board/Column.svelte"}}
 	prs := []pullRequest{
 		feat,
 		{kind: "fix", merged: at("2026-11-15 12:00"), files: []string{"core/application/items/create_test.go"}},      // the same Go package
-		{kind: "fix", merged: at("2026-11-16 12:00"), files: []string{"apps/webapp/e2e/board.test.mjs"}},             // the same workspace package
+		{kind: "fix", merged: at("2026-11-16 12:00"), files: []string{"apps/webapp/src/lib/board/drag.ts"}},          // the same area of the client
+		{kind: "fix", merged: at("2026-11-16 12:30"), files: []string{"apps/webapp/src/lib/search/kinds.ts"}},        // the same client, another area
 		{kind: "fix", merged: at("2026-11-16 13:00"), files: []string{"core/application/sync/push.go", "docs/a.md"}}, // another package
 		{kind: "fix", merged: at("2026-11-18 12:00"), files: []string{"core/application/items/create.go"}},           // more than seven days later
 		{kind: "other", merged: at("2026-11-15 12:00"), files: []string{"core/application/items/create.go"}},

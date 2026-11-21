@@ -154,7 +154,7 @@ type pullRequest struct {
 	kind        string // feat, fix or other, from the Conventional Commit title
 	body        string
 	mergeCommit string
-	files       []string // the first hundred paths it changed
+	files       []string // the paths its merge commit changed, read for a feat and a fix
 	firstCommit time.Time
 	opened      time.Time
 	ready       time.Time
@@ -166,7 +166,6 @@ const prQuery = `query($q: String!, $after: String) {
     pageInfo { hasNextPage endCursor }
     nodes { ... on PullRequest {
       number title body createdAt mergedAt headRefName mergeCommit { oid }
-      files(first: 100) { nodes { path } }
       commits(first: 100) { nodes { commit { authoredDate } } }
       timelineItems(itemTypes: [READY_FOR_REVIEW_EVENT], last: 1) { nodes { ... on ReadyForReviewEvent { createdAt } } }
     } }
@@ -185,7 +184,6 @@ type prPage struct {
 				Title       string
 				Body        string
 				MergeCommit struct{ Oid string }
-				Files       struct{ Nodes []struct{ Path string } }
 				CreatedAt   time.Time
 				MergedAt    time.Time
 				HeadRefName string
@@ -226,9 +224,6 @@ func mergedPullRequests(repo string, w window) ([]pullRequest, error) {
 				continue
 			}
 			pr := pullRequest{number: n.Number, kind: "other", body: n.Body, mergeCommit: n.MergeCommit.Oid, opened: n.CreatedAt, ready: n.CreatedAt, merged: n.MergedAt, firstCommit: n.CreatedAt}
-			for _, f := range n.Files.Nodes {
-				pr.files = append(pr.files, f.Path)
-			}
 			if m := titleKind.FindString(n.Title); m == "feat" || m == "fix" {
 				pr.kind = m
 			}

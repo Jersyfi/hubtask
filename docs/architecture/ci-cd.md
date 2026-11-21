@@ -554,8 +554,11 @@ How each measure is read:
   The number of `main` runs the window had is printed beside the hours.
 * **n** stands beside every median and percentage: the runs it was taken from.
 * **Jobs** are read from every attempt of the window's runs, one request per run.
-* **A package** is a Go file's directory, or the workspace package of a file under `apps/` or
-  `packages/`; a pull request's first hundred changed paths are read.
+* **A package** is a Go file's directory. For a file under `apps/` or `packages/` it is the
+  file's directory too, named at most five segments deep: `apps/webapp/src/lib/board`,
+  `apps/webapp/e2e`, `packages/sync-engine/src`. Any other file belongs to none. The files of a
+  `feat` and a `fix` are read from the merge commit, whole; a pull request whose merge commit the
+  clone lacks is counted beside the value as not read.
 * **The tree's measures** are read from the checkout's commit, and beside it from the commit the
   window started with: the totals of `apps/webapp/e2e/bounds.json`, the lines of
   `test/contract/testdata/walks-baseline.txt`, the bound `uncitedBuiltAtMost` that

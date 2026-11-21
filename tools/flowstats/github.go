@@ -27,6 +27,7 @@ func githubPart(b *bytes.Buffer, found map[string]measure, repo string, w window
 		return fmt.Errorf("pull requests: %w", err)
 	}
 	printPullRequests(b, mergedIn(prs, w))
+	unreadFiles := readFiles(prs)
 	// Three windows of runs: a red main is seen from the failed run that began it.
 	runs, drafts, err := ciRuns(repo, window{from: pp.from, to: w.to})
 	if err != nil {
@@ -38,7 +39,13 @@ func githubPart(b *bytes.Buffer, found map[string]measure, repo string, w window
 		"pr_run_median_minutes":       func(x window) value { return prMedian(createdIn(runs, x)) },
 		"pr_runs_failed_percent":      func(x window) value { return prFailed(createdIn(runs, x)) },
 		"main_second_attempt_percent": func(x window) value { return secondAttempts(createdIn(runs, x)) },
-		"fix_after_feat":              func(x window) value { return count(fixAfterFeat(prs, x)) },
+		"fix_after_feat": func(x window) value {
+			v := count(fixAfterFeat(prs, x))
+			if unreadFiles > 0 {
+				v.text += fmt.Sprintf(" (not read: %d pull requests whose merge commit is not in this clone)", unreadFiles)
+			}
+			return v
+		},
 	} {
 		found[id] = measure{now: read(w), before: read(p), earlier: read(pp)}
 	}
@@ -361,15 +368,37 @@ func reviewerComments(repo string, w window) value {
 
 // ----------------------------------------------------------------------------- fix after feat
 
-// packagesOf are the packages a pull request touched: a Go file's directory, and the workspace
-// package of a file under apps/ or packages/.
+// readFiles fills in the paths each feat and fix changed, from its merge commit: the API cuts a
+// pull request's list of files, a diff does not. It returns how many it could not read.
+func readFiles(prs []pullRequest) (unread int) {
+	for i, pr := range prs {
+		if pr.kind == "other" {
+			continue
+		}
+		out, err := git("-c", "core.quotepath=off", "diff", "--name-only", "--no-renames", pr.mergeCommit+"^", pr.mergeCommit)
+		if pr.mergeCommit == "" || err != nil {
+			unread++
+			continue
+		}
+		prs[i].files = strings.Split(strings.TrimSpace(string(out)), "\n")
+	}
+	return unread
+}
+
+// packageDepth is how deep a client's package is named: apps/webapp/src/lib/<area>.
+const packageDepth = 5
+
+// packagesOf are the packages a change touched. A Go file's package is its directory. A file
+// under apps/ or packages/ belongs to its directory too, named at most packageDepth segments
+// deep, so two changes to the web client meet only where they touch the same area of it. Any
+// other file belongs to no package.
 func packagesOf(files []string) map[string]bool {
 	out := map[string]bool{}
 	for _, file := range files {
-		parts := strings.Split(file, "/")
+		dir := strings.Split(path.Dir(file), "/")
 		switch {
-		case (parts[0] == "apps" || parts[0] == "packages") && len(parts) > 2:
-			out[parts[0]+"/"+parts[1]] = true
+		case (dir[0] == "apps" || dir[0] == "packages") && len(dir) > 1:
+			out[strings.Join(dir[:min(packageDepth, len(dir))], "/")] = true
 		case strings.HasSuffix(file, ".go"):
 			out[path.Dir(file)] = true
 		}
