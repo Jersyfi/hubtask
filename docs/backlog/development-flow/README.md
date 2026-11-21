@@ -530,9 +530,10 @@ what shows whether it works — fixes that follow features within a week should 
 
 ### 5.6 The flow report
 
-A scheduled job, weekly, in `nightly.yml`'s manner (it files and updates one issue, starts no
-work): `flowstats` for the last seven days beside the seven before, without the transcript part,
-plus what it does not print yet:
+A scheduled job, weekly, in `nightly.yml`'s manner (`flow.yml`: it comments on one issue, "Flow
+report", files a `finding` per breach and starts no work): `flowstats` for the last seven days
+beside the seven before, without the transcript part. It prints every row below; a row without a
+source prints "not measured" and why:
 
 | Measure | Threshold proposed (the owner sets it) |
 |---|---|
@@ -552,11 +553,23 @@ plus what it does not print yet:
 | Unreachable Go functions, unused translation keys (§5.10) | reported; a bound after the first removal |
 | CodeRabbit: comments made, and the share that led to a change (§5.11) | reported |
 
-A breached threshold opens a `finding` naming the measure and the week. The thresholds live in
-`ci-cd.md` as a numbered section; changing one is the owner's intervention "at the policy level".
+A breached threshold opens a `finding` naming the measure and the week, one per measure. The
+thresholds live in `ci-cd.md` §11, which also says how each measure is read; the tool reads them
+from `tools/flowstats/thresholds.json`, and a test holds the two equal. Changing one is the
+owner's intervention "at the policy level". The report also counts the walks' timer waits and
+the open security alerts by kind (§5.12).
+
+Three rows are not measured yet. Unreachable Go functions and unused translation keys: `deadcode`
+is not pinned in `make tools` and Knip is not a dependency of the workspace, so D-11's tools are
+still to be added. CodeRabbit: nothing is counted until its app comments, and nothing records
+which comment led to a change. "Uncited checks of built use cases" is the bound `make gate-docs`
+holds, not a count of its own. The first run on 2026-11-21, for 14 to 20 November, shows four
+measures over the proposed thresholds: the pull request median (38.5 minutes), the failed pull
+request runs (53 %), `main`'s second attempts (83 %) and the hours `main` was red (111.9).
 The session figures (waiting, tokens) stay a local command, since only the owner's machine has the
 transcripts. With this, the dated reviews of ADR-0089 and ADR-0090 are replaced by something that
-runs whether or not anybody remembers, and issue 1309 closes with the first report.
+runs whether or not anybody remembers. Issue 1309 is the dated review of ADR-0083's merge flow,
+not the report's issue; a worker closes it when the first report stands.
 
 ### 5.7 CI
 
@@ -940,8 +953,8 @@ the initials. `make gate-walks` passes in all three shards on the runner.
 
 **What can only be seen after the merge**, and is checked then by the orchestrator or the next
 worker: the first Scorecard result and its badge, which exist only once the workflow has run on `main`;
-the first weekly report on its issue, which closes issue 1309; the pull
-request median falling in the report.
+the first weekly report on its issue, after which a worker closes issue 1309; what the job's
+token may read of the security alerts; the pull request median falling in the report.
 
 **Later, as experiments:** `make proof`, then generated catching tests on the structural class,
 run nightly for four weeks — kept only if at least half of what it reports is real, counted on its
