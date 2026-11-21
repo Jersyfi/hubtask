@@ -4,6 +4,20 @@ An ADR records **why and when** a decision was taken. The rule itself lives in a
 (`docs/architecture/`, `docs/design/`), and each ADR names it in its `**Rule lives in:**` line —
 read that section for what holds today ([ADR-0081](./ADR-0081-how-work-is-organised.md)).
 
+## When a decision gets an ADR
+
+A decision gets an ADR when one of three holds
+([ADR-0106](./ADR-0106-an-independent-review-and-the-owner-on-the-loop.md)):
+
+1. A later worker who sees only the rule would be tempted to undo it.
+2. It is hard to reverse: the data model, a protocol, the contract, the licence, a dependency.
+3. It is on the owner's list ([AGENTS.md](../../AGENTS.md), "What you do not decide yourself").
+
+Anything else is process tuning — a threshold, a wording, the order of steps. It is recorded where
+the rule lives, with its date, and gets no ADR.
+
+## How an ADR is kept
+
 - One file per decision, short: context, decision, consequences, and the `Rule lives in` line in
   its header, under the status. `make gate-docs` refuses an ADR without that line and a link in it
   that does not resolve; that the named section still holds the rule is checked by reading.
