@@ -10,6 +10,9 @@ check is not proven here: it is proven by a test that asserts it
 
 The newest coverage report stays here, because `make gate-docs` holds the catalogue to it.
 
+[`best-practices-answers.md`](./best-practices-answers.md) holds the answers a worker submits for
+the OpenSSF Best Practices badge, each with the file that proves it.
+
 The other files here — walks and run records of tasks before 2026-10-20 — are history: they stay,
 a `checked_by:` that names one keeps working, and none of them is read for current work. The walks
 of milestone UX and of the tasks beside it from 2026-10-20 on are gone; each check they showed is
