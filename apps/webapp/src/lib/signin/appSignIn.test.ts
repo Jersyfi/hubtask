@@ -63,7 +63,10 @@ test('a development build of the server is never older than a released app', () 
   assert.equal(isOlder('main-233adb96ef992bcabf6a68a03fc02e811ae87104', '0.10.1'), false);
   assert.equal(isOlder('0.0.0-dev', '0.10.1'), false);
   assert.equal(isOlder('0.10.1+main.233adb96ef992bcabf6a68a03fc02e811ae87104', '0.10.1'), false);
-  assert.equal(isOlder('0.9.0+main.233adb96', '0.10.1'), true);
+  // A build of main names the release before it until it deploys again: it holds that release's
+  // commit and more, so it is never older than an app of the release cut from it.
+  assert.equal(isOlder('0.10.1+main.5fa8a7c2e7d8f3f154512f8c1530cc52044b6dd9', '0.10.2'), false);
+  assert.equal(isOlder('0.10.1+build.7', '0.10.2'), true);
 });
 
 test('the consent asks for the built-in client with S256 and the device', async () => {

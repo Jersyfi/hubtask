@@ -82,10 +82,12 @@ export function judge(address: WorkspaceAddress, self: ServerSelf | null | undef
 
 /**
  * Whether `server` is older than `app`, by their numeric release parts. A development build of
- * either side (`0.0.0`, or a server version without a release part, such as `main-<commit>`) is
- * newer than every release, so it is never refused and never refuses.
+ * either side (`0.0.0`, a server version without a release part such as `main-<commit>`, or a
+ * build of main, `<release>+main.<commit>`) is newer than every release, so it is never refused
+ * and never refuses.
  */
 export function isOlder(server: string, app: string): boolean {
+  if (/\+main\./.test(server)) return false;
   const parts = (version: string) => (version.split(/[-+]/)[0] ?? '').split('.').map((part) => Number.parseInt(part, 10) || 0);
   const [s, a] = [parts(server), parts(app)];
   if (s.every((part) => part === 0)) return false;
