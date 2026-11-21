@@ -69,8 +69,19 @@ with the owner", concept mode).
   runs it and says what is open before the build starts.
 - **The bar is a task's:** proven by tests, inside out, the contract first, the subject documents
   and arc42 updated, `make check`, CI on *Ready*, the merge on the owner's word.
-- **Too big for one context:** split into pull requests by screen or area, one after another, each
-  complete on its own — never by a cross-cutting theme (all migrations, then all endpoints).
+- **Too big for one context:** the work is split by screen or area — never by a cross-cutting
+  theme (all migrations, then all endpoints) — among workers who commit one after another to the
+  one branch. It enters `main` as one pull request, after the result was shown to the owner
+  running locally.
+- **With mockups, the mockups are the specification:** spacing, proportions, sizes, focus styling
+  and states. Every screen is compared with its rendered mockup at the same width, region by
+  region, before it counts as done. A shared component is fixed in the design system, not per
+  screen. A difference from the mockup stays only with a reason the owner accepts.
+- **A concept with screens is cut in this order:** an inventory of every view, menu, dialog and
+  deeper page in scope, each mapped to a mockup scene or a rule, with a capture of each from `main`
+  before the build; then the design-system foundation; then the shared server capabilities; then
+  families of screens, each built whole. The reviewer is never the builder. The steps are in
+  `.agents/skills/build-concept/SKILL.md`.
 
 ## A milestone file
 

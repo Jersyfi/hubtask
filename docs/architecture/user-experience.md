@@ -54,6 +54,12 @@ Each principle has a stable identifier a screen, a test or a review cites.
 | UX-15 | **Immediate and visible** (WB-7) | A change appears at once and arrives, moves and leaves in the motion roles (§6); an error stands in place, with undo where there is one |
 | UX-16 | **Every device, the same functions** (WB-8) | Only the arrangement changes: a table becomes rows, a rail a sheet, columns strips, and the primary act floats above the bottom bar |
 
+**The bar.** Hubtask is not a run-of-the-mill default interface. It is modern and lively (UX-6),
+it is quickly understood, it uses the same patterns in every product so that a person recognises
+them (UX-2), and its first start is easy: a newcomer is not asked to set everything up before a
+product can be used (UX-3, UX-4). Every screen is judged by two walks on realistic demo data
+(§3.6): a newcomer's and an administrator's.
+
 ---
 
 ## 2. The shell and navigation
