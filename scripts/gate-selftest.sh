@@ -955,6 +955,15 @@ expect_architecture_failure_after "a root job that runs on a draft" \
 	.github/workflows/ci.yml "/^    name: What changed$/{n;/draft/d;}"
 expect_architecture_failure_after "CI required on a draft's commit" \
 	.github/workflows/ci.yml "s/^    name: .*'CI not run (draft)'.*$/    name: CI required/"
+# A manual run checks a branch while its pull request stays a draft (ci-cd.md §3.4): without the
+# trigger a checkpoint has no run, under the plain name its green is the draft's `CI required`, and
+# a job that reads the ref runs something else on a branch than on main.
+expect_architecture_failure_after "CI without the manual trigger" \
+	.github/workflows/ci.yml "/^  workflow_dispatch:$/d"
+expect_architecture_failure_after "CI required on a manual run's commit" \
+	.github/workflows/ci.yml "s/ || github.event_name == 'workflow_dispatch' && 'CI by hand'//"
+expect_architecture_failure_after "a job that asks for the branch" \
+	.github/workflows/ci.yml "s/^    name: Migration and ADR numbers$/    name: \${{ startsWith(github.ref, 'refs\/heads\/main') \&\& 'Numbers' || 'Numbers of a branch' }}/"
 # And the hook that keeps a session from skipping the local check: a guard that never refuses.
 expect_architecture_failure_after "a pull request hook that refuses nothing" \
 	scripts/hooks/pr-transition-guard.sh 's/^	exit 2$/	exit 0/'
