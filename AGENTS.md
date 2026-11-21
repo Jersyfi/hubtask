@@ -32,10 +32,27 @@ read that directory's `AGENTS.md`**, whether or not your tool loads it.
 
 ## Where knowledge lives
 
-One place per kind of knowledge; write it there and link to it elsewhere. `docs/README.md` names the
-place of each kind. A question for the owner is an issue labelled `decision`; something found
-outside the task and too big to fix where it was found, one labelled `finding`; how to work here,
-this file.
+One place per kind of knowledge; write it there and link to it elsewhere. `docs/README.md` names
+each document's place and reader. A question for the owner is an issue labelled `decision`;
+something found outside the task and too big to fix where it was found, one labelled `finding`.
+
+| The knowledge | Its place | Test |
+|---|---|---|
+| True of every change, needed before any work | this file, under 200 lines | Would a wrong change follow if a worker had not read it? |
+| True of one directory | that directory's `AGENTS.md` | Read before a file there is changed |
+| Anything a tool can check | a gate, a lint or a test, named by the rule | What can be counted is not prose |
+| How to do a kind of task, step by step | a skill, `.agents/skills/<name>/SKILL.md` | Needed only when that task comes up |
+| The current rule of a concern | its subject document, by numbered section | — |
+| Why a decision was taken | an ADR | The three tests in `docs/adr/README.md` |
+| A mistake that passed every gate | `docs/architecture/known-traps.md`, until a gate holds it | — |
+| What the owner decided once and wants every time | the place above that fits; a private note alone is no place | — |
+| A machine's own facts (a slow Docker, an access path) | private notes | No other worker needs it |
+
+The skills, each read when its task comes up, and linked from `.claude/skills/`: `design-brief`
+before a structural change; `build-concept` for a concept built whole; `review-change` for the
+independent review; `finish-pull-request` before *Ready*; `ask-the-owner` for a question on the
+owner's list; `resume-work` to pick work up or to stop; `triage-contribution` for a pull request
+from outside; `tidy` for a tidy pass.
 
 ## Rules that do not bend
 
@@ -67,7 +84,6 @@ The rules are the items of four lists — the table above, this list with "Steps
 "Working with the owner" and "Code comments" — each tagged `[gate: …]`, `[partial: …; open: …]`,
 `[owner]` or `[unchecked: why]`; `make gate-docs` holds every item to a tag and every named gate to a
 target or a `ci.yml` job. A directory's `AGENTS.md` tags its rules under "What must not happen here".
-The other sections explain.
 
 - A worker checks every premise its task, the use cases' *Today* and the documents state about
   today's code against the code itself, before building on it; a false one is corrected in the same
@@ -75,6 +91,15 @@ The other sections explain.
   second review of a plan (ADR-0089). `[partial: gate-pr; open: whether every premise was checked]`
 - A pull request starts as a draft and leaves draft once `make check` is green and `HEAD` is pushed;
   CI checks the rest then. `[partial: ci:ci-required; open: a skipped make check — CI fails instead]`
+- Before a pull request leaves draft, and at each checkpoint of a concept, a fresh agent that has
+  not seen the builder's conversation reviews the change (`review-change`). The builder fixes each
+  finding or answers it with a reason, and the description reports the review in its *Review*
+  section. `[unchecked: no gate reads the description for the review]`
+- A structural change — a migration that changes an existing table, a new or changed port, the
+  sync protocol or a merge rule, authorisation, a new door, a contract change to an existing
+  operation, work across two or more bounded contexts, any concept — is built only after its
+  design brief stands in the draft pull request (`design-brief`). `[unchecked: the independent
+  review reports a missing brief]`
 - Waiting is not polling: a long run starts in the background and its end arrives as a notification,
   never through a `sleep` or `until` loop. A worker hands over — pushes, names the next step on the
   draft — before its context passes about 250k tokens, because every call pays for the whole
@@ -92,7 +117,7 @@ The other sections explain.
   clearly bigger than one step (a data migration, a change to the sync protocol, a whole screen) or
   touches an item of § "What you do not decide yourself". `[owner]`
 - The owner is asked only when the work cannot go on without the answer, only about an item of
-  § "What you do not decide yourself", after searching, as a `decision` issue in its form.
+  § "What you do not decide yourself", after searching, as a `decision` issue (`ask-the-owner`).
   Otherwise the worker takes the option that changes no rule, gate or use case, builds on, and
   names the choice in the pull request; the owner may overrule it there. `[owner]`
 - An answer is recorded at once on its `decision` issue (the option or words, the date, where it
@@ -122,6 +147,22 @@ The other sections explain.
   `[unchecked: no tool reads a name's intent]`
 - What another worker needs goes into the repository, never only into a tool's private notes; any
   machine and any tool can do the work. `[unchecked: private notes are outside the repository]`
+- One worker at a time: the next worker starts when the one before is done, and never more than
+  one full local verification run goes at once. A read-only reviewer or research agent beside the
+  one worker is fine. `[unchecked: the worker's own session]`
+- A worker reports only what it checked in the code, read or measured, and says plainly what did
+  not run or is unknown. `[unchecked: no tool tells a checked statement from an assumed one]`
+- A text is written as `docs/README.md`, "How to write", says: for the reader of its place, in the
+  present, in short sentences of full words. A change that makes a sentence false rewrites or
+  deletes it in the same pull request. `[unchecked: no tool judges how a text reads; the
+  independent review does]`
+- A change removes what it makes unused, in the same pull request, in its own commit. What a tool
+  reports as unused is removed in a pull request of its own (`tidy`); nothing is removed because a
+  model judges it unnecessary. `[partial: gate-quick; open: what is unused across packages, a
+  translation key, a sentence]`
+- A test is deleted or weakened only when the behaviour it asserts was removed or changed on
+  purpose, or another test asserts the same thing; the description names each such test and the
+  reason. `[unchecked: no gate reads the diff for a removed test]`
 
 ### Steps and commits
 
@@ -132,10 +173,9 @@ The other sections explain.
 - The merge is a squash, so CI holds the head, not every commit. A commit of more than about eight
   files, or one whose title needs "and", most likely holds more than one concern. No `wip`, `fixup`
   or `address review` commits. `[unchecked: CI checks the head only]`
-- Resuming: compare `git log --oneline main..HEAD` with the draft's steps, run `make check`,
-  continue at the first missing one (in an own worktree if the checkout is in use). Stopping: push
-  everything and name the next step on the draft pull request. `[unchecked: a conversation is
-  outside the repository]`
+- A worker that stops pushes everything and names the next step on the draft pull request; the
+  worker that resumes starts from the draft's steps and `make check` (`resume-work`).
+  `[unchecked: a conversation is outside the repository]`
 - Each gate on its own line: `make gate-x | tail` hides a red gate from `&&`, `git push | tail` a
   rejected push. `make gate-selftest` edits the tree; nothing runs beside it. `[unchecked: the
   worker's own shell]`
@@ -153,13 +193,9 @@ The other sections explain.
   says what is open before it lands. `[owner]`
 - **Concept mode.** On the owner's word — "build concept X completely and bring it to main" — a
   worker builds a whole concept on one branch, in one pull request, without cutting it into tasks
-  (`docs/backlog/README.md`, "A concept built whole"). The bar is a task's: the concept's use cases
-  written or updated with their checks and proven by tests; domain → application → ports →
-  adapters → presentation; the subject documents and arc42 updated; the contract first; `make
-  check` green, CI on *Ready*; the merge on the owner's word. A change to an existing use case's
-  *Goal*, *How to check* or *Where it ends* that the released concept names is decided by that
-  word; any other still needs the owner's decision. When one context cannot hold it, it is
-  split into pull requests by screen or area, never by a cross-cutting theme. `[owner]`
+  and to a task's bar (`docs/backlog/README.md`, "A concept built whole"; `build-concept`). A
+  change to an existing use case's *Goal*, *How to check* or *Where it ends* that the released
+  concept names is decided by that word; any other still needs the owner's decision. `[owner]`
 - Each new task starts with a fresh worker, unless the owner asks for a series. `[unchecked: a
   preference]`
 - An unattended run (scheduled, nightly) opens an issue and stops. `[unchecked: depends on the
@@ -180,10 +216,10 @@ The other sections explain.
 4. **Inside out:** domain → application → ports → adapters → presentation.
 5. **Test:** table tests for the domain; Testcontainers and a cross-tenant negative test per new
    repository method; each use case check by a test that can prove it.
-6. **Check:** every carried check proven by a test that asserts it (`docs/usecases/README.md`), a
-   review against the rules no gate checks, `make check` green.
-7. **Finish:** the template complete — *Premises* included —, the use cases' `state:`,
-   `checked_by:` and *Today* moved, `gh pr ready`; CI runs then.
+6. **Check:** every carried check proven by a test that asserts it (`docs/usecases/README.md`),
+   `make check` green, the independent review against what no gate checks.
+7. **Finish** (`finish-pull-request`): the template complete — *Premises* and *Review* included —,
+   the use cases' `state:`, `checked_by:` and *Today* moved, `gh pr ready`; CI runs then.
 
 ## What you do not decide yourself
 
@@ -200,23 +236,14 @@ Bring these to the owner with a worked-out proposal:
 - A change to what a released milestone delivers.
 
 Everything else you decide and write down why, in the pull request and where the next reader needs
-it.
-
-**Asking.** First whether to ask at all: only when the work cannot go on without the answer;
-otherwise take the option that changes no rule, gate or use case, build on, and name the choice in
-the pull request, where the owner may overrule it. Then search `docs/`, the milestones' `Decisions`
-and closed `decision` issues; an answered question is cited. Only an unanswered one becomes a
-`decision` issue in its form (`.github/ISSUE_TEMPLATE/`): the problem with a person's example, the
-proposal's effect on users, administrators and operators through D1–D7, the alternatives, one
-answerable question, what waits. Tell the owner once, with the
-list; a follow-up needs a new fact.
+it. How to ask, and where the answer goes: `.agents/skills/ask-the-owner/SKILL.md`.
 
 ## Which command checks what
 
 | Changed | Run |
 |---|---|
 | Anything, while working | `make check` — the changed packages' checks, about a minute |
-| Before `gh pr ready` | `make check`, and `make gate-pr BODY=<file> TITLE="<title>"`; CI runs the rest |
+| Before `gh pr ready` | `make check`, the independent review, `make gate-pr BODY=<file> TITLE="<title>"`; CI runs the rest |
 | A change that reaches wide | `make verify` — every gate that runs without containers |
 | One concern | `make gate-quick`, `gate-unit`, `gate-architecture`, `gate-security`, `gate-docs` |
 | `api/openapi.yaml`, `db/queries/` | `make generate` (no diff may remain), `make api-client` |
@@ -226,11 +253,8 @@ list; a follow-up needs a new fact.
 | `deploy/docker/` | `make gate-compose` |
 | A pull request description and title | `make gate-pr BODY=<file> TITLE="<title>"` |
 
-`go build ./...`, `go test ./...` and `make generate` work without Node.js.
-
-## When CI runs
-
-On a ready pull request; a draft starts nothing (`ci-cd.md` §3.4). For Claude Code, the hook in
+`go build ./...`, `go test ./...` and `make generate` work without Node.js. CI runs on a ready pull
+request; a draft starts nothing (`ci-cd.md` §3.4). For Claude Code, the hook in
 `.claude/settings.json` refuses a non-draft `gh pr create` and a `gh pr ready` before `HEAD` is
 pushed.
 

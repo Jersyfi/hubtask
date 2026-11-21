@@ -133,7 +133,8 @@ the issue is only a copy, and copies have been created shifted by one.
 ## Decisions
 
 A question for the owner is a GitHub issue labelled `decision`, opened from its form
-(`.github/ISSUE_TEMPLATE/05-decision.yml`, the fields `AGENTS.md` § "Asking" lists). Only items on
+(`.github/ISSUE_TEMPLATE/05-decision.yml`; `.agents/skills/ask-the-owner/SKILL.md` lists its
+fields and the steps). Only items on
 the owner's list in `AGENTS.md` qualify, only when the work cannot go on without the answer, and
 only after searching for an earlier answer. Otherwise the worker takes the option that changes no
 rule, gate or use case, builds on, and names the choice in the pull request; the owner may overrule
