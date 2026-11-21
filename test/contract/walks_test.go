@@ -127,6 +127,10 @@ func TestPruningNeedsARecordOfEverySuite(t *testing.T) {
 	if slices.Contains(suites, "whiteboardframes") {
 		t.Errorf("whiteboardframes is listed, and `make e2e` does not walk it")
 	}
+	// A test of a helper: it opens no browser, so the recorder is never loaded.
+	if slices.Contains(suites, "scalewalk-errors") {
+		t.Errorf("scalewalk-errors is listed, and it leaves no record")
+	}
 	records := map[string][]walkAnswer{}
 	for _, suite := range suites {
 		records[suite] = []walkAnswer{}

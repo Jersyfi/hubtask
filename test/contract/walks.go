@@ -345,8 +345,13 @@ func leftOutSuites(script string) []string {
 	return strings.Split(match[1], "|")
 }
 
-// walkedSuites lists the suites a run of every suite walks (`make e2e`): each `*.test.mjs` of the
-// web app's e2e directory but those its `test:engines` script leaves out.
+// loadsRecorder matches the import through which a suite gets the recorder: `browser.mjs` and
+// `serve.mjs` import it, and every suite that opens a browser imports one of them.
+var loadsRecorder = regexp.MustCompile(`['"]\./(browser|serve|record)\.mjs['"]`)
+
+// walkedSuites lists the suites that leave a record in a run of every suite (`make e2e`): each
+// `*.test.mjs` of the web app's e2e directory but those its `test:engines` script leaves out, and
+// those that open no browser - they test a helper and answer nothing.
 func walkedSuites(webapp string) ([]string, error) {
 	raw, err := os.ReadFile(filepath.Join(webapp, "package.json")) //nolint:gosec // G304: the web app's manifest
 	if err != nil {
@@ -369,7 +374,15 @@ func walkedSuites(webapp string) ([]string, error) {
 	excluded := leftOutSuites(script)
 	var suites []string
 	for _, file := range files {
-		if suite := strings.TrimSuffix(filepath.Base(file), ".test.mjs"); !slices.Contains(excluded, suite) {
+		suite := strings.TrimSuffix(filepath.Base(file), ".test.mjs")
+		if slices.Contains(excluded, suite) {
+			continue
+		}
+		source, err := os.ReadFile(file) //nolint:gosec // G304: a suite the glob above found
+		if err != nil {
+			return nil, err
+		}
+		if loadsRecorder.Match(source) {
 			suites = append(suites, suite)
 		}
 	}
