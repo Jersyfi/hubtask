@@ -57,6 +57,7 @@ jobs:
       expression: ${{ github.event_name != 'pull_request' || steps.filter.outputs.expression == 'true' }}
       editor: ${{ github.event_name != 'pull_request' || steps.filter.outputs.editor == 'true' }}
       whiteboard: ${{ github.event_name != 'pull_request' || steps.filter.outputs.whiteboard == 'true' }}
+      walk_judge: ${{ github.event_name != 'pull_request' || steps.filter.outputs.walk_judge == 'true' }}
       n8n_node: ${{ github.event_name != 'pull_request' || steps.filter.outputs.n8n_node == 'true' }}
       zapier_app: ${{ github.event_name != 'pull_request' || steps.filter.outputs.zapier_app == 'true' }}
       sdk_typescript: ${{ github.event_name != 'pull_request' || steps.filter.outputs.sdk_typescript == 'true' }}
@@ -212,6 +213,14 @@ jobs:
             whiteboard:
               - 'packages/whiteboard/**'
               - *workspace-manifests
+            # What judges the answers the browser walks give (ci-cd.md §3, `engines`): the test,
+            # the validator it reads the contract with, and the baseline. Named file by file, not
+            # as `go`: the job that runs the judge walks every suite, and only a change to the
+            # judge itself has to pay for that. The contract reaches the job through `openapi`.
+            walk_judge:
+              - 'test/contract/walks*.go'
+              - 'test/contract/schema*.go'
+              - 'test/contract/testdata/walks-baseline.txt'
             docs:
               - '**/*.md'
               - 'docs/**'
@@ -1009,7 +1018,7 @@ jobs:
   engines:
     name: The client runs in Chromium (${{ matrix.shard }}/3)
     needs: changes
-    if: needs.changes.outputs.webapp == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.sync_engine == 'true' || needs.changes.outputs.expression == 'true' || needs.changes.outputs.editor == 'true' || needs.changes.outputs.whiteboard == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true'
+    if: needs.changes.outputs.webapp == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.sync_engine == 'true' || needs.changes.outputs.expression == 'true' || needs.changes.outputs.editor == 'true' || needs.changes.outputs.whiteboard == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.walk_judge == 'true' || needs.changes.outputs.ci == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

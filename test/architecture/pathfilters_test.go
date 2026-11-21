@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -91,6 +92,63 @@ func TestWhatTheArchitectureTestsReadRunsThem(t *testing.T) {
 			t.Errorf("no tracked file under %s - the path has moved, and this test holds nothing for it", prefix)
 		}
 	}
+}
+
+// The browser job is the one that judges the walks' answers (`make gate-walks`), and it is behind
+// the web app's filters, not `go`: walking every suite to test a Go change would cost twenty
+// minutes a pull request. So what the judge is made of sets a filter of its own, and the job's
+// condition names it - else a change to the judge alone would be merged unjudged.
+func TestTheWalksJudgeRunsTheJobThatJudges(t *testing.T) {
+	filters := loadPathFilters(t)
+	judge := map[string]string{
+		"test/contract/walks.go":                    "walk_judge",
+		"test/contract/walks_test.go":               "walk_judge",
+		"test/contract/schema.go":                   "walk_judge",
+		"test/contract/schema_test.go":              "walk_judge",
+		"test/contract/testdata/walks-baseline.txt": "walk_judge",
+		"api/openapi.yaml":                          "openapi",
+	}
+	tracked := trackedFiles(t)
+	condition := jobCondition(t, "engines")
+	for file, filter := range judge {
+		if !slices.Contains(tracked, file) {
+			t.Errorf("%s is not tracked - the judge has moved, and this test holds nothing for it", file)
+		}
+		if !cilocal.Touched(filters, []string{file})[filter] {
+			t.Errorf("%s does not set the `%s` filter in %s", file, filter, cilocal.WorkflowPath)
+		}
+		if !strings.Contains(condition, "needs.changes.outputs."+filter+" == 'true'") {
+			t.Errorf("the `engines` job does not run on the `%s` filter, so a change to %s alone is not judged: %s", filter, file, condition)
+		}
+	}
+	// A Go file beside the judge must not set it: the filter is narrow so that the job stays cheap.
+	if cilocal.Touched(filters, []string{"test/contract/health_test.go"})["walk_judge"] {
+		t.Errorf("test/contract/health_test.go sets `walk_judge` - the filter names more than the judge")
+	}
+}
+
+// jobCondition reads the `if:` of a job of ci.yml.
+func jobCondition(t *testing.T, job string) string {
+	t.Helper()
+	raw, err := os.ReadFile("../../" + cilocal.WorkflowPath)
+	if err != nil {
+		t.Fatalf("ci.yml is not readable: %v", err)
+	}
+	_, after, found := strings.Cut(string(raw), "\n  "+job+":\n")
+	if !found {
+		t.Fatalf("%s has no job %q", cilocal.WorkflowPath, job)
+	}
+	for _, line := range strings.Split(after, "\n") {
+		if condition, ok := strings.CutPrefix(line, "    if: "); ok {
+			return condition
+		}
+		// The next job: this one has no condition.
+		if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "   ") && strings.TrimSpace(line) != "" && !strings.HasPrefix(strings.TrimSpace(line), "#") {
+			break
+		}
+	}
+	t.Fatalf("the job %q of %s has no `if:`", job, cilocal.WorkflowPath)
+	return ""
 }
 
 // And the other direction: a filter that names a path nothing has is a filter that has stopped

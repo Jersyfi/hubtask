@@ -121,6 +121,7 @@ Every job decides from the `changes` outputs whether it has work.
 | `design_system` | Additionally: the tokens are regenerated and the committed `LabelTokens.go` must not move |
 | `webapp`, `website`, `design_system`, `api_client`, `sync_engine`, `n8n_node`, `zapier_app`, `sdk_typescript` | The `node` job for the affected packages and their consumers |
 | `webapp`, `design_system`, `api_client`, `go`, `openapi`, `db`, `deploy` | The container build (`compose`), because the image contains both halves ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)) |
+| `webapp`, `design_system`, `sync_engine`, `expression`, `editor`, `whiteboard`, `api_client`, `openapi`, `walk_judge` | The browser job (`engines`). `walk_judge` names what judges the walks' answers — `test/contract/walks*.go`, `test/contract/schema*.go` and the baseline — file by file, so that no other Go change walks every suite |
 | `ci` (`.github/**`, `.gitleaks.toml`) | Everything |
 | documentation only | The five jobs behind no filter — `secrets`, `dependencies`, `licences`, `docs`, `numbers` — and the description check |
 | anything, on a draft | Nothing. Every job is skipped and `ci-required` reports as `CI not run (draft)` (§3.4) |
