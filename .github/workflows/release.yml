@@ -182,6 +182,10 @@ jobs:
             echo "PREVIOUS_IMAGE=scratch" >> "$GITHUB_ENV"
           fi
 
+      - name: The build date
+        # The commit's date, not the clock's: a rebuild of the same commit gets the same binary.
+        run: echo "BUILD_DATE=$(TZ=UTC0 git log -1 --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd)" >> "$GITHUB_ENV"
+
       - name: Build and push the image
         id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -196,6 +200,7 @@ jobs:
           build-args: |
             VERSION=${{ github.ref_name }}
             COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ env.BUILD_DATE }}
             PREVIOUS_IMAGE=${{ env.PREVIOUS_IMAGE }}
 
       - name: Produce the SBOM (CycloneDX)
