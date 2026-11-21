@@ -37,8 +37,8 @@ The vision behind this, the people it is for and the settings it must work in ar
   proves them. `make proof-state` prints it, and the
   [weekly flow report](https://github.com/Jersyfi/hubtask/issues?q=is%3Aissue+in%3Atitle+%22Flow+report%22+author%3Aapp%2Fgithub-actions)
   carries it. No figure in it rises without a file that cites a check.
-* The Scorecard figure is middling: three of its checks need a second person, and Hubtask has one
-  maintainer. The badge links to the result of each check.
+* The Scorecard figure cannot reach the top: three of its checks need a second person, and Hubtask
+  has one maintainer. The badge links to the result of each check.
 * A release's image is signed and carries its build provenance and a bill of materials
   ([security.md §11](./docs/architecture/security.md#11-supply-chain-and-build)). To verify one:
   `gh attestation verify oci://ghcr.io/jersyfi/hubtask:<version> --repo Jersyfi/hubtask --signer-workflow Jersyfi/hubtask/.github/workflows/release.yml --source-ref refs/tags/<version>`

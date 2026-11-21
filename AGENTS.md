@@ -253,7 +253,7 @@ it. How to ask, and where the answer goes: `.agents/skills/ask-the-owner/SKILL.m
 | Changed | Run |
 |---|---|
 | Anything, while working | `make check` — the changed packages' checks, about a minute |
-| Before `gh pr ready` | `make check`, the independent review, `make gate-pr BODY=<file> TITLE="<title>"`; CI runs the rest |
+| Before `gh pr ready` | `make check`, the independent review, the outside reviewer where its app is installed, `make check` on the last fix, `make gate-pr BODY=<file> TITLE="<title>"`; CI runs the rest |
 | A change that reaches wide | `make verify` — every gate that runs without containers |
 | One concern | `make gate-quick`, `gate-unit`, `gate-architecture`, `gate-security`, `gate-docs` |
 | `api/openapi.yaml`, `db/queries/` | `make generate` (no diff may remain), `make api-client` |

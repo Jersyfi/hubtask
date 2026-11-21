@@ -1,9 +1,10 @@
 # Concept — the development flow: guidelines, proof, and the owner on the loop
 
 **State:** 2026-11-21. The owner accepted D-1 to D-15 and D-8a that day (§6).
-Nothing in it is built. Every figure below was measured on that day against `main` at `77661b5a6`
-and the GitHub API; where something was not checked, the text says so. The build is §7: one
-branch, one pull request.
+It is built on the branch `concept/development-flow`, stage by stage, on 2026-11-21; what
+remains is the close (§7). §3 holds what was measured before the build, against `main` at
+`77661b5a6` and the GitHub API; a figure read while building says so. Where something was not
+checked, the text says so. What was not built is named where it is described, and in §9.
 
 **What it answers.** How Hubtask stays fast to build with coding agents and safe to change, when the
 owner no longer reads code: the owner writes concepts, takes strategic decisions and looks at
@@ -21,7 +22,7 @@ stays. Nine things are missing or have slipped, and each has a small, checkable 
 | # | Gap, measured | Remedy |
 |---|---|---|
 | 1 | **CI got three times slower and five times less reliable in four weeks** (a pull request's run: median 9.5 → 33.0 min, failed 7 % → 33 %). Nobody saw it, because the review that would have was a date somebody had to remember; its issue is still open. | A weekly **flow report** made by a scheduled job, with thresholds the owner sets once. A breach opens a `finding`. (§5.6) |
-| 2 | **The browser walks have no written rules.** 212 suites, about 1,135 walks, 54,000 lines; every one runs against hand-written answers that nothing holds to the API contract; 351 fixed waits; 50 suites name no use case. | Rules for a walk in `apps/webapp/e2e/AGENTS.md`, each with a gate or a bound that only falls; the stubbed answers checked against the contract. (§5.4) |
+| 2 | **The browser walks have no written rules.** 212 suites, about 1,135 walks, 54,000 lines; every one runs against hand-written answers that nothing holds to the API contract; 355 fixed waits; 56 suites cite no use case check. | Rules for a walk in `apps/webapp/e2e/AGENTS.md`, each with a gate or a bound that only falls; the stubbed answers checked against the contract. (§5.4) |
 | 3 | **The builder reviews its own work.** The lesson "the reviewer is never the builder" was paid for with a discarded build of 339 commits and lives in one build plan and in private notes. | An **independent review** by a fresh agent before every pull request leaves draft, reported in the description. (§5.5) |
 | 4 | **A concept reaches CI only at the end.** The work surfaces arrived as one pull request of 134,813 added lines in 1,385 files; four of its CI runs failed before one passed; fix pull requests followed within two days. | **Checkpoints**: CI runs on the concept branch after each family of screens, without leaving draft. (§5.3) |
 | 5 | **Nothing forces the full picture before a structural change.** The Definition of Ready lists seventeen points; nothing asks a worker to answer them. | A **design brief** of one screen for a named class of changes, written from a research pass, challenged once. (§5.3) |
@@ -29,7 +30,7 @@ stays. Nine things are missing or have slipped, and each has a small, checkable 
 
 | 7 | **Documentation grows ten lines for each one cut**, and no rule says how a text is written for a person, how much a change adds or what it removes. | Five writing rules, a table of what each kind of change owes, and a rule for removing what a change makes false — with no length limit, because a limit produces shorthand. (§5.9) |
 | 8 | **Leftover code is found only inside a package.** Nothing reports an unreachable exported function, an unused file or a test whose subject is gone. | A change removes what it orphans; a tool's report drives removal in its own pull request; cleanup by a model's judgement is left out; a deleted test is named. (§5.10) |
-| 9 | **The repository shows none of what it does.** Coverage thresholds, static analysis, vulnerability scans, signed releases with a bill of materials and pinned actions all exist; the README carries no badge and no line about them. | One short README section, three badges a machine fills, and the proof state generated from the use cases. No coverage service, no number to chase. (§5.12) |
+| 9 | **The repository shows none of what it does.** Coverage thresholds, static analysis, vulnerability scans, signed releases with a bill of materials and pinned actions all exist; the README carries no badge and no line about them. | One short README section, two badges a machine fills and a third once the Best Practices project is registered, and the proof state printed from the use cases. No coverage service, no number to chase. (§5.12) |
 
 A second reviewer from another vendor, CodeRabbit, is added as advice after the independent review
 (§5.11). For contributors the repository lacks little: three policy sentences, a labelled entry point and one
@@ -87,7 +88,8 @@ Of the last 200 runs on `main` (2026-10-14 … 11-21), 51 needed more than one a
 figures are §5.7.1: the browser walks set the run's length and fail most.
 
 ADR-0089 and ADR-0090 both end with "the review on or after 2026-11-05 compares the next window".
-Issue 1309, which carries that review, is open with no report after 2026-10-22. The mechanism for
+Issue 1309 carries that review — it is the review of ADR-0083's merge flow, which both ADRs
+attach to — and is open with no report after 2026-10-22. The mechanism for
 looking at the flow in aggregate exists as a tool (`make flowstats`) and as an intention, not as
 something that happens.
 
@@ -106,17 +108,18 @@ Counted in `apps/webapp/e2e/*.test.mjs`:
 | Suites that cite no `UC-…` | 50; another 6 name a use case and no check of it |
 | Skipped or to-do walks | 0 |
 
-The three counts in the middle are those of the branch as stage 2 found it (`main` at
-`5fa8a7c2e`), counted by `apps/webapp/build/walks.test.js`: a call is `.route(` or
-`.waitForTimeout(` in a file's text, and a suite cites a check when its text holds
+The rows from the route stubs to the suites that cite no use case are those of the branch as
+stage 2 found it (`main` at `5fa8a7c2e`), counted by `apps/webapp/build/walks.test.js`: a call is
+`.route(` or `.waitForTimeout(` in a file's text, and a suite cites a check when its text holds
 `UC-XX-nn check n`, `UC-XX-nn/n` or `UC-XX-nn checks …`. The first count of this document, by
-`grep` on `main` at `77661b5a6`, was 171 / 378, 351 and 50.
+`grep` on `main` at `77661b5a6`, was 171 suites with 378 route stubs, 351 fixed waits and 50
+suites that cite no use case.
 
 A walk is what makes a use case check about a screen `verified`. Today such a check is proven
 against answers a worker typed. If the server answers another shape, the walk stays green and the
 screen breaks; the real server meets the web app only in the installed apps' smoke walk and in
 `hubctl`'s session, which use other clients. `docs/evidence/README.md` has rules for *exploring* by
-script ("Scripting a walk") and says a stub belongs in the fixture, not in the suite — 171 suites
+script ("Scripting a walk") and says a stub belongs in the fixture, not in the suite — 172 suites
 do otherwise. Rules for a walk *as a test* are written nowhere. This matches what the owner saw:
 new end-to-end tests that do not follow the intended principles, because the principles are not
 on paper where a worker reads them.
@@ -461,9 +464,9 @@ there), each tagged like every other rule:
 | A check that crosses the server is proven by the walk **and** by a test of the same operation against the real server (integration or contract) | reviewed against `checked_by` |
 | Red first: the walk fails on the build without the change | the independent review runs it |
 
-The exact wording is the owner's to confirm; the rules are derived from
+The rules stand in `apps/webapp/e2e/AGENTS.md` as stage 1 worded them, derived from
 `docs/usecases/README.md`, `docs/usecases/AGENTS.md` and `docs/evidence/README.md`, which state
-them only in passing.
+them only in passing. The owner accepted them with D-4 and has not read the wording (§8).
 
 **Stubs held to the contract, without a new dependency.** The walks' shared entry point
 (`signedIn` in `fixture.mjs`, which already routes `**/api/v1/**`) writes every answer it fulfils —
@@ -486,11 +489,12 @@ stubbed — so the guess is recorded and counted, 639 of the answers, and not ju
 bodies of the 212 answers in `application/x-ndjson`: the contract declares that body a string and
 gives its lines no schema. The key is coarse on purpose, and that has a price, named in §8.
 
-**Red first, as a tool.** `make proof BASE=origin/main` takes the tests the branch adds or changes,
-runs them against the product code of the merge base, and lists each that passes there — a test
-that passes without the change proves nothing about it. A test that does not compile against the
-base counts as failing. It is a report for the review, not a gate: a pure refactoring legitimately
-adds tests that pass before and after.
+**Red first, as a tool, is not built** (§9). `make proof BASE=origin/main` would take the tests
+the branch adds or changes, run them against the product code of the merge base, and list each
+that passes there — a test that passes without the change proves nothing about it. It would be
+a report for the review, not a gate: a pure refactoring legitimately adds tests that pass before
+and after. Until it exists the reviewer runs a test cited as proof against the code without the
+change, in a worktree of its own (`review-change`).
 
 ### 5.5 The independent review
 
@@ -504,7 +508,7 @@ The review is added to the author's own check against the rules no gate checks
 1. `docs/usecases/README.md`, "Checking work against its use cases": each check met, not met or
    not proven; work beyond *Where it ends*; principles broken.
 2. Every rule tagged `[partial]`, `[unchecked]` or `[owner]` that the diff can touch.
-3. The test rules: the levels of `engineering-guidelines.md` §1, the walk rules, `make proof`.
+3. The test rules: the levels of `engineering-guidelines.md` §1, the walk rules, red first.
 4. Whether a structural change had its brief, and whether the build followed it.
 5. For a screen with a mockup: the rendered mockup beside the running screen, region by region.
 6. The text: every sentence that the diff makes false — in `docs/`, an `AGENTS.md`, a skill, a
@@ -552,16 +556,27 @@ source prints "not measured" and why:
 | Tests deleted or skipped in merged pull requests | reported, each with the reason its description gave |
 | Unreachable Go functions; unused files, exports and types of the TypeScript workspace; unused translation keys (§5.10) | reported; a bound after the first removal |
 | CodeRabbit: comments made, and the share that led to a change (§5.11) | reported |
+| Open code scanning, secret scanning and Dependabot alerts, and the oldest of each (§5.12) | reported |
+| The OpenSSF Best Practices badge's level (§5.13) | at least passing |
 
 A breached threshold opens a `finding` naming the measure and the week, one per measure. The
 thresholds live in `ci-cd.md` §11, which also says how each measure is read; the tool reads them
 from `tools/flowstats/thresholds.json`, and a test holds the two equal. Changing one is the
-owner's intervention "at the policy level". The report also counts the walks' timer waits and
-the open security alerts by kind (§5.12).
+owner's intervention "at the policy level". The report also counts the walks' timer waits.
 
-Two rows are not measured: unused translation keys, which no tool in the repository counts, and
-the share of CodeRabbit's comments that led to a change, which nothing records. Its comments are
-counted once its app comments. `deadcode` and Knip are pinned since D-11: on 2026-11-21 they list
+Some rows are not measured, and each says why (`ci-cd.md` §11):
+
+* unused translation keys, in every run: no tool in the repository counts them;
+* the share of CodeRabbit's comments that led to a change, in every run: nothing records it. Its
+  comments are counted once its app comments;
+* unused TypeScript code, in the weekly job: the job does not install the workspace, so Knip's
+  count is a local run's;
+* secret scanning and Dependabot alerts, where the API refuses the job's token: no workflow
+  permission covers them, and what the API answers is seen on the job's first run;
+* the Best Practices badge, until its project is registered and its id stands in
+  `thresholds.json`.
+
+`deadcode` and Knip are pinned since D-11: on 2026-11-21 they list
 175 unreachable Go functions and 409 unused files, exports and types of the TypeScript workspace,
 neither list checked yet. "Uncited checks of built use cases" is the bound `make gate-docs`
 holds, not a count of its own. The run on 2026-11-21, for 14 to 20 November, shows three
@@ -571,8 +586,8 @@ request median is 15.9 minutes and within its threshold: it is the last attempt'
 first reading of 38.5 minutes held the wait before a run was started again.
 The session figures (waiting, tokens) stay a local command, since only the owner's machine has the
 transcripts. With this, the dated reviews of ADR-0089 and ADR-0090 are replaced by something that
-runs whether or not anybody remembers. Issue 1309 is the dated review of ADR-0083's merge flow,
-not the report's issue; a worker closes it when the first report stands.
+runs whether or not anybody remembers. Issue 1309, the dated review of ADR-0083's merge flow
+(§3.2), is not the report's issue; a worker closes it when the first report stands.
 
 ### 5.7 CI
 
@@ -740,8 +755,9 @@ only when the behaviour it asserts was removed or changed on purpose, or when an
 the same thing — and the description names each such test and which of the two reasons applies.
 `make gate-pr` can hold the naming: a diff that removes a test function or a walk, or adds a skip,
 needs the test's name in the description. A test that a use case cites in `checked_by` leaves only
-together with the change to that use case. To be confirmed while building: whether `make
-gate-docs` already refuses a `checked_by` that names a test that no longer exists.
+together with the change to that use case: `make gate-docs` refuses a `checked_by` that names a
+file that does not exist. It reads no test's name, so a test deleted from a file that stays is
+held by `make gate-pr` alone.
 
 **Tier 2, the report.** `deadcode` over the binaries, once per build configuration, and a count of
 translation keys no client uses, enter the weekly flow report as numbers. Removal follows in a
@@ -836,22 +852,24 @@ with `main` (ADR-0083), and `main` then turns red on `quick` and `docs`. So `ci-
 its rule without an exception - generated files keep no counts - and the proof state became a
 printed table: no file, no staleness check, the same figures from the same code.
 
-The Scorecard figure will be middling, and the README says why in one sentence: three of its
-checks need a second person, and Hubtask has one maintainer. The badge links to the per-check
+No Scorecard result exists yet (§7). The README says in one sentence why the figure cannot reach
+the top: three of its checks need a second person, and Hubtask has one maintainer. The badge links to the per-check
 result, which is the part worth reading.
 
 **Coverage.** The thresholds stay a gate as they are: per package, on the two layers where the
-rules live, proven by a planted violation. The percentage becomes visible in two places that cost
-nothing — the unit job's summary and the weekly flow report — and gets no badge and no service.
-For the clients' code a figure is reported, not gated: Node's own coverage is still marked
-experimental.
+rules live, proven by a planted violation. The percentage is visible in one place that costs
+nothing, the unit job's summary, and gets no badge and no service. Two things planned here were
+not built (§9): the percentage in the weekly flow report, and a reported figure for the clients'
+code.
 
 **Three gaps closed along the way:**
 
 * CodeQL also reads JavaScript, TypeScript and the workflows. Whether it reads `.svelte` files was
   not confirmed.
 * The flow report (§5.6) gains open security alerts by kind and the age of the oldest.
-* The three open Dependabot alerts are read and handled as findings.
+* The three open Dependabot alerts — `qs`, `glob` and `minimatch` — are lifted to their patched
+  versions by `overrides` in `pnpm-workspace.yaml` on this branch. GitHub closes the alerts when
+  the branch merges; until then they are open.
 
 **Whether the tests bite** is the honest question behind "coverage". The answer is mutation
 testing, and it joins the experiments of §7: nightly, on `core/domain` only, where the tool's
@@ -867,7 +885,8 @@ Cyber Resilience Act makes its maker a manufacturer from December 2027. The tech
 bill of materials, signatures, a disclosure policy — exists; a five-year support period and
 24-hour reporting are commitments of a different kind. `licensing-editions.md` and `FUNDING.yml`
 were not assessed against the Act, and this is not legal advice. It is proposed as a `decision`
-issue with the regulation's text beside the plans, not as a change here.
+issue with the regulation's text beside the plans, not as a change here. The issue is not opened:
+the orchestrator opens it at the close (§7).
 
 ### 5.13 Nothing shown needs the owner's hand
 
@@ -881,10 +900,11 @@ adopted in that form. Three rules:
    owner's GitHub identity — signing in to the badge site with GitHub, installing the CodeRabbit
    app. A worker brings the page to the consent button and stops; the owner's part is that click,
    once per service, and all such clicks are collected into one list at the end of the build.
-3. **Upkeep is a machine's**: the weekly flow job reads each badge's public state and opens a
-   `finding` when one is lost or a criterion is no longer met; a worker repairs it. Whether the
-   badge site offers its state in a form a job can read was not verified; if it does not, the job
-   reads the badge image's text.
+3. **Upkeep is a machine's**: the weekly flow job reads the Best Practices badge's level from
+   the badge site's public JSON and opens a `finding` when it is below `passing`; a worker
+   repairs it. The row reads "not measured" until the project is registered (§5.6). The job does
+   not read single criteria, and it does not read the Scorecard's result: that one is uploaded
+   as code scanning alerts, which the report counts.
 
 If the consent click is one too many, the questionnaire badge is dropped and Scorecard, which
 needs no account at all, stands alone. That is the fallback, not the plan.
@@ -963,12 +983,18 @@ skipped by design, `Dependency review` and `Pull request description`, which nee
 The walk read the person on a task card before the person's name had arrived; it now waits for
 the initials. `make gate-walks` passes in all three shards on the runner.
 
+The second manual run (44937443059, 2026-11-21, head `7ee94f1e9`) failed before any job started.
+The repository's setting of allowed actions lacks `ossf/scorecard-action@*`, and the job
+`actions-allowed` names every action of every workflow, so GitHub refused the whole run. The
+owner accepted the action with D-13; adding it to the setting is the owner's word (`ci-cd.md`
+§4), and no run of `ci.yml` on this branch starts before it is there.
+
 **What can only be seen after the merge**, and is checked then by the orchestrator or the next
 worker: the first Scorecard result and its badge, which exist only once the workflow has run on `main`;
 the first weekly report on its issue, after which a worker closes issue 1309; what the job's
 token may read of the security alerts; the pull request median falling in the report.
 
-**Later, as experiments:** `make proof`, then generated catching tests on the structural class,
+**Later, as experiments:** `make proof` (§5.4), which is not built, then generated catching tests on the structural class,
 run nightly for four weeks — kept only if at least half of what it reports is real, counted on its
 issue. And mutation testing as §5.12 describes it; its tools are new dependencies and are asked
 for when it starts.
@@ -1003,13 +1029,21 @@ decision. The whole change is reversible by reverting one pull request; none of 
   reasoning; a tool reports live code as dead — removal is its own pull request and must pass
   every test; the writing rules produce shorthand — rule 5 forbids it and no length is gated;
   CodeRabbit's comments are followed blindly — each is fixed or answered, and the gates decide.
-* **Unverified until built:** how much dead code and how many unused keys exist; whether
-  CodeRabbit reviews a draft on request, what its limits are for a repository without stars, and
-  whether its free tier includes every feature named; how many of the browser
-  job's failures are flakes; what `test/architecture/drafts_test.go` needs for a manual trigger
-  (`ci.yml` already treats every event but a pull request as "run everything", and
-  `scripts/ci/after-ci.sh` acts on `main` only for pushes to it); how long `make proof` takes for
-  a walk (it needs a second build of the web app); the reviewer's cost in tokens per pull request.
+* **Baseline level 1 is not reached at the close.** The answers file reads 20 Met, 3 Unmet and
+  1 Unknown (`docs/evidence/best-practices-answers.md`). One unmet row is the owner's: `main`'s
+  protection does not bind administrators, and turning that on is a security setting of the
+  repository. Two unmet rows name the same file, the Android build's committed Gradle wrapper;
+  removing it is a change to that build and was not made here. The unknown row is the owner's
+  too: whether the account requires a second factor, which the API tells the account's owner
+  alone. D-15 names level 1; it holds once those four rows are answered.
+* **The owner has not read the walk rules' wording.** D-4 accepted the rules of §5.4; the
+  sentences in `apps/webapp/e2e/AGENTS.md` are stage 1's.
+* **Still unverified:** how many of the functions and files `deadcode` and Knip list are unused,
+  and how many translation keys are; whether CodeRabbit reviews a draft on request, what its
+  limits are for a repository without stars, and whether its free tier includes every feature
+  named; the cause of the browser job's failures that §5.7.1 counts as unread; how long
+  `make proof` would take for a walk (it needs a second build of the web app); the reviewer's
+  cost in tokens per pull request; a Scorecard result for this repository.
 
 ---
 
@@ -1021,6 +1055,13 @@ decision. The whole change is reversible by reverting one pull request; none of 
 * **Narrowing the product's surface** before a first release: the owner's vision, not a process
   question; §3.9 only names its cost.
 * **A model in CI**, a merge queue, a required approving review, a second quality class.
+* **`make proof`**, red first as a tool (§5.4): the reviewer runs a cited test against the code
+  without the change by hand, and the tool is the first of the experiments of §7.
+* **The coverage percentage in the weekly flow report**: the `unit` job writes it to its run's
+  summary, and a job cannot read another run's summary back. Carrying it would need the figures
+  as an artifact or a committed file, and `ci-cd.md` §3.5 keeps counts out of committed files.
+* **A coverage figure for the clients' code**: no package of the workspace runs its tests with
+  Node's coverage flag, which Node still marks experimental. Nothing reports it.
 * **Walks against a real server as a second suite**: the contract-held stubs and the paired
   server test close most of the gap for a fraction of the run time; reconsidered if the report
   shows screens breaking on answers the contract allows.

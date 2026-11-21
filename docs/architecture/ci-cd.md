@@ -241,8 +241,8 @@ The rules of [ADR-0079](../adr/ADR-0079-a-draft-is-checked-locally.md) and
   architecture tests, `make generate` without a diff when the contract or a query changed, the
   changed workspace packages, the documentation gate when a document changed. No lock, about a
   minute. Everything else — containers, integration, security, the other packages — is CI's.
-* **CI checks a pull request once it is ready**, in parallel jobs, about ten minutes; a red job is
-  fixed by a push to the ready pull request. The hook in `.claude/settings.json` refuses
+* **CI checks a pull request once it is ready**, in parallel jobs; the flow report holds the
+  run's median to twenty minutes (§11). A red job is fixed by a push to the ready pull request. The hook in `.claude/settings.json` refuses
   `gh pr create` without `--draft`, and `gh pr ready` while `HEAD` is not pushed.
 * **A manual run checks a pushed branch while its pull request stays a draft.** `ci.yml` triggers
   on `workflow_dispatch`: `gh workflow run ci.yml --ref <branch>` starts one run on the branch's
@@ -277,9 +277,11 @@ The rules of [ADR-0079](../adr/ADR-0079-a-draft-is-checked-locally.md) and
   the browser job runs Chromium, with Firefox and WebKit best effort (support-matrix.md §5). `main`
   runs everything on every commit.
 
-**Once per pull request.** `make check` passes; the independent review runs, and its findings are
-fixed or answered (engineering-guidelines.md §3.19); `make check` passes on the last fix; the
-commit is pushed; `gh pr ready`; and the pull request merges when `CI required` is green — on the owner's word, by hand or by auto-merge (§3.5).
+**Once per pull request**, in the order of `.agents/skills/finish-pull-request/SKILL.md`:
+`make check` passes; the independent review runs, and its findings are fixed or answered
+(engineering-guidelines.md §3.19); the outside reviewer is asked where its app is installed (§5);
+`make check` passes on the last fix; the commit is pushed; `make gate-pr` passes on the
+description and the title; `gh pr ready`; and the pull request merges when `CI required` is green — on the owner's word, by hand or by auto-merge (§3.5).
 It is not brought up to date with `main` to merge. Only a conflict GitHub reports, or a base that
 was squash-merged, needs `main` merged in; that stays on the ready pull request (AGENTS.md), runs
 `make generate` and `make check` for what the merge touched, and leaves the rest to its CI run.

@@ -6,8 +6,11 @@
 **Rule lives in:** [AGENTS.md](../../AGENTS.md) ("Where knowledge lives", the working rules),
 [docs/README.md](../README.md) ("How to write"), [docs/adr/README.md](./README.md) (when a decision
 gets an ADR), [engineering-guidelines.md](../architecture/engineering-guidelines.md) §3,
-[ci-cd.md](../architecture/ci-cd.md) §5, [docs/backlog/README.md](../backlog/README.md) ("A concept
-built whole"), [CONTRIBUTING.md](../../CONTRIBUTING.md), and the skills under `.agents/skills/`
+[ci-cd.md](../architecture/ci-cd.md) §3.4, §5, §11 and §12,
+[security.md](../architecture/security.md) §11,
+[apps/webapp/e2e/AGENTS.md](../../apps/webapp/e2e/AGENTS.md),
+[docs/backlog/README.md](../backlog/README.md) ("A concept built whole"),
+[CONTRIBUTING.md](../../CONTRIBUTING.md), and the skills under `.agents/skills/`
 
 **Supersedes in part:** [ADR-0079](./ADR-0079-a-draft-is-checked-locally.md) (CI can be started by
 hand on a branch; a draft's push still starts nothing),
