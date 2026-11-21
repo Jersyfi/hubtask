@@ -31,15 +31,15 @@ in [`docs/evidence/README.md`](../../../docs/evidence/README.md), "How to walk".
   loop that asks again until a request has left; the count does not tell them from a plain wait.
   `[partial: ci:node; open: a wait written a third way, a number raised in the list]`
 * **No answer the contract does not allow.** What a walk answers for `/api/v1` is what the server
-  could answer: an operation `api/openapi.yaml` declares, with a status it declares and a body its
-  schema allows. The walks write their answers down and `test/contract` judges them. A wrong
-  answer is counted once, by its kind, its operation and its status, however many suites give it.
-  The 206 known when the gate landed are listed in `test/contract/testdata/walks-baseline.txt`;
-  any other fails, and a line is only ever removed from that list. One answer is written down and
-  not judged: the empty page `fixture.mjs` gives to a request that nothing stubbed. Nobody wrote
-  it for the operation, and which requests a walk leaves unanswered until it ends differs from
-  run to run.
-  `[partial: ci:engines, gate-walks, gate-pr; open: the answers in the baseline, the fixture's empty page for a request nothing stubbed, a suite that repeats a wrong answer the baseline lists, a body taken from a file, response headers, whether the answer is the one the server gives for that request]`
+  could answer: an operation `api/openapi.yaml` declares, with a status it declares, in a media
+  type it declares and with a body its schema allows. The walks write their answers down and
+  `test/contract` judges them. A wrong answer is counted once, by its kind, its operation and its
+  status, however many suites give it. The 207 known when the gate landed are listed in
+  `test/contract/testdata/walks-baseline.txt`; any other fails, and a line is only ever removed
+  from that list. One answer is written down and not judged: the empty page `fixture.mjs` gives
+  to a request that nothing stubbed. Nobody wrote it for the operation, and which requests a walk
+  leaves unanswered until it ends differs from run to run. Only `fixture.mjs` marks an answer so.
+  `[partial: ci:engines, ci:node, gate-walks, gate-pr; open: another wrong body for an operation and status the baseline lists — 179 of the 907 operations have such a line, and 6,280 of the 9,413 answers judged on 2026-11-21 are for one; the fixture's empty page for a request nothing stubbed, 639 answers; the lines of the 212 answers in application/x-ndjson, which the contract gives no schema; a body taken from a file; response headers; whether the answer is the one the server gives for that request]`
 * **No private copy of an answer that several suites need.** Such an answer lives in
   `fixture.mjs`, where every suite and the preview (`preview.mjs`) get it; a suite stubs only what
   is particular to its walk.

@@ -181,15 +181,45 @@ func bodySchema(declared *response, mediaType string) (node *schema, allowed boo
 	return nil, mediaType == ""
 }
 
-// judgeWalkAnswer answers how one recorded answer leaves the contract, or nil.
-func (s *specification) judgeWalkAnswer(operations []walkOperation, answer walkAnswer) *walkViolation {
-	var found *walkOperation
+// operationOf finds the operation an answer is for, or nil.
+func operationOf(operations []walkOperation, answer walkAnswer) *walkOperation {
 	for i := range operations {
 		if operations[i].method == answer.Method && operations[i].pattern.MatchString(answer.Path) {
-			found = &operations[i]
-			break
+			return &operations[i]
 		}
 	}
+	return nil
+}
+
+// baselineCoarseness measures what the baseline's key lets through. An entry excuses every wrong
+// body of its operation and status, so a new one there passes: it answers how many operations
+// have such an entry, and how many of the judged answers are for one of those keys.
+func baselineCoarseness(operations []walkOperation, records map[string][]walkAnswer, baseline []string) (excused, onExcusedKey, judged int) {
+	keys := map[string]bool{}
+	routes := map[string]bool{}
+	for _, entry := range baseline {
+		if rest, ok := strings.CutPrefix(entry, bodyMismatch+" "); ok {
+			keys[rest] = true
+			routes[rest[:strings.LastIndex(rest, " ")]] = true
+		}
+	}
+	for _, answers := range records {
+		for _, answer := range answers {
+			if answer.Guess {
+				continue
+			}
+			judged++
+			if found := operationOf(operations, answer); found != nil && keys[fmt.Sprintf("%s %d", found.route, answer.Status)] {
+				onExcusedKey++
+			}
+		}
+	}
+	return len(routes), onExcusedKey, judged
+}
+
+// judgeWalkAnswer answers how one recorded answer leaves the contract, or nil.
+func (s *specification) judgeWalkAnswer(operations []walkOperation, answer walkAnswer) *walkViolation {
+	found := operationOf(operations, answer)
 	if found == nil {
 		return &walkViolation{Kind: unknownOperation, Operation: answer.Method + " " + withoutIDs(answer.Path), Status: answer.Status,
 			Detail: "the contract declares no such operation"}

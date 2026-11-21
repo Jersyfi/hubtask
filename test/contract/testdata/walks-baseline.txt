@@ -190,6 +190,7 @@ body-mismatch PUT /items/{itemId}/labels/{labelId} 200
 body-mismatch PUT /mail/settings 200
 body-mismatch PUT /tenant/modules/{module} 200
 body-mismatch PUT /voice/settings 200
+content-type-undeclared GET /media/{mediaId}:content 200
 status-undeclared DELETE /containers/{containerId}/buckets/{bucketId} 204
 status-undeclared GET /auth/sign-in-rules 500
 status-undeclared GET /automation/runs 503

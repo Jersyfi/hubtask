@@ -466,16 +466,19 @@ responses against the contract, reads that file and fails on an answer the contr
 Suites that stub through their own `context.route` are wrapped by the same recorder. Built in
 stage 2, the recorder patches Playwright's own `route` instead of `signedIn`, because 38 suites
 launch a browser of their own and never pass through it. One run of every suite recorded
-10,043 distinct answers in 209 suites. A wrong answer is counted once by kind, operation and
-status, not once per suite: 206 leave the contract — 190 bodies outside their schema,
-15 statuses the operation does not declare and one operation the contract does not
-have. They enter as a baseline that only shrinks (`test/contract/testdata/walks-baseline.txt`;
+10,052 distinct answers in 209 suites; the other three suites leave no record, two because they
+test a helper without a browser and one because `make e2e` does not walk it. A wrong answer is
+counted once by kind, operation and status, not once per suite: 207 leave the contract — 190
+bodies outside their schema, 15 statuses the operation does not declare, one media type the
+response does not declare and one operation the contract does not have. They enter as a baseline that only shrinks (`test/contract/testdata/walks-baseline.txt`;
 `make gate-pr` refuses an added line), so the gate is green on the day it lands and can only get
 stricter. Two things were learned by running it. Counted per suite, and with the guess below, the wrong answers were 2,694,
 and 13 of them differed between two runs on one machine, because which reads a walk still gets
 answered before it ends depends on timing; a baseline per suite would have failed by chance. And
 the answers that differ are the fixture's guess — one empty page for any request nothing
-stubbed — so the guess is recorded and counted, 639 of the answers, and not judged.
+stubbed — so the guess is recorded and counted, 639 of the answers, and not judged. Nor are the
+bodies of the 212 answers in `application/x-ndjson`: the contract declares that body a string and
+gives its lines no schema. The key is coarse on purpose, and that has a price, named in §8.
 
 **Red first, as a tool.** `make proof BASE=origin/main` takes the tests the branch adds or changes,
 runs them against the product code of the merge base, and lists each that passes there — a test
@@ -925,6 +928,12 @@ decision. The whole change is reversible by reverting one pull request; none of 
   3. Checkpoint runs are skipped under time pressure — the final run fails as today, no worse.
   4. The stub validation finds so much that the bound stays high — then it has found the size of
      gap §3.3 describes, and each cut lowers it.
+* **A known limit: the walks' baseline is coarse.** A line excuses every wrong body of its
+  operation and status, not one body. 179 of the contract's 907 operations have such a line, and
+  6,280 of the 9,413 answers judged in the run of 2026-11-21 — two in three — are for an operation
+  and status the baseline lists. A new wrong body there passes until the line is removed, so the
+  gate holds new operations and the corrected ones, and the rest only as each line goes.
+  `make gate-walks` prints both numbers on every run.
 * **Risks the additions bring**, and what bounds each: a worker deletes a true sentence it took
   for false — the reviewer answers for each removed paragraph, and the ADR and git keep the
   reasoning; a tool reports live code as dead — removal is its own pull request and must pass

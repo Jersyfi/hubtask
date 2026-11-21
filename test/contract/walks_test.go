@@ -156,6 +156,29 @@ func TestTheSuitesAScriptLeavesOut(t *testing.T) {
 	}
 }
 
+// An entry of the baseline excuses every wrong body of its operation and status, and the gate says
+// how much that is.
+func TestTheBaselinesCoarsenessIsMeasured(t *testing.T) {
+	spec := contractSpec(t)
+	operations, err := spec.walkOperations()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	guess := health(200, "{}")
+	guess.Guess = true
+	elsewhere := health(200, "{}")
+	elsewhere.Path = "/meta/horoscope"
+	records := map[string][]walkAnswer{
+		"a": {health(200, "{}"), health(403, "{}"), guess},
+		"b": {health(200, `{"other":1}`), elsewhere},
+	}
+	baseline := []string{"body-mismatch GET /meta/health 200", "body-mismatch GET /meta/health 404", "status-undeclared GET /tenant 302"}
+	excused, onExcusedKey, judged := baselineCoarseness(operations, records, baseline)
+	if excused != 1 || onExcusedKey != 2 || judged != 4 {
+		t.Fatalf("got %d operations, %d of %d answers; want 1 operation, 2 of 4 answers", excused, onExcusedKey, judged)
+	}
+}
+
 // The walks' recorded answers against the contract (ci-cd.md §3, `engines`). WALK_RECORD names
 // the directory the walks wrote to; without it there is nothing to judge. A violation the baseline
 // does not hold fails. WALK_BASELINE=prune removes the entries that were not met, and only where
@@ -172,7 +195,8 @@ func TestTheWalksAnswerWithinTheContract(t *testing.T) {
 	if len(records) == 0 {
 		t.Fatalf("%s holds no record: the walks did not run with WALK_RECORD set", directory)
 	}
-	found, err := contractSpec(t).judgeWalkRecords(records)
+	spec := contractSpec(t)
+	found, err := spec.judgeWalkRecords(records)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -201,6 +225,13 @@ func TestTheWalksAnswerWithinTheContract(t *testing.T) {
 	}
 	t.Logf("%d suites, %d distinct answers; not judged: %d guesses of the fixture, the bodies of %d answers in application/x-ndjson; outside the contract, by operation and status: %d unknown operations, %d undeclared statuses, %d undeclared content types, %d bodies",
 		len(records), answers, guesses, lines, kinds[unknownOperation], kinds[statusUndeclared], kinds[contentTypeUndeclared], kinds[bodyMismatch])
+	operations, err := spec.walkOperations()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	excused, onExcusedKey, judged := baselineCoarseness(operations, records, baseline)
+	t.Logf("the baseline lists a wrong body for %d of the contract's %d operations; %d of the %d judged answers are for an operation and status it lists, where another wrong body passes",
+		excused, len(operations), onExcusedKey, judged)
 
 	unknown, notMet := againstBaseline(found, baseline)
 	for _, violation := range unknown {
