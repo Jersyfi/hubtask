@@ -24,6 +24,8 @@
 //     or CI job it names exists; outside the rule lists the root file explains rather than commands;
 //     the headings older text cites keep their words, the rules their numbers, the loop its steps
 //     (agents.go).
+//   - AGENTS.md names every skill under .agents/skills by its path and none that is gone: a tool
+//     that reads no skills finds one only there (agents.go).
 //   - Every ADR says where its rule lives now, because an ADR is the record of why and the
 //     current rule is in a subject document (agents.go).
 //   - Code cites what keeps resolving: every "file.md §N" exists, and no comment cites a task, an
@@ -73,6 +75,7 @@ func main() {
 	problems = append(problems, checkCoverageReport(root)...)
 	problems = append(problems, checkUseCases(root)...)
 	problems = append(problems, checkRuleTags(root)...)
+	problems = append(problems, checkSkillList(root)...)
 	problems = append(problems, checkADRRuleLines(root)...)
 	problems = append(problems, checkCodeCitations(root)...)
 	problems = append(problems, checkADRCitations(root)...)

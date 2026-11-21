@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -362,4 +363,55 @@ func hasRuleLine(adr string) bool {
 		}
 	}
 	return false
+}
+
+// A tool that knows nothing of skills finds one through the path AGENTS.md lists, and so does a
+// worker on a checkout without symbolic links. So AGENTS.md names every skill by its path and none
+// that is gone. The check is here and not beside the skills' own test in test/architecture: this
+// gate runs on a change to AGENTS.md alone, and that test does not.
+
+// namedSkill is a skill's path as a document names it. The placement table's placeholder,
+// `.agents/skills/<name>/SKILL.md`, names none.
+var namedSkill = regexp.MustCompile(`\.agents/skills/([a-z0-9][a-z0-9-]*)/SKILL\.md`)
+
+// checkSkillList holds the list of skills in AGENTS.md to the folders under .agents/skills.
+func checkSkillList(root string) []string {
+	entries, err := os.ReadDir(filepath.Join(root, ".agents", "skills"))
+	if err != nil {
+		return []string{fmt.Sprintf(".agents/skills is not readable: %v", err)}
+	}
+	var skills []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			skills = append(skills, entry.Name())
+		}
+	}
+	if len(skills) == 0 {
+		// A check that read nothing passes for the wrong reason.
+		return []string{".agents/skills holds no skill - the path has moved, and the list in AGENTS.md is held to nothing"}
+	}
+	return skillListProblems(read(root, "AGENTS.md"), skills)
+}
+
+// skillListProblems names each skill the document leaves out and each it names that is gone.
+func skillListProblems(agents string, skills []string) []string {
+	exists := map[string]bool{}
+	for _, name := range skills {
+		exists[name] = true
+	}
+	var problems []string
+	named := map[string]bool{}
+	for _, m := range namedSkill.FindAllStringSubmatch(agents, -1) {
+		if !named[m[1]] && !exists[m[1]] {
+			problems = append(problems, fmt.Sprintf("AGENTS.md: names %s, and .agents/skills has no skill of that name", m[0]))
+		}
+		named[m[1]] = true
+	}
+	for _, name := range skills {
+		if !named[name] {
+			problems = append(problems, fmt.Sprintf("AGENTS.md: does not name .agents/skills/%s/SKILL.md - a worker whose tool reads no skills finds one only through that path", name))
+		}
+	}
+	sort.Strings(problems)
+	return problems
 }

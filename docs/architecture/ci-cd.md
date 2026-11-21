@@ -133,6 +133,7 @@ so `numbers` does not either. `docs` takes seconds and reads files every
 filter could skip: `checkdocs` reconciles the Go version across `go.mod`, the workflows, the
 Dockerfile, the support matrix and the README; reconciles the support matrix with the nightly's
 jobs; resolves ADR citations in every kind of source file and document; checks links and anchors;
+holds the list of skills in the root `AGENTS.md` to the folders under `.agents/skills/`;
 and holds the newest `docs/evidence/COVERAGE-<date>.md` to `catalogue.Descriptors()` — one row per
 served use case, none for an unserved one, and no "nobody built it" without an issue number.
 
@@ -170,8 +171,8 @@ and every pattern matches something that exists. A filter by file pattern (`**/*
 the fixtures a Go test reads outside it, and `ci-required` counts that skip as a pass. A file
 `test/architecture` reads sets the `go` filter, which runs that package: the hook's settings, the
 skills under `.agents/skills/`, their links under `.claude/skills/` and `.claude/agents/`. The
-root `AGENTS.md` is the exception: `test/architecture` holds its list of skills to the folders, and
-a change to it alone runs that test on `main` only. The
+root `AGENTS.md` sets no filter: the documentation gate, which runs on every change, holds its
+list of skills to the folders. The
 outside reviewer's `.coderabbit.yaml` triggers nothing, since no job reads it.
 
 **Performance is measured, not gated.** A test whose verdict is a time or a frame rate runs in no

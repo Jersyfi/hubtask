@@ -66,8 +66,8 @@ func TestEveryTrackedPathIsClaimedByAFilter(t *testing.T) {
 // Being claimed is not enough for a file these tests read: a skill is Markdown, so the `docs`
 // filter claims it, and the documentation job runs none of these tests. A skill, its link or the
 // reviewer's wrapper changed alone has to set the `go` filter, which is what runs this package.
-// The root AGENTS.md is read here too and is not in this list: the documentation gate refuses its
-// name in a workflow, so a change to it alone runs the skills' test on main only.
+// The root AGENTS.md is not read here: the documentation gate, which runs on every change, holds
+// its list of skills to the folders.
 func TestWhatTheArchitectureTestsReadRunsThem(t *testing.T) {
 	filters := loadPathFilters(t)
 	read := []string{".claude/settings.json", ".agents/skills/", ".claude/skills/", ".claude/agents/"}

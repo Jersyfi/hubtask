@@ -30,18 +30,10 @@ func TestEverySkillHasItsFileAndItsLink(t *testing.T) {
 	}
 }
 
-// A tool that knows nothing of skills finds one through the path AGENTS.md lists, and so does a
-// worker on a checkout without symbolic links. So AGENTS.md names every skill by its path and none
-// that is gone, and the reviewer's wrapper names only skills that exist.
-func TestAgentsFileNamesEverySkillByItsPath(t *testing.T) {
+// The reviewer's wrapper names only skills that exist. That AGENTS.md lists every skill by its
+// path is held by tools/checkdocs, which runs on a change to AGENTS.md alone.
+func TestTheReviewersWrapperNamesSkillsThatExist(t *testing.T) {
 	_, skills := skillProblems("../..", gitLinkModes(t, "../.."))
-	agents, err := os.ReadFile("../../AGENTS.md")
-	if err != nil {
-		t.Fatalf("AGENTS.md is not readable: %v", err)
-	}
-	for _, problem := range namedSkillProblems("AGENTS.md", string(agents), skills, true) {
-		t.Error(problem)
-	}
 
 	wrappers, err := filepath.Glob("../../.claude/agents/*.md")
 	if err != nil || len(wrappers) == 0 {
@@ -52,7 +44,7 @@ func TestAgentsFileNamesEverySkillByItsPath(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, problem := range namedSkillProblems(".claude/agents/"+filepath.Base(wrapper), string(text), skills, false) {
+		for _, problem := range namedSkillProblems(".claude/agents/"+filepath.Base(wrapper), string(text), skills) {
 			t.Error(problem)
 		}
 	}
@@ -99,9 +91,8 @@ const gitSymlink = "120000"
 
 var namedSkill = regexp.MustCompile(`\.agents/skills/([a-z0-9][a-z0-9-]*)/SKILL\.md`)
 
-// namedSkillProblems holds a document to the skills it names by path: each exists, and - where the
-// document is the list of all skills - none is left out.
-func namedSkillProblems(where, doc string, skills map[string]bool, all bool) []string {
+// namedSkillProblems holds a document to the skills it names by path: each exists.
+func namedSkillProblems(where, doc string, skills map[string]bool) []string {
 	var problems []string
 	named := map[string]bool{}
 	for _, m := range namedSkill.FindAllStringSubmatch(doc, -1) {
@@ -109,13 +100,6 @@ func namedSkillProblems(where, doc string, skills map[string]bool, all bool) []s
 			problems = append(problems, fmt.Sprintf("%s names %s, and .agents/skills has no skill of that name", where, m[0]))
 		}
 		named[m[1]] = true
-	}
-	if all {
-		for name := range skills {
-			if !named[name] {
-				problems = append(problems, fmt.Sprintf("%s does not name .agents/skills/%s/SKILL.md - a worker whose tool reads no skills finds one only through that path", where, name))
-			}
-		}
 	}
 	sort.Strings(problems)
 	return problems
@@ -361,30 +345,20 @@ func TestLinkModesAreReadFromGitsListing(t *testing.T) {
 	}
 }
 
-// A document is held to the skills it names: one that is gone, and - for the list of all - one
-// left out. The placeholder path of the placement table names no skill.
+// A wrapper is held to the skills it names: one that is gone is a problem, once. The placeholder
+// path of the placement table names no skill.
 func TestNamedSkillsAreHeldToTheFolders(t *testing.T) {
 	skills := map[string]bool{"tidy": true, "design-brief": true}
 	for _, c := range []struct {
 		name, doc string
-		all       bool
 		want      []string
 	}{
-		{name: "every skill named", all: true,
-			doc: "`.agents/skills/tidy/SKILL.md`, `.agents/skills/design-brief/SKILL.md`, `.agents/skills/<name>/SKILL.md`"},
-		{name: "one left out", all: true, doc: "`.agents/skills/tidy/SKILL.md`",
-			want: []string{"the list does not name .agents/skills/design-brief/SKILL.md"}},
-		{name: "one that is gone", all: true,
-			doc:  "`.agents/skills/tidy/SKILL.md` `.agents/skills/design-brief/SKILL.md` `.agents/skills/gone/SKILL.md`",
-			want: []string{"the list names .agents/skills/gone/SKILL.md"}},
-		{name: "named by name only", all: true, doc: "`tidy` and `design-brief`",
-			want: []string{"the list does not name .agents/skills/design-brief/SKILL.md", "the list does not name .agents/skills/tidy/SKILL.md"}},
-		{name: "a wrapper names one skill", doc: "Read `.agents/skills/tidy/SKILL.md`."},
+		{name: "a wrapper names one skill", doc: "Read `.agents/skills/tidy/SKILL.md`, or `.agents/skills/<name>/SKILL.md`."},
 		{name: "a wrapper names a skill that is gone", doc: "Read `.agents/skills/gone/SKILL.md`, twice: `.agents/skills/gone/SKILL.md`.",
 			want: []string{"the list names .agents/skills/gone/SKILL.md"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			got := namedSkillProblems("the list", c.doc, skills, c.all)
+			got := namedSkillProblems("the list", c.doc, skills)
 			if len(got) != len(c.want) {
 				t.Fatalf("want %d problems, got %q", len(c.want), got)
 			}
