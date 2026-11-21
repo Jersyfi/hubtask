@@ -1303,10 +1303,11 @@ import { test } from "node:test";
 test("walks", async () => {});'
 fi
 
-# expect_walk_answer_failure <name> <kind> <recorded answer>
-# One recorded answer in a directory of its own, judged the way a shard's records are.
+# expect_walk_answer_failure <name> <violation> <recorded answer>
+# One recorded answer in a directory of its own, judged the way a shard's records are. Each is a
+# violation the baseline does not hold: one it holds would stay green, as it should.
 expect_walk_answer_failure() {
-	local name="$1" kind="$2" answer="$3"
+	local name="$1" violation="$2" answer="$3"
 	CHECKS=$((CHECKS + 1))
 	local records out
 	records="$(mktemp -d)"
@@ -1314,7 +1315,7 @@ expect_walk_answer_failure() {
 	out="$(make --no-print-directory gate-walks WALK_RECORD_DIR="$records" 2>&1 || true)"
 	rm -f "$records/zz_gate_selftest.jsonl"
 	rmdir "$records"
-	if grep -q "zz_gate_selftest $kind " <<<"$out"; then
+	if grep -q "$violation, in zz_gate_selftest" <<<"$out"; then
 		printf '  ok      %-44s caught by make gate-walks\n' "$name"
 	else
 		printf '  FAILED  %-44s make gate-walks did not report it\n' "$name"
@@ -1322,11 +1323,11 @@ expect_walk_answer_failure() {
 	fi
 }
 
-expect_walk_answer_failure "a walk's answer with a body outside the schema" body-mismatch \
-	'{"method":"GET","path":"/meta/health","status":200,"content_type":"application/json","body":"{\"status\":\"ok\"}"}'
-expect_walk_answer_failure "a walk's answer with an undeclared status" status-undeclared \
+expect_walk_answer_failure "a walk's answer with a body outside the schema" "body-mismatch GET /meta/health 403" \
+	'{"method":"GET","path":"/meta/health","status":403,"content_type":"application/json","body":"{\"oops\":true}"}'
+expect_walk_answer_failure "a walk's answer with an undeclared status" "status-undeclared GET /meta/health 302" \
 	'{"method":"GET","path":"/meta/health","status":302,"content_type":null,"body":null}'
-expect_walk_answer_failure "a walk's answer for no operation" unknown-operation \
+expect_walk_answer_failure "a walk's answer for no operation" "unknown-operation GET /meta/horoscope 200" \
 	'{"method":"GET","path":"/meta/horoscope","status":200,"content_type":"application/json","body":"{}"}'
 
 printf '\n%d checks, %d failures, %d skipped\n' "$CHECKS" "$FAILURES" "$SKIPPED"

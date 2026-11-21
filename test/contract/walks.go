@@ -32,6 +32,10 @@ type walkAnswer struct {
 	// BodyBase64 and BodyFrom mark a body the record does not hold as text; it is not judged.
 	BodyBase64 string `json:"body_base64"`
 	BodyFrom   string `json:"body_from"`
+	// Guess marks the fixture's answer to a request nothing stubbed: one empty page for whatever
+	// was asked. It is counted and not judged - nobody wrote it for the operation, and which
+	// reads a walk leaves unanswered until it ends differs from run to run.
+	Guess bool `json:"guess"`
 }
 
 // The three ways an answer leaves the contract.
@@ -41,18 +45,21 @@ const (
 	bodyMismatch     = "body-mismatch"
 )
 
-// walkViolation is one answer the contract does not allow. Its key names the suite, the kind, the
-// operation and the status - never the body, so that it reads the same in every run.
+// walkViolation is one way the walks' answers leave the contract. Its key names the kind, the
+// operation and the status. Not the body, which differs from run to run - and not the suite: which
+// reads a walk still gets answered before it ends depends on timing, so the same wrong answer of
+// the fixture shows in one suite in one run and in another in the next.
 type walkViolation struct {
-	Suite     string
 	Kind      string
 	Operation string
 	Status    int
-	Detail    string
+	// Suites are the suites that gave the answer, and Detail what the first of them got wrong.
+	Suites []string
+	Detail string
 }
 
 func (v walkViolation) key() string {
-	return fmt.Sprintf("%s %s %s %d", v.Suite, v.Kind, v.Operation, v.Status)
+	return fmt.Sprintf("%s %s %d", v.Kind, v.Operation, v.Status)
 }
 
 // walkOperation is one operation of the contract, findable by a concrete path.
@@ -165,7 +172,7 @@ func bodySchema(declared *response, contentType *string) *schema {
 }
 
 // judgeWalkAnswer answers how one recorded answer leaves the contract, or nil.
-func (s *specification) judgeWalkAnswer(operations []walkOperation, suite string, answer walkAnswer) *walkViolation {
+func (s *specification) judgeWalkAnswer(operations []walkOperation, answer walkAnswer) *walkViolation {
 	var found *walkOperation
 	for i := range operations {
 		if operations[i].method == answer.Method && operations[i].pattern.MatchString(answer.Path) {
@@ -174,10 +181,10 @@ func (s *specification) judgeWalkAnswer(operations []walkOperation, suite string
 		}
 	}
 	if found == nil {
-		return &walkViolation{Suite: suite, Kind: unknownOperation, Operation: answer.Method + " " + withoutIDs(answer.Path), Status: answer.Status,
+		return &walkViolation{Kind: unknownOperation, Operation: answer.Method + " " + withoutIDs(answer.Path), Status: answer.Status,
 			Detail: "the contract declares no such operation"}
 	}
-	violation := &walkViolation{Suite: suite, Operation: found.route, Status: answer.Status}
+	violation := &walkViolation{Operation: found.route, Status: answer.Status}
 
 	declared, ok := s.declaredResponse(found.op, answer.Status)
 	if !ok {
@@ -242,22 +249,36 @@ func readWalkRecords(directory string) (map[string][]walkAnswer, error) {
 	return records, nil
 }
 
-// judgeWalkRecords answers every violation of the records, one per key, with the first detail met.
+// judgeWalkRecords answers every violation of the records, one per key, with the suites it was
+// met in and the first detail.
 func (s *specification) judgeWalkRecords(records map[string][]walkAnswer) (map[string]walkViolation, error) {
 	operations, err := s.walkOperations()
 	if err != nil {
 		return nil, err
 	}
+	suites := make([]string, 0, len(records))
+	for suite := range records {
+		suites = append(suites, suite)
+	}
+	sort.Strings(suites)
 	violations := map[string]walkViolation{}
-	for suite, answers := range records {
-		for _, answer := range answers {
-			violation := s.judgeWalkAnswer(operations, suite, answer)
+	for _, suite := range suites {
+		for _, answer := range records[suite] {
+			if answer.Guess {
+				continue
+			}
+			violation := s.judgeWalkAnswer(operations, answer)
 			if violation == nil {
 				continue
 			}
-			if _, seen := violations[violation.key()]; !seen {
-				violations[violation.key()] = *violation
+			known, seen := violations[violation.key()]
+			if !seen {
+				known = *violation
 			}
+			if !slices.Contains(known.Suites, suite) {
+				known.Suites = append(known.Suites, suite)
+			}
+			violations[violation.key()] = known
 		}
 	}
 	return violations, nil
@@ -282,9 +303,9 @@ func readWalkBaseline(path string) ([]string, error) {
 }
 
 // againstBaseline sorts the violations found into those the baseline does not know, and the
-// baseline's entries that no longer occur. Only a suite with a record can be said to have lost a
-// violation: the walks run in shards, and a shard knows nothing about the other suites.
-func againstBaseline(found map[string]walkViolation, baseline []string, recorded map[string][]walkAnswer) (unknown []walkViolation, gone []string) {
+// baseline's entries that were not met. An entry that was not met is gone only after a run of
+// every suite: one suite or one of CI's shards meets a part of them.
+func againstBaseline(found map[string]walkViolation, baseline []string) (unknown []walkViolation, notMet []string) {
 	for key, violation := range found {
 		if !slices.Contains(baseline, key) {
 			unknown = append(unknown, violation)
@@ -292,13 +313,9 @@ func againstBaseline(found map[string]walkViolation, baseline []string, recorded
 	}
 	sort.Slice(unknown, func(i, j int) bool { return unknown[i].key() < unknown[j].key() })
 	for _, key := range baseline {
-		suite, _, _ := strings.Cut(key, " ")
-		if _, ran := recorded[suite]; !ran {
-			continue
-		}
 		if _, still := found[key]; !still {
-			gone = append(gone, key)
+			notMet = append(notMet, key)
 		}
 	}
-	return unknown, gone
+	return unknown, notMet
 }

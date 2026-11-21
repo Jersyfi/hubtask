@@ -30,11 +30,14 @@ in [`docs/evidence/README.md`](../../../docs/evidence/README.md), "How to walk".
   `[partial: ci:node; open: a wait written another way, a number raised in the list]`
 * **No answer the contract does not allow.** What a walk answers for `/api/v1` is what the server
   could answer: an operation `api/openapi.yaml` declares, with a status it declares and a body its
-  schema allows. The walks write their answers down and `test/contract` judges them. The 2694
-  answers outside the contract when the gate landed are listed in
-  `test/contract/testdata/walks-baseline.txt`; any other fails, and a line is only ever removed
-  from that list.
-  `[partial: ci:engines, gate-walks, gate-pr; open: the answers in the baseline, a body taken from a file, response headers, whether the answer is the one the server gives for that request]`
+  schema allows. The walks write their answers down and `test/contract` judges them. A wrong
+  answer is counted once, by its kind, its operation and its status, however many suites give it.
+  The 206 known when the gate landed are listed in `test/contract/testdata/walks-baseline.txt`;
+  any other fails, and a line is only ever removed from that list. One answer is written down and
+  not judged: the empty page `fixture.mjs` gives to a request that nothing stubbed. Nobody wrote
+  it for the operation, and which requests a walk leaves unanswered until it ends differs from
+  run to run.
+  `[partial: ci:engines, gate-walks, gate-pr; open: the answers in the baseline, the fixture's empty page for a request nothing stubbed, a suite that repeats a wrong answer the baseline lists, a body taken from a file, response headers, whether the answer is the one the server gives for that request]`
 * **No private copy of an answer that several suites need.** Such an answer lives in
   `fixture.mjs`, where every suite and the preview (`preview.mjs`) get it; a suite stubs only what
   is particular to its walk.
@@ -66,8 +69,8 @@ make e2e                                 # every suite, as CI's browser job does
 ```
 
 `RECORD=1` sets `WALK_RECORD` to `apps/webapp/.walk-record/`, where each suite writes one file,
-and runs `make gate-walks` afterwards. That gate judges only the suites that have a file there, so
-it works for one suite and for one of CI's three shards. A suite's file is replaced when the suite
+and runs `make gate-walks` afterwards. That gate judges the suites that have a file there, so it
+works for one suite and for one of CI's three shards. A suite's file is replaced when the suite
 is walked again. `ENGINES=firefox,webkit` walks the other engines.
 
 ## How to check a change
@@ -78,6 +81,6 @@ make gate-walks                               # after a recorded walk: the answe
 ```
 
 When a fixed wait is removed or a suite cites its check, the first command says which entry of
-`bounds.json` to lower or remove. When an answer is corrected,
-`WALK_BASELINE=prune make gate-walks` removes the baseline lines that no longer occur for the
-suites walked.
+`bounds.json` to lower or remove. When an answer is corrected, walk every suite with
+`make e2e RECORD=1`; `WALK_BASELINE=prune make gate-walks` then removes the baseline's lines that
+no suite met.
