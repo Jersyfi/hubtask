@@ -237,8 +237,6 @@ var leftAtDefault = map[string]string{
 	"HUBTASK_DB_MIN_CONNS":                    "tuning",
 	"HUBTASK_DB_STATEMENT_TIMEOUT":            "tuning",
 	"HUBTASK_DB_WORKER_STATEMENT_TIMEOUT":     "tuning",
-	"HUBTASK_S3_REGION":                       "tuning; the default region serves MinIO",
-	"HUBTASK_S3_USE_PATH_STYLE":               "tuning; path style is the default",
 	"HUBTASK_SMTP_TIMEOUT":                    "tuning",
 	"HUBTASK_BACKUP_CONCURRENT_DOWNLOADS":     "tuning",
 	"HUBTASK_RATE_LIMIT_ANONYMOUS_PER_MINUTE": "tuning",
