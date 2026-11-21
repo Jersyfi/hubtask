@@ -24,11 +24,15 @@ const go = (browser, options) => open(browser, { modulesOn: ALL, hubModules: ON,
 const tablet = { width: 820, height: 1180, hasTouch: true };
 const phone = { width: 390, height: 844, hasTouch: true, ready: (page) => page.locator('[data-phone-bar]') };
 
-/** Opens two other hubs first, so the quick switch lists them as recently visited. */
+/**
+ * Opens two other hubs first, so the quick switch lists them as recently visited. A visit is noted
+ * by the hub's own screen, not by the sidebar, which draws the hub's level before the screen has
+ * the hub: so each stop waits for the screen's heading.
+ */
 async function visited(page) {
   for (const each of [IT, HOME, PD]) {
     await page.goto(new URL(`/hubs/${each.id}`, page.url()).href);
-    await page.getByRole('region', { name: each.name }).first().waitFor({ timeout: 10_000 });
+    await page.getByRole('main').getByRole('heading', { name: each.name, level: 1 }).waitFor({ timeout: 10_000 });
   }
 }
 
