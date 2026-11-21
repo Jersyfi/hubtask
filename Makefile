@@ -928,14 +928,14 @@ WALK_RECORD_DIR ?= $(PWD)/apps/webapp/.walk-record
 ## gate-walks: The answers the recorded walks gave, against openapi.yaml (after `make e2e RECORD=1`)
 # The newest run under WALK_RECORD_DIR, or the one WALK_RECORD names. Only suites with a record
 # are judged, so it holds for one suite and for one of CI's shards alike. -count=1: the records
-# are not the test's input as Go's cache sees it.
+# are not the test's input as Go's cache sees it. -v: the counts are the test's log.
 .PHONY: gate-walks
 gate-walks:
 	@run="$(WALK_RECORD)"; \
 	if [ -z "$$run" ]; then run="$$(ls -1d "$(WALK_RECORD_DIR)"/*/ 2>/dev/null | sort | tail -n 1)"; fi; \
 	if [ -z "$$run" ] || [ ! -d "$$run" ]; then echo "no recorded walks in $(WALK_RECORD_DIR) - run 'make e2e RECORD=1'"; exit 1; fi; \
 	echo "the recorded walks in $$run"; \
-	WALK_RECORD="$$run" $(GO) test -tags=contract -count=1 -run '^TestTheWalksAnswerWithinTheContract$$' ./test/contract/
+	WALK_RECORD="$$run" $(GO) test -tags=contract -count=1 -v -run '^TestTheWalksAnswerWithinTheContract$$' ./test/contract/
 
 ## e2e: Build the web app and walk it in Chromium; SUITES="timewalk explain" walks those alone; RECORD=1 also holds their answers to the contract
 # As ci.yml's engines job does: the packages the web app builds on, the web app, the workbench

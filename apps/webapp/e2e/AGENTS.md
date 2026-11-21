@@ -40,7 +40,7 @@ in [`docs/evidence/README.md`](../../../docs/evidence/README.md), "How to walk".
   to a request that nothing stubbed. Nobody wrote it for the operation, and which requests a walk
   leaves unanswered until it ends differs from run to run. Only `fixture.mjs` marks an answer so.
   `[partial: ci:engines, ci:node, gate-walks, gate-pr; open: another wrong body for an operation and
-  status the baseline lists; the fixture's empty page for a request nothing stubbed; the lines of
+  status the baseline lists (`make gate-walks` prints how many answers that is); the fixture's empty page for a request nothing stubbed; the lines of
   an answer in application/x-ndjson, which the contract gives no schema; a body taken from a file;
   response headers; whether the answer is the one the server gives for that request]`
 * **No private copy of an answer that several suites need.** Such an answer lives in
