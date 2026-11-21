@@ -139,17 +139,28 @@ served use case, none for an unserved one, and no "nobody built it" without an i
 **`pr-description` reads the description, not the tree.** On every pull request that is not Dependabot's,
 `tools/checkpr` holds the description to `.github/PULL_REQUEST_TEMPLATE.md`: every section present,
 in order, filled or marked n/a; `Closes #n` at the start of a line or `No issue: <why>`; use cases
-that exist; *Premises* filled — what was found false and corrected, or what was checked; one ADR
+that exist; *Premises* filled — what was found false and corrected, or what was checked; *Review*
+with a reviewer and a date, the findings found, fixed and open as numbers, and the outside
+reviewer's counts or `not run: <why>`; one ADR
 answer ticked and named; no placeholder left; and the title a Conventional Commit. With the
 branch's history it also holds: no merged migration changed; no use case deleted and no ID reused; a
 change to a use case's Goal, How to check or Where it ends named `correction` or `decision #<n>`;
 no settled ADR changed beyond its status line, its `Rule lives in` line and link targets; and
 no numbered section of a subject document (`docs/architecture/`, `docs/design/`) dropped or
 renumbered, nor left as a bare heading where it had text — a retired section keeps its heading
-with one sentence saying where its content went. The
-history rules hold pull requests opened from 2026-10-08 on. It
+with one sentence saying where its content went; and a test the branch removes, a test file it
+deletes and a test it adds a skip to are each named in the description — a Go `Test…` or `Fuzz…`
+function, a `test(` or `it(` of a `*.test.ts`, `*.test.mjs` or `*.test.js`. A name that comes back
+anywhere in the diff is a moved test; a declaration replaced within one run of changed lines is a
+rename. It does not see a weakened assertion, a test deleted with another written in its place, a
+test removed in one package while one of the same name is added in another, or whether the
+*Review* and the reasons are true. The
+history rules hold pull requests opened from 2026-10-08 on, *Review* and the removed tests those
+opened from 2026-11-21 on. It
 reads the description and the title from the API, so a re-run judges them as they stand.
-`make gate-pr BODY=<file> TITLE="<title>"` runs it locally, `BASE=origin/main` with the history. `gh pr create --body` never shows the template;
+`make gate-pr BODY=<file> TITLE="<title>"` runs it locally, `BASE=origin/main` with the history;
+`DRAFT=1` lets a draft's *Review* say `not yet: <why>`, which CI — reading only a ready pull
+request — refuses. `gh pr create --body` never shows the template;
 start from a copy of it.
 
 **The filters name trees, and `test/architecture` checks that they name all of them.** Every

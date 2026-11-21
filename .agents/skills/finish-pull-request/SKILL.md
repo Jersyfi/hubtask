@@ -66,12 +66,15 @@ step 8.
 ## 7. The description
 
 A copy of `.github/PULL_REQUEST_TEMPLATE.md` with every section. A section with nothing to say
-reads "None".
+reads "n/a".
 
 - *Premises*: each false premise corrected, each finding fixed on the way, each choice taken
   without asking.
-- *Review*: who reviewed (the model and the date); findings found, fixed and left open, each open
-  one with its reason; one row for the outside reviewer: comments, fixed, declined.
+- *Review*: who reviewed (the model and the date); findings found, fixed and left open as numbers,
+  each open one with its reason; one row for the outside reviewer: comments, fixed, declined, or
+  `not run:` and why.
+- Each test the change removed or skipped, by its name, with which of the two reasons applies
+  (step 3); a deleted test file by the file's name.
 - It closes its issue (`Closes #n`), or says `No issue:` and why.
 
 ```bash
