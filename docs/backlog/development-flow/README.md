@@ -550,7 +550,7 @@ source prints "not measured" and why:
 | Lines of the root `AGENTS.md` | reported |
 | Comment blocks of twenty lines or more (47 today) | does not rise |
 | Tests deleted or skipped in merged pull requests | reported, each with the reason its description gave |
-| Unreachable Go functions, unused translation keys (§5.10) | reported; a bound after the first removal |
+| Unreachable Go functions; unused files, exports and types of the TypeScript workspace; unused translation keys (§5.10) | reported; a bound after the first removal |
 | CodeRabbit: comments made, and the share that led to a change (§5.11) | reported |
 
 A breached threshold opens a `finding` naming the measure and the week, one per measure. The
@@ -559,13 +559,16 @@ from `tools/flowstats/thresholds.json`, and a test holds the two equal. Changing
 owner's intervention "at the policy level". The report also counts the walks' timer waits and
 the open security alerts by kind (§5.12).
 
-Three rows are not measured yet. Unreachable Go functions and unused translation keys: `deadcode`
-is not pinned in `make tools` and Knip is not a dependency of the workspace, so D-11's tools are
-still to be added. CodeRabbit: nothing is counted until its app comments, and nothing records
-which comment led to a change. "Uncited checks of built use cases" is the bound `make gate-docs`
-holds, not a count of its own. The first run on 2026-11-21, for 14 to 20 November, shows four
-measures over the proposed thresholds: the pull request median (38.5 minutes), the failed pull
-request runs (53 %), `main`'s second attempts (83 %) and the hours `main` was red (111.9).
+Two rows are not measured: unused translation keys, which no tool in the repository counts, and
+the share of CodeRabbit's comments that led to a change, which nothing records. Its comments are
+counted once its app comments. `deadcode` and Knip are pinned since D-11: on 2026-11-21 they list
+175 unreachable Go functions and 409 unused files, exports and types of the TypeScript workspace,
+neither list checked yet. "Uncited checks of built use cases" is the bound `make gate-docs`
+holds, not a count of its own. The run on 2026-11-21, for 14 to 20 November, shows three
+measures over the proposed thresholds: the failed pull request runs (53 % of 19), `main`'s
+second attempts (83 % of 6) and the hours `main` was red (111.9, with 6 runs on `main`). The pull
+request median is 15.9 minutes and within its threshold: it is the last attempt's time, and the
+first reading of 38.5 minutes held the wait before a run was started again.
 The session figures (waiting, tokens) stay a local command, since only the owner's machine has the
 transcripts. With this, the dated reviews of ADR-0089 and ADR-0090 are replaced by something that
 runs whether or not anybody remembers. Issue 1309 is the dated review of ADR-0083's merge flow,
@@ -745,8 +748,9 @@ translation keys no client uses, enter the weekly flow report as numbers. Remova
 pull request of its own per package, where each removed function is one a tool reported and the
 description says so; what is kept on purpose goes on a short list with its reason. The count
 becomes a falling bound only after the first such pull request shows how many reports were right.
-For the TypeScript workspace the matching tool would be a new development dependency; it is
-proposed (§6, D-11) and not assumed.
+For the TypeScript workspace the matching tool is Knip, a development dependency of the
+workspace root since the owner accepted D-11 (§6); `make deadcode` and `make unused` print the
+two lists.
 
 **The tidy pass for documents** is the same idea: at a cut, one document per pull request, no
 change to any rule. The reviewer compares the rules before and after — every numbered section
