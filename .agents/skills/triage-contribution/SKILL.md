@@ -27,8 +27,18 @@ the project's own paperwork.
    from `.github/PULL_REQUEST_TEMPLATE.md` and check it with
    `make gate-pr BODY=<file> TITLE="<title>"`. Do not send the author back to the template.
 4. **The review.** CI gives a fork's run no secrets, so no model reviews it there. Fetch the
-   branch into a worktree of your own (`gh pr checkout <number>`), run `make check`, and start the
-   independent review on it (`.agents/skills/review-change/SKILL.md`).
+   contribution into a branch and a worktree of its own, so that the checkout you work in stays
+   as it is:
+
+   ```bash
+   git fetch origin pull/<number>/head:contribution-<number>
+   git worktree add ../contribution-<number> contribution-<number>
+   ```
+
+   `gh pr checkout <number>` alone is not that: it switches the checkout you are in. In the
+   worktree, run `make check` and start the independent review
+   (`.agents/skills/review-change/SKILL.md`). When the pull request is merged or closed, remove
+   the worktree with `git worktree remove ../contribution-<number>`.
 5. **The findings.** Post them as one comment the author can act on.
 6. **CI.** The same required check holds. A first-time contributor's run starts after it is
    approved on GitHub.
