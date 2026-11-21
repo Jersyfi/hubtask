@@ -168,6 +168,11 @@ func TestNoFileNamesTheOldLicence(t *testing.T) {
 		if isBuslHistory(file) {
 			continue
 		}
+		// A tracked link to a folder holds no text of its own; its target's files are read where
+		// they stand.
+		if info, err := os.Stat(filepath.Join("../..", file)); err == nil && info.IsDir() {
+			continue
+		}
 		content, err := os.ReadFile(filepath.Join("../..", file))
 		if os.IsNotExist(err) {
 			// Tracked but deleted in the work tree - the commit that removes it is on its way.

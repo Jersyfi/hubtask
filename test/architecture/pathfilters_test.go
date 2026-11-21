@@ -39,10 +39,13 @@ func TestEveryTrackedPathIsClaimedByAFilter(t *testing.T) {
 		".editorconfig": "editor configuration; no job reads it",
 		".gitignore":    "git's own; no job reads it",
 	}
+	// One link per skill, for the one coding tool that looks there. A link changed alone runs no
+	// job; the test that holds the links runs with any Go change and on main.
+	const skillLinks = ".claude/skills/"
 
 	var unclaimed []string
 	for _, file := range trackedFiles(t) {
-		if _, ok := unfiltered[file]; ok {
+		if _, ok := unfiltered[file]; ok || strings.HasPrefix(file, skillLinks) {
 			continue
 		}
 		if !claimed(filters, file) {
