@@ -23,7 +23,8 @@ GitHub-specific; the pipeline may.
 | File | Trigger | Purpose |
 |---|---|---|
 | `ci.yml` | A pull request once it is ready (opened ready, leaving draft, or pushed to while ready); a push to `main`; manual dispatch on a pushed branch (§3.4) | The pull request gates (§3) |
-| `codeql.yml` | A ready pull request, a push to `main`, weekly | Static security analysis. Not part of `CI required`; a red CodeQL is a finding to fix, not to suppress |
+| `codeql.yml` | A ready pull request, a push to `main`, weekly | Static security analysis of Go, of JavaScript and TypeScript, and of the workflows, one job per language. Not part of `CI required`; a red CodeQL is a finding to fix, not to suppress |
+| `scorecard.yml` | A push to `main`; weekly (Monday, 06:00 UTC) | OpenSSF Scorecard (§12): reads the repository's supply chain, publishes the result the README's badge shows, and uploads it as code scanning alerts. Not part of `CI required` |
 | `after-ci.yml` | A `ci.yml` run ends; every 15 minutes; manual dispatch | A failed run is re-run once; a red `main` opens the issue "CI: main is red" and holds the green pull requests; a green `main` closes it and re-runs the pull requests that waited (§3.5) |
 | `pr-description-rerun.yml` | A pull request's description or title is edited | If the head commit's latest `ci.yml` run failed, re-runs its description job and `CI required` (§3.1) |
 | `nightly.yml` | Schedule (overnight) | Long runs (§9): `deep` (fuzzing, load, resilience), the `matrix-*` cells, the PITR drill (`make gate-pitr`), the image scan, the action pins; the arm64 cell also runs `make gate-privacy-full` and `make gate-selftest`. A failure files an issue |
@@ -321,7 +322,9 @@ so what merged meanwhile is first checked by `main`'s own run. Four things keep 
   if it was never applied anywhere.
 
 Generated and shared files keep no counts (the event matrix, the coverage report): two clean merges
-would add up wrong. Integration deploys every push to `main` while `main`'s run is still going, so it
+would add up wrong. The proof state (§12) is the exception, because its figures are its purpose.
+Each figure stands on a line of its own, so two pull requests that change one conflict, and
+`make generate` on the merged tree resolves it. Integration deploys every push to `main` while `main`'s run is still going, so it
 may run an untested combination for those minutes ([deployment.md](./deployment.md) §3).
 
 ---
@@ -626,3 +629,26 @@ How each measure is read:
   retry, anything else a refusal. Workflow permissions offer `security-events: read` for code
   scanning and nothing for secret scanning or Dependabot alerts; what the API answers the job's
   token is seen on its first run.
+
+---
+
+## 12. What the repository shows
+
+A figure is shown only if a machine produces it and nobody is asked to raise it. The README's
+section "Quality and security" holds all of it, in under fifteen lines.
+
+* **The proof state**, [`docs/reference/proof-state.md`](../reference/proof-state.md): the use
+  cases by state, the checks a file in `checked_by` cites, and the bounds that only fall.
+  `make generate` writes it from the documentation gate's own reading (`tools/checkdocs`), so
+  `quick` fails on a stale page, and `make gate-docs` does too.
+* **OpenSSF Scorecard**, `scorecard.yml`. The Scorecard service refuses a published result unless
+  the workflow keeps its rules: no `env` or `defaults` at the top level or on the job, no write
+  permission at the top level, `id-token: write` on that job alone, no container or service, a
+  GitHub-hosted Ubuntu runner, and no step other than checkout, the Scorecard action,
+  upload-artifact and upload-sarif. A change to the workflow keeps them.
+* **Coverage** stays a gate at its thresholds (§3, `unit`) and gets no badge and no service. The
+  `unit` job's summary shows each layer's lowest package and every package's percentage.
+* **The OpenSSF Best Practices badge** is answered from
+  [`docs/evidence/best-practices-answers.md`](../evidence/best-practices-answers.md), which names
+  the repository file behind each answer.
+

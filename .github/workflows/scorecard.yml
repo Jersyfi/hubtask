@@ -1,4 +1,4 @@
-# OpenSSF Scorecard (docs/architecture/ci-cd.md §4): an outside, automated reading of the supply
+# OpenSSF Scorecard (docs/architecture/ci-cd.md §12): an outside, automated reading of the supply
 # chain, published so that the README's badge and its per-check result are current.
 #
 # The Scorecard service refuses a published result whose workflow breaks its rules, so this file

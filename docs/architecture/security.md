@@ -339,12 +339,27 @@ Rules trigger HTTP calls and agents write, so:
 | New dependencies | A new direct third-party dependency arrives only through an accepted ADR, before the first commit using it, pinned, licence-gated, and imported by exactly one adapter package a gate names (e.g. `cel-go`, the OIDC libraries in `infrastructure/oidc`, the NATS client in `infrastructure/eventbus`, `golang.org/x/crypto` as §8 says). A small, closed protocol is written here instead (§8) |
 | Dependency updates | Dependabot ([ADR-0022](../adr/ADR-0022-github-platform.md)): grouped version updates weekly, ungrouped security updates on the advisory; `go.sum` mandatory; no `replace` onto forks without an ADR |
 | Vulnerabilities | `govulncheck` in every pipeline run, a container scan (Trivy/Grype) in the release gate |
-| Static analysis | `gosec` within `golangci-lint`; `depguard` enforces layer boundaries and forbids risky packages |
+| Static analysis | `gosec` within `golangci-lint`; `depguard` enforces layer boundaries and forbids risky packages. CodeQL reads Go, JavaScript and TypeScript, and the workflows (`codeql.yml`), outside `CI required` |
 | Secret scanning | A push rule plus a history scan (gitleaks) |
 | Build | Reproducible, `CGO_ENABLED=0`, ldflags with version and commit; no network outside the module proxy |
 | Artefacts | A CycloneDX SBOM per release, a keyless cosign signature, a provenance attestation; the target is SLSA build level 3 |
 | Base image | distroless/static, non-root (UID 65532), read-only root filesystem, no shell, multi-arch |
 | Release integrity | Signed tags; publication only from a protected branch with review |
+
+**Verifying a release.** The image `ghcr.io/jersyfi/hubtask:<version>` is signed without a key by
+the release workflow, and GitHub holds its build provenance. Either command fails when the image
+was not built by `release.yml` at that tag:
+
+```bash
+gh attestation verify oci://ghcr.io/jersyfi/hubtask:<version> --repo Jersyfi/hubtask
+cosign verify ghcr.io/jersyfi/hubtask:<version> \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity "https://github.com/Jersyfi/hubtask/.github/workflows/release.yml@refs/tags/<version>"
+```
+
+The release's page carries the bill of materials (`sbom.cdx.json`), the release record with its
+signature (`release-record.json`, `release-record.json.sigstore.json`) and `SHA256SUMS` over every
+file.
 
 ---
 

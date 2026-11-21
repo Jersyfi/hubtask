@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// The proof state (docs/reference/proof-state.md, ci-cd.md §3.1): what a person can do with
+// The proof state (docs/reference/proof-state.md, ci-cd.md §12): what a person can do with
 // Hubtask and whether a test proves it, as figures.
 //
 // The page is generated from what this gate already reads - the use cases' front matter, their

@@ -28,6 +28,21 @@ The vision behind this, the people it is for and the settings it must work in ar
 
 ---
 
+## Quality and security
+
+[![CI](https://github.com/Jersyfi/hubtask/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Jersyfi/hubtask/actions/workflows/ci.yml?query=branch%3Amain)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Jersyfi/hubtask/badge)](https://scorecard.dev/viewer/?uri=github.com/Jersyfi/hubtask)
+
+* [The proof state](./docs/reference/proof-state.md) counts the use cases by state and the checks a
+  test proves. It is generated, and no figure in it rises without a test that cites a check.
+* The Scorecard figure is middling: three of its checks need a second person, and Hubtask has one
+  maintainer. The badge links to the result of each check.
+* A release's image is signed and carries its build provenance and a bill of materials
+  ([security.md §11](./docs/architecture/security.md#11-supply-chain-and-build)). To verify one:
+  `gh attestation verify oci://ghcr.io/jersyfi/hubtask:<version> --repo Jersyfi/hubtask`
+
+---
+
 ## Documentation
 
 The architecture is fully documented. [`docs/README.md`](./docs/README.md) says where each kind of
