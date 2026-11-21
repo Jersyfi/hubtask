@@ -42,7 +42,7 @@ var appOrigins = []string{"tauri://localhost", "http://tauri.localhost"}
 // corsAllowedHeaders is what a browser may send. Every entry is a header this API reads;
 // anything else is refused by the preflight rather than silently ignored.
 var corsAllowedHeaders = "Authorization, Content-Type, Accept, Accept-Language, " +
-	"Idempotency-Key, If-Match, If-None-Match, " + RequestIDHeader + ", " + TenantHeader + ", " + ClientBuildHeader
+	"Idempotency-Key, If-Match, If-None-Match, Last-Event-ID, " + RequestIDHeader + ", " + TenantHeader + ", " + ClientBuildHeader
 
 // corsExposedHeaders is what a browser may read back. Without this list a cross-origin client
 // cannot see its own request ID, its rate limit budget, or an ETag it is expected to send back.
