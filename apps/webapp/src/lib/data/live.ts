@@ -119,6 +119,27 @@ export function pathsFor(record: ChangeRecord): readonly string[] {
     case 'account':
       return [`/accounts/${id}`];
 
+    case 'page':
+    case 'whiteboard': {
+      // Filed under its hub; a trash and a restore are upserts. The open page or board is not
+      // re-read on an upsert: the writer's own body save records one too, and re-reading would
+      // draw the saved body over the one being typed. A DELETE is a page gone from this reader.
+      const kind = record.entity === 'page' ? 'pages' : 'whiteboards';
+      return [
+        container ? `/hubs/${container}/${kind}` : `/hubs/*/${kind}`, '/trash',
+        ...(record.op === 'DELETE' ? [`/${kind}/${id}$`] : []),
+      ];
+    }
+
+    case 'entry_type':
+      return ['/entry-types'];
+
+    case 'link_type':
+      return ['/link-types'];
+
+    case 'workflow':
+      return ['/workflows'];
+
     default:
       // A newer server's entity. Nothing here draws it, so nothing here is stale — and a client
       // that reloaded everything on a name it had never met would punish the installation for

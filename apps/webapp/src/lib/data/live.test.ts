@@ -51,6 +51,36 @@ test('each entity names what it is actually drawn on', () => {
   assert.deepEqual(pathsFor(record({ entity: 'bucket', container_id: 'c-1' })), ['/containers/c-1/buckets', '/items:query']);
 });
 
+test('a page or a board makes its hub\'s tree and the trash stale, its own document only when it is gone', () => {
+  // The record of a body save is the writer's own too: re-reading the open page or board on it
+  // would draw the saved body over the one being typed (pages.saveBody, whiteboards.saveScene).
+  assert.deepEqual(pathsFor(record({ entity: 'page', entity_id: 'p-1', container_id: 'h-1' })), ['/hubs/h-1/pages', '/trash']);
+  assert.deepEqual(pathsFor(record({ op: 'DELETE', entity: 'page', entity_id: 'p-1', container_id: 'h-1' })), ['/hubs/h-1/pages', '/trash', '/pages/p-1$']);
+  assert.ok(pathsFor(record({ entity: 'page', container_id: 'h-1' })).some((name) => matchesPath(name, '/hubs/h-1/pages?templates=true')));
+  assert.deepEqual(pathsFor(record({ entity: 'whiteboard', entity_id: 'w-1', container_id: 'h-1' })), ['/hubs/h-1/whiteboards', '/trash']);
+  assert.deepEqual(pathsFor(record({ op: 'DELETE', entity: 'whiteboard', entity_id: 'w-1', container_id: 'h-1' })), ['/hubs/h-1/whiteboards', '/trash', '/whiteboards/w-1$']);
+});
+
+test('the workspace vocabulary makes its own lists stale', () => {
+  assert.deepEqual(pathsFor(record({ entity: 'entry_type' })), ['/entry-types']);
+  assert.deepEqual(pathsFor(record({ entity: 'link_type' })), ['/link-types']);
+  assert.deepEqual(pathsFor(record({ entity: 'workflow' })), ['/workflows']);
+});
+
+test('every entity the server records and this client draws makes something stale', () => {
+  // The server has no closed set of entity names - `sync.Change.Entity` is a string each service
+  // names - so this is the list of those this client draws; a name missing from `pathsFor` would
+  // fall into `default` and be dropped without a word.
+  const drawn = [
+    'item', 'work_item', 'container', 'comment', 'label', 'bucket', 'reminder', 'recurrence_rule', 'media_object',
+    'membership', 'group', 'custom_field', 'custom_field_definition', 'saved_view', 'template', 'account',
+    'page', 'whiteboard', 'entry_type', 'link_type', 'workflow',
+  ];
+  for (const entity of drawn) {
+    assert.notDeepEqual(pathsFor(record({ entity, entity_id: 'x-1', container_id: 'c-1' })), [], entity);
+  }
+});
+
 test('a revocation names the container that was lost', () => {
   // §6 and §9 rule 3 bind a client to delete what it holds for a container it lost. A cache is all
   // this client holds, so "delete" is "drop it" — but it is the same obligation.
