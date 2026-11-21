@@ -108,6 +108,8 @@ test('chromium: a chosen note carries the bar above it in its order, and the car
   const card = canvas.locator('g.card').filter({ has: page.locator('[data-card-person]') });
   await card.waitFor({ timeout: 10_000 });
   assert.equal(await card.locator('[data-card-person]').getAttribute('data-card-person'), OTHER.id);
+  // The name is its own request and arrives after the card stands, so the walk waits for the initials.
+  await card.locator('[data-card-person] text').filter({ hasText: /\S/ }).waitFor({ timeout: 10_000 });
   assert.equal((await card.locator('[data-card-person] text').textContent()).trim(), 'ML', 'the card does not show the person it is on');
   assert.equal((await card.locator('.open-key').textContent()).trim(), 'TAMA-1');
   assert.ok((await card.locator('g.state text').textContent()).includes('In progress'), 'the card does not say its status');
