@@ -16,7 +16,7 @@
   import { Banner, Checkbox, Disclosure, Input, Select, Stack, Textarea } from '@hubtask/design-system/components';
 
   import type { Target, TargetDraft } from '../data/backup.svelte.ts';
-  import { insecureReasons, sftpTarget, webdavTarget } from '../data/backup.ts';
+  import { insecureReasons, s3Target, sftpTarget, webdavTarget } from '../data/backup.ts';
   import { check, focusFirst, isComplete, type Missing } from '../forms/missing.ts';
   import { t } from '../i18n/i18n.svelte.ts';
 
@@ -60,7 +60,7 @@
   /** What the chosen kind needs, as the contract's own `config`. Nothing here is a credential. */
   function configuration(): Record<string, unknown> {
     if (draftKind === 'S3') {
-      return { endpoint: draftEndpoint.trim(), bucket: draftBucket.trim(), ...(draftRegion.trim() ? { region: draftRegion.trim() } : {}) };
+      return s3Target({ endpoint: draftEndpoint, bucket: draftBucket, path: draftPath, region: draftRegion });
     }
     if (draftKind === 'SFTP') return sftpTarget(sftpDraft()).config;
     if (draftKind === 'WEBDAV') return webdavTarget(webdavDraft()).config;
@@ -187,6 +187,7 @@
         <Input label={t('app.backup.target_endpoint')} bind:value={draftEndpoint} />
         <Input label={t('app.backup.target_bucket')} bind:value={draftBucket} />
       </div>
+      <Input label={t('app.backup.target_path')} hint={t('app.backup.target_prefix_hint')} bind:value={draftPath} />
       <div class="group pair">
         <Input label={t('app.backup.target_access_key')} bind:value={draftAccessKey} />
         <Input

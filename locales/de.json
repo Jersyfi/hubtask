@@ -5137,6 +5137,7 @@
   "app.backup.target_kind": "Art",
   "app.backup.target_path": "Pfad",
   "app.backup.target_path_hint": "Relativ zum Volume, in das diese Installation Sicherungen schreibt.",
+  "app.backup.target_prefix_hint": "Der Ordner im Bucket, in den die Sicherungen gehen. Leer schreibt in die Wurzel des Bucket.",
   "app.backup.target_endpoint": "Endpunkt",
   "app.backup.target_bucket": "Bucket",
   "app.backup.target_access_key": "Zugangsschlüssel",

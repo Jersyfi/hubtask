@@ -5944,6 +5944,7 @@
   "app.backup.target_kind": "Kind",
   "app.backup.target_path": "Path",
   "app.backup.target_path_hint": "Relative to the volume this installation writes backups inside.",
+  "app.backup.target_prefix_hint": "The folder inside the bucket the backups go into. Empty writes at the bucket's root.",
   "app.backup.target_endpoint": "Endpoint",
   "app.backup.target_bucket": "Bucket",
   "app.backup.target_access_key": "Access key",
