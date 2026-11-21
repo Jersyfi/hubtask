@@ -39,7 +39,10 @@ in [`docs/evidence/README.md`](../../../docs/evidence/README.md), "How to walk".
   from that list. One answer is written down and not judged: the empty page `fixture.mjs` gives
   to a request that nothing stubbed. Nobody wrote it for the operation, and which requests a walk
   leaves unanswered until it ends differs from run to run. Only `fixture.mjs` marks an answer so.
-  `[partial: ci:engines, ci:node, gate-walks, gate-pr; open: another wrong body for an operation and status the baseline lists — 179 of the 907 operations have such a line, and 6,280 of the 9,413 answers judged on 2026-11-21 are for one; the fixture's empty page for a request nothing stubbed, 639 answers; the lines of the 212 answers in application/x-ndjson, which the contract gives no schema; a body taken from a file; response headers; whether the answer is the one the server gives for that request]`
+  `[partial: ci:engines, ci:node, gate-walks, gate-pr; open: another wrong body for an operation and
+  status the baseline lists; the fixture's empty page for a request nothing stubbed; the lines of
+  an answer in application/x-ndjson, which the contract gives no schema; a body taken from a file;
+  response headers; whether the answer is the one the server gives for that request]`
 * **No private copy of an answer that several suites need.** Such an answer lives in
   `fixture.mjs`, where every suite and the preview (`preview.mjs`) get it; a suite stubs only what
   is particular to its walk.
@@ -70,11 +73,11 @@ make e2e SUITES="terms board" RECORD=1   # the same, then hold their answers to 
 make e2e                                 # every suite, as CI's browser job does
 ```
 
-`RECORD=1` gives the run a directory of its own under `apps/webapp/.walk-record/`, named by when
-it started, where each suite writes one file, and runs `make gate-walks` afterwards. That gate
-judges the suites that have a file in the newest run's directory, so it works for one suite and
-for one of CI's three shards, and never reads what an earlier run left. The directories of earlier
-runs stay until somebody removes them. `ENGINES=firefox,webkit` walks the other engines.
+With `RECORD=1` each suite writes its answers to one file, in a directory of this run under
+`apps/webapp/.walk-record/`, and `make gate-walks` runs afterwards. The gate judges the suites of
+the newest run only, so it works for one suite and for one of CI's three shards. The directories
+of earlier runs stay until somebody removes them. `ENGINES=firefox,webkit` walks the other
+engines.
 
 ## How to check a change
 

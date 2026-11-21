@@ -11,9 +11,9 @@ other code runs in a worktree of your own.
 
 ## What you are given, and what you read first
 
-- The diff: `git diff $(git merge-base origin/main HEAD)..HEAD`. At a concept's checkpoint — the
-  checks after each group of screens built together, called a family, or after each stage
-  (`.agents/skills/build-concept/SKILL.md`) — the diff of that family or stage.
+- The diff: `git diff $(git merge-base origin/main HEAD)..HEAD`. At a concept's checkpoint it is
+  the diff of the family of screens or the stage that the checkpoint closes
+  (`.agents/skills/build-concept/SKILL.md`).
 - The pull request's description: `gh pr view --json title,body`.
 - The use cases the description names, each read completely.
 - The root `AGENTS.md`, and the `AGENTS.md` of every directory the diff touches.

@@ -67,9 +67,10 @@ reason. The reviewer reads the answers once.
 ## 6. The outside reviewer
 
 Where the outside reviewer's app is installed on the repository, ask it with the pull request
-comment `@coderabbitai review`. If it does not review a draft, the request goes out together with
-step 9; a fix for one of its comments then returns the pull request to draft first
-(`gh pr ready --undo`) and goes through step 7 again.
+comment `@coderabbitai review`. It may refuse to review a draft. Ask it then right after
+`gh pr ready`. A fix for a comment it makes on the ready pull request returns the pull request to
+draft first (`gh pr ready --undo`); the fix is checked and pushed as "After the last fix" says,
+and the pull request is made ready again.
 
 - Read its comments. Fix what is right, in commits of their own. Answer the rest in one line.
 - Do not teach it a rule by replying. A rule goes into the repository, where every worker and the
@@ -89,7 +90,7 @@ make check
 git push
 ```
 
-Read the output of the push, then compare the local commit with the pushed one:
+Then compare the local commit with the pushed one:
 
 ```bash
 git rev-parse HEAD @{upstream}

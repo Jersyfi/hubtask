@@ -45,15 +45,7 @@ When one session steers them, it runs like this, and builds nothing itself:
    - `make check`;
    - the family's walks: `make e2e SUITES="<suites>"`;
    - the independent review of the family's diff;
-   - one CI run on the pushed branch: `gh workflow run ci.yml --ref <branch>`. It runs the jobs
-     a push to `main` runs, on the branch's head, and the pull request stays a draft. It is not
-     the run of a ready pull request: `ci-cd.md` §3.4 lists what differs. Read the
-     run's id once with `gh run list --workflow ci.yml --branch <branch> --event workflow_dispatch
-     --limit 1`, then start `gh run watch <id> --exit-status` in the background: its end arrives
-     as a notification, never through a `sleep` or `until` loop. Build the next family meanwhile.
-     A second run on the same branch cancels the first. The run's summary job is `CI by hand`;
-     it never counts as the pull request's `CI required`. The run uses the branch's version of
-     `ci.yml`.
+   - one CI run on the pushed branch, started by hand ("The checkpoint's CI run", below).
 
    A family is closed when its checkpoint is green.
 5. **A coherence pass.** One fresh reviewer walks the whole inventory across the families.
@@ -61,6 +53,21 @@ When one session steers them, it runs like this, and builds nothing itself:
    the owner before the pull request leaves draft.
 
 A concept without screens follows the same shape: its stages take the place of the families.
+
+## The checkpoint's CI run
+
+The run checks the branch's head with the jobs a push to `main` runs, from the branch's version
+of `ci.yml`, and the pull request stays a draft. `ci-cd.md` §3.4 lists how it differs from the
+run of a ready pull request. Its summary job is `CI by hand`, which does not count as the pull
+request's `CI required`.
+
+1. Start it: `gh workflow run ci.yml --ref <branch>`. A second run on the same branch cancels
+   the first.
+2. Read its id once:
+   `gh run list --workflow ci.yml --branch <branch> --event workflow_dispatch --limit 1`.
+3. Watch it in the background: `gh run watch <id> --exit-status`. Its end arrives as a
+   notification; wait for it in no `sleep` or `until` loop.
+4. Build the next family meanwhile.
 
 ## The close
 
