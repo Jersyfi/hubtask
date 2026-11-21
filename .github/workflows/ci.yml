@@ -120,7 +120,8 @@ jobs:
               - '.claude/settings.json'
               # The skills, their links for the one tool that reads `.claude/skills`, and the
               # reviewer's wrapper (ADR-0106): test/architecture holds every skill to its file and
-              # its link. A skill is Markdown, so without these lines only `docs` would see it.
+              # its link, and the wrapper to a skill that exists. A skill is Markdown, so without
+              # these lines only `docs` would see it.
               - '.agents/skills/**'
               - '.claude/skills/**'
               - '.claude/agents/**'

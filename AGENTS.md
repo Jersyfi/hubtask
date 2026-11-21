@@ -48,11 +48,17 @@ something found outside the task and too big to fix where it was found, one labe
 | What the owner decided once and wants every time | the place above that fits; a private note alone is no place | — |
 | A machine's own facts (a slow Docker, an access path) | private notes | No other worker needs it |
 
-The skills, each read when its task comes up, and linked from `.claude/skills/`: `design-brief`
-before a structural change; `build-concept` for a concept built whole; `review-change` for the
-independent review; `finish-pull-request` before *Ready*; `ask-the-owner` for a question on the
-owner's list; `resume-work` to pick work up or to stop; `triage-contribution` for a pull request
-from outside; `tidy` for a tidy pass.
+The skills, each read when its task comes up. Every one is a plain document at its path, and
+`.claude/skills/` links each for the tool that looks there:
+
+- `.agents/skills/design-brief/SKILL.md` — before a structural change
+- `.agents/skills/build-concept/SKILL.md` — a concept built whole
+- `.agents/skills/review-change/SKILL.md` — the independent review
+- `.agents/skills/finish-pull-request/SKILL.md` — before *Ready*
+- `.agents/skills/ask-the-owner/SKILL.md` — a question on the owner's list
+- `.agents/skills/resume-work/SKILL.md` — picking work up, and stopping
+- `.agents/skills/triage-contribution/SKILL.md` — a pull request from outside
+- `.agents/skills/tidy/SKILL.md` — a tidy pass
 
 ## Rules that do not bend
 
