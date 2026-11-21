@@ -64,3 +64,22 @@ func TestAddTranscript(t *testing.T) {
 		t.Errorf("check runs = %d, want 1", s.checkRuns)
 	}
 }
+
+// A run started by hand on a branch (ci-cd.md §3.4) is neither a pull request's nor main's.
+func TestRunKind(t *testing.T) {
+	cases := []struct {
+		event               string
+		pullRequest, counts bool
+	}{
+		{"pull_request", true, true},
+		{"pull_request_target", true, true},
+		{"push", false, true},
+		{"workflow_dispatch", false, false},
+	}
+	for _, c := range cases {
+		pullRequest, counts := runKind(c.event)
+		if pullRequest != c.pullRequest || counts != c.counts {
+			t.Errorf("runKind(%q) = %v, %v; want %v, %v", c.event, pullRequest, counts, c.pullRequest, c.counts)
+		}
+	}
+}

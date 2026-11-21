@@ -257,8 +257,12 @@ func ciRuns(repo string, w window) ([]run, error) {
 				if r.Status != "completed" || r.Conclusion == "cancelled" {
 					continue
 				}
+				pullRequest, counts := runKind(r.Event)
+				if !counts {
+					continue
+				}
 				runs = append(runs, run{
-					pullRequest: strings.HasPrefix(r.Event, "pull_request"),
+					pullRequest: pullRequest,
 					failed:      r.Conclusion == "failure",
 					wall:        r.UpdatedAt.Sub(r.CreatedAt),
 				})
@@ -266,6 +270,15 @@ func ciRuns(repo string, w window) ([]run, error) {
 		}
 	}
 	return runs, nil
+}
+
+// runKind tells a pull request's run from main's. A run started by hand on a branch is neither and
+// is not counted: the table has a row for each of the two.
+func runKind(event string) (pullRequest, counts bool) {
+	if strings.HasPrefix(event, "pull_request") {
+		return true, true
+	}
+	return false, event == "push"
 }
 
 func printRuns(runs []run) {
