@@ -578,12 +578,29 @@ What it says:
 * **The walks are the wall clock and the flake.** Unsplit, the browser job took a median 36
   minutes and failed in 29 of 52 attempts; split in three it still fails in 30 of 88 shard
   attempts, and its slowest shard and `selftest` now set the run's length at about 17 minutes.
-  Whether a failure there is a flake or a defect was not separated; with 351 fixed waits and
-  about a thousand walks sharing a runner, both are likely. So the walk rules of §5.4 are also the
-  CI remedy, and stage 3 starts by reading the failed shards' logs and removing the fixed waits in
-  the suites that fail most.
-* **Integration failed in 13 of 62 attempts** in this window; `main`'s history names a PostgreSQL
-  16.16 defect fixed on 2026-11-19. Whether anything else remains is for stage 3 to read.
+  Stage 3 read the logs of every failed attempt of the browser job from 2026-11-07 to 11-21: 83
+  attempts, 39 before the split and 44 shards, of which 80 name the walks that failed.
+  - `mail` failed in 25 of them, always the walk that connects a mailbox through its provider.
+    It was a defect in the app: the mail page read its mailboxes and completed the connection
+    side by side, and a read answered first and applied last took the new mailbox off the list.
+    Fixed, with the walk giving that order every time.
+  - `whiteboardframes` failed in 11, on a frame time; it left the job on 2026-11-16 (`ci-cd.md`
+    §3.1, "Performance is measured, not gated").
+  - `goalswalk`, `servicedeskwalk` and `timewalk` failed in 7, 6 and 6, mostly together: their
+    record of errors held requests the browser had cancelled (`net::ERR_ABORTED` on a lazily
+    loaded file or `sync:snapshot`). Read, not fixed: a `finding`.
+  - `voice` and `productsband` failed in 5 each, on 2026-11-07 only; `instanceworkspaces` in 5,
+    fixed on `main` on 2026-11-21. Twenty-one more suites failed in one to four attempts.
+  - `kompassfit` never failed in CI. Locally it failed under load: its walk left a hub before
+    the hub's screen had noted the visit. Fixed in the walk.
+
+  None of the failures traced to its cause was a fixed wait running out, so the counts of fixed
+  waits stand where stage 2 put them, and the rule of §5.4 lowers them as suites are touched.
+* **Integration failed in 16 of its attempts** from 2026-11-07 to 11-21. Six were the cross-tenant
+  tests under PostgreSQL 16.16, fixed on `main` on 2026-11-16. All five after that fix, on
+  2026-11-20, were `go test`'s ten-minute default cutting a package that runs seven to ten
+  minutes; `make gate-integration` has had `-timeout=30m` since 2026-11-21, and the nine attempts
+  since then passed.
 * **The installed apps' jobs are not the problem**: 4 to 11 minutes, beside longer jobs. Nothing
   needs to leave the pull request path, and this concept moves no job.
 * **`selftest` runs 17 minutes without ever failing**, on `main` and when a gate changes. It is the
@@ -889,7 +906,7 @@ stage on the draft) before its own context passes the limit `AGENTS.md` sets.
 |---|---|---|
 | 1 | **The rules.** The ADR; `AGENTS.md` (the placement table, the moved rules, procedures out, the lines for §5.9 and §5.10); "How to write" in `docs/README.md`; the eight skills in `.agents/skills/` with their links; `reviewer.md`; `apps/webapp/e2e/AGENTS.md`; the six private rules in their documents; `docs/adr/README.md`; `engineering-guidelines.md` §3; `CONTRIBUTING.md`; the template's *Review* section; `tools/checkpr` holding that section and the naming of a deleted test; `.coderabbit.yaml` if D-12 | `make gate-docs` green; `make gate-pr` green on a description with the section and red without; `AGENTS.md` holds no step-by-step procedure; a planted violation in `gate-selftest` for the missing *Review* section and for an unnamed deleted test; every skill has its link |
 | 2 | **The walks' gates.** The counts as falling bounds; the recorder in `fixture.mjs`; the Go test that validates the record; a planted violation for each | The bounds equal today's counts; a planted fixed wait, a suite without a use case and an answer outside the contract each turn the gate red |
-| 3 | **CI.** `workflow_dispatch` on `ci.yml`, with `test/architecture/drafts_test.go` updated; the failing browser shards read and fixed at their cause, fixed waits first | `make gate-architecture` green; a draft's push still starts nothing (the test says so); the suites changed pass locally ten times in a row |
+| 3 | **CI.** `workflow_dispatch` on `ci.yml`, with `test/architecture/drafts_test.go` updated; the failing browser shards read, and the suites that fail most fixed at their cause | `make gate-architecture` green; a draft's push still starts nothing (the test says so); the suites changed pass locally ten times in a row |
 | 4 | **The flow report.** `flowstats` prints the measures of §5.6; the weekly job; the thresholds section in `ci-cd.md`; the reports of §5.10 if D-11 | A local run prints every row of §5.6; a threshold set below the current value produces the text of a `finding` in a test |
 | 5 | **Contributors.** `make dev`; the label on the open findings that qualify | A fresh clone reaches a signed-in workspace with `make tools && make dev` |
 | 6 | **What the repository shows.** The README section; the generated proof state; the Scorecard workflow; CodeQL's added languages; the coverage figure in the job summary; the answers for the Best Practices badge, each with its link, as a file the worker submits from at the close | `make generate` leaves no diff and the page's figures equal the use cases' states; `make gate-architecture` green with the new action on the allow-list; the README section is under fifteen lines |
