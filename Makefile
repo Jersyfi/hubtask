@@ -391,6 +391,18 @@ build:
 run:
 	$(GO) run ./cmd/server
 
+## dev: From a checkout to a signed-in demo workspace: database, server, content, web app (make dev-down removes it)
+# Its own Compose project, volume, ports and .dev/ directory, beside `make db-up` and a server on
+# the usual ports (scripts/dev.sh). The demo people's password is drawn at start and printed once.
+.PHONY: dev
+dev:
+	@scripts/dev.sh up
+
+## dev-down: Stop and remove exactly what `make dev` made
+.PHONY: dev-down
+dev-down:
+	@scripts/dev.sh down
+
 # ---------------------------------------------------------------------- Gates
 
 ## check: The changed packages' checks, in minutes and without a lock - while working (ADR-0089)

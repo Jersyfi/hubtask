@@ -42,6 +42,8 @@ sdk/typescript/dist/
 
 # Tools
 /.tools/
+# What `make dev` makes and `make dev-down` removes: binaries, logs, media, generated secrets.
+/.dev/
 # The coverage profiles gate-unit writes; a wider pattern also matched Coverage.go on macOS.
 coverage.out
 coverage.*.out
