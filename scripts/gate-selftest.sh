@@ -22,10 +22,11 @@ SCRATCH="gate_selftest"    # a package directory of this name is created and del
 FAILURES=0
 CHECKS=0
 SKIPPED=0
+WALK_PROBE="apps/webapp/e2e/zz_gate_selftest.test.mjs"    # a suite written and deleted per check
 
 cleanup() {
 	find . -type d -name "$SCRATCH" -not -path './.git/*' -exec rm -rf {} + 2>/dev/null || true
-	rm -f db/queries/zz_gate_selftest.sql locales/zz.json sdk/python/hubtask/zz_gate_selftest.py
+	rm -f db/queries/zz_gate_selftest.sql locales/zz.json sdk/python/hubtask/zz_gate_selftest.py "$WALK_PROBE"
 	if [ -f api/openapi.yaml.selftest-backup ]; then mv api/openapi.yaml.selftest-backup api/openapi.yaml; fi
 }
 trap cleanup EXIT INT TERM
@@ -1261,6 +1262,72 @@ expect_brand_mark_failure "a row without its brand mark" BRAND_MARKS_LICENSES \
 	THIRD-PARTY-LICENSES.md '$_ .= "| Other | `SELFTEST` | x | y |\n" if /`GOOGLE`/'
 expect_brand_mark_failure "a brand mark without a preset" BRAND_MARKS_CONTRACT \
 	api/openapi.yaml 's/(enum: \[GENERIC, GOOGLE), MICROSOFT\b/$1/'
+
+header "The browser walks (apps/webapp/build/walks.test.js, make gate-walks)"
+
+# expect_walk_bound_failure <name> <expected message> <suite source>
+# A suite that e2e/bounds.json does not list has no fixed wait and says what it proves. The
+# message is read, not only the status: a red for another reason proves nothing about the rule.
+expect_walk_bound_failure() {
+	local name="$1" message="$2" content="$3"
+	CHECKS=$((CHECKS + 1))
+	local out
+	printf '%s\n' "$content" > "$WALK_PROBE"
+	out="$(node --test apps/webapp/build/walks.test.js 2>&1 || true)"
+	rm -f "$WALK_PROBE"
+	if grep -q "zz_gate_selftest.test.mjs $message" <<<"$out"; then
+		printf '  ok      %-44s caught by walks.test.js\n' "$name"
+	else
+		printf '  FAILED  %-44s walks.test.js did not report it\n' "$name"
+		FAILURES=$((FAILURES + 1))
+	fi
+}
+
+if ! command -v node >/dev/null 2>&1; then
+	printf '  skipped %-44s node is not installed\n' "the walks' bounds"
+	SKIPPED=$((SKIPPED + 2))
+else
+	# The use case is split in two quotes: written whole, it would be a citation in this script.
+	expect_walk_bound_failure "a fixed wait in a suite" "has 1 fixed waits" \
+'// Proves UC-''ID-01/1.
+
+import { test } from "node:test";
+
+test("waits", async () => { await page.waitForTimeout(50); });'
+
+	expect_walk_bound_failure "a suite that cites no use case check" "cites no use case check" \
+'// A walk that says nothing about what it proves.
+
+import { test } from "node:test";
+
+test("walks", async () => {});'
+fi
+
+# expect_walk_answer_failure <name> <kind> <recorded answer>
+# One recorded answer in a directory of its own, judged the way a shard's records are.
+expect_walk_answer_failure() {
+	local name="$1" kind="$2" answer="$3"
+	CHECKS=$((CHECKS + 1))
+	local records out
+	records="$(mktemp -d)"
+	printf '%s\n' "$answer" > "$records/zz_gate_selftest.jsonl"
+	out="$(make --no-print-directory gate-walks WALK_RECORD_DIR="$records" 2>&1 || true)"
+	rm -f "$records/zz_gate_selftest.jsonl"
+	rmdir "$records"
+	if grep -q "zz_gate_selftest $kind " <<<"$out"; then
+		printf '  ok      %-44s caught by make gate-walks\n' "$name"
+	else
+		printf '  FAILED  %-44s make gate-walks did not report it\n' "$name"
+		FAILURES=$((FAILURES + 1))
+	fi
+}
+
+expect_walk_answer_failure "a walk's answer with a body outside the schema" body-mismatch \
+	'{"method":"GET","path":"/meta/health","status":200,"content_type":"application/json","body":"{\"status\":\"ok\"}"}'
+expect_walk_answer_failure "a walk's answer with an undeclared status" status-undeclared \
+	'{"method":"GET","path":"/meta/health","status":302,"content_type":null,"body":null}'
+expect_walk_answer_failure "a walk's answer for no operation" unknown-operation \
+	'{"method":"GET","path":"/meta/horoscope","status":200,"content_type":"application/json","body":"{}"}'
 
 printf '\n%d checks, %d failures, %d skipped\n' "$CHECKS" "$FAILURES" "$SKIPPED"
 test "$FAILURES" -eq 0
