@@ -333,3 +333,57 @@ func againstBaseline(found map[string]walkViolation, baseline []string) (unknown
 	}
 	return unknown, notMet
 }
+
+var leftOut = regexp.MustCompile(`e2e/!\(([^)]+)\)\.test\.mjs`)
+
+// leftOutSuites reads the suites a `node --test` script excludes: `e2e/!(a|b).test.mjs`.
+func leftOutSuites(script string) []string {
+	match := leftOut.FindStringSubmatch(script)
+	if match == nil {
+		return nil
+	}
+	return strings.Split(match[1], "|")
+}
+
+// walkedSuites lists the suites a run of every suite walks (`make e2e`): each `*.test.mjs` of the
+// web app's e2e directory but those its `test:engines` script leaves out.
+func walkedSuites(webapp string) ([]string, error) {
+	raw, err := os.ReadFile(filepath.Join(webapp, "package.json")) //nolint:gosec // G304: the web app's manifest
+	if err != nil {
+		return nil, err
+	}
+	var manifest struct {
+		Scripts map[string]string `json:"scripts"`
+	}
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		return nil, fmt.Errorf("%s/package.json: %w", webapp, err)
+	}
+	script, ok := manifest.Scripts["test:engines"]
+	if !ok {
+		return nil, fmt.Errorf("%s/package.json has no test:engines script", webapp)
+	}
+	files, err := filepath.Glob(filepath.Join(webapp, "e2e", "*.test.mjs"))
+	if err != nil {
+		return nil, err
+	}
+	excluded := leftOutSuites(script)
+	var suites []string
+	for _, file := range files {
+		if suite := strings.TrimSuffix(filepath.Base(file), ".test.mjs"); !slices.Contains(excluded, suite) {
+			suites = append(suites, suite)
+		}
+	}
+	sort.Strings(suites)
+	return suites, nil
+}
+
+// withoutRecord names the suites that left no record.
+func withoutRecord(suites []string, records map[string][]walkAnswer) []string {
+	var missing []string
+	for _, suite := range suites {
+		if _, ok := records[suite]; !ok {
+			missing = append(missing, suite)
+		}
+	}
+	return missing
+}

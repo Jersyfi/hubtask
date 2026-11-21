@@ -14,7 +14,10 @@ import (
 	"testing"
 )
 
-const walkBaselinePath = "testdata/walks-baseline.txt"
+const (
+	walkBaselinePath = "testdata/walks-baseline.txt"
+	webappPath       = "../../apps/webapp"
+)
 
 func health(status int, body string) walkAnswer {
 	contentType := "application/json"
@@ -110,10 +113,49 @@ func TestAViolationIsKnownByKindOperationAndStatus(t *testing.T) {
 	}
 }
 
+// Pruning removes what no record met, so it needs a record of every suite `make e2e` walks: after
+// a run of one suite it would remove nearly the whole baseline.
+func TestPruningNeedsARecordOfEverySuite(t *testing.T) {
+	suites, err := walkedSuites(webappPath)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if len(suites) < 100 || !slices.Contains(suites, "terms") {
+		t.Fatalf("found %d suites and not `terms` - the list misses the walks", len(suites))
+	}
+	// Left out by the web app's `test:engines` script, so a full run leaves no record of it.
+	if slices.Contains(suites, "whiteboardframes") {
+		t.Errorf("whiteboardframes is listed, and `make e2e` does not walk it")
+	}
+	records := map[string][]walkAnswer{}
+	for _, suite := range suites {
+		records[suite] = []walkAnswer{}
+	}
+	if missing := withoutRecord(suites, records); len(missing) != 0 {
+		t.Errorf("every suite has a record, and %v are named as missing", missing)
+	}
+	delete(records, "terms")
+	if missing := withoutRecord(suites, records); !slices.Equal(missing, []string{"terms"}) {
+		t.Errorf("missing = %v, want the one suite without a record", missing)
+	}
+}
+
+func TestTheSuitesAScriptLeavesOut(t *testing.T) {
+	for script, want := range map[string][]string{
+		`node --test "e2e/!(whiteboardframes).test.mjs"`: {"whiteboardframes"},
+		`node --test "e2e/!(a|b-c).test.mjs"`:            {"a", "b-c"},
+		`node --test "e2e/*.test.mjs"`:                   nil,
+	} {
+		if got := leftOutSuites(script); !slices.Equal(got, want) {
+			t.Errorf("%s: got %v, want %v", script, got, want)
+		}
+	}
+}
+
 // The walks' recorded answers against the contract (ci-cd.md §3, `engines`). WALK_RECORD names
 // the directory the walks wrote to; without it there is nothing to judge. A violation the baseline
-// does not hold fails. WALK_BASELINE=prune, after a run of every suite, removes the entries that
-// were not met - nothing here ever adds one.
+// does not hold fails. WALK_BASELINE=prune removes the entries that were not met, and only where
+// every suite has a record - nothing here ever adds one.
 func TestTheWalksAnswerWithinTheContract(t *testing.T) {
 	directory := os.Getenv("WALK_RECORD")
 	if directory == "" {
@@ -165,6 +207,14 @@ func TestTheWalksAnswerWithinTheContract(t *testing.T) {
 	}
 	if os.Getenv("WALK_BASELINE") != "prune" || len(notMet) == 0 {
 		return
+	}
+	suites, err := walkedSuites(webappPath)
+	if err != nil {
+		t.Fatalf("listing the suites: %v", err)
+	}
+	if missing := withoutRecord(suites, records); len(missing) > 0 {
+		t.Fatalf("not pruned: %d of %d suites have no record in %s, so an entry only they meet would be removed - walk every suite with 'make e2e RECORD=1' first. Missing: %s",
+			len(missing), len(suites), directory, strings.Join(missing, ", "))
 	}
 	if err := pruneWalkBaseline(walkBaselinePath, notMet); err != nil {
 		t.Fatalf("pruning the baseline: %v", err)
