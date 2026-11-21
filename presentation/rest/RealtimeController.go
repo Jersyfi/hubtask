@@ -60,5 +60,5 @@ func (c RealtimeController) OpenRealtimeDocument(
 // check that a WebSocket gets through its public address. It needs no credential and so reads
 // nothing, and it holds no slot: the connection ends before it could count.
 func (c RealtimeController) ProbeRealtime(w http.ResponseWriter, r *http.Request) {
-	realtime.Probe(w, r)
+	realtime.Probe(w, r, c.Handler.OriginPatterns)
 }

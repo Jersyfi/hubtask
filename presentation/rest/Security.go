@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
 
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 )
@@ -134,6 +135,23 @@ func (s Secured) writeCORSHeaders(header http.Header, origin string) {
 	// is what makes the wildcard above safe (security.md §9, "never * in combination with
 	// credentials").
 }
+
+// SocketOrigins are the origins a WebSocket handshake admits besides the server's own: the same set
+// originAllowed admits, as the library's patterns. Each origin is escaped, so it matches only
+// itself; the operator's single wildcard stays the one pattern that matches every origin.
+func SocketOrigins(cors env.CORSConfig) []string {
+	if cors.AllowsAnyOrigin() {
+		return []string{env.CORSWildcard}
+	}
+	origins := make([]string, 0, len(appOrigins)+len(cors.AllowedOrigins))
+	for _, origin := range slices.Concat(appOrigins, cors.AllowedOrigins) {
+		origins = append(origins, socketPatternEscaper.Replace(origin))
+	}
+	return origins
+}
+
+// socketPatternEscaper quotes path.Match's meta characters, which the library matches origins with.
+var socketPatternEscaper = strings.NewReplacer(`\`, `\\`, `*`, `\*`, `?`, `\?`, `[`, `\[`)
 
 func (s Secured) originAllowed(origin string) bool {
 	if s.CORS.AllowsAnyOrigin() {

@@ -59,9 +59,9 @@ const tooFastCode = "realtime.too_fast"
 // answered and not something in front of it.
 const ProbeReason = "realtime.probe"
 
-// Probe upgrades and closes at once with ProbeReason.
-func Probe(w http.ResponseWriter, r *http.Request) {
-	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{Subprotocols: []string{Subprotocol}})
+// Probe upgrades and closes at once with ProbeReason. origins are as Handler.OriginPatterns.
+func Probe(w http.ResponseWriter, r *http.Request, origins []string) {
+	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{Subprotocols: []string{Subprotocol}, OriginPatterns: origins})
 	if err != nil {
 		// Accept has answered the client already.
 		return
@@ -107,6 +107,10 @@ type Handler struct {
 	// process share; nil bounds none.
 	ConnectionBytes BudgetRate
 	Workspaces      *Budget
+	// OriginPatterns are the foreign origins a handshake admits, in the library's pattern syntax;
+	// the server's own is always admitted. The composition root hands in the set the REST layer
+	// admits (security.md §9), so the two never differ.
+	OriginPatterns []string
 }
 
 // credentialRecheck bounds how long a revoked session, a disabled account or a signed-out device
@@ -144,7 +148,7 @@ func (h Handler) Serve(
 	if err != nil {
 		return err
 	}
-	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{Subprotocols: []string{Subprotocol}})
+	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{Subprotocols: []string{Subprotocol}, OriginPatterns: h.OriginPatterns})
 	if err != nil {
 		// Accept has answered the client already.
 		return nil
