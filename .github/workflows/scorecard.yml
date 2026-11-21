@@ -1,0 +1,48 @@
+# OpenSSF Scorecard (docs/architecture/ci-cd.md §4): an outside, automated reading of the supply
+# chain, published so that the README's badge and its per-check result are current.
+#
+# The Scorecard service refuses a published result whose workflow breaks its rules, so this file
+# keeps to them: no `env` or `defaults` at the top level or on the job, no write permission at the
+# top level, `id-token: write` on this job alone, no container or service, a GitHub-hosted Ubuntu
+# runner, and no step other than checkout, the Scorecard action, upload-artifact and upload-sarif.
+name: Scorecard
+
+on:
+  # Only the default branch is read; a pull request and a draft start nothing.
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scorecard
+  cancel-in-progress: true
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      # The result as code scanning alerts.
+      security-events: write
+      # Signs the result published to api.scorecard.dev, which the badge reads.
+      id-token: write
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ossf/scorecard-action@23f22cd43608bae7a1f1fa2603d7314dee9538a5 # v2.6.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+      - uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        if: always()
+        with:
+          sarif_file: results.sarif
