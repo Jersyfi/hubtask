@@ -94,7 +94,7 @@ target or a `ci.yml` job. A directory's `AGENTS.md` tags its rules under "What m
 - Before a pull request leaves draft, and at each checkpoint of a concept, a fresh agent that has
   not seen the builder's conversation reviews the change (`review-change`). The builder fixes each
   finding or answers it with a reason, and the description reports the review in its *Review*
-  section. `[unchecked: no gate reads the description for the review]`
+  section. `[partial: gate-pr; open: whether the review ran and was good]`
 - A structural change — a migration that changes an existing table, a new or changed port, the
   sync protocol or a merge rule, authorisation, a new door, a contract change to an existing
   operation, work across two or more bounded contexts, any concept — is built only after its
@@ -162,7 +162,7 @@ target or a `ci.yml` job. A directory's `AGENTS.md` tags its rules under "What m
   translation key, a sentence]`
 - A test is deleted or weakened only when the behaviour it asserts was removed or changed on
   purpose, or another test asserts the same thing; the description names each such test and the
-  reason. `[unchecked: no gate reads the diff for a removed test]`
+  reason. `[partial: gate-pr; open: a weakened test, one replaced in place, the reason's truth]`
 
 ### Steps and commits
 
