@@ -25,6 +25,8 @@ node_modules/
 # (ADR-0028), and core/domain/model/shared/LabelTokens.go, which is generated into the core and
 # is not under any of these paths at all (ADR-0029).
 apps/*/dist/
+# What `make e2e RECORD=1` writes: the walks' answers, read by `make gate-walks`.
+apps/webapp/.walk-record/
 packages/*/dist/
 sdk/typescript/dist/
 .svelte-kit/

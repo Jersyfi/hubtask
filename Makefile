@@ -881,7 +881,19 @@ gate-cli:
 	$(call go_test,,./cmd/hubctl/...,)
 	./bin/hubctl$(GOEXE) --version
 
-## e2e: Build the web app and walk it in Chromium; SUITES="timewalk explain" walks those alone
+# Where a recorded walk writes its answers (apps/webapp/e2e/record.mjs); CI names its own. A
+# suite's record is replaced when the suite is walked again and stays otherwise.
+WALK_RECORD_DIR ?= $(PWD)/apps/webapp/.walk-record
+
+## gate-walks: The answers the recorded walks gave, against openapi.yaml (after `make e2e RECORD=1`)
+# Only suites with a record are judged, so it holds for one suite and for one of CI's shards
+# alike. -count=1: the records are not the test's input as Go's cache sees it.
+.PHONY: gate-walks
+gate-walks:
+	@test -d "$(WALK_RECORD_DIR)" || { echo "no recorded walks in $(WALK_RECORD_DIR) - run 'make e2e RECORD=1'"; exit 1; }
+	WALK_RECORD="$(WALK_RECORD_DIR)" $(GO) test -tags=contract -count=1 -run '^TestTheWalksAnswerWithinTheContract$$' ./test/contract/
+
+## e2e: Build the web app and walk it in Chromium; SUITES="timewalk explain" walks those alone; RECORD=1 also holds their answers to the contract
 # As ci.yml's engines job does: the packages the web app builds on, the web app, the workbench
 # that workbench-layout measures, then every suite in Chromium (ENGINES=firefox,webkit for the
 # others). A named suite runs alone, one test at a time, as a worker walks the one it touched.
@@ -890,7 +902,8 @@ e2e:
 	@test -n "$(PNPM)" || { echo "pnpm is missing - run 'make tools-node'"; exit 1; }
 	$(PNPM) --filter "@hubtask/webapp^..." build
 	$(PNPM) --filter @hubtask/webapp build
-	@if [ -n "$(SUITES)" ]; then \
+	@if [ -n "$(RECORD)" ]; then export WALK_RECORD="$(WALK_RECORD_DIR)"; fi; \
+	if [ -n "$(SUITES)" ]; then \
 		for suite in $(SUITES); do \
 			(cd apps/webapp && ENGINES=$${ENGINES:-chromium} node --test --test-concurrency=1 e2e/$$suite.test.mjs) || exit 1; \
 		done; \
@@ -898,6 +911,7 @@ e2e:
 		$(PNPM) --filter @hubtask/design-system workbench:build && \
 		ENGINES=$${ENGINES:-chromium} $(PNPM) --filter @hubtask/webapp test:engines; \
 	fi
+	@if [ -n "$(RECORD)" ]; then $(MAKE) --no-print-directory gate-walks; fi
 
 ## gate-e2e: The hubctl end-to-end session against the reference Compose stack
 # The other half of gate-compose. That one asks whether the stack starts; this one asks whether a

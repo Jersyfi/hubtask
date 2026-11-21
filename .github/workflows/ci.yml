@@ -1066,10 +1066,21 @@ jobs:
       # Chromium only (ADR-0089): Firefox and WebKit failed here far more often by the runner than
       # by the client, and every such failure held every pull request. They are best effort, run by
       # hand with ENGINES=firefox,webkit.
+      # Every answer the walks give for the API is written down (e2e/record.mjs) ...
       - run: pnpm --filter @hubtask/webapp test:engines
         env:
           ENGINES: chromium
           SHARD: ${{ matrix.shard }}/3
+          WALK_RECORD: ${{ runner.temp }}/walk-record
+      # ... and held to the contract, this shard's suites alone. After failed walks too: an answer
+      # outside the contract may be why one failed.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: success() || failure()
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      - if: success() || failure()
+        run: make gate-walks WALK_RECORD_DIR="$RUNNER_TEMP/walk-record"
 
   # The installed apps' shell (ADR-0031, UC-WRK-33/5): the Tauri project at apps/webapp/src-tauri/,
   # built on the two desktop systems it ships for (F7 Decision 9) - only here, never by `go` or the
