@@ -253,6 +253,8 @@ type Scheduler struct {
 	// entries, outbox events, rule runs and the change log. Nil skips, ensureAuditPartitions'
 	// contract.
 	StreamPartitions streams.Partitions
+	// inDefault is which stream months have been reported in the default partition; Run sets it.
+	inDefault *reportedMonths
 	// OfflineWindow is the installation's offline window (RetentionConfig.TombstoneWindow), the
 	// floor of the change log's drop: a month of it falls only once every device that was offline
 	// could have pulled it (offline-sync.md §7). Zero leaves the catalogue's default as the
@@ -301,6 +303,7 @@ func (s Scheduler) Run(ctx context.Context) {
 		return
 	}
 	defer s.release(ctx)
+	s.inDefault = &reportedMonths{}
 
 	slog.InfoContext(ctx, "scheduler ready", slog.Duration("tick_interval", s.TickInterval))
 
@@ -716,13 +719,33 @@ func (s Scheduler) ensureStreamPartitions(ctx context.Context) {
 				}
 				return
 			}
-			if name == "" {
+			if name == "" && s.inDefault.firstTime(table, month) {
 				slog.InfoContext(ctx, "the stream's month is in the default partition",
 					slog.String("table", table),
 					slog.String("month", month.Format("2006-01")))
 			}
 		}
 	}
+}
+
+// reportedMonths keeps a state that holds for a whole month from being logged on every tick. Only
+// the loop's own goroutine touches it, one tick after another.
+type reportedMonths struct{ seen map[string]bool }
+
+// firstTime is true once per table and month; a nil set (a tick outside Run) always reports.
+func (r *reportedMonths) firstTime(table string, month time.Time) bool {
+	if r == nil {
+		return true
+	}
+	key := table + " " + month.Format("2006-01")
+	if r.seen[key] {
+		return false
+	}
+	if r.seen == nil {
+		r.seen = map[string]bool{}
+	}
+	r.seen[key] = true
+	return true
 }
 
 // StreamEvidence is the instance journal's slice the drop duty writes through.
