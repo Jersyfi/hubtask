@@ -130,7 +130,7 @@ export const DESTINATIONS: readonly Destination[] = [
   // version cannot file a useful report.
   //
   // **The row does not carry the version** (ADR-0065 decision 5). `product_version` is a release
-  // version on a release and a build reference - `main-<40 hex>` - on everything else, and a build
+  // version on a release and a build reference - `<release>+main.<40 hex>` - on everything else, and a build
   // reference is forty characters of noise where a menu row's name belongs. The row names the
   // destination; the page behind it quotes the version whole, which is what that page is for.
   { id: 'about', group: 'account', icon: 'info', code: 'app.nav.about', target: { kind: 'route', path: '/installation' }, routes: ['installation'] },

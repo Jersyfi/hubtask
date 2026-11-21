@@ -57,6 +57,15 @@ test('versions compare by their release parts', () => {
   assert.equal(isOlder('0.9.5', '0.0.0'), false);
 });
 
+test('a development build of the server is never older than a released app', () => {
+  // A build of main as the integration environment reported it before it carried the release,
+  // and a local build with the image's default version.
+  assert.equal(isOlder('main-233adb96ef992bcabf6a68a03fc02e811ae87104', '0.10.1'), false);
+  assert.equal(isOlder('0.0.0-dev', '0.10.1'), false);
+  assert.equal(isOlder('0.10.1+main.233adb96ef992bcabf6a68a03fc02e811ae87104', '0.10.1'), false);
+  assert.equal(isOlder('0.9.0+main.233adb96', '0.10.1'), true);
+});
+
 test('the consent asks for the built-in client with S256 and the device', async () => {
   const pkce = await newPkce((bytes) => bytes.fill(7));
   assert.equal(pkce.verifier.length, 43);
