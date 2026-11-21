@@ -90,7 +90,6 @@ Four modules hold it, read once and shared:
   outranks the browser's ([`i18n-l10n.md`](../../docs/architecture/i18n-l10n.md) §2).
 * `lib/data/health.svelte.ts` reads `/meta/health` only where the actor may: no bearer means no
   request, and a `401` or `403` is silence.
-* `lib/maturity.ts` carries the product stage the maturity banner reads.
 
 `lib/data/capability.ts` answers questions such as "may a `TASK` carry a bucket" or "may this role
 change this entry" from the manifest alone. Its verdict has three values: permitted, refused, and

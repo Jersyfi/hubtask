@@ -379,18 +379,11 @@ for (const width of [905, 1280]) {
     await aside.getByRole('button', { name: 'All hubs' }).click();
     await tree.waitFor({ timeout: 5_000 });
 
-    // What the application says about itself is a mark too (ADR-0065 decision 4), and not a
-    // banner above the head of every page: the stage is behind it, and the page starts at its own
-    // heading.
-    const notice = page.getByRole('banner', { name: 'Application bar' }).getByRole('button', { name: 'Hubtask is a preview' });
-    assert.equal(await notice.count(), 1, `${width}: the stage is not in the bar`);
-    assert.equal(await page.locator('main').getByText('Hubtask is a preview').count(), 0, `${width}: a banner still says it on the page`);
-    await notice.click();
-    const said = page.getByRole('dialog', { name: 'Hubtask is a preview' });
-    await said.waitFor({ timeout: 5_000 });
-    assert.equal(await said.getByText(/What you see is meant to stay/).count(), 1, `${width}: the mark opened nothing`);
-    await page.keyboard.press('Escape');
-    await said.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
+    // What the application says about itself is a mark (ADR-0065 decision 4), drawn only when
+    // something is wrong; the maturity stage is not said in the application (ADR-0107).
+    const bar = page.getByRole('banner', { name: 'Application bar' });
+    assert.equal(await bar.locator('.notice-mark').count(), 0, `${width}: a healthy installation draws the notice mark`);
+    assert.equal(await page.getByText(/Hubtask is a preview|Hubtask is experimental/).count(), 0, `${width}: the stage is still said`);
 
     // The connection is one mark in the bar, and no line of the page (ADR-0063 decision 5). At its
     // quietest it says nothing until it is pressed; what a line would print is behind it.
@@ -406,10 +399,9 @@ for (const width of [905, 1280]) {
     await page.keyboard.press('Escape');
     await surface.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
 
-    // The three controls at the end of the bar are drawn as one kind of thing: the
-    // two glyph controls are `IconButton`'s square with its radius, and the avatar is the same
-    // square drawn round, because what is inside it is round. Three shapes for one row of
-    // controls is the defect this guards.
+    // The controls at the end of the bar are drawn as one kind of thing: the glyph control is
+    // `IconButton`'s square with its radius, and the avatar is the same square drawn round,
+    // because what is inside it is round.
     const shapes = await page.evaluate(() => {
       const read = (selector) => {
         const el = document.querySelector(`header ${selector}`);
@@ -417,9 +409,8 @@ for (const width of [905, 1280]) {
         const box = el.getBoundingClientRect();
         return { w: Math.round(box.width), h: Math.round(box.height), radius: getComputedStyle(el).borderRadius };
       };
-      return { notice: read('.notice-mark button'), sync: read('.trigger'), avatar: read('.account'), toggle: read('[data-toggle]') };
+      return { sync: read('.trigger'), avatar: read('.account'), toggle: read('[data-toggle]') };
     });
-    assert.deepEqual(shapes.notice, shapes.sync, `${width}: the two glyph controls are drawn differently`);
     // One size and one hover shape for every control of the bar (§13, G2): the rail toggle and the
     // avatar are the marks' square, at every width.
     assert.deepEqual(shapes.avatar, shapes.sync, `${width}: the avatar is drawn as ${JSON.stringify(shapes.avatar)}`);
