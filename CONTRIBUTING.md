@@ -16,6 +16,30 @@ are in [`AGENTS.md`](AGENTS.md). This file is the human way in.
 - **Work closely on a part of Hubtask** with your own tools: you take a milestone of your own, follow
   `AGENTS.md`, and put questions for the owner as `decision` issues.
 
+## What to expect
+
+**What is welcome.** A bug fix, a translation, documentation and a test are welcome without asking
+first. A feature starts as an issue, and so does anything the owner decides
+([`AGENTS.md`](AGENTS.md), "What you do not decide yourself").
+
+**What happens to your pull request.** A worker of the maintainer triages it and runs a review, and
+the maintainer merges. No time is promised: Hubtask has one maintainer.
+
+**Work done with an AI tool** is welcome on the same terms as any other work. You answer for it,
+and it passes the same gates.
+
+**The description.** `make gate-pr` holds a description to the template. When it refuses yours, a
+maintainer completes it; the template does not stop a contribution.
+
+## Governance
+
+- Hubtask has one maintainer, the owner.
+- A decision is an issue labelled `decision`, visible to everyone.
+- A pull request merges on the owner's word.
+- [`.github/CODEOWNERS`](.github/CODEOWNERS) names who answers for each part of the repository.
+- When a second maintainer joins, the parts are shared along those lines, and this section says
+  how decisions and merges are taken from then on.
+
 ## Working from a new machine
 
 Any machine works, with any coding tool; nothing depends on one in particular or on notes kept
