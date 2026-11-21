@@ -482,13 +482,18 @@ gate-unit:
 # one whose message did not say which package had failed it.
 #
 # In CI the figures also go to the job's summary (GITHUB_STEP_SUMMARY): the layer's lowest package
-# and every package's percentage. Reported there and nowhere else - no badge, no service.
+# and every package's percentage. Reported there and nowhere else - no badge, no service. A
+# summary that cannot be written is said and left out: the gate is the threshold, not the report.
 .PHONY: coverage-check
 coverage-check:
 	@pkgs="$$($(GO) list $(PKG) 2>/dev/null)"; \
 	if [ -z "$$pkgs" ]; then echo "coverage $(PKG): no packages yet - skipped"; exit 0; fi; \
 	out="$$($(GO) test -covermode=atomic -cover $$pkgs 2>&1)" || { echo "$$out"; exit 1; }; \
-	echo "$$out" | awk -v min="$(MIN)" -v layer="$(PKG)" -v summary="$$GITHUB_STEP_SUMMARY" ' \
+	summary="$${GITHUB_STEP_SUMMARY:-}"; \
+	if [ -n "$$summary" ] && ! { : >> "$$summary"; } 2>/dev/null; then \
+		echo "coverage $(PKG): the job summary cannot be written - the figures are printed here only"; summary=""; \
+	fi; \
+	echo "$$out" | awk -v min="$(MIN)" -v layer="$(PKG)" -v summary="$$summary" ' \
 		{ pkg = ($$1 == "ok" || $$1 == "?" || $$1 == "FAIL") ? $$2 : $$1 } \
 		/\[no test files\]/ { printf("  %s: no test file at all\n", pkg); failed=1; next } \
 		/coverage:/ { \
