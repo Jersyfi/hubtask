@@ -153,6 +153,10 @@ answers it with a reason — a `finding` issue when the fix is clearly bigger th
 ([AGENTS.md](../../AGENTS.md), "Working rules") — and the description reports the review in its
 *Review* section. The review comments and decides nothing ([ci-cd.md](./ci-cd.md) §5).
 
+After the independent review, an outside reviewer's app may comment on the pull request where it
+is installed. The author fixes what is right and answers the rest, and the *Review* section
+reports it in one row. Its check is never a required check ([ci-cd.md](./ci-cd.md) §5).
+
 ### 3.20 Nothing left behind
 A change removes what it makes unused — a function whose last caller it removed, a flag, a
 translation key, a stub answer, the test of behaviour it removed — in the same pull request, in its

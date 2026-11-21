@@ -134,7 +134,12 @@ at the integration environment with `--api`.
   `make gate-pr BODY=<file> TITLE="<title>"` checks both; with `DRAFT=1` its *Review*
   may still say `not yet: <why>`.
 - Small commits, one concern each, with a Conventional Commit title in English.
-- `make check` before `gh pr ready`: a draft runs no CI; CI runs once when it is ready
+- Before `gh pr ready`, a fresh agent that has not seen the build reviews the change
+  (`.agents/skills/review-change/SKILL.md`), each finding is fixed or answered, and the description
+  reports it under *Review*. For a pull request from a fork, the maintainer's worker runs this
+  review.
+- `make check`, on the last fix too, and a push before `gh pr ready`: a draft runs no CI; CI runs
+  once when it is ready
   ([ci-cd.md](docs/architecture/ci-cd.md)). Most jobs skip themselves when their part of the tree
   did not change — that is normal. `CI required` is the one required check.
 

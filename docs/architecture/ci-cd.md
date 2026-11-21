@@ -239,8 +239,9 @@ The rules of [ADR-0079](../adr/ADR-0079-a-draft-is-checked-locally.md) and
   the browser job runs Chromium, with Firefox and WebKit best effort (support-matrix.md §5). `main`
   runs everything on every commit.
 
-**Once per pull request.** `make check` passes, the commit is pushed, `gh pr ready`, and the pull
-request merges when `CI required` is green — on the owner's word, by hand or by auto-merge (§3.5).
+**Once per pull request.** `make check` passes; the independent review runs, and its findings are
+fixed or answered (engineering-guidelines.md §3.19); `make check` passes on the last fix; the
+commit is pushed; `gh pr ready`; and the pull request merges when `CI required` is green — on the owner's word, by hand or by auto-merge (§3.5).
 It is not brought up to date with `main` to merge. Only a conflict GitHub reports, or a base that
 was squash-merged, needs `main` merged in; that stays on the ready pull request (AGENTS.md), runs
 `make generate` and `make check` for what the merge touched, and leaves the rest to its CI run.
@@ -338,7 +339,9 @@ permissions:
 ## 5. AI in the pipeline
 
 **AI comments, gates decide** ([ADR-0022](../adr/ADR-0022-github-platform.md)): AI assistance may
-comment, suggest and draft; it never sets a status, merges, publishes, or replaces a gate.
+comment, suggest and draft; it never sets a required status, merges, publishes, or replaces a
+gate. A check that an outside reviewer's app posts on a pull request is never a required check and
+decides nothing: `ci-required` stays the only required status check (§3.2).
 
 No workflow calls a model today, and none reviews or works on its own (§5.1). The limits and the
 rules below are the outer limit for an AI workflow should one be added; adding one is the owner's
@@ -360,7 +363,7 @@ No workflow reviews a pull request or starts work by itself, and none offers a t
 The author reviews a change against the rules no gate checks, a fresh agent the author starts
 reviews it before it leaves draft, and an outside
 reviewer may comment on the pull request (engineering-guidelines.md §3.19); both comment and decide
-nothing, and neither is a workflow. A person or an AI agent of any make works on a task. A tool that steers coding agents later works
+nothing (§5), and neither is a workflow. A person or an AI agent of any make works on a task. A tool that steers coding agents later works
 through the same issues, labels and pull requests ([backlog README](../backlog/README.md)
 § "For tools that steer the work"), under its own GitHub App identity, without the right to merge.
 
