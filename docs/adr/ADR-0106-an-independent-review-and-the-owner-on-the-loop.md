@@ -9,11 +9,12 @@ gets an ADR), [engineering-guidelines.md](../architecture/engineering-guidelines
 [ci-cd.md](../architecture/ci-cd.md) §5, [docs/backlog/README.md](../backlog/README.md) ("A concept
 built whole"), [CONTRIBUTING.md](../../CONTRIBUTING.md), and the skills under `.agents/skills/`
 
-Amends [ADR-0079](./ADR-0079-a-draft-is-checked-locally.md) (CI can be started by hand on a branch;
-a draft's push still starts nothing), [ADR-0089](./ADR-0089-check-once-where-it-is-cheap.md)
-(decision 4: the author is no longer the only reviewer; a brief returns for one class of change; the
-dated review of the merge flow) and [ADR-0090](./ADR-0090-concept-mode-findings-fixed-where-found-proof-by-tests.md)
-(a concept meets CI at checkpoints; the dated review).
+**Supersedes in part:** [ADR-0079](./ADR-0079-a-draft-is-checked-locally.md) (CI can be started by
+hand on a branch; a draft's push still starts nothing),
+[ADR-0089](./ADR-0089-check-once-where-it-is-cheap.md) (decision 4: the author is no longer the
+only reviewer; a brief returns for one class of change; the dated review of the merge flow) and
+[ADR-0090](./ADR-0090-concept-mode-findings-fixed-where-found-proof-by-tests.md) (a concept meets
+CI at checkpoints; the dated review). Everything else in the three stands.
 
 ## Context
 
