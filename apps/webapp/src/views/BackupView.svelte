@@ -345,6 +345,9 @@
           {t('app.backup.guided_start')}
         </Button>
       {/snippet}
+      {#snippet secondary()}
+        <Button tone="secondary" size="sm" icon="plus" onclick={() => (isAddingTarget = true)}>{t('app.backup.guided_own_target')}</Button>
+      {/snippet}
       {#snippet footnote()}{t('app.backup.guided_footnote')}{/snippet}
     </EmptyState>
   {:else}
