@@ -48,10 +48,15 @@
   .grid {
     display: grid;
     grid-template-columns: repeat(var(--grid-columns, 1), minmax(0, 1fr));
+    box-sizing: border-box;
+  }
+
+  /* A list's own spacing reset, at no weight: the rhythm a page sets between its parts
+     (`_PageFrame`'s margin) has to win over it, or a grid stands flush under what precedes it. */
+  :where(.grid) {
     margin: 0;
     padding: 0;
     list-style: none;
-    box-sizing: border-box;
   }
 
   .grid[data-gap='050'] { gap: var(--sp-050); }

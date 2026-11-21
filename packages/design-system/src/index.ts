@@ -274,6 +274,7 @@ export { default as JumpMarks } from './JumpMarks.svelte';
 export { default as StepBar } from './StepBar.svelte';
 export { default as FoldingSection } from './FoldingSection.svelte';
 export { default as ProductBand } from './ProductBand.svelte';
+export { default as Card } from './Card.svelte';
 export { default as Widget } from './Widget.svelte';
 export { default as Composer, type ComposerMode } from './Composer.svelte';
 export { default as QueryLine } from './QueryLine.svelte';

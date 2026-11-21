@@ -271,11 +271,11 @@ test('chromium: the day at a glance - a greeting by the hour, cards that lead to
   // The cards stand in one row, equally wide.
   const widths = await glance.locator('[data-card]').evaluateAll((all) => all.map((card) => Math.round(card.getBoundingClientRect().width)));
   assert.ok(widths.length >= 2 && widths.every((width) => Math.abs(width - widths[0]) <= 1), `the cards are not equal: ${widths}`);
-  await overdue.getByRole('button', { name: 'Show' }).click();
+  await overdue.getByRole('link', { name: 'Overdue' }).click();
   await page.waitForURL(/\/search\?/u, { timeout: 5_000 });
   assert.equal(new URL(page.url()).searchParams.get('f'), 'who:me is:open due:overdue');
   await page.goBack();
-  await glance.locator('[data-card="DUE_TODAY"]').getByRole('button', { name: 'Show' }).click();
+  await glance.locator('[data-card="DUE_TODAY"]').getByRole('link', { name: 'Due today' }).click();
   await page.waitForURL(/due%3Atoday|due:today/u, { timeout: 5_000 });
   assert.equal(new URL(page.url()).searchParams.get('f'), 'who:me is:open due:today');
   await page.goBack();

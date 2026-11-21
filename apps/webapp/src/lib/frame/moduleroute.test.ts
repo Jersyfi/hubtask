@@ -16,6 +16,10 @@ test('a module page whose module is off says so before it reads anything', () =>
   // The approvals waiting for the reader are the desk's, the notes the pages': off, each is refused.
   assert.equal(offModuleOf('approvals', []), 'SERVICE_DESK');
   assert.equal(offModuleOf('notes', ['WORKFLOWS']), 'KNOWLEDGE');
+  // A hub's posts are their own module, and need the pages they are written as.
+  assert.equal(offModuleOf('hub-posts', ['KNOWLEDGE']), 'POSTS');
+  assert.equal(offModuleOf('hub-posts', ['POSTS']), 'KNOWLEDGE');
+  assert.equal(offModuleOf('hub-posts', ['KNOWLEDGE', 'POSTS']), undefined);
 });
 
 test('a module section is drawn only once the module is known to be on', () => {

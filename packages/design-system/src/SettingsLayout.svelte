@@ -37,17 +37,25 @@
 
   const { head, nav, view = 'detail', back, tabs, refused, children }: Props = $props();
 
+  // One section is the page itself: a list of one beside it would only repeat the title and take
+  // the page's width, so it stands alone across the page, with no way back to a list.
+  const isSingle = $derived(nav.sections.length <= 1);
+
   const bar = pageBar();
   $effect(() => {
-    if (bar && view === 'detail') return bar.carry(back);
+    if (bar && view === 'detail' && !isSingle) return bar.carry(back);
   });
   const isBackInBar = $derived(bar?.hasBack === true);
 </script>
 
-<div class="settings-layout" data-view={view}>
-  <PageFrame kind="settings" {head} {refused} isTitleInBar={isBackInBar}>
+<div class="settings-layout" data-view={isSingle ? 'single' : view}>
+  <PageFrame kind="settings" {head} {refused} isTitleInBar={isBackInBar && !isSingle}>
     {#if tabs}<div class="tabs">{@render tabs()}</div>{/if}
-    <TwoPane {nav} {view} {back} isBackHidden={isBackInBar}>{@render children()}</TwoPane>
+    {#if isSingle}
+      {@render children()}
+    {:else}
+      <TwoPane {nav} {view} {back} isBackHidden={isBackInBar}>{@render children()}</TwoPane>
+    {/if}
   </PageFrame>
 </div>
 

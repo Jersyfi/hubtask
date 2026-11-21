@@ -99,7 +99,7 @@ test('chromium: 1280 px — a hub is managed from its own row: the menu holds th
   assert.deepEqual(failures, []);
 });
 
-test('chromium: 1280 px — the sync mark opens on a band naming the state, the lines on its text edge', async (t) => {
+test('chromium: 1280 px — the sync mark opens on a band naming the state, the lines on its inner edge', async (t) => {
   const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
@@ -114,21 +114,23 @@ test('chromium: 1280 px — the sync mark opens on a band naming the state, the 
   assert.equal((await band.innerText()).trim(), 'All synchronised', 'the band names the state, not only the connection');
   const geometry = await page.evaluate(() => {
     const state = document.querySelector('p.band[data-tone]');
-    const word = state.querySelector('.word').getBoundingClientRect();
     const line = document.querySelector('p.band[data-tone] ~ .body .detail')?.getBoundingClientRect();
-    const surface = state.closest('[popover], .surface')?.getBoundingClientRect() ?? state.parentElement.getBoundingClientRect();
+    const surface = state.closest('[popover], .surface') ?? state.parentElement;
     const box = state.getBoundingClientRect();
     const style = getComputedStyle(state);
+    const padding = Number.parseFloat(style.paddingInlineStart);
     return {
-      word: Math.round(word.left),
+      inner: Math.round(box.left + padding),
       line: line ? Math.round(line.left) : null,
-      padding: Number.parseFloat(style.paddingInlineStart),
-      edge: Math.round(box.left - surface.left),
+      padding,
+      edge: Math.round(box.left - surface.getBoundingClientRect().left),
+      surfacePadding: Number.parseFloat(getComputedStyle(surface).paddingInlineStart),
     };
   });
   assert.ok(geometry.padding >= 8, `the band's words touch its edge: ${geometry.padding} px`);
-  assert.ok(geometry.edge <= 1, `the band does not run edge to edge: ${geometry.edge} px in`);
-  if (geometry.line !== null) assert.ok(Math.abs(geometry.line - geometry.word) <= 1, `the lines start ${geometry.line - geometry.word} px off the band's words`);
+  // The band stands inside its surface's own padding, so it never reaches past a phone's sheet.
+  assert.ok(Math.abs(geometry.edge - geometry.surfacePadding) <= 1, `the band stands ${geometry.edge} px in, not on the surface's ${geometry.surfacePadding} px padding`);
+  if (geometry.line !== null) assert.ok(Math.abs(geometry.line - geometry.inner) <= 1, `the lines start ${geometry.line - geometry.inner} px off the band's inner edge`);
 
   // Offline is tinted like the other states, not a filled block.
   await context.setOffline(true);

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import { settingsOf, startsOf, switchedOn } from './switchedon.ts';
 
-const MODULES = ['WORKFLOWS', 'PLANNING', 'KNOWLEDGE', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'TIME', 'GOALS', 'AGENTS'];
+const MODULES = ['WORKFLOWS', 'PLANNING', 'KNOWLEDGE', 'POSTS', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'TIME', 'GOALS', 'AGENTS'];
 
 test('every module switched on for the workspace says where to find it or what to set up', () => {
   for (const module of MODULES) {

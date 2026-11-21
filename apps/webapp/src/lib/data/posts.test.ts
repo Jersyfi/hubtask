@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 import type { Post } from '@hubtask/sync-engine';
 
-import { featuredPost, hubPostsPath, postsByMonth, readingMinutes, sectionPosts, unreadCount } from './posts.ts';
+import { POSTS_SHOWN, featuredPost, hubPostsPath, postsByMonth, publishedPosts, readingMinutes, sectionPosts, unreadCount } from './posts.ts';
 
 const post = (id: string, at: string, more: Partial<Post> = {}): Post => ({
   page_id: id, hub_id: 'h', title: id, icon: null, template: null, state: 'PUBLISHED', publish_at: at, published_at: at,
@@ -27,6 +27,17 @@ test('the hub column shows the newest published posts and counts the unread', ()
   ];
   assert.deepEqual(sectionPosts(rows).map((row) => row.page_id), ['newest', 'middle', 'older']);
   assert.equal(unreadCount(rows), 1);
+});
+
+// UC-DOC-17 check 7: the section holds every published post, bounded as *Contents* is - the first
+// three shown, the rest behind *n more* - so the count and *n more* agree with what it holds.
+test('the hub column holds every published post, three of them shown first', () => {
+  const rows = ['a', 'b', 'c', 'd', 'e'].map((id, at) => post(id, `2026-11-0${at + 1}T08:00:00Z`));
+  rows.push(post('draft', '2026-11-09T08:00:00Z', { state: 'DRAFT', published_at: null }));
+  assert.deepEqual(publishedPosts(rows).map((row) => row.page_id), ['e', 'd', 'c', 'b', 'a']);
+  assert.equal(POSTS_SHOWN, 3);
+  assert.deepEqual(sectionPosts(rows).map((row) => row.page_id), ['e', 'd', 'c']);
+  assert.deepEqual(publishedPosts([post('draft', '2026-11-09T08:00:00Z', { state: 'DRAFT', published_at: null })]), [], 'none yet: the empty part');
 });
 
 test('the list stands by month, newest first, with the newest featured post on top', () => {

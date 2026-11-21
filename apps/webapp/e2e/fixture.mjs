@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 const SETTINGS_CATALOGUE = JSON.parse(readFileSync(new URL('../src/lib/settings/catalogue.gen.json', import.meta.url), 'utf8'));
 
 /** Every product a home has, seen: a walk meets no first-visit mark unless it asks for one (user-experience.md §3.4). */
-export const ALL_PRODUCTS_SEEN = ['PLANNING', 'KNOWLEDGE', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'TIME', 'GOALS', 'AGENTS'];
+export const ALL_PRODUCTS_SEEN = ['PLANNING', 'KNOWLEDGE', 'POSTS', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'TIME', 'GOALS', 'AGENTS'];
 export const ACCOUNT = { id: '01a0e2e0-0000-7000-8000-000000000001', kind: 'USER', display_name: 'Jérôme Winkel', email: 'j@example.invalid', status: 'ACTIVE', locale: 'en', onboarding_completed_at: '2026-09-01T00:00:00Z', products_seen: ALL_PRODUCTS_SEEN };
 export const OTHER = { id: '01a0e2e0-0000-7000-8000-000000000011', kind: 'USER', display_name: 'Mara Lind', email: 'm@example.invalid', status: 'ACTIVE', locale: 'en' };
 /** Somebody invited who has not arrived yet: the row an invitation is renewed from (UC-ID-14 check 5). */

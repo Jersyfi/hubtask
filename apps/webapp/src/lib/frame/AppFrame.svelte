@@ -86,7 +86,7 @@
   import { webAppAddress, webAppHost } from '../webApp.ts';
   import { holdsHere, reachesAdministrationArea } from '../data/capability.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
-  import { DESTINATIONS, PRODUCTS, SETTINGS, account, administrationFor, instanceSection, leftToWebApp, type AccountAction } from '../navigation.ts';
+  import { DESTINATIONS, PRODUCTS, SETTINGS, account, administrationFor, currentRow, instanceSection, leftToWebApp, type AccountAction } from '../navigation.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
   import { webhooks } from '../data/webhooks.svelte.ts';
   import { webhookColumnFigure } from '../data/webhooks.ts';
@@ -357,8 +357,6 @@
             isPrivateHubsReadable: privateHubs.isReadable,
             hasAnyPrivateHub: privateHubs.hasAny,
             hasSeveralPeople: workspace.workspace?.several_people === true,
-            isOnePerson: workspace.workspace?.several_people === false,
-            inUse: webhooks.all.length > 0 ? ['webhooks'] : [],
             isInstanceReachable: manifest.isInstanceReachable,
             isAdministrationReachable,
             isSingleWorkspace: manifest.isSingleTenant,
@@ -372,9 +370,7 @@
           : undefined,
   );
   /** Which row of the section's list is current, by the id that list gives it. */
-  const sectionRow = $derived(
-    section?.groups.flatMap((group) => group.rows).find((row) => row.routes.includes(route.name ?? ''))?.id,
-  );
+  const sectionRow = $derived(section ? currentRow(section.groups, route) : undefined);
   const accountGroup = $derived(
     phoneAccount(account({
       isAdministrationReachable,
@@ -883,7 +879,6 @@
           class="sidenav"
           data-rail={isRail ? '' : undefined}
           data-peek={isRail && isPeeking ? '' : undefined}
-          data-levels={section ? undefined : ''}
           data-tour={section ? undefined : 'hubs'}
           onpointerenter={() => isRail && !section && peek?.enter()}
           onpointerleave={() => peek?.leave()}
@@ -1156,7 +1151,7 @@
   .body { display: flex; flex: 1; min-width: 0; }
 
   /* The pinned navigation, from `expanded`: as wide as the token says, and it stays in view while
-     the page scrolls under the bar. Its own scroll, so a long tree does not lengthen the page. */
+     the page scrolls under the bar. One screen tall, so a long tree does not lengthen the page. */
   .sidenav {
     /* The frame is its own plane (ADR-0063 decision 3): the bar and the bottom bar already take
        the surface, and a navigation on the content's canvas read as an indented part of the page
@@ -1166,39 +1161,27 @@
     display: flex;
     flex-direction: column;
     position: sticky;
-    inset-block-start: var(--layout-appbar-height);
+    inset-block-start: calc(var(--layout-appbar-height) + var(--bw-hairline));
     flex: none;
     /* The token is the whole column, padding included: at exactly `expanded` the content beside
        it has to be `medium` wide, or the page head folds as if on a phone. */
     box-sizing: border-box;
     inline-size: var(--nav-width, var(--layout-sidenav-width));
-    max-block-size: calc(100vh - var(--layout-appbar-height));
+    /* The bar's own height is the token plus its hairline: a column one hairline too tall made
+       every page one hairline too long, and the column moved by it whenever the page scrolled. */
+    block-size: calc(100dvh - var(--layout-appbar-height) - var(--bw-hairline));
     min-width: 0;
-    padding: var(--sp-200) var(--sp-150);
-    /* Down only: the width handle reaches a little past the column's edge to be easy to take,
-       and a column that scrolled sideways for it moved under a trackpad's sideways swipe. */
-    overflow-x: hidden;
-    overflow-y: auto;
+    /* Its own regions pad and scroll - the levels' top and foot stay, the middle scrolls; an
+       area's level does the same - so every column pads alike and the column itself pads nothing
+       (the navigation concept §2.1). */
+    padding: 0;
+    overflow: visible;
     border-inline-end: var(--bw-hairline) solid var(--border-subtle);
   }
 
   /* Folded to its marks: the same tree, clipped to the rail's width. Nothing is removed and the
      keyboard reaches every row; only the words wait for the fold to open. */
-  .sidenav[data-rail] {
-    inline-size: var(--layout-sidenav-rail);
-    padding-inline: var(--sp-050);
-    overflow-x: hidden;
-  }
-
-  /* The levels' sidebar (the navigation concept §2.1): its own regions pad and scroll - the top
-     and the foot stay, the middle scrolls - so the column is one screen tall and pads nothing. */
-  .sidenav[data-levels] {
-    block-size: calc(100vh - var(--layout-appbar-height));
-    padding: 0;
-    overflow: visible;
-  }
-
-  .sidenav[data-levels][data-rail] { padding: 0; }
+  .sidenav[data-rail] { inline-size: var(--layout-sidenav-rail); }
 
   /* The peek: the whole sidebar over the content, from the rail's edge, until the pointer leaves.
      The column is sticky, so it is a stacking context of its own and the peek's rank is the

@@ -14,7 +14,7 @@ import (
 // another person of seed-demo.sh says goes through say, so that it is theirs there; the people
 // and groups are used only where the workspace has them by name.
 
-var demoModules = []string{"WORKFLOWS", "PLANNING", "KNOWLEDGE", "WHITEBOARD", "SERVICE_DESK", "ASSETS", "TIME", "GOALS", "AGENTS"}
+var demoModules = []string{"WORKFLOWS", "PLANNING", "KNOWLEDGE", "POSTS", "WHITEBOARD", "SERVICE_DESK", "ASSETS", "TIME", "GOALS", "AGENTS"}
 
 // entryOptions are the optional fields of an entry.
 type entryOptions struct {

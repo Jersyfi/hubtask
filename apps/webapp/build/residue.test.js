@@ -297,6 +297,7 @@ async function views() {
     ['notes', await load('ProductHomeView'), { module: 'KNOWLEDGE', tab: 'notes', onnavigate: noop }],
     ['plans-home', await load('ProductHomeView'), { module: 'PLANNING', onnavigate: noop }],
     ['pages-home', await load('ProductHomeView'), { module: 'KNOWLEDGE', onnavigate: noop }],
+    ['posts-home', await load('ProductHomeView'), { module: 'POSTS', onnavigate: noop }],
     ['whiteboards-home', await load('ProductHomeView'), { module: 'WHITEBOARD', onnavigate: noop }],
     ['desk-home', await load('ProductHomeView'), { module: 'SERVICE_DESK', onnavigate: noop }],
     ['desk-desks', await load('ProductHomeView'), { module: 'SERVICE_DESK', tab: 'desks', onnavigate: noop }],

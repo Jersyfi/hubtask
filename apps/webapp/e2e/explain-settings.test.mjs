@@ -148,7 +148,7 @@ for (const width of [375, 768, 1280]) {
     await shown.waitFor({ timeout: 5_000 });
     // Nothing covers it, and it covers no bar: it sits above the phone's bottom bar.
     const bottom = await shown.evaluate((node) => node.getBoundingClientRect().bottom);
-    const bars = await page.locator('nav[aria-label] >> visible=true').evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect()).filter((box) => box.bottom >= window.innerHeight - 1).map((box) => box.top));
+    const bars = await page.locator('nav[aria-label] >> visible=true').evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect()).filter((box) => box.bottom >= window.innerHeight - 1 && box.top > window.innerHeight / 2).map((box) => box.top));
     for (const top of bars) assert.ok(bottom <= top + 1, `the toast covers a bar at the foot (${bottom} > ${top})`);
     // Held while the pointer is on it.
     await shown.hover();

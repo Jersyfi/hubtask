@@ -62,7 +62,7 @@ export function workspaceTemplates<T extends Offered & { readonly document?: Rea
  * before the knowledge it brings beside it, a register's assets, a project's plans. Workflows is
  * none: every shipped template switches it on.
  */
-const MAIN_FIRST = ['SERVICE_DESK', 'ASSETS', 'PLANNING', 'GOALS', 'KNOWLEDGE', 'WHITEBOARD', 'TIME', 'AGENTS'] as const;
+const MAIN_FIRST = ['SERVICE_DESK', 'ASSETS', 'PLANNING', 'GOALS', 'KNOWLEDGE', 'POSTS', 'WHITEBOARD', 'TIME', 'AGENTS'] as const;
 
 /**
  * Where the app goes once a template is taken (user-experience.md §3.2): its main product's home,

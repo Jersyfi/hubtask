@@ -7,7 +7,7 @@
   // read where the product is on, each opening the hub's own screen of it. A hub narrows the
   // workspace's modules (UC-INS-21 check 3), so each hub is asked which are on there.
   import { untrack } from 'svelte';
-  import { Badge, Button, Dialog, EmptyState, Icon, ListRow, PageHeader, ProductBand, Select, Skeleton, Stack, StateLozenge, ViewBar, Widget, WorkPage, type ViewLink } from '@hubtask/design-system/components';
+  import { Badge, Button, Dialog, EmptyState, Icon, ListRow, PageHeader, ProductBand, Select, Skeleton, Stack, StateLozenge, UnreadDot, ViewBar, Widget, WorkPage, type ViewLink } from '@hubtask/design-system/components';
 
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -23,7 +23,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { productOf } from '../lib/navigation.ts';
-  import { attentionAcross, continueReading, daysOverdue, isVerified, pagesFigures, verifiedBySpace, phasesOf, planCounts, createAt, createOf, homeTabs, placesByUse, writableHubs, isUnused, hubScreenOf, hubsWithAssetsFirst, inventoryByClass, inventorySummary, nextReleaseOf, pagesToReview, recentBoards, recentPages, releasesDue, sprintsRunning } from '../lib/product/home.ts';
+  import { attentionAcross, continueReading, daysOverdue, isVerified, pagesFigures, verifiedBySpace, phasesOf, planCounts, createAt, createOf, homeTabs, placesByUse, writableHubs, isUnused, hubScreenOf, hubsWithAssetsFirst, inventoryByClass, inventorySummary, nextReleaseOf, pagesToReview, recentBoards, recentPages, recentPosts, releasesDue, sprintsRunning } from '../lib/product/home.ts';
   import CollectionFigure from '../lib/entries/CollectionFigure.svelte';
   import { releasePath, releasesPath } from '../lib/data/releases.svelte.ts';
   import { sprintPath, sprintsPath } from '../lib/data/sprints.svelte.ts';
@@ -35,7 +35,7 @@
   import BoardCard from '../lib/whiteboards/BoardCard.svelte';
   import { engine } from '../lib/data/engine.ts';
   import { formatPlainDay, formatRelative } from '../lib/i18n/datetime.ts';
-  import type { CiClassList, CmdbHealth, ConfigTemplate, ConfigurationItem, ConfigTemplateList, ItemAggregateResult, MySprintList, PageList, PlanSchedule, PortfolioList, ReleaseDetail, SprintDetail, ReleaseList, SprintList, WhiteboardList } from '@hubtask/sync-engine';
+  import type { CiClassList, CmdbHealth, ConfigTemplate, ConfigurationItem, ConfigTemplateList, ItemAggregateResult, MySprintList, PageList, PlanSchedule, PortfolioList, PostList, ReleaseDetail, SprintDetail, ReleaseList, SprintList, UnreadPostList, WhiteboardList } from '@hubtask/sync-engine';
   import { distinctNames } from '../lib/assets/inventoryscenes.ts';
   import { PORTFOLIOS } from '../lib/data/goals.svelte.ts';
   import BoardTemplates, { type BoardStart } from '../lib/whiteboards/BoardTemplates.svelte';
@@ -47,6 +47,7 @@
   import { config } from '../lib/data/config.svelte.ts';
   import { productTemplates } from '../lib/product/templates.ts';
   import { pages, pagesPath } from '../lib/data/pages.svelte.ts';
+  import { hubPostsPath, postMoment, posts, unreadPostsPath } from '../lib/data/posts.svelte.ts';
   import { CHIP_ORDER, START_ICONS } from '../lib/pages/starts.ts';
   import { pagesRead } from '../lib/pages/reading.ts';
   import { classesPath, classWord, cmdb, healthPath } from '../lib/data/cmdb.svelte.ts';
@@ -80,7 +81,7 @@
    * Where the home lists its hubs: the pages' *Spaces* (a hub is a space), the boards' *All*, else
    * the first tab; a home without a hub says so on any tab.
    */
-  const showsHubs = $derived(module === 'KNOWLEDGE' ? currentTab === 'spaces' : module === 'WHITEBOARD' ? currentTab === 'all' : currentTab === homeViews[0]?.id);
+  const showsHubs = $derived(module === 'KNOWLEDGE' ? currentTab === 'spaces' : module === 'WHITEBOARD' || module === 'POSTS' ? currentTab === 'all' : currentTab === homeViews[0]?.id);
   /** A tab that lists one kind whole, where *For you* shows its first few. */
   const isWhole = $derived(currentTab === 'sprints' || currentTab === 'releases' || currentTab === 'all');
 
@@ -156,6 +157,34 @@
       toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
     } finally {
       isOpeningToday = false;
+    }
+  }
+
+  /**
+   * The posts' home: what is new for the reader across hubs, the posts gone out newest first, and
+   * on *All* every one of them. Who sees which post is the server's to judge.
+   */
+  const POSTS_SHOWN = 10;
+  let postsAt = $state<Record<string, PostList['data']>>({});
+  eachHub<PostList>('POSTS', (hubId) => hubPostsPath(hubId), (hubId, data) => (postsAt = { ...postsAt, [hubId]: data.data }));
+  const postHubs = $derived(module === 'POSTS' ? hubsWith.map((hub) => hub.id) : []);
+  const postsListed = $derived(recentPosts(postsAt, postHubs, isWhole ? Infinity : POSTS_SHOWN));
+  let unreadPosts = $state<UnreadPostList['data'] | undefined>(undefined);
+  $effect(() => {
+    if (module !== 'POSTS') return;
+    return untrack(() => engine.subscribe<UnreadPostList>({ path: unreadPostsPath }, (next) => {
+      if (next.status === 'ready') unreadPosts = next.data.data;
+    }));
+  });
+  // A hub whose posts went off keeps none here, as the list of its hubs does not name it.
+  const newPosts = $derived(unreadPosts?.filter((post) => postHubs.includes(post.hub_id)));
+  /** A post is written at once as a draft in the hub, and opens to be written, as the hub's page does. */
+  async function makePostIn(hubId: string): Promise<void> {
+    try {
+      const made = await posts.create(hubId, { title: t('app.posts.untitled'), publish_at: null, audience: 'HUB', group_ids: [], discussion: true, notify: true });
+      onnavigate(`/posts/${made.page_id}/write`);
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
     }
   }
 
@@ -385,6 +414,7 @@
       Object.fromEntries(Object.entries(at).map(([hubId, data]) => [hubId, of(data)]));
     if (module === 'KNOWLEDGE') return count(pagesAt, (data) => data.length);
     if (module === 'WHITEBOARD') return count(boardsAt, (data) => data.length);
+    if (module === 'POSTS') return count(postsAt, (data) => data.length);
     if (module === 'ASSETS') return count(healthAt, (data) => data.total);
     if (module === 'PLANNING') {
       const entries = Object.fromEntries(Object.entries(scheduleAt).map(([hubId, data]) => [hubId, data.entries]));
@@ -452,7 +482,8 @@
     const first = createPlaces[0];
     if (!first) return undefined;
     // The place's own create dialog opens there (§5.2): the act creates, it does not list.
-    const go = (id: string) => (module === 'WHITEBOARD' ? void makeBoardIn(id) : onnavigate(createAt(module, id) ?? `/hubs/${id}`));
+    const go = (id: string) =>
+      module === 'WHITEBOARD' ? void makeBoardIn(id) : module === 'POSTS' ? void makePostIn(id) : onnavigate(createAt(module, id) ?? `/hubs/${id}`);
     return {
       label: t(createAct.code),
       icon: 'plus' as const,
@@ -527,6 +558,24 @@
     onnavigate(landing ?? hubScreenOf(module, id) ?? `/hubs/${id}`);
   }
 </script>
+
+{#snippet postRows(rows: readonly PostList['data'][number][], isNew: boolean)}
+  <ul class="hubs">
+    {#each rows as post (post.page_id)}
+      {@const at = `/posts/${post.page_id}`}
+      <li data-post-row={post.page_id}>
+        <ListRow href={at} onactivate={() => onnavigate(at)} label={post.title}>
+          {#snippet leading()}<Icon name="bell" size="sm" />{/snippet}
+          <span class="name" title={post.title}>{post.title}</span>
+          <span class="purpose">{[hubName(post.hub_id), formatRelative(postMoment(post), messages.locale)].filter(Boolean).join(' · ')}</span>
+          {#snippet trailing()}
+            {#if isNew || !post.seen}<span data-post-unread><UnreadDot label={t('app.posts.unread')} /></span>{/if}
+          {/snippet}
+        </ListRow>
+      </li>
+    {/each}
+  </ul>
+{/snippet}
 
 {#snippet todayNote()}
   <Button tone="secondary" icon="calendar" isBusy={isOpeningToday} onclick={openToday} data-today-note>{t('app.notes.today')}</Button>
@@ -898,6 +947,28 @@
     {#if module === 'WHITEBOARD' && currentTab === 'foryou' && !isUnusedHere}
       <BoardsForYou {boards} drawn={continued.boards} opened={continued.opened} {hubName} {onnavigate} onstart={createPlaces.length > 0 ? startBoard : undefined} oncomments={(count) => (boardComments = count)} />
     {/if}
+    {#if module === 'POSTS' && currentTab === 'foryou' && !isUnusedHere && hubsWith.length > 0}
+      <section aria-labelledby="product-posts-new" aria-busy={newPosts === undefined} data-posts-new>
+        <Stack gap="100">
+          <h2 class="heading" id="product-posts-new">{t('app.product_home.posts_new')}</h2>
+          {#if newPosts === undefined}
+            <Skeleton lines={2} />
+          {:else if newPosts.length === 0}
+            <p class="quiet" data-posts-none-new>{t('app.product_home.posts_none_new')}</p>
+          {:else}
+            {@render postRows(newPosts, true)}
+          {/if}
+        </Stack>
+      </section>
+    {/if}
+    {#if module === 'POSTS' && postsListed.length > 0 && (currentTab === 'foryou' || currentTab === 'all') && !isUnusedHere}
+      <section aria-labelledby="product-posts" data-posts-recent>
+        <Stack gap="100">
+          <h2 class="heading" id="product-posts">{t(currentTab === 'all' ? 'app.product_home.posts_all' : 'app.product_home.posts_recent')}</h2>
+          {@render postRows(postsListed, false)}
+        </Stack>
+      </section>
+    {/if}
     {#if boards.length > 0 && currentTab === 'all'}
       <section aria-labelledby="product-boards">
         <Stack gap="100">
@@ -1006,22 +1077,28 @@
   .read-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-gallery-card)), 1fr)); gap: var(--sp-150); margin: 0; padding: 0; list-style: none; }
   .read-card {
     display: grid; gap: var(--sp-100); align-content: start; block-size: 100%; padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-raised);
+    border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface);
     color: var(--text-primary); text-decoration: none;
   }
-  .read-card:hover { border-color: var(--border-default); }
+  /* The overview's one surface (1′), as its widgets and the design system's Card have it. */
+  @media (hover: hover) {
+    .read-card:hover { border-color: var(--border-default); background: var(--bg-surface-hover); }
+  }
   .read-card:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
   .read-top { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--sp-100); }
   .read-icon { font-size: var(--fs-300); line-height: var(--lh-tight); }
   .read-title { font-weight: var(--fw-semibold); }
   .read-excerpt { display: -webkit-box; overflow: hidden; color: var(--text-secondary); font-size: var(--fs-075); -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
   .pages-pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-200); align-items: start; min-inline-size: 0; }
-  /* design-system-lint-ignore: `primitive.breakpoint.large` (905px); a media query cannot read a custom property. */
+  /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
   @media (width >= 905px) {
     .pages-pair { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
     .pages-pair > [data-pages-verified], .pages-pair > [data-pages-start] { grid-column: -2 / -1; }
+    /* A pair with one part - nothing to review, or nothing changed yet - is that part across the
+       row: the side column alone left the main one an empty field above what follows. */
+    .pages-pair > :only-child { grid-column: 1 / -1; }
   }
-  .panel { display: grid; grid-template-columns: minmax(0, 1fr); min-inline-size: 0; border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-raised); }
+  .panel { display: grid; grid-template-columns: minmax(0, 1fr); min-inline-size: 0; border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
   .panel > .eyebrow { padding: var(--sp-150) var(--sp-200) var(--sp-050); }
   .panel-head { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-100); padding: var(--sp-150) var(--sp-200); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
   .panel-head .heading { display: inline-flex; gap: var(--sp-050); align-items: center; }

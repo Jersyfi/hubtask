@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 
 import { SOURCE } from './i18n/source.ts';
 import GERMAN from '../../../../locales/de.json' with { type: 'json' };
-import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, MORE_CODE, PRODUCTS, TRASH, account, administration, administrationFor, bar, currentDestination, firstScreen, installationPlace, instanceSection, leftToWebApp, primary, products, workspaceBand, HUB_TOOLS, hubTools, switchPath, toolOf, toolPath, type SectionGroup } from './navigation.ts';
+import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, MORE_CODE, PRODUCTS, TRASH, account, administration, administrationFor, bar, currentDestination, currentRow, firstScreen, installationPlace, instanceSection, leftToWebApp, primary, products, workspaceBand, HUB_TOOLS, hubTools, switchPath, toolOf, toolPath } from './navigation.ts';
 import { SECTION_OPEN_AT_FIRST, contentsCount, contentsTree, figureCount, foot, forYou, levelOf, navHubs, navProducts, orderHubs, withHidden, placedIndex, queuePath, queueRows, viewStarPath, type LevelRoute, type NavLevel } from './sidebar.ts';
 import { ROUTES, movedTo } from './routes.ts';
 import { resolve } from './router.ts';
@@ -63,7 +63,7 @@ test('nothing is in two bands, and nothing is outside one', () => {
 // user-experience.md §2.1: for every module with a home, on draws exactly one products row in the
 // column, the drawer and the phone's *More* (all three draw `products`), off draws none.
 test('a product is one row of the products band where its module is on, and none where it is off', () => {
-  const keys = ['WORKFLOWS', 'PLANNING', 'KNOWLEDGE', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'TIME', 'GOALS', 'AGENTS'];
+  const keys = ['WORKFLOWS', 'PLANNING', 'KNOWLEDGE', 'POSTS', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'TIME', 'GOALS', 'AGENTS'];
   assert.deepEqual(PRODUCTS.map((row) => row.module), keys.filter((key) => key !== 'WORKFLOWS'), 'the band is not in Module.Keys() order');
   assert.deepEqual(products({ modulesOn: [] }), [], 'a household with nothing on sees a products row');
   assert.deepEqual(products({}), []);
@@ -379,27 +379,14 @@ test('every navigation word is translated, but for a short list of words used as
   assert.deepEqual(untranslated, [], `the same in both: ${untranslated.map((code) => `${code}=${SOURCE[code]}`).join(', ')}`);
 });
 
-// user-experience.md §8.2: the advanced rows fold under *More* while the workspace holds one person,
-// a row already used stays out, a group folds two rows or none, and Templates stays where a
-// newcomer starts.
-test('the advanced rows fold while the workspace holds one person, and never what is used', () => {
-  const folded = (groups: readonly SectionGroup[]) =>
-    groups.flatMap((group) => group.rows.filter((row) => row.isFolded).map((row) => row.id));
+// user-experience.md §8.9: the column draws every row; nothing hides under a *More*.
+test('the administration draws every row, none folded under More', () => {
   const base = {
     isPrivateHubsReadable: true, hasAnyPrivateHub: false, hasSeveralPeople: false,
     isInstanceReachable: false, isAdministrationReachable: true, isSingleWorkspace: false,
   };
-  assert.deepEqual(folded(administrationFor({ ...base, isOnePerson: true })).sort(),
-    ['link-types', 'runs', 'voice', 'webhooks']);
-  // Webhooks in use: voice would be alone under *More*, and a group folds two rows or none.
-  assert.deepEqual(folded(administrationFor({ ...base, isOnePerson: true, inUse: ['webhooks'] })).sort(),
-    ['link-types', 'runs']);
-  // Unknown is not one person: nothing folds while the workspace is still being read.
-  assert.deepEqual(folded(administrationFor(base)), []);
-  assert.deepEqual(folded(administrationFor({ ...base, hasSeveralPeople: true, isOnePerson: false })), []);
-  // Folded rows are still rows, so the palette, which reads the same list, finds them.
-  const ids = administrationFor({ ...base, isOnePerson: true }).flatMap((group) => group.rows.map((row) => row.id));
-  assert.ok(ids.includes('voice') && ids.includes('templates'));
+  const ids = administrationFor(base).flatMap((group) => group.rows.map((row) => row.id));
+  for (const id of ['link-types', 'runs', 'voice', 'webhooks', 'templates']) assert.ok(ids.includes(id), id);
 });
 
 test('the Android app keeps the administration\'s and the installation\'s rows, and leaves them to the web app (UC-SYN-07 check 7)', () => {
@@ -614,4 +601,11 @@ test('a For you count never says 0, and says n+ where its read goes on', () => {
   assert.equal(figureCount(0), undefined);
   assert.equal(figureCount(5), '5');
   assert.equal(figureCount(50, true), '50+');
+});
+
+test('the installation column marks Modules, not Defaults, on the modules section', () => {
+  const groups = instanceSection({ isSingleWorkspace: false });
+  assert.equal(currentRow(groups, { name: 'instance-settings-section', path: '/instance/settings/module' }), 'modules');
+  assert.equal(currentRow(groups, { name: 'instance-settings-section', path: '/instance/settings/legal' }), 'settings');
+  assert.equal(currentRow(groups, { name: 'instance-settings', path: '/instance/settings' }), 'settings');
 });

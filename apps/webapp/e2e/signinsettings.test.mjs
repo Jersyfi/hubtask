@@ -354,7 +354,8 @@ test('chromium: each tab saves its own rows, and the legal links are their own p
 
   await page.goto(`${served.origin}/administration/legal`);
   await page.getByLabel('Imprint', { exact: true }).waitFor();
-  assert.deepEqual(await sectionNames(page), ['Legal links'], 'the legal page lists a sign-in section');
+  // One section, so no list of sections at all (design-system.md §11.8): neither its own name nor a sign-in one.
+  assert.deepEqual(await sectionNames(page), [], 'the legal page lists sections');
   assert.equal(await page.getByLabel('Minimum length', { exact: true }).count(), 0);
   const trail = await page.getByRole('navigation', { name: 'Where you are in the administration' }).innerText();
   assert.match(trail, /Legal links/, trail);

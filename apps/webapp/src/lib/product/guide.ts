@@ -11,7 +11,7 @@
 
 /** The products whose first use links the guide. */
 const GUIDED: ReadonlySet<string> = new Set([
-  'PLANNING', 'KNOWLEDGE', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'TIME', 'GOALS', 'AGENTS',
+  'PLANNING', 'KNOWLEDGE', 'POSTS', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'TIME', 'GOALS', 'AGENTS',
 ]);
 
 /** The documentation address for a product's guide, or none where either is missing. */

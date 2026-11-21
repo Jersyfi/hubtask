@@ -142,8 +142,8 @@
 </script>
 
 {#snippet inside()}
-  <!-- The concept's surface: one band across the whole width naming the most pressing state, the
-       lines under it on one indent, and at most one action (design-system.md §11.6). -->
+  <!-- The concept's surface: one band across the panel naming the most pressing state, the lines
+       under it on the band's inner edge, and at most one action (design-system.md §11.6). -->
   <div class="panel" data-tone={toneShown}>
     <p class="band" data-tone={toneShown}>
       <span class="mark" data-spin={bandMark === 'loader-circle' ? '' : undefined}><Icon name={bandMark} size="sm" /></span>
@@ -235,8 +235,10 @@
     color: var(--text-secondary);
   }
 
-  /* The surface's padding is given back so the band runs edge to edge, as the concept draws it. */
-  .panel { min-inline-size: 30ch; margin: calc(var(--sp-200) * -1); }
+  /* Inside its surface's own padding, whichever surface holds it - the popover's or a phone's
+     sheet, whose padding differs - rather than reaching out by one of them: given back by the
+     popover's, it stood past the sheet's edges on a phone. */
+  .panel { display: grid; gap: var(--sp-150); min-inline-size: min(30ch, 100%); }
 
   /* The one control: a mark, a count where anything waits, and a dot where anything was refused.
      Drawn as `IconButton` draws one - the same square target, the same radius, the same hover -
@@ -303,7 +305,8 @@
     align-items: center;
     gap: var(--sp-100);
     margin: 0;
-    padding: var(--sp-150) var(--sp-200);
+    padding: var(--sp-100) var(--sp-150);
+    border-radius: var(--r-md);
     font-size: var(--fs-100);
     font-weight: var(--fw-semibold);
   }
@@ -313,12 +316,13 @@
   .band[data-tone='warn'] { background: var(--status-warning-surface); color: var(--status-warning-text); }
   .band[data-tone='bad'] { background: var(--status-danger-surface); color: var(--status-danger-text); }
 
-  /* The lines under the band, on the band's text edge. */
+  /* The lines under the band, on the band's own inner edge: one indent in every state and on every
+     surface, never one that guesses at the width of the band's mark. */
   .body {
     display: flex;
     flex-direction: column;
     gap: var(--sp-050);
-    padding: var(--sp-150) var(--sp-200) var(--sp-200) calc(var(--sp-200) + var(--fs-100) + var(--sp-100));
+    padding-inline: var(--sp-150);
     color: var(--text-secondary);
     font-size: var(--fs-075);
   }

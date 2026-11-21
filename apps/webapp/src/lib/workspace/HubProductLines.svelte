@@ -4,8 +4,8 @@
   // A hub's overview shows its tools as tiles (work-surface concept §6.1, E-6, scene `hub`): each
   // with one figure, a line and a small picture - the week's bars for time, the goal's progress.
   // What each says (user-experience.md §7.9, the navigation concept §2.4): the plan's running sprint or next release, the desks' open and breaching
-  // requests, the inventory, the reader's own time this week, the goals pursued, and the pages and
-  // boards changed this week, each with the way to its tool's page or *All contents*. Each
+  // requests, the inventory, the reader's own time this week, the goals pursued, the posts not read yet, and
+  // the pages and boards changed this week, each with the way to its tool's page or *All contents*. Each
   // line is what the product's own read answered; a line not answered yet is not drawn, rather
   // than a guess (P-11). The boards' list is drawn only where it came whole.
 
@@ -24,6 +24,7 @@
   import { boardsPath } from '../data/whiteboards.svelte.ts';
   import { queueQuery } from '../servicedesk/queues.ts';
   import { pagesPath } from '../data/pages.svelte.ts';
+  import { hubPostsPath, sectionPosts, unreadCount } from '../data/posts.ts';
   import { releasesPath } from '../data/releases.svelte.ts';
   import { sprintsPath } from '../data/sprints.svelte.ts';
   import { weekOf } from '../data/due.ts';
@@ -34,7 +35,7 @@
   import { sprintDaysLeft } from '../today.ts';
   import { boardsChangedSince, goalsStanding, nextReleaseOf, pagesChangedSince, sprintsRunning } from '../product/home.ts';
 
-  import type { CmdbHealth, GoalList, HubQueueList, ItemQueryResult, PageList, ReleaseList, SprintList, TimeReport, WhiteboardList } from '@hubtask/sync-engine';
+  import type { CmdbHealth, GoalList, HubQueueList, ItemQueryResult, PageList, PostList, ReleaseList, SprintList, TimeReport, WhiteboardList } from '@hubtask/sync-engine';
 
   interface Props {
     hubId: string;
@@ -52,6 +53,7 @@
   const desking = $derived(modulesOn.includes('SERVICE_DESK'));
   const timing = $derived(modulesOn.includes('TIME'));
   const aiming = $derived(modulesOn.includes('GOALS'));
+  const posting = $derived(modulesOn.includes('POSTS'));
 
   function follow<T>(path: () => string | undefined, onready: (data: T) => void, body?: () => unknown): void {
     $effect(() => {
@@ -115,6 +117,9 @@
   let goals = $state<GoalList['data'] | undefined>(undefined);
   follow<GoalList>(() => (aiming ? goalsPath(undefined, hubId) : undefined), (data) => (goals = data.data));
 
+  let posts = $state<PostList['data'] | undefined>(undefined);
+  follow<PostList>(() => (posting ? hubPostsPath(hubId) : undefined), (data) => (posts = data.data));
+
   interface Tile {
     readonly id: string; readonly icon: IconName; readonly color: string; readonly product: string; readonly href: string;
     /** The one figure and the word after it: *6 Tage* *bis Sprintende*. */
@@ -162,6 +167,15 @@
         id: 'assets', icon: 'shield', color: 'slate', product: t('app.nav.tool_inventory'), href: `/hubs/${hubId}/inventory`,
         figure: String(health.total), unit: t('app.hub_overview.unit_items'),
         lines: health.total === 0 ? [t('app.hub_overview.assets_none')] : health.problems.length > 0 ? [t('app.assets.figure_wanting', { count: health.problems.length })] : [],
+      });
+    }
+    // The hub's posts: how many the reader has not read, and the newest one's title.
+    if (posting && posts !== undefined) {
+      const newest = sectionPosts(posts, 1)[0];
+      said.push({
+        id: 'posts', icon: 'bell', color: 'blue', product: t('app.posts.nav_section'), href: `/hubs/${hubId}/posts`,
+        figure: String(unreadCount(posts)), unit: t('app.hub_overview.unit_unread'),
+        lines: [newest ? newest.title : t('app.hub_overview.posts_none')],
       });
     }
     // Pages and boards are one tree, so one tile: what changed in it this week, and *All contents*.

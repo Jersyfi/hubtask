@@ -67,8 +67,11 @@
     min-width: 0;
   }
 
-  .page > :global(* + *) { margin-block-start: var(--sp-200); }
-  .page > :global(:is(header, [data-head]):first-child + *) { margin-block-start: var(--sp-150); }
+  /* The class twice: the rhythm is the page's, and a part's own `margin: 0` - a list's reset, as
+     a card grid or a tab's list writes it - would otherwise win by coming later and stand the part
+     flush under the one above. */
+  .page.page > :global(* + *) { margin-block-start: var(--sp-200); }
+  .page.page > :global(:is(header, [data-head]):first-child + *) { margin-block-start: var(--sp-150); }
 
   .refused {
     padding: var(--sp-400) var(--sp-200);

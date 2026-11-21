@@ -11,6 +11,7 @@ import (
 	"time"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -206,4 +207,54 @@ func TestKindsFoundTogetherAddUpLatestFirst(t *testing.T) {
 	if found.Count != 7 || !found.More || len(found.Hits) != 3 || found.Hits[0].Title != "page" || found.Hits[1].Title != "board" || found.Hits[2].Title != "entry" {
 		t.Fatalf("found %+v", found)
 	}
+}
+
+type countedModules struct {
+	asked *int
+	on    map[shared.ID]module.Set
+}
+
+func (c countedModules) On(_ context.Context, _ appshared.ActorContext, hubID shared.ID) (module.Set, error) {
+	*c.asked++
+	set, held := c.on[hubID]
+	if !held {
+		return nil, shared.ErrNotFound
+	}
+	return set, nil
+}
+
+// A finder asks the question which modules a hub has on: once per hub and search, a hub that is
+// gone - or another workspace's - has none, and a search asked without the switches takes every
+// module as on.
+func TestAFinderAsksAHubsModulesOncePerSearch(t *testing.T) {
+	ctx := context.Background()
+	hub, gone := shared.ID("0193a0c0-0000-7000-8000-0000000000a1"), shared.ID("0193a0c0-0000-7000-8000-0000000000a2")
+	asked := 0
+	var answers []bool
+	finder := finderFunc(func(ctx context.Context, actor appshared.ActorContext, q Question) (Found, error) {
+		for _, at := range []shared.ID{hub, hub, gone} {
+			on, err := q.On(ctx, actor, at, module.Posts)
+			if err != nil {
+				return Found{}, err
+			}
+			answers = append(answers, on)
+		}
+		return Found{}, nil
+	})
+	all := SearchAll{Finders: map[string]Finder{KindPost: finder}, Modules: countedModules{asked: &asked, on: map[shared.ID]module.Set{hub: {module.Posts}}}}
+	if _, err := all.Execute(ctx, reader, SearchAllQuery{Words: "news", Kinds: []string{KindPost}}); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(answers, []bool{true, true, false}) || asked != 2 {
+		t.Errorf("answers %v after %d reads, want on, on, off after two", answers, asked)
+	}
+	if on, err := (Question{}).On(ctx, reader, gone, module.Posts); err != nil || !on {
+		t.Errorf("without the switches = %v, %v; want on", on, err)
+	}
+}
+
+type finderFunc func(context.Context, appshared.ActorContext, Question) (Found, error)
+
+func (f finderFunc) Find(ctx context.Context, actor appshared.ActorContext, q Question) (Found, error) {
+	return f(ctx, actor, q)
 }

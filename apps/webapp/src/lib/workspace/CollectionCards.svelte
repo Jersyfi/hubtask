@@ -12,7 +12,7 @@
   // whole card is the link's target, the rest of it is what the link says about the collection.
 
   import { untrack } from 'svelte';
-  import { AvatarGroup } from '@hubtask/design-system/components';
+  import { AvatarGroup, Card } from '@hubtask/design-system/components';
 
   import CollectionFigure from '../entries/CollectionFigure.svelte';
   import ContainerMark from './ContainerMark.svelte';
@@ -71,31 +71,34 @@
     {@const sprint = running[collection.id]}
     {@const share = collection.figure?.kind === 'PROGRESS' ? undefined : sprintShare(collection.id)}
     {@const members = membersOf(collection)}
-    <li class="card" data-card={collection.id}>
-      <div class="top">
-        <a class="name" href={`/collections/${collection.id}`}>
-          <ContainerMark look={collection} hasDefaultTile />
-          <span class="words">
-            <span class="title">{collection.name}</span>
-            {#if collection.description}<span class="description">{collection.description}</span>{/if}
-          </span>
-        </a>
-        {#if members.length > 0}
-          <span class="people" data-card-people aria-hidden="true">
-            <AvatarGroup people={members.map((id) => ({ name: accounts.nameOf(id) ?? t('app.people.unnamed'), src: accounts.pictureOf(id) }))} size="sm" max={4}
-              overflowLabel={t('app.people.more_members', { count: String(Math.max(members.length - 4, 0)) })} />
-          </span>
+    <!-- The overview's one surface, as its tools' tiles have it: a card pressed whole (1′). -->
+    <Card element="li" isPressable padding="md" data-card={collection.id}>
+      <div class="card">
+        <div class="top">
+          <a class="name" href={`/collections/${collection.id}`}>
+            <ContainerMark look={collection} hasDefaultTile />
+            <span class="words">
+              <span class="title">{collection.name}</span>
+              {#if collection.description}<span class="description">{collection.description}</span>{/if}
+            </span>
+          </a>
+          {#if members.length > 0}
+            <span class="people" data-card-people aria-hidden="true">
+              <AvatarGroup people={members.map((id) => ({ name: accounts.nameOf(id) ?? t('app.people.unnamed'), src: accounts.pictureOf(id) }))} size="sm" max={4}
+                overflowLabel={t('app.people.more_members', { count: String(Math.max(members.length - 4, 0)) })} />
+            </span>
+          {/if}
+        </div>
+        {#if collection.figure || sprint || share !== undefined}
+          <div class="figure">
+            {#if collection.figure}<CollectionFigure figure={collection.figure} name={collection.name} />{/if}
+            {#if collection.figure && sprint}<span aria-hidden="true">·</span>{/if}
+            {#if sprint}<span data-card-sprint>{sprint.name}</span>{/if}
+            {#if share !== undefined && sprint}<span class="share" data-card-share>{t('app.workspace.card_done_share', { share })}</span>{/if}
+          </div>
         {/if}
       </div>
-      {#if collection.figure || sprint || share !== undefined}
-        <div class="figure">
-          {#if collection.figure}<CollectionFigure figure={collection.figure} name={collection.name} />{/if}
-          {#if collection.figure && sprint}<span aria-hidden="true">·</span>{/if}
-          {#if sprint}<span data-card-sprint>{sprint.name}</span>{/if}
-          {#if share !== undefined && sprint}<span class="share" data-card-share>{t('app.workspace.card_done_share', { share })}</span>{/if}
-        </div>
-      {/if}
-    </li>
+    </Card>
   {/each}
 </ul>
 
@@ -110,21 +113,11 @@
   }
 
   .card {
-    position: relative;
     display: flex;
+    flex: 1;
     flex-direction: column;
     gap: var(--sp-100);
-    padding: var(--sp-150);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-md);
-    background: var(--bg-raised);
-  }
-
-  .card:hover { border-color: var(--border-default); }
-
-  .card:focus-within {
-    outline: var(--bw-ring) solid var(--focus-ring);
-    outline-offset: var(--bw-ring);
+    min-inline-size: 0;
   }
 
   .name {
@@ -144,8 +137,10 @@
     content: '';
     position: absolute;
     inset: 0;
-    border-radius: inherit;
+    border-radius: var(--r-lg);
   }
+
+  .name:focus-visible::after { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--bw-ring); }
 
   .top { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-100); min-inline-size: 0; }
   .words { display: grid; gap: var(--sp-025); min-inline-size: 0; }

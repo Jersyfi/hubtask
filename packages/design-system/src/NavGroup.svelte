@@ -17,6 +17,8 @@
     readonly tone?: 'more' | 'link';
     /** Applied at once, not yet answered: the *waiting* mark's word (P-11). */
     readonly waitingLabel?: string;
+    /** Not read yet: the dot's word for a screen reader - a post in the hub column. */
+    readonly unreadLabel?: string;
   }
 
   /** A choice of the filter's kind: *All · Pages · Whiteboards*. `all` passes every kind. */
@@ -463,6 +465,7 @@
             badge={node.badge}
             tone={node.tone}
             waitingLabel={node.waitingLabel}
+            unreadLabel={node.unreadLabel}
             isCurrent={node.id === current}
             isMovable={!!onplace && !!canOrder?.(node.id)}
             menu={rowMenu?.(node.id)}

@@ -101,6 +101,7 @@ By default in `Module.Keys()` order, so the section never reorders itself when a
 | WORKFLOWS | — | — | No home: workflows shape entries in every product. Their screens are the administration's *Types & workflows* (§8) and the entry's status |
 | PLANNING | *Plans* | `/plans` | Every plan the reader may read — hub plans and collections with a plan, sprints running, releases due — with their state; *Roadmaps* as a tab |
 | KNOWLEDGE | *Pages* | `/pages` | The page spaces of the hubs the reader may read, recently changed pages, pages waiting for the reader's review; *My notes* as a tab (today `/notes`, which moves there) |
+| POSTS | *Posts* | `/posts` | What is new for the reader across hubs, the posts gone out newest first; every post and the hubs with posts on as *All* |
 | WHITEBOARD | *Whiteboards* | `/whiteboards` | Every board the reader may read, as preview cards, recent first |
 | SERVICE_DESK | *Service desk* | `/desk` | The handler's queues across every desk collection the reader works in: *Mine*, *Unassigned in my groups*, *About to breach*, *All open*, as saved views; the desks as a tab |
 | ASSETS | *Inventory* | `/assets` | The inventory across hubs and its objects, with a health summary at the top |
@@ -111,7 +112,7 @@ By default in `Module.Keys()` order, so the section never reorders itself when a
 **Each home shows its product across every hub**; what belongs to the workspace or the person
 lives there and never in a hub, with the shared vocabulary of tabs of §5.1 (*For you* first where
 the product holds personal work, *Settings* last): Plans *For you · Sprints · Releases · Roadmaps*;
-Pages *For you · Spaces · My notes*; Whiteboards *For you · All · Templates*; Service desk *For you ·
+Pages *For you · Spaces · My notes*; Posts *For you · All*; Whiteboards *For you · All · Templates*; Service desk *For you ·
 Desks · Reports · Settings*; Inventory *Inventory · Object types · Sources · Settings*; Time *My week · To
 decide · Report · Absences · Settings*; Goals *Goals · Portfolios · Dashboards*; Agents *Agents ·
 Waiting · Runs · Settings*. The rows are ordered personally by drag or `Alt+↑/↓`, and a row's ⋯
@@ -162,8 +163,11 @@ concept's §2.4 has the tables):
    (*All · Pages · Whiteboards*); modes *Tree*, *Recently changed*, *A–Z*, personal; *All contents*
    opens the table.
 5. ***Posts*** at the foot (the work-surface concept's one exception to the navigation, B-2): the
-   three newest published posts, an unread one with its dot, then *All posts*; shown where the hub
-   has a published post or the reader may write one (§7.12).
+   published posts newest first, an unread one with its dot, bounded as *Contents* is at every
+   width - three, then *N more*; ⋯ beside the count holds *All posts* and ＋ writes one, on a phone
+   *All* stands at the head and *N more* opens the posts. Shown where POSTS is on at the hub; with
+   no published post, only to whoever may write one, as one quiet row (*Write the first post*)
+   (§7.12).
 
 A part appears only where its product is on at the hub; an empty part only for whoever may create
 in it, as one quiet row (*Create the first page*). **One view bar per object**: a collection, a tool
@@ -1173,7 +1177,9 @@ zone) and *Inventory* (the inventory's total and what needs attention), each lea
 and drawn only once its read answered; *Whiteboards* (the boards changed since the week began,
 drawn only where the hub's list came whole), *Desk* (the desks' open requests and those about to
 breach, as the desk's queues count them), *Time* (the reader's own time recorded here this week)
-and *Goals* (the goals pursued, and how many of them are at risk or off track). Below the cards,
+and *Goals* (the goals pursued, and how many of them are at risk or off track), and *Posts* (how
+many of the hub's published posts the reader has not read, and the newest one's title, or *Nothing
+posted yet*), leading to the hub's *Posts* where POSTS is on there. Below the cards,
 *Recently changed* names the five entries of the hub's collections changed last, as the generic
 query answers them for the reader.
 
@@ -1247,7 +1253,11 @@ changes -, and the report with *See the plan* or *Open the inventory*. Mockup: `
 ### 7.12 Posts
 
 A post is a page with a date (domain-model.md §3.8; UC-DOC-17, UC-DOC-18), written in the pages'
-editor and read in the pages' reading layout, so it needs no editor or reader of its own. A hub's
+editor and read in the pages' reading layout, so it needs no editor or reader of its own. Posts are
+a module of their own, POSTS, switched like every module (§2.8, UC-INS-21) and needing KNOWLEDGE,
+as the desk needs WORKFLOWS: switched off, a hub's *Posts*, the column's section, its overview tile,
+*Today*'s *New for you* and the posts' search kind are gone, and every post operation is refused
+with `module.off`. A hub's
 posts are its *Posts* (`/hubs/{id}/posts`): the featured ones first, then newest first, each with
 its cover, excerpt, writer, date and reading time, narrowed by *All · Unread · By me · Scheduled*
 (*Scheduled* only for its writers). Writing starts from *Blank* or a post template; *Publish* asks
@@ -1278,9 +1288,8 @@ The six groups of `configuration/ui.md` §1 stay. Inside them:
   last tab, their old addresses replaced by the tab (`movedTo`). *How we work* keeps *Templates*,
   *Modules* (each module's switch, its card of §2.8, and *Settings* linking to the product's tab),
   *Types & workflows*, *Calendars & SLAs* where shared by several products, *Rules*.
-* **Advanced rows fold under *More*** in their group — link types, rule runs, presets, limits,
-  machines and apps, voice, webhooks — until one is used in this workspace or the workspace holds
-  more than five people. Folded rows are still found by the palette and the settings search.
+* **Every row is drawn** in its group — link types, rule runs, presets, limits, machines and
+  apps, voice and webhooks included; no row hides under a *More* (§8.9).
 
 ### 8.3 Specific screens
 
@@ -1404,14 +1413,9 @@ workspace's — English*), so leaving it says what it means.
 
 ### 8.9 The column, backup and the installation, as built
 
-* **The column's *More*** (§8.2): link types, rule runs, limits, machines and apps, voice and
-  webhooks are advanced rows. They fold under their group's *More* only while the workspace is
-  known to hold one person — the server answers whether there are several (`several_people`), not
-  how many, so "more than five" is read as "more than one", and nothing folds while that answer is
-  still being read. A row already used here stays out (webhooks, where one exists); a group folds
-  two rows or none, since a *More* over one row hides as much as it shows; a reader standing on a
-  folded row finds its *More* open. *Templates* is not folded: it is where a newcomer starts. The
-  palette lists every row, folded or not.
+* **The column has no *More*** (§8.2): every row of the administration and of the installation
+  is drawn, advanced or not, so a reader never looks for a screen behind a fold. The owner
+  withdrew the folding of the advanced rows on 2026-11-20; the palette lists the same rows.
 * **Backup's guided start** (§8.3): the empty screen's one act adds a target in the installation's
   backup volume (`LOCAL`, path `workspaces`, encrypted) and a schedule on it as
   `backup-restore.md` §4's example — incremental every night at 3:00 in the browser's zone, full on
@@ -1662,7 +1666,7 @@ section of the design system it changes, and is walked against the mockups befor
 
 **The administration**
 
-29. The overview's *Getting started* and the folded *More* rows; products' settings moved to their
+29. The overview's *Getting started* and the column without a *More*; products' settings moved to their
     homes (§8.1, §8.2).
 30. Backup's guided start, the mail wording, delivery state and *Copy invitation link* (§8.3).
 31. The installation: health in words, the upgrade row, backlogs, usage, *Templates*, *Modules*,

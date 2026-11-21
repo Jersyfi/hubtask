@@ -304,8 +304,9 @@
     {@render body()}
   </Sheet>
 {:else}
-  <!-- Wide, it hangs from the bar's *Erstellen*, as the scene draws it (create d). -->
-  <Dialog size="l" title={t('app.create.title')} dismissLabel={t('app.create.close')} isOpen={isOpen} onClose={() => create.close()} hangsFrom={viewport.isBelowExpanded ? undefined : create.button}>
+  <!-- Wide, it stands in the middle of the window as every dialog does: hung from the bar's
+       *Erstellen*, its end on the button's end, it stood off to one side (the owner, 2026-11-20). -->
+  <Dialog size="l" title={t('app.create.title')} dismissLabel={t('app.create.close')} isOpen={isOpen} onClose={() => create.close()}>
     {@render body()}
   </Dialog>
 {/if}

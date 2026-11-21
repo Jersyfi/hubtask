@@ -507,7 +507,7 @@ otherwise.
 
 ### Wave 7 — the work surface
 `StateLozenge` · `StatusButton` · `ObjectHead` · `Property` · `PropertyRail` · `JumpMarks` ·
-`StepBar` · `FoldingSection` · `ProductBand` · `Widget` · `WidgetStrip` · `SummaryStrip` · `Composer` · `QueryLine` · `PriorityMark` ·
+`StepBar` · `FoldingSection` · `ProductBand` · `Card` · `Widget` · `WidgetStrip` · `SummaryStrip` · `Composer` · `QueryLine` · `PriorityMark` ·
 `DeadlineBar` · `DeadlineList` · `DensitySwitch` · `TrustLine` · `PageOutline` · `FloatingBar` · `FloatingToolbar` ·
 `BlockHandle` · `BoxPopover` · `InsertList` · `LiveBlock`
 
@@ -565,6 +565,10 @@ and every behaviour a test can hold lives in a module beside them: `lozenge.ts`,
   (`ProductTile` `xl` through `product.<id>`) as its mark and the figures as its line, the first
   set bold. On a phone the tile is smaller, two figures stay, and the primary floats above the
   bottom bar as every page's does.
+* **`Card`** — the one surface of a region or an item (the surfaces and levels, 1 and 1′):
+  `bg.surface`, a `border.subtle` hairline, `r.lg`, no shadow, and pressed whole the hover of an
+  item. `Widget` stands on it, and so does every tile beside one - a collection's card, *What
+  happened* on the hub overview - so an overview never mixes two surfaces in either theme.
 * **`Widget`** — one anatomy for Today and the overview (§6.1): tile, title, a quiet count, the one
   act as a button, the figure, a line, the content. With a figure it is a card of Today's strip;
   with content, a tile. While loading its place is held by lines (`aria-busy`). A widget whose
@@ -1102,7 +1106,7 @@ outside a region, nothing in two.
 |---|---|---|
 | *For you* | Today, Inbox, *Waiting for your yes* (where a module producing approvals is on) | Fixed at the top on both levels. Search is the palette's field |
 | The workspace level | *Recent* (a flyout), *Starred* (from the first star), *Products* (one row per product switched on, by default in `Module.Keys()` order, personally ordered and hidden), *Hubs* (the shared order or personally *Recently visited* / *A–Z*; 12, then *n more*; ＋ makes a hub) | The scrolling middle, on Today, search, the inbox, a product home |
-| The hub level | the hub's head (*‹ All hubs*, mark, name with the quick switch, ☆, ⋯), *Overview* and the tools in their fixed order (*Queues*, *Plan*, *Inventory*, *Time*, *Goals*), *Collections*, *Contents* | The scrolling middle, on anything of a hub |
+| The hub level | the hub's head (*‹ All hubs*, mark, name with the quick switch, ☆, ⋯), *Overview* and the tools in their fixed order (*Queues*, *Plan*, *Inventory*, *Time*, *Goals*), *Collections*, *Contents*, *Posts* at the foot (where POSTS is on) | The scrolling middle, on anything of a hub |
 | The foot | *Administration*, only where the manifest's `workspace_permissions` carry `STRUCTURE` or the auditor's `READ_CONFIGURATION` - an address under `/administration` typed by anybody else answers as one that reaches nothing; *Archive*, *Trash* | Fixed at the foot on every width, after a hairline — where a reader looks when something is **missing** |
 
 A row is 30 px high with a 7 px radius; each level indents 12 px, growing to the sixth level and no
@@ -1302,10 +1306,10 @@ mark says only that there is something; pressed it says all of it in a `Popover`
 | Offline | The struck cloud, `status.warning` — tinted like reconnecting, not a filled block: working offline is a state the product is built for | That it is not connected |
 | Something was refused | The mark with a `status.danger` dot | That there is something to read |
 
-Pressed: one band across the whole surface naming the most pressing of six states, in this order — a
+Pressed: one rounded band across the panel naming the most pressing of six states, in this order — a
 conflict (`status.warning`, the two-way mark), changes not accepted (`status.danger`), offline,
 reconnecting (both `status.warning`), synchronising (the brand tint) and all synchronised
-(`status.success`). Under it, on the band's text edge: the count and the age of the oldest change,
+(`status.success`). Under it, on the band's inner edge — one indent on the popover and the phone's sheet alike: the count and the age of the oldest change,
 each waiting change on one quiet line, or the last synchronisation; a refusal as the entry's name and
 the reason. **At most one action per state**: *Try again* while not connected, *Open the entry* for a
 refusal (with *Dismiss* beside it), *Resolve* for a conflict. **Connected means the stream was
@@ -1418,7 +1422,8 @@ figure its own head shows (UC-WRK-29); one column on `compact`.
 shape (`SettingsLayout`) — the sections as a list at the start saying each one's state, the open
 one beside it with its own save bar, each at its own address; the sections are never links into
 one long page. Below `expanded` the list is the page and a section opens as its own with *‹ back*,
-the tablet's portrait width included (D-4). One save model per section (PS-10); a setting is one
+the tablet's portrait width included (D-4). A page of one section — the administration's legal
+links — draws no list: the section stands alone across the page, with no way back to a list. One save model per section (PS-10); a setting is one
 row, its name, source and help beside its control at the control's width (PS-11, PS-13). The sections are one list in one order
 (`user-experience.md` §5.7; `lib/workspace/placeSections.ts`, its test pinning the order per level):
 a collection's *General · Templates and presets · Types & forms · Fields · Labels · Entry templates · Workflow ·

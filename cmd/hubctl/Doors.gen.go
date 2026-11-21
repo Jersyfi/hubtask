@@ -105,7 +105,7 @@ var generatedCommands = []door{
 			{Name: "display_name", Kind: "string", Help: "", Required: true},
 			{Name: "left_out", Kind: "strings", Help: "The features the plan leaves out", Required: false},
 			{Name: "legal", Kind: "json", Help: "", Required: false},
-			{Name: "module", Kind: "json", Help: "The modules by name (`workflows`, `planning`, `knowledge`, `whiteboard`, `service_desk`, `assets`, …", Required: false},
+			{Name: "module", Kind: "json", Help: "The modules by name (`workflows`, `planning`, `knowledge`, `posts`, `whiteboard`, `service_desk`, …", Required: false},
 			{Name: "name", Kind: "string", Help: "The short name, which never changes and is never reused", Required: true},
 			{Name: "quotas", Kind: "json", Help: "", Required: false},
 			{Name: "sign_in", Kind: "json", Help: "", Required: false},

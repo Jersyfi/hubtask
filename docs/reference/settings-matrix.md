@@ -180,6 +180,10 @@ one workspace, by person and place.
 | `module.knowledge` | PLAN | `admin:instance` | the installation's operators |
 | `module.knowledge` | WORKSPACE | `STRUCTURE` | OWNER, ADMIN |
 | `module.knowledge` | HUB | `STRUCTURE` | OWNER, ADMIN |
+| `module.posts` | INSTANCE | `admin:instance` | the installation's operators |
+| `module.posts` | PLAN | `admin:instance` | the installation's operators |
+| `module.posts` | WORKSPACE | `STRUCTURE` | OWNER, ADMIN |
+| `module.posts` | HUB | `STRUCTURE` | OWNER, ADMIN |
 | `module.whiteboard` | INSTANCE | `admin:instance` | the installation's operators |
 | `module.whiteboard` | PLAN | `admin:instance` | the installation's operators |
 | `module.whiteboard` | WORKSPACE | `STRUCTURE` | OWNER, ADMIN |
