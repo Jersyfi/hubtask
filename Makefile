@@ -483,12 +483,15 @@ gate-unit:
 # statements` - with a leading tab that awk drops - so `$$2` named the package in the first case
 # and printed `coverage:` in the second. That is the case the threshold exists for, and it was the
 # one whose message did not say which package had failed it.
+#
+# In CI the figures also go to the job's summary (GITHUB_STEP_SUMMARY): the layer's lowest package
+# and every package's percentage. Reported there and nowhere else - no badge, no service.
 .PHONY: coverage-check
 coverage-check:
 	@pkgs="$$($(GO) list $(PKG) 2>/dev/null)"; \
 	if [ -z "$$pkgs" ]; then echo "coverage $(PKG): no packages yet - skipped"; exit 0; fi; \
 	out="$$($(GO) test -covermode=atomic -cover $$pkgs 2>&1)" || { echo "$$out"; exit 1; }; \
-	echo "$$out" | awk -v min="$(MIN)" ' \
+	echo "$$out" | awk -v min="$(MIN)" -v layer="$(PKG)" -v summary="$$GITHUB_STEP_SUMMARY" ' \
 		{ pkg = ($$1 == "ok" || $$1 == "?" || $$1 == "FAIL") ? $$2 : $$1 } \
 		/\[no test files\]/ { printf("  %s: no test file at all\n", pkg); failed=1; next } \
 		/coverage:/ { \
@@ -496,9 +499,16 @@ coverage-check:
 			if (value ~ /statements/ || value ~ /\[/) next; \
 			gsub(/%/, "", value); \
 			if (value + 0 < min + 0) { printf("  %s: %s%% below the %s%% threshold\n", pkg, value, min); failed=1 } \
-			else printf("  %s: %s%%\n", pkg, value) \
+			else printf("  %s: %s%%\n", pkg, value); \
+			n++; if (n == 1 || value + 0 < lowest + 0) { lowest = value; lowestpkg = pkg } \
+			rows = rows sprintf("| `%s` | %s %% |\n", pkg, value) \
 		} \
-		END { if (failed) { print "coverage $(PKG): below the threshold"; exit 1 } }'
+		END { \
+			if (summary != "" && n > 0) { \
+				printf("### Coverage of `%s`\n\n%d packages, each held to %s %%. The lowest: `%s` at %s %%.\n\n", layer, n, min, lowestpkg, lowest) >> summary; \
+				printf("<details><summary>Every package</summary>\n\n| Package | Statements covered |\n|---|---|\n%s\n</details>\n\n", rows) >> summary \
+			} \
+			if (failed) { print "coverage $(PKG): below the threshold"; exit 1 } }'
 
 ## gate-sdk: The generated Python SDK parses
 # `make generate` writes it and `gate-quick` catches a drift, so what the contract produces is
