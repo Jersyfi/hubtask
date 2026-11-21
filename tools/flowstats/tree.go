@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"regexp"
 	"sort"
@@ -124,17 +125,91 @@ func treePart(found map[string]measure, w window) error {
 		}
 		found[id] = measure{now: now, before: before}
 	}
-	for _, id := range []string{"unreachable_go_functions", "unused_translation_keys"} {
-		found[id] = measure{now: untooled[id], before: untooled[id]}
-	}
+	atCheckout := unmeasured("read at the checkout only")
+	found["unreachable_go_functions"] = measure{now: unreachable(), before: atCheckout}
+	found["unused_workspace_code"] = measure{now: unusedInWorkspace(), before: atCheckout}
+	keys := unmeasured("no tool in the repository counts them")
+	found["unused_translation_keys"] = measure{now: keys, before: keys}
 	return nil
 }
 
-// untooled are the two counts of engineering-guidelines.md §3 whose tools the repository does not
-// hold yet.
-var untooled = map[string]value{
-	"unreachable_go_functions": unmeasured("`deadcode` is not among the tools `make tools` pins"),
-	"unused_translation_keys":  unmeasured("no tool in the repository counts them, and Knip is not a dependency of the workspace"),
+// The two reports of engineering-guidelines.md §3 a tool proves (`make deadcode`, `make unused`).
+// Each is run where its tool is installed and says so where it is not.
+const (
+	deadcodeTool = ".tools/deadcode"
+	unusedTool   = "node_modules/.bin/knip"
+)
+
+func runTool(name string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), callTimeout)
+	defer cancel()
+	var stderr bytes.Buffer
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // G204: a pinned tool of this repository with fixed arguments
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		lines := strings.Split(strings.TrimSpace(stderr.String()), "\n")
+		return nil, fmt.Errorf("%w: %s", err, lines[len(lines)-1])
+	}
+	return out, nil
+}
+
+func unreachable() value {
+	if _, err := os.Stat(deadcodeTool); err != nil {
+		return unmeasured("`deadcode` is not installed here (`make tools`)")
+	}
+	out, err := runTool(deadcodeTool, "./...")
+	if err != nil {
+		return unmeasured("`deadcode` failed: %v", err)
+	}
+	return count(unreachableIn(out))
+}
+
+// unreachableIn counts the functions deadcode lists, one a line.
+func unreachableIn(out []byte) int {
+	n := 0
+	for _, row := range strings.Split(string(out), "\n") {
+		if strings.Contains(row, "unreachable func: ") {
+			n++
+		}
+	}
+	return n
+}
+
+func unusedInWorkspace() value {
+	if _, err := os.Stat(unusedTool); err != nil {
+		return unmeasured("the workspace's dependencies are not installed here (`pnpm install`)")
+	}
+	out, err := runTool(unusedTool, "--no-exit-code", "--reporter", "json")
+	if err != nil {
+		return unmeasured("the workspace's tool failed: %v", err)
+	}
+	v, err := unusedIn(out)
+	if err != nil {
+		return unmeasured("the workspace's tool printed no report: %v", err)
+	}
+	return v
+}
+
+// unusedIn adds up the report's unused files, exports and exported types.
+func unusedIn(report []byte) (value, error) {
+	var read struct {
+		Issues []struct {
+			Files   []json.RawMessage
+			Exports []json.RawMessage
+			Types   []json.RawMessage
+		}
+	}
+	if err := json.Unmarshal(report, &read); err != nil {
+		return value{}, err
+	}
+	files, exports, types := 0, 0, 0
+	for _, i := range read.Issues {
+		files, exports, types = files+len(i.Files), exports+len(i.Exports), types+len(i.Types)
+	}
+	v := count(files + exports + types)
+	v.text += fmt.Sprintf(" (%d files, %d exports, %d types)", files, exports, types)
+	return v, nil
 }
 
 var (

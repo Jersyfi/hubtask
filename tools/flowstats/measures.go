@@ -71,6 +71,7 @@ var rows = []struct {
 	{"comment_blocks", "Comment blocks of twenty lines or more", false},
 	{"lost_tests", "Tests deleted or skipped in merged pull requests", true},
 	{"unreachable_go_functions", "Unreachable Go functions", false},
+	{"unused_workspace_code", "Unused files, exports and types of the TypeScript workspace", false},
 	{"unused_translation_keys", "Unused translation keys", false},
 	{"outside_reviewer_comments", "Outside reviewer: comments made", true},
 	{"outside_reviewer_share", "Outside reviewer: share of comments that led to a change", true},

@@ -47,3 +47,33 @@ func TestTreeValuesOfACommitWithoutTheFiles(t *testing.T) {
 		}
 	}
 }
+
+// What `deadcode` prints, reduced: one function a line, and nothing else counts.
+func TestUnreachableIn(t *testing.T) {
+	out := "presentation/rest/Middleware.go:67:16: unreachable func: Chain.ServeHTTP\npresentation/worker/Runner.go:197:17: unreachable func: Runner.round\n\n"
+	if got := unreachableIn([]byte(out)); got != 2 {
+		t.Errorf("%d unreachable functions, want 2", got)
+	}
+	if got := unreachableIn(nil); got != 0 {
+		t.Errorf("%d unreachable functions in no output", got)
+	}
+}
+
+// The workspace tool's JSON report, reduced to two files' issues.
+func TestUnusedIn(t *testing.T) {
+	report := `{"issues": [
+ {"file": "apps/webapp/src/lib/old.ts", "owners": [], "files": [{"name": "apps/webapp/src/lib/old.ts"}], "dependencies": [], "exports": [], "types": []},
+ {"file": "packages/query/src/index.ts", "owners": [], "files": [], "dependencies": [{"name": "left"}],
+  "exports": [{"name": "parseOld", "line": 4}, {"name": "format", "line": 9}], "types": [{"name": "Old", "line": 2}]}
+]}`
+	got, err := unusedIn([]byte(report))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.numeric || got.n != 4 || got.String() != "4 (1 files, 2 exports, 1 types)" {
+		t.Errorf("unused: %v %q", got.n, got)
+	}
+	if _, err := unusedIn([]byte("ERROR: no report")); err == nil {
+		t.Error("an error message reads as a report")
+	}
+}

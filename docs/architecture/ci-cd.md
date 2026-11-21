@@ -550,6 +550,7 @@ value: the rule is about the rise.
 | Comment blocks of twenty lines or more | `comment_blocks` | does not rise |
 | Tests deleted or skipped in merged pull requests | `lost_tests` | reported |
 | Unreachable Go functions | `unreachable_go_functions` | reported |
+| Unused files, exports and types of the TypeScript workspace | `unused_workspace_code` | reported |
 | Unused translation keys | `unused_translation_keys` | reported |
 | Outside reviewer: comments made | `outside_reviewer_comments` | reported |
 | Outside reviewer: share of comments that led to a change | `outside_reviewer_share` | reported |
@@ -600,12 +601,21 @@ How each measure is read:
   by the reading `make gate-pr` holds a branch to and with its limits: both tools call
   `tools/losttests`. So a test renamed in place or moved is not reported, a deleted test file is
   one row, and a skip added inside a test the base had is reported under that test's name.
+* **The two cleanup counts** are read at the checkout only. Neither is a bound: what a tool
+  lists is removed in a pull request of its own (`.agents/skills/tidy/SKILL.md`).
 * **Issues and alerts** are counted as they are when the report runs, so they have no value for
   the window before.
 
 **Not measured** is printed with its reason, never as a zero:
 
-* Unreachable Go functions: `deadcode` is not among the tools `make tools` pins.
+* Unreachable Go functions where `deadcode` is not installed. `make tools` pins it and
+  `make deadcode` lists what it finds: the functions no binary reaches in the default build
+  configuration, the tests left out, so a function only a test calls is listed. The weekly job
+  installs it (`make tools-deadcode`).
+* Unused files, exports and types of the TypeScript workspace where the workspace's
+  dependencies are not installed. Knip is a development dependency of the workspace root, and
+  `make unused` lists what it finds, unused dependencies included. The weekly job does not
+  install the workspace, so this row is measured by a local run only.
 * Unused translation keys: no tool in the repository counts them.
 * The outside reviewer's comments where no login was given: the tool names no product, so
   `flow.yml` passes the login (`-reviewer`), as a local run does through `FLOWSTATS_ARGS`. With

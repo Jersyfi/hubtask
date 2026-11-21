@@ -41,6 +41,9 @@ jobs:
         with:
           go-version: "1.27.4"
           cache: true
+      # The one tool the report runs. The workspace is not installed here, so the count of unused
+      # TypeScript is a local run's.
+      - run: make tools-deadcode
       # Seven whole days that end yesterday. The transcripts are on the owner's machine only. The
       # outside reviewer's login is given here: the tool names no product. -file-as is the login
       # this token acts as: the tool takes only issues that login opened for its own, since

@@ -41,6 +41,10 @@ GO_LICENSES_VERSION   := v1.6.0
 # through the module proxy with the checksum database vouching for it; a development tool that never
 # ships in the product.
 OASDIFF_VERSION       := v1.33.0
+# deadcode lists the functions no binary reaches (`make deadcode`, ci-cd.md §11). The Go team's
+# own tool, installed like the others; it feeds a report and never a gate. v0.53.0 does not load
+# the standard library of Go 1.27.4 ("requires go1.26 or later"), so the pin is the release before.
+DEADCODE_VERSION      := v0.52.0
 # promtool cannot be installed with `go install`: the Prometheus module carries replace
 # directives, which the tool refuses. So it comes as the project's own release archive, pinned by
 # version *and* by checksum - a download without one is a supply chain decision made by whoever
@@ -97,8 +101,8 @@ endef
 TOOLS_PINS  := golangci-lint@$(GOLANGCI_LINT_VERSION) oapi-codegen@$(OAPI_CODEGEN_VERSION) \
 	sqlc@$(SQLC_VERSION) goose@$(GOOSE_VERSION) govulncheck@$(GOVULNCHECK_VERSION) \
 	actionlint@$(ACTIONLINT_VERSION) helm@$(HELM_VERSION) go-licenses@$(GO_LICENSES_VERSION) \
-	promtool@$(PROMTOOL_VERSION) oasdiff@$(OASDIFF_VERSION)
-# What the stamp records: the pins, and the Go that compiled them. Nine of the ten are built
+	promtool@$(PROMTOOL_VERSION) oasdiff@$(OASDIFF_VERSION) deadcode@$(DEADCODE_VERSION)
+# What the stamp records: the pins, and the Go that compiled them. Ten of the eleven are built
 # from source, so a moved toolchain is as much a reason to install again as a moved pin - and a
 # directory restored from a cache says nothing about which Go built it.
 TOOLS_IDENTITY := $(shell $(GO) env GOVERSION) $(TOOLS_PINS)
@@ -119,6 +123,7 @@ tools:
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/google/go-licenses@$(GO_LICENSES_VERSION)
 	@$(MAKE) --no-print-directory tools-promtool
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/oasdiff/oasdiff@$(OASDIFF_VERSION)
+	@$(MAKE) --no-print-directory tools-deadcode
 	@printf '%s\n' "$(TOOLS_IDENTITY)" > $(TOOLS_STAMP)
 	@echo "tools: $(TOOLS_DIR) holds the pinned set"
 
@@ -160,6 +165,13 @@ tools-ensure:
 tools-licenses:
 	@mkdir -p $(TOOLS_DIR)
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/google/go-licenses@$(GO_LICENSES_VERSION)
+
+## tools-deadcode: deadcode on its own, for the weekly flow report
+# The report's job needs this one tool and none of the others (as tools-helm, tools-licenses).
+.PHONY: tools-deadcode
+tools-deadcode:
+	@mkdir -p $(TOOLS_DIR)
+	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install golang.org/x/tools/cmd/deadcode@$(DEADCODE_VERSION)
 
 ## tools-node: Install pnpm into .tools (only needed to work on apps/ or packages/)
 # Deliberately not a dependency of `make tools`. A backend-only contributor never needs a
@@ -998,6 +1010,24 @@ gate-docs:
 .PHONY: gate-numbers
 gate-numbers:
 	$(GO) run ./tools/numbers $(if $(BASE),-base $(BASE),) $(if $(PR),-pr $(PR),) $(if $(filter 0,$(OPEN)),-open=false,)
+
+## deadcode: List the Go functions no binary reaches (a report, not a gate)
+# For the default build configuration, without the tests: a function only a test calls is listed.
+# The flow report prints the count (ci-cd.md §11). What is listed is removed in a pull request of
+# its own (.agents/skills/tidy/SKILL.md), never in passing.
+.PHONY: deadcode
+deadcode:
+	$(call require_tool,deadcode)
+	@$(TOOLS_DIR)/deadcode ./...
+
+## unused: List the files, exports and dependencies nothing in the TypeScript workspace uses (a report, not a gate)
+# Knip, a development dependency of the workspace root, pinned in package.json and the lockfile.
+# Its `knip` key in package.json switches its Vite plugin off for the two clients: it cannot load their configuration
+# outside a SvelteKit build. The flow report prints the count where the workspace is installed.
+.PHONY: unused
+unused:
+	@test -n "$(PNPM)" || { echo "pnpm is missing - run 'make tools-node'"; exit 1; }
+	@$(PNPM) exec knip --no-exit-code
 
 ## flowstats: The flow report of a window beside the one before it (SINCE=, UNTIL=; needs gh)
 # Not a gate: a report (ci-cd.md §11). The weekly job passes FLOWSTATS_ARGS to leave the
