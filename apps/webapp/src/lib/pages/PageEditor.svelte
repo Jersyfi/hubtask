@@ -228,6 +228,16 @@
     timer = setTimeout(() => void save(markdown), SAVE_AFTER_MS);
   }
 
+  /**
+   * Forgets what waits to be saved, for a page about to go to the trash: a save after the delete
+   * is refused. Counting the text as saved, rather than stopping saves, keeps a page whose trash
+   * was refused writable.
+   */
+  export function dropPending() {
+    clearTimeout(timer);
+    if (editor) lastSaved = markdownOf(editor);
+  }
+
   async function save(markdown: string) {
     void resolve(markdown);
     if (markdown === lastSaved) return;
