@@ -62,17 +62,27 @@ func badgeLevel(answer []byte) value {
 	return value{n: float64(rank), numeric: true, text: project.Level}
 }
 
-// fetchBadge asks the badge site for a project. Rule 6 guards the server's outbound calls
-// (T-07); this tool is not part of the server and asks one fixed host for a number-named page.
+// badgeSite is the one host this tool asks. Rule 6 guards the server's outbound calls (T-07);
+// this tool is not part of the server and asks for a number-named page.
+const badgeSite = "https://www.bestpractices.dev"
+
 func fetchBadge(project int) ([]byte, error) {
+	return fetchBadgeFrom(badgeSite, project)
+}
+
+// fetchBadgeFrom follows no redirect: an answer from another host is no answer.
+func fetchBadgeFrom(site string, project int) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), badgeTimeout)
 	defer cancel()
-	url := fmt.Sprintf("https://www.bestpractices.dev/projects/%d.json", project)
+	url := fmt.Sprintf("%s/projects/%d.json", site, project)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
-	client := &http.Client{Timeout: badgeTimeout}
+	client := &http.Client{
+		Timeout:       badgeTimeout,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("the badge site did not answer")

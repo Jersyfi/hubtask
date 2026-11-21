@@ -5,6 +5,8 @@ package main
 
 import (
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -101,5 +103,31 @@ func TestBadgeThresholdsAreRefused(t *testing.T) {
 		if _, err := parseThresholds([]byte(data)); err == nil {
 			t.Errorf("%s is accepted: %s", name, data)
 		}
+	}
+}
+
+// The fetch itself, against a site that answers, refuses and sends elsewhere.
+func TestTheBadgeFetchTakesOnlyThePagesOwnAnswer(t *testing.T) {
+	site := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/projects/7.json":
+			_, _ = w.Write([]byte(`{"badge_level":"passing"}`))
+		case "/projects/8.json":
+			http.Redirect(w, r, "/projects/7.json", http.StatusFound)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer site.Close()
+
+	answer, err := fetchBadgeFrom(site.URL, 7)
+	if err != nil || string(answer) != `{"badge_level":"passing"}` {
+		t.Fatalf("the page's answer was not returned: %q, %v", answer, err)
+	}
+	if _, err := fetchBadgeFrom(site.URL, 8); err == nil {
+		t.Error("a redirect was followed")
+	}
+	if _, err := fetchBadgeFrom(site.URL, 9); err == nil {
+		t.Error("a missing project gave an answer")
 	}
 }
