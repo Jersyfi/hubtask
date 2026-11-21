@@ -33,8 +33,10 @@ The vision behind this, the people it is for and the settings it must work in ar
 [![CI](https://github.com/Jersyfi/hubtask/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Jersyfi/hubtask/actions/workflows/ci.yml?query=branch%3Amain)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Jersyfi/hubtask/badge)](https://scorecard.dev/viewer/?uri=github.com/Jersyfi/hubtask)
 
-* [The proof state](./docs/reference/proof-state.md) counts the use cases by state and the checks a
-  test proves. It is generated, and no figure in it rises without a test that cites a check.
+* The proof state counts the use cases by state and the checks cited by a test or a document that
+  proves them. `make proof-state` prints it, and the
+  [weekly flow report](https://github.com/Jersyfi/hubtask/issues?q=is%3Aissue+in%3Atitle+%22Flow+report%22+author%3Aapp%2Fgithub-actions)
+  carries it. No figure in it rises without a file that cites a check.
 * The Scorecard figure is middling: three of its checks need a second person, and Hubtask has one
   maintainer. The badge links to the result of each check.
 * A release's image is signed and carries its build provenance and a bill of materials

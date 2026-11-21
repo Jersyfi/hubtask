@@ -84,10 +84,10 @@ The links point at `main`, so they resolve once the change that adds a file has 
 | `build_floss_tools` | Met | Every build tool is FLOSS. | <https://github.com/Jersyfi/hubtask/blob/main/Makefile> |
 | `test` | Met | `make gate-unit` and the suites under `test/`, all in the repository under Apache-2.0. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/engineering-guidelines.md> |
 | `test_invocation` | Met | `go test ./...`, `pnpm -r test`, and `make check`. | <https://github.com/Jersyfi/hubtask/blob/main/AGENTS.md> |
-| `test_most` | Met | Coverage thresholds per package (85 % domain, 75 % application), and the proof state counts the use case checks a test cites. | <https://github.com/Jersyfi/hubtask/blob/main/docs/reference/proof-state.md> |
+| `test_most` | Met | Coverage thresholds per package (85 % domain, 75 % application), and the proof state (`make proof-state`, the weekly flow report) counts the use case checks a `checked_by` file cites. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/ci-cd.md#12-what-the-repository-shows> |
 | `test_continuous_integration` | Met | `ci.yml` on every ready pull request and every push to `main`. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/ci-cd.md> |
 | `test_policy` | Met | The loop for every task, step 5: tests for the domain, each repository method and each use case check. | <https://github.com/Jersyfi/hubtask/blob/main/AGENTS.md> |
-| `tests_are_added` | Met | The use cases' `checked_by` names the tests added with each change; the proof state counts them. | <https://github.com/Jersyfi/hubtask/blob/main/docs/reference/proof-state.md> |
+| `tests_are_added` | Met | The use cases' `checked_by` names the tests added with each change; the proof state counts the checks they cite. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/ci-cd.md#12-what-the-repository-shows> |
 | `tests_documented_added` | Met | The Definition of Done and AGENTS.md's loop. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/engineering-guidelines.md> |
 | `warnings` | Met | `golangci-lint` for Go, ESLint and `tsc` for TypeScript. | <https://github.com/Jersyfi/hubtask/blob/main/.golangci.yml> |
 | `warnings_fixed` | Met | `make gate-quick` fails on any finding; none is carried. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/ci-cd.md> |

@@ -52,7 +52,7 @@ no model added to CI.
 | D-10 | A change removes what it makes unused. What a tool proves unused is removed in a pull request of its own. Nothing is removed on a model's judgement. A deleted or weakened test is named in the description. |
 | D-11 | Two tools report unused code: the Go team's `deadcode` at a pinned version, and Knip as a development dependency of the workspace. |
 | D-12 | CodeRabbit comments on a pull request after the independent review, for a trial of four weeks. It is no required check and decides nothing. The owner installs the app. |
-| D-13 | The README shows the CI state, the OpenSSF Scorecard, the proof state generated from the use cases, and how to verify a release. |
+| D-13 | The README shows the CI state, the OpenSSF Scorecard, the proof state printed from the use cases and carried by the weekly flow report, and how to verify a release. |
 | D-14 | Coverage stays a gate at its thresholds and is reported, not badged; no coverage service. CodeQL also reads the clients' languages and the workflows. |
 | D-15 | A worker obtains the OpenSSF Best Practices badge from start to end. Nothing shown may need the owner's upkeep; only a consent given under the owner's identity is the owner's act. |
 

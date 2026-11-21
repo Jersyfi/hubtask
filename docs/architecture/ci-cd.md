@@ -322,9 +322,10 @@ so what merged meanwhile is first checked by `main`'s own run. Four things keep 
   if it was never applied anywhere.
 
 Generated and shared files keep no counts (the event matrix, the coverage report): two clean merges
-would add up wrong. The proof state (§12) is the exception, because its figures are its purpose.
-Each figure stands on a line of its own, so two pull requests that change one conflict, and
-`make generate` on the merged tree resolves it. Integration deploys every push to `main` while `main`'s run is still going, so it
+would add up wrong. Two pull requests that make the same edit to such a file merge without a
+conflict and leave it stale, and pull requests merge without catching up with `main`
+([ADR-0083](../adr/ADR-0083-a-merge-without-catching-up.md)). So the proof
+state (§12) is printed and never committed. Integration deploys every push to `main` while `main`'s run is still going, so it
 may run an untested combination for those minutes ([deployment.md](./deployment.md) §3).
 
 ---
@@ -637,10 +638,12 @@ How each measure is read:
 A figure is shown only if a machine produces it and nobody is asked to raise it. The README's
 section "Quality and security" holds all of it, in under fifteen lines.
 
-* **The proof state**, [`docs/reference/proof-state.md`](../reference/proof-state.md): the use
-  cases by state, the checks a file in `checked_by` cites, and the bounds that only fall.
-  `make generate` writes it from the documentation gate's own reading (`tools/checkdocs`), so
-  `quick` fails on a stale page, and `make gate-docs` does too.
+* **The proof state**: the use cases by state, the checks a file in `checked_by` cites - a test,
+  or an evidence document, a script or a workflow where no test can make the run - and the bounds
+  that only fall. `make proof-state` prints it from the documentation gate's own reading
+  (`tools/checkdocs`). The `docs` job writes it to the summary of each run on `main`, and the
+  weekly flow report (§11) carries it as its last part, so the README links to that report's
+  issue. It is no committed page (§3.5).
 * **OpenSSF Scorecard**, `scorecard.yml`. The Scorecard service refuses a published result unless
   the workflow keeps its rules: no `env` or `defaults` at the top level or on the job, no write
   permission at the top level, `id-token: write` on that job alone, no container or service, a
