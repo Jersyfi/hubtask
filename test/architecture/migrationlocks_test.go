@@ -14,10 +14,10 @@ import (
 	"testing"
 )
 
-// lastReleasedMigration is the highest migration the last release (v0.10.0) carries. A table it
+// lastReleasedMigration is the highest migration the last release (v0.10.2) carries. A table it
 // created holds an operator's data, and a migration after it must not take a lock on that table
 // that stops writes for the length of a scan (versioning-release.md §4). Raised with each release.
-const lastReleasedMigration = 441
+const lastReleasedMigration = 445
 
 // mergedBeforeTheCheck are main's migrations of milestones CD and F7, merged before this check met
 // them. A merged migration never changes (rule 12): the lock each takes on its released table is
