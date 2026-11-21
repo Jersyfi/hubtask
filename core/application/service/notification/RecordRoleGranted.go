@@ -63,6 +63,11 @@ func (r RecordRoleGranted) RoleGranted(ctx context.Context, grant identity.Grant
 	if err != nil {
 		return err
 	}
+	if decision.Send {
+		if decision, err = r.unlessInvited(ctx, grant.AccountID, decision); err != nil {
+			return err
+		}
+	}
 	if !decision.Send {
 		written = written.Suppress(decision.Reason)
 	}
@@ -87,4 +92,19 @@ func (r RecordRoleGranted) RoleGranted(ctx context.Context, grant identity.Grant
 		Payload:     map[string]any{"notification_id": written.ID.String()},
 	})
 	return err
+}
+
+// unlessInvited holds back the mail for a person whose invitation is still open: the invitation is
+// the one mail a newcomer gets, and the role is there when they arrive.
+func (r RecordRoleGranted) unlessInvited(
+	ctx context.Context, accountID shared.ID, decision domain.Decision,
+) (domain.Decision, error) {
+	account, err := r.Accounts.Find(ctx, accountID)
+	if err != nil {
+		return domain.Decision{}, err
+	}
+	if account.Status == identity.AccountInvited {
+		return domain.Decision{Reason: domain.ReasonRecipientInvited}, nil
+	}
+	return decision, nil
 }

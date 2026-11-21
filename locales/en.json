@@ -1396,6 +1396,7 @@
   "notifications.replaced_by_link": "Set aside: the invitation was handed over as a link instead.",
   "notifications.no_mail_server": "This installation sends no email, so nothing was sent.",
   "notifications.self_caused": "You did this yourself, so nothing was sent.",
+  "notifications.recipient_invited": "The invitation is still open; it is the only mail sent until it is accepted.",
   "notifications.delivery_failed": "This message could not be delivered.",
   "notifications.payload_malformed": "This installation could not read an event it was announcing.",
   "notifications.job_without_tenant": "This installation could not send a message: the job named no workspace.",

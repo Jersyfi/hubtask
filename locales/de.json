@@ -899,6 +899,7 @@
   "notifications.replaced_by_link": "Zurückgestellt: Die Einladung wurde stattdessen als Link weitergegeben.",
   "notifications.no_mail_server": "Diese Installation verschickt keine E-Mails, darum wurde nichts verschickt.",
   "notifications.self_caused": "Das hast du selbst getan, darum wurde nichts verschickt.",
+  "notifications.recipient_invited": "Die Einladung ist noch offen; bis sie angenommen ist, geht nur sie als Mail hinaus.",
   "notifications.delivery_failed": "Diese Nachricht ließ sich nicht zustellen.",
   "notifications.payload_malformed": "Diese Installation konnte ein Ereignis, das sie bekannt geben wollte, nicht lesen.",
   "notifications.job_without_tenant": "Diese Installation konnte keine Nachricht verschicken: Der Auftrag hat keinen Arbeitsbereich genannt.",
