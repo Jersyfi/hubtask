@@ -9,12 +9,10 @@ import (
 	"time"
 )
 
-// The baseline of the browser walks' answers outside the contract only shrinks (ci-cd.md §3.2,
-// `engines`): the test that reads it refuses an answer it does not hold, and this rule refuses
-// the other way out - writing the answer into the baseline.
-//
-// Open: a suite renamed carries its entries to a new name, which reads as added; its answers are
-// then fixed with the rename.
+// The baseline of the browser walks' answers outside the contract only shrinks (ci-cd.md §3,
+// `engines`, and §3.1 for this rule): the test that reads it refuses an answer it does not hold,
+// and this rule refuses the other way out - writing the answer into the baseline. An entry names
+// a kind, an operation and a status and no suite, so a renamed suite changes nothing here.
 
 // walkBaselinePath is the baseline test/contract reads.
 const walkBaselinePath = "test/contract/testdata/walks-baseline.txt"

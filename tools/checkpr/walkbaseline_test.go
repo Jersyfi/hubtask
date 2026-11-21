@@ -9,10 +9,10 @@ import (
 	"time"
 )
 
-const baselineText = "# known answers\na body-mismatch GET /x 200\nb status-undeclared GET /y 500\n"
+const baselineText = "# known answers\nbody-mismatch GET /x 200\nstatus-undeclared GET /y 500\n"
 
 func TestAddedBaselineEntries(t *testing.T) {
-	removed := "# known answers\na body-mismatch GET /x 200\n"
+	removed := "# known answers\nbody-mismatch GET /x 200\n"
 	if added := addedBaselineEntries(baselineText, removed); len(added) != 0 {
 		t.Fatalf("a removed entry was read as added: %v", added)
 	}
@@ -20,8 +20,8 @@ func TestAddedBaselineEntries(t *testing.T) {
 	if added := addedBaselineEntries(baselineText, commented); len(added) != 0 {
 		t.Fatalf("a comment was read as an entry: %v", added)
 	}
-	grown := baselineText + "c body-mismatch GET /z 200\n"
-	if added := addedBaselineEntries(baselineText, grown); len(added) != 1 || added[0] != "c body-mismatch GET /z 200" {
+	grown := baselineText + "body-mismatch GET /z 200\n"
+	if added := addedBaselineEntries(baselineText, grown); len(added) != 1 || added[0] != "body-mismatch GET /z 200" {
 		t.Fatalf("want the one added entry, got %v", added)
 	}
 }
@@ -46,7 +46,7 @@ func TestReadHistoryWalkBaseline(t *testing.T) {
 	r.run("checkout", "-q", "main")
 	r.run("merge", "-q", "--ff-only", "creates")
 	r.run("checkout", "-q", "-b", "removes")
-	r.write(walkBaselinePath, "# known answers\na body-mismatch GET /x 200\n")
+	r.write(walkBaselinePath, "# known answers\nbody-mismatch GET /x 200\n")
 	r.commit("test: one answer corrected")
 	removed, err := readHistory(r.dir, "main", "removes", time.Time{})
 	if err != nil {
@@ -57,7 +57,7 @@ func TestReadHistoryWalkBaseline(t *testing.T) {
 	}
 
 	r.run("checkout", "-q", "-b", "adds", "main")
-	r.write(walkBaselinePath, baselineText+"c body-mismatch GET /z 200\n")
+	r.write(walkBaselinePath, baselineText+"body-mismatch GET /z 200\n")
 	r.commit("test: one answer excused")
 	added, err := readHistory(r.dir, "main", "adds", time.Time{})
 	if err != nil {
