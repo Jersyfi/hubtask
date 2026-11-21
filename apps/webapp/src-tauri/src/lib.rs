@@ -150,14 +150,26 @@ fn signin_retire(listeners: State<'_, Listeners>) {
 
 /// The workspace's sign-in or step-up in the system's browser, never in this window.
 #[tauri::command]
-fn open_in_browser(url: String) -> Result<(), String> {
+fn open_in_browser(app: tauri::AppHandle, url: String) -> Result<(), String> {
     if !signin::openable(&url) {
         return Err("signin.address_refused".to_string());
     }
     #[cfg(feature = "walk")]
-    let opened = walk::open(&url).map_err(|_| ());
-    #[cfg(not(feature = "walk"))]
-    let opened = tauri_plugin_opener::open_url(url, None::<&str>).map_err(|_| ());
+    let opened = {
+        let _ = app;
+        walk::open(&url).map_err(|_| ())
+    };
+    // Android has no program to hand a link to: only the plugin's own activity intent opens it.
+    #[cfg(all(not(feature = "walk"), target_os = "android"))]
+    let opened = {
+        use tauri_plugin_opener::OpenerExt;
+        app.opener().open_url(url, None::<&str>).map_err(|_| ())
+    };
+    #[cfg(all(not(feature = "walk"), not(target_os = "android")))]
+    let opened = {
+        let _ = app;
+        tauri_plugin_opener::open_url(url, None::<&str>).map_err(|_| ())
+    };
     opened.map_err(|()| "signin.browser_unavailable".to_string())
 }
 
@@ -305,6 +317,7 @@ pub fn run() {
     #[cfg(target_os = "android")]
     let builder = builder
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(android::plugin());
     #[cfg(not(target_os = "android"))]
     let builder = builder
