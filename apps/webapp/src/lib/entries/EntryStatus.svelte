@@ -10,20 +10,21 @@
   import { tick, untrack } from 'svelte';
   import { Banner, Button, Dialog, Input, Stack, StatusButton } from '@hubtask/design-system/components';
   import type { WorkflowStep } from '@hubtask/design-system/components';
-  import type { EntrySteps, StepVerdict, WorkItem } from '@hubtask/sync-engine';
+  import type { EntrySteps, ResourceState, StepVerdict, WorkItem } from '@hubtask/sync-engine';
   import { accounts } from '../data/accounts.svelte.ts';
+  import { manifest } from '../data/capabilities.svelte.ts';
   import { customFields } from '../data/customfields.svelte.ts';
   import { fieldName } from '../data/customfields.ts';
   import { groups } from '../data/groups.svelte.ts';
   import { items } from '../data/items.svelte.ts';
-  import { resource } from '../data/resource.svelte.ts';
+  import { modules } from '../data/modules.svelte.ts';
   import { workflows } from '../data/workflows.svelte.ts';
   import { statusLabel } from '../data/workflows.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { roleLabel } from '../people/rolewords.ts';
   import { renderProblem } from '../problem.ts';
-  import { readSteps } from './entrysteps.ts';
+  import { defaultSteps, readSteps, stepsAskable } from './entrysteps.ts';
   import WorkflowPicture from './WorkflowPicture.svelte';
 
   interface Props {
@@ -49,9 +50,22 @@
 
   let { item, runs = $bindable(false), next = $bindable(undefined), second = $bindable(undefined), offersSecond = false, oncomplete, disabledReason, reasonSaidAt, onnavigate }: Props = $props();
 
-  // Keyed on the entry by its caller, so the path is fixed for its life.
-  const read = resource<EntrySteps>(untrack(() => `/items/${item.id}/steps`));
-  const answer = $derived(read.state.status === 'ready' ? read.state.data : undefined);
+  // Keyed on the entry by its caller, so the entry is fixed for its life. Where workflows are off
+  // the steps are not asked (the server refuses them) and the default flow holds.
+  const itemId = untrack(() => item.id);
+  let placeOn = $state<readonly string[] | null | undefined>(undefined);
+  $effect(() => untrack(() => modules.here(item.collection_id, (next) => {
+    if (next.status === 'ready') placeOn = next.data.modules_on;
+    else if (next.status === 'failed') placeOn = null;
+  })));
+  const askable = $derived(stepsAskable(manifest.value?.modules_on, placeOn));
+  let stepsState = $state<ResourceState<EntrySteps> | undefined>(undefined);
+  $effect(() => {
+    if (askable !== true) return;
+    return untrack(() => workflows.steps(itemId, (next) => (stepsState = next)));
+  });
+  const refreshSteps = () => (askable === true ? workflows.refreshSteps(itemId) : Promise.resolve());
+  const answer = $derived(askable === true && stepsState?.status === 'ready' ? stepsState.data : undefined);
 
   /** A form key a step names (`due_date`, `custom_fields.<key>`) in the reader's words. */
   function formKeyName(key: string): string {
@@ -95,7 +109,9 @@
           reason: blockedReason,
           doneRoute: (names) => t('app.workflows.done_route', { steps: names.join(' → ') }),
         })
-      : undefined,
+      : askable === false
+        ? defaultSteps(item.completion?.is_completed ?? false, { status: (status) => statusLabel(status, t) })
+        : undefined,
   );
   const verdicts = $derived(new Map((answer?.steps ?? []).map((step) => [step.key, step])));
 
@@ -148,7 +164,7 @@
     try {
       await items.drop(item.id, step.to.id, item.version);
       toast.show({ text: t('app.workflows.step_taken', { name: step.label }), tone: 'success' });
-      void read.refresh();
+      void refreshSteps();
     } catch (error) {
       const rendered = renderProblem(error as never, messages);
       refusal = { message: rendered.message, details: [...rendered.fields.values(), ...(rendered.wholes ?? [])], fields: rendered.fields };
@@ -170,7 +186,7 @@
       asking = undefined;
       values = {};
       toast.show({ text: t('app.workflows.step_taken', { name }), tone: 'success' });
-      void read.refresh();
+      void refreshSteps();
     } catch (error) {
       const rendered = renderProblem(error as never, messages);
       refusal = { message: rendered.message, details: [...rendered.fields.values(), ...(rendered.wholes ?? [])], fields: rendered.fields };
@@ -188,7 +204,7 @@
   $effect(() => {
     if (item.version === seenVersion) return;
     seenVersion = item.version;
-    untrack(() => void read.refresh());
+    untrack(() => void refreshSteps());
   });
 
   $effect(() => {
@@ -197,7 +213,7 @@
 
   $effect(() => {
     second = undefined;
-    if (!model || disabledReason !== undefined || answer?.steps === undefined) {
+    if (!model || disabledReason !== undefined || (askable !== false && answer?.steps === undefined)) {
       next = undefined;
       return;
     }
@@ -221,7 +237,7 @@
   const workflowName = $derived(answer?.workflow ? workflows.list?.data.find((each) => each.key === answer.workflow)?.name : undefined);
 </script>
 
-{#if model && answer}
+{#if model && (answer || askable === false)}
   <span class="status" data-steps data-status={model.current.id}>
     <StatusButton
       current={model.current}
@@ -231,7 +247,7 @@
       menuTitle={model.columns ? t('app.workflows.columns_title') : model.byDefault ? t('app.workflows.default_title') : t('app.workflows.from_status', { status: model.current.label })}
       doneNote={t('app.workflows.done_note')}
       doneHint={model.doneHint}
-      workflow={answer.picture && !model.byDefault ? { label: t('app.workflows.view'), onview: () => (isPictureOpen = true) } : undefined}
+      workflow={answer?.picture && !model.byDefault ? { label: t('app.workflows.view'), onview: () => (isPictureOpen = true) } : undefined}
       {disabledReason}
       {reasonSaidAt}
       onstep={choose}

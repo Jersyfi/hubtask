@@ -9,7 +9,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { EntrySteps } from '@hubtask/sync-engine';
-import { readSteps, type StepWords } from './entrysteps.ts';
+import { defaultSteps, readSteps, stepsAskable, type StepWords } from './entrysteps.ts';
 
 const words: StepWords = {
   status: (status) => status.name ?? `status:${status.key}`,
@@ -84,4 +84,25 @@ test('in a list (L0, state_mode NONE): open and done, no columns', () => {
   const model = readSteps(answer, false, words);
   assert.equal(model.columns, undefined);
   assert.deepEqual(model.statuses?.map((state) => state.category), ['todo', 'done']);
+});
+
+test('workflows off at the workspace or the entry\'s hub: the steps are not asked; on, or the workspace not yet known, they are', () => {
+  assert.equal(stepsAskable(['TASKS'], ['TASKS']), false);
+  assert.equal(stepsAskable(['TASKS', 'WORKFLOWS'], ['TASKS']), false);
+  assert.equal(stepsAskable(['TASKS'], null), false);
+  assert.equal(stepsAskable(['TASKS', 'WORKFLOWS'], ['TASKS', 'WORKFLOWS']), true);
+  assert.equal(stepsAskable(undefined, ['WORKFLOWS']), true);
+  assert.equal(stepsAskable(['WORKFLOWS'], null), true);
+  // The hub's set not yet read: wait rather than ask what may be refused.
+  assert.equal(stepsAskable(['WORKFLOWS'], undefined), undefined);
+});
+
+test('workflows off: the default flow without an answer, done next for an open entry, to do for a done one', () => {
+  const open = defaultSteps(false, words);
+  assert.equal(open.byDefault, true);
+  assert.equal(open.current.id, 'todo');
+  assert.deepEqual(open.steps.map((step) => [step.id, step.isNext]), [['done', true]]);
+  const done = defaultSteps(true, words);
+  assert.equal(done.current.id, 'done');
+  assert.deepEqual(done.steps.map((step) => step.id), ['todo']);
 });
