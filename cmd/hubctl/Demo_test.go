@@ -231,6 +231,26 @@ func TestTheShowcaseTakesATemplateForTheWorkspaceBeforeAHub(t *testing.T) {
 	}
 }
 
+// The procurement template's form requires an amount, so the showcase's order carries one: without
+// it the installation refuses the entry.
+func TestTheShowcasesOrderCarriesTheAmountItsFormRequires(t *testing.T) {
+	s := serveShowcase(t)
+	if code, out, errOut := invoke(t, s.env(), "", "workspace", "demo", "--workspace", "nordlicht"); code != exitOK {
+		t.Fatalf("exit %d: %s %s", code, out, errOut)
+	}
+	for _, write := range s.bodies {
+		if write.body["title"] != "Bürostühle nachbestellen" {
+			continue
+		}
+		fields, _ := write.body["custom_fields"].(map[string]any)
+		if fields["procurement_amount"] == nil {
+			t.Fatalf("the order was written without its amount: %v", write.body)
+		}
+		return
+	}
+	t.Fatal("the showcase wrote no order")
+}
+
 // With --voices, what other people say is left to them in order - their comments and a
 // requester's request - and the signed-in person's writes that wait for one follow it.
 func TestTheShowcaseLeavesOtherPeoplesWordsToThem(t *testing.T) {
