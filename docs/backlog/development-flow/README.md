@@ -932,7 +932,11 @@ instead (§5.6).
 
 **What the first manual run shows**, read off it by the orchestrator: that its `CI by hand`
 leaves the pull request's required check alone, and that `api-compat` and `numbers` find their
-base on a branch.
+base on a branch. The first run (2026-11-21, head `fafe6b1b2`) has 45 jobs: 41 pass, and two are
+skipped by design, `Dependency review` and `Pull request description`, which need a pull request.
+`The client runs in Chromium (1/3)` fails on one walk of `whiteboardwork`, so `CI by hand` fails.
+The walk read the person on a task card before the person's name had arrived; it now waits for
+the initials. `make gate-walks` passes in all three shards on the runner.
 
 **What can only be seen after the merge**, and is checked then by the orchestrator or the next
 worker: the first Scorecard result and its badge, which exist only once the workflow has run on `main`;
