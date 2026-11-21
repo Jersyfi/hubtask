@@ -479,8 +479,9 @@ The review is added to the author's own check against the rules no gate checks
 3. The test rules: the levels of `engineering-guidelines.md` §1, the walk rules, `make proof`.
 4. Whether a structural change had its brief, and whether the build followed it.
 5. For a screen with a mockup: the rendered mockup beside the running screen, region by region.
-6. The text: every sentence in `docs/`, a nested `AGENTS.md` or a comment that the diff makes
-   false; every removed paragraph — false, or said elsewhere?; new text against the writing rules
+6. The text: every sentence that the diff makes false — in `docs/`, an `AGENTS.md`, a skill, a
+   root Markdown file, a help comment of the `Makefile`, a workflow, `scripts/` or a comment in
+   the code; every removed paragraph — false, or said elsewhere?; new text against the writing rules
    (§5.9).
 7. What was left behind and what was taken away: code the change orphaned; every deleted, skipped
    or weakened test, with the reason the description gives (§5.10).
@@ -636,7 +637,7 @@ struck-through line. Three cases, three different permissions:
 
 | The text is … | In the change that causes it | Safeguard |
 |---|---|---|
-| **False now** | Rewritten or deleted — owed | Found by searching `docs/`, the nested `AGENTS.md` and comments for every name the change renames or removes (operation, setting, table, message code, section number). The reviewer runs the same search independently. |
+| **False now** | Rewritten or deleted — owed | Found by searching every tracked file for every name the change renames or removes (operation, setting, table, message code, section number): `docs/`, every `AGENTS.md`, the skills, the root Markdown files, the `Makefile`'s help comments, the workflows, `scripts/` and the comments in the code. The reviewer runs the same search independently. |
 | **True, and said elsewhere too** | May become a link | Only after reading that the other place really says it |
 | **True and said only here, but looks unnecessary** | **Not touched in passing** | Belongs to a tidy pass (§5.10) |
 

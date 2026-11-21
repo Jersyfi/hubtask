@@ -17,11 +17,16 @@ for the owner's word.
 ## 2. The sentences the change made false
 
 For each name the change renames or removes — an operation, a setting, a table, a message code, a
-section number — search the documents and the comments:
+section number — search every tracked file:
 
 ```bash
-git grep -n "<name>" -- docs '*AGENTS.md' '*.go' '*.ts' '*.svelte' '*.mjs' '*.sql'
+git grep -n "<name>"
 ```
+
+That reaches each place a sentence can sit: `docs/`, every `AGENTS.md`, the skills under
+`.agents/skills/`, the Markdown files at the root (`README.md`, `CONTRIBUTING.md`, `SECURITY.md`),
+the help comments of the `Makefile`, the workflows under `.github/`, `scripts/`, and the comments
+in the code.
 
 Rewrite or delete each sentence that is false from this change on. Do not append a correcting
 paragraph or an "update" note. A sentence that is true and only looks unnecessary stays

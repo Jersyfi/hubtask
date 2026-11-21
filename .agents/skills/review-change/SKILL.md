@@ -33,9 +33,11 @@ other code runs in a worktree of your own.
 5. **The look.** For a screen with a mockup: the rendered mockup beside the running screen at the
    same width, region by region — spacing, proportions, sizes, focus styling, states.
 6. **The text.** Three things:
-   - every sentence in `docs/`, in an `AGENTS.md` or in a comment that the diff makes false. Search
-     for each name the diff renames or removes: an operation, a setting, a table, a message code, a
-     section number;
+   - every sentence the diff makes false. Search every tracked file (`git grep -n "<name>"`) for
+     each name the diff renames or removes: an operation, a setting, a table, a message code, a
+     section number. That reaches `docs/`, every `AGENTS.md`, the skills under `.agents/skills/`,
+     the Markdown files at the root, the help comments of the `Makefile`, the workflows under
+     `.github/`, `scripts/`, and the comments in the code;
    - every removed paragraph: was it false, or is it said elsewhere? Report each one you cannot
      answer;
    - the text the diff adds, against `docs/README.md`, "How to write".

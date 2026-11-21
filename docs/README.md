@@ -64,7 +64,7 @@ line.
 
 | The text is | In the change that causes it | What keeps it safe |
 |---|---|---|
-| False from this change on | Rewritten or deleted | The author searches `docs/`, every `AGENTS.md` and the comments for each name the change renames or removes: an operation, a setting, a table, a message code, a section number. The reviewer runs the same search on its own. |
+| False from this change on | Rewritten or deleted | The author searches every tracked file (`git grep`) for each name the change renames or removes: an operation, a setting, a table, a message code, a section number. That reaches `docs/`, every `AGENTS.md`, the skills, the Markdown files at the root, the `Makefile`'s help comments, the workflows, `scripts/` and the comments in the code. The reviewer runs the same search on its own. |
 | True, and said in another place too | May become a link | Only after reading that the other place says it |
 | True, said only here, and seemingly unnecessary | Left as it is | It waits for a tidy pass: one document per pull request, no rule changed (`.agents/skills/tidy/SKILL.md`) |
 
