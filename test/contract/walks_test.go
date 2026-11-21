@@ -31,7 +31,7 @@ func TestTheWalkJudgeNamesEachWayOutOfTheContract(t *testing.T) {
 	full := `{"status":"ok","version":"0.1.0","dependencies":[]}`
 	elsewhere := health(200, full)
 	elsewhere.Path = "/meta/horoscope/01a0e2e0-0000-7000-8000-000000000001/7"
-	stream := "text/event-stream"
+	stream, lines, plainJSON := "text/event-stream", "application/x-ndjson; charset=utf-8", "application/json"
 
 	cases := []struct {
 		name   string
@@ -46,7 +46,11 @@ func TestTheWalkJudgeNamesEachWayOutOfTheContract(t *testing.T) {
 		{"a body that is not JSON", health(200, "<html>"), "body-mismatch GET /meta/health 200"},
 		{"a refusal that is no problem", health(403, `{"oops":true}`), "body-mismatch GET /meta/health 403"},
 		{"a body the record does not hold", walkAnswer{Method: "GET", Path: "/meta/health", Status: 200, BodyFrom: "path"}, ""},
-		{"a media type the contract declares no JSON for", walkAnswer{Method: "GET", Path: "/meta/health", Status: 200, ContentType: &stream}, ""},
+		{"a media type the response does not declare", walkAnswer{Method: "GET", Path: "/meta/health", Status: 200, ContentType: &stream}, "content-type-undeclared GET /meta/health 200"},
+		{"JSON where the response declares none", walkAnswer{Method: "POST", Path: "/sync:snapshot", Status: 200, ContentType: &plainJSON, Body: &full}, "content-type-undeclared POST /sync:snapshot 200"},
+		{"a problem as plain JSON is judged as the problem", health(403, `{"oops":true}`), "body-mismatch GET /meta/health 403"},
+		{"a declared media type that is not JSON", walkAnswer{Method: "POST", Path: "/sync:snapshot", Status: 200, ContentType: &lines, Body: &full}, ""},
+		{"no media type at all", walkAnswer{Method: "GET", Path: "/meta/health", Status: 200, Body: &full}, ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -134,12 +138,14 @@ func TestTheWalksAnswerWithinTheContract(t *testing.T) {
 		t.Errorf("%s is not sorted", walkBaselinePath)
 	}
 
-	answers, guesses := 0, 0
+	answers, guesses, lines := 0, 0, 0
 	for _, suite := range records {
 		answers += len(suite)
 		for _, answer := range suite {
 			if answer.Guess {
 				guesses++
+			} else if mediaTypeOf(answer.ContentType) == "application/x-ndjson" {
+				lines++
 			}
 		}
 	}
@@ -147,8 +153,8 @@ func TestTheWalksAnswerWithinTheContract(t *testing.T) {
 	for _, violation := range found {
 		kinds[violation.Kind]++
 	}
-	t.Logf("%d suites, %d distinct answers, %d of them the fixture's guesses, which are not judged; outside the contract, by operation and status: %d unknown operations, %d undeclared statuses, %d bodies",
-		len(records), answers, guesses, kinds[unknownOperation], kinds[statusUndeclared], kinds[bodyMismatch])
+	t.Logf("%d suites, %d distinct answers; not judged: %d guesses of the fixture, the bodies of %d answers in application/x-ndjson; outside the contract, by operation and status: %d unknown operations, %d undeclared statuses, %d undeclared content types, %d bodies",
+		len(records), answers, guesses, lines, kinds[unknownOperation], kinds[statusUndeclared], kinds[contentTypeUndeclared], kinds[bodyMismatch])
 
 	unknown, notMet := againstBaseline(found, baseline)
 	for _, violation := range unknown {

@@ -38,11 +38,12 @@ type walkAnswer struct {
 	Guess bool `json:"guess"`
 }
 
-// The three ways an answer leaves the contract.
+// The four ways an answer leaves the contract.
 const (
-	unknownOperation = "unknown-operation"
-	statusUndeclared = "status-undeclared"
-	bodyMismatch     = "body-mismatch"
+	unknownOperation      = "unknown-operation"
+	statusUndeclared      = "status-undeclared"
+	contentTypeUndeclared = "content-type-undeclared"
+	bodyMismatch          = "body-mismatch"
 )
 
 // walkViolation is one way the walks' answers leave the contract. Its key names the kind, the
@@ -142,33 +143,42 @@ func isJSON(mediaType string) bool {
 	return mediaType == "application/json" || strings.HasSuffix(mediaType, "+json")
 }
 
-// bodySchema picks the schema an answer's body is held to: the one declared for its own media
-// type, else the declared JSON one - a stub that answers a problem as plain `application/json` is
-// still judged as a problem. Nil where the contract declares no JSON body for the status.
-func bodySchema(declared *response, contentType *string) *schema {
-	if contentType != nil {
-		mediaType := strings.TrimSpace(strings.Split(*contentType, ";")[0])
-		if content, ok := declared.Content[mediaType]; ok {
-			if isJSON(mediaType) {
-				return content.Schema
-			}
-			return nil
+// mediaTypeOf is a content type without its parameters, or "" where the answer names none.
+func mediaTypeOf(contentType *string) string {
+	if contentType == nil {
+		return ""
+	}
+	return strings.TrimSpace(strings.Split(*contentType, ";")[0])
+}
+
+// bodySchema picks the schema an answer's body is held to, and says whether the response allows
+// the answer's media type at all. The schema is the one declared for that media type, else the
+// declared JSON one - a stub that answers a problem as plain `application/json` is still judged
+// as a problem. It is nil for a declared media type that is not JSON: the contract gives the
+// lines of `application/x-ndjson` no schema.
+func bodySchema(declared *response, mediaType string) (node *schema, allowed bool) {
+	if content, ok := declared.Content[mediaType]; ok {
+		if isJSON(mediaType) {
+			return content.Schema, true
 		}
-		if !isJSON(mediaType) && mediaType != "" {
-			return nil
-		}
+		return nil, true
+	}
+	if mediaType != "" && !isJSON(mediaType) {
+		return nil, false
 	}
 	mediaTypes := make([]string, 0, len(declared.Content))
-	for mediaType := range declared.Content {
-		mediaTypes = append(mediaTypes, mediaType)
+	for declaredType := range declared.Content {
+		mediaTypes = append(mediaTypes, declaredType)
 	}
 	sort.Strings(mediaTypes)
-	for _, mediaType := range mediaTypes {
-		if isJSON(mediaType) {
-			return declared.Content[mediaType].Schema
+	for _, declaredType := range mediaTypes {
+		if isJSON(declaredType) {
+			return declared.Content[declaredType].Schema, true
 		}
 	}
-	return nil
+	// JSON where the response declares none is outside it; an answer that names no media type
+	// has nothing to be held to.
+	return nil, mediaType == ""
 }
 
 // judgeWalkAnswer answers how one recorded answer leaves the contract, or nil.
@@ -192,7 +202,11 @@ func (s *specification) judgeWalkAnswer(operations []walkOperation, answer walkA
 		return violation
 	}
 
-	node := bodySchema(declared, answer.ContentType)
+	node, allowed := bodySchema(declared, mediaTypeOf(answer.ContentType))
+	if !allowed {
+		violation.Kind, violation.Detail = contentTypeUndeclared, fmt.Sprintf("%s declares no %s for the response %d", found.op.OperationID, mediaTypeOf(answer.ContentType), answer.Status)
+		return violation
+	}
 	if node == nil || answer.BodyBase64 != "" || answer.BodyFrom != "" {
 		return nil
 	}
