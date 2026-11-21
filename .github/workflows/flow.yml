@@ -1,0 +1,64 @@
+# The weekly flow report (docs/architecture/ci-cd.md §11): what the last seven days measured beside
+# the seven before, as a comment on one issue, and a `finding` for a measure over its threshold.
+# It files and starts no work, as the nightly does.
+name: Flow report
+
+on:
+  schedule:
+    - cron: "0 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One at a time, and none cancelled: two runs side by side would each find no finding and open
+# two. A second run waits for the first.
+concurrency:
+  group: flow-report
+  cancel-in-progress: false
+
+jobs:
+  report:
+    name: Measure the week, file what is over its threshold
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Read access to what is measured - runs and jobs, pull requests, code scanning alerts - and
+    # write access to issues only. No workflow permission lets this token read secret scanning or
+    # Dependabot alerts; the report says "not measured" for what the API refuses.
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+      security-events: read
+      issues: write
+    steps:
+      # The whole history: the tree is read at the commits the windows started with, and the
+      # tests a pull request took away are read from its merge commit.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.4"
+          cache: true
+      # The one tool the report runs. The workspace is not installed here, so the count of unused
+      # TypeScript is a local run's.
+      - run: make tools-deadcode
+      # Seven whole days that end yesterday. The transcripts are on the owner's machine only. The
+      # outside reviewer's login is given here: the tool names no product. -file-as is the login
+      # this token acts as: the tool takes only issues that login opened for its own, since
+      # anybody can open an issue under the same title.
+      #
+      # The step fails, and with it the job, when GitHub does not answer for the pull requests or
+      # the runs, when an issue cannot be written, and when the report is too long for a comment.
+      # The report is in the step summary before anything is filed.
+      #
+      # The proof state (§12) is printed first, by the documentation gate's own code, and the
+      # report carries it as its last part.
+      - name: Measure and file
+        run: |
+          make proof-state > "$RUNNER_TEMP/proof-state.md"
+          make flowstats SINCE="$(date -u -d '7 days ago' +%F)" UNTIL="$(date -u -d yesterday +%F)" \
+            FLOWSTATS_ARGS="-transcripts= '-reviewer=coderabbitai[bot]' '-file-as=github-actions[bot]' '-append=$RUNNER_TEMP/proof-state.md'" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -22,17 +22,17 @@ GitHub-specific; the pipeline may.
 
 | File | Trigger | Purpose |
 |---|---|---|
-| `ci.yml` | A pull request once it is ready (opened ready, leaving draft, or pushed to while ready); a push to `main` | The pull request gates (§3) |
-| `codeql.yml` | A ready pull request, a push to `main`, weekly | Static security analysis. Not part of `CI required`; a red CodeQL is a finding to fix, not to suppress |
+| `ci.yml` | A pull request once it is ready (opened ready, leaving draft, or pushed to while ready); a push to `main`; manual dispatch on a pushed branch (§3.4) | The pull request gates (§3) |
+| `codeql.yml` | A ready pull request, a push to `main`, weekly | Static security analysis of Go, of JavaScript and TypeScript, and of the workflows, one job per language. Not part of `CI required`; a red CodeQL is a finding to fix, not to suppress |
+| `scorecard.yml` | A push to `main`; weekly (Monday, 06:00 UTC) | OpenSSF Scorecard (§12): reads the repository's supply chain, publishes the result the README's badge shows, and uploads it as code scanning alerts. Not part of `CI required` |
 | `after-ci.yml` | A `ci.yml` run ends; every 15 minutes; manual dispatch | A failed run is re-run once; a red `main` opens the issue "CI: main is red" and holds the green pull requests; a green `main` closes it and re-runs the pull requests that waited (§3.5) |
 | `pr-description-rerun.yml` | A pull request's description or title is edited | If the head commit's latest `ci.yml` run failed, re-runs its description job and `CI required` (§3.1) |
 | `nightly.yml` | Schedule (overnight) | Long runs (§9): `deep` (fuzzing, load, resilience), the `matrix-*` cells, the PITR drill (`make gate-pitr`), the image scan, the action pins; the arm64 cell also runs `make gate-privacy-full` and `make gate-selftest`. A failure files an issue |
+| `flow.yml` | Weekly (Monday, 05:00 UTC); manual dispatch | The flow report (§11): `make flowstats` for the last seven days beside the seven before, as a comment on the issue "Flow report"; a measure over its threshold opens a `finding`. It starts no work |
 | `release.yml` | Tag `v*` | The installed apps built without a secret (`apps`: Windows, Linux, Android); after the `production` environment's approval: the gates again, image, SBOM, signature, provenance, the CSAF advisories and the release record, each signed, chart, the apps signed with the project's keys, one checksum file, GitHub release; then the n8n node to npm and the Zapier app, each only when the owner's account secret (`NPM_TOKEN`, `ZAPIER_DEPLOY_KEY`) is set (UC-INT-11) ([deployment.md](./deployment.md) §7, [security.md](./security.md) §14.2, [versioning-release.md](./versioning-release.md) §3, §9) |
 | `deploy.yml` | Push to `main`, manual dispatch | Builds, signs and verifies the per-commit image and runs `helm upgrade` into `integration` ([deployment.md](./deployment.md) §3) |
 | `website.yml` | Push to `main` touching `apps/website/`, `packages/design-system/`, `security/advisories/` or the lockfile; manual dispatch | Writes the CSAF advisories into the site (`make csaf`), builds `apps/website/dist` and mirrors it to the webspace (§10). A failure files an issue |
 | `workbench.yml` | Push to `main` touching `packages/design-system/`; manual dispatch | Publishes the component workbench to `workbench.hubtask.eu` (§10) |
-| `scorecard.yml` | Schedule | **Planned, not built.** The OpenSSF supply chain scorecard. The file does not exist; the row stays as the plan |
-
 ---
 
 ## 3. Jobs in `ci.yml`
@@ -63,10 +63,10 @@ Every job of `ci.yml`, in file order. `ci-required` waits for all of the others 
 | `security` | `make gate-security` (`govulncheck`, `test/security`: cross-tenant, RLS, SSRF, uploads, authorisation, redaction) and `make gate-privacy` (PG-1, PG-3…PG-6, PG-8) |
 | `data` | `make gate-data` (RE-1…RE-9, BK-1 for every target, SY-1…SY-12, audit) and `make gate-privacy-full` (PG-2, PG-7) |
 | `docs` | `make gate-docs` (§3.1) |
-| `numbers` | `make gate-numbers`: one file per migration and ADR number in the tree; on a pull request, no number it adds that another open pull request adds (§3.5) |
+| `numbers` | `make gate-numbers`: one file per migration and ADR number in the tree; on a pull request and on a manual run, no number the branch adds that another open pull request adds (§3.5) |
 | `pr-description` | `make gate-pr` over the description and the title read from the API; not for Dependabot's pull requests (§3.1) |
 | `node` | Per affected workspace package: the workspace map lint, build, lint, typecheck, test; for the website `make website` first |
-| `engines` | The built web app in Chromium through pinned Playwright ([ADR-0048](../adr/ADR-0048-browser-job-driver.md)), asserting [ADR-0044](../adr/ADR-0044-browser-support-row.md)'s feature table, with Firefox and WebKit best effort by hand (`ENGINES=firefox,webkit`); the suites in three shards by file (`node --test --test-shard`), each on its own runner; the one job that runs a browser |
+| `engines` | The built web app in Chromium through pinned Playwright ([ADR-0048](../adr/ADR-0048-browser-job-driver.md)), asserting [ADR-0044](../adr/ADR-0044-browser-support-row.md)'s feature table, with Firefox and WebKit best effort by hand (`ENGINES=firefox,webkit`); the suites in three shards by file (`node --test --test-shard`), each on its own runner; the one job that runs a browser. The walks write down every answer they give for `/api/v1`, and `make gate-walks` then holds this shard's answers to `api/openapi.yaml`: an answer the contract does not allow fails unless `test/contract/testdata/walks-baseline.txt` lists it, and `make gate-pr` refuses a line added to that list. The rules for a walk, and the two counts the `node` job holds (fixed waits, suites that cite no use case check), are in [`apps/webapp/e2e/AGENTS.md`](../../apps/webapp/e2e/AGENTS.md) |
 | `shell` | The installed apps' shell (`apps/webapp/src-tauri/`) on Linux, Windows and Android: the icons generated from the mark and checked, a debug build bundled as `.deb`, NSIS and an x86_64 APK, each with the `walk` feature; on Linux also `cargo-deny` (licences, sources), `rustfmt`, `clippy` and the Rust tests. Then each leg's smoke walk (UC-SYN-07 check 9, `apps/webapp/e2e/webview/smoke.mjs`): sign in, open a hub, create, edit and complete an entry, sign out, against a server built from the commit on the runner's PostgreSQL, through the engine's own WebDriver - WebKitWebDriver, the runner's msedgedriver, its chromedriver with an API 35 emulator. A failure in one engine fails the lane. Behind the `shell` filter: the web app, the packages it is built from, the workspace manifests |
 | `tokens-drift` | `make tokens`; the committed `LabelTokens.go` must not change |
 | `api-client-drift` | `make api-client`, then the workspace built and typechecked against it; nothing generated may be committed |
@@ -84,7 +84,8 @@ longest Go job, and behind `quick` it set the pipeline's wall clock ([ADR-0083](
 commit through `oasdiff`, a pinned development tool that never ships, and classifies by
 [versioning-release.md](./versioning-release.md) §2: a new value in a response enum is lowered to
 compatible, the rest is `oasdiff`'s own judgement. Only the breaking changes the pull request adds
-to those already on its base are judged — on a push to `main`, those of the pushed commit — and
+to those already on its base are judged — on a push to `main`, those of the pushed commit; on a
+manual run, those since the branch left `main` — and
 each one fails unless the change is marked: `!` in a commit's or the pull request's title, or a
 `BREAKING CHANGE:` footer in a commit message or the description. A break already on the base was
 judged when it landed. The job checks out the whole history; with no tag behind the commit it
@@ -121,11 +122,14 @@ Every job decides from the `changes` outputs whether it has work.
 | `design_system` | Additionally: the tokens are regenerated and the committed `LabelTokens.go` must not move |
 | `webapp`, `website`, `design_system`, `api_client`, `sync_engine`, `n8n_node`, `zapier_app`, `sdk_typescript` | The `node` job for the affected packages and their consumers |
 | `webapp`, `design_system`, `api_client`, `go`, `openapi`, `db`, `deploy` | The container build (`compose`), because the image contains both halves ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)) |
+| `webapp`, `design_system`, `sync_engine`, `expression`, `editor`, `whiteboard`, `api_client`, `openapi`, `walk_judge` | The browser job (`engines`). `walk_judge` names what judges the walks' answers — `test/contract/walks*.go`, `test/contract/schema*.go` and the baseline — file by file, so that no other Go change walks every suite |
 | `ci` (`.github/**`, `.gitleaks.toml`) | Everything |
 | documentation only | The five jobs behind no filter — `secrets`, `dependencies`, `licences`, `docs`, `numbers` — and the description check |
 | anything, on a draft | Nothing. Every job is skipped and `ci-required` reports as `CI not run (draft)` (§3.4) |
 
 On a push to `main` every filter output is `true`: the branch that gets released is never filtered.
+A manual run (§3.4) is no pull request either, so no filter applies to it. `dorny/paths-filter` runs
+on a pull request only; on any other event it would compare with the default branch through git.
 
 **Five jobs are behind no filter.** A key or a copyleft dependency gets in through any path, so
 `secrets`, `dependencies` and `licences` never filter; a number is taken in `db/` as in `docs/adr/`,
@@ -133,29 +137,47 @@ so `numbers` does not either. `docs` takes seconds and reads files every
 filter could skip: `checkdocs` reconciles the Go version across `go.mod`, the workflows, the
 Dockerfile, the support matrix and the README; reconciles the support matrix with the nightly's
 jobs; resolves ADR citations in every kind of source file and document; checks links and anchors;
+holds the list of skills in the root `AGENTS.md` to the folders under `.agents/skills/`;
 and holds the newest `docs/evidence/COVERAGE-<date>.md` to `catalogue.Descriptors()` — one row per
 served use case, none for an unserved one, and no "nobody built it" without an issue number.
 
 **`pr-description` reads the description, not the tree.** On every pull request that is not Dependabot's,
 `tools/checkpr` holds the description to `.github/PULL_REQUEST_TEMPLATE.md`: every section present,
 in order, filled or marked n/a; `Closes #n` at the start of a line or `No issue: <why>`; use cases
-that exist; *Premises* filled — what was found false and corrected, or what was checked; one ADR
+that exist; *Premises* filled — what was found false and corrected, or what was checked; *Review*
+with a reviewer and a date, the findings found, fixed and open as numbers, and the outside
+reviewer's counts or `not run: <why>`; one ADR
 answer ticked and named; no placeholder left; and the title a Conventional Commit. With the
 branch's history it also holds: no merged migration changed; no use case deleted and no ID reused; a
 change to a use case's Goal, How to check or Where it ends named `correction` or `decision #<n>`;
 no settled ADR changed beyond its status line, its `Rule lives in` line and link targets; and
 no numbered section of a subject document (`docs/architecture/`, `docs/design/`) dropped or
 renumbered, nor left as a bare heading where it had text — a retired section keeps its heading
-with one sentence saying where its content went. The
-history rules hold pull requests opened from 2026-10-08 on. It
+with one sentence saying where its content went; and a test the branch removes, a test file it
+deletes and a test it adds a skip to are each named in the description — a Go `Test…` or `Fuzz…`
+function, a `test(` or `it(` of a `*.test.ts`, `*.test.mjs` or `*.test.js`. A name that comes back
+anywhere in the diff is a moved test; a declaration replaced within one run of changed lines is a
+rename. It also refuses a line added to the baseline of the walks' answers outside the contract
+(`test/contract/testdata/walks-baseline.txt`). It does not see a weakened assertion, a test deleted with another written in its place, a
+test removed in one package while one of the same name is added in another, or whether the
+*Review* and the reasons are true. The
+history rules hold pull requests opened from 2026-10-08 on, *Review*, the removed tests and the
+walks' baseline those opened from 2026-11-21 on. It
 reads the description and the title from the API, so a re-run judges them as they stand.
-`make gate-pr BODY=<file> TITLE="<title>"` runs it locally, `BASE=origin/main` with the history. `gh pr create --body` never shows the template;
+`make gate-pr BODY=<file> TITLE="<title>"` runs it locally, `BASE=origin/main` with the history;
+`DRAFT=1` lets a draft's *Review* say `not yet: <why>`, which CI — reading only a ready pull
+request — refuses. `gh pr create --body` never shows the template;
 start from a copy of it.
 
 **The filters name trees, and `test/architecture` checks that they name all of them.** Every
 tracked file is claimed by a filter or listed among the paths that deliberately trigger nothing,
 and every pattern matches something that exists. A filter by file pattern (`**/*.go`) would leave
-the fixtures a Go test reads outside it, and `ci-required` counts that skip as a pass.
+the fixtures a Go test reads outside it, and `ci-required` counts that skip as a pass. A file
+`test/architecture` reads sets the `go` filter, which runs that package: the hook's settings, the
+skills under `.agents/skills/`, their links under `.claude/skills/` and `.claude/agents/`. The
+root `AGENTS.md` sets no filter: the documentation gate, which runs on every change, holds its
+list of skills to the folders. The
+outside reviewer's `.coderabbit.yaml` triggers nothing, since no job reads it.
 
 **Performance is measured, not gated.** A test whose verdict is a time or a frame rate runs in no
 job of the pull request's path and in no local gate (`make check`, `make e2e`): an end-to-end walk
@@ -174,7 +196,7 @@ job `if:` conditions, and a job skipped by an `if:` does report.
 
 ```yaml
 ci-required:
-  name: CI required          # 'CI not run (draft)' on a draft
+  name: CI required          # 'CI not run (draft)' on a draft, 'CI by hand' on a manual run
   if: always()
   needs: [ …every other job… ]
 ```
@@ -185,8 +207,12 @@ It fails if any dependency ended `failure` or `cancelled`, and passes when all e
 
 **On a draft it has another name.** Every job is skipped on a draft (§3.4), so a green
 `CI required` there would satisfy branch protection without a gate having run. Its name is an
-expression: `CI not run (draft)` on a draft, `CI required` otherwise. `test/architecture` holds the
-expression, and `make gate-selftest` proves that test goes red without it.
+expression: `CI not run (draft)` on a draft, `CI by hand` on a manual run (§3.4), `CI required`
+otherwise. A manual run checks the branch's head — the commit a draft's pull request shows —
+without what reads a pull request and without the guard for a green `main` (§3.4 lists both), so
+its green must not be that commit's `CI required` either. `test/architecture` holds the
+expression, and `make gate-selftest` proves that test goes red without the draft's name and
+without the manual run's.
 
 A gate whose subject does not exist yet reports that it is skipping and stays green; it never
 swallows a real failure, and the `selftest` job checks that the difference holds.
@@ -215,16 +241,47 @@ The rules of [ADR-0079](../adr/ADR-0079-a-draft-is-checked-locally.md) and
   architecture tests, `make generate` without a diff when the contract or a query changed, the
   changed workspace packages, the documentation gate when a document changed. No lock, about a
   minute. Everything else — containers, integration, security, the other packages — is CI's.
-* **CI checks a pull request once it is ready**, in parallel jobs, about ten minutes; a red job is
-  fixed by a push to the ready pull request. The hook in `.claude/settings.json` refuses
+* **CI checks a pull request once it is ready**, in parallel jobs; the flow report holds the
+  run's median to twenty minutes (§11). A red job is fixed by a push to the ready pull request. The hook in `.claude/settings.json` refuses
   `gh pr create` without `--draft`, and `gh pr ready` while `HEAD` is not pushed.
+* **A manual run checks a pushed branch while its pull request stays a draft.** `ci.yml` triggers
+  on `workflow_dispatch`: `gh workflow run ci.yml --ref <branch>` starts one run on the branch's
+  head, with the jobs a push to `main` runs. It is for a concept's checkpoint (`build-concept`) and
+  gates nothing: its summary job is named `CI by hand`, never `CI required` (§3.2), and leaving
+  draft still starts the pull request's own run. GitHub starts it when `ci.yml` exists on the
+  default branch, and runs the branch's version of the file — the trigger need not be on `main`.
+  The first manual run was started on 2026-11-21, from the branch that added the trigger.
+
+  It differs from a ready pull request's run in these ways, and in no other:
+  - every job checks the branch's head, where a pull request's run checks the merge with `main`;
+  - `changes` filters nothing, so the jobs a pull request skips for what it did not touch run too;
+  - `dependencies` and `pr-description` do not run: they read a pull request;
+  - `api-compat` judges the breaks added since the branch left `main`, where a pull request's run
+    judges those added to its base, and reads no title and no description, so a break is marked
+    in a commit;
+  - `numbers` compares what the branch adds over `main` with the open pull requests, its own
+    among them — the same file in both is no collision — and holds the branch's tree, not the
+    merge, so a number `main` took since the branch left it shows only at *Ready*;
+  - `CI required`'s guard for a green `main` does not run.
+
+  After CI starts when a manual run ends and acts on nothing: it neither re-runs a failed one nor
+  files it as a red `main`; the guard reads pushes to `main` only. No job of `ci.yml`
+  publishes, deploys or pushes an image; a run on a branch writes caches in that branch's scope,
+  which `main` never restores, though they count towards the repository's 10 GB. A push to a
+  draft's branch still starts nothing. `test/architecture` holds the trigger, the push to `main`
+  alone, that no job reads the event beyond "is this a pull request" or reads the branch, and the
+  bases of `api-compat` and `numbers`; `make gate-selftest` takes the trigger away and plants a
+  job that reads the branch.
 * **A pull request runs what it can break.** `selftest` proves the gates and runs when one changes
   (the `gates` filter); the connectors (`n8n-nodes-hubtask`, `zapier-app`) run when they change;
   the browser job runs Chromium, with Firefox and WebKit best effort (support-matrix.md §5). `main`
   runs everything on every commit.
 
-**Once per pull request.** `make check` passes, the commit is pushed, `gh pr ready`, and the pull
-request merges when `CI required` is green — on the owner's word, by hand or by auto-merge (§3.5).
+**Once per pull request**, in the order of `.agents/skills/finish-pull-request/SKILL.md`:
+`make check` passes; the independent review runs, and its findings are fixed or answered
+(engineering-guidelines.md §3.19); the outside reviewer is asked where its app is installed (§5);
+`make check` passes on the last fix; the commit is pushed; `make gate-pr` passes on the
+description and the title; `gh pr ready`; and the pull request merges when `CI required` is green — on the owner's word, by hand or by auto-merge (§3.5).
 It is not brought up to date with `main` to merge. Only a conflict GitHub reports, or a base that
 was squash-merged, needs `main` merged in; that stays on the ready pull request (AGENTS.md), runs
 `make generate` and `make check` for what the merge touched, and leaves the rest to its CI run.
@@ -236,9 +293,10 @@ require a branch to be up to date (§4). A pull request's run checks the merge o
 `main` as `main` stood when the run's event made the merge commit — a re-run repeats that commit —
 so what merged meanwhile is first checked by `main`'s own run. Four things keep that safe:
 
-* **Every commit on `main` runs to the end.** `ci.yml`'s concurrency group is the commit on `main`
-  and the ref on a pull request; only a pull request's older run is cancelled. The first red commit
-  is therefore always known.
+* **Every commit on `main` runs to the end.** `ci.yml`'s concurrency group is the commit on a push
+  to `main` and the ref on a pull request and on a manual run; a pull request's or a manual run's
+  older run on the same ref is cancelled, a push's never. The first red commit is therefore always
+  known.
 * **`CI required` waits for a green `main`.** Its last step, on a pull request only
   (`scripts/ci/main-green.sh`, locally `make gate-main-green`), reads `ci.yml`'s runs of pushes to
   `main`, newest commit first: a finished `success` is green; `failure`, `timed_out` or
@@ -264,7 +322,10 @@ so what merged meanwhile is first checked by `main`'s own run. Four things keep 
   if it was never applied anywhere.
 
 Generated and shared files keep no counts (the event matrix, the coverage report): two clean merges
-would add up wrong. Integration deploys every push to `main` while `main`'s run is still going, so it
+would add up wrong. Two pull requests that make the same edit to such a file merge without a
+conflict and leave it stale, and pull requests merge without catching up with `main`
+([ADR-0083](../adr/ADR-0083-a-merge-without-catching-up.md)). So the proof
+state (§12) is printed and never committed. Integration deploys every push to `main` while `main`'s run is still going, so it
 may run an untested combination for those minutes ([deployment.md](./deployment.md) §3).
 
 ---
@@ -322,7 +383,9 @@ permissions:
 ## 5. AI in the pipeline
 
 **AI comments, gates decide** ([ADR-0022](../adr/ADR-0022-github-platform.md)): AI assistance may
-comment, suggest and draft; it never sets a status, merges, publishes, or replaces a gate.
+comment, suggest and draft; it never sets a required status, merges, publishes, or replaces a
+gate. A check that an outside reviewer's app posts on a pull request is never a required check and
+decides nothing: `ci-required` stays the only required status check (§3.2).
 
 No workflow calls a model today, and none reviews or works on its own (§5.1). The limits and the
 rules below are the outer limit for an AI workflow should one be added; adding one is the owner's
@@ -341,8 +404,10 @@ gate), and treats an unavailable provider as no failure (`continue-on-error: tru
 ### 5.1 No workflow reviews or works on its own
 
 No workflow reviews a pull request or starts work by itself, and none offers a trigger that would.
-The author reviews a change against the rules no gate checks (engineering-guidelines.md §3); a
-person or an AI agent of any make works on a task. A tool that steers coding agents later works
+The author reviews a change against the rules no gate checks, a fresh agent the author starts
+reviews it before it leaves draft, and an outside
+reviewer may comment on the pull request (engineering-guidelines.md §3.19); both comment and decide
+nothing (§5), and neither is a workflow. A person or an AI agent of any make works on a task. A tool that steers coding agents later works
 through the same issues, labels and pull requests ([backlog README](../backlog/README.md)
 § "For tools that steer the work"), under its own GitHub App identity, without the right to merge.
 
@@ -424,3 +489,179 @@ Both run after the merge and gate nothing, so their failures would land where no
   account, never the website's. `WORKBENCH_REMOTE_DIR` defaults to that account's home, and the
   step refuses a target that is neither empty nor a previous workbench deploy: `mirror --delete` on
   the wrong directory would replace `hubtask.eu`.
+
+---
+
+## 11. The flow report and its thresholds
+
+`flow.yml` runs `make flowstats` every Monday for the seven days that ended the day before, beside
+the seven before those, and without the session figures: the transcripts are on the owner's
+machine only, where `make flowstats SINCE=… UNTIL=…` prints them too. The report is one comment
+per week on the issue "Flow report", which the job opens if it is missing. The job starts no
+work, and one run of it goes at a time: a second waits.
+
+**Which issues are the job's.** The repository is public and anybody can open an issue under
+any title. The tool takes an issue for its own only when the login it files as
+(`-file-as`, in the job `github-actions[bot]`) opened it and the title matches in full, and a
+finding only when it also carries the label `finding`. Where several match, the oldest is it.
+
+**When the job fails.** Filing is part of the tool (`-file-as`), so the job has one step, and it
+fails visibly: when GitHub does not answer for the pull requests or the runs after one retry,
+when an issue cannot be read or written, and when the report is longer than the 65,536
+characters a comment takes. In that last case the findings are filed first and the report stays
+in the run's summary. A single measure GitHub refuses does not fail the job: its row says "not
+measured" and why.
+
+**The thresholds are the owner's to set.** The values below are the first setting, proposed with
+the report on 2026-11-21. Changing one is the owner's decision; it changes this table and
+`tools/flowstats/thresholds.json`, which is what the tool reads, in the same pull request. The
+file stands beside the tool because the tool embeds it, so the report cannot run with thresholds
+other than the ones it was built with; a test of the tool holds the table and the file equal.
+
+A measure over its threshold opens an issue labelled `finding`, titled "Flow report: <measure> is
+over its threshold", with the measure, the value, the threshold and the window. There is one per
+measure, and the weeks after go like this:
+
+| The measure this week | Its finding | What the job does |
+|---|---|---|
+| over its threshold | none yet | opens one — so the first run opens one per breached measure |
+| over its threshold | open | nothing: the weekly comment carries the value |
+| over its threshold | closed | opens it again, with one comment that holds this week's text |
+| within its threshold | open | one comment, "Within the threshold again: <value>", and closes it |
+| within its threshold | closed, or none | nothing |
+| not measured, or a rule without the earlier value it compares with | any | nothing |
+
+A "does not rise" measure is within its threshold in the week after it rose, at the higher
+value: the rule is about the rise.
+
+The badge's row breaches when its level is below the one asked for, and its finding is titled
+"Flow report: OpenSSF Best Practices badge is below its threshold". The badge's project on the
+badge site stands in the same file as `project`; setting it once the project is registered
+changes no threshold.
+
+| Measure | Id | Threshold |
+|---|---|---|
+| Pull request run, last attempt, median wall minutes | `pr_run_median_minutes` | ≤ 20 |
+| Pull request runs failed, percent | `pr_runs_failed_percent` | ≤ 15 |
+| `main` runs needing a second attempt, percent | `main_second_attempt_percent` | ≤ 10 |
+| Hours `main` was red | `main_red_hours` | ≤ 2 |
+| `fix` pull requests merged within seven days of a `feat` touching the same package | `fix_after_feat` | does not rise two windows running |
+| Open `finding` issues, and the oldest | `open_findings` | reported |
+| Open `decision` issues, and the oldest | `open_decisions` | reported |
+| Uncited checks of built use cases | `uncited_checks_built` | does not rise |
+| Fixed waits in the walks (`waitForTimeout`) | `fixed_waits` | does not rise |
+| Timer waits in the walks (`setTimeout`) | `timer_waits` | does not rise |
+| Suites without a use case | `suites_without_use_case` | does not rise |
+| Stub answers outside the contract | `answers_outside_contract` | does not rise |
+| Use cases by state | `use_cases_by_state` | reported |
+| Lines added and removed under `docs/` outside `archive/` | `docs_lines` | reported |
+| Lines of the root `AGENTS.md` | `agents_lines` | reported |
+| Comment blocks of twenty lines or more | `comment_blocks` | does not rise |
+| Tests deleted or skipped in merged pull requests | `lost_tests` | reported |
+| Unreachable Go functions | `unreachable_go_functions` | reported |
+| Unused files, exports and types of the TypeScript workspace | `unused_workspace_code` | reported |
+| Unused translation keys | `unused_translation_keys` | reported |
+| Outside reviewer: comments made | `outside_reviewer_comments` | reported |
+| Outside reviewer: share of comments that led to a change | `outside_reviewer_share` | reported |
+| Open code scanning alerts, and the oldest | `alerts_code_scanning` | reported |
+| Open secret scanning alerts, and the oldest | `alerts_secret_scanning` | reported |
+| Open Dependabot alerts, and the oldest | `alerts_dependabot` | reported |
+| OpenSSF Best Practices badge | `best_practices_badge` | at least passing |
+
+Beside the table the report prints the merged pull requests by kind, the CI runs, the ten worst
+jobs by failures and by median minutes, and the tests merged pull requests deleted or skipped,
+each with the line of its description that names it. That line is the reason the author gave,
+which is what the owner reads the table for; it, the test's name and its path are text a
+stranger may have written, so each is printed as a code span of at most 120 characters, where a
+mention, a link, an image or HTML does nothing. The table ends after thirty rows and says how
+many more there are.
+
+How each measure is read:
+
+* **Runs** are `ci.yml`'s finished runs. A run that ended in `failure`, `timed_out` or
+  `startup_failure` failed. A `cancelled` run is counted nowhere. A `skipped` run is a draft's
+  (§3.4): it has a row of its own in the CI table and enters no measure. A run started by hand
+  counts in no row.
+* **A run's minutes** are its last attempt's, from that attempt's start to the run's last update,
+  so the wait before somebody ran it again is not in them. Where the last attempt ran only the
+  jobs that had failed, it is shorter than a whole run.
+* **A second attempt** is a run on `main` whose newest attempt is not its first.
+* **Red hours** run from the end of a failed run on `main` to the end of the next one that
+  passed, inside the window. A run that failed and passed when run again counts as passed. Time
+  in which nothing ran counts as what the last run left: the idle days after a red run are red.
+  The number of `main` runs the window had is printed beside the hours.
+* **n** stands beside every median and percentage: the runs it was taken from.
+* **Jobs** are read attempt by attempt, one request per attempt of each of the window's runs:
+  the API fails to list all attempts of a run at once where a run has many. A job that ran twice
+  counts twice, so the column is "attempts". A job counts when it passed or, as a run does,
+  failed. The summary job is left out under each of the names `ci.yml` gives it (§3.2), read from
+  the workflow. Runs whose jobs the API did not answer for are counted in a line above the
+  tables, with its first refusal.
+* **A package** is a Go file's directory. For a file under `apps/` or `packages/` it is the
+  file's directory too, named at most five segments deep: `apps/webapp/src/lib/board`,
+  `apps/webapp/e2e`, `packages/sync-engine/src`. Any other file belongs to none. The files of a
+  `feat` and a `fix` are read from the merge commit, whole; a pull request whose merge commit the
+  clone lacks is counted beside the value as not read.
+* **The tree's measures** are read from the checkout's commit, and beside it from the commit the
+  window started with: the totals of `apps/webapp/e2e/bounds.json`, the lines of
+  `test/contract/testdata/walks-baseline.txt`, the bound `uncitedBuiltAtMost` that
+  `make gate-docs` holds, each use case's `state:`, and the runs of twenty or more `//` lines in
+  the Go files under `core/`, `presentation/`, `infrastructure/` and `cmd/`.
+* **A test deleted or skipped** is read from a pull request's merge commit against its parent,
+  by the reading `make gate-pr` holds a branch to and with its limits: both tools call
+  `tools/losttests`. So a test renamed in place or moved is not reported, a deleted test file is
+  one row, and a skip added inside a test the base had is reported under that test's name.
+* **The two cleanup counts** are read at the checkout only. Neither is a bound: what a tool
+  lists is removed in a pull request of its own (`.agents/skills/tidy/SKILL.md`).
+* **Issues and alerts** are counted as they are when the report runs, so they have no value for
+  the window before.
+
+**Not measured** is printed with its reason, never as a zero:
+
+* Unreachable Go functions where `deadcode` is not installed. `make tools` pins it and
+  `make deadcode` lists what it finds: the functions no binary reaches in the default build
+  configuration, the tests left out, so a function only a test calls is listed. The weekly job
+  installs it (`make tools-deadcode`).
+* Unused files, exports and types of the TypeScript workspace where the workspace's
+  dependencies are not installed. Knip is a development dependency of the workspace root, and
+  `make unused` lists what it finds, unused dependencies included. The weekly job does not
+  install the workspace, so this row is measured by a local run only.
+* Unused translation keys: no tool in the repository counts them.
+* The outside reviewer's comments where no login was given: the tool names no product, so
+  `flow.yml` passes the login (`-reviewer`), as a local run does through `FLOWSTATS_ARGS`. With
+  a login and no comment the row reads "none in the window". The share that led to a change is
+  never measured: nothing records it.
+* An alert kind the API does not hand out. The row prints the status it answered: a 404 means
+  the feature is off or the token may not read it, a 5xx that the API did not answer after one
+  retry, anything else a refusal. Workflow permissions offer `security-events: read` for code
+  scanning and nothing for secret scanning or Dependabot alerts; what the API answers the job's
+  token is seen on its first run.
+* The OpenSSF Best Practices badge while `project` is 0 ("the project is not registered yet"),
+  and where the badge site does not answer. The tool asks the site itself for the project's
+  public JSON, with a timeout of twenty seconds: the level is not on GitHub.
+
+---
+
+## 12. What the repository shows
+
+A figure is shown only if a machine produces it and nobody is asked to raise it. The README's
+section "Quality and security" holds all of it, in under fifteen lines.
+
+* **The proof state**: the use cases by state, the checks a file in `checked_by` cites - a test,
+  or an evidence document, a script or a workflow where no test can make the run - and the bounds
+  that only fall. `make proof-state` prints it from the documentation gate's own reading
+  (`tools/checkdocs`). The `docs` job writes it to the summary of each run on `main` and of a manual run, and the
+  weekly flow report (§11) carries it as its last part, so the README links to that report's
+  issue. It is no committed page (§3.5).
+* **OpenSSF Scorecard**, `scorecard.yml`. The Scorecard service refuses a published result unless
+  the workflow keeps its rules: no `env` or `defaults` at the top level or on the job, no write
+  permission at the top level, `id-token: write` on that job alone, no container or service, a
+  GitHub-hosted Ubuntu runner, and no step other than checkout, the Scorecard action,
+  upload-artifact and upload-sarif. A change to the workflow keeps them.
+* **Coverage** stays a gate at its thresholds (§3, `unit`) and gets no badge and no service. The
+  `unit` job's summary shows each layer's lowest package and every package's percentage.
+* **The OpenSSF Best Practices badge** is answered from
+  [`docs/evidence/best-practices-answers.md`](../evidence/best-practices-answers.md), which names
+  the repository file behind each answer. The weekly flow report reads the badge's level from
+  the badge site, and a level below `passing` opens a `finding` (§11).
+

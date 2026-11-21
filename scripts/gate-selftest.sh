@@ -22,10 +22,11 @@ SCRATCH="gate_selftest"    # a package directory of this name is created and del
 FAILURES=0
 CHECKS=0
 SKIPPED=0
+WALK_PROBE="apps/webapp/e2e/zz_gate_selftest.test.mjs"    # a suite written and deleted per check
 
 cleanup() {
 	find . -type d -name "$SCRATCH" -not -path './.git/*' -exec rm -rf {} + 2>/dev/null || true
-	rm -f db/queries/zz_gate_selftest.sql locales/zz.json sdk/python/hubtask/zz_gate_selftest.py
+	rm -f db/queries/zz_gate_selftest.sql locales/zz.json sdk/python/hubtask/zz_gate_selftest.py "$WALK_PROBE"
 	if [ -f api/openapi.yaml.selftest-backup ]; then mv api/openapi.yaml.selftest-backup api/openapi.yaml; fi
 }
 trap cleanup EXIT INT TERM
@@ -954,6 +955,15 @@ expect_architecture_failure_after "a root job that runs on a draft" \
 	.github/workflows/ci.yml "/^    name: What changed$/{n;/draft/d;}"
 expect_architecture_failure_after "CI required on a draft's commit" \
 	.github/workflows/ci.yml "s/^    name: .*'CI not run (draft)'.*$/    name: CI required/"
+# A manual run checks a branch while its pull request stays a draft (ci-cd.md §3.4): without the
+# trigger a checkpoint has no run, under the plain name its green is the draft's `CI required`, and
+# a job that reads the ref runs something else on a branch than on main.
+expect_architecture_failure_after "CI without the manual trigger" \
+	.github/workflows/ci.yml "/^  workflow_dispatch:$/d"
+expect_architecture_failure_after "CI required on a manual run's commit" \
+	.github/workflows/ci.yml "s/ || github.event_name == 'workflow_dispatch' && 'CI by hand'//"
+expect_architecture_failure_after "a job that asks for the branch" \
+	.github/workflows/ci.yml "s/^    name: Migration and ADR numbers$/    name: \${{ startsWith(github.ref, 'refs\/heads\/main') \&\& 'Numbers' || 'Numbers of a branch' }}/"
 # And the hook that keeps a session from skipping the local check: a guard that never refuses.
 expect_architecture_failure_after "a pull request hook that refuses nothing" \
 	scripts/hooks/pr-transition-guard.sh 's/^	exit 2$/	exit 0/'
@@ -1175,6 +1185,80 @@ else
 	printf '  ok      %-44s caught by make gate-pr\n' "the unfilled template as a description"
 fi
 
+# A filled description that lost its Review section. The message is read, not only the status: the
+# gate also goes red when it cannot read the history. BASE=HEAD reads an empty one.
+CHECKS=$((CHECKS + 1))
+without_review="$(mktemp)"
+perl -0pe 's/## Review\n.*?(?=\n## )//s' tools/checkpr/testdata/filled.md >"$without_review"
+out="$(make --no-print-directory gate-pr BODY="$without_review" BASE=HEAD 2>&1 || true)"
+rm -f "$without_review"
+if grep -q 'the section "Review" from the template is missing' <<<"$out"; then
+	printf '  ok      %-44s caught by make gate-pr\n' "a description without its Review section"
+else
+	printf '  FAILED  %-44s make gate-pr did not report it\n' "a description without its Review section"
+	FAILURES=$((FAILURES + 1))
+fi
+
+# A branch that deletes a test its description does not name. The gate reads commits, not the work
+# tree, so the branch lives in a scratch repository and the gate's own program is run there. git
+# runs without the caller's GIT_* variables (known-traps.md, "Tests, gates and tooling").
+CHECKS=$((CHECKS + 1))
+scratch_repo="$(mktemp -d)"
+scratch_git() {
+	env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_COMMON_DIR GIT_CONFIG_NOSYSTEM=1 \
+		git -C "$scratch_repo/repo" -c user.name=selftest -c user.email=selftest@example.invalid -c commit.gpgsign=false "$@"
+}
+go build -o "$scratch_repo/checkpr" ./tools/checkpr
+mkdir -p "$scratch_repo/repo/.github"
+cp .github/PULL_REQUEST_TEMPLATE.md "$scratch_repo/repo/.github/"
+cp tools/checkpr/testdata/filled.md "$scratch_repo/description.md"
+printf 'module selftest\n' >"$scratch_repo/repo/go.mod"
+printf 'package selftest\n\nfunc TestKept(t *testing.T) {}\n\nfunc TestDropped(t *testing.T) {}\n' >"$scratch_repo/repo/selftest_test.go"
+scratch_git init -q -b main
+scratch_git add -A
+scratch_git commit -q -m base
+scratch_git checkout -q -b work
+printf 'package selftest\n\nfunc TestKept(t *testing.T) {}\n' >"$scratch_repo/repo/selftest_test.go"
+scratch_git commit -q -a -m work
+out="$(cd "$scratch_repo/repo" && env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_COMMON_DIR \
+	"$scratch_repo/checkpr" -body "$scratch_repo/description.md" -base main -head work 2>&1 || true)"
+rm -rf "$scratch_repo"
+if grep -q 'no longer has the test "TestDropped"' <<<"$out"; then
+	printf '  ok      %-44s caught by checkpr\n' "a deleted test the description does not name"
+else
+	printf '  FAILED  %-44s checkpr did not report it\n' "a deleted test the description does not name"
+	printf '%s\n' "$out" | sed 's/^/            /'
+	FAILURES=$((FAILURES + 1))
+fi
+
+# A branch that adds a line to the baseline of the walks' answers outside the contract: the way
+# around `make gate-walks` that only the history shows. A scratch repository again.
+CHECKS=$((CHECKS + 1))
+scratch_repo="$(mktemp -d)"
+walk_baseline="test/contract/testdata/walks-baseline.txt"
+go build -o "$scratch_repo/checkpr" ./tools/checkpr
+mkdir -p "$scratch_repo/repo/.github" "$scratch_repo/repo/$(dirname "$walk_baseline")"
+cp .github/PULL_REQUEST_TEMPLATE.md "$scratch_repo/repo/.github/"
+cp tools/checkpr/testdata/filled.md "$scratch_repo/description.md"
+printf 'module selftest\n' >"$scratch_repo/repo/go.mod"
+printf '# known answers\nbody-mismatch GET /meta/health 200\n' >"$scratch_repo/repo/$walk_baseline"
+scratch_git init -q -b main
+scratch_git add -A
+scratch_git commit -q -m base
+scratch_git checkout -q -b work
+printf 'status-undeclared GET /meta/health 302\n' >>"$scratch_repo/repo/$walk_baseline"
+scratch_git commit -q -a -m work
+out="$(cd "$scratch_repo/repo" && env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_COMMON_DIR \
+	"$scratch_repo/checkpr" -body "$scratch_repo/description.md" -base main -head work 2>&1 || true)"
+rm -rf "$scratch_repo"
+if grep -q "$walk_baseline gains 1 entries" <<<"$out"; then
+	printf '  ok      %-44s caught by checkpr\n' "a line added to the walks' baseline"
+else
+	printf '  FAILED  %-44s checkpr did not report it\n' "a line added to the walks' baseline"
+	printf '%s\n' "$out" | sed 's/^/            /'
+	FAILURES=$((FAILURES + 1))
+fi
+
 header "Licences (make gate-licenses)"
 
 # The licence gate cannot be shown a GPL dependency without adding one, so it is shown the other
@@ -1215,6 +1299,88 @@ expect_brand_mark_failure "a row without its brand mark" BRAND_MARKS_LICENSES \
 	THIRD-PARTY-LICENSES.md '$_ .= "| Other | `SELFTEST` | x | y |\n" if /`GOOGLE`/'
 expect_brand_mark_failure "a brand mark without a preset" BRAND_MARKS_CONTRACT \
 	api/openapi.yaml 's/(enum: \[GENERIC, GOOGLE), MICROSOFT\b/$1/'
+
+header "The browser walks (apps/webapp/build/walks.test.js, make gate-walks)"
+
+# expect_walk_bound_failure <name> <expected message> <suite source>
+# A suite that e2e/bounds.json does not list has no fixed wait and says what it proves. The
+# message is read, not only the status: a red for another reason proves nothing about the rule.
+expect_walk_bound_failure() {
+	local name="$1" message="$2" content="$3"
+	CHECKS=$((CHECKS + 1))
+	local out
+	printf '%s\n' "$content" > "$WALK_PROBE"
+	out="$(node --test apps/webapp/build/walks.test.js 2>&1 || true)"
+	rm -f "$WALK_PROBE"
+	if grep -q "zz_gate_selftest.test.mjs $message" <<<"$out"; then
+		printf '  ok      %-44s caught by walks.test.js\n' "$name"
+	else
+		printf '  FAILED  %-44s walks.test.js did not report it\n' "$name"
+		FAILURES=$((FAILURES + 1))
+	fi
+}
+
+if ! command -v node >/dev/null 2>&1; then
+	printf '  skipped %-44s node is not installed\n' "the walks' bounds"
+	SKIPPED=$((SKIPPED + 4))
+else
+	# The use case is split in two quotes: written whole, it would be a citation in this script.
+	expect_walk_bound_failure "a fixed wait in a suite" "has 1 fixed waits" \
+'// Proves UC-''ID-01/1.
+
+import { test } from "node:test";
+
+test("waits", async () => { await page.waitForTimeout(50); });'
+
+	expect_walk_bound_failure "a timer in a suite" "has 1 timers" \
+'// Proves UC-''ID-01/1.
+
+import { test } from "node:test";
+
+test("waits", async () => { await new Promise((done) => setTimeout(done, 50)); });'
+
+	expect_walk_bound_failure "a suite that marks its own stub a guess" "uses the recorder's" \
+'// Proves UC-''ID-01/1.
+
+import { test } from "node:test";
+import { guessed } from "./record.mjs";
+
+test("stubs", async () => { await page.route("**/api/v1/quotas", (route) => { guessed(route); return route.fulfill({ json: {} }); }); });'
+
+	expect_walk_bound_failure "a suite that cites no use case check" "cites no use case check" \
+'// A walk that says nothing about what it proves.
+
+import { test } from "node:test";
+
+test("walks", async () => {});'
+fi
+
+# expect_walk_answer_failure <name> <violation> <recorded answer>
+# One recorded answer in a directory of its own, judged the way a shard's records are. Each is a
+# violation the baseline does not hold: one it holds would stay green, as it should.
+expect_walk_answer_failure() {
+	local name="$1" violation="$2" answer="$3"
+	CHECKS=$((CHECKS + 1))
+	local records out
+	records="$(mktemp -d)"
+	printf '%s\n' "$answer" > "$records/zz_gate_selftest.jsonl"
+	out="$(make --no-print-directory gate-walks WALK_RECORD="$records" 2>&1 || true)"
+	rm -f "$records/zz_gate_selftest.jsonl"
+	rmdir "$records"
+	if grep -q "$violation, in zz_gate_selftest" <<<"$out"; then
+		printf '  ok      %-44s caught by make gate-walks\n' "$name"
+	else
+		printf '  FAILED  %-44s make gate-walks did not report it\n' "$name"
+		FAILURES=$((FAILURES + 1))
+	fi
+}
+
+expect_walk_answer_failure "a walk's answer with a body outside the schema" "body-mismatch GET /meta/health 403" \
+	'{"method":"GET","path":"/meta/health","status":403,"content_type":"application/json","body":"{\"oops\":true}"}'
+expect_walk_answer_failure "a walk's answer with an undeclared status" "status-undeclared GET /meta/health 302" \
+	'{"method":"GET","path":"/meta/health","status":302,"content_type":null,"body":null}'
+expect_walk_answer_failure "a walk's answer for no operation" "unknown-operation GET /meta/horoscope 200" \
+	'{"method":"GET","path":"/meta/horoscope","status":200,"content_type":"application/json","body":"{}"}'
 
 printf '\n%d checks, %d failures, %d skipped\n' "$CHECKS" "$FAILURES" "$SKIPPED"
 test "$FAILURES" -eq 0

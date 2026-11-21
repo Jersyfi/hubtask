@@ -21,5 +21,6 @@ docker/setup-qemu-action
 dorny/paths-filter
 gitleaks/gitleaks-action
 helm/kind-action
+ossf/scorecard-action
 sigstore/cosign-installer
 softprops/action-gh-release

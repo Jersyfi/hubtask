@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/Jersyfi/hubtask/tools/losttests"
 )
 
 // The rules that read the branch's history (ADR-0081):
@@ -22,6 +24,8 @@ import (
 //     move (adr.go).
 //   - A numbered section of a subject document keeps its number; a section whose content moved
 //     keeps its heading with one sentence (sections.go).
+//   - A test removed, a test file deleted or a skip added is named in the description
+//     (losttests.go).
 //
 // What it cannot see: whether the owner did decide what a description says was decided. That
 // stays with the people who read it.
@@ -43,6 +47,10 @@ type branchFacts struct {
 	adrEdited []string
 	// sectionsLost are the numbered sections of subject documents the head drops (sections.go).
 	sectionsLost []lostSection
+	// testsLost are the tests the branch removes or skips (losttests.go).
+	testsLost []losttests.Test
+	// baselineAdded are the entries the branch adds to the walks' baseline (walkbaseline.go).
+	baselineAdded []string
 }
 
 // reusedID is a use case the branch adds under an ID an earlier file carried.
@@ -85,6 +93,12 @@ func historyProblems(body string, facts branchFacts) []string {
 	}
 	if heldTo(facts.opened, sectionsSince) {
 		problems = append(problems, sectionProblems(facts.sectionsLost)...)
+	}
+	if heldTo(facts.opened, testsSince) {
+		problems = append(problems, lostTestProblems(body, facts.testsLost)...)
+	}
+	if heldTo(facts.opened, walkBaselineSince) {
+		problems = append(problems, walkBaselineProblems(facts.baselineAdded)...)
 	}
 	return problems
 }

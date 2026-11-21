@@ -87,6 +87,10 @@ export default defineConfig(({ mode }) => ({
     // `http://<slug>.localhost:5173` reaches that workspace, and the bare `localhost` reaches none,
     // which is exactly what the server answers in production. `ws` forwards the realtime socket
     // (`lib/data/engine.ts`), without which pages and whiteboards never leave "Connecting…".
-    proxy: { '/api': { target: 'http://localhost:8080', changeOrigin: false, ws: true } },
+    //
+    // `HUBTASK_DEV_API` names another API, as `make dev` does for the server on its own port.
+    proxy: {
+      '/api': { target: process.env.HUBTASK_DEV_API ?? 'http://localhost:8080', changeOrigin: false, ws: true },
+    },
   },
 }));

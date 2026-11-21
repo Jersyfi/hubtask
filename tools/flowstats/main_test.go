@@ -4,6 +4,7 @@
 package main
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 	"time"
@@ -62,5 +63,38 @@ func TestAddTranscript(t *testing.T) {
 	}
 	if s.checkRuns != 1 {
 		t.Errorf("check runs = %d, want 1", s.checkRuns)
+	}
+}
+
+// A run started by hand on a branch (ci-cd.md §3.4) is neither a pull request's nor main's.
+func TestRunKind(t *testing.T) {
+	cases := []struct {
+		event               string
+		pullRequest, counts bool
+	}{
+		{"pull_request", true, true},
+		{"pull_request_target", true, true},
+		{"push", false, true},
+		{"workflow_dispatch", false, false},
+	}
+	for _, c := range cases {
+		pullRequest, counts := runKind(c.event)
+		if pullRequest != c.pullRequest || counts != c.counts {
+			t.Errorf("runKind(%q) = %v, %v; want %v, %v", c.event, pullRequest, counts, c.pullRequest, c.counts)
+		}
+	}
+}
+
+// The report ends with the part it is handed, and refuses an empty one rather than leave it out.
+func TestAppendPartEndsTheReportAndRefusesAnEmptyPart(t *testing.T) {
+	b := bytes.NewBufferString("## Flow\n")
+	if err := appendPart(b, []byte("\n## The proof state\n\n| State |\n")); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := b.String(), "## Flow\n\n## The proof state\n\n| State |\n\n"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	if err := appendPart(b, []byte(" \n")); err == nil {
+		t.Error("an empty part was appended")
 	}
 }

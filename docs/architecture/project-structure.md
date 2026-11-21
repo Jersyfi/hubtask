@@ -68,6 +68,8 @@ hubtask/
 ├── build/                     # lint-workspace-map.mjs (§2.1)
 ├── scripts/                   # gate-selftest, hubctl-e2e, smoke tests, drills, hooks
 ├── third-party/licenses/      # the licence texts the binary and the bundle carry
+├── .agents/skills/            # one folder per procedure a worker follows (AGENTS.md lists
+│                              # them); .claude/skills/ links each for the tool that reads there
 └── .github/workflows/         # CI/CD (ci-cd.md)
 ```
 
