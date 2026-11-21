@@ -145,7 +145,7 @@ func TestCheckReadsTheBranchAgainstItsBaseAndTheOpenPullRequests(t *testing.T) {
 	}
 
 	stub(map[int][]string{7: {"db/migrations/0003_theirs.sql"}}, nil)
-	problems, _, err := check(context.Background(), "main", 5, true)
+	problems, _, err := check(context.Background(), "main", 5)
 	if err != nil || len(problems) != 0 {
 		t.Fatalf("no collision: problems %v, err %v", problems, err)
 	}
@@ -154,31 +154,31 @@ func TestCheckReadsTheBranchAgainstItsBaseAndTheOpenPullRequests(t *testing.T) {
 	}
 
 	stub(map[int][]string{7: {"db/migrations/0002_theirs.sql"}}, nil)
-	problems, _, err = check(context.Background(), "main", 5, true)
+	problems, _, err = check(context.Background(), "main", 5)
 	if err != nil || len(problems) != 1 || !strings.Contains(problems[0], "#7") {
 		t.Fatalf("a collision with #7: problems %v, err %v", problems, err)
 	}
 
 	// GitHub not answering is an error, never a pass.
 	stub(nil, errors.New("HTTP 502"))
-	if _, _, err = check(context.Background(), "main", 5, true); err == nil {
+	if _, _, err = check(context.Background(), "main", 5); err == nil {
 		t.Fatal("a failed listing passed")
 	}
 
-	// A commit that adds nothing over its base asks GitHub nothing, comparison on or not: CI
-	// leaves it on for every run, and main's own run must not depend on the listing.
+	// A commit that adds nothing over its base asks GitHub nothing: main's own run must not
+	// depend on the listing.
 	run("switch", "-q", "main")
 	stub(nil, errors.New("must not be asked"))
-	problems, _, err = check(context.Background(), "main", 0, true)
+	problems, _, err = check(context.Background(), "main", 0)
 	if err != nil || len(problems) != 0 {
 		t.Fatalf("main against itself: problems %v, err %v", problems, err)
 	}
 	run("switch", "-q", "branch")
 
-	// On main only the tree counts, and GitHub is not asked.
+	// The tree is held beside the comparison: a number two files carry is a problem.
 	write("db/migrations/0001_again.sql")
-	stub(nil, errors.New("must not be asked"))
-	problems, _, err = check(context.Background(), "main", 0, false)
+	stub(nil, nil)
+	problems, _, err = check(context.Background(), "main", 5)
 	if err != nil || len(problems) != 1 || !strings.Contains(problems[0], "migration 0001") {
 		t.Fatalf("the tree's duplicate: problems %v, err %v", problems, err)
 	}

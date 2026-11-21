@@ -1040,10 +1040,10 @@ proof-state:
 
 ## gate-numbers: One file per migration and ADR number, none another open pull request adds (needs gh)
 # Not in `make verify`: it asks GitHub for the open pull requests, and the local gates run offline.
-# CI runs it. BASE is where the branch left main; OPEN=0 holds only the tree (main).
+# CI runs it. BASE is where the branch left main.
 .PHONY: gate-numbers
 gate-numbers:
-	$(GO) run ./tools/numbers $(if $(BASE),-base $(BASE),) $(if $(PR),-pr $(PR),) $(if $(filter 0,$(OPEN)),-open=false,)
+	$(GO) run ./tools/numbers $(if $(BASE),-base $(BASE),) $(if $(PR),-pr $(PR),)
 
 ## deadcode: List the Go functions no binary reaches (a report, not a gate)
 # For the default build configuration, without the tests: a function only a test calls is listed.
@@ -1065,7 +1065,7 @@ unused:
 
 ## flowstats: The flow report of a window beside the one before it (SINCE=, UNTIL=; needs gh)
 # Not a gate: a report (ci-cd.md §11). The weekly job passes FLOWSTATS_ARGS to leave the
-# transcripts out and to get the breaches as a file.
+# transcripts out, to name the outside reviewer and to file the report and its findings (-file-as).
 .PHONY: flowstats
 flowstats:
 	@$(GO) run ./tools/flowstats -since $(SINCE) -until $(UNTIL) $(FLOWSTATS_ARGS)
