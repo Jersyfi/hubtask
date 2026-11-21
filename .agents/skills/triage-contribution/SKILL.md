@@ -19,8 +19,8 @@ the project's own paperwork.
 
 ## A pull request from a fork
 
-1. **Answer.** Thank the author and say what happens next: a worker triages it and runs a review,
-   the owner merges. Promise no time.
+1. **Answer.** Say what happens next: a worker triages the pull request and runs a review, and the
+   owner merges. Promise no time.
 2. **Read the diff before running anything from it.** A fork's code runs on your machine with your
    access.
 3. **The description.** When the description gate refuses it, complete the description yourself

@@ -17,14 +17,16 @@ the rules; this page holds the order of the work.
 3. Open one draft pull request. Write the design brief into it
    (`.agents/skills/design-brief/SKILL.md`): a concept is a structural change.
 
-## The session
+## When one session steers workers
 
-One orchestrating session builds nothing itself.
+One worker can build a concept alone. A concept too big for one context is built by workers who
+commit one after another to the one branch (`docs/backlog/README.md`, "A concept built whole").
+When one session steers them, it runs like this, and builds nothing itself:
 
-1. It gives each stage to one fresh worker, one worker at a time, with the concept's sections for
-   that stage and what "done" means for it.
-2. When the worker reports, the orchestrator runs the stage's checks itself. It does not take a
-   green result from the report.
+1. The steering session gives each stage to one fresh worker, one worker at a time, with the
+   concept's sections for that stage and what "done" means for it.
+2. When the worker reports, the steering session runs the stage's checks itself. It does not take
+   a green result from the report.
 3. It starts the independent review on the stage's diff (`.agents/skills/review-change/SKILL.md`).
 4. A stage is closed when the checks and the review are both clean. Findings are fixed before the
    next stage starts.

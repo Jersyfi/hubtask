@@ -40,7 +40,8 @@ anything under `docs/archive/`.
 2. One pull request per package. It changes no behaviour.
 3. Remove only what the tool reported, and say so in the description, item by item.
 4. What is kept on purpose goes on a short list in the description, each item with its reason.
-5. Every test passes afterwards.
+5. Run `make check` after the removal. The pull request leaves draft only when every test is
+   green.
 
 ## Tests
 
