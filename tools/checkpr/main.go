@@ -13,7 +13,8 @@
 // [-draft] (or the description on stdin). The title is a Conventional Commit (title.go); a draft's
 // Review may say `not yet` (review.go).
 // With -base it also reads the branch's history: merged migrations it changes, use cases it
-// deletes, settled ADRs it rewrites, section numbers of subject documents it drops (rules.go).
+// deletes, settled ADRs it rewrites, section numbers of subject documents it drops, tests it
+// removes or skips (rules.go).
 // A rule added after a pull
 // request was opened (-opened) does not apply to it.
 package main
