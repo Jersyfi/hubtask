@@ -56,3 +56,31 @@ func TestAFigureIsNeverCountedInTheCallersTransaction(t *testing.T) {
 		t.Errorf("figures %+v", figures)
 	}
 }
+
+// A hub's figure is the sum of its collections' counts, and they are counted as a collection's own
+// are: a hub listed inside another use case's transaction never counts in it either.
+func TestAHubFigureIsNeverCountedInTheCallersTransaction(t *testing.T) {
+	h := newStructureHarness(t)
+	store := &joinedStore{figureStore: figureStore{counts: map[shared.ID]domain.FigureCounts{
+		collectionID: {Open: 4}, otherCollectionID: {Open: 3},
+	}}}
+	figures := FigureReader{Figures: store, Clock: clock.Fixed(now), Profiles: &profiles{rows: seededProfiles()}}
+	reader := HubFigureReader{
+		Collections: hubCollections{store: h.containers}, Structure: h.set.Structure, Figures: figures,
+	}
+	hub := h.containers.stored[hubID]
+	uow := &detachingUnitOfWork{}
+	ctx := context.WithValue(context.Background(), callersTransaction{}, true)
+	structures, err := h.set.Structure.Resolve(ctx, actor(), uow, []domain.Container{hub})
+	if err != nil {
+		t.Fatalf("structure: %v", err)
+	}
+
+	counted := reader.Count(ctx, actor(), uow, []domain.Container{hub}, structures)
+	if store.joined {
+		t.Fatal("the hub's figure was counted in the caller's transaction")
+	}
+	if counted[hubID].Counts.Open != 7 {
+		t.Errorf("figures %+v", counted)
+	}
+}
