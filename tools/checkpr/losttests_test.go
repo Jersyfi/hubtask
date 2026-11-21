@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Jersyfi/hubtask/tools/losttests"
 )
 
 // goTests is a Go test file with one test per name, each with a body of its own.
@@ -188,7 +190,7 @@ func TestLostTestsReadFromTheMergeBase(t *testing.T) {
 
 // A pull request opened before the rule is not held to it.
 func TestLostTestsHoldFromTheirDate(t *testing.T) {
-	facts := branchFacts{known: true, testsLost: []lostTest{{path: "core/x/x_test.go", name: "TestTwo", how: "removed", identifier: true}}}
+	facts := branchFacts{known: true, testsLost: []losttests.Test{{Path: "core/x/x_test.go", Name: "TestTwo", How: "removed", Identifier: true}}}
 	if got := historyProblems("", facts); len(got) != 1 {
 		t.Fatalf("a local run is not held to the rule: %v", got)
 	}

@@ -554,8 +554,10 @@ How each measure is read:
   `test/contract/testdata/walks-baseline.txt`, the bound `uncitedBuiltAtMost` that
   `make gate-docs` holds, each use case's `state:`, and the runs of twenty or more `//` lines in
   the Go files under `core/`, `presentation/`, `infrastructure/` and `cmd/`.
-* **A test deleted or skipped** is read from a pull request's merge commit, by the same reading
-  as `make gate-pr` and with its limits; a skip is named by its file.
+* **A test deleted or skipped** is read from a pull request's merge commit against its parent,
+  by the reading `make gate-pr` holds a branch to and with its limits: both tools call
+  `tools/losttests`. So a test renamed in place or moved is not reported, a deleted test file is
+  one row, and a skip added inside a test the base had is reported under that test's name.
 * **Issues and alerts** are counted as they are when the report runs, so they have no value for
   the window before.
 

@@ -6,6 +6,8 @@ package main
 import (
 	"testing"
 	"time"
+
+	"github.com/Jersyfi/hubtask/tools/losttests"
 )
 
 func at(s string) time.Time {
@@ -87,59 +89,12 @@ func TestFixAfterFeat(t *testing.T) {
 	}
 }
 
-func TestLostIn(t *testing.T) {
-	diff := `diff --git a/core/a/a_test.go b/core/a/a_test.go
---- a/core/a/a_test.go
-+++ b/core/a/a_test.go
-@@ -10,3 +9,0 @@
--func TestGone(t *testing.T) {
--	run(t)
--}
-@@ -20 +17 @@
--func TestOldName(t *testing.T) {
-+func TestNewName(t *testing.T) {
-@@ -30,2 +26,0 @@
--func TestMoved(t *testing.T) {
--}
-@@ -40,0 +37 @@
-+	t.Skip("slow on this runner")
-@@ -50,0 +48 @@
-+	// t.Skip is not what this does
-diff --git a/core/b/b_test.go b/core/b/b_test.go
---- a/core/b/b_test.go
-+++ b/core/b/b_test.go
-@@ -5,0 +6,2 @@
-+func TestMoved(t *testing.T) {
-+}
-diff --git a/apps/webapp/src/lib/a.test.ts b/apps/webapp/src/lib/a.test.ts
---- a/apps/webapp/src/lib/a.test.ts
-+++ /dev/null
-@@ -1,2 +0,0 @@
--test('a name matches when it holds every word', () => {
--});
-`
-	got := lostIn(diff)
-	want := []lostTest{
-		{path: "core/a/a_test.go", name: "TestGone", how: "removed"},
-		{path: "core/a/a_test.go", name: "a_test.go", how: "a skip added"},
-		{path: "apps/webapp/src/lib/a.test.ts", name: "a name matches when it holds every word", how: "removed"},
-	}
-	if len(got) != len(want) {
-		t.Fatalf("got %+v, want %+v", got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Errorf("%d: got %+v, want %+v", i, got[i], want[i])
-		}
-	}
-}
-
 func TestReasonFor(t *testing.T) {
 	body := "## Impact\n\n- `TestGone` asserted the old retry, which this change removes on purpose | see UC-SYN-03\n"
-	if got, want := reasonFor(body, lostTest{name: "TestGone"}), "- `TestGone` asserted the old retry, which this change removes on purpose \\| see UC-SYN-03"; got != want {
+	if got, want := reasonFor(body, losttests.Test{Name: "TestGone", Identifier: true}), "- `TestGone` asserted the old retry, which this change removes on purpose \\| see UC-SYN-03"; got != want {
 		t.Errorf("reason %q, want %q", got, want)
 	}
-	if got := reasonFor(body, lostTest{name: "TestOther"}); got != "the description does not name it" {
+	if got := reasonFor(body, losttests.Test{Name: "TestOther", Identifier: true}); got != "the description does not name it" {
 		t.Errorf("reason %q for a test the description does not name", got)
 	}
 }

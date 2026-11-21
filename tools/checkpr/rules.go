@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/Jersyfi/hubtask/tools/losttests"
 )
 
 // The rules that read the branch's history (ADR-0081):
@@ -46,7 +48,7 @@ type branchFacts struct {
 	// sectionsLost are the numbered sections of subject documents the head drops (sections.go).
 	sectionsLost []lostSection
 	// testsLost are the tests the branch removes or skips (losttests.go).
-	testsLost []lostTest
+	testsLost []losttests.Test
 	// baselineAdded are the entries the branch adds to the walks' baseline (walkbaseline.go).
 	baselineAdded []string
 }

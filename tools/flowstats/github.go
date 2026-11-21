@@ -5,6 +5,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"path"
@@ -12,6 +13,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/Jersyfi/hubtask/tools/losttests"
 )
 
 // githubPart prints the sections read from GitHub and fills in its rows of the measures.
@@ -407,17 +410,13 @@ func shares(a, b map[string]bool) bool {
 
 // lostTest is a test a merged pull request took away, with what its description says about it.
 type lostTest struct {
-	pr                      int
-	path, name, how, reason string
+	losttests.Test
+	pr     int
+	reason string
 }
 
-var (
-	goTestDecl = regexp.MustCompile(`^func (?:\([^)]*\) )?((?:Test|Fuzz)\w*)\(`)
-	jsTestDecl = regexp.MustCompile("^\\s*(?:test|it)(?:\\.\\w+)?\\(\\s*['\"`](.+?)['\"`]\\s*,")
-	skipAdded  = regexp.MustCompile(`\.Skip(?:f|Now)?\(|\.skip\(|\bskip:|\.todo\(|\btodo:`)
-)
-
-// lostTests reads the merge commit of each pull request. unread counts the pull requests whose
+// lostTests reads the merge commit of each pull request against its parent, by the reading the
+// pull request gate holds a branch to (tools/losttests). unread counts the pull requests whose
 // merge commit this clone does not have.
 func lostTests(prs []pullRequest) (lost []lostTest, unread int) {
 	for _, pr := range prs {
@@ -425,85 +424,26 @@ func lostTests(prs []pullRequest) (lost []lostTest, unread int) {
 			unread++
 			continue
 		}
-		diff, err := git("-c", "core.quotepath=off", "diff", "--no-renames", "--no-color", "--no-ext-diff", "-U0",
-			pr.mergeCommit+"^", pr.mergeCommit, "--", "*_test.go", "*.test.ts", "*.test.mjs", "*.test.js")
+		ctx, cancel := context.WithTimeout(context.Background(), callTimeout)
+		found, err := losttests.Between(ctx, ".", pr.mergeCommit+"^", pr.mergeCommit)
+		cancel()
 		if err != nil {
 			unread++
 			continue
 		}
-		for _, l := range lostIn(string(diff)) {
-			l.pr, l.reason = pr.number, reasonFor(pr.body, l)
-			lost = append(lost, l)
+		for _, l := range found {
+			lost = append(lost, lostTest{Test: l, pr: pr.number, reason: reasonFor(pr.body, l)})
 		}
 	}
 	return lost, unread
 }
 
-// lostIn reads a diff without context. A test whose declaration is removed counts, unless the
-// same hunk declares one - a rename - or the diff adds its name again elsewhere - a move. So does
-// a skip an added line carries. It cannot see a loosened assertion, and a test replaced by
-// another in place reads as a rename (the pull request gate's check reads the same way).
-func lostIn(diff string) []lostTest {
-	var (
-		out     []lostTest
-		file    string
-		removed []lostTest
-		renamed bool
-		added   = map[string]bool{}
-	)
-	closeHunk := func() {
-		if !renamed {
-			out = append(out, removed...)
-		}
-		removed, renamed = nil, false
-	}
-	for _, row := range strings.Split(diff, "\n") {
-		switch {
-		case strings.HasPrefix(row, "diff --git "), strings.HasPrefix(row, "@@"):
-			closeHunk()
-		case strings.HasPrefix(row, "--- a/"):
-			file = strings.TrimPrefix(row, "--- a/")
-		case strings.HasPrefix(row, "+++ b/"):
-			file = strings.TrimPrefix(row, "+++ b/")
-		case strings.HasPrefix(row, "---"), strings.HasPrefix(row, "+++"):
-		case strings.HasPrefix(row, "-"):
-			if name, ok := declared(row[1:]); ok {
-				removed = append(removed, lostTest{path: file, name: name, how: "removed"})
-			}
-		case strings.HasPrefix(row, "+"):
-			if name, ok := declared(row[1:]); ok {
-				renamed, added[name] = true, true
-			} else if skipAdded.MatchString(row[1:]) && !strings.HasPrefix(strings.TrimSpace(row[1:]), "//") {
-				out = append(out, lostTest{path: file, name: path.Base(file), how: "a skip added"})
-			}
-		}
-	}
-	closeHunk()
-	kept := out[:0]
-	for _, l := range out {
-		if l.how != "removed" || !added[l.name] {
-			kept = append(kept, l)
-		}
-	}
-	return kept
-}
-
-func declared(row string) (string, bool) {
-	if m := goTestDecl.FindStringSubmatch(row); m != nil {
-		return m[1], true
-	}
-	if m := jsTestDecl.FindStringSubmatch(row); m != nil {
-		return m[1], true
-	}
-	return "", false
-}
-
 const reasonLength = 240
 
 // reasonFor is the line of the description that names the test.
-func reasonFor(body string, l lostTest) string {
+func reasonFor(body string, l losttests.Test) string {
 	for _, row := range strings.Split(body, "\n") {
-		if strings.Contains(row, l.name) {
+		if l.NamedIn(row) {
 			row = strings.TrimSpace(strings.ReplaceAll(row, "|", "\\|"))
 			if r := []rune(row); len(r) > reasonLength {
 				row = string(r[:reasonLength]) + "…"
@@ -525,7 +465,7 @@ func printLostTests(b *bytes.Buffer, lost []lostTest, unread int) {
 	}
 	fmt.Fprintf(b, "| pull request | file | test | how | what its description says |\n|---|---|---|---|---|\n")
 	for _, l := range lost {
-		fmt.Fprintf(b, "| #%d | `%s` | %s | %s | %s |\n", l.pr, l.path, strings.ReplaceAll(l.name, "|", "\\|"), l.how, l.reason)
+		fmt.Fprintf(b, "| #%d | `%s` | %s | %s | %s |\n", l.pr, l.Path, strings.ReplaceAll(l.Name, "|", "\\|"), l.How, l.reason)
 	}
 	fmt.Fprintln(b)
 }
