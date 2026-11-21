@@ -138,3 +138,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0103](./ADR-0103-a-board-keeps-one-source-of-done.md) | A board maps its columns to statuses and keeps one source of done | accepted | Domain, application, clients |
 | [0104](./ADR-0104-wopi-host-and-file-viewer.md) | A WOPI host for a document server, and one file viewer | accepted | Security, application, adapters, web client |
 | [0105](./ADR-0105-one-object-shape-and-product-colours.md) | One object shape, and product colours that identify | accepted | Design system, clients |
+| [0106](./ADR-0106-an-independent-review-and-the-owner-on-the-loop.md) | An independent review, a design brief, and the owner on the loop | accepted | Process, documentation, contributors |
