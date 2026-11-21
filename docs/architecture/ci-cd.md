@@ -33,7 +33,6 @@ GitHub-specific; the pipeline may.
 | `deploy.yml` | Push to `main`, manual dispatch | Builds, signs and verifies the per-commit image and runs `helm upgrade` into `integration` ([deployment.md](./deployment.md) §3) |
 | `website.yml` | Push to `main` touching `apps/website/`, `packages/design-system/`, `security/advisories/` or the lockfile; manual dispatch | Writes the CSAF advisories into the site (`make csaf`), builds `apps/website/dist` and mirrors it to the webspace (§10). A failure files an issue |
 | `workbench.yml` | Push to `main` touching `packages/design-system/`; manual dispatch | Publishes the component workbench to `workbench.hubtask.eu` (§10) |
-| `scorecard.yml` | Schedule | **Planned, not built.** The OpenSSF supply chain scorecard. The file does not exist; the row stays as the plan |
 ---
 
 ## 3. Jobs in `ci.yml`
