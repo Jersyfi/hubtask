@@ -38,8 +38,10 @@ When one session steers them, it runs like this, and builds nothing itself:
 1. **The inventory.** Every view, menu, dialog and deeper page in scope, each mapped to a mockup
    scene or to a rule. Capture each one on `main` before anything changes.
 2. **The design-system foundation**, then **the shared server capabilities**.
-3. **Families of screens**, each family built whole.
-4. **A checkpoint after every family:**
+3. **Families of screens**, each family built whole. A family is a group of the inventory's
+   screens that belong together and are built together.
+4. **A checkpoint after every family.** A checkpoint is the set of checks a family passes before
+   the next one starts:
    - `make check`;
    - the family's walks: `make e2e SUITES="<suites>"`;
    - the independent review of the family's diff;

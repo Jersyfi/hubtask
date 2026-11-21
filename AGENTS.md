@@ -99,8 +99,9 @@ The other sections explain.
   second review of a plan (ADR-0089). `[partial: gate-pr; open: whether every premise was checked]`
 - A pull request starts as a draft and leaves draft once `make check` is green and `HEAD` is pushed;
   CI checks the rest then. `[partial: ci:ci-required; open: a skipped make check — CI fails instead]`
-- Before a pull request leaves draft, and at each checkpoint of a concept, a fresh agent that has
-  not seen the builder's conversation reviews the change (`review-change`). The builder fixes each
+- Before a pull request leaves draft, and at each checkpoint of a concept — the checks after each
+  of its stages (`build-concept`) — a fresh agent that has not seen the builder's conversation
+  reviews the change (`review-change`). The builder fixes each
   finding or answers it with a reason, and the description reports the review in its *Review*
   section. `[partial: gate-pr; open: whether the review ran and was good]`
 - A structural change — a migration that changes an existing table, a new or changed port, the
