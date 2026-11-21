@@ -28,11 +28,11 @@ func githubPart(b *bytes.Buffer, found map[string]measure, repo string, w window
 	}
 	printPullRequests(b, mergedIn(prs, w))
 	// Three windows of runs: a red main is seen from the failed run that began it.
-	runs, err := ciRuns(repo, window{from: pp.from, to: w.to})
+	runs, drafts, err := ciRuns(repo, window{from: pp.from, to: w.to})
 	if err != nil {
 		return fmt.Errorf("CI runs: %w", err)
 	}
-	printRuns(b, createdIn(runs, w))
+	printRuns(b, createdIn(runs, w), createdIn(drafts, w))
 	now := time.Now()
 	for id, read := range map[string]func(window) value{
 		"pr_run_median_minutes":       func(x window) value { return prMedian(createdIn(runs, x)) },
@@ -42,7 +42,7 @@ func githubPart(b *bytes.Buffer, found map[string]measure, repo string, w window
 	} {
 		found[id] = measure{now: read(w), before: read(p), earlier: read(pp)}
 	}
-	found["main_red_hours"] = measure{now: number(redHours(runs, w, now), "%.1f"), before: number(redHours(runs, p, now), "%.1f")}
+	found["main_red_hours"] = measure{now: redHours(runs, w, now), before: redHours(runs, p, now)}
 	if withJobs {
 		jobs, unread := jobsOf(repo, createdIn(runs, w))
 		printJobs(b, jobs, unread)
@@ -88,11 +88,11 @@ func createdIn(runs []run, w window) []run {
 
 // ----------------------------------------------------------------------------- runs
 
-// checked are a pull request's runs that checked something, as the CI table counts them.
-func checked(runs []run) []run {
+// ofPullRequests are the runs a pull request started; the others are main's.
+func ofPullRequests(runs []run, yes bool) []run {
 	var out []run
 	for _, r := range runs {
-		if r.pullRequest && r.wall >= noOp {
+		if r.pullRequest == yes {
 			out = append(out, r)
 		}
 	}
@@ -101,20 +101,28 @@ func checked(runs []run) []run {
 
 const noRuns = "no such run in the window"
 
+// counted is a number with the count it was taken from beside it, so a share of three runs does
+// not read like a share of three hundred.
+func counted(n float64, format string, of int, what string) value {
+	v := number(n, format)
+	v.text += fmt.Sprintf(" (n = %d %s)", of, what)
+	return v
+}
+
 func prMedian(runs []run) value {
 	var walls []float64
-	for _, r := range checked(runs) {
+	for _, r := range ofPullRequests(runs, true) {
 		walls = append(walls, r.wall.Minutes())
 	}
 	if len(walls) == 0 {
 		return unmeasured(noRuns)
 	}
 	sort.Float64s(walls)
-	return number(quantile(walls, 0.5), "%.1f")
+	return counted(quantile(walls, 0.5), "%.1f", len(walls), "runs")
 }
 
 func prFailed(runs []run) value {
-	all := checked(runs)
+	all := ofPullRequests(runs, true)
 	if len(all) == 0 {
 		return unmeasured(noRuns)
 	}
@@ -124,37 +132,31 @@ func prFailed(runs []run) value {
 			failed++
 		}
 	}
-	return number(100*float64(failed)/float64(len(all)), "%.0f")
+	return counted(100*float64(failed)/float64(len(all)), "%.0f", len(all), "runs")
 }
 
 // secondAttempts is the share of main's runs whose newest attempt is not the first.
 func secondAttempts(runs []run) value {
-	all, again := 0, 0
-	for _, r := range runs {
-		if r.pullRequest {
-			continue
-		}
-		all++
+	all := ofPullRequests(runs, false)
+	if len(all) == 0 {
+		return unmeasured(noRuns)
+	}
+	again := 0
+	for _, r := range all {
 		if r.attempt > 1 {
 			again++
 		}
 	}
-	if all == 0 {
-		return unmeasured(noRuns)
-	}
-	return number(100*float64(again)/float64(all), "%.0f")
+	return counted(100*float64(again)/float64(len(all)), "%.0f", len(all), "runs")
 }
 
 // redHours is how long main was red inside the window: from the end of a failed run on main to
 // the end of the next one that passed. It reads each run's last attempt, so a run that failed and
-// passed when run again counts as passed.
-func redHours(runs []run, w window, now time.Time) float64 {
-	var main []run
-	for _, r := range runs {
-		if !r.pullRequest {
-			main = append(main, r)
-		}
-	}
+// passed when run again counts as passed. Time without a run counts as the state the last run
+// left, so a red Friday is red until Monday's first green; the runs the window had stand beside
+// the hours.
+func redHours(runs []run, w window, now time.Time) value {
+	main := ofPullRequests(runs, false)
 	sort.Slice(main, func(i, j int) bool { return main[i].created.Before(main[j].created) })
 	var total time.Duration
 	var since time.Time
@@ -183,7 +185,7 @@ func redHours(runs []run, w window, now time.Time) float64 {
 	if red {
 		total += inside(since, now)
 	}
-	return total.Hours()
+	return counted(total.Hours(), "%.1f", len(createdIn(main, w)), "`main` runs")
 }
 
 // ----------------------------------------------------------------------------- jobs

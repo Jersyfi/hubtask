@@ -270,7 +270,7 @@ func printPullRequests(b *bytes.Buffer, prs []pullRequest) {
 
 // ----------------------------------------------------------------------------- CI
 
-// run is one finished run of ci.yml.
+// run is one finished run of ci.yml that was neither cancelled nor skipped.
 type run struct {
 	id          int64
 	pullRequest bool
@@ -278,60 +278,82 @@ type run struct {
 	attempt     int
 	created     time.Time
 	updated     time.Time
-	wall        time.Duration // created → last update: queueing included, as a worker waits it
+	wall        time.Duration // the last attempt, from its start to the run's last update
 }
 
 type runsPage struct {
 	WorkflowRuns []struct {
-		ID         int64
-		Event      string
-		RunAttempt int `json:"run_attempt"`
-		Status     string
-		Conclusion string
-		CreatedAt  time.Time `json:"created_at"`
-		UpdatedAt  time.Time `json:"updated_at"`
+		ID           int64
+		Event        string
+		RunAttempt   int `json:"run_attempt"`
+		Status       string
+		Conclusion   string
+		CreatedAt    time.Time `json:"created_at"`
+		RunStartedAt time.Time `json:"run_started_at"`
+		UpdatedAt    time.Time `json:"updated_at"`
 	} `json:"workflow_runs"`
 }
 
-// noOp is the wall clock below which a run checked nothing: a draft's run, or one cancelled at once.
-const noOp = 2 * time.Minute
+// failedConclusions are the ends of a run or a job that did not pass. A cancelled or skipped one
+// is neither passed nor failed and is counted nowhere.
+var failedConclusions = map[string]bool{"failure": true, "timed_out": true, "startup_failure": true}
 
-func ciRuns(repo string, w window) ([]run, error) {
-	var runs []run
+// ciRuns reads the window's runs. drafts are the pull request runs GitHub skipped whole, which is
+// what a draft's run is (ci-cd.md §3.4): they are counted in a row of their own and in no measure.
+func ciRuns(repo string, w window) (runs, drafts []run, err error) {
 	// The API answers at most 1,000 runs per query, so the window is read a day at a time.
 	for day := w.from; day.Before(w.to); day = day.AddDate(0, 0, 1) {
 		path := fmt.Sprintf("repos/%s/actions/workflows/ci.yml/runs?per_page=100&created=%s", repo, day.Format("2006-01-02"))
 		out, err := gh("api", "--paginate", path)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		dec := json.NewDecoder(bytes.NewReader(out))
-		for dec.More() {
-			var page runsPage
-			if err := dec.Decode(&page); err != nil {
-				return nil, err
+		r, d, err := parseRuns(out)
+		if err != nil {
+			return nil, nil, err
+		}
+		runs, drafts = append(runs, r...), append(drafts, d...)
+	}
+	return runs, drafts, nil
+}
+
+// parseRuns reads the pages gh prints one after the other.
+func parseRuns(data []byte) (runs, drafts []run, err error) {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	for dec.More() {
+		var page runsPage
+		if err := dec.Decode(&page); err != nil {
+			return nil, nil, err
+		}
+		for _, r := range page.WorkflowRuns {
+			pullRequest, counts := runKind(r.Event)
+			if r.Status != "completed" || r.Conclusion == "cancelled" || !counts {
+				continue
 			}
-			for _, r := range page.WorkflowRuns {
-				if r.Status != "completed" || r.Conclusion == "cancelled" {
-					continue
-				}
-				pullRequest, counts := runKind(r.Event)
-				if !counts {
-					continue
-				}
-				runs = append(runs, run{
-					id:          r.ID,
-					attempt:     r.RunAttempt,
-					created:     r.CreatedAt,
-					updated:     r.UpdatedAt,
-					pullRequest: pullRequest,
-					failed:      r.Conclusion == "failure",
-					wall:        r.UpdatedAt.Sub(r.CreatedAt),
-				})
+			// A first attempt starts when the run is created; an older answer may leave the start out.
+			started := r.RunStartedAt
+			if started.IsZero() {
+				started = r.CreatedAt
 			}
+			this := run{
+				id:          r.ID,
+				attempt:     r.RunAttempt,
+				created:     r.CreatedAt,
+				updated:     r.UpdatedAt,
+				pullRequest: pullRequest,
+				failed:      failedConclusions[r.Conclusion],
+				wall:        r.UpdatedAt.Sub(started),
+			}
+			if r.Conclusion == "skipped" {
+				if pullRequest {
+					drafts = append(drafts, this)
+				}
+				continue
+			}
+			runs = append(runs, this)
 		}
 	}
-	return runs, nil
+	return runs, drafts, nil
 }
 
 // runKind tells a pull request's run from main's. A run started by hand on a branch is neither and
@@ -343,11 +365,10 @@ func runKind(event string) (pullRequest, counts bool) {
 	return false, event == "push"
 }
 
-func printRuns(b *bytes.Buffer, runs []run) {
+func printRuns(b *bytes.Buffer, runs, drafts []run) {
 	fmt.Fprintf(b, "### CI (ci.yml)\n\n")
+	fmt.Fprintf(b, "A run's minutes are its last attempt's. Cancelled runs are left out.\n\n")
 	fmt.Fprintf(b, "| runs | n | wall minutes, median / p75 | failed |\n|---|---|---|---|\n")
-	var noOps int
-	var noOpTime time.Duration
 	for _, pr := range []bool{true, false} {
 		var walls []float64
 		failed := 0
@@ -355,23 +376,18 @@ func printRuns(b *bytes.Buffer, runs []run) {
 			if r.pullRequest != pr {
 				continue
 			}
-			if pr && r.wall < noOp {
-				noOps++
-				noOpTime += r.wall
-				continue
-			}
 			walls = append(walls, r.wall.Minutes())
 			if r.failed {
 				failed++
 			}
 		}
-		name := "pull request, checked something"
+		name := "pull request"
 		if !pr {
 			name = "main"
 		}
 		fmt.Fprintf(b, "| %s | %d | %s | %s |\n", name, len(walls), spread(walls), percent(failed, len(walls)))
 	}
-	fmt.Fprintf(b, "| pull request, checked nothing (draft) | %d | %.1f h in total | — |\n\n", noOps, noOpTime.Hours())
+	fmt.Fprintf(b, "| pull request, skipped whole (a draft) | %d | — | — |\n\n", len(drafts))
 }
 
 // ----------------------------------------------------------------------------- transcripts

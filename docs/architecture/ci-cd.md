@@ -509,7 +509,7 @@ measured breaches nothing.
 
 | Measure | Id | Threshold |
 |---|---|---|
-| Pull request run, median wall minutes | `pr_run_median_minutes` | ≤ 20 |
+| Pull request run, last attempt, median wall minutes | `pr_run_median_minutes` | ≤ 20 |
 | Pull request runs failed, percent | `pr_runs_failed_percent` | ≤ 15 |
 | `main` runs needing a second attempt, percent | `main_second_attempt_percent` | ≤ 10 |
 | Hours `main` was red | `main_red_hours` | ≤ 2 |
@@ -540,12 +540,19 @@ with the line of its description that names it.
 
 How each measure is read:
 
-* **Runs** are `ci.yml`'s finished runs that were not cancelled. A pull request's run that took
-  less than two minutes checked nothing and is left out. A run started by hand counts in no row.
-  A run's wall time ends with its last attempt.
+* **Runs** are `ci.yml`'s finished runs. A run that ended in `failure`, `timed_out` or
+  `startup_failure` failed. A `cancelled` run is counted nowhere. A `skipped` run is a draft's
+  (§3.4): it has a row of its own in the CI table and enters no measure. A run started by hand
+  counts in no row.
+* **A run's minutes** are its last attempt's, from that attempt's start to the run's last update,
+  so the wait before somebody ran it again is not in them. Where the last attempt ran only the
+  jobs that had failed, it is shorter than a whole run.
 * **A second attempt** is a run on `main` whose newest attempt is not its first.
 * **Red hours** run from the end of a failed run on `main` to the end of the next one that
-  passed, inside the window. A run that failed and passed when run again counts as passed.
+  passed, inside the window. A run that failed and passed when run again counts as passed. Time
+  in which nothing ran counts as what the last run left: the idle days after a red run are red.
+  The number of `main` runs the window had is printed beside the hours.
+* **n** stands beside every median and percentage: the runs it was taken from.
 * **Jobs** are read from every attempt of the window's runs, one request per run.
 * **A package** is a Go file's directory, or the workspace package of a file under `apps/` or
   `packages/`; a pull request's first hundred changed paths are read.

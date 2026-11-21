@@ -54,7 +54,7 @@ var rows = []struct {
 	id, name string
 	github   bool
 }{
-	{"pr_run_median_minutes", "Pull request run, median wall minutes", true},
+	{"pr_run_median_minutes", "Pull request run, last attempt, median wall minutes", true},
 	{"pr_runs_failed_percent", "Pull request runs failed, percent", true},
 	{"main_second_attempt_percent", "`main` runs needing a second attempt, percent", true},
 	{"main_red_hours", "Hours `main` was red", true},

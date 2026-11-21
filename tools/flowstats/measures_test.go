@@ -37,11 +37,11 @@ func TestAThresholdBelowTheValueProducesAFinding(t *testing.T) {
 		t.Fatalf("want one finding, got %d: %+v", len(found), found)
 	}
 	f := found[0]
-	if want := "Flow report: Pull request run, median wall minutes is over its threshold"; f.Title != want {
+	if want := "Flow report: Pull request run, last attempt, median wall minutes is over its threshold"; f.Title != want {
 		t.Errorf("title %q, want %q", f.Title, want)
 	}
 	for _, part := range []string{
-		"* Measure: Pull request run, median wall minutes (`pr_run_median_minutes`)",
+		"* Measure: Pull request run, last attempt, median wall minutes (`pr_run_median_minutes`)",
 		"* Value: 20.5",
 		"* Threshold: ≤ 20",
 		"* The window before: 18.0",

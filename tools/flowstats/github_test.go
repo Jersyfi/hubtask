@@ -18,22 +18,76 @@ func at(s string) time.Time {
 	return t
 }
 
+// The answer of the runs API for one day, reduced to the fields read and to one run of each kind.
+const runsAnswer = `{"total_count": 8, "workflow_runs": [
+ {"id": 1, "event": "pull_request", "run_attempt": 2, "status": "completed", "conclusion": "failure",
+  "created_at": "2026-11-15T18:20:21Z", "run_started_at": "2026-11-15T18:41:44Z", "updated_at": "2026-11-15T18:58:49Z"},
+ {"id": 2, "event": "pull_request", "run_attempt": 1, "status": "completed", "conclusion": "skipped",
+  "created_at": "2026-11-15T18:20:11Z", "run_started_at": "2026-11-15T18:20:11Z", "updated_at": "2026-11-15T18:20:12Z"},
+ {"id": 3, "event": "pull_request", "run_attempt": 1, "status": "completed", "conclusion": "cancelled",
+  "created_at": "2026-11-16T14:44:56Z", "run_started_at": "2026-11-16T14:44:56Z", "updated_at": "2026-11-16T15:09:04Z"},
+ {"id": 4, "event": "push", "run_attempt": 2, "status": "completed", "conclusion": "success",
+  "created_at": "2026-11-16T15:38:55Z", "run_started_at": "2026-11-18T13:20:26Z", "updated_at": "2026-11-18T13:41:45Z"},
+ {"id": 5, "event": "pull_request", "run_attempt": 1, "status": "completed", "conclusion": "timed_out",
+  "created_at": "2026-11-16T10:00:00Z", "run_started_at": "2026-11-16T10:00:00Z", "updated_at": "2026-11-16T10:30:00Z"},
+ {"id": 6, "event": "push", "run_attempt": 1, "status": "completed", "conclusion": "startup_failure",
+  "created_at": "2026-11-16T11:00:00Z", "run_started_at": "2026-11-16T11:00:00Z", "updated_at": "2026-11-16T11:00:05Z"},
+ {"id": 7, "event": "workflow_dispatch", "run_attempt": 1, "status": "completed", "conclusion": "success",
+  "created_at": "2026-11-16T12:00:00Z", "run_started_at": "2026-11-16T12:00:00Z", "updated_at": "2026-11-16T12:20:00Z"},
+ {"id": 8, "event": "pull_request", "run_attempt": 1, "status": "in_progress", "conclusion": null,
+  "created_at": "2026-11-16T13:00:00Z", "run_started_at": "2026-11-16T13:00:00Z", "updated_at": "2026-11-16T13:05:00Z"}
+]}`
+
+func TestParseRuns(t *testing.T) {
+	runs, drafts, err := parseRuns([]byte(runsAnswer))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(drafts) != 1 || drafts[0].id != 2 {
+		t.Errorf("drafts %+v, want the skipped run alone", drafts)
+	}
+	type read struct {
+		id          int64
+		pullRequest bool
+		failed      bool
+		wall        time.Duration
+	}
+	want := []read{
+		// The wait between the first attempt and the second is not the run's time.
+		{1, true, true, 17*time.Minute + 5*time.Second},
+		{4, false, false, 21*time.Minute + 19*time.Second},
+		{5, true, true, 30 * time.Minute},
+		{6, false, true, 5 * time.Second},
+	}
+	if len(runs) != len(want) {
+		t.Fatalf("runs %+v, want %d of them", runs, len(want))
+	}
+	for i, w := range want {
+		if got := (read{runs[i].id, runs[i].pullRequest, runs[i].failed, runs[i].wall}); got != w {
+			t.Errorf("run %d: %+v, want %+v", i, got, w)
+		}
+	}
+}
+
 func TestRunMeasures(t *testing.T) {
 	runs := []run{
 		{pullRequest: true, wall: 10 * time.Minute},
 		{pullRequest: true, wall: 30 * time.Minute, failed: true},
 		{pullRequest: true, wall: 50 * time.Minute},
-		{pullRequest: true, wall: time.Minute}, // a draft's run checked nothing
 		{attempt: 1}, {attempt: 2}, {attempt: 3}, {attempt: 1},
 	}
-	if got := prMedian(runs).String(); got != "30.0" {
-		t.Errorf("median %q, want 30.0", got)
-	}
-	if got := prFailed(runs).String(); got != "33" {
-		t.Errorf("failed %q, want 33", got)
-	}
-	if got := secondAttempts(runs).String(); got != "50" {
-		t.Errorf("second attempts %q, want 50", got)
+	for name, c := range map[string]struct {
+		got  value
+		n    float64
+		text string
+	}{
+		"median":          {prMedian(runs), 30, "30.0 (n = 3 runs)"},
+		"failed":          {prFailed(runs), 100.0 / 3, "33 (n = 3 runs)"},
+		"second attempts": {secondAttempts(runs), 50, "50 (n = 4 runs)"},
+	} {
+		if !c.got.numeric || c.got.n != c.n || c.got.String() != c.text {
+			t.Errorf("%s: %v %q, want %v %q", name, c.got.n, c.got, c.n, c.text)
+		}
 	}
 	for name, v := range map[string]value{"median": prMedian(nil), "failed": prFailed(nil), "second attempts": secondAttempts(nil)} {
 		if v.why == "" {
@@ -52,12 +106,17 @@ func TestRedHours(t *testing.T) {
 		{pullRequest: true, created: at("2026-11-16 00:00"), updated: at("2026-11-16 09:00"), failed: true},
 		{created: at("2026-11-20 20:00"), updated: at("2026-11-20 23:00"), failed: true}, // red to the window's end
 	}
-	if got := redHours(runs, week, at("2026-11-25 00:00")); got != 3+1.5+1 {
-		t.Errorf("red for %.2f hours, want 5.5", got)
+	if got := redHours(runs, week, at("2026-11-25 00:00")); got.n != 3+1.5+1 || got.String() != "5.5 (n = 5 `main` runs)" {
+		t.Errorf("red for %v hours, printed %q; want 5.5 beside the window's five runs on main", got.n, got)
 	}
 	// A window that has not ended is red until now, not until its end.
-	if got := redHours(runs, week, at("2026-11-20 23:30")); got != 3+1.5+0.5 {
-		t.Errorf("red for %.2f hours, want 5", got)
+	if got := redHours(runs, week, at("2026-11-20 23:30")); got.n != 3+1.5+0.5 {
+		t.Errorf("red for %.2f hours, want 5", got.n)
+	}
+	// The days after a red run on which nothing ran are red.
+	idle := []run{{created: at("2026-11-14 10:00"), updated: at("2026-11-14 12:00"), failed: true}}
+	if got := redHours(idle, week, at("2026-11-25 00:00")); got.n != 12+6*24 || got.String() != "156.0 (n = 1 `main` runs)" {
+		t.Errorf("red for %v hours, printed %q; want 156 beside the one run", got.n, got)
 	}
 }
 
