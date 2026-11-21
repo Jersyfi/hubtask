@@ -37,6 +37,13 @@ Closes #246
 
 - The task said the gate ran on drafts; it never did - corrected in ci-cd.md §3.4.
 
+## Review
+
+- **Reviewed by:** the reviewer subagent (model r-1), 2026-11-21
+- **Findings:** found 3, fixed 2, open 1
+  - the job's name in the dashboard is unchanged: the dashboard is the next task's
+- **Outside reviewer:** comments 4, fixed 1, declined 3
+
 ## Does this need an ADR?
 
 - [x] No — this implements a decision that is already recorded. Which one: ADR-0015.
@@ -106,6 +113,11 @@ func TestEachRuleRefusesItsOwnMistake(t *testing.T) {
 			j := strings.Index(s, "## Impact")
 			return s[:i] + s[j:]
 		}, `"Does this need an ADR?" from the template is missing`},
+		{"the review dropped", func(s string) string {
+			i := strings.Index(s, "## Review")
+			j := strings.Index(s, "## Does this need an ADR?")
+			return s[:i] + s[j:]
+		}, `"Review" from the template is missing`},
 		{"the issue in backticks", func(s string) string {
 			return strings.Replace(s, "Closes #246", "`Closes #246`", 1)
 		}, "no issue is closed"},
