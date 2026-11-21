@@ -8,8 +8,8 @@
 // never the other way round.
 //
 // The validator here covers the subset of JSON Schema the specification actually uses: $ref,
-// type (including nullable unions), required, properties, items, enum, and
-// additionalProperties. A full validator would be a dependency, and a dependency that silently
+// type (including nullable unions), required, properties, items, enum, additionalProperties,
+// and allOf, oneOf and anyOf. A full validator would be a dependency, and a dependency that silently
 // accepts what it does not understand is worse than 150 lines that fail loudly on anything
 // unfamiliar.
 package contract
@@ -17,6 +17,7 @@ package contract
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -40,9 +41,11 @@ type schema struct {
 	// Since and RemovedIn are a deprecated member's day and the major version it goes with.
 	Since     string `yaml:"x-deprecated-since"`
 	RemovedIn string `yaml:"x-removed-in"`
-	// AllOf is read but not composed: the validator does not need it, and InputEnums refuses a
-	// request body that uses it rather than reporting an empty set.
+	// AllOf is composed for a response. InputEnums refuses a request body that uses it rather than
+	// reporting an empty set.
 	AllOf []*schema `yaml:"allOf"`
+	OneOf []*schema `yaml:"oneOf"`
+	AnyOf []*schema `yaml:"anyOf"`
 }
 
 // specification is the part of the document this validator needs.
@@ -69,16 +72,6 @@ type operation struct {
 	Security    *[]any       `yaml:"security"`
 	Parameters  []*parameter `yaml:"parameters"`
 	RequestBody *requestBody `yaml:"requestBody"`
-}
-
-// parameter is one declared input outside the body. It carries a $ref of its own, because most of
-// them are declared once under components.parameters and referenced from every path that takes one.
-type parameter struct {
-	Ref        string  `yaml:"$ref"`
-	Name       string  `yaml:"name"`
-	In         string  `yaml:"in"`
-	Deprecated bool    `yaml:"deprecated"`
-	Schema     *schema `yaml:"schema"`
 }
 
 // requestBody is the body an operation reads. Only the schema per media type is needed: what the
@@ -182,6 +175,14 @@ func (s *specification) check(path string, node *schema, value any) []string {
 	if node == nil {
 		return nil
 	}
+	if len(node.AllOf) > 0 {
+		if node, problems = s.composed(node, 0); len(problems) > 0 {
+			return problems
+		}
+	}
+	if alternatives := append(slices.Clone(node.OneOf), node.AnyOf...); len(alternatives) > 0 {
+		return s.checkAlternatives(path, alternatives, value)
+	}
 
 	types := typesOf(node.Type)
 	if len(types) > 0 && !matchesAnyType(types, value) {
@@ -204,6 +205,70 @@ func (s *specification) check(path string, node *schema, value any) []string {
 		}
 	}
 	return problems
+}
+
+// composed merges an allOf into one object schema: the members' properties and required names
+// together, and what the node itself declares beside them. Merging rather than checking each
+// member alone is what keeps "a field nobody declared" meaningful - a field of the second member
+// is not a surprise to the first.
+func (s *specification) composed(node *schema, depth int) (*schema, []string) {
+	if depth > 10 {
+		return nil, []string{"the specification nests allOf more than ten deep"}
+	}
+	merged := *node
+	merged.AllOf = nil
+	merged.Properties = maps.Clone(node.Properties)
+	if merged.Properties == nil {
+		merged.Properties = map[string]*schema{}
+	}
+	for _, member := range node.AllOf {
+		part, problems := s.resolve(member)
+		if len(problems) > 0 {
+			return nil, problems
+		}
+		if part == nil {
+			continue
+		}
+		if len(part.AllOf) > 0 {
+			if part, problems = s.composed(part, depth+1); len(problems) > 0 {
+				return nil, problems
+			}
+		}
+		maps.Copy(merged.Properties, part.Properties)
+		merged.Required = append(slices.Clone(merged.Required), part.Required...)
+		if merged.Type == nil {
+			merged.Type = part.Type
+		}
+		if merged.Items == nil {
+			merged.Items = part.Items
+		}
+		if merged.AdditionalProperties == nil {
+			merged.AdditionalProperties = part.AdditionalProperties
+		}
+		if len(merged.Enum) == 0 {
+			merged.Enum = part.Enum
+		}
+		merged.OneOf = append(slices.Clone(merged.OneOf), part.OneOf...)
+		merged.AnyOf = append(slices.Clone(merged.AnyOf), part.AnyOf...)
+	}
+	return &merged, nil
+}
+
+// checkAlternatives passes a value that fits one member of a oneOf or anyOf, and otherwise
+// reports the member it came closest to. "Exactly one" is not held: the document uses oneOf for
+// "this or null", where the members cannot both fit.
+func (s *specification) checkAlternatives(path string, alternatives []*schema, value any) []string {
+	var closest []string
+	for i, alternative := range alternatives {
+		problems := s.check(path, alternative, value)
+		if len(problems) == 0 {
+			return nil
+		}
+		if i == 0 || len(problems) < len(closest) {
+			closest = problems
+		}
+	}
+	return closest
 }
 
 func (s *specification) checkObject(path string, node *schema, value map[string]any) []string {
