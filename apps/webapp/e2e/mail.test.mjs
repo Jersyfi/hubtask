@@ -168,20 +168,41 @@ test('chromium: a mailbox connects through its provider and comes back connected
   const { context, page, failures } = await signedIn(browser, 1280, 900);
   const writes = [];
   let mailboxes = [];
+  // Back from the provider the page reads its mailboxes and completes the connection side by side.
+  // The server may answer the read first, without the new mailbox, and that answer may arrive
+  // last. The walk gives that order every time: the completion is answered once the page's read
+  // has arrived - the one after its read of the settings - and that read is answered after it,
+  // with the list as it was. The page must still show the mailbox.
+  let isBack = false;
+  let settingsAsked = false;
+  let isCompleted = false;
+  let pageReadArrived;
+  const pageRead = new Promise((resolve) => (pageReadArrived = resolve));
+  let completionAnswered;
+  const afterCompletion = new Promise((resolve) => (completionAnswered = resolve));
   await context.route('https://accounts.provider.test/**', (route) => {
     // The provider: the administrator says yes, and the browser goes back with a code.
     const state = new URL(route.request().url()).searchParams.get('state');
+    isBack = true;
     return route.fulfill({ status: 302, headers: { location: `${served.origin}/administration/mail/oauth?state=${state}&code=c-1` } });
   });
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
     if (request.method() !== 'GET') writes.push({ call: `${request.method()} ${path}`, body: request.postDataJSON?.() ?? null });
-    if (path === '/mail/settings' && request.method() === 'GET') return route.fulfill({ json: SETTINGS });
+    if (path === '/mail/settings' && request.method() === 'GET') {
+      settingsAsked = isBack;
+      return route.fulfill({ json: SETTINGS });
+    }
     if (path === '/mail/receipts') return route.fulfill({ json: { receipts: [] } });
     if (path === '/mail/mailboxes' && request.method() === 'GET') {
+      const read = mailboxes;
+      if (isBack && !isCompleted) {
+        if (settingsAsked) pageReadArrived();
+        await afterCompletion;
+      }
       return route.fulfill({ json: {
-        mailboxes, presets: [{ key: 'gmail', protocol: 'IMAP', plus_addresses: true, hint: 'mail.preset_gmail' }],
+        mailboxes: read, presets: [{ key: 'gmail', protocol: 'IMAP', plus_addresses: true, hint: 'mail.preset_gmail' }],
         oauth_providers: [
           { key: 'google', installation: true, hint: 'mail.oauth_google' },
           { key: 'microsoft', installation: false, hint: 'mail.oauth_microsoft' },
@@ -198,8 +219,11 @@ test('chromium: a mailbox connects through its provider and comes back connected
         username: 'familie@gmail.com', folder: 'INBOX', done_folder: 'Hubtask', preset: 'gmail', plus_addresses: true, enabled: true,
         failing: false, checked_at: '2026-10-25T10:00:00Z', created_at: '2026-10-25T10:00:00Z', auth: 'OAUTH', oauth_provider: 'google',
       };
+      await pageRead;
       mailboxes = [connected];
-      return route.fulfill({ status: 201, json: connected });
+      await route.fulfill({ status: 201, json: connected });
+      isCompleted = true;
+      return completionAnswered();
     }
     return stub(route);
   });

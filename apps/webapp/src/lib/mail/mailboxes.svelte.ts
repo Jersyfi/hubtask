@@ -65,7 +65,15 @@ export class MailboxList {
   /** Whether *Connect a mailbox* is open. */
   isAdding = $state(false);
 
-  async read(): Promise<void> {
+  /** The read under way, which a completion waits for. */
+  #reading: Promise<void> | undefined;
+
+  read(): Promise<void> {
+    this.#reading = this.#read();
+    return this.#reading;
+  }
+
+  async #read(): Promise<void> {
     try {
       const read = await readMailboxes();
       this.presets = read.presets;
@@ -89,6 +97,9 @@ export class MailboxList {
         ...(answer['code'] ? { code: answer['code'] } : {}),
         ...(answer['error'] ? { error: answer['error'] } : {}),
       });
+      // The page reads its mailboxes beside this. A read answered before the provider's answer
+      // was handed on lists no such mailbox, and applied last it would take the mailbox away.
+      await this.#reading;
       this.mailboxes = [...this.mailboxes.filter((each) => each.id !== connected.id), connected];
       announcer.say(t('app.mail.mailbox_connected', { address: connected.address }));
     } catch (error) {
