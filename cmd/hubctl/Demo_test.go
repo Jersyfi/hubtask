@@ -29,6 +29,8 @@ type showcaseInstallation struct {
 	// cis is what the hub's inventory lists; changes are the PUTs and PATCHes the showcase sent.
 	cis     []any
 	changes []showcaseWrite
+	// plans are the template plans the showcase asked for, in order.
+	plans []showcaseWrite
 	// people are the workspace's members by name; present refuses a POST to a path with the
 	// conflict detail an installation answers for what an earlier run wrote.
 	people  map[string]string
@@ -126,6 +128,9 @@ func serveShowcase(t *testing.T) *showcaseInstallation {
 		case r.Method == http.MethodGet:
 			answer(map[string]any{"data": []any{}, "version": 0})
 		case strings.HasSuffix(path, ":plan"):
+			var body map[string]any
+			_ = json.Unmarshal(raw, &body)
+			s.plans = append(s.plans, showcaseWrite{path: path, body: body})
 			answer(map[string]any{"plan_hash": "h", "document": map[string]any{}, "template": "t", "mode": "MERGE"})
 		default:
 			if r.Method == http.MethodPost {
@@ -200,6 +205,29 @@ func TestTheShowcaseMarksWhatItMakesAndMakesItOnce(t *testing.T) {
 	code, _, errOut = invoke(t, s.env(), "", "workspace", "demo", "--workspace", "nordlicht", "--remove")
 	if code != exitOK || s.removed != 1 {
 		t.Errorf("remove: exit %d, %d removals, %s", code, s.removed, errOut)
+	}
+}
+
+// A hub takes a template the workspace took (config.template_workspace_first): the showcase plans
+// every template for the workspace before it plans it for a hub, or the installation refuses it.
+func TestTheShowcaseTakesATemplateForTheWorkspaceBeforeAHub(t *testing.T) {
+	s := serveShowcase(t)
+	if code, out, errOut := invoke(t, s.env(), "", "workspace", "demo", "--workspace", "nordlicht"); code != exitOK {
+		t.Fatalf("exit %d: %s %s", code, out, errOut)
+	}
+	workspace, hubs := map[string]bool{}, 0
+	for _, plan := range s.plans {
+		if plan.body["hub_id"] == nil {
+			workspace[plan.path] = true
+			continue
+		}
+		hubs++
+		if !workspace[plan.path] {
+			t.Errorf("%s was planned for a hub before the workspace took it", plan.path)
+		}
+	}
+	if hubs < len(demoConstellations) {
+		t.Fatalf("%d templates were planned for a hub, want at least the %d constellations", hubs, len(demoConstellations))
 	}
 }
 

@@ -81,6 +81,8 @@ func (d *demo) constellations(ctx context.Context) {
 			continue
 		}
 		if fresh {
+			// The workspace first, then the hub: a hub takes a template the workspace took.
+			d.take(ctx, c.template, "", false)
 			d.take(ctx, c.template, h, false)
 		}
 		list := d.collection(ctx, c.key+".list", h, "Aufgaben", "")
