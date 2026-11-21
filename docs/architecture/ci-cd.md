@@ -641,7 +641,7 @@ section "Quality and security" holds all of it, in under fifteen lines.
 * **The proof state**: the use cases by state, the checks a file in `checked_by` cites - a test,
   or an evidence document, a script or a workflow where no test can make the run - and the bounds
   that only fall. `make proof-state` prints it from the documentation gate's own reading
-  (`tools/checkdocs`). The `docs` job writes it to the summary of each run on `main`, and the
+  (`tools/checkdocs`). The `docs` job writes it to the summary of each run on `main` and of a manual run, and the
   weekly flow report (§11) carries it as its last part, so the README links to that report's
   issue. It is no committed page (§3.5).
 * **OpenSSF Scorecard**, `scorecard.yml`. The Scorecard service refuses a published result unless

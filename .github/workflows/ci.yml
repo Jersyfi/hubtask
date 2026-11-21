@@ -821,10 +821,10 @@ jobs:
       # checkdocs is a program in this repository, not an installed tool, so `make tools` is not
       # needed - which is what keeps a documentation-only pull request cheap.
       - run: make gate-docs
-      # The proof state (ci-cd.md §12), on main's run alone: what the tree at this commit proves.
-      # Printed here and in the weekly flow report, never committed (§3.5).
+      # The proof state (ci-cd.md §12), on main's run and on a manual one: what the tree at this
+      # commit proves. Printed here and in the weekly flow report, never committed (§3.5).
       - name: The proof state, in the summary
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name != 'pull_request'
         run: make proof-state >> "$GITHUB_STEP_SUMMARY"
 
   # Pull requests merge without catching up with main (ADR-0083), so two that each add migration
