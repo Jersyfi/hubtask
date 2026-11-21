@@ -57,6 +57,7 @@ type specification struct {
 	Components struct {
 		Schemas    map[string]*schema    `yaml:"schemas"`
 		Parameters map[string]*parameter `yaml:"parameters"`
+		Responses  map[string]*response  `yaml:"responses"`
 	} `yaml:"components"`
 }
 
@@ -72,6 +73,27 @@ type operation struct {
 	Security    *[]any       `yaml:"security"`
 	Parameters  []*parameter `yaml:"parameters"`
 	RequestBody *requestBody `yaml:"requestBody"`
+	// Responses are keyed by status as the document writes it: "200", "4XX", "default".
+	Responses map[string]*response `yaml:"responses"`
+}
+
+// response is one answer an operation declares: a schema per media type, or a $ref to one declared
+// once under components.responses.
+type response struct {
+	Ref     string `yaml:"$ref"`
+	Content map[string]struct {
+		Schema *schema `yaml:"schema"`
+	} `yaml:"content"`
+}
+
+// parameter is one declared input outside the body. It carries a $ref of its own, because most of
+// them are declared once under components.parameters and referenced from every path that takes one.
+type parameter struct {
+	Ref        string  `yaml:"$ref"`
+	Name       string  `yaml:"name"`
+	In         string  `yaml:"in"`
+	Deprecated bool    `yaml:"deprecated"`
+	Schema     *schema `yaml:"schema"`
 }
 
 // requestBody is the body an operation reads. Only the schema per media type is needed: what the
