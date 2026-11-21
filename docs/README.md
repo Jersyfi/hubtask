@@ -44,8 +44,9 @@ for every document, every `AGENTS.md`, every skill and every pull request descri
 5. **Short sentences in full words.** A text gets shorter by leaving things out, not by
    compressing what stays.
 
-No document has a length limit, because a limit produces shorthand. Two limits exist: an
-`AGENTS.md` stays under 200 lines, and a code comment is a few lines.
+No document has a length limit, because a limit produces shorthand. A code comment is a few
+lines. The root `AGENTS.md` holds the map, the rules and the loop, and no step-by-step procedure:
+a procedure is a skill.
 
 **What a change owes.**
 

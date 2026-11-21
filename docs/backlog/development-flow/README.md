@@ -144,7 +144,8 @@ is not an option either (ADR-0090 measured about 190,000 tokens for the required
 ### 3.7 Where knowledge sits
 
 * `AGENTS.md` is 259 lines; the tool's documentation recommends under 200 per instruction file,
-  because longer files are followed less well. It holds three kinds of text: what is true of every
+  because longer files are followed less well. The recommendation is not taken as a limit (§5.9):
+  the tagged rule lists alone take about 166 lines. It holds three kinds of text: what is true of every
   change (the map, the fifteen rules, the loop), how the owner's own workers run the flow
   (decisions, milestones, merging), and procedures (resuming, stacking, asking).
 * Six standing rules exist only in the owner's private notes on one machine: mockups are the
@@ -348,7 +349,7 @@ write this":
 
 | The knowledge | Its place | Test |
 |---|---|---|
-| True of every change, needed before any work | root `AGENTS.md` | Would a wrong change follow if a worker had not read it? Then here. Under 200 lines. |
+| True of every change, needed before any work | root `AGENTS.md` | Would a wrong change follow if a worker had not read it? Then here. It holds the map, the rules and the loop, and no step-by-step procedure. |
 | True of one directory | that directory's `AGENTS.md` | Loaded when a file there is read |
 | Anything a tool can check | a gate, a lint, a test — the rule names it | If it can be counted, it is not prose |
 | How to do a kind of task, step by step | a **skill**, `.agents/skills/<name>/SKILL.md`, listed in `AGENTS.md` by name and path | Needed only when that task comes up |
@@ -515,6 +516,7 @@ plus what it does not print yet:
 | The falling bounds: uncited checks of built use cases, fixed waits, suites without a use case, stub answers outside the contract | none rises |
 | Use cases by state | reported |
 | Lines added and removed under `docs/` outside `archive/` | reported |
+| Lines of the root `AGENTS.md` | reported |
 | Comment blocks of twenty lines or more (47 today) | does not rise |
 | Tests deleted or skipped in merged pull requests | reported, each with the reason its description gave |
 | Unreachable Go functions, unused translation keys (§5.10) | reported; a bound after the first removal |
@@ -612,8 +614,10 @@ section, "How to write" (about a screen); `AGENTS.md` carries one tagged line th
    from compressing what stays.
 
 Rule 5 is why this concept sets **no length limit** on documents. A limit makes a model compress,
-and compressed text is the unreadable kind the owner described. The two limits that stay are the
-existing ones: an instruction file under 200 lines, a comment of a few lines.
+and compressed text is the unreadable kind the owner described. The one limit that stays is the
+existing one: a comment of a few lines. The root `AGENTS.md` has no line limit either. What is
+held instead can be checked by reading: it holds the map, the rules and the loop, and no
+step-by-step procedure — a procedure is a skill. Its length is reported weekly (§5.6).
 
 **How much a change adds.**
 
@@ -857,13 +861,18 @@ stage on the draft) before its own context passes the limit `AGENTS.md` sets.
 
 | Stage | Content | Done when — checked by the orchestrator, not taken from the worker's report |
 |---|---|---|
-| 1 | **The rules.** The ADR; `AGENTS.md` (the placement table, the moved rules, procedures out, the lines for §5.9 and §5.10); "How to write" in `docs/README.md`; the eight skills in `.agents/skills/` with their links; `reviewer.md`; `apps/webapp/e2e/AGENTS.md`; the six private rules in their documents; `docs/adr/README.md`; `engineering-guidelines.md` §3; `CONTRIBUTING.md`; the template's *Review* section; `tools/checkpr` holding that section and the naming of a deleted test; `.coderabbit.yaml` if D-12 | `make gate-docs` green; `make gate-pr` green on a description with the section and red without; `AGENTS.md` under 200 lines; a planted violation in `gate-selftest` for the missing *Review* section and for an unnamed deleted test; every skill has its link |
+| 1 | **The rules.** The ADR; `AGENTS.md` (the placement table, the moved rules, procedures out, the lines for §5.9 and §5.10); "How to write" in `docs/README.md`; the eight skills in `.agents/skills/` with their links; `reviewer.md`; `apps/webapp/e2e/AGENTS.md`; the six private rules in their documents; `docs/adr/README.md`; `engineering-guidelines.md` §3; `CONTRIBUTING.md`; the template's *Review* section; `tools/checkpr` holding that section and the naming of a deleted test; `.coderabbit.yaml` if D-12 | `make gate-docs` green; `make gate-pr` green on a description with the section and red without; `AGENTS.md` holds no step-by-step procedure; a planted violation in `gate-selftest` for the missing *Review* section and for an unnamed deleted test; every skill has its link |
 | 2 | **The walks' gates.** The counts as falling bounds; the recorder in `fixture.mjs`; the Go test that validates the record; a planted violation for each | The bounds equal today's counts; a planted fixed wait, a suite without a use case and an answer outside the contract each turn the gate red |
 | 3 | **CI.** `workflow_dispatch` on `ci.yml`, with `test/architecture/drafts_test.go` updated; the failing browser shards read and fixed at their cause, fixed waits first | `make gate-architecture` green; a draft's push still starts nothing (the test says so); the suites changed pass locally ten times in a row |
 | 4 | **The flow report.** `flowstats` prints the measures of §5.6; the weekly job; the thresholds section in `ci-cd.md`; the reports of §5.10 if D-11 | A local run prints every row of §5.6; a threshold set below the current value produces the text of a `finding` in a test |
 | 5 | **Contributors.** `make dev`; the label on the open findings that qualify | A fresh clone reaches a signed-in workspace with `make tools && make dev` |
 | 6 | **What the repository shows.** The README section; the generated proof state; the Scorecard workflow; CodeQL's added languages; the coverage figure in the job summary; the answers for the Best Practices badge, each with its link, as a file the worker submits from at the close | `make generate` leaves no diff and the page's figures equal the use cases' states; `make gate-architecture` green with the new action on the allow-list; the README section is under fifteen lines |
 | Close | A coherence review by one fresh reviewer: this document's §5, item by item, against the branch — built, not built, or built differently. Then `make verify`, the description from the template, *Ready*, CI, the list of consent clicks (§5.13), CodeRabbit once installed, the owner's word | Every item of §5 is "built" or named in the description as left out and why; CI green |
+
+**A target dropped while building.** Stage 1 first aimed at a root `AGENTS.md` under 200 lines.
+The target was dropped on 2026-11-21: the tagged rule lists alone take about 166 lines, so it
+could only be met by dropping rules, and no rule is dropped. The file's length is reported weekly
+instead (§5.6).
 
 **What can only be seen after the merge**, and is checked then by the orchestrator or the next
 worker: a CI run started by hand on a branch (GitHub may offer the manual trigger only once it is

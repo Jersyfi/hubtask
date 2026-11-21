@@ -38,7 +38,7 @@ something found outside the task and too big to fix where it was found, one labe
 
 | The knowledge | Its place | Test |
 |---|---|---|
-| True of every change, needed before any work | this file, under 200 lines | Would a wrong change follow if a worker had not read it? |
+| True of every change, needed before any work | this file: the map, the rules and the loop, and no step-by-step procedure | Would a wrong change follow if a worker had not read it? |
 | True of one directory | that directory's `AGENTS.md` | Read before a file there is changed |
 | Anything a tool can check | a gate, a lint or a test, named by the rule | What can be counted is not prose |
 | How to do a kind of task, step by step | a skill, `.agents/skills/<name>/SKILL.md` | Needed only when that task comes up |
