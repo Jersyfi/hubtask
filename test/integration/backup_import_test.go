@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"maps"
 	"regexp"
 	"slices"
 	"testing"
@@ -764,10 +765,10 @@ func keysOf(set map[string]bool) []string {
 	return out
 }
 
-// The round trip that matters most, on the table that makes it interesting: `work_item` carries a
-// generated column, so the archive holds a value the insert may not be given. Exporting a real row
-// and importing it back is the check that the two statements agree about which columns those are -
-// and about how the row survives being turned into JSON and back.
+// The round trip that matters most, on the table that makes it interesting: an archive written
+// before migration 0445 carries `work_item`'s generated `search_vector`, a key no column answers
+// any more. Exporting a real row and importing it back is the check that the two statements agree
+// about which columns there are - and about how the row survives being turned into JSON and back.
 func TestARealRowSurvivesTheRoundTripThroughTheArchivesShape(t *testing.T) {
 	ctx := context.Background()
 	collection := collectionFor(ctx, t, tenantA, authorA)
@@ -793,9 +794,12 @@ func TestARealRowSurvivesTheRoundTripThroughTheArchivesShape(t *testing.T) {
 	if exportedRow == nil {
 		t.Fatal("the item was not exported")
 	}
-	if _, generated := exportedRow["search_vector"]; !generated {
-		t.Fatal("the export no longer carries the generated column, so this test proves nothing")
+	if _, generated := exportedRow["search_vector"]; generated {
+		t.Fatal("the export still carries the generated column migration 0445 dropped")
 	}
+	// As an older archive carries it.
+	older := maps.Clone(exportedRow)
+	older["search_vector"] = "'bread':4 'milk':3 'shop':2 'weekly':1"
 
 	// The row is removed and put back from what the archive holds.
 	if _, err := adminPool(ctx, t).Exec(ctx,
@@ -804,7 +808,7 @@ func TestARealRowSurvivesTheRoundTripThroughTheArchivesShape(t *testing.T) {
 		t.Fatalf("removing the original: %v", err)
 	}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		_, err := importRepo().Write(ctx, "work_item", exportedRow, false)
+		_, err := importRepo().Write(ctx, "work_item", older, false)
 		return err
 	}); err != nil {
 		t.Fatalf("importing the row back: %v", err)
@@ -815,11 +819,6 @@ func TestARealRowSurvivesTheRoundTripThroughTheArchivesShape(t *testing.T) {
 	// expected would forget the same one.
 	restored := exportedShape(ctx, t, tenantA, id)
 	for column, before := range exportedRow {
-		if column == "search_vector" {
-			// Generated: the database rewrites it from the columns it is derived from, so a
-			// difference here is the derivation working rather than a column being lost.
-			continue
-		}
 		if after := restored[column]; !sameJSON(before, after) {
 			t.Errorf("%s came back as %#v, want %#v", column, after, before)
 		}

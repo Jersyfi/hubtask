@@ -61,7 +61,7 @@ var personalColumns = map[string]bool{
 // list above misses still fails.
 func namesAPerson(column, typ string) bool {
 	if typ != "uuid" {
-		// `due_by` is a moment, `retention_blocked_by` a hold's kind.
+		// `due_by` is a moment, `work_item_retention.blocked_by` a hold's kind.
 		return false
 	}
 	return strings.HasSuffix(column, "_by") || strings.HasSuffix(column, "_account_id")

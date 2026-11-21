@@ -176,15 +176,15 @@ func TestTheFeedReturnsConcurrentEventsInCommitOrderAndNoneTwice(t *testing.T) {
 	}
 }
 
-// The numbering has its own key: a writer waits for another writer of this release, which holds
-// 8_010_004, and - while a pod of the release before may still run - for one of that release,
-// which numbers under 8_010_002 alone. The migrator's session lock is that same 8_010_002 until the
-// release after drops the old key (versioning-release.md §4).
-func TestTheNumberingWaitsForItsOwnKeyAndTheReleaseBeforesKey(t *testing.T) {
+// The numbering has its own key: a writer waits for another writer, which holds 8_010_004, and not
+// for the migrator's 8_010_002 - an event is written while a migration runs (versioning-release.md
+// §4).
+func TestTheNumberingWaitsForItsOwnKeyAlone(t *testing.T) {
 	for _, held := range []struct {
-		name string
-		key  int64
-	}{{"a writer of this release", 8_010_004}, {"a writer of the release before", 8_010_002}} {
+		name  string
+		key   int64
+		waits bool
+	}{{"another writer", 8_010_004, true}, {"the migrator", 8_010_002, false}} {
 		t.Run(held.name, func(t *testing.T) {
 			ctx := context.Background()
 			uow := postgres.NewUnitOfWork(appPool(ctx, t))
@@ -208,6 +208,17 @@ func TestTheNumberingWaitsForItsOwnKeyAndTheReleaseBeforesKey(t *testing.T) {
 					return recorder.Record(ctx, event.WorkspaceSuspended, event.Actor{Kind: shared.ActorSystem}, time.Now(), nil)
 				})
 			}()
+			if !held.waits {
+				select {
+				case err := <-done:
+					if err != nil {
+						t.Fatalf("recording while %d was held: %v", held.key, err)
+					}
+				case <-time.After(10 * time.Second):
+					t.Fatalf("the event waited for %d", held.key)
+				}
+				return
+			}
 			select {
 			case err := <-done:
 				t.Fatalf("the event was numbered while %d was held: %v", held.key, err)

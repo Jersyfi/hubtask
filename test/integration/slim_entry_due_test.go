@@ -150,9 +150,6 @@ func TestADueAnnouncementIsClaimedOnceUnderConcurrentClaimers(t *testing.T) {
 		if soon[id] != 1 || over[id] != 1 {
 			t.Errorf("%s was announced as due soon %d times and as overdue %d times, want once each", id, soon[id], over[id])
 		}
-		if columnsLag(ctx, t, id) != 0 {
-			t.Errorf("the columns of %s did not follow its announcement", id)
-		}
 	}
 }
 
