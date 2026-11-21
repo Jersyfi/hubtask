@@ -41,7 +41,7 @@ The vision behind this, the people it is for and the settings it must work in ar
   maintainer. The badge links to the result of each check.
 * A release's image is signed and carries its build provenance and a bill of materials
   ([security.md §11](./docs/architecture/security.md#11-supply-chain-and-build)). To verify one:
-  `gh attestation verify oci://ghcr.io/jersyfi/hubtask:<version> --repo Jersyfi/hubtask`
+  `gh attestation verify oci://ghcr.io/jersyfi/hubtask:<version> --repo Jersyfi/hubtask --signer-workflow Jersyfi/hubtask/.github/workflows/release.yml --source-ref refs/tags/<version>`
 
 ---
 

@@ -347,11 +347,13 @@ Rules trigger HTTP calls and agents write, so:
 | Release integrity | Signed tags; publication only from a protected branch with review |
 
 **Verifying a release.** The image `ghcr.io/jersyfi/hubtask:<version>` is signed without a key by
-the release workflow, and GitHub holds its build provenance. Either command fails when the image
-was not built by `release.yml` at that tag:
+the release workflow, and GitHub holds its build provenance; `<version>` is the tag, as in
+`v0.10.2`. Either command fails when the image was not built by `release.yml` at that tag. The
+first needs both of its last two flags for that: `--repo` alone holds only the repository.
 
 ```bash
-gh attestation verify oci://ghcr.io/jersyfi/hubtask:<version> --repo Jersyfi/hubtask
+gh attestation verify oci://ghcr.io/jersyfi/hubtask:<version> --repo Jersyfi/hubtask \
+  --signer-workflow Jersyfi/hubtask/.github/workflows/release.yml --source-ref refs/tags/<version>
 cosign verify ghcr.io/jersyfi/hubtask:<version> \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   --certificate-identity "https://github.com/Jersyfi/hubtask/.github/workflows/release.yml@refs/tags/<version>"

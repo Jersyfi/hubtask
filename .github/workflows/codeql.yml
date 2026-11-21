@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   analyze:
-    # One leg per language (security.md §13). Go is built, because its analysis follows the
+    # One leg per language (security.md §11). Go is built, because its analysis follows the
     # compiler; JavaScript, TypeScript and the workflows are read as they stand.
     name: Analyze (${{ matrix.language }})
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
