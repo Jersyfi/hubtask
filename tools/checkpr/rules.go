@@ -47,6 +47,8 @@ type branchFacts struct {
 	sectionsLost []lostSection
 	// testsLost are the tests the branch removes or skips (losttests.go).
 	testsLost []lostTest
+	// baselineAdded are the entries the branch adds to the walks' baseline (walkbaseline.go).
+	baselineAdded []string
 }
 
 // reusedID is a use case the branch adds under an ID an earlier file carried.
@@ -92,6 +94,9 @@ func historyProblems(body string, facts branchFacts) []string {
 	}
 	if heldTo(facts.opened, testsSince) {
 		problems = append(problems, lostTestProblems(body, facts.testsLost)...)
+	}
+	if heldTo(facts.opened, walkBaselineSince) {
+		problems = append(problems, walkBaselineProblems(facts.baselineAdded)...)
 	}
 	return problems
 }

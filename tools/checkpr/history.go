@@ -55,6 +55,9 @@ func readHistory(root, base, head string, opened time.Time) (branchFacts, error)
 	if facts.testsLost, err = lostTests(root, base, head); err != nil {
 		return branchFacts{}, err
 	}
+	if facts.baselineAdded, err = walkBaselineAdded(root, base, head, changed); err != nil {
+		return branchFacts{}, err
+	}
 
 	return facts, nil
 }
