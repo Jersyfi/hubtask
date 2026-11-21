@@ -1,0 +1,52 @@
+# The outside reviewer's configuration (ADR-0106). It comments on a pull request after the
+# independent review, on request; it is no required check and decides nothing (ci-cd.md §5).
+# This file takes precedence over the settings on the vendor's website.
+reviews:
+  profile: chill
+  poem: false
+  sequence_diagrams: false
+  auto_review:
+    # A draft is reviewed only when a worker asks for it.
+    drafts: false
+    ignore_usernames:
+      - "dependabot[bot]"
+  # What no person wrote is not reviewed: generated code and documents, lock files, the licence
+  # texts `make licenses` collects, and the archive.
+  path_filters:
+    - "!**/*.gen.go"
+    - "!**/*.gen.ts"
+    - "!**/*.gen.json"
+    - "!infrastructure/postgres/sqlc/**"
+    - "!core/domain/model/shared/LabelTokens.go"
+    - "!api/openapi.json"
+    - "!sdk/python/hubtask/client.py"
+    - "!sdk/python/hubtask/types.py"
+    - "!apps/webapp/src-tauri/gen/**"
+    - "!docs/audit/event-matrix.md"
+    - "!docs/reference/settings-matrix.md"
+    - "!THIRD-PARTY-LICENSES.md"
+    - "!third-party/licenses/**"
+    - "!go.sum"
+    - "!pnpm-lock.yaml"
+    - "!apps/webapp/src-tauri/Cargo.lock"
+    - "!docs/archive/**"
+  # golangci-lint, gitleaks and actionlint run in `make` or CI with the repository's own
+  # configuration, so one tool speaks per rule. markdownlint, yamllint and shellcheck are no gate
+  # here: a rule the repository wants becomes a gate, not a reviewer's default.
+  tools:
+    golangci-lint:
+      enabled: false
+    gitleaks:
+      enabled: false
+    markdownlint:
+      enabled: false
+    actionlint:
+      enabled: false
+    yamllint:
+      enabled: false
+    shellcheck:
+      enabled: false
+knowledge_base:
+  # A rule is written into the repository, not taught to the reviewer by a reply.
+  learnings:
+    scope: local

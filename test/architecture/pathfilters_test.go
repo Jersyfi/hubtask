@@ -38,6 +38,8 @@ func TestEveryTrackedPathIsClaimedByAFilter(t *testing.T) {
 	unfiltered := map[string]string{
 		".editorconfig": "editor configuration; no job reads it",
 		".gitignore":    "git's own; no job reads it",
+		// An outside reviewer's own configuration (ADR-0106); it comments and decides nothing.
+		".coderabbit.yaml": "read by the outside reviewer's service; no job reads it",
 	}
 	// One link per skill, for the one coding tool that looks there. A link changed alone runs no
 	// job; the test that holds the links runs with any Go change and on main.
