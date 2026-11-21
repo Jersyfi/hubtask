@@ -381,7 +381,8 @@ write this":
 * **The reviewer has no shared format**: each tool defines a subagent in its own directory and
   syntax, and so does each tool's hook. The portable part is therefore the skill `review-change`,
   which holds everything the review does. `.claude/agents/reviewer.md` is a wrapper of a few lines
-  — fresh context, read-only tools, "follow `review-change`" — read by Claude Code and Cursor.
+  — fresh context, tools for reading and for running tests, "follow `review-change`" — read by
+  Claude Code and Cursor. It changes no file.
   With another tool, the review is a new session that is given the skill. The existing hook stays
   a convenience for one tool; what holds every tool is CI, as today.
 * `docs/adr/README.md` takes the ADR test of the table. Process tuning is recorded where the rule
@@ -468,7 +469,8 @@ adds tests that pass before and after.
 ### 5.5 The independent review
 
 Before `gh pr ready` — and at every checkpoint of a concept — the builder starts the reviewer: a
-subagent with a fresh context and read-only tools, given the diff, the description, the use cases
+subagent with a fresh context and tools for reading and for running tests — it changes no file —
+given the diff, the description, the use cases
 it names and the `AGENTS.md` of the touched directories. It never sees the builder's conversation.
 The review is added to the author's own check against the rules no gate checks
 (`engineering-guidelines.md` §3.19), which stays. The reviewer works through, in this order:

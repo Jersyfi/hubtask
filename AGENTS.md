@@ -157,8 +157,8 @@ The other sections explain.
 - What another worker needs goes into the repository, never only into a tool's private notes; any
   machine and any tool can do the work. `[unchecked: private notes are outside the repository]`
 - One worker at a time: the next worker starts when the one before is done, and never more than
-  one full local verification run goes at once. A read-only reviewer or research agent beside the
-  one worker is fine. `[unchecked: the worker's own session]`
+  one full local verification run goes at once. A reviewer or research agent that changes no
+  file may run beside the one worker. `[unchecked: the worker's own session]`
 - A worker reports only what it checked in the code, read or measured, and says plainly what did
   not run or is unknown. `[unchecked: no tool tells a checked statement from an assumed one]`
 - A text is written as `docs/README.md`, "How to write", says: for the reader of its place, in the
