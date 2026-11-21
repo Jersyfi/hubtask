@@ -27,9 +27,9 @@ Dependencies point inwards: `cmd → presentation, infrastructure → core`;
 `core/application → core/domain, core/port`; `apps/* → packages/*`. No edge runs `apps/* → apps/*`
 or `packages/* → apps/*` (`build/lint-workspace-map.mjs`).
 
-**Before you change a file under `core/`, `presentation/`, `apps/webapp/`, `apps/website/`,
-`packages/design-system/`, `packages/api-client/`, `packages/sync-engine/` or `docs/usecases/`,
-read that directory's `AGENTS.md`**, whether or not your tool loads it.
+**Before you change a file under `core/`, `presentation/`, `apps/webapp/`, `apps/webapp/e2e/`,
+`apps/website/`, `packages/design-system/`, `packages/api-client/`, `packages/sync-engine/` or
+`docs/usecases/`, read that directory's `AGENTS.md`**, whether or not your tool loads it.
 
 ## Where knowledge lives
 

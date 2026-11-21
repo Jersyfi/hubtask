@@ -62,6 +62,8 @@ The product UI in the browser, embedded into the binary and wrapped by the shell
 * **No import from `apps/website`**, and **no `.go` file** (rule 14).
   `[gate: ci:node, gate-architecture]`
 
+The browser walks in `e2e/` have rules of their own: [`e2e/AGENTS.md`](./e2e/AGENTS.md).
+
 ## How to check a change
 
 ```bash
