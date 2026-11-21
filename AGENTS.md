@@ -65,7 +65,7 @@ The skills, each read when its task comes up. Every one is a plain document at i
 
 They take precedence over any task; if a task contradicts one, report it instead of breaking the
 rule. The numbers are permanent: code cites them as "rule N", and migrations up to 0117 and older
-documents as "CLAUDE.md rule N".
+documents as "CLAUDE.md rule N", this file's name before 2026-10-07.
 
 | # | Rule | Checked by |
 |---|---|---|
