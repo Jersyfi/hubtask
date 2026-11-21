@@ -1312,7 +1312,7 @@ expect_walk_answer_failure() {
 	local records out
 	records="$(mktemp -d)"
 	printf '%s\n' "$answer" > "$records/zz_gate_selftest.jsonl"
-	out="$(make --no-print-directory gate-walks WALK_RECORD_DIR="$records" 2>&1 || true)"
+	out="$(make --no-print-directory gate-walks WALK_RECORD="$records" 2>&1 || true)"
 	rm -f "$records/zz_gate_selftest.jsonl"
 	rmdir "$records"
 	if grep -q "$violation, in zz_gate_selftest" <<<"$out"; then

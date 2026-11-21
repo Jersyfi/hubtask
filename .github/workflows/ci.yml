@@ -1080,7 +1080,7 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
       - if: success() || failure()
-        run: make gate-walks WALK_RECORD_DIR="$RUNNER_TEMP/walk-record"
+        run: make gate-walks WALK_RECORD="$RUNNER_TEMP/walk-record"
 
   # The installed apps' shell (ADR-0031, UC-WRK-33/5): the Tauri project at apps/webapp/src-tauri/,
   # built on the two desktop systems it ships for (F7 Decision 9) - only here, never by `go` or the

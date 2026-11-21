@@ -881,17 +881,22 @@ gate-cli:
 	$(call go_test,,./cmd/hubctl/...,)
 	./bin/hubctl$(GOEXE) --version
 
-# Where a recorded walk writes its answers (apps/webapp/e2e/record.mjs); CI names its own. A
-# suite's record is replaced when the suite is walked again and stays otherwise.
+# Where recorded walks write their answers (apps/webapp/e2e/record.mjs): each `make e2e RECORD=1`
+# into a directory of its own, named by when it started, so that no run is judged with what an
+# earlier one left. WALK_RECORD names one run's directory instead, as CI does.
 WALK_RECORD_DIR ?= $(PWD)/apps/webapp/.walk-record
 
 ## gate-walks: The answers the recorded walks gave, against openapi.yaml (after `make e2e RECORD=1`)
-# Only suites with a record are judged, so it holds for one suite and for one of CI's shards
-# alike. -count=1: the records are not the test's input as Go's cache sees it.
+# The newest run under WALK_RECORD_DIR, or the one WALK_RECORD names. Only suites with a record
+# are judged, so it holds for one suite and for one of CI's shards alike. -count=1: the records
+# are not the test's input as Go's cache sees it.
 .PHONY: gate-walks
 gate-walks:
-	@test -d "$(WALK_RECORD_DIR)" || { echo "no recorded walks in $(WALK_RECORD_DIR) - run 'make e2e RECORD=1'"; exit 1; }
-	WALK_RECORD="$(WALK_RECORD_DIR)" $(GO) test -tags=contract -count=1 -run '^TestTheWalksAnswerWithinTheContract$$' ./test/contract/
+	@run="$(WALK_RECORD)"; \
+	if [ -z "$$run" ]; then run="$$(ls -1d "$(WALK_RECORD_DIR)"/*/ 2>/dev/null | sort | tail -n 1)"; fi; \
+	if [ -z "$$run" ] || [ ! -d "$$run" ]; then echo "no recorded walks in $(WALK_RECORD_DIR) - run 'make e2e RECORD=1'"; exit 1; fi; \
+	echo "the recorded walks in $$run"; \
+	WALK_RECORD="$$run" $(GO) test -tags=contract -count=1 -run '^TestTheWalksAnswerWithinTheContract$$' ./test/contract/
 
 ## e2e: Build the web app and walk it in Chromium; SUITES="timewalk explain" walks those alone; RECORD=1 also holds their answers to the contract
 # As ci.yml's engines job does: the packages the web app builds on, the web app, the workbench
@@ -902,7 +907,7 @@ e2e:
 	@test -n "$(PNPM)" || { echo "pnpm is missing - run 'make tools-node'"; exit 1; }
 	$(PNPM) --filter "@hubtask/webapp^..." build
 	$(PNPM) --filter @hubtask/webapp build
-	@if [ -n "$(RECORD)" ]; then export WALK_RECORD="$(WALK_RECORD_DIR)"; fi; \
+	@if [ -n "$(RECORD)" ]; then export WALK_RECORD="$(WALK_RECORD_DIR)/$$(date -u +%Y%m%dT%H%M%SZ)"; fi; \
 	if [ -n "$(SUITES)" ]; then \
 		for suite in $(SUITES); do \
 			(cd apps/webapp && ENGINES=$${ENGINES:-chromium} node --test --test-concurrency=1 e2e/$$suite.test.mjs) || exit 1; \
@@ -911,7 +916,7 @@ e2e:
 		$(PNPM) --filter @hubtask/design-system workbench:build && \
 		ENGINES=$${ENGINES:-chromium} $(PNPM) --filter @hubtask/webapp test:engines; \
 	fi
-	@if [ -n "$(RECORD)" ]; then $(MAKE) --no-print-directory gate-walks; fi
+	@if [ -n "$(RECORD)" ]; then $(MAKE) --no-print-directory gate-walks WALK_RECORD=; fi
 
 ## gate-e2e: The hubctl end-to-end session against the reference Compose stack
 # The other half of gate-compose. That one asks whether the stack starts; this one asks whether a

@@ -68,10 +68,11 @@ make e2e SUITES="terms board" RECORD=1   # the same, then hold their answers to 
 make e2e                                 # every suite, as CI's browser job does
 ```
 
-`RECORD=1` sets `WALK_RECORD` to `apps/webapp/.walk-record/`, where each suite writes one file,
-and runs `make gate-walks` afterwards. That gate judges the suites that have a file there, so it
-works for one suite and for one of CI's three shards. A suite's file is replaced when the suite
-is walked again. `ENGINES=firefox,webkit` walks the other engines.
+`RECORD=1` gives the run a directory of its own under `apps/webapp/.walk-record/`, named by when
+it started, where each suite writes one file, and runs `make gate-walks` afterwards. That gate
+judges the suites that have a file in the newest run's directory, so it works for one suite and
+for one of CI's three shards, and never reads what an earlier run left. The directories of earlier
+runs stay until somebody removes them. `ENGINES=firefox,webkit` walks the other engines.
 
 ## How to check a change
 
@@ -83,4 +84,4 @@ make gate-walks                               # after a recorded walk: the answe
 When a fixed wait is removed or a suite cites its check, the first command says which entry of
 `bounds.json` to lower or remove. When an answer is corrected, walk every suite with
 `make e2e RECORD=1`; `WALK_BASELINE=prune make gate-walks` then removes the baseline's lines that
-no suite met.
+no suite met. It refuses where a suite has no record in that run.
