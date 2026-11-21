@@ -47,14 +47,15 @@ On its own line, green. Then push, and read the output of the push.
 
 Start a fresh agent that has not seen this conversation and give it
 `.agents/skills/review-change/SKILL.md`. With Claude Code that is the subagent `reviewer`; with
-another tool it is a new session. Fix each finding, or answer it with a reason. The reviewer reads
-the answers once.
+another tool it is a new session. Fix each finding in a commit of its own, or answer it with a
+reason. The reviewer reads the answers once.
 
 ## 6. The outside reviewer
 
 Where the outside reviewer's app is installed on the repository, ask it with the pull request
 comment `@coderabbitai review`. If it does not review a draft, the request goes out together with
-step 8.
+step 9; a fix for one of its comments then returns the pull request to draft first
+(`gh pr ready --undo`) and goes through step 7 again.
 
 - Read its comments. Fix what is right, in commits of their own. Answer the rest in one line.
 - Do not teach it a rule by replying. A rule goes into the repository, where every worker and the
@@ -63,7 +64,28 @@ step 8.
   alone, and the description says so.
 - It comments and decides nothing. Its check is not required (`ci-cd.md` §5).
 
-## 7. The description
+## 7. After the last fix
+
+A commit made after step 4 — a fix for the independent review, a fix for the outside reviewer —
+has not been checked and is not pushed. When the last fix is committed, run both again, each on a
+line of its own:
+
+```bash
+make check
+git push
+```
+
+Read the output of the push, then compare the local commit with the pushed one:
+
+```bash
+git rev-parse HEAD @{upstream}
+```
+
+The two lines show the same commit when everything is pushed. This step holds with every tool:
+the hook that refuses `gh pr ready` before `HEAD` is pushed exists for one tool, and it does not
+run `make check`.
+
+## 8. The description
 
 A copy of `.github/PULL_REQUEST_TEMPLATE.md` with every section. A section with nothing to say
 reads "n/a".
@@ -81,7 +103,9 @@ reads "n/a".
 make gate-pr BODY=<file> TITLE="<title>"
 ```
 
-## 8. Ready
+## 9. Ready
+
+Only after step 7: `make check` is green on `HEAD`, and `HEAD` is pushed.
 
 ```bash
 gh pr ready
