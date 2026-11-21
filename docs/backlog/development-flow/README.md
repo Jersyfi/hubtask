@@ -153,9 +153,12 @@ is not an option either (ADR-0090 measured about 190,000 tokens for the required
 
 ### 3.7 Where knowledge sits
 
-* `AGENTS.md` is 259 lines; the tool's documentation recommends under 200 per instruction file,
-  because longer files are followed less well. The recommendation is not taken as a limit (§5.9):
-  the tagged rule lists alone take about 166 lines. It holds three kinds of text: what is true of every
+* `AGENTS.md` was 259 lines on `main`; the tool's documentation recommends under 200 per
+  instruction file, because longer files are followed less well. On this branch it is 293 lines:
+  the procedures left for the skills, and the table of where knowledge lives, the list of
+  skills and the working rules this concept adds take more than they freed. The recommendation
+  is not taken as a limit (§5.9): the tagged rule lists alone take about 166 lines. On `main` it
+  held three kinds of text: what is true of every
   change (the map, the fifteen rules, the loop), how the owner's own workers run the flow
   (decisions, milestones, merging), and procedures (resuming, stacking, asking).
 * Six standing rules exist only in the owner's private notes on one machine: mockups are the
@@ -640,11 +643,13 @@ What it says:
 
   No failure traced to its cause so far was a fixed wait running out, so the counts of fixed
   waits stand where stage 2 put them, and the rule of §5.4 lowers them as suites are touched.
-* **Integration failed in 16 of its attempts** from 2026-11-07 to 11-21. Six were the cross-tenant
-  tests under PostgreSQL 16.16, fixed on `main` on 2026-11-16. All five after that fix, on
-  2026-11-20, were `go test`'s ten-minute default cutting a package that runs seven to ten
-  minutes; `make gate-integration` has had `-timeout=30m` since 2026-11-21, and the nine attempts
-  since then passed.
+* **Integration failed in 16 of its attempts** from 2026-11-07 to 11-21, by stage 3's count; the
+  table above counts 13, in its 50 runs. Which runs the 16 were counted over is not written
+  down, and the two counts were not held against each other. Six were the cross-tenant tests under PostgreSQL 16.16, fixed on `main` on
+  2026-11-16. All five after that fix, on 2026-11-20, were `go test`'s ten-minute default
+  cutting a package that runs seven to ten minutes; `make gate-integration` has had
+  `-timeout=30m` since 2026-11-21, and the nine attempts since then passed. That accounts for
+  eleven; this document holds no cause for the other five.
 * **The installed apps' jobs are not the problem**: 4 to 11 minutes, beside longer jobs. Nothing
   needs to leave the pull request path, and this concept moves no job.
 * **`selftest` runs 17 minutes without ever failing**, on `main` and when a gate changes. It is the
