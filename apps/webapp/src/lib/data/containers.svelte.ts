@@ -351,7 +351,7 @@ class Containers {
    * nothing, so it invalidates nothing.
    */
   async previewStructure(id: string, change: StructureChange): Promise<StructurePreview> {
-    return engine.mutate<StructurePreview>('POST', `/containers/${id}/structure:preview`, change);
+    return engine.mutate<StructurePreview>('POST', `/containers/${id}/structure:preview`, change, { invalidates: [] });
   }
 
   async setStructure(id: string, change: StructureChange, version: number): Promise<Container> {
