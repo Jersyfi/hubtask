@@ -14,6 +14,7 @@ import {
   chooseFieldsOf,
   choosePreset,
   countOf,
+  followStructure,
   isOwn,
   levelRefusal,
   renameLevel,
@@ -154,4 +155,24 @@ test('ticking a level types narrows it, ticking all leaves it out, ticking none 
   assert.deepEqual(chooseEntryTypesOf(undefined, 'TASK', inUse, ['feature', 'bug']), { TASK: ['bug', 'feature'] });
   assert.deepEqual(chooseEntryTypesOf({ TASK: ['bug'] } as never, 'TASK', inUse, inUse), {});
   assert.deepEqual(chooseEntryTypesOf({ TASK: ['bug'] } as never, 'TASK', inUse, []), { TASK: ['bug'] });
+});
+
+test('a structure changed elsewhere is not counted as the reader\'s change', () => {
+  const changed = { ...project, settings: { ...project.settings, celebration: 'SUBTLE', completion: 'MANUAL' } } as unknown as EffectiveStructure;
+  const opened = startDraft(project);
+  // The draft opened before: compared with what is in force now, it counts the change made elsewhere.
+  assert.equal(countOf(changeOf(opened, changed, undefined)), 2);
+
+  const followed = followStructure(opened, changed, undefined);
+  assert.equal(countOf(changeOf(followed, changed, undefined)), 0, 'an untouched draft follows the structure');
+  assert.equal(followed.values.celebration, 'SUBTLE');
+  assert.equal(followStructure(followed, changed, undefined), followed, 'the same structure keeps the draft');
+});
+
+test('a draft the reader changed is kept when the structure changes elsewhere', () => {
+  const changed = { ...project, settings: { ...project.settings, completion: 'MANUAL' } } as unknown as EffectiveStructure;
+  const edited = setValue(startDraft(project), 'celebration', 'SUBTLE');
+  assert.equal(followStructure(edited, changed, undefined), edited);
+  const chosen = choosePreset(startDraft(project), project, list);
+  assert.equal(followStructure(chosen, changed, list), chosen, 'a preset chosen is a change');
 });

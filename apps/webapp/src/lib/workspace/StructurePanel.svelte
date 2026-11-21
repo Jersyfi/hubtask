@@ -63,6 +63,7 @@
     chooseFieldsOf,
     setValue,
     startDraft,
+    followStructure,
     toggleLevel,
     typesTopDown,
     type Draft,
@@ -136,7 +137,8 @@
     accounts.resolve(Object.values(structure.locks ?? {}).map((lock) => lock.locked_by));
   });
 
-  let draft = $state<Draft | undefined>(undefined);
+  // Raw: the draft keeps the structure it started from by reference, which a deep proxy would replace.
+  let draft = $state.raw<Draft | undefined>(undefined);
   let isSaving = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   /** A sum without its field, or no view offered: marked when the reader saves (case 3). */
@@ -149,7 +151,13 @@
       draft = undefined;
       return;
     }
-    if (draft !== undefined) return;
+    const current = structure;
+    if (draft !== undefined) {
+      untrack(() => {
+        if (draft) draft = followStructure(draft, current, draft.preset ? presets.find(draft.preset) : undefined);
+      });
+      return;
+    }
     untrack(() => {
       draft = startDraft(structure);
       failure = undefined;
