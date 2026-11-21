@@ -43,7 +43,8 @@ paragraph or an "update" note. A sentence that is true and only looks unnecessar
 ## 4. The author's own check
 
 Read the change against every rule of `AGENTS.md`, and of the touched directories' `AGENTS.md`,
-that is tagged `[partial]`, `[unchecked]` or `[owner]`: no gate holds these. Fix what that finds.
+that is tagged `[partial]`, `[unchecked]` or `[owner]`: a gate holds these in part or not at all.
+Fix what that finds.
 The independent review of step 5 is added to this check and does not replace it
 (`engineering-guidelines.md` §3.19).
 
@@ -53,13 +54,14 @@ Then run the local check:
 make check
 ```
 
-On its own line, green. Then push, and read the output of the push.
+Run it on a line of its own, without a pipe, and go on only when it is green. Then push, and read
+the output of the push: a rejected push is not a push.
 
 ## 5. The independent review
 
 Start a fresh agent that has not seen this conversation and give it
-`.agents/skills/review-change/SKILL.md`. With Claude Code that is the subagent `reviewer`; with
-another tool it is a new session. Fix each finding in a commit of its own, or answer it with a
+`.agents/skills/review-change/SKILL.md`. With a tool that reads `.claude/agents/`, that is the
+subagent `reviewer`; with another tool it is a new session. Fix each finding in a commit of its own, or answer it with a
 reason. The reviewer reads the answers once.
 
 ## 6. The outside reviewer

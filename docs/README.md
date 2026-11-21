@@ -56,7 +56,7 @@ a procedure is a skill.
 | New or changed behaviour | The use case's *Today*, state and `checked_by`; the subject document's section if a rule changed |
 | A new rule or structure | The subject document's section; an ADR only by the test in [`adr/README.md`](./adr/README.md) |
 | A mistake that passed every gate | One entry in [`known-traps.md`](./architecture/known-traps.md) |
-| Any change | No file where a section of an existing file fits. A section of the description with nothing to say reads "None". |
+| Any change | A new file only when no existing file has a section the text belongs in. A section of the description that does not apply reads "n/a". |
 
 **What a change removes.** A change that makes a sentence false rewrites or deletes that sentence
 in the same pull request. It appends no correcting paragraph, no "update" note and no struck-through

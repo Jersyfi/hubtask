@@ -41,7 +41,7 @@ something found outside the task and too big to fix where it was found, one labe
 |---|---|---|
 | True of every change, needed before any work | this file: the map, the rules and the loop, and no step-by-step procedure | Would a wrong change follow if a worker had not read it? |
 | True of one directory | that directory's `AGENTS.md` | Read before a file there is changed |
-| Anything a tool can check | a gate, a lint or a test, named by the rule | What can be counted is not prose |
+| Anything a tool can check | a gate, a lint or a test, named by the rule | Can a tool check it? Then a tool does, and no sentence alone |
 | How to do a kind of task, step by step | a skill, `.agents/skills/<name>/SKILL.md` | Needed only when that task comes up |
 | The current rule of a concern | its subject document, by numbered section | — |
 | Why a decision was taken | an ADR | The three tests in `docs/adr/README.md` |
@@ -91,6 +91,7 @@ The rules are the items of four lists — the table above, this list with "Steps
 "Working with the owner" and "Code comments" — each tagged `[gate: …]`, `[partial: …; open: …]`,
 `[owner]` or `[unchecked: why]`; `make gate-docs` holds every item to a tag and every named gate to a
 target or a `ci.yml` job. A directory's `AGENTS.md` tags its rules under "What must not happen here".
+The other sections explain.
 
 - A worker checks every premise its task, the use cases' *Today* and the documents state about
   today's code against the code itself, before building on it; a false one is corrected in the same

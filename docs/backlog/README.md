@@ -71,8 +71,8 @@ with the owner", concept mode).
   and arc42 updated, `make check`, CI on *Ready*, the merge on the owner's word.
 - **Too big for one context:** the work is split by screen or area — never by a cross-cutting
   theme (all migrations, then all endpoints) — among workers who commit one after another to the
-  one branch. It enters `main` as one pull request, after the result was shown to the owner
-  running locally.
+  one branch. It enters `main` as one pull request, after the owner has seen the result in the
+  app running locally.
 - **With mockups, the mockups are the specification:** spacing, proportions, sizes, focus styling
   and states. Every screen is compared with its rendered mockup at the same width, region by
   region, before it counts as done. A shared component is fixed in the design system, not per

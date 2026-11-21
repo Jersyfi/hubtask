@@ -19,7 +19,9 @@ CI at checkpoints; the dated review). Everything else in the three stands.
 ## Context
 
 The owner writes concepts, takes the decisions on the owner's list and looks at results; agents
-build. The owner no longer reads the diff. Measured on 2026-11-21 against `main`:
+build. The owner no longer reads the diff. "The owner on the loop" means this: the owner sets the
+rules and looks at results and at a weekly report, and does not check each change. Measured on
+2026-11-21 against `main`:
 
 * The author was the only reviewer of a change. A concept build of 339 commits was discarded after
   its builder had judged its own result.

@@ -22,8 +22,8 @@ are in [`AGENTS.md`](AGENTS.md). This file is the human way in.
 first. A feature starts as an issue, and so does anything the owner decides
 ([`AGENTS.md`](AGENTS.md), "What you do not decide yourself").
 
-**What happens to your pull request.** A worker of the maintainer triages it and runs a review, and
-the maintainer merges. No time is promised: Hubtask has one maintainer.
+**What happens to your pull request.** An AI coding agent that works for the maintainer — a
+worker — reads it first and runs a review. The maintainer merges. No time is promised: Hubtask has one maintainer.
 
 **Work done with an AI tool** is welcome on the same terms as any other work. You answer for it,
 and it passes the same gates.

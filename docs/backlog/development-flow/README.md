@@ -351,7 +351,7 @@ write this":
 |---|---|---|
 | True of every change, needed before any work | root `AGENTS.md` | Would a wrong change follow if a worker had not read it? Then here. It holds the map, the rules and the loop, and no step-by-step procedure. |
 | True of one directory | that directory's `AGENTS.md` | Loaded when a file there is read |
-| Anything a tool can check | a gate, a lint, a test — the rule names it | If it can be counted, it is not prose |
+| Anything a tool can check | a gate, a lint, a test — the rule names it | Can a tool check it? Then a tool does, and no sentence alone |
 | How to do a kind of task, step by step | a **skill**, `.agents/skills/<name>/SKILL.md`, listed in `AGENTS.md` by name and path | Needed only when that task comes up |
 | The current rule of a concern | its subject document, by numbered section | — |
 | Why a decision was taken | an ADR | Only if a later worker, seeing the rule alone, would be tempted to undo it — or it is hard to reverse (data model, protocol, contract, licence, dependency) — or it is on the owner's list |
@@ -629,7 +629,7 @@ step-by-step procedure — a procedure is a skill. Its length is reported weekly
 | New or changed behaviour | The use case's *Today*, state and `checked_by`; the subject document's section **if** a rule changed |
 | A new rule or structure | The subject document's section; an ADR only by the test of §5.2 |
 | A new mistake that passed the gates | One entry in `known-traps.md` |
-| Anything | No new file where a section of an existing one fits. In the description, a section with nothing to say reads "None". |
+| Anything | A new file only when no existing file has a section the text belongs in. In the description, a section that does not apply reads "n/a". |
 
 **What a change removes.** A change that makes a sentence false rewrites or deletes that sentence
 in the same pull request. It does not append a correcting paragraph, an "update" note or a
