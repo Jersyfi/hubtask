@@ -10,8 +10,9 @@ on:
   push:
     branches: [main]
   # One full run on a pushed branch, started by hand: a concept's checkpoint, while its pull request
-  # stays a draft (ci-cd.md §3.4). It is no pull request, so no job filters and every job runs, as
-  # on `main`; it is no push to `main`, so After CI and the guard never read it.
+  # stays a draft (ci-cd.md §3.4). It is no pull request, so no job filters and the jobs of a push
+  # to `main` run; the jobs that read a pull request differ, and §3.4 lists them. It is no push to
+  # `main`, so After CI starts when it ends and acts on nothing, and the guard never reads it.
   workflow_dispatch:
 
 # The principle from ADR-0022: minimal permissions, widened only where necessary.
@@ -539,8 +540,9 @@ jobs:
   # The contract against the last release (versioning-release.md §6): a breaking change since the
   # tag fails unless it is marked. The whole history, because the tag and the commits that may mark
   # a break are behind HEAD. Only the breaks this pull request adds are judged - on a push to main,
-  # those of the pushed commit - and the title and description are read from the API, so a title
-  # given its `!` afterwards counts when the failed job is re-run.
+  # those of the pushed commit, on a manual run those since the branch left main - and the title
+  # and description are read from the API, so a title given its `!` afterwards counts when the
+  # failed job is re-run.
   api-compat:
     name: API compatibility with the last release
     needs: quick
@@ -571,8 +573,15 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}" --jq '.title + "\n" + (.body // "")' > "${RUNNER_TEMP}/pull-request.txt"
-      # API_BASE and API_TEXT travel in the environment, where make reads them as variables.
-      - run: make gate-api-compat
+      # API_BASE and API_TEXT travel in the environment, where make reads them as variables. A
+      # manual run has neither a pull request's base nor a push's commit before: without a base one
+      # marked break since the tag would carry the branch's unmarked one through (tools/apicompat).
+      - run: |
+          if [ -z "${API_BASE}" ]; then
+            API_BASE="$(git merge-base origin/main HEAD)"
+            export API_BASE
+          fi
+          make gate-api-compat
         env:
           API_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           API_TEXT: ${{ github.event_name == 'pull_request' && format('{0}/pull-request.txt', runner.temp) || '' }}
@@ -816,7 +825,9 @@ jobs:
   # Pull requests merge without catching up with main (ADR-0083), so two that each add migration
   # 0140 are both green alone and collide only on main. On a pull request this compares the numbers
   # it adds with every other open pull request's, and holds the merge with main to one file per
-  # number; on main it holds the tree. Behind no filter: a number is taken in db/ or docs/adr/.
+  # number; a manual run does the same for what its branch adds over main, without the merge. A
+  # commit on main adds nothing over main, so there only the tree is held and GitHub is not asked.
+  # Behind no filter: a number is taken in db/ or docs/adr/.
   numbers:
     name: Migration and ADR numbers
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
@@ -826,11 +837,11 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      # The merge commit and its parents: the first parent is the base, so what the branch adds is
-      # the diff from it.
+      # On a pull request the checkout is the merge commit, whose first parent is the base. Any
+      # other run finds where its commit left main, which needs main and the history between.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 2
+          fetch-depth: 0
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GO_VERSION }}
@@ -839,9 +850,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || '' }}
+          BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || 'origin/main' }}
           PR: ${{ github.event.pull_request.number }}
-          OPEN: ${{ github.event_name == 'pull_request' && '1' || '0' }}
 
   pr-description:
     name: Pull request description

@@ -165,6 +165,16 @@ func TestCheckReadsTheBranchAgainstItsBaseAndTheOpenPullRequests(t *testing.T) {
 		t.Fatal("a failed listing passed")
 	}
 
+	// A commit that adds nothing over its base asks GitHub nothing, comparison on or not: CI
+	// leaves it on for every run, and main's own run must not depend on the listing.
+	run("switch", "-q", "main")
+	stub(nil, errors.New("must not be asked"))
+	problems, _, err = check(context.Background(), "main", 0, true)
+	if err != nil || len(problems) != 0 {
+		t.Fatalf("main against itself: problems %v, err %v", problems, err)
+	}
+	run("switch", "-q", "branch")
+
 	// On main only the tree counts, and GitHub is not asked.
 	write("db/migrations/0001_again.sql")
 	stub(nil, errors.New("must not be asked"))
