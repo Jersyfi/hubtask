@@ -4,6 +4,7 @@
 package main
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -120,12 +121,75 @@ func TestRedHours(t *testing.T) {
 	}
 }
 
+// The second attempt of a run that ran its two failed jobs again: the answer lists the job it
+// did not run again with the first attempt's times.
+const (
+	firstAttempt = `{"total_count": 4, "jobs": [
+ {"name": "Unit and domain tests", "status": "completed", "conclusion": "success", "started_at": "2026-11-16T10:00:20Z", "completed_at": "2026-11-16T10:04:20Z"},
+ {"name": "The client runs in Chromium (1/3)", "status": "completed", "conclusion": "failure", "started_at": "2026-11-16T10:00:30Z", "completed_at": "2026-11-16T10:12:30Z"},
+ {"name": "Workspace (${{ matrix.package }})", "status": "completed", "conclusion": "skipped", "started_at": "2026-11-16T10:00:30Z", "completed_at": "2026-11-16T10:00:30Z"},
+ {"name": "CI required", "status": "completed", "conclusion": "failure", "started_at": "2026-11-16T10:13:00Z", "completed_at": "2026-11-16T10:13:10Z"}
+]}`
+	secondAttempt = `{"total_count": 3, "jobs": [
+ {"name": "Unit and domain tests", "status": "completed", "conclusion": "success", "started_at": "2026-11-16T10:00:20Z", "completed_at": "2026-11-16T10:04:20Z"},
+ {"name": "The client runs in Chromium (1/3)", "status": "completed", "conclusion": "timed_out", "started_at": "2026-11-16T12:42:30Z", "completed_at": "2026-11-16T13:12:30Z"},
+ {"name": "CI required", "status": "completed", "conclusion": "failure", "started_at": "2026-11-16T13:13:00Z", "completed_at": "2026-11-16T13:13:10Z"}
+]}`
+)
+
+func TestParseJobs(t *testing.T) {
+	summary := map[string]bool{"CI required": true}
+	seen := map[string]bool{}
+	var jobs []job
+	for _, answer := range []string{firstAttempt, secondAttempt} {
+		read, err := parseJobs([]byte(answer), summary, seen)
+		if err != nil {
+			t.Fatal(err)
+		}
+		jobs = append(jobs, read...)
+	}
+	want := []job{
+		{name: "Unit and domain tests", minutes: 4},
+		{name: "The client runs in Chromium (1/3)", failed: true, minutes: 12},
+		{name: "The client runs in Chromium (1/3)", failed: true, minutes: 30},
+	}
+	if len(jobs) != len(want) {
+		t.Fatalf("jobs %+v, want %+v", jobs, want)
+	}
+	for i := range want {
+		if jobs[i] != want[i] {
+			t.Errorf("%d: %+v, want %+v", i, jobs[i], want[i])
+		}
+	}
+}
+
+// The names are read from ci.yml itself, so a renamed summary job does not come back into the
+// tables unseen.
+func TestSummaryJobsAreReadFromTheWorkflow(t *testing.T) {
+	data, err := os.ReadFile("../../" + ciWorkflow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := summaryJobsIn(data)
+	for _, name := range []string{"CI required", "CI by hand", "CI not run (draft)"} {
+		if !got[name] {
+			t.Errorf("the summary jobs %v lack %q", got, name)
+		}
+	}
+	if len(got) != 3 {
+		t.Errorf("the summary jobs are %v, want three names", got)
+	}
+	if len(summaryJobsIn([]byte("jobs:\n  unit:\n    name: Unit\n"))) != 0 {
+		t.Error("a workflow without the job names one")
+	}
+}
+
 func TestJobStats(t *testing.T) {
 	stats := jobStats([]job{
 		{name: "unit", minutes: 4}, {name: "unit", minutes: 6, failed: true}, {name: "unit", minutes: 8},
 		{name: "node", minutes: 12},
 	})
-	if len(stats) != 2 || stats[0] != (jobStat{name: "node", runs: 1, median: 12}) || stats[1] != (jobStat{name: "unit", runs: 3, failed: 1, median: 6}) {
+	if len(stats) != 2 || stats[0] != (jobStat{name: "node", attempts: 1, median: 12}) || stats[1] != (jobStat{name: "unit", attempts: 3, failed: 1, median: 6}) {
 		t.Errorf("stats %+v", stats)
 	}
 }

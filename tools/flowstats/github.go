@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path"
 	"regexp"
 	"sort"
@@ -51,8 +52,12 @@ func githubPart(b *bytes.Buffer, found map[string]measure, repo string, w window
 	}
 	found["main_red_hours"] = measure{now: redHours(runs, w, now), before: redHours(runs, p, now)}
 	if withJobs {
-		jobs, unread := jobsOf(repo, createdIn(runs, w))
-		printJobs(b, jobs, unread)
+		summary, err := summaryJobs()
+		if err != nil {
+			return fmt.Errorf("the summary job's names: %w", err)
+		}
+		jobs, unread, why := jobsOf(repo, createdIn(runs, w), summary)
+		printJobs(b, jobs, unread, why)
 	}
 	state := unmeasured("an issue's or an alert's state is read as it is now")
 	found["open_findings"] = measure{now: openIssues(repo, "finding"), before: state}
@@ -197,8 +202,8 @@ func redHours(runs []run, w window, now time.Time) value {
 
 // ----------------------------------------------------------------------------- jobs
 
-// job is one finished job of a run. Every attempt of a run is read, so a job that failed and
-// passed when run again counts once as failed.
+// job is one execution of a job that passed or failed. Every attempt of a run is read, so a job
+// that failed and passed when run again counts twice, once as failed.
 type job struct {
 	name    string
 	failed  bool
@@ -215,38 +220,96 @@ type jobsPage struct {
 	}
 }
 
-// jobsOf reads the jobs of each run. unread counts the runs the API did not answer for: one
-// lost answer leaves the report standing, and the section says how many are missing.
-func jobsOf(repo string, runs []run) (jobs []job, unread int) {
-	for _, r := range runs {
-		out, err := gh("api", "--paginate", fmt.Sprintf("repos/%s/actions/runs/%d/jobs?per_page=100&filter=all", repo, r.id))
-		if err != nil {
-			unread++
-			continue
-		}
-		dec := json.NewDecoder(bytes.NewReader(out))
-		for dec.More() {
-			var page jobsPage
-			if err := dec.Decode(&page); err != nil {
-				unread++
-				break
-			}
-			for _, j := range page.Jobs {
-				if j.Status != "completed" || (j.Conclusion != "success" && j.Conclusion != "failure") {
-					continue
-				}
-				jobs = append(jobs, job{name: j.Name, failed: j.Conclusion == "failure", minutes: j.CompletedAt.Sub(j.StartedAt).Minutes()})
+const ciWorkflow = ".github/workflows/ci.yml"
+
+var (
+	summaryJobName = regexp.MustCompile(`(?m)^  ci-required:\n(?:\s*#.*\n)*    name: (.*)$`)
+	quoted         = regexp.MustCompile(`'([^']+)'`)
+)
+
+// summaryJobs are the names ci.yml gives the one job that sums up the others (ci-cd.md §3.2). It
+// fails whenever another job does, so it would lead every table and say nothing. The names are
+// read from the workflow, the one place that sets them.
+func summaryJobs() (map[string]bool, error) {
+	data, err := os.ReadFile(ciWorkflow)
+	if err != nil {
+		return nil, err
+	}
+	names := summaryJobsIn(data)
+	if len(names) == 0 {
+		return nil, fmt.Errorf("%s names no ci-required job", ciWorkflow)
+	}
+	return names, nil
+}
+
+func summaryJobsIn(workflow []byte) map[string]bool {
+	names := map[string]bool{}
+	if m := summaryJobName.FindSubmatch(workflow); m != nil {
+		for _, q := range quoted.FindAllSubmatch(m[1], -1) {
+			// The other quoted words of the expression are event names.
+			if strings.Contains(string(q[1]), " ") {
+				names[string(q[1])] = true
 			}
 		}
 	}
-	return jobs, unread
+	return names
 }
 
-// jobStat is one job's name across the window's runs.
+// jobsOf reads the jobs of each run, attempt by attempt: the API fails to list every attempt of
+// a run at once where a run has many. unread counts the runs it did not answer for - one lost
+// answer leaves the report standing - and why is its first refusal.
+func jobsOf(repo string, runs []run, summary map[string]bool) (jobs []job, unread int, why string) {
+	for _, r := range runs {
+		seen := map[string]bool{}
+		for attempt := 1; attempt <= max(1, r.attempt); attempt++ {
+			out, err := gh("api", "--paginate", fmt.Sprintf("repos/%s/actions/runs/%d/attempts/%d/jobs?per_page=100", repo, r.id, attempt))
+			if err == nil {
+				var read []job
+				if read, err = parseJobs(out, summary, seen); err == nil {
+					jobs = append(jobs, read...)
+					continue
+				}
+			}
+			unread++
+			if why == "" {
+				why = refusal(err)
+			}
+			break
+		}
+	}
+	return jobs, unread, why
+}
+
+// parseJobs reads the pages of one attempt. A later attempt lists the jobs it did not run again
+// with the times of the attempt that ran them; seen holds those, so each execution counts once.
+func parseJobs(data []byte, summary, seen map[string]bool) ([]job, error) {
+	var jobs []job
+	dec := json.NewDecoder(bytes.NewReader(data))
+	for dec.More() {
+		var page jobsPage
+		if err := dec.Decode(&page); err != nil {
+			return nil, err
+		}
+		for _, j := range page.Jobs {
+			if j.Status != "completed" || summary[j.Name] || (j.Conclusion != "success" && !failedConclusions[j.Conclusion]) {
+				continue
+			}
+			key := j.Name + "\x00" + j.StartedAt.Format(time.RFC3339)
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			jobs = append(jobs, job{name: j.Name, failed: failedConclusions[j.Conclusion], minutes: j.CompletedAt.Sub(j.StartedAt).Minutes()})
+		}
+	}
+	return jobs, nil
+}
+
+// jobStat is one job's name across the window's runs and their attempts.
 type jobStat struct {
-	name         string
-	runs, failed int
-	median       float64
+	name             string
+	attempts, failed int
+	median           float64
 }
 
 func jobStats(jobs []job) []jobStat {
@@ -261,7 +324,7 @@ func jobStats(jobs []job) []jobStat {
 	stats := make([]jobStat, 0, len(minutes))
 	for name, m := range minutes {
 		sort.Float64s(m)
-		stats = append(stats, jobStat{name: name, runs: len(m), failed: failed[name], median: quantile(m, 0.5)})
+		stats = append(stats, jobStat{name: name, attempts: len(m), failed: failed[name], median: quantile(m, 0.5)})
 	}
 	sort.Slice(stats, func(i, j int) bool { return stats[i].name < stats[j].name })
 	return stats
@@ -269,27 +332,28 @@ func jobStats(jobs []job) []jobStat {
 
 const worst = 10
 
-func printJobs(b *bytes.Buffer, jobs []job, unread int) {
+func printJobs(b *bytes.Buffer, jobs []job, unread int, why string) {
 	stats := jobStats(jobs)
 	fmt.Fprintf(b, "### Jobs, the ten worst (this window)\n\n")
+	fmt.Fprintf(b, "Every attempt of a job counts. The job that sums up the others is left out.\n\n")
 	if unread > 0 {
-		fmt.Fprintf(b, "Not read: the jobs of %d runs, which the API did not answer for.\n\n", unread)
+		fmt.Fprintf(b, "Not read: the jobs of %d runs; the first of them: %s.\n\n", unread, why)
 	}
 	if len(stats) == 0 {
 		fmt.Fprintf(b, "No finished job in the window.\n\n")
 		return
 	}
 	sort.SliceStable(stats, func(i, j int) bool { return stats[i].failed > stats[j].failed })
-	fmt.Fprintf(b, "| by failures | failed | ran |\n|---|---|---|\n")
+	fmt.Fprintf(b, "| by failures | failed | attempts |\n|---|---|---|\n")
 	for _, s := range stats[:min(worst, len(stats))] {
 		if s.failed > 0 {
-			fmt.Fprintf(b, "| %s | %d | %d |\n", s.name, s.failed, s.runs)
+			fmt.Fprintf(b, "| %s | %d | %d |\n", s.name, s.failed, s.attempts)
 		}
 	}
 	sort.SliceStable(stats, func(i, j int) bool { return stats[i].median > stats[j].median })
-	fmt.Fprintf(b, "\n| by median minutes | median | ran |\n|---|---|---|\n")
+	fmt.Fprintf(b, "\n| by median minutes | median | attempts |\n|---|---|---|\n")
 	for _, s := range stats[:min(worst, len(stats))] {
-		fmt.Fprintf(b, "| %s | %.1f | %d |\n", s.name, s.median, s.runs)
+		fmt.Fprintf(b, "| %s | %.1f | %d |\n", s.name, s.median, s.attempts)
 	}
 	fmt.Fprintln(b)
 }

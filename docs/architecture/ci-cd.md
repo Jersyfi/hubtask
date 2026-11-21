@@ -553,7 +553,12 @@ How each measure is read:
   in which nothing ran counts as what the last run left: the idle days after a red run are red.
   The number of `main` runs the window had is printed beside the hours.
 * **n** stands beside every median and percentage: the runs it was taken from.
-* **Jobs** are read from every attempt of the window's runs, one request per run.
+* **Jobs** are read attempt by attempt, one request per attempt of each of the window's runs:
+  the API fails to list all attempts of a run at once where a run has many. A job that ran twice
+  counts twice, so the column is "attempts". A job counts when it passed or, as a run does,
+  failed. The summary job is left out under each of the names `ci.yml` gives it (§3.2), read from
+  the workflow. Runs whose jobs the API did not answer for are counted in a line above the
+  tables, with its first refusal.
 * **A package** is a Go file's directory. For a file under `apps/` or `packages/` it is the
   file's directory too, named at most five segments deep: `apps/webapp/src/lib/board`,
   `apps/webapp/e2e`, `packages/sync-engine/src`. Any other file belongs to none. The files of a
