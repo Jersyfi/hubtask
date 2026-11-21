@@ -176,7 +176,7 @@ Evaluated in this order; the first that applies wins:
   request's, so a sign-in never pulls the sweep forward). A workspace nobody has signed into and in
   which nothing was trashed has no sweep yet; it has no session to age out either, and its first
   sign-in or trash seeds it.
-* **Two-phase:** phase 1 marks and notifies (`retention_pending_until`); phase 2 executes after the
+* **Two-phase:** phase 1 marks and notifies (`work_item_retention.pending_until`); phase 2 executes after the
   grace period. In between, anyone with permission can take the object out by editing, moving, or
   `:retain`.
 * **A pass reads past what it cannot act on.** An object a legal hold keeps, one a rule's condition

@@ -278,11 +278,14 @@ test('chromium: at the narrowest width beside the panel a selected card keeps it
   // does after letting a card go is add another.
   const selected = () => page.locator('aside.inspector [role="tablist"][aria-label="Panel"] [role="tab"][aria-selected="true"]').textContent();
   assert.equal(await selected(), 'Details');
-  // The canvas's own gutter beside the flow: background, not a card.
+  // The canvas's own gutter beside the flow: background, not a card - and not the navigation's
+  // width handle, which reaches a little over the canvas's edge to be easy to take.
   const gutter = await page.evaluate(() => {
     const canvas = document.querySelector('.canvas').getBoundingClientRect();
     const card = document.querySelector('[data-card="0"]').getBoundingClientRect();
-    return { x: Math.round(canvas.left + 2), y: Math.round(card.top + card.height / 2) };
+    const handle = document.querySelector('[role="separator"][aria-orientation="vertical"]')?.getBoundingClientRect();
+    const from = Math.max(canvas.left, handle && handle.right <= card.left ? handle.right : canvas.left);
+    return { x: Math.round((from + card.left) / 2), y: Math.round(card.top + card.height / 2) };
   });
   await page.mouse.click(gutter.x, gutter.y);
   await page.waitForTimeout(200);

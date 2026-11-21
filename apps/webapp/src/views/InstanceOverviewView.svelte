@@ -171,7 +171,7 @@
             <!-- The schema the instances agree on, from the report's `migration`. Whether instances
                  run different versions is not in the report, so it is not said here. -->
             <p class="line" data-upgrade>
-              <span>{t('app.instance.upgrade_title')} · {t('app.instance.upgrade_version', { version: report.version })}</span>
+              <span class="version">{t('app.instance.upgrade_title')} · {t('app.instance.upgrade_version', { version: report.version })}</span>
               {#if schema}
                 <Badge tone={schema === 'up_to_date' ? 'success' : schema === 'waiting' ? 'warning' : 'danger'}>{t(`app.instance.schema_${schema}`)}</Badge>
               {/if}
@@ -181,14 +181,16 @@
         {#if backlogs.length > 0}
           <div class="tile" data-card="backlogs">
             <SummaryCard title={t('app.instance.backlogs_title')} line={report.backlogs?.sampled_at ? t('app.instance.backlogs_counted', { at: formatRelative(report.backlogs.sampled_at, messages.locale) }) : undefined}>
-              <ul class="lines">
+              <ul class="lines figures">
                 {#each backlogs as tile (tile.id)}
                   <li data-backlog={tile.id} data-tone={tile.isAbove ? 'warning' : undefined}>
                     <span>{t(`app.instance.backlog.${tile.id}`)}</span>
                     <Badge tone={tile.isAbove ? 'warning' : 'neutral'}>{formatNumber(tile.value)}</Badge>
-                    {#if tile.href}
-                      <Button tone="subtle" size="sm" onclick={go(tile.href)}>{t('app.instance.backlog_open')}</Button>
-                    {/if}
+                    <span class="act">
+                      {#if tile.href}
+                        <Button tone="subtle" size="sm" onclick={go(tile.href)}>{t('app.instance.backlog_open')}</Button>
+                      {/if}
+                    </span>
                   </li>
                 {/each}
               </ul>
@@ -265,7 +267,7 @@
           <SummaryCard title={t('app.instance.settings')} line={t('app.instance.digest_settings', { decided: decided.decided, total: decided.total, locked: decided.locked })} link={{ label: t('app.instance.digest_change'), href: '/instance/settings', onnavigate: go('/instance/settings') }} />
         </div>
         <div class="tile" data-card="legal">
-          <SummaryCard title={t('app.instance.digest_legal')} line={t('app.instance.digest_legal_state', { decided: legal.decided, total: legal.total, locked: legal.locked })} link={{ label: t('app.instance.digest_change'), href: '/instance/settings', onnavigate: go('/instance/settings') }} />
+          <SummaryCard title={t('app.instance.digest_legal')} line={t('app.instance.digest_legal_state', { decided: legal.decided, total: legal.total, locked: legal.locked })} link={{ label: t('app.instance.digest_change'), href: '/instance/settings/legal', onnavigate: go('/instance/settings/legal') }} />
         </div>
         <div class="tile" data-card="providers">
           <SummaryCard title={t('app.instance.providers')} line={offered.length === 0 ? t('app.instance.digest_providers_none') : t('app.instance.digest_providers', { names: offered.join(', ') })} link={{ label: t('app.instance.digest_manage'), href: '/instance/providers', onnavigate: go('/instance/providers') }} />
@@ -299,4 +301,13 @@
   .lines { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-100); }
   .lines li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-050) var(--sp-100); }
   .line { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
+  /* A version may be a branch's long name with no space in it: it breaks anywhere rather than
+     running out of the card. */
+  .version { min-inline-size: 0; overflow-wrap: anywhere; }
+  /* The backlogs as a table: the names, then every count in one column, then the way to each,
+     so the counts read down one line however long a name is. */
+  .figures { grid-template-columns: minmax(0, 1fr) auto auto; column-gap: var(--sp-100); }
+  .figures li { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; }
+  .figures li > :global(:nth-child(2)) { justify-self: end; }
+  .act { display: flex; justify-content: end; }
 </style>

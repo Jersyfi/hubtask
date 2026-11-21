@@ -537,7 +537,7 @@
   const sectionHidden = $derived(localHidden ?? actor.account?.today_sections_hidden ?? []);
   const givenCards = $derived(cardsOf(manifest.value?.modules_on));
   // *New for you* (B-5): the published posts the reader has not seen, across every hub they read.
-  const hasPosts = $derived(manifest.value?.modules_on?.includes('KNOWLEDGE') ?? false);
+  const hasPosts = $derived(manifest.value?.modules_on?.includes('POSTS') ?? false);
   const newPosts = $derived(hasPosts ? resource<UnreadPostList>(unreadPostsPath) : undefined);
   const unreadPosts = $derived(newPosts?.state.status === 'ready' ? newPosts.state.data.data : []);
   $effect(() => accounts.resolve(unreadPosts.map((post) => post.created_by)));
@@ -690,30 +690,31 @@
   {/if}
 {/snippet}
 
-<!-- One card of the row: its figure, one line, its one act; absent where the role or module is. -->
+<!-- One card of the row: its figure, one line, the whole card the way to it - a running timer's
+     *Stop* a control of its own beside the link; absent where the role or module is. -->
 {#snippet card(key: TodayCard)}
   <div class="card" data-card={key}>
     {#if key === 'OVERDUE'}
       <Widget title={t('app.today.card_overdue')} tile={{ icon: 'triangle-alert', color: 'red' }} figure={String(bands.earlier.length)} isBusy={isDayBusy}
         figureTone={bands.earlier.length > 0 ? { tone: 'danger', word: t('app.today.card_overdue_word') } : undefined}
         line={oldestOverdue ? t('app.today.card_overdue_line', { day: formatPlainDay(oldestOverdue.slice(0, 10), messages.locale) }) : undefined}
-        act={{ label: t('app.today.card_show'), onclick: () => onnavigate?.(searchHref('who:me is:open due:overdue')) }} />
+        href={searchHref('who:me is:open due:overdue')} />
     {:else if key === 'DUE_TODAY'}
       <Widget title={t('app.today.card_due_today')} tile={{ icon: 'calendar', color: 'blue' }} figure={String(bands.today.length)} isBusy={isDayBusy}
         line={timedCount(bands.today) > 0 ? t('app.today.card_timed', { count: timedCount(bands.today) }) : undefined}
-        act={{ label: t('app.today.card_show'), onclick: () => onnavigate?.(searchHref('who:me is:open due:today')) }} />
+        href={searchHref('who:me is:open due:today')} />
     {:else if key === 'REPLY'}
       <Widget title={t('app.today.desk')} tile={{ icon: 'inbox', product: 'desk' }} figure={String(deskCandidates.length)}
         figureTone={breached > 0 ? { tone: 'danger', word: t('app.today.card_breached_word') } : undefined}
         line={breached > 0 ? t('app.today.card_breached', { count: breached }) : undefined}
-        act={{ label: t('app.today.card_open'), onclick: () => onnavigate?.('/desk') }} />
+        href="/desk" />
     {:else if key === 'TIME'}
       <Widget title={t('app.today.time')} tile={{ icon: 'clock', product: 'time' }} figure={timeToday ? minutesText(timeToday.today) : undefined} isBusy={timeToday === undefined}
         line={timeToday ? [t('app.today.card_time_line', { week: minutesText(timeToday.week) }), timeToday.running ? t('app.today.card_timer_running') : undefined].filter(Boolean).join(' · ') : undefined}
-        act={timeToday?.running ? { label: t('app.today.card_stop'), onclick: () => void stopTimer() } : { label: t('app.today.card_open'), onclick: () => onnavigate?.('/time') }} />
+        href="/time" act={timeToday?.running ? { label: t('app.today.card_stop'), onclick: () => void stopTimer() } : undefined} />
     {:else if key === 'APPROVALS'}
       <Widget title={t('app.today.approvals')} tile={{ icon: 'user-check', color: 'green' }} figure={String(waitingCount)} line={yesLine || undefined}
-        act={{ label: t('app.today.card_open'), onclick: () => onnavigate?.('/approvals') }} />
+        href="/approvals" />
     {/if}
   </div>
 {/snippet}
@@ -851,7 +852,7 @@
       <div class="sprint" data-band="sprint" data-sprint={mine.sprint.id}>
         <Widget title={mine.sprint.name} tile={{ icon: 'calendar', product: 'plans' }}
           line={[t('app.today.sprint_left', { count: sprintDaysLeft(mine.sprint.end_on, day) }), last ? t('app.sprints.done_of', { done: String(last.scope - last.remaining), scope: String(last.scope), unit }) : undefined].filter(Boolean).join(' · ')}
-          act={{ label: t('app.today.card_open'), onclick: () => onnavigate?.(`/collections/${mine.sprint.collection_id}/sprints`) }}>
+          href={`/collections/${mine.sprint.collection_id}/sprints`}>
           <span class="from">{t('app.today.sprint_mine', { count: mine.my_entries })}</span>
           {#if detail}<SprintBurndown {detail} />{/if}
         </Widget>
@@ -994,22 +995,26 @@
         </div>
       {/if}
       {#if moreProducts.length > 0}
+        <!-- Built as the tile beside it: a mark and words a row, the row itself the way in; the
+             one way to hide the tile stands where a tile's act stands, at the head's end. -->
         <div class="tile" data-more>
           <Widget title={t('app.today.more')}>
-            <IconButton icon="x" size="sm" label={t('app.today.more_dismiss')} onclick={dismissMore} />
             <ul class="offers">
               {#each moreProducts as product (product.id)}
                 <li>
-                  <span class="offer-mark" aria-hidden="true"><Icon name={product.icon} size="sm" /></span>
-                  <span class="offer-words">
-                    <span class="offer-name">{t(product.code)}</span>
-                    <span class="offer-what">{t(`app.modules.hint_${product.module.toLowerCase()}`)}</span>
-                  </span>
-                  <Button size="sm" tone="secondary" onclick={() => tryProduct(product)}>{t('app.today.more_try')}</Button>
+                  <button type="button" class="offer" onclick={() => tryProduct(product)}>
+                    <span class="offer-mark" aria-hidden="true"><Icon name={product.icon} size="sm" /></span>
+                    <span class="offer-words">
+                      <span class="offer-name">{t(product.code)}</span>
+                      <span class="offer-what">{t(`app.modules.hint_${product.module.toLowerCase()}`)}</span>
+                    </span>
+                    <span class="offer-try">{t('app.today.more_try')}</span>
+                  </button>
                 </li>
               {/each}
             </ul>
           </Widget>
+          <span class="tile-dismiss"><IconButton icon="x" size="sm" label={t('app.today.more_dismiss')} onclick={dismissMore} /></span>
         </div>
       {/if}
     </div>
@@ -1140,7 +1145,13 @@
   @media (width >= 905px) {
     .columns { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
     .columns[data-alone] { grid-template-columns: minmax(0, 1fr); }
-    .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    /* Dense, so a tile two columns wide leaves no hole a narrower one after it could fill. */
+    .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-flow: row dense; }
+    /* Fewer than three tiles fill the row rather than leaving a column empty: one across it, two
+       on the columns' own lines above them. */
+    .tiles:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
+    .tiles:has(> :nth-child(2):last-child) { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+    .tiles:has(> :only-child) > .tile, .tiles:has(> :nth-child(2):last-child) > .tile { grid-column: auto; }
     .tile.wide { grid-column: 1 / -1; }
     /* Projects carry their next step as a row of its own: the tile takes two of the three. */
     .tile[data-span='two'] { grid-column: span 2; }
@@ -1268,6 +1279,28 @@
   .offers li { display: flex; align-items: center; gap: var(--sp-150); min-width: 0; }
   .offer-mark { display: inline-grid; place-items: center; inline-size: var(--sp-400); block-size: var(--sp-400); border-radius: var(--r-md); background: var(--accent-primary-subtle); color: var(--text-brand); flex: none; }
   .offer-words { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+  /* An offer is one row to press, as a place is in the tile beside it. */
+  .offer {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-150);
+    inline-size: 100%;
+    margin: 0;
+    padding: var(--sp-050);
+    border: 0;
+    border-radius: var(--r-md);
+    background: none;
+    color: var(--text-primary);
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+  .offer:hover { background: var(--bg-surface-hover); }
+  .offer:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+  .offer-try { flex: none; color: var(--text-brand); font-size: var(--fs-075); font-weight: var(--fw-medium); }
+  /* The tile's one way out at its head's end, where another tile's act stands. */
+  .tile[data-more] { position: relative; }
+  .tile-dismiss { position: absolute; inset-block-start: var(--sp-150); inset-inline-end: var(--sp-150); }
   .offer-name { font-weight: var(--fw-medium); }
   .offer-what { color: var(--text-secondary); font-size: var(--fs-075); }
 

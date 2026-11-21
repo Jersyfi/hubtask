@@ -14,10 +14,10 @@ import (
 	"testing"
 )
 
-// The slim entry's contract half (versioning-release.md §4, "Scheduled contract steps") drops the
-// eight columns `work_item_side_rows` mirrors. It can land only once no query names them, so the
-// queries that still do are held to this list: a new one fails, and a moved one must leave it.
-// Since v0.10.1 moved every writer and reader to the side tables, the list is empty.
+// The slim entry's contract half (versioning-release.md §4, "Scheduled contract steps") dropped the
+// eight columns the trigger `work_item_side_rows` mirrored (0445). It could land only once no query
+// named them, so the queries that still did were held to this list: a new one fails, and a moved
+// one must leave it. Since v0.10.1 moved every writer and reader to the side tables, it is empty.
 //
 // What does not count as naming an entry's column: a name after AS (an alias of a side table's
 // column), a name inside a string literal (the archive's record keeps the columns' names as its

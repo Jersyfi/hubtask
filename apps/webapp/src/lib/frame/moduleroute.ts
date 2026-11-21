@@ -23,6 +23,7 @@ const ROUTE_MODULES: Readonly<Record<string, string>> = {
   'assets-settings-section': 'ASSETS',
   approvals: 'SERVICE_DESK',
   notes: 'KNOWLEDGE',
+  'hub-posts': 'POSTS',
   // The hub tools' pages (the navigation concept §2.4): an old link to a tool switched off says so.
   'hub-plan': 'PLANNING',
   'hub-plan-table': 'PLANNING',
@@ -43,6 +44,7 @@ const ROUTE_MODULES: Readonly<Record<string, string>> = {
 export const PRODUCT_HOMES: Readonly<Record<string, string>> = {
   'plans-home': 'PLANNING',
   'pages-home': 'KNOWLEDGE',
+  'posts-home': 'POSTS',
   'whiteboards-home': 'WHITEBOARD',
   'desk-home': 'SERVICE_DESK',
   'assets-home': 'ASSETS',
@@ -76,7 +78,7 @@ export function offModuleOf(route: string, modulesOn: readonly string[] | undefi
 }
 
 /** What a module cannot work without, as the server's `Key.Needs` answers it. */
-const NEEDS: Readonly<Record<string, readonly string[]>> = { SERVICE_DESK: ['WORKFLOWS'] };
+const NEEDS: Readonly<Record<string, readonly string[]>> = { SERVICE_DESK: ['WORKFLOWS'], POSTS: ['KNOWLEDGE'] };
 
 /**
  * Whether a section of a module is drawn: only once the manifest says the module is on, since a

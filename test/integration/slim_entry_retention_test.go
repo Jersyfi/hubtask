@@ -17,29 +17,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The slim entry's writers' step (F-10, versioning-release.md §4): every writer writes the side
-// tables of 0234 and none the entry's eight columns.
-
-// columnsLag counts the entry's announcement and retention columns that say something else than
-// their side rows, past every policy. While v0.10.0 rolls out they follow the side rows
-// (work_item_columns_follow, 0443); the flow moments do not.
-func columnsLag(ctx context.Context, t *testing.T, item shared.ID) int {
-	t.Helper()
-	var n int
-	if err := adminPool(ctx, t).QueryRow(ctx, `
-		SELECT count(*) FROM work_item w
-		  LEFT JOIN work_item_announcement a ON a.tenant_id = w.tenant_id AND a.item_id = w.id
-		  LEFT JOIN work_item_retention r ON r.tenant_id = w.tenant_id AND r.item_id = w.id
-		 WHERE w.id = $1
-		   AND ((w.due_soon_announced_at, w.overdue_announced_at)
-		          IS DISTINCT FROM (a.due_soon_announced_at, a.overdue_announced_at)
-		     OR (w.retention_pending_until, w.retention_rule_id, w.retention_action, w.retention_blocked_by)
-		          IS DISTINCT FROM (r.pending_until, r.rule_id, r.action, r.blocked_by))`,
-		item.String()).Scan(&n); err != nil {
-		t.Fatalf("comparing the columns: %v", err)
-	}
-	return n
-}
+// The slim entry (F-10, versioning-release.md §4): every writer writes the side tables of 0234;
+// the entry's own columns for these values are gone (0445).
 
 type retentionRow struct {
 	exists          bool
@@ -77,7 +56,7 @@ func versionOf(ctx context.Context, t *testing.T, item shared.ID) int {
 // The retention statements mean what they meant on the columns: a marking counts down and is
 // not marked again, a block holds only an unmarked entry and is not rewritten unchanged, a
 // marking lifts a block, a clearing keeps the rule only for a stage that acted and spends a
-// version, and a withdrawn rule takes its markings. The entry's columns follow, for v0.10.0.
+// version, and a withdrawn rule takes its markings.
 func TestTheRetentionWritersKeepTheirMeaningOnTheSideTable(t *testing.T) {
 	ctx := context.Background()
 	collection := collectionFor(ctx, t, tenantA, authorA)
@@ -162,9 +141,6 @@ func TestTheRetentionWritersKeepTheirMeaningOnTheSideTable(t *testing.T) {
 	for _, id := range []shared.ID{marked, held} {
 		if row := retentionOf(ctx, t, id); row.exists {
 			t.Errorf("a withdrawn rule left %+v on %s", row, id)
-		}
-		if columnsLag(ctx, t, id) != 0 {
-			t.Errorf("the columns of %s did not follow its side rows", id)
 		}
 	}
 

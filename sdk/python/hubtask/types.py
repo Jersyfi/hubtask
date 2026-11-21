@@ -1364,7 +1364,7 @@ class ResealAccepted(TypedDict, total=False):
 
 TodaySection = Literal["OVERDUE", "DUE_TODAY", "REPLY", "TIME", "APPROVALS", "COLLECTIONS", "NEWS", "INBOX", "RECENT"]
 
-Module = Literal["WORKFLOWS", "PLANNING", "KNOWLEDGE", "WHITEBOARD", "SERVICE_DESK", "ASSETS", "TIME", "GOALS", "AGENTS"]
+Module = Literal["WORKFLOWS", "PLANNING", "KNOWLEDGE", "POSTS", "WHITEBOARD", "SERVICE_DESK", "ASSETS", "TIME", "GOALS", "AGENTS"]
 
 class OwnSettings(TypedDict, total=False):
     data: Required[list[dict[str, Any]]]

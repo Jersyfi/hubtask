@@ -13,6 +13,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/knowledge"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -91,5 +92,55 @@ func TestTheSearchFindsNoPostBeyondItsPageOrItsWords(t *testing.T) {
 		if n := find(q.actor, q.q); n != 0 {
 			t.Errorf("%s found %d", name, n)
 		}
+	}
+}
+
+// switchedAt answers the modules on at each hub as the gate resolves them, for the workspace that
+// holds the hub alone: another workspace's actor reads no hub of it, as row-level security answers.
+type switchedAt struct {
+	owner shared.ID
+	on    map[shared.ID]module.Set
+}
+
+func (s switchedAt) On(_ context.Context, actor appshared.ActorContext, hubID shared.ID) (module.Set, error) {
+	if actor.TenantID != s.owner {
+		return nil, shared.ErrNotFound
+	}
+	return s.on[hubID], nil
+}
+
+// A hub with Posts switched off finds none of its posts in the search over every kind, as every
+// other door refuses them with module.off (UC-INS-21 check 5); Knowledge on beside it changes
+// nothing. A reader of another workspace finds nothing either, and the search is not refused.
+func TestTheSearchFindsNoPostWherePostsAreOff(t *testing.T) {
+	f := newPostFixture()
+	id := f.post(t, usecase.Input{"publish_at": start.Format(time.RFC3339)})
+	f.store.pages[id] = domain.Page{ID: id, HubID: hub, Title: "Release 4.2", Version: 1}
+	stranger := actorOf(member)
+	stranger.TenantID = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000f0ff")
+	for _, row := range []struct {
+		name  string
+		on    module.Set
+		actor appshared.ActorContext
+		finds int
+	}{
+		{"posts on", module.Set{module.Knowledge, module.Posts}, actorOf(member), 1},
+		{"posts off, knowledge on", module.Set{module.Knowledge}, actorOf(member), 0},
+		{"nothing on", module.Set{}, actorOf(member), 0},
+		{"another workspace", module.Set{module.Knowledge, module.Posts}, stranger, 0},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			all := search.SearchAll{
+				Finders: map[string]search.Finder{search.KindPost: PostFinder{Space: f.space}},
+				Modules: switchedAt{owner: tenant, on: map[shared.ID]module.Set{hub: row.on}},
+			}
+			answer, err := all.Execute(context.Background(), row.actor, search.SearchAllQuery{Words: "release", Kinds: []string{search.KindPost}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(answer.Hits) != row.finds || len(answer.Facets) != 1 || answer.Facets[0].Count != row.finds {
+				t.Errorf("found %+v, want %d post", answer, row.finds)
+			}
+		})
 	}
 }

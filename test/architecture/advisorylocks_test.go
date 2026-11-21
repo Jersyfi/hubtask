@@ -17,11 +17,6 @@ import (
 // as long as it leads stops every writer of the other purpose, and a migrator waits for it until
 // its run bound ends the upgrade.
 func TestEveryFixedAdvisoryLockKeyHasOneHolder(t *testing.T) {
-	// Released shared: the installation events' numbering moved to 8_010_004 and still takes the
-	// migrator's 8_010_002 for the release before's pods, which number under it alone. The
-	// release after drops it (versioning-release.md §4), and this exception with it.
-	shared := map[string]int{"8010002": 2}
-
 	goKey := regexp.MustCompile(`(?m)^const \w+ (?:\w+ )?= (8_0\d\d_\d{3})$`)
 	sqlKey := regexp.MustCompile(`pg_(?:try_)?advisory_(?:xact_)?lock\((\d+)\)`)
 	holders := map[string][]string{}
@@ -52,11 +47,7 @@ func TestEveryFixedAdvisoryLockKeyHasOneHolder(t *testing.T) {
 		t.Fatal("the scheduler's lock 8_010_001 was not found - the patterns have stopped matching")
 	}
 	for key, sites := range holders {
-		allowed := 1
-		if n, ok := shared[key]; ok {
-			allowed = n
-		}
-		if len(sites) > allowed {
+		if len(sites) > 1 {
 			sort.Strings(sites)
 			t.Errorf("advisory lock %s is taken for %d purposes (%s): give each its own number",
 				key, len(sites), strings.Join(sites, ", "))

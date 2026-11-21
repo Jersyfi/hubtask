@@ -60,6 +60,16 @@ jobs:
       - name: helm, pinned like every other tool
         run: make tools-helm
 
+      - name: The version this commit reports
+        # The last release with this commit as build metadata: an installed app signs in only to a
+        # server of its own version or newer, and reads the release part alone (UC-SYN-07).
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          released=$(gh release view --json tagName -q .tagName 2>/dev/null || true)
+          released=${released#v}
+          echo "PRODUCT_VERSION=${released:-0.0.0}+main.${GITHUB_SHA}" >> "$GITHUB_ENV"
+
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
@@ -87,7 +97,7 @@ jobs:
             ghcr.io/${{ env.IMAGE_NAME }}:main-${{ github.sha }}
             ghcr.io/${{ env.IMAGE_NAME }}:main
           build-args: |
-            VERSION=main-${{ github.sha }}
+            VERSION=${{ env.PRODUCT_VERSION }}
             COMMIT=${{ github.sha }}
 
       - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3

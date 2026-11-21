@@ -245,6 +245,10 @@
     border-block-end: var(--bw-hairline) solid var(--border-subtle);
   }
 
+  /* Between two hairlines - the way back's and its own - the tools stand as far from the one as
+     from the other. */
+  .back-row + .tools { padding-block-start: calc(var(--sp-050) + var(--sp-025)); }
+
   @media (prefers-reduced-motion: reduce) {
     .slide { animation: none; }
   }

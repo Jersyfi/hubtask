@@ -15,12 +15,6 @@
 -- whole migration run.
 SELECT pg_advisory_xact_lock(8010004);
 
--- name: LockPlatformEventNumberingOfTheReleaseBefore :exec
--- The key a pod of the release before numbers under, taken after the own one and never before it:
--- two writers of this release taking them in opposite orders would wait for each other. Dropped by
--- the release after (versioning-release.md §4, "Scheduled contract steps").
-SELECT pg_advisory_xact_lock(8010002);
-
 -- name: InsertPlatformEvent :execrows
 -- A writer that may run twice names a dedupe key, and the second run inserts nothing.
 INSERT INTO platform_event

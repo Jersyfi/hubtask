@@ -10,6 +10,7 @@ package search
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"sort"
 	"strconv"
@@ -20,6 +21,7 @@ import (
 	searchrepo "github.com/Jersyfi/hubtask/core/application/repository/search"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -89,6 +91,40 @@ type Question struct {
 	Apart bool
 	// entries is the entry search's answer, read once for ENTRY and TICKET.
 	entries *entryAnswer
+	// modules answers the modules on at each hub once per search.
+	modules *modulesAt
+}
+
+// Modules answers the modules on at a hub as the module gate resolves them (UC-INS-21 check 5).
+type Modules interface {
+	On(ctx context.Context, actor appshared.ActorContext, hubID shared.ID) (module.Set, error)
+}
+
+type modulesAt struct {
+	modules Modules
+	at      map[shared.ID]module.Set
+}
+
+// On reports whether the module is on at the hub, so a finder leaves out what a hub has switched
+// off, as every other door refuses it with module.off; a hub that is gone has nothing on. A search
+// asked without the switches - a finder on its own - takes every module as on.
+func (q Question) On(ctx context.Context, actor appshared.ActorContext, hubID shared.ID, key module.Key) (bool, error) {
+	if q.modules == nil || q.modules.modules == nil {
+		return true, nil
+	}
+	set, read := q.modules.at[hubID]
+	if !read {
+		var err error
+		set, err = q.modules.modules.On(ctx, actor, hubID)
+		if errors.Is(err, shared.ErrNotFound) {
+			set, err = module.Set{}, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		q.modules.at[hubID] = set
+	}
+	return set.Has(key), nil
 }
 
 // Ask is the store's question for the candidates of a kind.
@@ -187,6 +223,8 @@ func cut(text string, from, to int) string {
 // SearchAll is the use case.
 type SearchAll struct {
 	Finders map[string]Finder
+	// Modules leaves out a hit at a hub where its kind's module is off; nil leaves out nothing.
+	Modules Modules
 }
 
 // SearchAllQuery is the input, typed.
@@ -318,6 +356,7 @@ func (h SearchAll) Execute(ctx context.Context, actor appshared.ActorContext, qu
 	}
 	question.HubID, question.Size = query.HubID, size
 	question.entries = &entryAnswer{}
+	question.modules = &modulesAt{modules: h.Modules, at: map[shared.ID]module.Set{}}
 	_, tickets := h.Finders[KindTicket]
 	question.Apart = tickets && slices.Contains(kinds, KindTicket)
 	answer := Answer{Hits: []Hit{}, Facets: []Facet{}}
@@ -422,7 +461,8 @@ func (h SearchAll) Descriptor() usecase.Descriptor {
 			"People are found by their display name only, files by their name only; " +
 			"files and comments on entries, pages and whiteboards, where the caller reads what they are on. " +
 			"Among equally good pages a verified one comes first. A post is found by its title and body once " +
-			"it is published, by a person it is for alone - never as a page, never a draft or a scheduled one. q is a Hubtask query: its free " +
+			"it is published, by a person it is for alone - never as a page, never a draft or a scheduled one, never in a hub " +
+			"where posts are switched off. q is a Hubtask query: its free " +
 			"words are searched, its keys narrow - a key of one kind (asset.class, asset.stage, " +
 			"asset.owner, asset.location, asset.tag, page.verified, page.owner, goal.state) keeps the " +
 			"search to that kind, a key of entries to entries, type: chooses kinds; keys alone " +

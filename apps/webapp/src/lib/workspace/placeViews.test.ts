@@ -8,7 +8,7 @@ import { collectionViews, hubPlaceOf, hubPlaces, layoutOfView, toolViews, viewOf
 import { placeMenu } from './placeMenu.ts';
 import { HUB_TOOLS } from '../navigation.ts';
 
-const ALL = ['WORKFLOWS', 'PLANNING', 'KNOWLEDGE', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'TIME', 'GOALS', 'AGENTS'];
+const ALL = ['WORKFLOWS', 'PLANNING', 'KNOWLEDGE', 'POSTS', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'TIME', 'GOALS', 'AGENTS'];
 const ids = (views: readonly { id: string }[]) => views.map((view) => view.id);
 
 test('a collection draws one view bar: list, board, timeline, time and its saved views (UC-WRK-36 check 9)', () => {
@@ -50,10 +50,11 @@ test('a hub tool with tabs of its own holds them in one bar; a hub itself has no
 });
 
 test('the palette reaches a hub\'s tools and contents only where their module is on there', () => {
-  assert.deepEqual(ids(hubPlaces('h', ALL)), ['plan', 'inventory', 'time', 'goals', 'contents']);
+  assert.deepEqual(ids(hubPlaces('h', ALL)), ['plan', 'inventory', 'time', 'goals', 'contents', 'posts']);
   assert.deepEqual(ids(hubPlaces('h', [])), []);
   assert.equal(hubPlaceOf('h', 'PLANNING')?.href, '/hubs/h/plan');
   assert.equal(hubPlaceOf('h', 'KNOWLEDGE')?.href, '/hubs/h/contents');
+  assert.equal(hubPlaceOf('h', 'POSTS')?.href, '/hubs/h/posts');
   assert.equal(hubPlaceOf('h', 'AGENTS'), undefined, 'agents are the workspace\'s only');
 });
 

@@ -109,14 +109,15 @@ func TestOnlyTheGoalsNarrowTheReplica(t *testing.T) {
 	}
 }
 
-// A desk is entry types and their workflows: the service desk cannot be on without Workflows,
-// and no other module needs another.
-func TestOnlyTheServiceDeskNeedsAnotherModule(t *testing.T) {
+// A desk is entry types and their workflows, a post a page of the hub's space: the service desk
+// cannot be on without Workflows, posts not without Knowledge, and no other module needs another.
+func TestOnlyTheServiceDeskAndPostsNeedAnotherModule(t *testing.T) {
+	want := map[module.Key]module.Key{module.ServiceDesk: module.Workflows, module.Posts: module.Knowledge}
 	for _, key := range module.Keys() {
 		got := key.Needs()
-		if key == module.ServiceDesk {
-			if len(got) != 1 || got[0] != module.Workflows {
-				t.Errorf("SERVICE_DESK needs %v, want [WORKFLOWS]", got)
+		if needed, ok := want[key]; ok {
+			if len(got) != 1 || got[0] != needed {
+				t.Errorf("%s needs %v, want [%s]", key, got, needed)
 			}
 			continue
 		}

@@ -7,7 +7,7 @@
   // may not read is named; an actor whose name is not resolved is the sentence true of its kind.
 
   import { untrack } from 'svelte';
-  import { Avatar, ProductTile, type IconName } from '@hubtask/design-system/components';
+  import { Avatar, Card, ProductTile, type IconName } from '@hubtask/design-system/components';
 
   import { accounts } from '../data/accounts.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
@@ -110,7 +110,8 @@
 </script>
 
 {#if happenings && happenings.length > 0}
-  <section class="recent" aria-labelledby="hub-recent">
+  <!-- The overview's one surface, as its tools' tiles and the collections' cards have it. -->
+  <Card element="section" padding="none" aria-labelledby="hub-recent">
     <header class="heading">
       <h2 id="hub-recent">{t('app.hub_overview.recent')}</h2>
       {#if allHref}<a class="all" href={allHref} data-recent-all>{t('app.hub_overview.recent_all')}</a>{/if}
@@ -125,19 +126,10 @@
         </li>
       {/each}
     </ul>
-  </section>
+  </Card>
 {/if}
 
 <style>
-  .recent {
-    display: flex;
-    flex-direction: column;
-    min-inline-size: 0;
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-md);
-    background: var(--bg-raised);
-  }
-
   .heading {
     display: flex;
     align-items: baseline;

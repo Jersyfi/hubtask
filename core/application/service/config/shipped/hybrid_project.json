@@ -11,6 +11,9 @@
       },
       "knowledge": {
         "switch": "ON"
+      },
+      "posts": {
+        "switch": "ON"
       }
     },
     "fields": {
@@ -333,6 +336,9 @@
         "switch": "ON"
       },
       "knowledge": {
+        "switch": "ON"
+      },
+      "posts": {
         "switch": "ON"
       }
     },

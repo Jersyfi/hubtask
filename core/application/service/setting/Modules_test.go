@@ -531,6 +531,53 @@ func TestWorkflowsIsNotSwitchedOffUnderTheServiceDesk(t *testing.T) {
 	}
 }
 
+// Posts are pages of the hub's space: switching Posts on switches Knowledge on in the same write,
+// and Knowledge is not switched off - at the workspace or at a hub - while Posts stays on there.
+func TestPostsSwitchKnowledgeOnAndKeepItOn(t *testing.T) {
+	ctx := context.Background()
+	modules, _, sink := fixture()
+	set := settingservice.SetModule{Modules: modules}
+	states, err := set.Execute(ctx, actor(), settingservice.SetModuleCommand{Module: module.Posts, Switch: settingservice.SwitchOn})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !on(t, states, module.Posts).On() || !on(t, states, module.Knowledge).On() {
+		t.Fatalf("after switching posts on: %v, want posts and knowledge", module.SetOf(states))
+	}
+	if len(sink.entries) != 2 {
+		t.Errorf("trail holds %d entries, want one per module switched", len(sink.entries))
+	}
+	written := len(sink.entries)
+	for _, cmd := range []settingservice.SetModuleCommand{
+		{Module: module.Knowledge, Switch: settingservice.SwitchOff},
+		{Module: module.Knowledge, Switch: settingservice.SwitchInherit},
+		{Module: module.Knowledge, Switch: settingservice.SwitchOff, HubID: hub},
+	} {
+		if _, err := set.Execute(ctx, actor(), cmd); !refusedWith(err, "module.needed") {
+			t.Errorf("knowledge %s at %q under posts = %v, want module.needed", cmd.Switch, cmd.HubID, err)
+		}
+	}
+	for _, where := range []shared.ID{"", hub} {
+		states, err := settingservice.ListModules{Modules: modules}.Execute(ctx, actor(), where)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !on(t, states, module.Knowledge).On() {
+			t.Errorf("knowledge is off at %q after the refusals", where)
+		}
+	}
+	if len(sink.entries) != written {
+		t.Errorf("the refusals wrote %d trail entries, want none", len(sink.entries)-written)
+	}
+	// Posts off at the hub first, then knowledge off there is the hub's to narrow.
+	if _, err := set.Execute(ctx, actor(), settingservice.SetModuleCommand{Module: module.Posts, Switch: settingservice.SwitchOff, HubID: hub}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := set.Execute(ctx, actor(), settingservice.SetModuleCommand{Module: module.Knowledge, Switch: settingservice.SwitchOff, HubID: hub}); err != nil {
+		t.Errorf("knowledge off at a hub whose posts are off = %v, want it switched", err)
+	}
+}
+
 type holder struct{ onHold func() }
 
 func (h *holder) Hold(context.Context) error {

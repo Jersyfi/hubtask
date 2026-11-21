@@ -158,3 +158,33 @@ test('chromium: a switched-off desk starts from a template, with start empty bes
   assert.ok(walk.written.some((each) => each.method === 'PUT' && each.path === '/tenant/modules/SERVICE_DESK'), 'start empty did not switch the desk on');
   assert.deepEqual(walk.errors(), []);
 });
+
+// UC-INS-21: Posts is a switch of its own beside Pages; switching it on switches Pages on in the
+// same write, as the server answers (setting/Modules_test.go proves the refusal of Pages off under
+// it), and the card leads to the posts' home.
+test('chromium: switching Posts on draws Pages on with it and leads to the posts\' home', async (t) => {
+  const browser = await sharedChromium(t);
+  const states = ['KNOWLEDGE', 'POSTS'].map((module) => ({ module, on: false, source: 'DEFAULT' }));
+  const answer = (method, path) => {
+    if (path === '/tenant/modules' && method === 'GET') return { json: { modules: states } };
+    if (path === '/config/templates' && method === 'GET') return { json: { data: [] } };
+    if (path === '/tenant/modules/POSTS' && method === 'PUT') {
+      for (const state of states) Object.assign(state, { on: true, source: 'WORKSPACE' });
+      return { json: { modules: states } };
+    }
+    return undefined;
+  };
+  const walk = await productWalk(browser, { modules: [], answer });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/administration/modules`);
+  const posts = page.locator('[data-module="POSTS"]');
+  await posts.getByRole('switch').waitFor({ timeout: 10_000 });
+  await posts.getByText('Posts', { exact: true }).first().waitFor();
+  await posts.getByRole('switch').click();
+  await page.locator('[data-switched-on="POSTS"]').getByRole('link', { name: 'Find it in Posts' }).waitFor({ timeout: 5_000 });
+  assert.equal(await page.locator('[data-switched-on="POSTS"]').getByRole('link', { name: 'Find it in Posts' }).getAttribute('href'), '/posts');
+  assert.equal(await page.locator('[data-module="KNOWLEDGE"]').getByRole('switch').isChecked(), true, 'Pages stayed off under Posts');
+  assert.deepEqual(walk.errors(), []);
+});

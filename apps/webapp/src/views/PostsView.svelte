@@ -79,7 +79,7 @@
     if (isCreating) return;
     isCreating = true;
     try {
-      const made = await posts.create(hubId, { title: t('app.posts.untitled'), publish_at: null, audience: 'HUB', group_ids: [], discussion: true, notify: true });
+      const made = await posts.draft(hubId, t('app.posts.untitled'));
       onnavigate(`/posts/${made.page_id}/write`);
     } catch (error) {
       toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });

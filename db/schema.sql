@@ -1254,10 +1254,6 @@ CREATE TABLE work_item (
   completed_by       uuid,
   -- How often it went from open to done; kept by a reopen (migration 0189).
   completion_count   integer NOT NULL DEFAULT 0 CHECK (completion_count >= 0),
-  -- When it first entered its collection's first column and last entered a done column, kept by
-  -- the trigger work_item_flow_moments (migration 0194; UC-WRK-31 check 4).
-  flow_started_at    timestamptz,
-  flow_finished_at   timestamptz,
   bucket_id          uuid,
   order_key          text NOT NULL,
   start_at           timestamptz,
@@ -1278,23 +1274,10 @@ CREATE TABLE work_item (
   origin_jumble_id   uuid,
   content_language   text,
   calendar_uid       text,
-  search_vector      tsvector GENERATED ALWAYS AS
-                       (to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(notes, ''))) STORED,
-  -- The language-dependent document the search reads, maintained by the trigger below and dropping
-  -- the generated column above in a later migration (migration 0019, ADR-0034).
+  -- The language-dependent document the search reads, maintained by the trigger below (migration
+  -- 0019, ADR-0034).
   search_document    tsvector,
   search_configuration text,             -- the configuration that built the document
-  due_soon_announced_at timestamptz,
-  overdue_announced_at  timestamptz,
-  -- What a marked object carries between the two phases of a retention run (migration 0038,
-  -- data-retention.md §5, §6): when the act is due, under which rule, and what the act is.
-  retention_pending_until timestamptz,
-  retention_rule_id  uuid,
-  retention_action   text,
-  -- Why the act is not happening, when something is stopping it (migration 0041). A blocked entry
-  -- carries the rule and the action and no `retention_pending_until`: the absence of a due moment
-  -- is what keeps phase two off it.
-  retention_blocked_by text,
   archived_at        timestamptz,
   deleted_at         timestamptz,
   trash_batch_id     uuid,
@@ -1362,10 +1345,6 @@ CREATE INDEX wi_completion_idx ON work_item (tenant_id, collection_id, is_comple
 -- last done.
 CREATE INDEX wi_recurrence_idx ON work_item (recurrence_rule_id)
   WHERE recurrence_rule_id IS NOT NULL;
-CREATE INDEX wi_due_announce_idx ON work_item (tenant_id, due_at)
-  WHERE due_at IS NOT NULL
-    AND deleted_at IS NULL AND archived_at IS NULL AND is_completed = false
-    AND (due_soon_announced_at IS NULL OR overdue_announced_at IS NULL);
 CREATE INDEX wi_assignee_idx ON work_item (tenant_id, assignee_id, is_completed, due_at)
   WHERE deleted_at IS NULL;
 CREATE INDEX wi_parent_idx   ON work_item (tenant_id, parent_id, order_key);
@@ -1382,63 +1361,15 @@ CREATE INDEX wi_query_order_idx
   ON work_item (tenant_id, collection_id, order_key COLLATE "C", id)
   WHERE deleted_at IS NULL;
 CREATE INDEX wi_path_idx     ON work_item (tenant_id, path text_pattern_ops);
-CREATE INDEX wi_search_idx   ON work_item USING gin (search_vector);
 -- Every path that writes a row maintains the document, including the ones that are not use cases.
 -- UPDATE is narrowed to the columns it is built from, so completing a task recomputes nothing.
 CREATE TRIGGER work_item_search_document
   BEFORE INSERT OR UPDATE OF title, notes, content_language ON work_item
   FOR EACH ROW EXECUTE FUNCTION work_item_search_document();
 CREATE INDEX wi_search_document_idx ON work_item USING gin (search_document);
--- The moments a flow's figure measures by, set wherever a row's column or collection changes
--- (migration 0194).
-CREATE OR REPLACE FUNCTION work_item_flow_moments() RETURNS trigger LANGUAGE plpgsql AS
-$$
-DECLARE
-  moment timestamptz;
-  first_column uuid;
-  completes boolean;
-BEGIN
-  IF TG_OP = 'UPDATE' THEN
-    IF NEW.flow_started_at IS DISTINCT FROM OLD.flow_started_at
-       OR NEW.flow_finished_at IS DISTINCT FROM OLD.flow_finished_at THEN
-      -- The statement wrote the moments itself: a restore overwriting the row.
-      RETURN NEW;
-    ELSIF NEW.collection_id IS DISTINCT FROM OLD.collection_id THEN
-      NEW.flow_started_at := NULL;
-      NEW.flow_finished_at := NULL;
-    ELSIF NEW.bucket_id IS NOT DISTINCT FROM OLD.bucket_id THEN
-      RETURN NEW;
-    END IF;
-    moment := NEW.updated_at;
-  ELSE
-    moment := NEW.created_at;
-  END IF;
-  IF NEW.bucket_id IS NULL THEN
-    RETURN NEW;
-  END IF;
-
-  -- The board's first column as a board is answered: by rank, then identifier (ListBuckets).
-  SELECT b.id INTO first_column
-    FROM bucket b
-   WHERE b.tenant_id = NEW.tenant_id AND b.collection_id = NEW.collection_id AND b.deleted_at IS NULL
-   ORDER BY b.order_key COLLATE "C", b.id
-   LIMIT 1;
-  SELECT b.is_done_bucket INTO completes
-    FROM bucket b
-   WHERE b.tenant_id = NEW.tenant_id AND b.id = NEW.bucket_id;
-
-  IF NEW.bucket_id = first_column AND NEW.flow_started_at IS NULL THEN
-    NEW.flow_started_at := moment;
-  END IF;
-  IF completes AND (TG_OP = 'UPDATE' OR NEW.flow_finished_at IS NULL) THEN
-    NEW.flow_finished_at := moment;
-  END IF;
-  RETURN NEW;
-END
-$$;
-CREATE TRIGGER work_item_flow_moments
-  BEFORE INSERT OR UPDATE OF bucket_id, collection_id ON work_item
-  FOR EACH ROW EXECUTE FUNCTION work_item_flow_moments();
+-- The moments a flow's figure measures by, kept on work_item_flow wherever a row's column or
+-- collection changes: work_item_flow_side_row() and the trigger work_item_flow_moments, migrations
+-- 0194, 0443 and 0445.
 -- The supplement for the scripts a tsquery cannot serve: CJK and Thai have no word boundaries, so
 -- one run of characters is one token and a substring of it is unfindable (i18n-l10n.md §5).
 CREATE INDEX wi_search_trgm_idx ON work_item
@@ -1546,9 +1477,9 @@ CREATE INDEX efv_search_idx ON entry_field_value USING gin (to_tsvector('simple'
 GRANT SELECT, INSERT, UPDATE, DELETE ON entry_field_value TO hubtask_app;
 -- entry_field_values_of(work_item) and the trigger work_item_field_values: migration 0218.
 
--- The slim entry's side tables (migrations 0234, 0235; F-10): what background loops keep on an
--- entry, mirrored from its columns by the trigger work_item_side_rows until the contract release
--- moves the readers here and drops the columns. A row exists only while one of its values does.
+-- The slim entry's side tables (migrations 0234, 0235, 0445; F-10): what background loops keep on
+-- an entry - when its due date was announced, its flow moments, what a retention run marked on it -
+-- beside the row every list and board reads. A row exists only while one of its values does.
 CREATE TABLE work_item_announcement (
   tenant_id             uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   item_id               uuid NOT NULL,
@@ -1575,6 +1506,8 @@ CREATE TABLE work_item_retention (
   pending_until timestamptz,
   rule_id       uuid,
   action        text,
+  -- Why the act is not happening (migration 0041). A blocked entry carries the rule and the action
+  -- and no `pending_until`, which keeps phase two off it (data-retention.md §5, §6).
   blocked_by    text,
   PRIMARY KEY (tenant_id, item_id),
   CHECK (num_nonnulls(pending_until, rule_id, action, blocked_by) > 0),
@@ -1585,7 +1518,6 @@ CREATE INDEX work_item_retention_due_idx ON work_item_retention (tenant_id, pend
   WHERE pending_until IS NOT NULL;
 GRANT SELECT, INSERT, UPDATE, DELETE ON work_item_announcement, work_item_flow, work_item_retention
   TO hubtask_app;
--- work_item_mirror_side_rows(work_item) and the trigger work_item_side_rows: migration 0234.
 
 -- Durable timers on business calendars (migration 0236, F-10, domain-model.md §3.7).
 CREATE TABLE durable_timer (
@@ -3633,9 +3565,6 @@ CREATE TABLE deletion_journal (
 );
 CREATE INDEX deletion_journal_time_idx ON deletion_journal (tenant_id, deleted_at);
 
--- The marked objects are the few, and phase two reads this on every pass (migration 0038).
-CREATE INDEX work_item_retention_idx ON work_item (tenant_id, retention_pending_until)
-  WHERE retention_pending_until IS NOT NULL;
 
 -- The rule model of data-retention.md §2 (migration 0038). It sits beside retention_policy rather
 -- than replacing it: that table's key allows one period per kind per tenant, and a scoped model
@@ -4522,11 +4451,12 @@ REVOKE ALL ON FUNCTION applied_schema_versions() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION applied_schema_versions() TO hubtask_app;
 
 -- The oldest binary, by its newest embedded migration, that still works on this schema
--- (migration 0344): a contract migration raises it, readiness compares it (deployment.md §5).
+-- (migration 0344): a contract migration raises it, readiness compares it (deployment.md §5). The
+-- slim entry's drop raised it to 0442 (migration 0445).
 CREATE OR REPLACE FUNCTION schema_compatibility_floor()
 RETURNS bigint
 LANGUAGE sql IMMUTABLE SET search_path = pg_catalog, pg_temp AS $$
-  SELECT 0::bigint;
+  SELECT 442::bigint;
 $$;
 REVOKE ALL ON FUNCTION schema_compatibility_floor() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION schema_compatibility_floor() TO hubtask_app;
@@ -4571,7 +4501,7 @@ GRANT SELECT, INSERT ON instance_event TO hubtask_app;
 -- ============ The installation's events =============================
 -- What a provider's purchase platform learns about the workspaces (UC-INS-14, multi-tenancy.md
 -- §4.3). Numbered in commit order: `number` is drawn while the writer holds the advisory lock
--- 8_010_002 until its transaction ends. No row-level-security policy, the journal's
+-- 8_010_004 until its transaction ends. No row-level-security policy, the journal's
 -- reasoning; `tenant_id` is a bare identifier, since the `deleted` event outlives its workspace. See
 -- db/migrations/0180_platform_event.sql.
 CREATE SEQUENCE platform_event_number AS bigint;

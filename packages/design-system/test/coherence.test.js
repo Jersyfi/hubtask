@@ -136,3 +136,15 @@ test('on a phone a sheet and a drawer from the foot keep their head and scroll i
   assert.match(drawer, /\.drawer\[data-edge='block-end'\]\[open\] \{ display: flex; flex-direction: column; overflow: hidden; \}/u);
   assert.match(drawer, /\.drawer\[data-edge='block-end'\] \.body \{ flex: 1 1 auto; min-block-size: 0; overflow: auto; \}/u);
 });
+
+test('an overview has one surface: a widget stands on Card, and Card is a region of §4 - surface, hairline, r-lg, no shadow', () => {
+  const card = source('Card.svelte');
+  const style = card.slice(card.indexOf('<style>'));
+  const [rule] = rulesFor(style, 'card');
+  assert.ok(rule, 'Card draws no card rule');
+  for (const want of ['var(--bg-surface)', 'var(--border-subtle)', 'var(--r-lg)']) assert.ok(rule.includes(want), `Card's surface lacks ${want}`);
+  assert.doesNotMatch(style, /box-shadow|bg-raised/, 'a region carries no shadow and is not raised');
+  const widget = source('Widget.svelte');
+  assert.match(widget, /<Card element="section"/, 'Widget does not stand on Card');
+  assert.doesNotMatch(widget.slice(widget.indexOf('<style>')), /background:|border:/, 'Widget draws a surface of its own beside Card');
+});

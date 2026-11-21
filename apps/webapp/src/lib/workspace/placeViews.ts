@@ -133,7 +133,7 @@ export function layoutOfView(view: string | undefined, listLayout: string): stri
 
 /**
  * Where a hub's products are, for the palette's *Go to <hub> › <place>* (user-experience.md §5.3):
- * its tools - without *Queues*, whose desk the palette does not read - and its pages and boards.
+ * its tools - without *Queues*, whose desk the palette does not read -, its pages and boards, and its posts.
  */
 export function hubPlaces(hubId: string, modulesOn: readonly string[]): readonly PlaceView[] {
   return [
@@ -141,6 +141,7 @@ export function hubPlaces(hubId: string, modulesOn: readonly string[]): readonly
     ...(modulesOn.includes('KNOWLEDGE') || modulesOn.includes('WHITEBOARD')
       ? [{ id: 'contents', code: 'app.nav.all_contents', icon: 'book-open' as const, href: `/hubs/${hubId}/contents` }]
       : []),
+    ...(modulesOn.includes('POSTS') ? [{ id: 'posts', code: 'app.posts.nav_section', icon: 'bell' as const, href: `/hubs/${hubId}/posts` }] : []),
   ];
 }
 
@@ -149,5 +150,5 @@ export function hubPlaceOf(hubId: string, module: string): PlaceView | undefined
   const tool = HUB_TOOLS.find((each) => each.module === module);
   if (tool) return { id: tool.id, code: tool.code, icon: tool.icon, href: toolPath(hubId, tool.id) };
   if (module === 'WHITEBOARD') return { id: 'contents', code: 'app.nav.all_contents', icon: 'layout-template', href: `/hubs/${hubId}/contents?kind=whiteboards` };
-  return hubPlaces(hubId, [module]).find((each) => each.id === 'contents');
+  return hubPlaces(hubId, [module]).find((each) => each.id === 'contents' || each.id === 'posts');
 }

@@ -14,8 +14,8 @@ const hit = (kind: Hit['kind'], id: string, extra: Partial<Hit> = {}): Hit => ({
 
 test('a kind whose module is off is never asked (P-17)', () => {
   assert.deepEqual(kindsOn(BAR_KINDS, []), ['ENTRY', 'PERSON', 'FILE']);
-  assert.deepEqual(kindsOn(BAR_KINDS, ['KNOWLEDGE', 'WHITEBOARD', 'ASSETS']), ['ENTRY', 'PAGE', 'POST', 'WHITEBOARD', 'PERSON', 'FILE', 'ASSET']);
-  assert.deepEqual(kindsOn(BAR_KINDS, ['SERVICE_DESK', 'KNOWLEDGE', 'WHITEBOARD', 'ASSETS', 'GOALS', 'PLANNING']), [...BAR_KINDS]);
+  assert.deepEqual(kindsOn(BAR_KINDS, ['KNOWLEDGE', 'POSTS', 'WHITEBOARD', 'ASSETS']), ['ENTRY', 'PAGE', 'POST', 'WHITEBOARD', 'PERSON', 'FILE', 'ASSET']);
+  assert.deepEqual(kindsOn(BAR_KINDS, ['SERVICE_DESK', 'KNOWLEDGE', 'POSTS', 'WHITEBOARD', 'ASSETS', 'GOALS', 'PLANNING']), [...BAR_KINDS]);
 });
 
 // UC-WRK-18 check 9. The header search asks what the search page asks; only comments, which its
@@ -69,8 +69,9 @@ test('a portfolio, a release and a sprint are asked where their module is on, an
   assert.deepEqual(['PORTFOLIO', 'RELEASE', 'SPRINT', 'FILE', 'COMMENT', 'ENTRY', 'GOAL'].map((kind) => saysItsKind(kind as Hit['kind'])), [true, true, true, true, true, false, false]);
 });
 
-test('a published post is asked with the pages, named as a post, and opens as one', () => {
-  assert.deepEqual(kindsOn(BAR_KINDS, ['KNOWLEDGE']), ['ENTRY', 'PAGE', 'POST', 'PERSON', 'FILE']);
+test('a published post is asked where posts are on, named as a post, and opens as one', () => {
+  assert.deepEqual(kindsOn(BAR_KINDS, ['KNOWLEDGE', 'POSTS']), ['ENTRY', 'PAGE', 'POST', 'PERSON', 'FILE']);
+  assert.deepEqual(kindsOn(BAR_KINDS, ['KNOWLEDGE']), ['ENTRY', 'PAGE', 'PERSON', 'FILE']);
   assert.ok(PAGE_KINDS.includes('POST') && !kindsOn(PAGE_KINDS, []).includes('POST'));
   assert.equal(pathOf(hit('POST', 'p')), '/posts/p');
   assert.ok(saysItsKind('POST'));
