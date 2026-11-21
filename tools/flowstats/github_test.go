@@ -4,7 +4,10 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -241,12 +244,46 @@ func TestFixAfterFeat(t *testing.T) {
 }
 
 func TestReasonFor(t *testing.T) {
-	body := "## Impact\n\n- `TestGone` asserted the old retry, which this change removes on purpose | see UC-SYN-03\n"
-	if got, want := reasonFor(body, losttests.Test{Name: "TestGone", Identifier: true}), "- `TestGone` asserted the old retry, which this change removes on purpose \\| see UC-SYN-03"; got != want {
+	body := "## Impact\n\n- `TestGone` asserted the old retry, which this change removes on purpose\n"
+	if got, want := reasonFor(body, losttests.Test{Name: "TestGone", Identifier: true}), "- `TestGone` asserted the old retry, which this change removes on purpose"; got != want {
 		t.Errorf("reason %q, want %q", got, want)
 	}
-	if got := reasonFor(body, losttests.Test{Name: "TestOther", Identifier: true}); got != "the description does not name it" {
+	if got := reasonFor(body, losttests.Test{Name: "TestOther", Identifier: true}); got != "" {
 		t.Errorf("reason %q for a test the description does not name", got)
+	}
+}
+
+// What a stranger wrote reaches the weekly comment as text and nothing else.
+func TestInert(t *testing.T) {
+	for text, want := range map[string]string{
+		"`TestGone` is gone, ask @owner | see [here](https://example.com) ![x](https://example.com/x.png)": "`'TestGone' is gone, ask @owner \\| see [here](https://example.com) ![x](https://example.com/x.png)`",
+		"<details><summary>the rest of the report":                                                         "`<details><summary>the rest of the report`",
+		"a  line\twith\rspaces":  "`a line with spaces`",
+		"":                       "—",
+		strings.Repeat("ä", 200): "`" + strings.Repeat("ä", 120) + "…`",
+	} {
+		if got := inert(text, reasonLength); got != want {
+			t.Errorf("%q prints %q, want %q", text, got, want)
+		}
+	}
+}
+
+func TestTheLostTestsTableIsBounded(t *testing.T) {
+	var lost []lostTest
+	for i := range 45 {
+		lost = append(lost, lostTest{Test: losttests.Test{Path: "core/a/a_test.go", Name: fmt.Sprintf("Test%d", i), How: "removed"}, pr: 7})
+	}
+	lost[0].reason = "- `Test0` asserted what this change removes"
+	var b bytes.Buffer
+	printLostTests(&b, lost, 0)
+	out := b.String()
+	if got := strings.Count(out, "| #7 |"); got != lostRows {
+		t.Errorf("%d rows, want %d", got, lostRows)
+	}
+	for _, want := range []string{"And 15 more, not printed.", "| #7 | `core/a/a_test.go` | `Test0` | removed | `- 'Test0' asserted what this change removes` |", "| `Test1` | removed | the description does not name it |"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the table lacks %q:\n%s", want, out)
+		}
 	}
 }
 

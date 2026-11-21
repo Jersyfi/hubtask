@@ -550,20 +550,37 @@ func lostTests(prs []pullRequest) (lost []lostTest, unread int) {
 	return lost, unread
 }
 
-const reasonLength = 240
+const (
+	// reasonLength is how much of a description's line the table prints.
+	reasonLength = 120
+	// lostRows bounds the table, so one large pull request does not push the weekly comment over
+	// the length GitHub takes.
+	lostRows = 30
+)
 
-// reasonFor is the line of the description that names the test.
+// reasonFor is the line of the description that names the test, or "" where none does.
 func reasonFor(body string, l losttests.Test) string {
 	for _, row := range strings.Split(body, "\n") {
 		if l.NamedIn(row) {
-			row = strings.TrimSpace(strings.ReplaceAll(row, "|", "\\|"))
-			if r := []rune(row); len(r) > reasonLength {
-				row = string(r[:reasonLength]) + "…"
-			}
 			return row
 		}
 	}
-	return "the description does not name it"
+	return ""
+}
+
+// inert prints text a stranger may have written - a test's title, a path, a line of a
+// description - as a code span, cut to limit runes. Inside one, a mention notifies nobody and a
+// link, an image or HTML stays text; the backtick that would end the span becomes a quote.
+func inert(text string, limit int) string {
+	text = strings.ReplaceAll(strings.Join(strings.Fields(text), " "), "`", "'")
+	if text == "" {
+		return "—"
+	}
+	if r := []rune(text); len(r) > limit {
+		text = string(r[:limit]) + "…"
+	}
+	// A table's cell ends at a bar, in a code span too.
+	return "`" + strings.ReplaceAll(text, "|", "\\|") + "`"
 }
 
 func printLostTests(b *bytes.Buffer, lost []lostTest, unread int) {
@@ -576,8 +593,15 @@ func printLostTests(b *bytes.Buffer, lost []lostTest, unread int) {
 		return
 	}
 	fmt.Fprintf(b, "| pull request | file | test | how | what its description says |\n|---|---|---|---|---|\n")
-	for _, l := range lost {
-		fmt.Fprintf(b, "| #%d | `%s` | %s | %s | %s |\n", l.pr, l.Path, strings.ReplaceAll(l.Name, "|", "\\|"), l.How, l.reason)
+	for _, l := range lost[:min(lostRows, len(lost))] {
+		reason := "the description does not name it"
+		if l.reason != "" {
+			reason = inert(l.reason, reasonLength)
+		}
+		fmt.Fprintf(b, "| #%d | %s | %s | %s | %s |\n", l.pr, inert(l.Path, reasonLength), inert(l.Name, reasonLength), l.How, reason)
+	}
+	if more := len(lost) - lostRows; more > 0 {
+		fmt.Fprintf(b, "\nAnd %d more, not printed.\n", more)
 	}
 	fmt.Fprintln(b)
 }
