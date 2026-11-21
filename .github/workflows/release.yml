@@ -361,6 +361,22 @@ jobs:
           prerelease: ${{ env.PRERELEASE }}
           files: release/*
 
+  integration:
+    # Integration names the last release in its version (deploy.yml), read when main deploys; a
+    # release published after that deploy would leave it reporting the one before, which an app
+    # of this release refuses as older. A release candidate is not the last release.
+    name: Integration names this release
+    needs: release
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write                 # start deploy.yml
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main
+
   integrations:
     # The n8n node and the Zapier app, generated from the contract at this tag (UC-INT-11 check 4).
     # Each step runs only when the owner's account secret is set, so a fork's tag publishes nothing.
