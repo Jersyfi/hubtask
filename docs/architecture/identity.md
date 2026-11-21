@@ -657,8 +657,8 @@ an operator (§19), so provisioning by a platform does not depend on a person wh
   (`DELETE /auth/sessions/{id}` of its session) withdraws its grant; the grant list names it
   "Hubtask app for {system} on {device}" with *Sign out*.
 * **The flow** (desktop): the app reads `/meta/capabilities` at the address typed - nothing answers,
-  not Hubtask, older than the app (F7 Decision 12; a development build without a release part,
-  `0.0.0` or `main-<commit>`, counts as newer) or an installation's own address in multi mode is
+  not Hubtask, older than the app (F7 Decision 12; a development build - `0.0.0`, `main-<commit>`
+  or a build of main, `<release>+main.<commit>` - counts as newer) or an installation's own address in multi mode is
   refused at the field before the browser opens -, opens a loopback listener, and hands
   `/oauth/consent` at the workspace's host to the system browser with the challenge and a state;
   the verifier stays in the page's memory. The redirect's page is the app's own ("Back to the
