@@ -36,6 +36,8 @@
 //   - The use cases cite personas, deployments and principles that exist, carry the sections that
 //     make them checkable, agree with their index, and every UC-… and use case check cited
 //     anywhere exists (see usecases.go).
+//   - The generated proof state is what the use cases and the walks' bounds render
+//     (proofstate.go); `-proof-state` writes it.
 //   - No subject document cites a superseded ADR as the reason for a current rule (superseded.go).
 //   - Every task of a milestone carries checks its `Delivers` line names, and a closed milestone
 //     has no Delivers check a use case still lists as unmet (see milestones.go).
@@ -60,6 +62,27 @@ func main() {
 		os.Exit(1)
 	}
 
+	// `make generate` writes the proof state; every other run checks.
+	if len(os.Args) > 1 {
+		if len(os.Args) != 2 || os.Args[1] != "-proof-state" {
+			fmt.Fprintln(os.Stderr, "usage: checkdocs [-proof-state]")
+			os.Exit(2)
+		}
+		figures, problems := readProofFigures(root)
+		for _, p := range problems {
+			fmt.Fprintln(os.Stderr, p)
+		}
+		if len(problems) > 0 {
+			os.Exit(1)
+		}
+		// The narrow mode gosec asks for; what lands in git is the content.
+		if err := os.WriteFile(filepath.Join(root, proofStateFile), []byte(renderProofState(figures)), 0o600); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	docs, err := markdownFiles(root)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -74,6 +97,7 @@ func main() {
 	problems = append(problems, checkSupportMatrix(root)...)
 	problems = append(problems, checkCoverageReport(root)...)
 	problems = append(problems, checkUseCases(root)...)
+	problems = append(problems, checkProofState(root)...)
 	problems = append(problems, checkRuleTags(root)...)
 	problems = append(problems, checkSkillList(root)...)
 	problems = append(problems, checkADRRuleLines(root)...)

@@ -262,6 +262,9 @@ generate:
 	@# The settings catalogue, which the web app's tests hold to a screen per setting (model.md §4),
 	@# and the documentation's who-configures-what matrix drawn from it.
 	$(GO) run ./tools/settingscatalogue apps/webapp/src/lib/settings/catalogue.gen.json docs/reference/settings-matrix.md
+	@# The proof state: the use cases by state, the checks a test cites and the falling bounds,
+	@# from what the documentation gate reads (ci-cd.md §3.1).
+	$(GO) run ./tools/checkdocs -proof-state
 	@$(MAKE) --no-print-directory sdk-go
 	@$(MAKE) --no-print-directory sdk
 
