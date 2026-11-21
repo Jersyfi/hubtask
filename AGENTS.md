@@ -20,6 +20,7 @@ cmd/             the binaries; cmd/server/main.go is the composition root
 api/  db/        openapi.yaml, the contract's source; migrations (forward only), sqlc queries
 apps/            webapp (the product), website (hubtask.eu, information only)
 packages/  sdk/  design-system, api-client, sync-engine, editor, whiteboard, expression, connectors; generated clients
+.agents/skills/  the procedures, one folder each, listed under "Where knowledge lives"
 ```
 
 Dependencies point inwards: `cmd → presentation, infrastructure → core`;
