@@ -129,6 +129,14 @@ jobs:
           printf '%s' "$KUBE_CONFIG" > "${RUNNER_TEMP}/kubeconfig"
           echo "KUBECONFIG=${RUNNER_TEMP}/kubeconfig" >> "$GITHUB_ENV"
 
+      - name: Roll out by digest
+        # A redeploy of the same commit builds a new image under the same tag (its version names the
+        # release published since); by the tag alone helm sees no change and the nodes keep the
+        # image they have (`IfNotPresent`), so the pods carry the digest too.
+        env:
+          BUILT: ${{ steps.build.outputs.digest }}
+        run: echo "DIGEST=${BUILT}" >> "$GITHUB_ENV"
+
       - name: The database first, after a rebuild
         # The migration is a pre-upgrade hook, and a pre-upgrade hook runs before every regular
         # resource of the release - the CloudNativePG Cluster included. So on the first deploy after
@@ -143,7 +151,7 @@ jobs:
             .tools/helm upgrade --install hubtask k8s \
               --namespace hubtask \
               --values "$VALUES" \
-              --set image.tag="main-${GITHUB_SHA}" \
+              --set-string image.tag="main-${GITHUB_SHA}@${DIGEST}" \
               --set migration.enabled=false \
               --timeout 10m
             for _ in $(seq 1 60); do
@@ -167,7 +175,7 @@ jobs:
           .tools/helm upgrade --install hubtask k8s \
             --namespace hubtask \
             --values "$VALUES" \
-            --set image.tag="main-${GITHUB_SHA}" \
+            --set-string image.tag="main-${GITHUB_SHA}@${DIGEST}" \
             --wait --timeout 35m
 
       - name: The public path answers
