@@ -413,10 +413,12 @@ what the second work-surface build did by hand:
 
 *CI at a checkpoint without leaving draft:* `ci.yml` gains a manual trigger (`workflow_dispatch`).
 The worker pushes the branch and starts one run on it; it runs every job, as `main` does, and
-gates nothing. A draft pull request still starts no run by itself. The repository is public and
-its CI minutes are free (ADR-0089's measurement), so the cost is the wait, which the worker spends
-on the next family. To be confirmed while building: the tests in `test/architecture` that hold
-`ci.yml`'s triggers and the draft condition.
+gates nothing: its summary job is named `CI by hand`, because a green `CI required` on the
+branch's head would be the draft's. A draft pull request still starts no run by itself. The
+repository is public and its CI minutes are free (ADR-0089's measurement), so the cost is the
+wait, which the worker spends on the next family. `test/architecture` holds the trigger, the push
+to `main` alone, the summary's three names and that no job asks for more than "is this a pull
+request" (`ci-cd.md` §3.4).
 
 **The design brief.** Before a *structural* change, the worker writes one screen into the draft
 pull request and builds only after it stands. Structural means any of: a migration that changes an
@@ -899,8 +901,9 @@ could only be met by dropping rules, and no rule is dropped. The file's length i
 instead (§5.6).
 
 **What can only be seen after the merge**, and is checked then by the orchestrator or the next
-worker: a CI run started by hand on a branch (GitHub may offer the manual trigger only once it is
-on `main` — not verified); the first Scorecard result and its badge, which exist only once the workflow has run on `main`;
+worker: a CI run started by hand on a branch (GitHub starts a manual run only for a workflow
+whose file on the default branch has the trigger, as its documentation of `workflow_dispatch`
+says), and with it that the run's `CI by hand` leaves the pull request's required check alone; the first Scorecard result and its badge, which exist only once the workflow has run on `main`;
 the first weekly report on its issue, which closes issue 1309; the pull
 request median falling in the report.
 

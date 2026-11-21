@@ -9,6 +9,10 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
+  # One full run on a pushed branch, started by hand: a concept's checkpoint, while its pull request
+  # stays a draft (ci-cd.md §3.4). It is no pull request, so no job filters and every job runs, as
+  # on `main`; it is no push to `main`, so After CI and the guard never read it.
+  workflow_dispatch:
 
 # The principle from ADR-0022: minimal permissions, widened only where necessary.
 permissions:
@@ -18,9 +22,11 @@ permissions:
 # commit gets its own complete run: pull requests merge without catching up (ADR-0083), and a run
 # cancelled by the next merge would leave unknown which commit turned `main` red. A group shared by
 # all of `main` would not do even without cancelling - it cancels a pending run when a third arrives.
+# A manual run has its ref's group and is cancelled by the next one on that ref; started on `main`,
+# it must not share the group of that commit's own run.
 concurrency:
-  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ci-${{ github.event_name == 'push' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
 
 env:
   GO_VERSION: "1.27.4"
@@ -37,8 +43,8 @@ jobs:
   # *pending* - forever, and the pull request can never merge. A job that is skipped by an `if:`
   # does report, and `ci-required` at the bottom treats skipped as passing.
   #
-  # On anything that is not a pull request - a push to main, a tag - every output is `true` and
-  # the whole pipeline runs. There is no filtering on the branch that gets released.
+  # On anything that is not a pull request - a push to main, a manual run - every output is `true`
+  # and the whole pipeline runs. There is no filtering on the branch that gets released.
   changes:
     name: What changed
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
@@ -1383,8 +1389,12 @@ jobs:
   # a single gate having run, and GitHub drops it only once the next run's check suite exists, which
   # a probe measured as mergeable in the moment after *Ready for review* (ADR-0079). Named
   # this way, the required check can only come from a run that checked something.
+  #
+  # A manual run has a third name. It checks the branch's head, the commit a draft's pull request
+  # shows, without the description, the dependency review and the guard below; under the plain name
+  # its green would be that commit's `CI required`.
   ci-required:
-    name: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft) && 'CI not run (draft)' || 'CI required' }}
+    name: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft) && 'CI not run (draft)' || github.event_name == 'workflow_dispatch' && 'CI by hand' || 'CI required' }}
     # Not on a draft at all: a draft's run then starts no runner, and nothing waits for it.
     if: always() && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
     needs:

@@ -22,7 +22,7 @@ GitHub-specific; the pipeline may.
 
 | File | Trigger | Purpose |
 |---|---|---|
-| `ci.yml` | A pull request once it is ready (opened ready, leaving draft, or pushed to while ready); a push to `main` | The pull request gates (§3) |
+| `ci.yml` | A pull request once it is ready (opened ready, leaving draft, or pushed to while ready); a push to `main`; manual dispatch on a pushed branch (§3.4) | The pull request gates (§3) |
 | `codeql.yml` | A ready pull request, a push to `main`, weekly | Static security analysis. Not part of `CI required`; a red CodeQL is a finding to fix, not to suppress |
 | `after-ci.yml` | A `ci.yml` run ends; every 15 minutes; manual dispatch | A failed run is re-run once; a red `main` opens the issue "CI: main is red" and holds the green pull requests; a green `main` closes it and re-runs the pull requests that waited (§3.5) |
 | `pr-description-rerun.yml` | A pull request's description or title is edited | If the head commit's latest `ci.yml` run failed, re-runs its description job and `CI required` (§3.1) |
@@ -84,7 +84,8 @@ longest Go job, and behind `quick` it set the pipeline's wall clock ([ADR-0083](
 commit through `oasdiff`, a pinned development tool that never ships, and classifies by
 [versioning-release.md](./versioning-release.md) §2: a new value in a response enum is lowered to
 compatible, the rest is `oasdiff`'s own judgement. Only the breaking changes the pull request adds
-to those already on its base are judged — on a push to `main`, those of the pushed commit — and
+to those already on its base are judged — on a push to `main`, those of the pushed commit; on a
+manual run, which has no base, every break since the tag against every commit since it — and
 each one fails unless the change is marked: `!` in a commit's or the pull request's title, or a
 `BREAKING CHANGE:` footer in a commit message or the description. A break already on the base was
 judged when it landed. The job checks out the whole history; with no tag behind the commit it
@@ -127,6 +128,8 @@ Every job decides from the `changes` outputs whether it has work.
 | anything, on a draft | Nothing. Every job is skipped and `ci-required` reports as `CI not run (draft)` (§3.4) |
 
 On a push to `main` every filter output is `true`: the branch that gets released is never filtered.
+A manual run (§3.4) is no pull request either, so it runs the same jobs. `dorny/paths-filter` runs
+on a pull request only; on any other event it would compare with the default branch through git.
 
 **Five jobs are behind no filter.** A key or a copyleft dependency gets in through any path, so
 `secrets`, `dependencies` and `licences` never filter; a number is taken in `db/` as in `docs/adr/`,
@@ -193,7 +196,7 @@ job `if:` conditions, and a job skipped by an `if:` does report.
 
 ```yaml
 ci-required:
-  name: CI required          # 'CI not run (draft)' on a draft
+  name: CI required          # 'CI not run (draft)' on a draft, 'CI by hand' on a manual run
   if: always()
   needs: [ …every other job… ]
 ```
@@ -204,8 +207,11 @@ It fails if any dependency ended `failure` or `cancelled`, and passes when all e
 
 **On a draft it has another name.** Every job is skipped on a draft (§3.4), so a green
 `CI required` there would satisfy branch protection without a gate having run. Its name is an
-expression: `CI not run (draft)` on a draft, `CI required` otherwise. `test/architecture` holds the
-expression, and `make gate-selftest` proves that test goes red without it.
+expression: `CI not run (draft)` on a draft, `CI by hand` on a manual run (§3.4), `CI required`
+otherwise. A manual run checks the branch's head — the commit a draft's pull request shows —
+without the description, the dependency review and the guard for a green `main`, so its green
+must not be that commit's `CI required` either. `test/architecture` holds the
+expression, and `make gate-selftest` proves that test goes red without the draft's name.
 
 A gate whose subject does not exist yet reports that it is skipping and stays green; it never
 swallows a real failure, and the `selftest` job checks that the difference holds.
@@ -237,6 +243,21 @@ The rules of [ADR-0079](../adr/ADR-0079-a-draft-is-checked-locally.md) and
 * **CI checks a pull request once it is ready**, in parallel jobs, about ten minutes; a red job is
   fixed by a push to the ready pull request. The hook in `.claude/settings.json` refuses
   `gh pr create` without `--draft`, and `gh pr ready` while `HEAD` is not pushed.
+* **A manual run checks a pushed branch while its pull request stays a draft.** `ci.yml` triggers
+  on `workflow_dispatch`: `gh workflow run ci.yml --ref <branch>` starts one run of every job on the
+  branch's head, as a push to `main` does. It is for a concept's checkpoint (`build-concept`) and
+  gates nothing: its summary job is named `CI by hand`, never `CI required` (§3.2), and leaving
+  draft still starts the pull request's own run.
+  Three jobs differ from a ready pull request's: `dependencies` and `pr-description` run on a pull
+  request only, and `api-compat` reads no pull request title, so a break is marked in a commit.
+  `CI required`'s guard for a green `main` does not run. After CI neither re-runs a failed manual
+  run nor files it as a red `main`, and the guard reads pushes to `main` only. No job of `ci.yml`
+  publishes, deploys or pushes an image; a run on a branch writes caches in that branch's scope,
+  which `main` never restores, though they count towards the repository's 10 GB. A push to a
+  draft's branch still starts nothing. `test/architecture` holds the trigger, the push to `main`
+  alone, and that no job asks for more than "is this a pull request". GitHub starts a manual run
+  only for a workflow whose file on the default branch has the trigger, so the first manual run
+  is possible only after this trigger is merged.
 * **A pull request runs what it can break.** `selftest` proves the gates and runs when one changes
   (the `gates` filter); the connectors (`n8n-nodes-hubtask`, `zapier-app`) run when they change;
   the browser job runs Chromium, with Firefox and WebKit best effort (support-matrix.md §5). `main`
@@ -256,9 +277,10 @@ require a branch to be up to date (§4). A pull request's run checks the merge o
 `main` as `main` stood when the run's event made the merge commit — a re-run repeats that commit —
 so what merged meanwhile is first checked by `main`'s own run. Four things keep that safe:
 
-* **Every commit on `main` runs to the end.** `ci.yml`'s concurrency group is the commit on `main`
-  and the ref on a pull request; only a pull request's older run is cancelled. The first red commit
-  is therefore always known.
+* **Every commit on `main` runs to the end.** `ci.yml`'s concurrency group is the commit on a push
+  to `main` and the ref on a pull request and on a manual run; a pull request's or a manual run's
+  older run on the same ref is cancelled, a push's never. The first red commit is therefore always
+  known.
 * **`CI required` waits for a green `main`.** Its last step, on a pull request only
   (`scripts/ci/main-green.sh`, locally `make gate-main-green`), reads `ci.yml`'s runs of pushes to
   `main`, newest commit first: a finished `success` is green; `failure`, `timed_out` or
