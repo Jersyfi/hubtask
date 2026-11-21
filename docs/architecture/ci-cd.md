@@ -34,7 +34,6 @@ GitHub-specific; the pipeline may.
 | `website.yml` | Push to `main` touching `apps/website/`, `packages/design-system/`, `security/advisories/` or the lockfile; manual dispatch | Writes the CSAF advisories into the site (`make csaf`), builds `apps/website/dist` and mirrors it to the webspace (§10). A failure files an issue |
 | `workbench.yml` | Push to `main` touching `packages/design-system/`; manual dispatch | Publishes the component workbench to `workbench.hubtask.eu` (§10) |
 | `scorecard.yml` | Schedule | **Planned, not built.** The OpenSSF supply chain scorecard. The file does not exist; the row stays as the plan |
-
 ---
 
 ## 3. Jobs in `ci.yml`
@@ -534,6 +533,11 @@ measure, and the weeks after go like this:
 A "does not rise" measure is within its threshold in the week after it rose, at the higher
 value: the rule is about the rise.
 
+The badge's row breaches when its level is below the one asked for, and its finding is titled
+"Flow report: OpenSSF Best Practices badge is below its threshold". The badge's project on the
+badge site stands in the same file as `project`; setting it once the project is registered
+changes no threshold.
+
 | Measure | Id | Threshold |
 |---|---|---|
 | Pull request run, last attempt, median wall minutes | `pr_run_median_minutes` | ≤ 20 |
@@ -561,6 +565,7 @@ value: the rule is about the rise.
 | Open code scanning alerts, and the oldest | `alerts_code_scanning` | reported |
 | Open secret scanning alerts, and the oldest | `alerts_secret_scanning` | reported |
 | Open Dependabot alerts, and the oldest | `alerts_dependabot` | reported |
+| OpenSSF Best Practices badge | `best_practices_badge` | at least passing |
 
 Beside the table the report prints the merged pull requests by kind, the CI runs, the ten worst
 jobs by failures and by median minutes, and the tests merged pull requests deleted or skipped,
@@ -630,6 +635,9 @@ How each measure is read:
   retry, anything else a refusal. Workflow permissions offer `security-events: read` for code
   scanning and nothing for secret scanning or Dependabot alerts; what the API answers the job's
   token is seen on its first run.
+* The OpenSSF Best Practices badge while `project` is 0 ("the project is not registered yet"),
+  and where the badge site does not answer. The tool asks the site itself for the project's
+  public JSON, with a timeout of twenty seconds: the level is not on GitHub.
 
 ---
 
@@ -653,5 +661,6 @@ section "Quality and security" holds all of it, in under fifteen lines.
   `unit` job's summary shows each layer's lowest package and every package's percentage.
 * **The OpenSSF Best Practices badge** is answered from
   [`docs/evidence/best-practices-answers.md`](../evidence/best-practices-answers.md), which names
-  the repository file behind each answer.
+  the repository file behind each answer. The weekly flow report reads the badge's level from
+  the badge site, and a level below `passing` opens a `finding` (§11).
 

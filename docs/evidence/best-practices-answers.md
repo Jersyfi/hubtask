@@ -8,7 +8,9 @@ criteria file (`criteria/criteria.yml` in `coreinfrastructure/best-practices-bad
 behind it could not be read from the repository or from GitHub. The facts that could were read on
 2026-11-21 and each row says so.
 
-This file stays while the badge is shown: the weekly upkeep compares the badge's state with it.
+This file stays while the badge is shown. The weekly flow report reads the badge's level from the
+badge site and opens a `finding` when it is below `passing` ([ci-cd.md](../architecture/ci-cd.md)
+§11); these answers are then read again against the repository.
 The links point at `main`, so they resolve once the change that adds a file has merged.
 
 ## The steps at the close
@@ -34,6 +36,8 @@ The links point at `main`, so they resolve once the change that adds a file has 
 6. Add the badge to the README's "Quality and security" section, with the project id the site
    assigned in place of `<id>`:
    `[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/<id>/badge)](https://www.bestpractices.dev/projects/<id>)`
+   Set the same id as `project` of `best_practices_badge` in `tools/flowstats/thresholds.json`:
+   from then on the weekly flow report reads the badge's level.
 7. OSPS Baseline level 1: enter the answers of the last section. Its *Unknown* row and its three
    *Unmet* rows come first: the owner's account, one setting of the repository, and one file of
    the Android build that two rows name.

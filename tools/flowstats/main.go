@@ -12,7 +12,8 @@
 // the text of a `finding`; -file-as files the report and the findings as issues, which is what
 // the weekly job does. A measure without a source prints "not measured" and why, never a zero.
 //
-// The GitHub part reads through the gh CLI. The transcript part reads the JSON lines Claude Code
+// The GitHub part reads through the gh CLI. The OpenSSF Best Practices badge is read from the
+// badge site, once thresholds.json names the project. The transcript part reads the JSON lines Claude Code
 // writes under ~/.claude/projects, only the directories whose name contains the repository's name;
 // it reads usage figures, timestamps and the commands a session ran, and prints no content.
 //
@@ -77,6 +78,8 @@ func main() {
 	if err := treePart(found, w); err != nil {
 		fail("the tree: %v", err)
 	}
+	state := badge(limits[badgeMeasure].Project, fetchBadge)
+	found[badgeMeasure] = measure{now: state, before: unmeasured("the badge's level is read as it is now")}
 	measures := inOrder(found, *github)
 	printMeasures(b, measures, limits)
 	breached := breaches(measures, limits, w)
