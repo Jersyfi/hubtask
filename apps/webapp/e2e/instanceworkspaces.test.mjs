@@ -307,6 +307,9 @@ test('chromium: single mode offers no new workspace, no suspension and no deleti
   const multi = await operatorConsole(browser, { mode: 'multi', rows: [workspace(), suspended] });
   t.after(multi.close);
   await multi.page.getByRole('button', { name: 'New workspace' }).waitFor();
+  // The button is in the header, drawn before the rows: wait for both rows' menus, as above.
+  await multi.page.getByRole('row').filter({ hasText: 'acme' }).getByRole('button', { name: /^Actions for / }).waitFor();
+  await multi.page.getByRole('row').filter({ hasText: 'paused' }).getByRole('button', { name: /^Actions for / }).waitFor();
   assert.equal(await pageOffers(multi.page, 'Suspend'), 1);
   assert.equal(await pageOffers(multi.page, 'Delete'), 2);
 });
