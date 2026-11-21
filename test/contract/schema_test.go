@@ -6,6 +6,8 @@
 package contract
 
 import (
+	"fmt"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -154,5 +156,85 @@ func TestTheValidatorComposesAllOfOneOfAndAnyOf(t *testing.T) {
 				t.Fatalf("got %q, want %q", got, tc.want)
 			}
 		})
+	}
+}
+
+// check judges a node with a oneOf or an anyOf by its alternatives alone. A node that declares a
+// type, properties, items, an enum or required names beside them would have those ignored, so the
+// contract may hold no such node - directly or once an allOf is composed - until check judges both.
+func TestNoSchemaDeclaresAlternativesBesideItsOwnShape(t *testing.T) {
+	spec := contractSpec(t)
+	routes, err := spec.Routes("")
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	seen := map[*schema]bool{}
+	var visit func(where string, node *schema)
+	visit = func(where string, node *schema) {
+		if node == nil || seen[node] {
+			return
+		}
+		seen[node] = true
+		whole := node
+		if len(node.AllOf) > 0 {
+			composed, problems := spec.composed(node, 0)
+			if len(problems) > 0 {
+				t.Errorf("%s: %v", where, problems)
+				return
+			}
+			whole = composed
+		}
+		if alternativesBesideAShape(whole) {
+			t.Errorf("%s declares a oneOf or anyOf beside a shape of its own, which the validator would not judge", where)
+		}
+		for name, property := range node.Properties {
+			visit(where+"."+name, property)
+		}
+		visit(where+"[]", node.Items)
+		visit(where+".*", additionalSchema(node))
+		for i, member := range slices.Concat(node.AllOf, node.OneOf, node.AnyOf) {
+			visit(fmt.Sprintf("%s|%d", where, i), member)
+		}
+	}
+	for name, node := range spec.Components.Schemas {
+		visit(name, node)
+	}
+	for name, declared := range spec.Components.Responses {
+		for mediaType, content := range declared.Content {
+			visit("the response "+name+" "+mediaType, content.Schema)
+		}
+	}
+	for route, op := range routes {
+		for status, declared := range op.Responses {
+			for mediaType, content := range declared.Content {
+				visit(route+" "+status+" "+mediaType, content.Schema)
+			}
+		}
+		if op.RequestBody != nil {
+			for mediaType, content := range op.RequestBody.Content {
+				visit(route+" request "+mediaType, content.Schema)
+			}
+		}
+	}
+	if len(seen) < 100 {
+		t.Fatalf("visited %d schemas - the walk misses the contract", len(seen))
+	}
+}
+
+func TestAlternativesBesideAShapeAreSeen(t *testing.T) {
+	alternatives := []*schema{{Type: "string"}, {Type: "null"}}
+	for name, tc := range map[string]struct {
+		node *schema
+		want bool
+	}{
+		"alternatives alone":         {&schema{OneOf: alternatives}, false},
+		"a shape alone":              {&schema{Type: "object"}, false},
+		"a oneOf beside a type":      {&schema{Type: "object", OneOf: alternatives}, true},
+		"an anyOf beside properties": {&schema{AnyOf: alternatives, Properties: map[string]*schema{"a": {}}}, true},
+		"a oneOf beside required":    {&schema{OneOf: alternatives, Required: []string{"a"}}, true},
+	} {
+		if got := alternativesBesideAShape(tc.node); got != tc.want {
+			t.Errorf("%s: got %t, want %t", name, got, tc.want)
+		}
 	}
 }

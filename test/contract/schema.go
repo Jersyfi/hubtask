@@ -557,3 +557,13 @@ func enumOf(node *schema) []string {
 	}
 	return values
 }
+
+// alternativesBesideAShape reports a node check would judge in part: one with a oneOf or an anyOf
+// and a type, properties, items, an enum or required names of its own, which check leaves unread.
+func alternativesBesideAShape(node *schema) bool {
+	if len(node.OneOf)+len(node.AnyOf) == 0 {
+		return false
+	}
+	return node.Type != nil || len(node.Properties) > 0 || node.Items != nil || len(node.Enum) > 0 ||
+		len(node.Required) > 0 || node.AdditionalProperties != nil
+}
