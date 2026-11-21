@@ -429,7 +429,7 @@ every foreign key that names an entry (34 of 34) composite on it, and every uniq
 table leading with `tenant_id`. A partitioned table's keys must hold the partition key, and these
 do. **The expand steps, when needed:** a partitioned shadow table `work_item_p` by
 `HASH (tenant_id)` with the primary key `(tenant_id, id)`; a trigger mirroring writes into it, as
-`work_item_side_rows` mirrors the slim entry (versioning-release.md §4); a resumable copy job in
+`work_item_side_rows` mirrored the slim entry until its drop (versioning-release.md §4); a resumable copy job in
 batches per workspace; readers moved release by release; the foreign keys re-pointed at
 `work_item_p (tenant_id, id)` as `NOT VALID` and validated; the rename in the release after the
 last reader moved. No step rewrites the table under a lock.
