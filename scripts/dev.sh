@@ -157,6 +157,8 @@ up() {
 		go build -o "$STATE/bin/$binary" "./cmd/$binary"
 	done
 
+	# Nothing stands in front of this server, so it does not wait for a load balancer to let go
+	# before it stops: with the default fifteen seconds `stop` would outwait its patience and kill it.
 	# The server's configuration and secrets of this run, readable by its owner alone and read by
 	# the server's own start, never into this script. The demo password is not among them.
 	(
@@ -177,6 +179,7 @@ export HUBTASK_STORAGE_KIND=local
 export HUBTASK_STORAGE_LOCAL_PATH=$STATE/storage
 export HUBTASK_BACKUP_LOCAL_PATH=$STATE/backups
 export HUBTASK_RESTORE_DRILL_RECORD_FILE=$STATE/state/last_success_unix
+export HUBTASK_SHUTDOWN_DEREGISTER_SECONDS=0
 export HUBTASK_RATE_LIMIT_BURST=600
 export HUBTASK_RATE_LIMIT_TENANT_BURST=2000
 EOF
