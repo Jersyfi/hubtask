@@ -166,7 +166,10 @@ start from a copy of it.
 **The filters name trees, and `test/architecture` checks that they name all of them.** Every
 tracked file is claimed by a filter or listed among the paths that deliberately trigger nothing,
 and every pattern matches something that exists. A filter by file pattern (`**/*.go`) would leave
-the fixtures a Go test reads outside it, and `ci-required` counts that skip as a pass.
+the fixtures a Go test reads outside it, and `ci-required` counts that skip as a pass. A file
+`test/architecture` reads sets the `go` filter, which runs that package: the hook's settings, the
+skills under `.agents/skills/`, their links under `.claude/skills/` and `.claude/agents/`. The
+outside reviewer's `.coderabbit.yaml` triggers nothing, since no job reads it.
 
 **Performance is measured, not gated.** A test whose verdict is a time or a frame rate runs in no
 job of the pull request's path and in no local gate (`make check`, `make e2e`): an end-to-end walk

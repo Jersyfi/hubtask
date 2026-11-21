@@ -25,9 +25,9 @@ import (
 // test whose whole purpose is to notice a changed archive format is the test that does not run.
 //
 // So this asks the question the other way round: every tracked file must be claimed by some
-// filter, or be named below as one that deliberately triggers nothing. Two entries are named
-// today. The list is short on purpose - it is the place where "nothing needs to check this" has
-// to be said out loud rather than happen by omission.
+// filter, or be named below as one that deliberately triggers nothing. The list is short on
+// purpose - it is the place where "nothing needs to check this" has to be said out loud rather
+// than happen by omission.
 func TestEveryTrackedPathIsClaimedByAFilter(t *testing.T) {
 	filters := loadPathFilters(t)
 	if len(filters) < 5 {
@@ -41,13 +41,10 @@ func TestEveryTrackedPathIsClaimedByAFilter(t *testing.T) {
 		// An outside reviewer's own configuration (ADR-0106); it comments and decides nothing.
 		".coderabbit.yaml": "read by the outside reviewer's service; no job reads it",
 	}
-	// One link per skill, for the one coding tool that looks there. A link changed alone runs no
-	// job; the test that holds the links runs with any Go change and on main.
-	const skillLinks = ".claude/skills/"
 
 	var unclaimed []string
 	for _, file := range trackedFiles(t) {
-		if _, ok := unfiltered[file]; ok || strings.HasPrefix(file, skillLinks) {
+		if _, ok := unfiltered[file]; ok {
 			continue
 		}
 		if !claimed(filters, file) {
@@ -62,6 +59,34 @@ func TestEveryTrackedPathIsClaimedByAFilter(t *testing.T) {
 			t.Errorf("%s is claimed by no filter in .github/workflows/ci.yml - a change confined to it "+
 				"runs no job and reports green. Name the tree in the filter whose jobs should see it, "+
 				"or add it to the unfiltered list in this test with the reason", group)
+		}
+	}
+}
+
+// Being claimed is not enough for a file these tests read: a skill is Markdown, so the `docs`
+// filter claims it, and the documentation job runs none of these tests. A skill, its link or the
+// reviewer's wrapper changed alone has to set the `go` filter, which is what runs this package.
+func TestWhatTheArchitectureTestsReadRunsThem(t *testing.T) {
+	filters := loadPathFilters(t)
+	read := []string{".claude/settings.json", ".agents/skills/", ".claude/skills/", ".claude/agents/"}
+
+	found := map[string]bool{}
+	for _, file := range trackedFiles(t) {
+		for _, prefix := range read {
+			if !strings.HasPrefix(file, prefix) {
+				continue
+			}
+			found[prefix] = true
+			if !cilocal.Touched(filters, []string{file})["go"] {
+				t.Errorf("%s sets no `go` filter in .github/workflows/ci.yml - test/architecture reads it, "+
+					"and a change confined to it would not run the test", file)
+			}
+		}
+	}
+	for _, prefix := range read {
+		if !found[prefix] {
+			// A list that names nothing passes for the wrong reason.
+			t.Errorf("no tracked file under %s - the path has moved, and this test holds nothing for it", prefix)
 		}
 	}
 }

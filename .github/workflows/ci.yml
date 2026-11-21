@@ -118,6 +118,12 @@ jobs:
               # The hook a session runs before a pull request leaves draft (ADR-0079): test/architecture
               # reads it and runs its script, so a change to it runs that test.
               - '.claude/settings.json'
+              # The skills, their links for the one tool that reads `.claude/skills`, and the
+              # reviewer's wrapper (ADR-0106): test/architecture holds every skill to its file and
+              # its link. A skill is Markdown, so without these lines only `docs` would see it.
+              - '.agents/skills/**'
+              - '.claude/skills/**'
+              - '.claude/agents/**'
               - '.golangci.yml'
               - 'Makefile'
               - 'LICENSE'
