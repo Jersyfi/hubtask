@@ -470,7 +470,8 @@ adds tests that pass before and after.
 Before `gh pr ready` — and at every checkpoint of a concept — the builder starts the reviewer: a
 subagent with a fresh context and read-only tools, given the diff, the description, the use cases
 it names and the `AGENTS.md` of the touched directories. It never sees the builder's conversation.
-It works through, in this order:
+The review is added to the author's own check against the rules no gate checks
+(`engineering-guidelines.md` §3.19), which stays. The reviewer works through, in this order:
 
 1. `docs/usecases/README.md`, "Checking work against its use cases": each check met, not met or
    not proven; work beyond *Where it ends*; principles broken.

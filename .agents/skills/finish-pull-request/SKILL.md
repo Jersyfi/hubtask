@@ -35,7 +35,14 @@ paragraph or an "update" note. A sentence that is true and only looks unnecessar
   purpose, or another test asserts the same thing. Name each such test in the description, with
   which of the two reasons applies.
 
-## 4. The local check
+## 4. The author's own check
+
+Read the change against every rule of `AGENTS.md`, and of the touched directories' `AGENTS.md`,
+that is tagged `[partial]`, `[unchecked]` or `[owner]`: no gate holds these. Fix what that finds.
+The independent review of step 5 is added to this check and does not replace it
+(`engineering-guidelines.md` §3.19).
+
+Then run the local check:
 
 ```bash
 make check

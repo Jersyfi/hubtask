@@ -352,7 +352,8 @@ gate), and treats an unavailable provider as no failure (`continue-on-error: tru
 ### 5.1 No workflow reviews or works on its own
 
 No workflow reviews a pull request or starts work by itself, and none offers a trigger that would.
-A change is reviewed before it leaves draft by a fresh agent its author starts, and an outside
+The author reviews a change against the rules no gate checks, a fresh agent the author starts
+reviews it before it leaves draft, and an outside
 reviewer may comment on the pull request (engineering-guidelines.md §3.19); both comment and decide
 nothing, and neither is a workflow. A person or an AI agent of any make works on a task. A tool that steers coding agents later works
 through the same issues, labels and pull requests ([backlog README](../backlog/README.md)

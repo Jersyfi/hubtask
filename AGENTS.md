@@ -216,8 +216,9 @@ target or a `ci.yml` job. A directory's `AGENTS.md` tags its rules under "What m
 4. **Inside out:** domain → application → ports → adapters → presentation.
 5. **Test:** table tests for the domain; Testcontainers and a cross-tenant negative test per new
    repository method; each use case check by a test that can prove it.
-6. **Check:** every carried check proven by a test that asserts it (`docs/usecases/README.md`),
-   `make check` green, the independent review against what no gate checks.
+6. **Check:** every carried check proven by a test that asserts it (`docs/usecases/README.md`), the
+   author's own review against the rules no gate checks, `make check` green, then the independent
+   review.
 7. **Finish** (`finish-pull-request`): the template complete — *Premises* and *Review* included —,
    the use cases' `state:`, `checked_by:` and *Today* moved, `gh pr ready`; CI runs then.
 
