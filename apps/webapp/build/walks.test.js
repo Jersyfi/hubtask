@@ -5,7 +5,7 @@
 // the fixed waits each file has left, by Playwright and by a timer, and the suites that neither
 // cite a use case check nor say what they hold instead. The lists only shrink - a file or suite
 // that is not listed has none, so a new suite starts clean, and an entry that got better fails
-// until it is lowered or removed.
+// until it is lowered or removed. And the recorder's mark for a guess stays the fixture's alone.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -33,6 +33,9 @@ export const fixedWaits = (source) => (source.match(/\.waitForTimeout\(/g) ?? []
  */
 export const timerWaits = (source) => (source.match(/\bsetTimeout\(/g) ?? []).length;
 
+/** The files allowed to mark an answer as a guess: the recorder that defines the mark and the fixture. */
+const MAY_GUESS = ['record.mjs', 'fixture.mjs'];
+
 /** A suite's own stubs: its calls of `route(` on a context or a page. */
 export const routeStubs = (source) => (source.match(/\.route\(/g) ?? []).length;
 
@@ -55,6 +58,8 @@ export function boundProblems(files, bounds) {
       if (waits > allowed) problems.push(`${name} has ${waits} ${what}, at most ${allowed} may be: wait for what the person would see`);
       if (waits < allowed) problems.push(`${name} has ${waits} ${what}, fewer than its bound: ${waits === 0 ? 'remove its entry from' : `lower it to ${waits} in`} ${list} in ${BOUNDS}`);
     }
+    // A suite that marked its own stub would take it out of the contract's judgement.
+    if (!MAY_GUESS.includes(name) && /\bguessed\b/.test(source)) problems.push(`${name} uses the recorder's \`guessed\`: only fixture.mjs marks an answer as a guess, a suite's stub is judged`);
     if (!name.endsWith('.test.mjs')) continue;
     const listed = bounds.no_check_cited.includes(name);
     const says = saysWhatItProves(source);
@@ -83,6 +88,13 @@ test('a timer beyond the bound is refused like a fixed wait, and its bound falls
   assert.deepEqual(boundProblems({ 'old.test.mjs': timer }, { ...none, timer_waits: { 'old.test.mjs': 1 } }), []);
   assert.match(boundProblems({ 'old.test.mjs': timer }, { ...none, timer_waits: { 'old.test.mjs': 2 } })[0], /lower it to 1 in timer_waits/);
   assert.match(boundProblems({}, { ...none, timer_waits: { 'gone.test.mjs': 1 } })[0], /does not exist/);
+});
+
+test('only the fixture marks an answer as a guess', () => {
+  const marks = "import { guessed } from './record.mjs';\nguessed(route);";
+  assert.match(boundProblems({ 'a.test.mjs': suite(`// UC-WRK-01/2\n${marks}`) }, none)[0], /a\.test\.mjs uses the recorder's `guessed`/);
+  assert.match(boundProblems({ 'helper.mjs': marks }, none)[0], /helper\.mjs uses/);
+  assert.deepEqual(boundProblems({ 'fixture.mjs': marks, 'record.mjs': 'export function guessed(route) {}' }, none), []);
 });
 
 test('a bound that was beaten fails until it is lowered', () => {
