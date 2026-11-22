@@ -193,7 +193,12 @@ export const naming = new NamingWords();
 
 /** A default name as it is stored: in the account's language, else the workspace's (`naming.ts`). */
 export async function defaultName(code: string, params?: MessageParams): Promise<string> {
-  await naming.ready;
+  // A locale adopted while the last one loaded replaces its load: wait for the one current then.
+  let awaited: Promise<void>;
+  do {
+    awaited = naming.ready;
+    await awaited;
+  } while (awaited !== naming.ready);
   return naming.t(code, params);
 }
 
