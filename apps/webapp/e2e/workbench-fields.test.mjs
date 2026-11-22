@@ -29,6 +29,10 @@ const MARKED = [
   { id: 'wave-1-forms-checkbox--invalid', invalid: '.host input[type="checkbox"]', text: 'Tick this once the codes are stored' },
   // A box of a group names the group's error as its `aria-errormessage`; the group is described by it.
   { id: 'wave-1-forms-checkbox-group--missing', errorOf: '.host input[type="checkbox"]', root: '.host fieldset', described: '.host fieldset', text: 'Tick at least one' },
+  // A button takes no `aria-invalid`: the field's root is marked, the button described by the error.
+  { id: 'wave-1-forms-multi-select--invalid', root: '.host .multiselect', described: '.host [aria-haspopup="listbox"]', text: 'Choose at least one field' },
+  // The ticks are a group: each box names the group's error, the group is described by it.
+  { id: 'wave-1-forms-multi-select--inline', errorOf: '.host input[type="checkbox"]', root: '.host [role="group"]', described: '.host [role="group"]', text: 'Offer at least one view', untick: true },
   { id: 'wave-3-domain-upload-field--missing', root: '.host .field', described: '.host button', text: 'Choose the file to import first' },
   { id: 'wave-3-domain-assignee-control--missing', invalid: '.host [role="listbox"]', text: 'Choose who to assign them to' },
   { id: 'wave-3-time-reminder-editor--missing', root: '.host [role="group"]', text: 'needs the entry to have one' },
@@ -53,6 +57,12 @@ test('a missing value is marked, said and described, in chromium', { timeout: 5 
     const page = await browser.newPage({ viewport: { width: 1400, height: 1000 } });
     for (const story of MARKED) {
       await page.goto(`${server.origin}/?story=${story.id}`);
+      // A story that starts valid is made invalid the way a person does it: every box unticked.
+      if (story.untick) {
+        await page.locator('.host').getByRole('checkbox').first().waitFor();
+        const ticked = page.locator('.host').getByRole('checkbox', { checked: true });
+        while ((await ticked.count()) > 0) await ticked.first().uncheck();
+      }
       await page.getByText(story.text, { exact: false }).first().waitFor({ timeout: 10_000 });
       if (story.invalid) {
         const control = page.locator(story.invalid).first();

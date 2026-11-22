@@ -70,6 +70,9 @@ const STORIES = [
   { id: 'wave-1-forms-checkbox--in-row', kind: 'reason' },
   { id: 'wave-1-forms-checkbox--in-table-row', kind: 'reason' },
   { id: 'wave-1-forms-checkbox--busy', kind: 'busy' },
+  // A refused option of MultiSelect's ticks; in the field it is a line inside the open list.
+  { id: 'wave-1-forms-multi-select--in-row', kind: 'reason' },
+  { id: 'wave-1-forms-multi-select--in-table-row', kind: 'reason' },
   { id: 'wave-1-forms-switch--in-row', kind: 'reason' },
   { id: 'wave-1-forms-switch--in-table-row', kind: 'reason' },
   { id: 'wave-1-forms-switch--busy', kind: 'busy' },
