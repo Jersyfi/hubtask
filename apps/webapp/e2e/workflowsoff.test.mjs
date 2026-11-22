@@ -176,13 +176,13 @@ test('chromium: converting to columns shows where the entries go, removes each s
   });
   const answered = page.waitForResponse((response) => response.url().endsWith('/tenant/modules/WORKFLOWS'));
   await dialog.getByRole('button', { name: 'Convert and switch off' }).click();
-  const run = page.getByRole('alertdialog', { name: 'Converting …' });
+  const run = page.getByRole('alertdialog', { name: 'Converting…' });
   await run.getByText('Converting 1 of 1: Kitchen (House)').waitFor({ timeout: 5_000 });
   assert.equal(await run.getByRole('progressbar', { name: 'Converting' }).getAttribute('value'), '0');
   assert.match(await run.innerText(), /If something stops, Workflows stays on/);
   assert.equal(await run.getByRole('button', { name: 'Keep it on' }).count(), 0, 'the run offers a way out it cannot keep');
   // The answers gave way to the run: the focus rests on the dialog's heading, not on the page.
-  assert.deepEqual(await focusedOn(page, 'Converting …'), { isInside: true, tag: 'H2', name: 'Converting …' });
+  assert.deepEqual(await focusedOn(page, 'Converting…'), { isInside: true, tag: 'H2', name: 'Converting…' });
   release();
   await answered;
   const order = written.filter((each) => each.method === 'PUT').map((each) => each.path);
@@ -199,7 +199,7 @@ test('chromium: a conversion that stops keeps Workflows on and says how far it c
   await dialog.locator('[data-off-open]').waitFor({ timeout: 10_000 });
   await dialog.getByRole('radio', { name: /Convert to columns/ }).check();
   await dialog.getByRole('button', { name: 'Convert and switch off' }).click();
-  await dialog.getByText(/Converting stopped: 0 of 1 places run on columns now/).waitFor({ timeout: 5_000 });
+  await dialog.getByText(/Converting stopped: the place does not run on columns yet/).waitFor({ timeout: 5_000 });
   // The question is back: the focus on its safe answer again.
   assert.deepEqual(await focusedOn(page, 'Keep it on'), { isInside: true, tag: 'BUTTON', name: 'Keep it on' });
   // The progress the conversion drew stays where it stopped: no place done of one, and the switch.
@@ -225,11 +225,11 @@ test('chromium: converting two places counts both through the run and after a st
     return route.fallback();
   });
   await dialog.getByRole('button', { name: 'Convert and switch off' }).click();
-  const run = page.getByRole('alertdialog', { name: 'Converting …' });
+  const run = page.getByRole('alertdialog', { name: 'Converting…' });
   await run.getByText(/^Converting 2 of 2: /).waitFor({ timeout: 5_000 });
   assert.equal(await run.getByRole('progressbar', { name: 'Converting' }).getAttribute('value'), '33', 'one place of two and the switch');
   release();
-  await dialog.getByText(/Converting stopped: 1 of 2 places run on columns now/).waitFor({ timeout: 5_000 });
+  await dialog.getByText(/Converting stopped: 1 of 2 places runs on columns now/).waitFor({ timeout: 5_000 });
   assert.equal(await dialog.getByRole('progressbar', { name: 'Converting' }).getAttribute('value'), '33');
   assert.deepEqual(written.filter((each) => each.method === 'PUT' && each.path === '/workflow-scheme').map((each) => each.body.container_id), [COLLECTION.id, HUB.id]);
   assert.deepEqual(switchedOff(written), [], 'switched off after a conversion that stopped');
@@ -253,10 +253,10 @@ test('chromium: at 390 px the focus stays inside the alert dialog as it grows, r
     return route.fallback();
   });
   await dialog.getByRole('button', { name: 'Convert and switch off' }).first().click();
-  await page.getByRole('alertdialog', { name: 'Converting …' }).waitFor({ timeout: 5_000 });
-  assert.deepEqual(await focusedOn(page, 'Converting …'), { isInside: true, tag: 'H2', name: 'Converting …' });
+  await page.getByRole('alertdialog', { name: 'Converting…' }).waitFor({ timeout: 5_000 });
+  assert.deepEqual(await focusedOn(page, 'Converting…'), { isInside: true, tag: 'H2', name: 'Converting…' });
   release();
-  await dialog.getByText(/Converting stopped: 0 of 1 places/).waitFor({ timeout: 5_000 });
+  await dialog.getByText(/Converting stopped: the place does not run on columns yet/).waitFor({ timeout: 5_000 });
   assert.deepEqual(await focusedOn(page, dismiss), { isInside: true, tag: 'BUTTON', name: dismiss }, 'the stopped question lost its focus');
 });
 

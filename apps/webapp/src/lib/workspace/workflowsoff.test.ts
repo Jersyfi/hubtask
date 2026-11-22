@@ -8,7 +8,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { readFileSync } from 'node:fs';
+
 import type { WorkflowList, WorkflowPreview } from '@hubtask/sync-engine';
+import { format } from '../i18n/format.ts';
 import { needsChoice, rowsInReach, strandedBy } from './workflowsoff.ts';
 
 const offers = {
@@ -71,4 +74,29 @@ test('a status no column shows, or a list without columns, has no column of its 
   const quiet = strandedBy([{ row: { container_id: 'list', entry_type: null, workflow: 'offer' }, preview: { ...preview, moves: [move('list', 'sent', 1, true)] } }], [offers], () => []);
   assert.equal(needsChoice(quiet), false);
   assert.equal(needsChoice(undefined), false);
+});
+
+// The pause card and the stop line count in both languages: one entry is not "the 1 entries", none
+// stuck is not "0 of them", and a stop before the first place says so instead of "0 of 1 places".
+test('the pause card and the stop line say one, many and none in English and German', () => {
+  const catalogue = (language: string) => JSON.parse(readFileSync(new URL(`../../../../../locales/${language}.json`, import.meta.url), 'utf8')) as Record<string, string>;
+  const en = catalogue('en');
+  const de = catalogue('de');
+  const pause = (messages: Record<string, string>, locale: string, open: number, stuck: number) => format(messages['app.modules.off_wf_pause_hint'] ?? '', { open, stuck }, locale);
+  assert.match(pause(en, 'en', 1, 0), /Until then the entry cannot move on, and the cards/);
+  assert.match(pause(en, 'en', 1, 1), /Until then the entry cannot move on or be completed, and/);
+  assert.match(pause(en, 'en', 17, 13), /Until then the 17 entries cannot move on, 13 of them cannot be completed, and/);
+  assert.match(pause(en, 'en', 17, 0), /Until then the 17 entries cannot move on, and/);
+  assert.match(pause(de, 'de', 1, 1), /Bis dahin lässt sich der Eintrag nicht weiterbewegen und nicht abhaken, und/);
+  assert.match(pause(de, 'de', 17, 0), /Bis dahin lassen sich die 17 Einträge nicht weiterbewegen, und/);
+  const stopped = (messages: Record<string, string>, locale: string, done: number, count: number) => format(messages['app.modules.off_wf_stopped'] ?? '', { done, count }, locale);
+  assert.match(stopped(en, 'en', 0, 1), /^Converting stopped: the place does not run on columns yet\./);
+  assert.match(stopped(en, 'en', 0, 3), /none of the 3 places runs on columns yet/);
+  assert.match(stopped(en, 'en', 1, 2), /1 of 2 places runs on columns now/);
+  assert.match(stopped(en, 'en', 2, 3), /2 of 3 places run on columns now/);
+  assert.match(stopped(de, 'de', 0, 1), /Der Ort läuft noch nicht mit Spalten/);
+  assert.match(stopped(de, 'de', 1, 2), /1 von 2 Orten läuft jetzt mit Spalten/);
+  for (const messages of [en, de]) {
+    assert.ok(!/ …/.test(messages['app.modules.off_wf_converting_title'] ?? '') && !/ …/.test(messages['app.modules.off_wf_reading'] ?? ''), 'an ellipsis after a space (voice-and-tone.md §2.4)');
+  }
 });
