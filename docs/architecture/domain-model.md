@@ -841,8 +841,8 @@ Switching levels always previews:
   progress, every step free -, run for the collection's tasks, each column showing its own status,
   every entry taking its column's status; one transaction, a dry run as the preview.
 * **List ↔ board** (`SwitchBoard`, L0 ↔ L1): *Als Board anzeigen* creates an open and a done column
-  in the workspace's language, completed entries in the done one; back to a list soft-deletes the
-  columns, the done column last, and keeps completion. Both are refused while a workflow runs for
+  in the acting person's language, else the workspace's, completed entries in the done one; back
+  to a list soft-deletes the columns, the done column last, and keeps completion. Both are refused while a workflow runs for
   tasks (`board.workflow_runs`) and where the tasks already stand so (`board.level_unchanged`).
 
 A **template** says the same two things apart. A type's `workflow` flag says a workflow *runs* for

@@ -10,8 +10,8 @@ import "slices"
 const StartingWipLimit = 3
 
 // StartingColumn is a column a new collection's board starts with. Its name is a message code
-// (rule 8): the creating use case renders it in the workspace's language, and from then on the
-// name is content like any other.
+// (rule 8): the creating use case renders it in the acting person's language, else the
+// workspace's, and from then on the name is content like any other.
 type StartingColumn struct {
 	NameCode string
 	// Name is the column's name as given - a status's own name -, used in place of NameCode.

@@ -17,8 +17,9 @@ import (
 )
 
 // List ↔ board without a workflow (domain-model.md §3.5a, L0 ↔ L1): *Als Board anzeigen* creates
-// an open and a done column in the workspace's language, the completed entries in the done one;
-// back to a list takes the columns off, the done column last, and keeps completion.
+// an open and a done column in the acting person's language, else the workspace's, the completed
+// entries in the done one; back to a list takes the columns off, the done column last, and keeps
+// completion.
 
 // unplacedTasks answers PlaceUnplaced with the tasks of one completion standing in no column.
 type unplacedTasks struct {
@@ -96,9 +97,9 @@ func TestASwitchedBoardsColumnsFollowTheAccountElseTheWorkspace(t *testing.T) {
 	}
 }
 
-// *Als Board anzeigen*: an open and a done column named in the workspace's language, the
-// completed entries into the done one and the open ones into the other, each column announced and
-// recorded, the switch audited with its counts.
+// *Als Board anzeigen*: an open and a done column named in the acting person's language, else the
+// workspace's, the completed entries into the done one and the open ones into the other, each
+// column announced and recorded, the switch audited with its counts.
 func TestShowingAListAsABoardGivesItAnOpenAndADoneColumn(t *testing.T) {
 	h := newSwitchHarness()
 	report, err := h.switcher.Execute(t.Context(), actor(), collectionID, domain.StateModeColumns, false)
