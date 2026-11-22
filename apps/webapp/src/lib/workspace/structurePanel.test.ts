@@ -20,3 +20,15 @@ test('no element of class setting wraps the folded rows of the levels', () => {
   assert.match(snippet, /data-setting="fields"/u, 'the fields keep their anchor');
   assert.doesNotMatch(snippet, /class="[^"]*\bsetting\b[^"]*"/u);
 });
+
+// UC-WRK-23 check 10: while the draft is behind the settings in force, no path saves it - the
+// change a save sends is `toSave`'s, which is none then, and the save bar's action applies the
+// reader's change to the current settings instead of saving. The walk sees the bar; this holds
+// the wiring every way into `save()` goes through.
+test('no Save while the draft is behind: the bar applies, and the saved change is the one toSave allows (UC-WRK-23 check 10)', () => {
+  assert.match(source, /const change = \$derived\(draft && structure \? toSave\(draft, structure, chosen\) : undefined\);/u);
+  assert.doesNotMatch(source, /\bchangeOf\(/u, 'a change computed past toSave');
+  assert.match(source, /saveLabel=\{behind \? t\('app\.structure\.meanwhile\.apply_short'\) : t\('app\.workspace\.save'\)\}/u);
+  assert.match(source, /onSave=\{\(\) => \(behind \? applyMine\(\) : void save\(\)\)\}/u);
+  assert.match(source, /async function save\(\) \{\n\s+if \(isSaving \|\| !change\) return;/u);
+});

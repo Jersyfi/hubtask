@@ -1433,7 +1433,11 @@ forms* (levels, fields, entry types), *Workflow* (completion, a hub's workflows)
 what counts, capture, success) and *Rules* (the automation behaviours, above a collection's rules),
 held by one draft and one save bar: each setting with its `SourceChip`, a reset where the value is
 set here, and a lock drawn as the chip's lock with the controls still readable and unavailable,
-their reason naming who set it (§4, cases 2 and 6). The old addresses `…/settings/structure` and
+their reason naming who set it (§4, cases 2 and 6). When the settings change elsewhere while the
+draft holds a change of the reader's, a warning `Banner` above the section's rows says so and names
+the settings changed on both sides; the save bar counts the reader's own change and offers no
+*Save* until *Apply my changes to the current settings* lays it over what is in force, beside *Show
+the current settings* (UC-WRK-23 check 10). The old addresses `…/settings/structure` and
 `…/settings/automation` open *Types & forms* and *Rules*. The other sections are each the same
 component that is a dialog elsewhere (`PanelOrDialog`). Only a reader who may change
 the shape is offered *Settings…*; anybody else at the address reads whose the settings are.
