@@ -7,7 +7,9 @@ import (
 	"bytes"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 )
@@ -136,11 +138,18 @@ func (t threshold) String() string {
 func readThresholds() (map[string]threshold, error) { return parseThresholds(thresholdsFile) }
 
 func parseThresholds(data []byte) (map[string]threshold, error) {
-	limits := map[string]threshold{}
+	var limits map[string]threshold
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&limits); err != nil {
 		return nil, err
+	}
+	// `null` decodes to no threshold at all, and a second value would be left unread.
+	if limits == nil {
+		return nil, errors.New("the thresholds are no JSON object")
+	}
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+		return nil, errors.New("the thresholds are followed by more than the one JSON object")
 	}
 	known := map[string]bool{}
 	for _, row := range rows {

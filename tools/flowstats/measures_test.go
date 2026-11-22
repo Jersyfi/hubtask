@@ -96,6 +96,9 @@ func TestThresholdsAreRefused(t *testing.T) {
 		"both":               `{"fixed_waits": {"max": 1, "rule": "no_rise"}}`,
 		"an unknown rule":    `{"fixed_waits": {"rule": "falls"}}`,
 		"an unknown field":   `{"fixed_waits": {"min": 1}}`,
+		"no object":          `null`,
+		"a second value":     `{"fixed_waits": {"rule": "no_rise"}} {"fixed_waits": {"max": 1}}`,
+		"text after it":      `{"fixed_waits": {"rule": "no_rise"}} and more`,
 	} {
 		if _, err := parseThresholds([]byte(data)); err == nil {
 			t.Errorf("%s is accepted: %s", name, data)
