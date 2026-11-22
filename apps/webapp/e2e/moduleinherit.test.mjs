@@ -212,22 +212,32 @@ test('chromium: a switch pressed while the hub list is still being read waits an
   t.after(walk.close);
   const { page } = walk;
   let release;
+  let hubsAsked;
   const held = new Promise((resolve) => { release = resolve; });
+  const asked = new Promise((resolve) => { hubsAsked = resolve; });
+  // Order, not time, proves the switch waited: no PUT may be recorded before the hubs are answered.
+  const order = [];
+  page.on('request', (request) => { if (request.method() === 'PUT') order.push('PUT'); });
   await walk.context.route('**/api/v1/containers?*', async (route) => {
-    if (new URL(route.request().url()).searchParams.get('type') === 'HUB') await held;
+    if (new URL(route.request().url()).searchParams.get('type') === 'HUB') {
+      hubsAsked();
+      await held;
+    }
     return route.fallback();
   });
 
   const row = await workspaceSwitch(page);
   await row.getByRole('switch').click();
-  await page.waitForTimeout(500);
+  await asked;
   assert.equal(await page.getByRole('dialog').count(), 0, 'the question stands before the hubs are read');
   assert.deepEqual(walk.written.filter((each) => each.method === 'PUT'), [], 'the switch went through unasked while the hub list was out');
   assert.equal(await row.getByRole('switch').isChecked(), false, 'the switch is drawn on while it waits');
 
+  order.push('hubs answered');
   release();
   const question = page.getByRole('dialog').getByRole('group', { name: 'Switch on in which existing hubs?' });
   await question.waitFor({ timeout: 5_000 });
+  assert.deepEqual(order, ['hubs answered'], 'the switch went through before the hub list was answered');
   assert.equal(await question.getByRole('checkbox').count(), 2, 'the question does not offer both hubs');
   assert.deepEqual(walk.written.filter((each) => each.method === 'PUT'), []);
   assert.deepEqual(walk.errors(), []);
