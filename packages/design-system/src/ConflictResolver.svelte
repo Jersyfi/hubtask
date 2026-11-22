@@ -40,11 +40,6 @@
     dismissLabel: string;
     onKeep: () => void;
     onRewrite: () => void;
-    /**
-     * Closing without choosing, where that is not keeping theirs: before the person chose, nothing
-     * is decided yet. Absent, closing keeps theirs - after a push, theirs is already in place.
-     */
-    onDismiss?: () => void;
   }
 
   let {
@@ -63,16 +58,10 @@
     dismissLabel,
     onKeep,
     onRewrite,
-    onDismiss,
   }: Props = $props();
-
-  function dismissed(): boolean {
-    onDismiss?.();
-    return true;
-  }
 </script>
 
-<Dialog bind:isOpen {title} {dismissLabel} onClose={onDismiss ? undefined : onKeep} onDismiss={onDismiss ? dismissed : undefined}>
+<Dialog bind:isOpen {title} {dismissLabel} onClose={onKeep}>
   {#snippet actions()}
     <Button onclick={onKeep}>{keepLabel}</Button>
     <Button tone="primary" onclick={onRewrite} disabledReason={rewriteDisabledReason}>{rewriteLabel}</Button>
