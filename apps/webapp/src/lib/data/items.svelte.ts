@@ -529,7 +529,7 @@ class Items {
         ...(destination.collectionId ? { target_collection_id: destination.collectionId } : {}),
         before_item_id: destination.beforeItemId ?? null,
       },
-      { idempotencyKey, ifMatch: etagFor(version), invalidates: TOUCHES_ANY_ENTRY },
+      { idempotencyKey, ifMatch: etagFor(version), invalidates: TOUCHES_ANY_STATUS },
     );
   }
 
