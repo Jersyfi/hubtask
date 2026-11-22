@@ -42,3 +42,10 @@ existed at a switch shows the product as set there, with *Reset* to follow the w
 although nobody set it there. A hub's configuration document changes its `modules` block without
 an edit of that document. `ModuleSwitch` gains `hub_ids` and the configuration apply
 `module_hub_ids`; no field is renamed or removed.
+
+During a rolling update a workspace's switch served by a binary from before this decision writes
+the workspace's value alone: no hub's state as its own, no change record. An *on* served that way
+switches the product on in every hub storing nothing, as before the decision. An *off* served
+that way leaves the hubs made while the product was on without a stored "on", and the next *on*
+gives them "off" as their own. Nothing repairs either afterwards; a hub is switched in its own
+settings.
