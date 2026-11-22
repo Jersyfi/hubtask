@@ -409,7 +409,9 @@
                 {#if chip.isLocked}<Icon name="lock" size="sm" />{/if}{chip.label}
               </span>
             {/each}
-            {#if cut.more > 0}<span class="chip more">{moreText}</span>{/if}
+            <!-- A signed number has no strong direction of its own: `auto` would read it right to
+                 left as "8+". -->
+            {#if cut.more > 0}<span class="chip more" dir="ltr">{moreText}</span>{/if}
           </span>
           <!-- Every chip, out of sight: where the two lines end is read here, not guessed. -->
           <span class="chips measure" bind:this={measure}>

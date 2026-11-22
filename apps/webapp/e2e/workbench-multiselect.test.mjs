@@ -199,6 +199,16 @@ for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
       const rows = new Set(await chips.evaluateAll((nodes) => nodes.map((node) => Math.round(node.getBoundingClientRect().top))));
       assert.ok(rows.size <= 2, `the chips take ${rows.size} lines`);
       assert.equal(await page.locator('.host .chips:not(.measure) button').count(), 0, 'a chip is a button');
+      // Right to left, the count of the rest still reads "+n": its sign is drawn before its digits.
+      await page.goto(`${server.origin}/?story=${STORY}--all&dir=rtl`);
+      const more = page.locator('.host .chips:not(.measure) .chip').last();
+      await more.waitFor();
+      const order = await more.evaluate((node) => {
+        const text = node.firstChild;
+        const at = (index) => { const range = document.createRange(); range.setStart(text, index); range.setEnd(text, index + 1); return range.getBoundingClientRect().left; };
+        return { text: text.textContent, sign: at(0), digit: at(1) };
+      });
+      assert.ok(order.sign < order.digit, `right to left, the count of the rest reads with its sign after its digits: ${order.text}`);
 
       // --- a locked option: ticked, focusable, says why, and nothing clears it ----------------
       await story(page, server.origin, 'locked');
