@@ -17,6 +17,13 @@ export const confirm: Story = {
     'Open it from the keyboard and Tab through it: focus is inside and stays there, everything behind it is inert, and closing it — by Escape, by the close button, or by an answer — puts focus back on the button that opened it. It is a native `<dialog>` in the top layer, so no stacking context can put anything over it.',
 };
 
+export const alert: Story = {
+  name: 'An alert: a consequence that interrupts',
+  about:
+    '`isAlert` (APG Alert Dialog): announced as `alertdialog`, its body the description, and the focus starts on the safe answer placed first in the foot — *Keep it on* — rather than in the field below or on the destructive primary. On a phone’s full screen, where the foot goes, it starts on ✕.',
+  args: { mode: 'alert' },
+};
+
 export const layers: Story = {
   name: 'With a popover inside it',
   about:

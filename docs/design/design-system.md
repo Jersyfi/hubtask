@@ -242,6 +242,9 @@ arithmetic, and `overlay.ts` is what opening a layer means, written once so `Men
 cannot disagree about what dismisses them. Focus is trapped in a `Dialog` and returned to the
 trigger on close; a `Menu` is operable with arrows, `Home`, `End` and type-ahead; `Escape` closes one
 layer at a time, which is why `Dialog` refuses the platform's `cancel` and asks the register; a
+`Dialog` with `isAlert` is the APG Alert Dialog — a consequence that interrupts on purpose,
+announced as `alertdialog` and described by its body, the focus starting on the safe answer the
+caller places first in the foot, never on the destructive primary; a
 `Toast` is announced without taking focus.
 
 **Status emphasis is a prop of `Badge`, not a tone**: `emphasis: 'subtle' | 'bold'`, subtle by

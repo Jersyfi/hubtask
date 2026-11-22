@@ -315,6 +315,33 @@ test('a task row completes by the mark, the same one a board card and a level-1 
   assert.doesNotMatch(row, /<Checkbox/);
 });
 
+// --- Dialog as an alert dialog --------------------------------------------------------------------
+
+import { safeAnswer } from '../src/focus.ts';
+
+const control = (name, { shown = true, disabled = false } = {}) => ({
+  name,
+  offsetParent: shown ? {} : null,
+  getAttribute: (attribute) => (attribute === 'aria-disabled' && disabled ? 'true' : null),
+});
+
+test('an alert dialog’s focus starts on the safe answer, never the destructive one (APG Alert Dialog)', () => {
+  const keep = control('keep');
+  const off = control('off');
+  const dismiss = control('dismiss');
+  assert.equal(safeAnswer([keep, off], dismiss), keep, 'the first answer of the foot');
+  assert.equal(safeAnswer([control('hidden', { shown: false }), keep, off], dismiss), keep, 'one not drawn is passed over');
+  assert.equal(safeAnswer([control('keep', { shown: false }), control('off', { shown: false })], dismiss), dismiss, 'a phone’s full screen has no foot: the close control');
+  assert.equal(safeAnswer([], control('dismiss', { shown: false })), undefined);
+});
+
+test('an alert dialog is announced as one and described by its body', () => {
+  const dialog = source('Dialog.svelte');
+  assert.match(dialog, /role=\{isAlert \? 'alertdialog' : undefined\}\s+aria-describedby=\{isAlert \? bodyId : undefined\}/);
+  assert.match(dialog, /<div class="body" id=\{bodyId\}/);
+  assert.match(dialog, /untrack\(\(\) => \{\s*if \(isAlert\) \{\s*const answers = \[\.\.\.\(foot\?\.querySelectorAll<HTMLElement>\('button'\) \?\? \[\]\)\];\s*safeAnswer\(answers, head\?\.querySelector<HTMLElement>\('\.dismiss button'\)\)\?\.focus\(\);\s*\} else \{\s*firstField\(\)\?\.focus\(\);/, 'not the first field: the safe answer, read once at opening');
+});
+
 // --- BucketColumn (board, build-plan §5) ------------------------------------------------------
 
 test('a folded column unfolds by a button, and a refused one says why in words (rule 3)', () => {

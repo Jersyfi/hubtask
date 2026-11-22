@@ -98,6 +98,23 @@ export function focusReturn(previous: Element | null | undefined): boolean {
   return true;
 }
 
+/** A control as `safeAnswer` reads it: whether it is drawn, and whether it is unavailable now. */
+export interface AnswerControl {
+  readonly offsetParent: Element | null;
+  getAttribute(name: string): string | null;
+}
+
+/**
+ * Where an alert dialog's focus starts (APG Alert Dialog): on its safe answer - the first control
+ * of its foot that is drawn and usable, which the caller places first (*Keep it on*) - and where
+ * the foot is gone, as on a phone's full screen, on the close control, which is the same answer.
+ * Never on the destructive one.
+ */
+export function safeAnswer<T extends AnswerControl>(foot: readonly T[], dismiss: T | null | undefined): T | undefined {
+  const usable = (control: T) => control.offsetParent !== null && control.getAttribute('aria-disabled') !== 'true';
+  return foot.find(usable) ?? (dismiss && dismiss.offsetParent !== null ? dismiss : undefined);
+}
+
 /**
  * What can be focused inside a container. `Dialog` needs none of this - a modal `<dialog>` is
  * trapped by the browser - but a popover is not modal, and the first thing it does on open is

@@ -35,16 +35,21 @@
   // menu hangs (`anchor.ts`): a panel worked in from the bar - *Create* - rather than a question
   // put in the middle. The control names it, so it draws no head; Escape and the backdrop close it.
   //
+  // `isAlert` makes it the APG Alert Dialog: a question about a consequence - *Switch Workflows
+  // off?* - that interrupts on purpose. It is announced as `alertdialog` with its body as its
+  // description, and the focus starts on the safe answer the caller places first in the foot,
+  // never in a field and never on the destructive primary (`safeAnswer` in focus.ts).
+  //
   // `onDismiss` is asked before the close control, Escape or the backdrop close it. Answering
   // `false` keeps it open, and the caller then opens its *Discard changes?* Dialog S - the one
   // dialog allowed over another. A close by an action never asks.
 
-  import type { Snippet } from 'svelte';
+  import { untrack, type Snippet } from 'svelte';
 
   import Button from './Button.svelte';
   import IconButton from './IconButton.svelte';
   import { anchorTo } from './anchor.ts';
-  import { escapeHandler, focusReturn } from './focus.ts';
+  import { escapeHandler, focusReturn, safeAnswer } from './focus.ts';
   import { layers } from './layers.ts';
   import { closeName } from './media.ts';
 
@@ -79,6 +84,11 @@
     onDismiss?: () => boolean;
     /** The control it hangs from instead of standing in the middle; it then draws no head. */
     hangsFrom?: HTMLElement;
+    /**
+     * A question about a consequence that interrupts on purpose (APG Alert Dialog): announced as
+     * one, described by its body, the focus starting on the first answer in the foot - the safe one.
+     */
+    isAlert?: boolean;
     /** The buttons that answer it - *Cancel*; the primary goes into `primary` where there is one. */
     actions?: Snippet;
     children: Snippet;
@@ -94,6 +104,7 @@
     primary,
     onDismiss,
     hangsFrom,
+    isAlert = false,
     actions,
     children,
   }: Props = $props();
@@ -102,9 +113,12 @@
   // prerendered page is identical between builds and a hydrated one matches its markup.
   const instanceId = $props.id();
   const titleId = `dialog-${instanceId}`;
+  const bodyId = `dialog-${instanceId}-body`;
 
   let node = $state<HTMLDialogElement | null>(null);
   let body = $state<HTMLDivElement | null>(null);
+  let foot = $state<HTMLElement | null>(null);
+  let head = $state<HTMLElement | null>(null);
   let opener: Element | null = null;
 
   /** The first control in the body somebody would type into, if there is one. */
@@ -144,7 +158,16 @@
     opener = document.activeElement;
     if (!dialog.open) dialog.showModal();
     const untie = hangsFrom ? anchorTo(hangsFrom, dialog, { placement: { side: 'block-end', align: 'end' }, isInTopLayer: true }) : undefined;
-    firstField()?.focus();
+    // Read once at opening: a foot that changes later (a run that hides its answers) is no reason
+    // to close and open the dialog again.
+    untrack(() => {
+      if (isAlert) {
+        const answers = [...(foot?.querySelectorAll<HTMLElement>('button') ?? [])];
+        safeAnswer(answers, head?.querySelector<HTMLElement>('.dismiss button'))?.focus();
+      } else {
+        firstField()?.focus();
+      }
+    });
 
     // Refused, the dismissal leaves the dialog open, so it goes back into the register - below the
     // confirmation the caller opens next, which is opened later at the same rank.
@@ -188,6 +211,8 @@
   data-hangs={hangsFrom ? '' : undefined}
   bind:this={node}
   aria-labelledby={titleId}
+  role={isAlert ? 'alertdialog' : undefined}
+  aria-describedby={isAlert ? bodyId : undefined}
   oncancel={(event) => event.preventDefault()}
   onclose={(event) => {
     if (!event.currentTarget.open) close();
@@ -197,7 +222,7 @@
   }}
 >
   <div class="panel">
-    <header class="head" data-dismissible={dismissLabel !== undefined ? '' : undefined}>
+    <header class="head" bind:this={head} data-dismissible={dismissLabel !== undefined ? '' : undefined}>
       <h2 id={titleId} class="title">{title}</h2>
       {#if primary && size}
         <span class="bar-primary">
@@ -210,9 +235,9 @@
         <span class="dismiss"><IconButton icon="x" label={closeName() ?? dismissLabel} size="sm" onclick={() => dismiss()} /></span>
       {/if}
     </header>
-    <div class="body" bind:this={body}>{@render children()}</div>
+    <div class="body" id={bodyId} bind:this={body}>{@render children()}</div>
     {#if actions || primary}
-      <footer class="actions">
+      <footer class="actions" bind:this={foot}>
         {@render actions?.()}
         {#if primary}
           <Button tone={primary.tone ?? 'primary'} onclick={primary.onclick} disabledReason={primary.disabledReason} isBusy={primary.isBusy} busyLabel={primary.busyLabel}>
