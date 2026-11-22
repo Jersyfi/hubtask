@@ -78,10 +78,14 @@ func TestTheProofStateEqualsTheUseCasesStates(t *testing.T) {
 	}
 }
 
-// A bounds file that does not parse is said, never counted as no debt.
-func TestTheProofStateRefusesBoundsThatDoNotParse(t *testing.T) {
+// proofRoot is a tree that holds the use cases' folder and the files given.
+func proofRoot(t *testing.T, files map[string]string) string {
+	t.Helper()
 	root := t.TempDir()
-	for path, content := range map[string]string{walkBoundsFile: "{", walkBaseline: ""} {
+	if err := os.MkdirAll(filepath.Join(root, "docs", "usecases"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	for path, content := range files {
 		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, path)), 0o750); err != nil {
 			t.Fatal(err)
 		}
@@ -89,8 +93,14 @@ func TestTheProofStateRefusesBoundsThatDoNotParse(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, problems := readProofFigures(root); len(problems) == 0 {
-		t.Fatal("bounds that do not parse rendered a table")
+	return root
+}
+
+// A bounds file that does not parse is said, never counted as no debt.
+func TestTheProofStateRefusesBoundsThatDoNotParse(t *testing.T) {
+	_, problems := readProofFigures(proofRoot(t, map[string]string{walkBoundsFile: "{", walkBaseline: ""}))
+	if len(problems) != 1 || !strings.Contains(problems[0], walkBoundsFile+" does not parse") {
+		t.Fatalf("bounds that do not parse are reported as %q", problems)
 	}
 }
 
