@@ -49,6 +49,7 @@ type snapshotStore struct {
 	roles       []identityrepo.CustomRoleRow
 	pages       []knowledge.Page
 	boards      []whiteboard.Board
+	boardNotes  []repository.BoardComment
 	cis         []cmdb.CI
 	ciRelations []cmdb.Relation
 	ciAffected  []repository.AffectedRow

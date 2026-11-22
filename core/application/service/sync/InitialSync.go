@@ -46,6 +46,7 @@ var walkKinds = []string{
 	entityContainer, entityBucket, entityLabel, entityItem, kindSet,
 	entityComment, entityReminder, entityRecurrence, entityTemplate, entityEntryType,
 	entityLinkType, entityWorkflow, entityCustomRole, entityEntryLink, entityRoleGrant, entityPage, entityWhiteboard,
+	entityWhiteboardComment,
 	entityCI, entityCIRelation, entityCIAffected, entityCIGroup, entityCIAsset, entityCICatalogue, entityEntrySchedule,
 	entityGoalPeriod, entityGoal, entityGoalCheckIn, entityDashboard,
 	entitySprint, entitySprintEntry, entityEstimate, entityRelease, entityReleaseEntry, entityCustomField,
@@ -87,6 +88,9 @@ const (
 	// entityWhiteboard is a board with its scene, filed under its hub: a board is read where its
 	// hub is (M4).
 	entityWhiteboard = whiteboard.DocumentKind
+	// entityWhiteboardComment is a board's comment, filed under the board's hub and walked after
+	// the boards, so that a device never holds a comment before its board (UC-CNV-09).
+	entityWhiteboardComment = whiteboardservice.CommentEntity
 	// entitySetting is a place's module switches: one record for the workspace, which every
 	// member holds, and one for each hub, filed under it (UC-INS-21 check 12).
 	entitySetting = settingservice.Entity
@@ -863,6 +867,19 @@ func (p PullChanges) pageOf(ctx context.Context, kind, after string, batch int) 
 			rows = append(rows, walkRow{
 				entity: entityWhiteboard, entityID: board.ID, containerID: board.HubID,
 				payload: whiteboardservice.BoardOutput(board, len(board.Scene.Elements), true), key: board.ID.String(),
+			})
+		}
+		return rows, nil
+	case entityWhiteboardComment:
+		comments, err := p.Snapshot.WhiteboardComments(ctx, afterID, batch)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]walkRow, 0, len(comments))
+		for _, comment := range comments {
+			rows = append(rows, walkRow{
+				entity: entityWhiteboardComment, entityID: comment.Comment.ID, containerID: comment.HubID,
+				payload: whiteboardservice.CommentOutput(comment.Comment), key: comment.Comment.ID.String(),
 			})
 		}
 		return rows, nil
