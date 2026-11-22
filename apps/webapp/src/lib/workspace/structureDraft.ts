@@ -76,8 +76,9 @@ export function afterSave(answer: EffectiveStructure, before: EffectiveStructure
 /**
  * The draft once the structure in force changed while the panel is open - another tab, another
  * device, a template applied. A draft the reader has not changed starts again from it, so a change
- * made elsewhere is never counted as theirs; one they changed is kept, and the save's `If-Match`
- * refuses it if it is stale. `seen` is the structure in force at the last call: a save's answer
+ * made elsewhere is never counted as theirs. One they changed is kept as it is: the save sends the
+ * refreshed version, so its `If-Match` passes and a setting changed elsewhere is saved back as
+ * theirs - there is no conflict hint yet. `seen` is the structure in force at the last call: a save's answer
  * stays while it is unchanged, since the container has not refreshed yet.
  */
 export function followStructure(draft: Draft, structure: EffectiveStructure, chosen: Preset | undefined, seen?: EffectiveStructure): Draft {
