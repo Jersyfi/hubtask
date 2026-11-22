@@ -45,7 +45,7 @@
   <Menu label={t('app.entries.state_menu', { title: item.title })} items={menuItems} onselect={(id) => void choose(id)}>
     {#snippet trigger(props)}
       <button type="button" class="chip" data-state-chip aria-label={t('app.entries.state_chip', { title: item.title, state: chip.label })} {...props}>
-        <StateLozenge label={chip.label} vocabulary="category" state={chip.category} size="sm" />
+        <StateLozenge label={chip.label} vocabulary="category" state={chip.category} size="sm" hasChevron />
       </button>
     {/snippet}
   </Menu>
@@ -67,6 +67,18 @@
   span.chip { cursor: default; }
 
   .chip:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+
+  /* The chevron says the chip opens the choices. Where a pointer hovers it appears with the row or
+     card under the pointer or holding the focus, and its room is kept beside the chip until then,
+     so nothing moves when it does; without hover it always stands. */
+  @media (hover: hover) {
+    button.chip { padding-inline-end: calc(var(--fs-075) + var(--sp-050)); }
+    button.chip :global(.chevron) { display: none; }
+    :global(:is([data-row], [data-card]):is(:hover, :focus-within)) button.chip,
+    button.chip:is(:hover, :focus-visible, [aria-expanded='true']) { padding-inline-end: 0; }
+    :global(:is([data-row], [data-card]):is(:hover, :focus-within)) button.chip :global(.chevron),
+    button.chip:is(:hover, :focus-visible, [aria-expanded='true']) :global(.chevron) { display: inline-flex; }
+  }
 
   /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
      reaches layout.target beyond its drawn box (P-2). */
