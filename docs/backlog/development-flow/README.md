@@ -1007,17 +1007,16 @@ owner accepted the action with D-13; adding it to the setting is the owner's wor
   Scorecard's 13, the five base images are pinned by digest; four installs that take no hash,
   the committed Gradle wrapper and the missing approving review are dismissed with their reason;
   three of nine advisories are closed by raising a dependency, and the six left are notices
-  without a severity, named in `apps/webapp/src-tauri/osv-scanner.toml`; the badge's alert
-  closes with the badge.
+  without a severity, named in `apps/webapp/src-tauri/osv-scanner.toml`. The Scorecard takes
+  that file, and no code scanning alert is open; its figure is 8.3 of 10.
 * The walk judge turned `main` red once, on an answer that depends on timing (§8).
 * The weekly job ran once by hand: it wrote its report and opened a finding for each of three
   measures over their threshold.
 * The Best Practices badge is at passing since 2026-11-22
   ([project 17000](https://www.bestpractices.dev/projects/17000)).
 
-Not read yet: whether the Scorecard takes the six notices' file and closes its alert, which its
-next run on `main` shows; whether the pull request median falls in the next reports; whether a
-worker closes issue 1309 after them.
+Not read yet: why the Scorecard gives signed releases 3 of 10; whether the pull request median
+falls in the next reports; whether a worker closes issue 1309 after them.
 
 **Later, as experiments:** `make proof` (§5.4), which is not built, then generated catching tests on the structural class,
 run nightly for four weeks — kept only if at least half of what it reports is real, counted on its
