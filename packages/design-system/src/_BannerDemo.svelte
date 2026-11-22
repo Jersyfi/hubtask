@@ -13,15 +13,14 @@
 {#if mode === 'frame'}
   <Stack gap="200">
     <!-- Two kinds of banner, both this component with content: a notice dismissible for the
-         session, and a degradation that comes back while it lasts. The sample text is a
-         sample; the application states no maturity stage. -->
+         session, and a degradation that comes back while it lasts. -->
     {#if !dismissed}
       <Banner
-        title="Hubtask is experimental"
+        title="A newer release is available"
         dismissLabel="Dismiss"
         onDismiss={() => (dismissed = true)}
       >
-        Screens appear, move and disappear without notice, and data may not survive an update.
+        Reload the page to use it.
       </Banner>
     {/if}
     <Banner tone="warning" title="Search is slower than usual">
