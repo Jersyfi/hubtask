@@ -537,12 +537,14 @@
     if (isFieldMissing || isViewMissing) return;
     isSaving = true;
     failure = undefined;
-    // Written as previewed, against the version previewed: a change that arrived meanwhile is
-    // the server's to refuse, never written over unseen.
+    // Written as previewed, against the version previewed. A change that arrived meanwhile is
+    // never written over unseen: the list's own is the server's to refuse, one it inherits leaves
+    // the draft behind, and the bar then offers to apply the reader's change to it.
     const wanted = change;
     const version = container.version;
     try {
       const preview = await containers.previewStructure(container.id, wanted);
+      if (behind) return;
       if (preview.narrows) {
         narrowing = { change: wanted, preview, version };
         return;
@@ -557,6 +559,10 @@
 
   async function confirmNarrowing(choice: 'HIDE' | 'FLATTEN') {
     if (!narrowing || isSaving) return;
+    if (behind) {
+      narrowing = undefined;
+      return;
+    }
     isSaving = true;
     failure = undefined;
     try {

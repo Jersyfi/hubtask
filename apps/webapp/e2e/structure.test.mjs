@@ -44,9 +44,10 @@ showStructures();
  */
 function elsewhere() {
   const live = { container: undefined, log: [], delivered: 0 };
-  live.change = (settings) => {
+  // `inherited`: changed where the list inherits it from, so the list's own version stays.
+  live.change = (settings, { inherited = false } = {}) => {
     const list = live.container ?? SHAPES.list;
-    live.container = { ...list, version: list.version + 1, structure: { ...list.structure, settings: { ...list.structure.settings, ...settings } } };
+    live.container = { ...list, version: inherited ? list.version : list.version + 1, structure: { ...list.structure, settings: { ...list.structure.settings, ...settings } } };
     live.log.push({ op: 'UPSERT', entity: 'container', entity_id: list.id, container_id: list.parent_id, payload: live.container });
   };
   return live;
@@ -487,6 +488,42 @@ test('chromium: the owner - settings changed meanwhile: applying my changes send
   await bar.getByRole('button', { name: 'Save', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('[data-save-bar] .bar') === null, null, { timeout: 5_000 });
   assert.deepEqual(written, [{ settings: { capture: ['LINES', 'AMOUNT', 'DATE'] } }], 'a setting the owner did not change was sent');
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: the owner - settings changed meanwhile while the save was previewed: nothing is written over them (check 10)', async (t) => {
+  const browser = await sharedChromium(t);
+  const live = elsewhere();
+  const { context, page, failures, written } = await as(browser, 'OWNER', 1280, live);
+  t.after(() => context.close());
+
+  await openCollection(page, SHAPES.list);
+  const panel = await openPanel(page, SHAPES.list.name, 'Views');
+  await panel.locator('[data-setting="capture"]').getByRole('checkbox', { name: 'A date' }).click();
+  const bar = page.getByRole('region', { name: 'Unsaved changes' });
+  await bar.getByText('1 change').waitFor({ timeout: 5_000 });
+  // The save's preview is answered only once the other change is in force here.
+  let release;
+  const held = new Promise((resolve) => (release = resolve));
+  await page.route('**/structure:preview', async (route) => {
+    await held;
+    await route.fallback();
+  });
+  const previewed = page.waitForRequest((request) => request.url().endsWith('/structure:preview') && request.postDataJSON()?.settings?.capture !== undefined, { timeout: 10_000 });
+  await bar.getByRole('button', { name: 'Save', exact: true }).click();
+  await previewed;
+  // An inherited change: the list's own version, the one the save writes against, stays.
+  live.change({ capture: ['LINES'], celebration: 'ALL' }, { inherited: true });
+  const notice = page.getByRole('alert').filter({ hasText: 'The settings were changed meanwhile' });
+  await notice.waitFor({ timeout: 15_000 });
+  release();
+
+  await notice.getByRole('button', { name: 'Apply my changes to the current settings' }).click()
+    .catch(() => assert.fail(`the previewed save was written over the other change: ${JSON.stringify(written)}`));
+  await notice.waitFor({ state: 'detached', timeout: 5_000 });
+  await bar.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('[data-save-bar] .bar') === null, null, { timeout: 5_000 });
+  assert.deepEqual(written, [{ settings: { capture: ['LINES', 'AMOUNT', 'DATE'] } }], 'the save previewed before the other change was written');
   assert.deepEqual(failures, []);
 });
 
