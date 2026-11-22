@@ -6,8 +6,9 @@
   // level above locked it; a hub decides for itself inside what the workspace has on (check 3).
   //
   // **A switch acts at once**, as every single switch of the administration does - one row is not
-  // a form. Switching off asks first and says that the data is kept and hidden (check 4); switching
-  // on needs no configuration step (check 2), so it does not ask.
+  // a form. Switching off asks first and says that the data is kept and hidden (check 4). Switching
+  // on needs no configuration step (check 2); at the workspace it asks one thing where hubs exist -
+  // in which of them (check 13) - because it changes no hub by itself.
   //
   // **What a level above locked is not offered** (check 6): the control is switched off with the
   // reason, and the chip says whose value it is and whom to ask. A value set here offers *Reset*,
@@ -15,21 +16,24 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, Dialog, IconButton, Inline, SettingRow, Spinner, Switch } from '@hubtask/design-system/components';
+  import { Button, CheckboxGroup, Dialog, IconButton, Inline, SettingRow, Spinner, Switch } from '@hubtask/design-system/components';
   import type { ConfigTemplate, ConfigTemplateList, ModuleList, ModuleReach, ModuleState, ResourceState } from '@hubtask/sync-engine';
 
   import ValueSource from './ValueSource.svelte';
   import ViewAsFile from '../settings/ViewAsFile.svelte';
   import SectionFindings from '../settings/SectionFindings.svelte';
-  import { asksFirst, isSetHere, moduleCodes, modules, offReach, unavailableBecause } from '../data/modules.svelte.ts';
+  import { asksFirst, asksWhichHubs, hubsOffered, isSetHere, moduleCodes, modules, offReach, unavailableBecause } from '../data/modules.svelte.ts';
+  import { actor } from '../data/account.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
+  import { containers } from '../data/containers.svelte.ts';
+  import { people } from '../data/people.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import FailureNote from '../frame/FailureNote.svelte';
   import { newMarks } from '../product/newmark.svelte.ts';
   import { settingsOf, startsOf, switchedOn } from '../product/switchedon.ts';
-  import { holdsHere, hubCreationHere } from '../data/capability.svelte.ts';
+  import { holds, holdsHere, hubCreationHere, roleOrder } from '../data/capability.svelte.ts';
   import { config } from '../data/config.svelte.ts';
   import CreateContainerDialog from './CreateContainerDialog.svelte';
 
@@ -92,6 +96,25 @@
     return untrack(() => modules.reach(module, at, (next) => (reach = next)));
   });
   const reachLines = $derived(offReach(reach.status === 'ready' ? reach.data : undefined));
+
+  // A private hub counts only a role held on it, so its memberships are read; a shared hub
+  // follows the workspace's, which the manifest already answers.
+  $effect(() => {
+    if (hubId) return;
+    const hidden = containers.hubs.filter((hub) => hub.private === true).map((hub) => hub.id);
+    untrack(() => hidden.forEach((id) => people.open({ hubId: id })));
+  });
+  /** The hubs the switch-on's question offers: those the reader may shape (check 13). */
+  const offered = $derived(hubId ? [] : hubsOffered(containers.hubs, holdsHere('STRUCTURE'), (hub) => {
+    const role = people.roleOf({ hubId: hub.id }, actor.account?.id, roleOrder());
+    if (role === undefined) return undefined;
+    return role !== null && holds(role, 'STRUCTURE').status === 'permitted';
+  }));
+  /** The module whose switch-on is asking in which existing hubs, and the hubs ticked: none at first. */
+  let asking = $state<ModuleState | undefined>(undefined);
+  let isAsking = $state(false);
+  let chosen = $state<readonly string[]>([]);
+
   let refusal = $state<{ module: ModuleState['module']; message: string } | undefined>(undefined);
   /** The module just switched on here, whose card says where it is now (user-experience.md §2.8). */
   let justOn = $state<ModuleState['module'] | undefined>(undefined);
@@ -116,16 +139,17 @@
     onnavigate?.(landing ?? `/hubs/${id}`);
   }
 
-  async function send(state: ModuleState, to: 'ON' | 'OFF' | 'INHERIT') {
+  async function send(state: ModuleState, to: 'ON' | 'OFF' | 'INHERIT', inHubs: readonly string[] = []) {
     refusal = undefined;
     busy = state.module;
     try {
-      await modules.switch(state.module, to, hubId);
+      await modules.switch(state.module, to, hubId, inHubs);
       justOn = to === 'ON' ? state.module : justOn === state.module ? undefined : justOn;
       if (to === 'ON' && switchedOn(state.module, hubId).find) newMarks.add(state.module);
       const name = t(moduleCodes(state).name);
-      const code = to === 'ON' ? 'app.modules.switched_on' : to === 'OFF' ? 'app.modules.switched_off' : 'app.modules.reset_done';
-      toast.show({ text: t(code, { module: name }), tone: 'success' });
+      const code = to === 'OFF' ? 'app.modules.switched_off' : to === 'INHERIT' ? 'app.modules.reset_done'
+        : inHubs.length > 0 ? 'app.modules.switched_on_hubs' : 'app.modules.switched_on';
+      toast.show({ text: t(code, { module: name, count: inHubs.length }), tone: 'success' });
     } catch (error) {
       drawn[state.module] = state.on;
       refusal = { module: state.module, message: renderProblem(error as never, messages).message };
@@ -145,8 +169,27 @@
       isConfirming = true;
       return;
     }
+    if (asksWhichHubs(state, next, place, offered)) {
+      control.checked = state.on;
+      drawn[state.module] = state.on;
+      chosen = [];
+      asking = state;
+      isAsking = true;
+      return;
+    }
     drawn[state.module] = next;
     void send(state, next ? 'ON' : 'OFF');
+  }
+
+  function confirmOn() {
+    const state = asking;
+    // A hub that left the list while the question stood open is not sent.
+    const inHubs = chosen.filter((id) => offered.some((hub) => hub.id === id));
+    isAsking = false;
+    asking = undefined;
+    if (!state) return;
+    drawn[state.module] = true;
+    void send(state, 'ON', inHubs);
   }
 
   function confirmOff() {
@@ -264,6 +307,30 @@
     {#each reachLines as line (line.code)}<p class="quiet" data-off-reach>{t(line.code, line.params)}</p>{/each}
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isConfirming = false)}>{t('app.modules.off_cancel')}</Button>
+    {/snippet}
+  </Dialog>
+{/if}
+
+{#if asking}
+  <Dialog
+    size="m"
+    bind:isOpen={isAsking}
+    title={t('app.modules.on_hubs_title', { module: t(moduleCodes(asking).name) })}
+    dismissLabel={t('app.modules.on_hubs_cancel')}
+    onClose={() => (asking = undefined)}
+    primary={{ label: t('app.modules.on_hubs_confirm'), onclick: confirmOn }}
+  >
+    <div data-on-hubs={asking.module}>
+      <CheckboxGroup
+        label={t('app.modules.on_hubs_question')}
+        hint={t('app.modules.on_hubs_hint', { module: t(moduleCodes(asking).name) })}
+        options={offered.map((hub) => ({ value: hub.id, label: hub.name }))}
+        selected={chosen}
+        onChange={(next) => (chosen = next)}
+      />
+    </div>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isAsking = false)}>{t('app.modules.on_hubs_cancel')}</Button>
     {/snippet}
   </Dialog>
 {/if}

@@ -42,6 +42,15 @@ function modulesBackend(off) {
   };
 }
 
+/**
+ * Switches a module on at the workspace as a person does where hubs exist: the switch, then its
+ * question answered with no hub chosen (UC-INS-21 check 13).
+ */
+async function switchOn(page, row) {
+  await row.getByRole('switch').click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Switch on', exact: true }).click();
+}
+
 test('chromium: a module switched on is drawn on without a reload', async (t) => {
   const browser = await sharedChromium(t);
   const walk = await productWalk(browser, { modules: [], answer: modulesBackend(['PLANNING', 'TIME', 'SERVICE_DESK']) });
@@ -54,7 +63,7 @@ test('chromium: a module switched on is drawn on without a reload', async (t) =>
     const control = row.getByRole('switch');
     await control.waitFor({ timeout: 10_000 });
     assert.equal(await control.isChecked(), false, `${module} starts off`);
-    await row.getByRole('switch').click();
+    await switchOn(page, row);
     await row.locator(`[data-reset="${module}"]`).waitFor({ timeout: 5_000 });
     assert.equal(await control.isChecked(), true, `${module} is drawn off after its write switched it on`);
     // The card under the switch says where the product is now (user-experience.md §2.8), one at a time.
@@ -84,7 +93,7 @@ test('chromium: a module switched on starts with the templates that need it', as
   await page.goto(`${served.origin}/administration/modules`);
   const row = page.locator('[data-module="SERVICE_DESK"]');
   await row.getByRole('switch').waitFor({ timeout: 10_000 });
-  await row.getByRole('switch').click();
+  await switchOn(page, row);
   const card = page.locator('[data-switched-on="SERVICE_DESK"]');
   const start = card.locator('[data-start-with]');
   await start.getByRole('button', { name: 'ITIL service desk', exact: true }).waitFor({ timeout: 5_000 });
@@ -182,7 +191,7 @@ test('chromium: switching Posts on draws Pages on with it and leads to the posts
   const posts = page.locator('[data-module="POSTS"]');
   await posts.getByRole('switch').waitFor({ timeout: 10_000 });
   await posts.getByText('Posts', { exact: true }).first().waitFor();
-  await posts.getByRole('switch').click();
+  await switchOn(page, posts);
   await page.locator('[data-switched-on="POSTS"]').getByRole('link', { name: 'Find it in Posts' }).waitFor({ timeout: 5_000 });
   assert.equal(await page.locator('[data-switched-on="POSTS"]').getByRole('link', { name: 'Find it in Posts' }).getAttribute('href'), '/posts');
   assert.equal(await page.locator('[data-module="KNOWLEDGE"]').getByRole('switch').isChecked(), true, 'Pages stayed off under Posts');

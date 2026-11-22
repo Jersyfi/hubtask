@@ -235,6 +235,13 @@ allowlist of brand words (*Hubtask*).
   is first visited), *Start with…* (the templates that need this module, one press each) and the
   one or two settings it still needs (the desk's intake address, its business calendar). The same
   card for every module.
+* **Switched on at the workspace where hubs exist**, the switch on *Modules* first asks *Switch on
+  in which existing hubs?* in a dialog: the hubs the person may shape, none chosen, *Switch on* as
+  its one primary (UC-INS-21 check 13). The card follows the answer; without a hub to choose the
+  switch asks nothing.
+* **At a hub**, the switch is free while the workspace has the product on, and locked with its
+  reason while the workspace has it off - read from the workspace's set, whatever the hub stores
+  itself. *Reset* beside "Set here" hands the hub back to the workspace.
 * **Off, reached by a link**: the module-off problem carries the place (hub or workspace) and
   whether the reader holds `STRUCTURE` there. The screen is a neutral `EmptyState` (kind
   `unused`), never a danger banner: it says what the product does in one line, and offers *Switch
