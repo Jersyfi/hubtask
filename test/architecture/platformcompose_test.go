@@ -25,7 +25,8 @@ var platformServiceDifferences = map[string]string{
 }
 
 // Every environment line the reference's services pass is passed here with the same value, and
-// nothing else is - unless the line carries its [Cn] mark. The list is the reference itself.
+// nothing else is - unless the line carries its [Cn] mark, which allows the one form
+// platformEnvironmentRewrites gives it. The list is the reference itself.
 func TestThePlatformComposeFilePassesWhatTheReferencePasses(t *testing.T) {
 	reference := composeServices(t, referenceCompose)
 	platform := composeServices(t, platformCompose)
@@ -198,8 +199,9 @@ func TestEveryComposeDSNCarriesThePasswordItsRoleWasGiven(t *testing.T) {
 }
 
 type composeLine struct {
-	value  string
-	marked bool // the line carries a [Cn] mark
+	value   string
+	comment string
+	marked  bool // the line carries a [Cn] mark
 }
 
 // composeServices cuts a compose file into its services' blocks, by indentation: a name at two
@@ -252,8 +254,9 @@ func serviceEnvironment(block string) map[string]composeLine {
 		}
 		value, comment, _ := strings.Cut(m[2], " #")
 		env[m[1]] = composeLine{
-			value:  strings.TrimSpace(value),
-			marked: regexp.MustCompile(`\[C\d+\]`).MatchString(comment),
+			value:   strings.TrimSpace(value),
+			comment: comment,
+			marked:  regexp.MustCompile(`\[C\d+\]`).MatchString(comment),
 		}
 	}
 	return env

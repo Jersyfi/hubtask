@@ -63,6 +63,29 @@ var platformShapeDifferences = []platformDifference{
 	{"[C9]", "", "volumes", renameBy(mountedVolume)},
 }
 
+// What a mark on an environment line allows its value to be: the reference's value rewritten by
+// the marks the line carries, in their order, and nothing else - a literal in place of the
+// variable fails.
+var platformEnvironmentRewrites = map[string]func(string) string{
+	"[C2]": strings.NewReplacer(
+		"${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}", "${SERVICE_PASSWORD_64_PGOWNER}",
+		"${POSTGRES_PASSWORD}", "${SERVICE_PASSWORD_64_PGOWNER}",
+		"${HUBTASK_DB_APP_PASSWORD:?HUBTASK_DB_APP_PASSWORD must be set}", "${SERVICE_PASSWORD_64_PGAPP}",
+		"${HUBTASK_DB_APP_PASSWORD}", "${SERVICE_PASSWORD_64_PGAPP}",
+		"${HUBTASK_SECRET_KEY:?HUBTASK_SECRET_KEY must be set}", "${SERVICE_PASSWORD_64_HUBTASKSECRET}",
+	).Replace,
+	"[C4]": func(v string) string {
+		if v == "db" {
+			return "postgres"
+		}
+		return strings.ReplaceAll(v, "@db:5432/", "@postgres:5432/")
+	},
+	"[C6]": func(v string) string {
+		return strings.ReplaceAll(v, "${HUBTASK_TRUSTED_PROXIES:-}", "${HUBTASK_TRUSTED_PROXIES:?}")
+	},
+	"[C7]": requiredWithoutMessage,
+}
+
 // Every key a service of the reference sets other than its environment - health check, restart,
 // read-only, security options, tmpfs, shared memory, entrypoint, dependencies with their condition,
 // volumes, whatever it is - is set the same in the platform file, and nothing more, unless the
@@ -139,6 +162,59 @@ func TestThePlatformComposeFileSetsWhatTheReferenceSets(t *testing.T) {
 		if !header[d.mark] {
 			t.Errorf("the difference %s on %q %s is not explained in %s's header", d.mark, d.service, d.key, platformCompose)
 		}
+	}
+	for mark := range platformEnvironmentRewrites {
+		if !header[mark] {
+			t.Errorf("the environment mark %s is not explained in %s's header", mark, platformCompose)
+		}
+	}
+}
+
+// Each marked environment line holds exactly the form its marks allow: a required variable
+// ${NAME:?}, a generated secret, the database's service name - never a literal in their place.
+func TestEveryMarkedPlatformEnvironmentLineHoldsTheFormItsMarksAllow(t *testing.T) {
+	reference := composeServices(t, referenceCompose)
+	platform := composeServices(t, platformCompose)
+	mark := regexp.MustCompile(`\[C\d+\]`)
+	marked := 0
+	for name, refBlock := range reference {
+		platName, differs := platformServiceDifferences[name]
+		if !differs {
+			platName = name
+		}
+		if platName == "" {
+			continue
+		}
+		ref, plat := serviceEnvironment(refBlock), serviceEnvironment(platform[platName])
+		for key, line := range plat {
+			if !line.marked {
+				continue
+			}
+			marked++
+			refLine, ok := ref[key]
+			if !ok {
+				continue // the environment test reports a variable the reference does not pass
+			}
+			want := refLine.value
+			for _, m := range mark.FindAllString(line.comment, -1) {
+				rewrite, ok := platformEnvironmentRewrites[m]
+				if !ok {
+					t.Errorf("%s: %s marks %s %s, a mark that allows no environment value", platformCompose, platName, key, m)
+					continue
+				}
+				want = rewrite(want)
+			}
+			if line.value != want {
+				t.Errorf("%s: %s passes %s as %q; its marks %s allow exactly %q", platformCompose, platName, key,
+					line.value, strings.TrimSpace(line.comment), want)
+			}
+			if want == refLine.value {
+				t.Errorf("%s: %s marks %s, which its marks leave as the reference's %q", platformCompose, platName, key, want)
+			}
+		}
+	}
+	if marked < 8 {
+		t.Fatalf("%s yielded %d marked environment lines - the parsing has stopped matching", platformCompose, marked)
 	}
 }
 
