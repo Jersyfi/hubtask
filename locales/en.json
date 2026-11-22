@@ -240,6 +240,7 @@
   "config.egress_private_networks_allowed": "Outbound calls to private networks are allowed. A webhook target can reach services inside your network.",
   "config.smtp_without_tls": "SMTP to {host} is configured without TLS. Credentials travel unencrypted.",
   "config.restore_drill_record_unreadable": "The restore drill record {path} cannot be read. No restore drill is on record, so the alert about a stale drill never fires.",
+  "config.storage_cors_missing": "The bucket {bucket} refuses the browser's upload from {origin} (checked {checked_at}): attaching a file fails in the browser. Set its CORS rule with: hubtask storage cors apply",
   "forge.kind_unknown": "A hook is for GitHub, GitLab or Forgejo.",
   "forge.hook_name_required": "A hook needs a name.",
   "forge.hook_name_too_long": "A hook's name has at most {maximum} characters.",

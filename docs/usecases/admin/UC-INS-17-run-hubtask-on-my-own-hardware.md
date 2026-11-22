@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D7]
 serves: [P-09, P-10, P-11]
 state: built
 tasks: [B-15]
-checked_by: [docs/architecture/support-matrix.md, .github/workflows/nightly.yml, tools/checkdocs/matrix_test.go]
+checked_by: [docs/architecture/support-matrix.md, .github/workflows/nightly.yml, tools/checkdocs/matrix_test.go, infrastructure/storage/CORSWatch_test.go, test/integration/storage_cors_test.go]
 ---
 
 # Run Hubtask on the hardware I have
@@ -38,6 +38,9 @@ Kubernetes on ARM is best effort and plans accordingly.
 4. `hubctl` is published for Linux, macOS and Windows on both architectures, and the supported ones
    are run in CI.
 5. A row that is only *best effort* says why, and no page claims more.
+6. With object storage whose bucket refuses the browser's upload from the interface's address, the
+   health report names the bucket, the address and when it was checked; after the rule is set the
+   warning is gone at the latest after the check's interval.
 
 ## Where it ends
 

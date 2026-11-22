@@ -1692,6 +1692,12 @@ func run() error {
 	}
 	targetWarnings.Refresh(ctx)
 	registry.AddWarningSource(targetWarnings.Warnings)
+	// Whether the bucket lets the browser's upload through (deployment.md §6.1): asked in the
+	// background, at start and every storage.CORSCheckEvery, and served from the last answer.
+	if watch := bucketCORSWatch(cfg, mediaTransfers); watch != nil {
+		watch.Start(ctx)
+		registry.AddWarningSource(watch.Warnings)
+	}
 	// The client address, resolved once at the edge for every bucket and every session
 	// (HUBTASK_TRUSTED_PROXIES); it warns when an ingress forwards addresses nobody trusts.
 	proxyTrust := rest.NewProxyTrust(cfg.Request.TrustedProxies)
