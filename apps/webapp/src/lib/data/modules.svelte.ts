@@ -13,7 +13,7 @@ import type { ModuleList, ModuleReach, ModulesOn, ModuleState, ModuleSwitch, Res
 import { engine, INTENT } from './engine.ts';
 import { switchBody } from './modules.ts';
 
-export { asksFirst, asksWhichHubs, hubsOffered, isSetHere, offReach, modulesHere, moduleCodes, unavailableBecause, type ModulePlace } from './modules.ts';
+export { asksFirst, asksWhichHubs, hubsOffered, isOfferSettled, isSetHere, offReach, modulesHere, moduleCodes, unavailableBecause, type ModulePlace } from './modules.ts';
 
 const PATH = '/tenant/modules';
 const CAPABILITIES = '/meta/capabilities';

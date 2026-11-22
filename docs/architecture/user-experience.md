@@ -238,7 +238,10 @@ allowlist of brand words (*Hubtask*).
 * **Switched on at the workspace where hubs exist**, the switch on *Modules* first asks *Switch on
   in which existing hubs?* in a dialog: the hubs the person may shape, none chosen, *Switch on* as
   its one primary (UC-INS-21 check 13). The card follows the answer; without a hub to choose the
-  switch asks nothing.
+  switch asks nothing. The switch waits, drawn busy, until the hub list and the person's roles on
+  its private hubs have answered, so that it never goes through unasked on a list still being
+  read. The question offers the hubs of the hub list, which is one page: the first 200 hubs that
+  are not archived. A hub beyond it, and an archived one, is switched on in its own settings.
 * **At a hub**, the switch is free while the workspace has the product on, and locked with its
   reason while the workspace has it off - read from the workspace's set, whatever the hub stores
   itself. *Reset* beside "Set here" hands the hub back to the workspace.

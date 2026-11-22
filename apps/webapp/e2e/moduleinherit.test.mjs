@@ -203,6 +203,36 @@ test('chromium: without a hub the switch goes through without a question (UC-INS
   assert.deepEqual(walk.errors(), []);
 });
 
+// The switch pressed before the hub list has answered waits for it: decided on the hubs read so
+// far - none - it would go through unasked (check 13).
+test('chromium: a switch pressed while the hub list is still being read waits and then asks (UC-INS-21 check 13)', async (t) => {
+  const browser = await sharedChromium(t);
+  const shared = workspace([HUB, GARDEN]);
+  const walk = await productWalk(browser, { modules: shared.on, answer: shared.answer });
+  t.after(walk.close);
+  const { page } = walk;
+  let release;
+  const held = new Promise((resolve) => { release = resolve; });
+  await walk.context.route('**/api/v1/containers?*', async (route) => {
+    if (new URL(route.request().url()).searchParams.get('type') === 'HUB') await held;
+    return route.fallback();
+  });
+
+  const row = await workspaceSwitch(page);
+  await row.getByRole('switch').click();
+  await page.waitForTimeout(500);
+  assert.equal(await page.getByRole('dialog').count(), 0, 'the question stands before the hubs are read');
+  assert.deepEqual(walk.written.filter((each) => each.method === 'PUT'), [], 'the switch went through unasked while the hub list was out');
+  assert.equal(await row.getByRole('switch').isChecked(), false, 'the switch is drawn on while it waits');
+
+  release();
+  const question = page.getByRole('dialog').getByRole('group', { name: 'Switch on in which existing hubs?' });
+  await question.waitFor({ timeout: 5_000 });
+  assert.equal(await question.getByRole('checkbox').count(), 2, 'the question does not offer both hubs');
+  assert.deepEqual(walk.written.filter((each) => each.method === 'PUT'), []);
+  assert.deepEqual(walk.errors(), []);
+});
+
 // On a phone the question takes the whole screen, its primary in the bar (page-system §5).
 test('chromium: the question on a phone fills the screen and switches on in the hubs chosen (UC-INS-21 check 13)', async (t) => {
   const browser = await sharedChromium(t);

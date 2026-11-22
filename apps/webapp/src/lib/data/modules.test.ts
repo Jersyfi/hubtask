@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 import type { ModuleState } from '@hubtask/sync-engine';
 
-import { asksFirst, asksWhichHubs, hubsOffered, isSetHere, modulesHere, moduleCodes, offReach, switchBody, unavailableBecause } from './modules.ts';
+import { asksFirst, asksWhichHubs, hubsOffered, isOfferSettled, isSetHere, modulesHere, moduleCodes, offReach, switchBody, unavailableBecause } from './modules.ts';
 
 const state = (over: Partial<ModuleState>): ModuleState => ({ module: 'PLANNING', on: false, source: 'DEFAULT', ...over });
 
@@ -50,6 +50,19 @@ test("the switch-on's question offers the hubs the reader may shape (UC-INS-21 c
   assert.deepEqual(hubsOffered(hubs, false, onPrivate).map((each) => each.id), ['b']);
   assert.deepEqual(hubsOffered(hubs, undefined, onPrivate).map((each) => each.id), ['b']);
   assert.deepEqual(hubsOffered([], true, onPrivate), []);
+});
+
+test("the switch-on's offer is decided only once the hub list and every hub in it have answered (UC-INS-21 check 13)", () => {
+  const onPrivate = (each: { id: string }) => ({ b: true, c: false } as Record<string, boolean | undefined>)[each.id];
+  // The list still being read: with nothing offered yet the switch would go through unasked.
+  type Hub = ReturnType<typeof hub>;
+  assert.equal(isOfferSettled<Hub>(undefined, true, onPrivate), false);
+  assert.equal(isOfferSettled([hub('a')], undefined, onPrivate), false);
+  // A private hub whose memberships are out would be left out of the question.
+  assert.equal(isOfferSettled([hub('a'), hub('b', true), hub('d', true)], true, onPrivate), false);
+  assert.equal(isOfferSettled([hub('a'), hub('b', true), hub('c', true)], true, onPrivate), true);
+  // A workspace without a hub is decided at once: the switch asks nothing (check 2).
+  assert.equal(isOfferSettled<Hub>([], undefined, onPrivate), true);
 });
 
 test('switching on asks only at the workspace and only where a hub exists (UC-INS-21 checks 2, 13)', () => {

@@ -46,6 +46,18 @@ export function hubsOffered<H extends { readonly private?: boolean }>(
 }
 
 /**
+ * Whether the question's offer can be decided (check 13): the hub list has answered - `undefined`
+ * is a list still being read - and so has every hub in it. Until then a workspace's switch-on
+ * waits; decided on what has arrived so far, it would go through unasked.
+ */
+export function isOfferSettled<H extends { readonly private?: boolean }>(
+  hubs: readonly H[] | undefined, shapesWorkspace: boolean | undefined, shapesPrivate: (hub: H) => boolean | undefined,
+): boolean {
+  if (hubs === undefined) return false;
+  return hubs.every((hub) => (hub.private === true ? shapesPrivate(hub) : shapesWorkspace) !== undefined);
+}
+
+/**
  * Whether switching on asks in which existing hubs (check 13): at the workspace, and only where
  * there is a hub to choose - without one the switch goes through at once (check 2).
  */
