@@ -2,8 +2,8 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // The list, board and workflow model (build-plan §5) on screen: the state control by level on the
-// list row and the card - L0 the mark, L1 the mark and a column chip, L2 the mark and a status
-// chip (UC-WRK-05 check 11), a board moving its cards with Workflows off (UC-FLW-06 check 5) -; at L2 the columns
+// list row, the card and the phone's row and sheet - L0 the mark, L1 the mark and a column chip, L2
+// the mark and a status chip (UC-WRK-05 check 11, UC-WRK-04 check 1), a board moving its cards with Workflows off (UC-FLW-06 check 5) -; at L2 the columns
 // name the statuses they show, the statuses no column shows stand folded in *Ohne Spalte*; a drop
 // several steps reach asks which (`CHOOSE`); a column a carried card may not enter dims with its
 // reason; the done column stands folded. Columns a collection keeps without offering a board are
@@ -252,13 +252,27 @@ test('chromium: L2 - at 375 px the status chip of a row takes a 44 px press', as
   assert.ok(area.width >= 44 && area.height >= 44, `the status chip takes ${JSON.stringify(area)}`);
 });
 
-// UC-WRK-05 check 11 on the phone: a phone row holds mark, chip and title on one line, as the
-// approved design draws it.
+// UC-WRK-05 check 11 on the card and on the phone: a board card's foot holds the mark and its
+// chip; a phone row holds mark, chip and title on one line, as the approved design draws it, and
+// the chip opens the phone's sheet with the choices.
 for (const level of ['COLUMNS', 'WORKFLOW']) {
   const tier = level === 'COLUMNS' ? 'L1' : 'L2';
   const markName = level === 'COLUMNS' ? `Mark ${ITEMS[0].title} as done` : `${ITEMS[0].title}: Move on – Start`;
   const markRole = level === 'COLUMNS' ? 'checkbox' : 'button';
-  test(`chromium: ${tier} - at 390 px a row holds mark, chip and title on one line`, async (t) => {
+  test(`chromium: ${tier} - a board card carries the mark before its chip`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { page, context } = await at(browser, level, { view: 'Board' });
+    t.after(() => context.close());
+    const card = page.locator(`[data-card="${ITEMS[0].id}"]`);
+    const mark = card.getByRole(markRole, { name: markName });
+    await mark.waitFor({ timeout: 15_000 });
+    const chip = card.locator('[data-state-chip]');
+    const [m, c] = await Promise.all([mark.boundingBox(), chip.boundingBox()]);
+    assert.ok(c.x > m.x + m.width - 1 && c.x - (m.x + m.width) <= 12, `the chip does not follow the mark: ${JSON.stringify({ m, c })}`);
+    assert.ok(Math.abs((m.y + m.height / 2) - (c.y + c.height / 2)) < 3, 'mark and chip are not on one line');
+  });
+
+  test(`chromium: ${tier} - at 390 px a row holds mark, chip and title on one line; the chip opens the sheet`, async (t) => {
     const browser = await sharedChromium(t);
     const { page, context } = await at(browser, level, { width: 390 });
     t.after(() => context.close());
@@ -275,6 +289,11 @@ for (const level of ['COLUMNS', 'WORKFLOW']) {
     const line = await title.evaluate((node) => { const words = node.querySelector('.title') ?? node; return words.getBoundingClientRect().y + parseFloat(getComputedStyle(words).lineHeight) / 2; });
     assert.ok(Math.abs((c.y + c.height / 2) - line) < 4, 'the chip is not on the title\'s first line');
     assert.ok(ti.x > 0);
+    await chip.click();
+    const sheet = page.getByRole('dialog');
+    await sheet.waitFor({ timeout: 5_000 });
+    const choices = (await sheet.getByRole('menuitem').allTextContents()).map((each) => each.trim());
+    assert.deepEqual(choices, level === 'COLUMNS' ? BUCKETS.map((bucket) => bucket.name) : ['Start', 'Ask for review'], 'the sheet does not hold the choices');
   });
 }
 
