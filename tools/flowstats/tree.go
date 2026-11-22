@@ -51,16 +51,26 @@ type snapshot map[string][]byte
 
 // snapshotAt reads them out of the commit, so both windows are read the same way and a change
 // that is not committed counts in neither.
-func snapshotAt(rev string) (snapshot, error) {
+func snapshotAt(rev string) (snapshot, error) { return snapshotFrom(rev, git) }
+
+func snapshotFrom(rev string, git func(args ...string) ([]byte, error)) (snapshot, error) {
 	if _, err := git("rev-parse", "--verify", "--quiet", rev+"^{commit}"); err != nil {
 		return nil, err
 	}
 	s := snapshot{}
 	paths := append([]string{agentsPath, boundsPath, baselinePath, uncitedPath, useCasesDir}, commentDirs...)
 	for _, path := range paths {
-		out, err := git("archive", "--format=tar", rev, "--", strings.TrimSuffix(path, "/"))
+		path = strings.TrimSuffix(path, "/")
+		listed, err := git("ls-tree", "--name-only", rev, "--", path)
 		if err != nil {
+			return nil, err
+		}
+		if len(bytes.TrimSpace(listed)) == 0 {
 			continue // the commit does not have the path; its measure says so
+		}
+		out, err := git("archive", "--format=tar", rev, "--", path)
+		if err != nil {
+			return nil, err
 		}
 		files := tar.NewReader(bytes.NewReader(out))
 		for {

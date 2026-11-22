@@ -4,9 +4,62 @@
 package main
 
 import (
+	"archive/tar"
+	"bytes"
+	"errors"
+	"slices"
 	"strings"
 	"testing"
 )
+
+// A path the commit lacks is left out, and its measure says so. A path it has and git fails to
+// read is an error: the count from the other directories would read as a fall.
+func TestASnapshotTellsAnAbsentPathFromOneNotRead(t *testing.T) {
+	var archive bytes.Buffer
+	w := tar.NewWriter(&archive)
+	if err := w.WriteHeader(&tar.Header{Name: "cmd/b/b.go", Typeflag: tar.TypeReg, Mode: 0o600, Size: 10}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Write([]byte("package b\n")); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	has := []string{"cmd", "core"}
+	failing := ""
+	git := func(args ...string) ([]byte, error) {
+		path := args[len(args)-1]
+		switch args[0] {
+		case "ls-tree":
+			if slices.Contains(has, path) {
+				return []byte(path + "\n"), nil
+			}
+			return nil, nil
+		case "archive":
+			if path == failing {
+				return nil, errors.New("git archive: signal: killed")
+			}
+			if path == "cmd" {
+				return archive.Bytes(), nil
+			}
+			return nil, errors.New("git archive: pathspec did not match any files")
+		}
+		return nil, nil
+	}
+	failing = "core"
+	if s, err := snapshotFrom("abc", git); err == nil {
+		t.Errorf("a directory git did not read gives the snapshot %v", s)
+	}
+	has, failing = []string{"cmd"}, ""
+	s, err := snapshotFrom("abc", git)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s) != 1 || string(s["cmd/b/b.go"]) != "package b\n" {
+		t.Errorf("the snapshot holds %v, want the one file of cmd/", s)
+	}
+}
 
 func TestTreeValues(t *testing.T) {
 	long := strings.Repeat("// a line\n", 20) + "package a\n"
