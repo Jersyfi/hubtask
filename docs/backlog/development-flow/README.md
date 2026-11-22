@@ -1029,6 +1029,12 @@ decision. The whole change is reversible by reverting one pull request; none of 
   and status the baseline lists. A new wrong body there passes until the line is removed, so the
   gate holds new operations and the corrected ones, and the rest only as each line goes.
   `make gate-walks` prints both numbers on every run.
+* **The walk judge fails on an answer that depends on timing.** A stub that answers every request
+  with an error also answers a background request of the page, a pull or a push, and whether one
+  is sent in that moment differs from run to run. 34 of the contract's 907 operations declare no
+  client-error answer, the sync operations among them, so such an answer is outside the contract.
+  It turned `main` red once (2026-11-22); the walk in `settings` is narrowed, and
+  `manifest.test.mjs` answers every request with `401` on purpose and can still meet it.
 * **Risks the additions bring**, and what bounds each: a worker deletes a true sentence it took
   for false — the reviewer answers for each removed paragraph, and the ADR and git keep the
   reasoning; a tool reports live code as dead — removal is its own pull request and must pass
