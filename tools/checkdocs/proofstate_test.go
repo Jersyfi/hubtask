@@ -104,6 +104,19 @@ func TestTheProofStateRefusesBoundsThatDoNotParse(t *testing.T) {
 	}
 }
 
+// A baseline that is not there is said, never counted as no answer outside the contract. An
+// empty one is a count of none.
+func TestTheProofStateRefusesAMissingBaseline(t *testing.T) {
+	_, problems := readProofFigures(proofRoot(t, map[string]string{walkBoundsFile: "{}"}))
+	if len(problems) != 1 || !strings.Contains(problems[0], walkBaseline) {
+		t.Errorf("a missing baseline is reported as %q", problems)
+	}
+	figures, problems := readProofFigures(proofRoot(t, map[string]string{walkBoundsFile: "{}", walkBaseline: "# none\n"}))
+	if len(problems) != 0 || figures.answersOutsideContract != 0 {
+		t.Errorf("an empty baseline reads %d answers and %q", figures.answersOutsideContract, problems)
+	}
+}
+
 // A check counts for its use case's state, and as cited only when a checked_by file names it.
 func TestCountStatesCountsChecksAndCitations(t *testing.T) {
 	root := t.TempDir()

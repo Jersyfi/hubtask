@@ -6,6 +6,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -60,7 +61,12 @@ func readProofFigures(root string) (proofFigures, []string) {
 	}
 	figures.suitesWithoutUseCase = len(bounds.NoCheckCite)
 
-	for _, row := range strings.Split(read(root, walkBaseline), "\n") {
+	// Read with its error: a baseline that is not there would count as no answer outside.
+	baseline, err := os.ReadFile(filepath.Join(root, walkBaseline)) //nolint:gosec // G304: a fixed path under the root
+	if err != nil {
+		problems = append(problems, fmt.Sprintf("%s is not read: %v", walkBaseline, err))
+	}
+	for _, row := range strings.Split(string(baseline), "\n") {
 		if row = strings.TrimSpace(row); row != "" && !strings.HasPrefix(row, "#") {
 			figures.answersOutsideContract++
 		}
