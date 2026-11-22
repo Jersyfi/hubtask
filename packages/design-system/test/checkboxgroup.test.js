@@ -3,7 +3,7 @@
 
 // CheckboxGroup (design-system.md §4, wave 1), read without a browser: it stays a component of its
 // own and draws its options through MultiSelect's ticks, so the two cannot drift apart (ADR-0110).
-// That it did not move a box is measured in the browser, not here.
+// That it did not move a box is measured in the browser: workbench-layout.test.mjs, its `ticks` rows.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

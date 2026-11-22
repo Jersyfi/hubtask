@@ -100,6 +100,9 @@ const STORIES = [
   { id: 'wave-3-hubtask-view-switcher--in-table-row', kind: 'roving' },
   // A gallery that is a choice: a grid of tiles in families, one of them refused with its reason.
   { id: 'wave-1-forms-choice-cards--refused-tile', kind: 'tiles' },
+  // CheckboxGroup's boxes, drawn by MultiSelect's ticks, where its own row drew them before.
+  { id: 'wave-1-forms-checkbox-group--resting', kind: 'ticks' },
+  { id: 'wave-1-forms-checkbox-group--missing', kind: 'ticks' },
 ];
 
 /**
@@ -541,7 +544,75 @@ async function checkTiles(page, what, engine) {
   assertSame(before, await boxes(page), `${what}, after choosing, arrowing and pressing the refused tile`);
 }
 
+/**
+ * CheckboxGroup's boxes lie as its own row laid them out before they became MultiSelect's ticks:
+ * a row that wraps, `--sp-200` between boxes on a line and `--sp-100` between lines and under the
+ * hint, every line starting at the group's start, and a box on a new line only where it did not
+ * fit on the one before. Measured against the tokens, so a changed arrangement fails at every axis.
+ */
+async function checkTicks(page, what) {
+  const seen = await page.evaluate(() => {
+    const group = document.querySelector('.host fieldset');
+    const inputs = [...group.querySelectorAll('input[type="checkbox"]')];
+    // The row is the nearest element holding every box; its children are the boxes' blocks.
+    let row = inputs[0].parentElement;
+    while (!inputs.every((input) => row.contains(input))) row = row.parentElement;
+    const scale = group.getBoundingClientRect().width / group.offsetWidth;
+    const style = getComputedStyle(group);
+    const space = (name) => Number.parseFloat(style.getPropertyValue(name)) * scale;
+    const isRtl = getComputedStyle(row).direction === 'rtl';
+    const box = (node) => {
+      const rect = node.getBoundingClientRect();
+      // What the box's content needs - its label and its text from the box's start - not what a
+      // stretched block is given.
+      const ends = [...node.querySelectorAll('label')].map((label) => label.getBoundingClientRect());
+      const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+      for (let text = walker.nextNode(); text; text = walker.nextNode()) {
+        if (!text.textContent.trim()) continue;
+        const range = document.createRange();
+        range.selectNode(text);
+        ends.push(range.getBoundingClientRect());
+      }
+      const needs = isRtl ? rect.right - Math.min(...ends.map((each) => each.left)) : Math.max(...ends.map((each) => each.right)) - rect.left;
+      return { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, width: rect.width, needs };
+    };
+    return {
+      isRtl,
+      row: box(row),
+      above: box(row.previousElementSibling),
+      items: [...row.children].map(box),
+      count: inputs.length,
+      inline: space('--sp-200'),
+      block: space('--sp-100'),
+    };
+  });
+  const near = (a, b) => Math.abs(a - b) < 0.5;
+  assert.equal(seen.items.length, seen.count, `${what}: the row holds more than the boxes`);
+  assert.ok(near(seen.row.top - seen.above.bottom, seen.block), `${what}: the boxes start ${seen.row.top - seen.above.bottom} under the hint, not ${seen.block}`);
+  const start = (item) => (seen.isRtl ? seen.row.right - item.right : item.left - seen.row.left);
+  const end = (item) => (seen.isRtl ? seen.row.right - item.left : item.right - seen.row.left);
+  const room = seen.row.right - seen.row.left;
+  let line = [seen.items[0]];
+  assert.ok(near(start(seen.items[0]), 0), `${what}: the first box does not start at the group's start`);
+  for (const [index, item] of seen.items.entries()) {
+    assert.ok(near(item.width, item.needs), `${what}: box ${index} is ${item.width} wide for content of ${item.needs}`);
+    if (index === 0) continue;
+    const last = line.at(-1);
+    if (near(item.top, last.top)) {
+      assert.ok(near(start(item) - end(last), seen.inline), `${what}: box ${index} lies ${start(item) - end(last)} after the one before, not ${seen.inline}`);
+      line.push(item);
+      continue;
+    }
+    assert.ok(end(last) + seen.inline + item.needs > room + 0.5, `${what}: box ${index} starts a new line though it fits on the one before`);
+    assert.ok(near(start(item), 0), `${what}: the line of box ${index} does not start at the group's start`);
+    const bottom = Math.max(...line.map((each) => each.bottom));
+    assert.ok(near(item.top - bottom, seen.block), `${what}: the line of box ${index} lies ${item.top - bottom} under the one before, not ${seen.block}`);
+    line = [item];
+  }
+}
+
 const CHECKS = {
+  ticks: checkTicks,
   tiles: checkTiles,
   savebar: checkSaveBar,
   gate: checkGate,
@@ -573,7 +644,8 @@ describe('a reason never moves the page', { concurrency: true }, () => {
             if (each.text === 'long' && (story.kind === 'permitted' || story.kind === 'refused')) continue;
             const what = `${story.id} ${label(each)} in ${name}`;
             await page.goto(`${server.origin}/${query(story.id, each)}`);
-            await page.waitForSelector(story.kind === 'tiles' ? '.host [role="radiogroup"]' : '.host :is(.contexts, [data-scroll-area])');
+            const ready = { tiles: '.host [role="radiogroup"]', ticks: '.host fieldset' }[story.kind] ?? '.host :is(.contexts, [data-scroll-area])';
+            await page.waitForSelector(ready);
             // A row arrives with the entrance role (motion.ts), a transform that ends: measured while
             // it runs, the arrival would read as a box the hover moved. A pending mark never ends.
             await page.evaluate(() => Promise.all(document.getAnimations()
