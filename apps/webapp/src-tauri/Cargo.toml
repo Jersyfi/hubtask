@@ -24,7 +24,7 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 # The encrypted copy (ADR-0033 §4): SQLCipher built in, its cipher from the system's own crypto
 # (OpenSSL's libcrypto on Linux and Windows, CommonCrypto on a Mac).
-rusqlite = { version = "0.41", features = ["bundled-sqlcipher"] }
+rusqlite = { version = "0.42", features = ["bundled-sqlcipher"] }
 
 # The workspace's sign-in in the system's browser (ADR-0096), called from the shell's own command.
 tauri-plugin-opener = "2"
