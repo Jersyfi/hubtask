@@ -427,3 +427,28 @@ test('chromium: 1280 px — keep theirs: what the reader types while their versi
   assert.deepEqual(writes(state).slice(1), [{ method: 'PATCH', path: `/items/${ENTRY.id}`, body: { notes: 'Tiles ordered online already. Ask Ana about the grout.' } }]);
   assert.deepEqual(failures, []);
 });
+
+test('chromium: 1280 px — write mine refused, then theirs changes again: the new text is filed before mine is written (UC-SYN-02 check 10)', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, context, state, changeElsewhere } = await openEntry(browser, 1280);
+  t.after(() => context.close());
+
+  await typeWhileChanged(page, changeElsewhere, 'Tiles from the big market, ask for Ana.', 'Tiles ordered online already.');
+  const notice = page.locator('[data-meanwhile="notes"]');
+  state.refusePatches = 1;
+  await notice.getByRole('button', { name: 'Compare both versions' }).click();
+  await page.getByRole('dialog', { name: 'Two versions of the description' }).getByRole('button', { name: 'Write mine' }).click();
+  await notice.locator('[data-meanwhile-failure]').waitFor({ timeout: 10_000 });
+
+  await changeElsewhere({ notes: 'Tiles ordered online, delivery on Friday.' });
+  await notice.getByRole('button', { name: 'Compare both versions' }).click();
+  await page.getByRole('dialog', { name: 'Two versions of the description' }).getByRole('button', { name: 'Write mine' }).click();
+  await page.getByText('The version you replaced is kept as a comment on the entry').waitFor({ timeout: 10_000 });
+
+  assert.deepEqual(writes(state), [
+    { method: 'POST', path: `/items/${ENTRY.id}/comments:file-version`, body: { field: 'notes', side: 'REPLACED', body: 'Tiles ordered online already.' } },
+    { method: 'PATCH', path: `/items/${ENTRY.id}`, body: { notes: 'Tiles from the big market, ask for Ana.' } },
+    { method: 'POST', path: `/items/${ENTRY.id}/comments:file-version`, body: { field: 'notes', side: 'REPLACED', body: 'Tiles ordered online, delivery on Friday.' } },
+    { method: 'PATCH', path: `/items/${ENTRY.id}`, body: { notes: 'Tiles from the big market, ask for Ana.' } },
+  ]);
+});

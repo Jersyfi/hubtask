@@ -1180,8 +1180,11 @@
   let notesAtFocus: string | undefined;
   let meanwhileField = $state<TextField | undefined>(undefined);
   let meanwhileFailure = $state<string | undefined>(undefined);
-  /** Theirs is already a comment: a refused write of mine, chosen again, does not file it twice. */
-  let theirsFiled = false;
+  /**
+   * The text of theirs already filed: a refused write of mine, chosen again, does not file it
+   * twice - and files theirs again where it changed since.
+   */
+  let theirsFiled: string | undefined;
   let keptAs = $state<'MINE' | 'REPLACED' | undefined>(undefined);
   /** The comment the last choice filed, which *Show the comment* leads to. */
   let keptComment: string | undefined;
@@ -1225,7 +1228,7 @@
     notesAtFocus = undefined;
     meanwhileField = undefined;
     meanwhileFailure = undefined;
-    theirsFiled = false;
+    theirsFiled = undefined;
   }
 
   function stopFor(field: TextField) {
@@ -1294,7 +1297,7 @@
     inlineBase = { ...(inlineBase ?? (heldNow() as EntryDraft)), [field]: theirs };
     meanwhileField = undefined;
     meanwhileFailure = undefined;
-    theirsFiled = false;
+    theirsFiled = undefined;
     keptAs = mine.trim() !== '' ? 'MINE' : undefined;
     // Anything else the reader changed is written now, or the next text changed meanwhile asks.
     await commitInline();
@@ -1307,8 +1310,8 @@
     const theirs = field === 'title' ? item.title : (item.notes ?? '');
     isChoosing = true;
     try {
-      if (!theirsFiled && theirs.trim() !== '') keptComment = (await comments.fileVersion(item.id, field, 'REPLACED', theirs, crypto.randomUUID())).id;
-      theirsFiled = true;
+      if (theirsFiled !== theirs && theirs.trim() !== '') keptComment = (await comments.fileVersion(item.id, field, 'REPLACED', theirs, crypto.randomUUID())).id;
+      theirsFiled = theirs;
     } catch (error) {
       meanwhileFailure = t('app.sync.meanwhile.theirs_not_kept', { reason: renderProblem(error as never, messages).message });
       announcer.say(meanwhileFailure);
@@ -1333,7 +1336,7 @@
       announcer.say(meanwhileFailure);
       return;
     }
-    const filed = theirsFiled && theirs.trim() !== '';
+    const filed = theirsFiled === theirs && theirs.trim() !== '';
     settleInline();
     keptAs = filed ? 'REPLACED' : undefined;
   }
