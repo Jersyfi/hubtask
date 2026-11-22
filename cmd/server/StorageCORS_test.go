@@ -8,6 +8,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	envport "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/infrastructure/i18n"
@@ -34,7 +35,10 @@ func (b *bucketFake) BucketCORS(context.Context) ([]storageadapter.CORSRule, err
 	return b.rules, b.readErr
 }
 
-func (b *bucketFake) PutBucketCORS(_ context.Context, rules []storageadapter.CORSRule) error {
+func (b *bucketFake) PutBucketCORS(ctx context.Context, rules []storageadapter.CORSRule) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if b.writeErr != nil {
 		return b.writeErr
 	}
@@ -130,7 +134,7 @@ func TestTheStorageCORSCommand(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
 			confirm := func() (string, bool) { return tc.answer, tc.asked }
-			exit := storageCommand(t.Context(), tc.args, &stdout, &stderr, render, tc.bucket, tc.setup, confirm)
+			exit := storageCommand(t.Context(), time.Minute, tc.args, &stdout, &stderr, render, tc.bucket, tc.setup, confirm)
 			if exit != tc.exit {
 				t.Errorf("exit = %d, want %d (stdout %q, stderr %q)", exit, tc.exit, stdout.String(), stderr.String())
 			}
@@ -155,5 +159,31 @@ func TestTheStorageCORSCommand(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// The operator may take longer to type the bucket's name than the command gives the bucket: the
+// write's deadline starts after the answer, so a slow confirmation still writes.
+func TestTheStorageCORSWriteDeadlineStartsAfterTheConfirmation(t *testing.T) {
+	renderer, err := i18n.NewRenderer()
+	if err != nil {
+		t.Fatalf("the catalogue: %v", err)
+	}
+	render := func(code string, params map[string]string) string { return renderer.Render("en", code, params) }
+	setup := corsSetup{bucket: "media", origins: storageadapter.OriginsFor(
+		"https://tasks.example.org", envport.TenancySingle, envport.HostsSubdomain)}
+	theirs := storageadapter.CORSRule{ID: "uploads", AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"PUT"}, AllowedHeaders: []string{"*"}}
+	bucket := &bucketFake{rules: []storageadapter.CORSRule{theirs}}
+
+	const deadline = 20 * time.Millisecond
+	confirm := func() (string, bool) {
+		time.Sleep(3 * deadline)
+		return "media", true
+	}
+	var stdout, stderr bytes.Buffer
+	exit := storageCommand(t.Context(), deadline, []string{"cors", "apply", "--replace"}, &stdout, &stderr, render, bucket, setup, confirm)
+	if exit != 0 || len(bucket.written) != 1 {
+		t.Fatalf("exit = %d, written %d times (stderr %q): a slow confirmation ended the write", exit, len(bucket.written), stderr.String())
 	}
 }

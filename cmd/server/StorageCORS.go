@@ -22,7 +22,8 @@ import (
 	storageadapter "github.com/Jersyfi/hubtask/infrastructure/storage"
 )
 
-// storageCommandTimeout bounds the command's whole run against the bucket (rule 7).
+// storageCommandTimeout bounds each of the command's exchanges with the bucket (rule 7) - never the
+// operator's answer between them, which may take longer.
 const storageCommandTimeout = 60 * time.Second
 
 // Exit codes of `hubtask storage cors`: 0 done, 1 refused or failed, 2 used wrongly, 3 the
@@ -73,9 +74,8 @@ func runStorageCommand(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), storageCommandTimeout)
-	defer cancel()
-	return storageCommand(ctx, args, stdout, stderr, render, store, setupFrom(cfg), terminalConfirm(os.Stdin))
+	return storageCommand(context.Background(), storageCommandTimeout, args, stdout, stderr, render, store,
+		setupFrom(cfg), terminalConfirm(os.Stdin))
 }
 
 func setupFrom(cfg envport.Config) corsSetup {
@@ -103,7 +103,7 @@ func terminalConfirm(stdin *os.File) func() (string, bool) {
 }
 
 func storageCommand(
-	ctx context.Context, args []string, stdout, stderr io.Writer,
+	ctx context.Context, timeout time.Duration, args []string, stdout, stderr io.Writer,
 	render func(code string, params map[string]string) string,
 	store bucketCORS, setup corsSetup, confirm func() (string, bool),
 ) int {
@@ -131,9 +131,11 @@ func storageCommand(
 			_, _ = fmt.Fprintln(stderr, render("cli.storage_usage", nil))
 			return 2
 		}
-		exit = corsCheck(ctx, stdout, stderr, render, store, setup)
+		checkCtx, cancel := context.WithTimeout(ctx, timeout)
+		exit = corsCheck(checkCtx, stdout, stderr, render, store, setup)
+		cancel()
 	case "apply":
-		exit = corsApply(ctx, stdout, stderr, render, store, setup, *replace, *yes, confirm)
+		exit = corsApply(ctx, timeout, stdout, stderr, render, store, setup, *replace, *yes, confirm)
 	default:
 		_, _ = fmt.Fprintln(stderr, render("cli.storage_usage", nil))
 		return 2
@@ -166,7 +168,7 @@ func corsCheck(
 }
 
 func corsApply(
-	ctx context.Context, stdout, stderr io.Writer, render func(string, map[string]string) string,
+	ctx context.Context, timeout time.Duration, stdout, stderr io.Writer, render func(string, map[string]string) string,
 	store bucketCORS, setup corsSetup, replace, yes bool, confirm func() (string, bool),
 ) int {
 	ours := storageadapter.HubtaskRule(setup.origins.Rule)
@@ -176,7 +178,9 @@ func corsApply(
 		"minutes": strconv.Itoa(int(storageadapter.CORSCheckEvery / time.Minute)),
 	}
 
-	existing, err := store.BucketCORS(ctx)
+	readCtx, cancelRead := context.WithTimeout(ctx, timeout)
+	existing, err := store.BucketCORS(readCtx)
+	cancelRead()
 	if err != nil {
 		return corsRefused(stderr, render, err, ours, params)
 	}
@@ -210,7 +214,9 @@ func corsApply(
 			}
 		}
 	}
-	if err := store.PutBucketCORS(ctx, plan.Rules); err != nil {
+	writeCtx, cancelWrite := context.WithTimeout(ctx, timeout)
+	defer cancelWrite()
+	if err := store.PutBucketCORS(writeCtx, plan.Rules); err != nil {
 		return corsRefused(stderr, render, err, ours, params)
 	}
 	if len(plan.Kept) > 0 {
