@@ -885,13 +885,15 @@ reports leads to better tests.
 2 and the higher badge levels (they need a second maintainer), the REUSE badge (the licence
 headers exist; the badge adds a registration and a directory for little).
 
-**A question only the owner can answer, outside this build.** If Hubtask is ever monetised, the
-Cyber Resilience Act makes its maker a manufacturer from December 2027. The technical half —
-bill of materials, signatures, a disclosure policy — exists; a five-year support period and
-24-hour reporting are commitments of a different kind. `licensing-editions.md` and `FUNDING.yml`
-were not assessed against the Act, and this is not legal advice. It is proposed as a `decision`
-issue with the regulation's text beside the plans, not as a change here. The issue is not opened:
-the orchestrator opens it at the close (§7).
+**Under the Cyber Resilience Act the project is no manufacturer while it monetises nothing.**
+Hubtask is open source and funded by donations only, which buy nothing in return
+([licensing-editions.md](../../architecture/licensing-editions.md) §5,
+[`.github/FUNDING.yml`](../../../.github/FUNDING.yml)). There is one edition and no paid one,
+and §4 there says why ([ADR-0080](../../adr/ADR-0080-hubtask-is-apache-2-0.md)). The project's
+position on the Act is [data-protection.md](../../architecture/data-protection.md) §7, and how it
+reports is [security.md](../../architecture/security.md) §14.3; a provider who sells Hubtask or a
+distribution of it is a manufacturer itself. ADR-0080 says the assessment is
+made again before a paid offering appears. This is not legal advice.
 
 ### 5.13 Nothing shown needs the owner's hand
 

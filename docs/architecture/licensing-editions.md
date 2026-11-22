@@ -46,8 +46,9 @@ come only from the project registry.
 ## 4. One edition
 
 There is **one** code path and **one** image. No licence key, no commercial edition, no `ee/`
-directory, no feature the project switches off anywhere. What differs between installations is
-operational, never a matter of licence:
+directory, no feature the project switches off anywhere. A paid edition is ruled out because it
+would split the community into two classes. What differs between installations is operational,
+never a matter of licence:
 
 * `HUBTASK_TENANCY_MODE` chooses between one workspace and many.
 * Quotas and the usage record (`usage_record`, the quota guard) let an operator of a shared
