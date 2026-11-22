@@ -1,11 +1,11 @@
--- A kept version is bounded as the field it holds, not as a comment (offline-sync.md §5).
+-- The notes a push keeps are bounded as the notes are, not as a comment (offline-sync.md §5).
 --
--- A system comment holds the text of an entry's field that lost - notes or a title. The notes
--- carry no length bound of their own (an unbounded text column; only the request body limit caps
--- them), so notes longer than a comment's 20000 characters could be written but not kept, and
--- the version that loses would be lost. The bound of a system comment is the domain's
--- (Comment.go, keptVersionBound); the column only insists that a living one is not empty. A
--- comment somebody writes keeps its 1 to 20000 characters.
+-- A system comment holds the notes of an entry that lost a push. The notes carry no length bound
+-- of their own (an unbounded text column; only the request body limit caps them), so notes longer
+-- than a comment's 20000 characters could be written but not kept, and the version that loses
+-- would be lost. The bound of a system comment is the domain's (Comment.go, NewComment); the
+-- column only insists that a living one is not empty. A comment somebody writes keeps its 1 to
+-- 20000 characters.
 --
 -- Forward-only and safe for a rolling update (rule 12, ADR-0003): the rule only widens, so every
 -- row the previous version writes satisfies it. Added NOT VALID; 0447 validates it outside this

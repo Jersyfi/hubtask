@@ -96,8 +96,8 @@ type NewCommentInput struct {
 // NewComment validates and builds a comment.
 func NewComment(input NewCommentInput) (Comment, error) {
 	bound := commentBound
-	if input.SystemCode == DisplacedVersionCode {
-		bound = keptVersionBound(input.SystemParams["field"])
+	if input.SystemCode == DisplacedVersionCode && input.SystemParams["field"] == FieldNotes {
+		bound = bodyBound{}
 	}
 	body, err := validCommentBody(input.Body, input.Text, bound)
 	if err != nil {
@@ -208,21 +208,10 @@ type bodyBound struct {
 	code    string
 }
 
+// commentBound is what somebody writes. The notes a push keeps as their displaced version have no
+// bound of their own - the column is unbounded text and only the request body limit caps them - so
+// the kept version has none either, or the text that lost would be lost (offline-sync.md §5).
 var commentBound = bodyBound{maximum: MaxCommentBodyLength, code: "comments.body_too_long"}
-
-// keptVersionBound is the bound of the field a kept version holds, not a comment's: what was
-// written into a field must survive being kept (offline-sync.md §5). Notes have no bound of their
-// own - the column is unbounded text and only the request body limit caps them - so neither has
-// their kept version. A field this does not know keeps a comment's bound.
-func keptVersionBound(field string) bodyBound {
-	switch field {
-	case FieldNotes:
-		return bodyBound{}
-	case FieldTitle:
-		return bodyBound{maximum: MaxItemTitleLength, code: "items.title_too_long"}
-	}
-	return commentBound
-}
 
 // validCommentBody applies the two body rules: not empty once trimmed, and within its bound.
 // Newlines are fine - a comment is prose, not a title - and the
