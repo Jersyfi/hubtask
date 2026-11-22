@@ -1228,24 +1228,35 @@
     overwriteFailure = undefined;
   }
 
-  /** Writes what the decision sends; a refusal is drawn and answered false. */
-  async function sendInline(id: string, edit: EntryEdit, version: number): Promise<boolean> {
+  /**
+   * Writes what the decision sends. `stale`: the entry moved before the stream said so
+   * (`version_conflict`), and it has been read again for the decision to be taken anew; any other
+   * refusal is drawn and answered `refused`.
+   */
+  async function sendInline(id: string, edit: EntryEdit, version: number): Promise<'written' | 'stale' | 'refused'> {
     writeFailure = undefined;
     isTitleFailure = false;
     try {
       await items.update(id, edit, version);
       announcer.say(t('app.entries.saved_announced'));
-      return true;
+      return 'written';
     } catch (error) {
+      if ((error as { isVersionConflict?: boolean }).isVersionConflict) {
+        await engine.refresh<WorkItem>({ path: itemPath(id) });
+        return 'stale';
+      }
       const problem = error as { detailCode?: string };
       writeFailure = renderProblem(error as never, messages);
       isTitleFailure = writeFailure.fields.has('/title') || problem.detailCode === 'items.title_empty';
-      return false;
+      return 'refused';
     }
   }
 
-  async function commitInline() {
-    if (!item || !isInlineDirty || isAsking) return;
+  /** A save on its way: another leave waits for its answer rather than sending the same text twice. */
+  let isSaving = false;
+
+  async function commitInline(isRetry = false) {
+    if (!item || !isInlineDirty || isAsking || (isSaving && !isRetry)) return;
     if (inlineTitle.trim() === '') {
       writeFailure = renderProblem({ status: 422, code: 'items.title_empty', detailCode: 'items.title_empty', fieldErrors: [] } as never, messages);
       isTitleFailure = true;
@@ -1262,9 +1273,25 @@
       isAsking = true;
       return;
     }
-    settleInline();
-    if (Object.keys(edit).length === 0) return;
-    await sendInline(item.id, edit, item.version);
+    if (Object.keys(edit).length === 0) {
+      settleInline();
+      return;
+    }
+    // The reader's text stays until it is written: a refused save must not take it off the screen.
+    const sent = mineOf(base);
+    isSaving = true;
+    const answer = await sendInline(item.id, edit, item.version);
+    isSaving = false;
+    if (answer === 'stale' && !isRetry) {
+      void history.refresh();
+      // Read again: asked about where both changed the text, written against the newer version where not.
+      await commitInline(true);
+      return;
+    }
+    if (answer !== 'written') return;
+    // Typed while the save was on its way: still the reader's change, over what was just written.
+    if (inlineTitle === sent.title && inlineNotes === sent.notes) settleInline();
+    else inlineBase = { ...base, ...('title' in edit ? { title: sent.title } : {}), ...('notes' in edit ? { notes: sent.notes } : {}) };
   }
 
   /** The field taken as it stands now: what the reader began from, so their own text of it is gone. */
@@ -1302,11 +1329,13 @@
     }
     isOverwriting = true;
     overwriteFailure = undefined;
+    const id = item.id;
     try {
-      await items.update(item.id, edit, item.version);
+      await items.update(id, edit, item.version);
     } catch (error) {
       overwriteFailure = renderProblem(error as never, messages);
       announcer.say(t('app.sync.meanwhile.not_written'));
+      if ((error as { isVersionConflict?: boolean }).isVersionConflict) await engine.refresh<WorkItem>({ path: itemPath(id) });
       return;
     } finally {
       isOverwriting = false;
