@@ -16635,7 +16635,7 @@ type ConfigApplyRequest struct {
 	HubId *openapi_types.UUID     `json:"hub_id,omitempty"`
 	Mode  *ConfigApplyRequestMode `json:"mode,omitempty"`
 
-	// ModuleHubIds With the workspace's document: the existing hubs in which a module this apply switches on for the workspace is switched on as well, as `hub_ids` of `setModule` - the hub a template is taken for. Omitted, no existing hub changes. With `hub_id` it is refused as `module.hubs_with_on_only`. A plan that waits for a person carries none.
+	// ModuleHubIds With the workspace's document: the existing hubs in which a module this apply switches on for the workspace is switched on as well, as `hub_ids` of `setModule` - the hub a template is taken for. Omitted, no existing hub changes. With `hub_id` it is refused as `module.hubs_with_on_only`, more than 200 as `module.hubs_too_many`. A plan that waits for a person carries none.
 	ModuleHubIds *[]openapi_types.UUID `json:"module_hub_ids,omitempty"`
 	PlanHash     string                `json:"plan_hash"`
 
@@ -21737,7 +21737,7 @@ type ModuleSwitch struct {
 	// HubId The hub to switch it for; omitted is the workspace.
 	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
 
-	// HubIds With `switch: ON` at the workspace: the existing hubs the module is switched on in as well. Omitted or empty, no existing hub changes.
+	// HubIds With `switch: ON` at the workspace: the existing hubs the module is switched on in as well. Omitted or empty, no existing hub changes. More than 200 are refused as `module.hubs_too_many`; a further request for the hub itself switches it on there.
 	HubIds *[]openapi_types.UUID `json:"hub_ids,omitempty"`
 	Switch ModuleSwitchSwitch    `json:"switch"`
 }

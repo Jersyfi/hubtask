@@ -238,6 +238,8 @@ func TestTheChosenHubsAreRefusedWhole(t *testing.T) {
 		}, want: "module.hubs_with_on_only"},
 		{name: "a collection", command: workspaceSwitch(module.Planning, settingservice.SwitchOn, list), want: "module.hub_only"},
 		{name: "no identifier", command: workspaceSwitch(module.Planning, settingservice.SwitchOn, ""), want: "usecase.field_required"},
+		{name: "more hubs than the contract's bound", want: module.TooManyHubsCode,
+			command: workspaceSwitch(module.Planning, settingservice.SwitchOn, make([]shared.ID, module.MaxChosenHubs+1)...)},
 	}
 	for _, refusal := range refusals {
 		t.Run(refusal.name, func(t *testing.T) {

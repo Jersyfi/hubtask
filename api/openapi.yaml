@@ -34529,12 +34529,14 @@ components:
           description: A collection taking a template's collection part; its document is its hub's, which `hub_id` names or the collection implies.
         module_hub_ids:
           type: array
+          maxItems: 200
           items: { type: string, format: uuid }
           description: >
             With the workspace's document: the existing hubs in which a module this apply switches
             on for the workspace is switched on as well, as `hub_ids` of `setModule` - the hub a
             template is taken for. Omitted, no existing hub changes. With `hub_id` it is refused
-            as `module.hubs_with_on_only`. A plan that waits for a person carries none.
+            as `module.hubs_with_on_only`, more than 200 as `module.hubs_too_many`. A plan that
+            waits for a person carries none.
         from_sandbox:
           type: boolean
           description: Promotes the sandbox - what it changed since its copy - instead of a document.
@@ -34850,10 +34852,12 @@ components:
           description: The hub to switch it for; omitted is the workspace.
         hub_ids:
           type: array
+          maxItems: 200
           items: { type: string, format: uuid }
           description: >
             With `switch: ON` at the workspace: the existing hubs the module is switched on in as
-            well. Omitted or empty, no existing hub changes.
+            well. Omitted or empty, no existing hub changes. More than 200 are refused as
+            `module.hubs_too_many`; a further request for the hub itself switches it on there.
 
     PlanFeature:
       type: string

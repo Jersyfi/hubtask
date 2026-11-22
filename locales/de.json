@@ -11100,6 +11100,7 @@
   "module.unknown": "Dieses Modul gibt es nicht.",
   "module.hub_only": "Ein Modul wird für den Arbeitsbereich oder einen Hub geschaltet, nicht für eine einzelne Sammlung.",
   "module.hubs_with_on_only": "Hubs wählst du nur aus, wenn du ein Modul für den Arbeitsbereich einschaltest.",
+  "module.hubs_too_many": "Wähle höchstens {maximum} Hubs in einem Schritt. In den übrigen schaltest du das Modul in ihren eigenen Einstellungen ein.",
   "module.switch_invalid": "Wähle an, aus oder wie darüber.",
   "module.needed": "Ein Modul, das hier eingeschaltet ist, arbeitet mit diesem. Schalte zuerst jenes Modul aus.",
   "access.permission_above_own": "Du kannst hier nur Berechtigungen vergeben, die du selbst hast; dir fehlt {permissions}.",

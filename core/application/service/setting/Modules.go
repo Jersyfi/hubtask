@@ -233,6 +233,9 @@ func (h SetModule) Execute(ctx context.Context, actor appshared.ActorContext, cm
 		return nil, shared.ErrValidation.WithDetail("module.hubs_with_on_only").
 			WithFields(shared.FieldError{Path: "/hub_ids", Code: "module.hubs_with_on_only"})
 	}
+	if len(cmd.HubIDs) > module.MaxChosenHubs {
+		return nil, module.TooManyHubs("/hub_ids")
+	}
 	where, err := m.authorised(ctx, actor, cmd.HubID)
 	if err != nil {
 		return nil, err
@@ -682,7 +685,7 @@ func (h SetModule) Descriptor() usecase.Descriptor {
 				Description: "ON, OFF, or INHERIT to leave it to the level above."},
 			{Name: "hub_id", Kind: usecase.KindID, Description: "A hub of the workspace; omitted is the workspace."},
 			{Name: "hub_ids", Kind: usecase.KindIDList,
-				Description: "With switch ON at the workspace: the existing hubs to switch the module on in as well."},
+				Description: "With switch ON at the workspace: the existing hubs to switch the module on in as well, at most 200."},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: ModuleSwitchedAction, TargetType: moduleTarget, Severity: audit.SeverityInfo, Required: true,

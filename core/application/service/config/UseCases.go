@@ -13,6 +13,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -485,7 +486,7 @@ func applyFields() []usecase.Field {
 		usecase.Field{Name: "acknowledge", Kind: usecase.KindBool, Description: "True once the person has seen that the plan hides data or changes permissions; required when it does."},
 		usecase.Field{Name: "template", Kind: usecase.KindString, Description: "The template@version the document came from, recorded as the workspace's provenance - or, with hub_id, as the hub's, for a template with a hub part, and with collection_id as the collection's, for a template with a collection part."},
 		collectionField(),
-		usecase.Field{Name: chosenHubsField, Kind: usecase.KindIDList, Description: "With the workspace's document: the existing hubs in which a module this apply switches on for the workspace is switched on as well, as SetModule's hub_ids - the hub a template is taken for. A proposal carries none."},
+		usecase.Field{Name: chosenHubsField, Kind: usecase.KindIDList, Description: "With the workspace's document: the existing hubs in which a module this apply switches on for the workspace is switched on as well, as SetModule's hub_ids - the hub a template is taken for, at most 200. A proposal carries none."},
 		usecase.Field{Name: "step_up_token", Kind: usecase.KindString, CallerOnly: true, Description: "The fresh proof from /auth/step-up, needed where the plan changes the sign-in rule (step_up)."},
 	)
 }
@@ -499,6 +500,9 @@ func withChosenHubs(ops []operation, in usecase.Input, hub shared.ID) ([]operati
 	chosen, err := in.IDList(chosenHubsField)
 	if err != nil || len(chosen) == 0 {
 		return ops, err
+	}
+	if len(chosen) > module.MaxChosenHubs {
+		return nil, module.TooManyHubs("/" + chosenHubsField)
 	}
 	if !hub.IsZero() {
 		return nil, shared.ErrValidation.WithDetail("module.hubs_with_on_only").

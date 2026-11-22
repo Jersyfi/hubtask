@@ -82,6 +82,30 @@ func TestAnApplyNamesTheChosenHubsInItsSwitch(t *testing.T) {
 	}
 }
 
+// An apply names at most as many hubs as the contract's bound: more are refused before anything
+// runs, at the field that named them.
+func TestAnApplyNamingTooManyHubsIsRefused(t *testing.T) {
+	f := newFixture()
+	f.world.workflowsOff = true
+	document := workflowsOn(map[string]any{"card": map[string]any{"name": "Card", "shape": serviceShape("todo")}})
+	plan := invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{"document": document})
+	hubs := make([]any, module.MaxChosenHubs+1)
+	for i := range hubs {
+		hubs[i] = supportHub
+	}
+	_, err := ApplyConfig{f.desk}.Descriptor().Handler.Invoke(t.Context(), person, usecase.Input{
+		"document": document, "plan_hash": plan["plan_hash"], "acknowledge": true, "module_hub_ids": hubs,
+	})
+	var refusal *shared.Error
+	if !errors.As(err, &refusal) || refusal.DetailCode != module.TooManyHubsCode ||
+		len(refusal.Fields) != 1 || refusal.Fields[0].Path != "/module_hub_ids" {
+		t.Errorf("an apply naming %d hubs answered %v", len(hubs), err)
+	}
+	if len(f.world.calls) != 0 {
+		t.Errorf("the refused apply ran %v", f.world.calls)
+	}
+}
+
 // Without the switch, a section whose module is off stays refused by its module.
 func TestASectionWhoseModuleStaysOffIsRefused(t *testing.T) {
 	f := newFixture()
