@@ -30378,7 +30378,7 @@
           "containerId": "collection_id"
         },
         "summary": "Show a collection's tasks as a board, or as a list again",
-        "description": "`COLUMNS` gives a list a board: two columns, open and done (named in the workspace's\nlanguage), the completed entries in the done one and the open ones in the other. `NONE`\ntakes the columns off again, the done column last; completion stays as it is. Refused with\n`board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`\nwhere the collection already stands there. `dry_run` counts and writes nothing. Needs\nSTRUCTURE where the collection is.\n",
+        "description": "`COLUMNS` gives a list a board: two columns, open and done (named in the creating person's\nlanguage, or the workspace's default), the completed entries in the done one and the open\nones in the other. `NONE` takes the columns off again, the done column last; completion\nstays as it is. Refused with `board.workflow_runs` while a workflow runs for tasks there and\nwith `board.level_unchanged` where the collection already stands there. `dry_run` counts and\nwrites nothing. Needs STRUCTURE where the collection is.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -59320,7 +59320,7 @@
               "FLOW",
               null
             ],
-            "description": "The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set. A collection whose structure offers the board starts with the columns to do, in progress and done, named in the workspace's language; where the board is its default view, the column in progress is limited to three.\n"
+            "description": "The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set. A collection whose structure offers the board starts with the columns to do, in progress and done, named in the creating person's language, or the workspace's default; where the board is its default view, the column in progress is limited to three.\n"
           },
           "preset_id": {
             "type": [

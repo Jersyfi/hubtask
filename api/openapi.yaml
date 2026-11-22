@@ -20849,12 +20849,12 @@ paths:
       x-hubtask-rest-path: { containerId: collection_id }
       summary: Show a collection's tasks as a board, or as a list again
       description: |
-        `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
-        language), the completed entries in the done one and the open ones in the other. `NONE`
-        takes the columns off again, the done column last; completion stays as it is. Refused with
-        `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
-        where the collection already stands there. `dry_run` counts and writes nothing. Needs
-        STRUCTURE where the collection is.
+        `COLUMNS` gives a list a board: two columns, open and done (named in the creating person's
+        language, or the workspace's default), the completed entries in the done one and the open
+        ones in the other. `NONE` takes the columns off again, the done column last; completion
+        stays as it is. Refused with `board.workflow_runs` while a workflow runs for tasks there and
+        with `board.level_unchanged` where the collection already stands there. `dry_run` counts and
+        writes nothing. Needs STRUCTURE where the collection is.
       requestBody:
         required: true
         content:
@@ -36400,8 +36400,8 @@ components:
             given its hub's preset, or none, follows its hub instead and stores nothing of its own. A
             hub given none starts from the workspace's default preset where one is set. A
             collection whose structure offers the board starts with the columns to do, in progress
-            and done, named in the workspace's language; where the board is its default view, the
-            column in progress is limited to three.
+            and done, named in the creating person's language, or the workspace's default; where the
+            board is its default view, the column in progress is limited to three.
         preset_id:
           type: [string, "null"]
           format: uuid

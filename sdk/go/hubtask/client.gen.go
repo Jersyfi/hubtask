@@ -17333,7 +17333,7 @@ type ContainerCreate struct {
 	Name        string              `json:"name"`
 	ParentId    *openapi_types.UUID `json:"parent_id,omitempty"`
 
-	// Preset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set. A collection whose structure offers the board starts with the columns to do, in progress and done, named in the workspace's language; where the board is its default view, the column in progress is limited to three.
+	// Preset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set. A collection whose structure offers the board starts with the columns to do, in progress and done, named in the creating person's language, or the workspace's default; where the board is its default view, the column in progress is limited to three.
 	Preset *ContainerCreatePreset `json:"preset,omitempty"`
 
 	// PresetId A saved preset to start from instead - the workspace's, the installation's or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
@@ -17344,7 +17344,7 @@ type ContainerCreate struct {
 	Type    ContainerType `json:"type"`
 }
 
-// ContainerCreatePreset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set. A collection whose structure offers the board starts with the columns to do, in progress and done, named in the workspace's language; where the board is its default view, the column in progress is limited to three.
+// ContainerCreatePreset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set. A collection whose structure offers the board starts with the columns to do, in progress and done, named in the creating person's language, or the workspace's default; where the board is its default view, the column in progress is limited to three.
 type ContainerCreatePreset string
 
 // ContainerMilestone defines model for ContainerMilestone.
@@ -38545,12 +38545,12 @@ type ClientInterface interface {
 
 	// SwitchBoardWithBody Show a collection's tasks as a board, or as a list again
 	//
-	// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
-	// language), the completed entries in the done one and the open ones in the other. `NONE`
-	// takes the columns off again, the done column last; completion stays as it is. Refused with
-	// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
-	// where the collection already stands there. `dry_run` counts and writes nothing. Needs
-	// STRUCTURE where the collection is.
+	// `COLUMNS` gives a list a board: two columns, open and done (named in the creating person's
+	// language, or the workspace's default), the completed entries in the done one and the open
+	// ones in the other. `NONE` takes the columns off again, the done column last; completion
+	// stays as it is. Refused with `board.workflow_runs` while a workflow runs for tasks there and
+	// with `board.level_unchanged` where the collection already stands there. `dry_run` counts and
+	// writes nothing. Needs STRUCTURE where the collection is.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -38559,12 +38559,12 @@ type ClientInterface interface {
 
 	// SwitchBoard Show a collection's tasks as a board, or as a list again
 	//
-	// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
-	// language), the completed entries in the done one and the open ones in the other. `NONE`
-	// takes the columns off again, the done column last; completion stays as it is. Refused with
-	// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
-	// where the collection already stands there. `dry_run` counts and writes nothing. Needs
-	// STRUCTURE where the collection is.
+	// `COLUMNS` gives a list a board: two columns, open and done (named in the creating person's
+	// language, or the workspace's default), the completed entries in the done one and the open
+	// ones in the other. `NONE` takes the columns off again, the done column last; completion
+	// stays as it is. Refused with `board.workflow_runs` while a workflow runs for tasks there and
+	// with `board.level_unchanged` where the collection already stands there. `dry_run` counts and
+	// writes nothing. Needs STRUCTURE where the collection is.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -55037,12 +55037,12 @@ func (c *Client) RenameContainerWithApplicationMergePatchPlusJSONBody(ctx contex
 
 // SwitchBoardWithBody Show a collection's tasks as a board, or as a list again
 //
-// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
-// language), the completed entries in the done one and the open ones in the other. `NONE`
-// takes the columns off again, the done column last; completion stays as it is. Refused with
-// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
-// where the collection already stands there. `dry_run` counts and writes nothing. Needs
-// STRUCTURE where the collection is.
+// `COLUMNS` gives a list a board: two columns, open and done (named in the creating person's
+// language, or the workspace's default), the completed entries in the done one and the open
+// ones in the other. `NONE` takes the columns off again, the done column last; completion
+// stays as it is. Refused with `board.workflow_runs` while a workflow runs for tasks there and
+// with `board.level_unchanged` where the collection already stands there. `dry_run` counts and
+// writes nothing. Needs STRUCTURE where the collection is.
 //
 // Takes any type of body and a specified content type.
 //
@@ -55061,12 +55061,12 @@ func (c *Client) SwitchBoardWithBody(ctx context.Context, containerId ContainerI
 
 // SwitchBoard Show a collection's tasks as a board, or as a list again
 //
-// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
-// language), the completed entries in the done one and the open ones in the other. `NONE`
-// takes the columns off again, the done column last; completion stays as it is. Refused with
-// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
-// where the collection already stands there. `dry_run` counts and writes nothing. Needs
-// STRUCTURE where the collection is.
+// `COLUMNS` gives a list a board: two columns, open and done (named in the creating person's
+// language, or the workspace's default), the completed entries in the done one and the open
+// ones in the other. `NONE` takes the columns off again, the done column last; completion
+// stays as it is. Refused with `board.workflow_runs` while a workflow runs for tasks there and
+// with `board.level_unchanged` where the collection already stands there. `dry_run` counts and
+// writes nothing. Needs STRUCTURE where the collection is.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -118435,12 +118435,12 @@ type ClientWithResponsesInterface interface {
 
 	// SwitchBoardWithBodyWithResponse Show a collection's tasks as a board, or as a list again
 	//
-	// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
-	// language), the completed entries in the done one and the open ones in the other. `NONE`
-	// takes the columns off again, the done column last; completion stays as it is. Refused with
-	// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
-	// where the collection already stands there. `dry_run` counts and writes nothing. Needs
-	// STRUCTURE where the collection is.
+	// `COLUMNS` gives a list a board: two columns, open and done (named in the creating person's
+	// language, or the workspace's default), the completed entries in the done one and the open
+	// ones in the other. `NONE` takes the columns off again, the done column last; completion
+	// stays as it is. Refused with `board.workflow_runs` while a workflow runs for tasks there and
+	// with `board.level_unchanged` where the collection already stands there. `dry_run` counts and
+	// writes nothing. Needs STRUCTURE where the collection is.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -118449,12 +118449,12 @@ type ClientWithResponsesInterface interface {
 
 	// SwitchBoardWithResponse Show a collection's tasks as a board, or as a list again
 	//
-	// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
-	// language), the completed entries in the done one and the open ones in the other. `NONE`
-	// takes the columns off again, the done column last; completion stays as it is. Refused with
-	// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
-	// where the collection already stands there. `dry_run` counts and writes nothing. Needs
-	// STRUCTURE where the collection is.
+	// `COLUMNS` gives a list a board: two columns, open and done (named in the creating person's
+	// language, or the workspace's default), the completed entries in the done one and the open
+	// ones in the other. `NONE` takes the columns off again, the done column last; completion
+	// stays as it is. Refused with `board.workflow_runs` while a workflow runs for tasks there and
+	// with `board.level_unchanged` where the collection already stands there. `dry_run` counts and
+	// writes nothing. Needs STRUCTURE where the collection is.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -177964,12 +177964,12 @@ func (c *ClientWithResponses) RenameContainerWithApplicationMergePatchPlusJSONBo
 
 // SwitchBoardWithBodyWithResponse Show a collection's tasks as a board, or as a list again
 //
-// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
-// language), the completed entries in the done one and the open ones in the other. `NONE`
-// takes the columns off again, the done column last; completion stays as it is. Refused with
-// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
-// where the collection already stands there. `dry_run` counts and writes nothing. Needs
-// STRUCTURE where the collection is.
+// `COLUMNS` gives a list a board: two columns, open and done (named in the creating person's
+// language, or the workspace's default), the completed entries in the done one and the open
+// ones in the other. `NONE` takes the columns off again, the done column last; completion
+// stays as it is. Refused with `board.workflow_runs` while a workflow runs for tasks there and
+// with `board.level_unchanged` where the collection already stands there. `dry_run` counts and
+// writes nothing. Needs STRUCTURE where the collection is.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -177984,12 +177984,12 @@ func (c *ClientWithResponses) SwitchBoardWithBodyWithResponse(ctx context.Contex
 
 // SwitchBoardWithResponse Show a collection's tasks as a board, or as a list again
 //
-// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
-// language), the completed entries in the done one and the open ones in the other. `NONE`
-// takes the columns off again, the done column last; completion stays as it is. Refused with
-// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
-// where the collection already stands there. `dry_run` counts and writes nothing. Needs
-// STRUCTURE where the collection is.
+// `COLUMNS` gives a list a board: two columns, open and done (named in the creating person's
+// language, or the workspace's default), the completed entries in the done one and the open
+// ones in the other. `NONE` takes the columns off again, the done column last; completion
+// stays as it is. Refused with `board.workflow_runs` while a workflow runs for tasks there and
+// with `board.level_unchanged` where the collection already stands there. `dry_run` counts and
+// writes nothing. Needs STRUCTURE where the collection is.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
