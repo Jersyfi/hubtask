@@ -36,7 +36,12 @@ import type { SupportedLocale } from '../i18n/locale.ts';
 import { engine } from './engine.ts';
 import { fetchStructureAfresh, useBound } from './replica.ts';
 
-const PATH = '/meta/capabilities';
+/**
+ * Every re-read names the copy it holds, and an unchanged manifest comes back as a `304` without a
+ * body (api-guidelines.md §1, item 4). The copy is the engine's, in memory: the answer stays
+ * `no-store`, and a reset - every change of actor - holds none.
+ */
+const READ = { path: '/meta/capabilities', revalidate: true } as const;
 
 class Manifest {
   #state = $state<ResourceState<Capabilities>>({ status: 'idle' });
@@ -161,7 +166,7 @@ class Manifest {
    */
   start(): () => void {
     this.#stop?.();
-    const stop = engine.subscribe<Capabilities>({ path: PATH }, (next) => {
+    const stop = engine.subscribe<Capabilities>(READ, (next) => {
       this.#state = next;
       if (next.status === 'failed') this.#failure = next.error;
       else if (next.status === 'ready') {
@@ -192,7 +197,7 @@ class Manifest {
    */
   async refresh(): Promise<void> {
     this.start();
-    if (this.#state.status !== 'loading') await engine.refresh<Capabilities>({ path: PATH });
+    if (this.#state.status !== 'loading') await engine.refresh<Capabilities>(READ);
   }
 }
 
