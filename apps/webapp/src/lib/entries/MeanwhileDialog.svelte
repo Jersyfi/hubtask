@@ -11,6 +11,7 @@
   import { Button, Dialog } from '@hubtask/design-system/components';
 
   import FailureNote from '../frame/FailureNote.svelte';
+  import RichText from './RichText.svelte';
   import { t } from '../i18n/i18n.svelte.ts';
   import type { RenderedProblem } from '../problem.ts';
 
@@ -27,9 +28,11 @@
     isOverwriting?: boolean;
     onkeep: () => void;
     onoverwrite: () => void;
+    /** Where a mention or a card in a description leads. */
+    onnavigate?: (path: string) => void;
   }
 
-  let { isOpen = $bindable(false), field, theirs, mine, by, failure, isOverwriting = false, onkeep, onoverwrite }: Props = $props();
+  let { isOpen = $bindable(false), field, theirs, mine, by, failure, isOverwriting = false, onkeep, onoverwrite, onnavigate }: Props = $props();
 
   const said = $derived(
     by.isReader
@@ -60,14 +63,19 @@
   <div class="versions">
     <section class="version" aria-label={t('app.sync.meanwhile.theirs')}>
       <h3 class="label">{t('app.sync.meanwhile.theirs')}</h3>
-      <pre class="text">{theirs}</pre>
+      {@render text(theirs, t('app.sync.meanwhile.theirs'))}
     </section>
     <section class="version" data-mine aria-label={t('app.sync.meanwhile.mine')}>
       <h3 class="label">{t('app.sync.meanwhile.mine')}</h3>
-      <pre class="text">{mine}</pre>
+      {@render text(mine, t('app.sync.meanwhile.mine'))}
     </section>
   </div>
 </Dialog>
+
+<!-- A description as the editor shows it - its marks, mentions and cards - never its Markdown source; a title as it is. -->
+{#snippet text(value: string, label: string)}
+  {#if field === 'notes'}<RichText {value} {label} {onnavigate} />{:else}<p class="text">{value}</p>{/if}
+{/snippet}
 
 <style>
   .said { margin: 0; }
@@ -95,7 +103,7 @@
     color: var(--text-secondary);
   }
 
-  /* The two texts are the people's own, drawn as text and never as markup. */
+  /* A title is the person's own text, drawn as text and never as markup. */
   .text {
     margin: 0;
     white-space: pre-wrap;

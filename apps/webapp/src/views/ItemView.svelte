@@ -1524,6 +1524,7 @@
         {isOverwriting}
         onkeep={() => void keepSaved()}
         onoverwrite={() => void overwrite()}
+        {onnavigate}
       />
     {/if}
 
