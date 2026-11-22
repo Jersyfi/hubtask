@@ -300,7 +300,7 @@
     carriedSteps = undefined;
     carriedFrom = card ? from : undefined;
     carriedLevel = card ? levelOfCard(card) : undefined;
-    if (card && carriedLevel === 'WORKFLOW' && isWorkflow && !isWorkflowPaused) {
+    if (card && carriedLevel === 'WORKFLOW' && !isWorkflowPaused) {
       stopCarried = workflows.steps(card.id, (state) => {
         if (state.status === 'ready') carriedSteps = state.data;
       });

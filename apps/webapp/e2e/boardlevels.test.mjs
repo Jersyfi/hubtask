@@ -44,18 +44,20 @@ const WORKFLOW = {
 };
 
 /** The fixture's collection at a level, with every write recorded and `:drop` answered by `drop`. */
-async function at(browser, level, { width = 1280, view = 'List', drop, workflowsOn = level === 'WORKFLOW' } = {}) {
+async function at(browser, level, { width = 1280, view = 'List', drop, workflowsOn = level === 'WORKFLOW', answer, types = {} } = {}) {
   const written = [];
   const tab = await signedIn(browser, width, 900);
   const columns = level === 'WORKFLOW'
     ? [{ ...BUCKETS[0], statuses: ['open'] }, { ...BUCKETS[1], statuses: ['doing', 'review'] }, { ...BUCKETS[2], statuses: ['done'] }]
     : BUCKETS.map((bucket) => ({ ...bucket, statuses: [] }));
-  const entries = ITEMS.map((item, n) => ({ ...item, bucket_id: n === 3 && level === 'WORKFLOW' ? null : BUCKETS[n % 2].id, ...(level === 'WORKFLOW' ? { status: n === 3 ? 'parked' : 'open' } : {}) }));
+  const entries = ITEMS.map((item, n) => ({ ...item, bucket_id: n === 3 && level === 'WORKFLOW' ? null : BUCKETS[n % 2].id, ...(level === 'WORKFLOW' ? { status: n === 3 ? 'parked' : 'open' } : {}), ...(types[item.id] ? { entry_type: types[item.id], status: 'open' } : {}) }));
   await tab.context.unroute('**/api/v1/**');
   await tab.context.route('**/api/v1/**', async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, '');
     if (request.method() !== 'GET') written.push({ method: request.method(), path, query: new URL(request.url()).search, body: request.postDataJSON() });
+    const particular = answer?.(request, path);
+    if (particular) return route.fulfill(particular);
     if (request.method() === 'GET' && path === `/containers/${COLLECTION.id}`) return route.fulfill({ json: { ...COLLECTION, state_mode: level } });
     if (workflowsOn && request.method() === 'GET' && path === '/meta/capabilities') {
       return route.fulfill({ json: { ...MANIFEST, modules_on: [...(MANIFEST.modules_on ?? []), 'WORKFLOWS'], workspace_permissions: PERMISSIONS.OWNER } });
@@ -89,7 +91,7 @@ async function at(browser, level, { width = 1280, view = 'List', drop, workflows
     const placed = (value) => Array.isArray(value)
       ? value.map(placed)
       : value && typeof value === 'object'
-        ? Object.fromEntries(Object.entries(byId.has(value.id) ? { ...value, bucket_id: byId.get(value.id).bucket_id, status: byId.get(value.id).status } : value).map(([key, each]) => [key, placed(each)]))
+        ? Object.fromEntries(Object.entries(byId.has(value.id) ? { ...value, bucket_id: byId.get(value.id).bucket_id, status: byId.get(value.id).status, entry_type: byId.get(value.id).entry_type ?? value.entry_type } : value).map(([key, each]) => [key, placed(each)]))
         : value;
     return stub(new Proxy(route, { get: (target, name) => name === 'fulfill' ? (answer) => target.fulfill(answer?.json ? { ...answer, json: placed(answer.json) } : answer) : target[name].bind(target) }));
   });
@@ -350,6 +352,37 @@ for (const width of [1280, 820]) {
     assert.equal(await unmapped.getByRole('button', { name: /Entry in/ }).count(), 0, 'a folded column shows its add button');
   });
 }
+
+// A board whose tasks keep columns, carrying a card whose type runs its own workflow: the columns
+// it may not enter are read from its own steps, as its drop is written by them (`:drop`).
+test('chromium: L1 - a carried card whose type runs a workflow dims the column no step of it reaches', async (t) => {
+  const browser = await sharedChromium(t);
+  const columns = [{ ...BUCKETS[0], statuses: ['open'] }, { ...BUCKETS[1], statuses: ['doing', 'review'] }, { ...BUCKETS[2], statuses: ['done'] }];
+  const answer = (request, path) => {
+    if (request.method() !== 'GET') return undefined;
+    if (path === `/containers/${COLLECTION.id}`) return { json: { ...COLLECTION, state_mode: 'COLUMNS', state_modes: { story: 'WORKFLOW' } } };
+    if (path === `/containers/${COLLECTION.id}/buckets`) return { json: columns };
+    if (path === '/workflows') return { json: { data: [WORKFLOW], scheme: [{ container_id: COLLECTION.id, entry_type: 'story', workflow: WORKFLOW.key }] } };
+    if (path === `/items/${ITEMS[0].id}/steps`) return { json: { state_mode: 'WORKFLOW', workflow: WORKFLOW.key, status: 'open', steps: [], blocked: [] } };
+    return undefined;
+  };
+  const { page, written, context } = await at(browser, 'COLUMNS', { view: 'Board', workflowsOn: true, answer, types: { [ITEMS[0].id]: 'story' } });
+  t.after(() => context.close());
+  const card = page.locator(`[data-card="${ITEMS[0].id}"]`);
+  await card.waitFor({ timeout: 15_000 });
+  const steps = page.waitForRequest((request) => new URL(request.url()).pathname.endsWith(`/items/${ITEMS[0].id}/steps`), { timeout: 10_000 });
+  const from = await card.boundingBox();
+  const to = await page.locator(`[data-column-zone="${BUCKETS[1].id}"]`).boundingBox();
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  for (let step = 1; step <= 12; step += 1) await page.mouse.move(from.x + from.width / 2 + ((to.x + to.width / 2 - from.x - from.width / 2) * step) / 12, from.y + from.height / 2);
+  await steps.catch(() => assert.fail('the carried card\'s steps were not read'));
+  const refused = page.locator(`[data-column-zone="${BUCKETS[1].id}"] [data-refused]`);
+  await refused.filter({ hasText: 'No step of the workflow leads into this column.' }).waitFor({ timeout: 5_000 })
+    .catch(() => assert.fail('the column no step reaches is not dimmed'));
+  await page.mouse.up();
+  assert.equal(written.filter((each) => each.path.endsWith(':drop') || each.method === 'PATCH').length, 0, `a refused column was written: ${JSON.stringify(written)}`);
+});
 
 // UC-FLW-03 check 8: a drop several steps reach offers them and writes nothing until one is chosen.
 test('chromium: L2 - a drop several steps reach asks which, and sends the one chosen', async (t) => {
