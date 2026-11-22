@@ -812,7 +812,18 @@ take into a status of the column, offers the choice among several, or is refused
 (`board.no_step`, `board.step_blocked`, `board.column_without_status`). A mapping is proposed by
 `work.DefaultMapping`: the same name first, then the done column takes the DONE statuses, the first
 column the initial one, the next empty column the first IN_PROGRESS; the rest stay unmapped with a
-suggestion. Switching levels always previews:
+suggestion.
+
+**The Workflows module and the levels.** L0 and L1 are the base product's: completing, reopening
+and a column written by `PATCH /items/{id}` (`UpdateWorkItem`, no module) work with the module off,
+the coupling above included; the drop, the steps read and the step are the module's and are refused
+with `module.off`, so a client moves an entry at L1 by the column write and keeps the drop for L2.
+A workflow stays in force with the module off - `WorkflowGate.InForce` knows no module -: the
+collection stays at L2, completing takes the first allowed step into done or is refused with
+`workflows.no_step_to_done`, and nothing else moves its entries until the module is on again or the
+workflow goes (L2 → L1 below).
+
+Switching levels always previews:
 
 * **A workflow comes or goes** (`PreviewWorkflowScheme`, `SetWorkflowScheme`): the preview answers
   per board reached its level before and after, its columns with the statuses each would show, the
