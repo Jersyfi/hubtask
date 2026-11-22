@@ -173,6 +173,7 @@
     bind:isOpen
     title={label}
     closeLabel={sheetName}
+    layer="popover"
     {items}
     onClose={() => { isSheet = false; active = -1; }}
     onselect={(id) => onselect?.(id)}

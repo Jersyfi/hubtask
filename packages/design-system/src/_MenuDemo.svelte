@@ -2,13 +2,26 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   import Button from './Button.svelte';
+  import Dialog from './Dialog.svelte';
   import IconButton from './IconButton.svelte';
   import Inline from './Inline.svelte';
   import Menu from './Menu.svelte';
   import Stack from './Stack.svelte';
+  import Input from './Input.svelte';
+  import { setCloseLabel } from './media.ts';
   import type { MenuItem } from './overlay.ts';
 
-  const { mode = 'actions' }: { mode?: 'actions' | 'long' | 'outside' | 'foot' } = $props();
+  const { mode = 'actions' }: { mode?: 'actions' | 'long' | 'outside' | 'foot' | 'dialog' } = $props();
+
+  // What the application sets once in its language; a menu becomes a sheet on a phone only with it.
+  $effect(() => {
+    if (mode !== 'dialog') return;
+    setCloseLabel('Close');
+    return () => setCloseLabel(undefined);
+  });
+
+  let isEditing = $state(false);
+  let title = $state('');
 
   let chosen = $state<string | null>(null);
 
@@ -37,6 +50,9 @@
       disabledReason: 'Deleting needs the workspace owner’s permission.',
     },
   ];
+
+  // Named apart: inside the dialog, `actions` is its foot.
+  const stepItems = actions;
 
   // Fifteen items is where arrows alone stop being usable and type-ahead starts earning its place:
   // press "a" twice and focus walks the items that share the letter.
@@ -75,6 +91,24 @@
       </Menu>
     </Inline>
   </div>
+{:else if mode === 'dialog'}
+  <Stack gap="200">
+    <Button tone="primary" onclick={() => (isEditing = true)}>Edit the step</Button>
+    <Dialog title="Edit the step" bind:isOpen={isEditing} dismissLabel="Close">
+      {#snippet actions()}
+        <Button onclick={() => (isEditing = false)}>Cancel</Button>
+        <Button tone="primary" onclick={() => (isEditing = false)}>Save</Button>
+      {/snippet}
+      <Inline gap="150" align="end">
+        <Input label="Title" bind:value={title} />
+        <Menu label="Step actions" items={stepItems} placement={{ side: 'block-end', align: 'end' }} onselect={(id) => (chosen = id)}>
+          {#snippet trigger(props)}
+            <IconButton icon="ellipsis" label="Step actions" {...props} />
+          {/snippet}
+        </Menu>
+      </Inline>
+    </Dialog>
+  </Stack>
 {:else if mode === 'long'}
   <Stack gap="200">
     <Menu label="Task actions" items={many} onselect={(id) => (chosen = id)}>

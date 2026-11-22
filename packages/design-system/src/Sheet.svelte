@@ -39,7 +39,7 @@
     actions?: Snippet;
     children?: Snippet;
     /**
-     * What `Escape` ranks it as (layers.ts). A popover that became a sheet keeps the popover's
+     * What `Escape` ranks it as (layers.ts). A popover or a menu that became a sheet keeps the popover's
      * rank: opened from inside a dialog, it is what `Escape` closes first, not the dialog.
      */
     layer?: DismissibleLayer;
