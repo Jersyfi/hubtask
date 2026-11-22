@@ -19,6 +19,7 @@ import {
   indentOf,
   levelAtInline,
   moveIntent,
+  peekDelayOf,
   positionOf,
   rowsOf,
   zoneAt,
@@ -171,6 +172,16 @@ test('the peek opens after its delay and closes when the pointer leaves', () => 
   peek.leave();
   for (const fn of queue) fn?.();
   assert.deepEqual(seen, [true, false]);
+});
+
+test('the peek waits --dur-intent in milliseconds, in whichever unit the stylesheet writes it', () => {
+  const style = (value) => ({ getPropertyValue: (name) => (name === '--dur-intent' ? value : '') });
+  // The built stylesheet's minifier writes the token in seconds, as below.
+  assert.equal(peekDelayOf(style('.3s')), 300);
+  assert.equal(peekDelayOf(style(' 300ms')), 300);
+  // A missing token is read as no delay, as parseDuration reads every motion token. That is not a
+  // wanted delay: the walks of UC-WRK-36 check 8 fail on it.
+  assert.equal(peekDelayOf(style('')), 0);
 });
 
 test('the filter shows a match with its ancestors, and narrows by kind', () => {

@@ -224,8 +224,21 @@ test('UC-WRK-36 check 8: the width is dragged and kept, Ctrl+[ folds to the rail
   await page.keyboard.press('Control+BracketLeft');
   await page.waitForFunction(() => document.querySelector('aside.sidenav')?.hasAttribute('data-rail'), undefined, { timeout: 5_000 });
   assert.ok((await side(page).boundingBox()).width < 80);
+  // Hovering means resting: the peek stays closed for --dur-intent after the pointer enters. Timed
+  // in the page, so a slow runner cannot make the walk see the peek late and pass a peek that came early.
+  await page.evaluate(() => {
+    const aside = document.querySelector('aside.sidenav');
+    const seen = (window.__peek = {});
+    aside.addEventListener('pointerenter', () => (seen.entered ??= performance.now()), { capture: true });
+    const observer = new MutationObserver(() => {
+      if (aside.hasAttribute('data-peek')) (seen.opened = performance.now()), observer.disconnect();
+    });
+    observer.observe(aside, { attributes: true, attributeFilter: ['data-peek'] });
+  });
   await page.mouse.move(20, 300);
   await page.waitForFunction(() => document.querySelector('aside.sidenav')?.hasAttribute('data-peek'), undefined, { timeout: 5_000 });
+  const { entered, opened } = await page.evaluate(() => window.__peek);
+  assert.ok(opened - entered >= 250, `the peek opened ${Math.round(opened - entered)} ms after the pointer entered the rail`);
   await side(page).getByRole('tree', { name: 'Hubs' }).waitFor({ timeout: 5_000 });
   await page.mouse.move(900, 400);
   await page.waitForFunction(() => !document.querySelector('aside.sidenav')?.hasAttribute('data-peek'), undefined, { timeout: 5_000 });

@@ -13,6 +13,7 @@
 // as it is.
 
 import { flattenTree, type NavNode, type NavRow } from './structure.ts';
+import { parseDuration, type StyleSource } from './motion.ts';
 
 /** Travel before a press becomes a drag; below it a click stays a click (concept §5.4). */
 export const TREE_DRAG_THRESHOLD_PX = 4;
@@ -313,6 +314,14 @@ export function rowsOf(nodes: readonly TreeNode[], expanded: readonly string[]):
 /** The ids to open so `id` is visible: its ancestors, outermost first (the current row's branch). */
 export function ancestorsOf(nodes: readonly TreeNode[], id: string): string[] {
   return (findPath(nodes, id) ?? []).slice(0, -1).map((node) => node.id);
+}
+
+/**
+ * How long the pointer rests on the rail before the peek opens: `--dur-intent`, in milliseconds.
+ * A missing token reads as no delay, as parseDuration reads every motion token; the peek's walk fails on it.
+ */
+export function peekDelayOf(style: StyleSource): number {
+  return parseDuration(style.getPropertyValue('--dur-intent'));
 }
 
 /**

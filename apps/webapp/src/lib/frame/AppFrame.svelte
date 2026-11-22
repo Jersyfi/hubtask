@@ -23,7 +23,7 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { AppBar, Banner, BottomBar, Button, Icon, IconButton, Logo, Menu, NavDrawer, ResizeHandle, VisuallyHidden, createPeek, providePageBar, type PageBack } from '@hubtask/design-system/components';
+  import { AppBar, Banner, BottomBar, Button, Icon, IconButton, Logo, Menu, NavDrawer, ResizeHandle, VisuallyHidden, createPeek, peekDelayOf, providePageBar, type PageBack } from '@hubtask/design-system/components';
 
   import AccountMenu from './AccountMenu.svelte';
   import AppWorkspaces from './AppWorkspaces.svelte';
@@ -604,8 +604,7 @@
   let isPeeking = $state(false);
   let peek: ReturnType<typeof createPeek> | undefined;
   $effect(() => {
-    const delay = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dur-intent')) || 0;
-    const made = createPeek(delay, (open) => (isPeeking = open));
+    const made = createPeek(peekDelayOf(getComputedStyle(document.documentElement)), (open) => (isPeeking = open));
     peek = made;
     return () => made.leave();
   });
