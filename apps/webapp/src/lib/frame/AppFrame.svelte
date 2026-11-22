@@ -599,7 +599,9 @@
 
   /**
    * The rail's peek (§2.1): hovering the rail for `--dur-intent` opens the whole sidebar over the
-   * content, leaving it closes the peek. The delay is the token's, read from the document.
+   * content, leaving it closes the peek. The delay is the token's, read from the document. The
+   * aside's removal leaves too: a removed element gets no pointerleave, and a press held across a
+   * layout flip would otherwise keep the next peek from starting.
    */
   let isPeeking = $state(false);
   let peek: ReturnType<typeof createPeek> | undefined;
@@ -894,8 +896,10 @@
           data-peek={isRail && isPeeking ? '' : undefined}
           data-tour={section ? undefined : 'hubs'}
           onpointerenter={() => isRail && !section && peek?.enter()}
+          onpointerdown={() => peek?.press()}
           onpointerleave={() => peek?.leave()}
           style:--nav-width={navWidth && !isRail ? `${navWidth}px` : undefined}
+          {@attach () => () => peek?.leave()}
         >
           {#if section}
             <!-- The section's own list, in place of the tree (ADR-0063 decision 7). The tour's

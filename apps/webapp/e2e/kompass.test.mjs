@@ -245,6 +245,44 @@ test('UC-WRK-36 check 8: the width is dragged and kept, Ctrl+[ folds to the rail
   assert.deepEqual(failures, []);
 });
 
+test('UC-WRK-36 check 8: a press on a rail mark that is held past the peek\'s delay opens the hub, and no peek', async (t) => {
+  const browser = await sharedChromium(t);
+  // The clock is installed before the page loads, so the peek's timer is one the walk holds.
+  const { page, failures, close } = await open(browser, { clock: true, modulesOn: ['PLANNING'], storage: { 'hubtask.nav': 'rail' } });
+  t.after(close);
+  const mark = side(page).getByRole('link', { name: 'IT operations', exact: true });
+  await mark.waitFor({ timeout: 10_000 });
+  await page.mouse.move(900, 400);
+  const delay = await page.evaluate(() => {
+    const aside = document.querySelector('aside.sidenav');
+    const value = getComputedStyle(document.documentElement).getPropertyValue('--dur-intent').trim();
+    const seen = (window.__press = { peeked: false });
+    aside.addEventListener('pointerenter', () => (seen.entered ??= performance.now()), { capture: true });
+    aside.addEventListener('pointerdown', () => (seen.pressed ??= performance.now()), { capture: true });
+    new MutationObserver(() => (seen.peeked ||= aside.hasAttribute('data-peek'))).observe(aside, { attributes: true, attributeFilter: ['data-peek'] });
+    return Number.parseFloat(value) * (value.endsWith('ms') ? 1 : 1000);
+  });
+  assert.ok(delay > 0, `--dur-intent was read as ${delay} ms`);
+  const box = await mark.boundingBox();
+  // Time stands still from the move to the press, so a slow runner cannot let the peek open between
+  // them. pauseAt only moves forward; the second is room for the runner's own delay before it lands.
+  await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 1_000);
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.clock.runFor(2 * delay);
+  const held = await page.evaluate(() => window.__press);
+  assert.ok(held.entered !== undefined && held.pressed - held.entered < delay, `the press came ${held.pressed - held.entered} ms after the pointer entered, not before the delay of ${delay} ms`);
+  assert.equal(held.peeked, false, 'the peek opened while the button was down');
+  await page.mouse.up();
+  await page.waitForURL(`**/hubs/${IT.id}`, { timeout: 5_000 });
+  // The pointer rests on the rail past the delay again, then time flows for the hub's page to settle.
+  await page.clock.runFor(2 * delay);
+  await page.clock.resume();
+  await side(page).getByRole('link', { name: 'IT operations', exact: true }).and(page.locator('[aria-current="page"]')).waitFor({ timeout: 5_000 });
+  assert.equal((await page.evaluate(() => window.__press)).peeked, false, 'the peek opened after the button came up');
+  assert.deepEqual(failures, []);
+});
+
 /** The figure at a row's end: its last line, where the name is the first. */
 const figureOf = async (row) => (await row.innerText()).split('\n').map((each) => each.trim()).filter(Boolean).slice(1).join(' ');
 
