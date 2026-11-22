@@ -3154,11 +3154,14 @@ func run() error {
 		syncservice.ForgetSyncDevice{Writer: deviceWriter}.Descriptor(),
 		identity.RedeemInvitation{
 			Writer: sessionWriter, Passwords: &passwordWriter,
-			// The provisioned owner's untouched defaults, in the language the card was read in.
+			// The provisioned owner's untouched defaults, in the owner's language, else the one the
+			// card was read in - which then becomes the owner's.
 			Seed: adminservice.LocaliseSeed{
-				Tenants: provisioning.Tenants, Containers: containers, Buckets: buckets, Labels: labels,
+				Locales: renderer, Tenants: provisioning.Tenants,
+				Containers: containers, Buckets: buckets, Labels: labels,
 				Events: outbox, Changes: changes, Renderer: renderer, Text: forms, IDs: ids, HLC: hybrid,
 			},
+			Accounts: accounts,
 		}.Descriptor(),
 		identity.SetUpInstallation{
 			Writer: sessionWriter, Passwords: &passwordWriter, Codes: setupCodes,

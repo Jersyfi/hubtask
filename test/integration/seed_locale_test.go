@@ -28,7 +28,8 @@ import (
 // user-experience.md §4 against the real stores: a workspace provisioned in German whose owner
 // redeems the invitation in English finds its default hub, example collection, columns and labels
 // in English - with the events and change entries a rename owes - except what somebody already
-// renamed; and another workspace's seed is untouched (gate SG-3).
+// renamed, and keeps English as the account's language; an owner who already had a language keeps
+// it and finds the seed in it; and another workspace's seed and owner are untouched (gate SG-3).
 func TestTheOwnersRedemptionNamesTheSeedInTheOwnersLanguage(t *testing.T) {
 	ctx := context.Background()
 	writer, signIn, uow := realWriter(ctx, t)
@@ -71,23 +72,64 @@ func TestTheOwnersRedemptionNamesTheSeedInTheOwnersLanguage(t *testing.T) {
 		}
 		return provisioned
 	}
-	mine, theirs := provision("a"), provision("b")
+	mine, theirs, spoken := provision("a"), provision("b"), provision("c")
 
 	// A label somebody renamed before the owner arrived keeps its name.
 	if _, err := admin.Exec(ctx, `UPDATE label SET name = 'Ideen', version = 2
 		WHERE collection_id = $1 AND name = 'Idee'`, mine.ExampleCollectionID.String()); err != nil {
 		t.Fatalf("renaming a label: %v", err)
 	}
+	// An owner who already has a language of their own.
+	if _, err := admin.Exec(ctx, `UPDATE account SET locale = 'de' WHERE id = $1`,
+		spoken.OwnerAccountID.String()); err != nil {
+		t.Fatalf("setting the owner's language: %v", err)
+	}
 
 	redeem := identityservice.RedeemInvitation{Writer: writer, Seed: adminservice.LocaliseSeed{
-		Tenants: postgres.NewAdminTenantRepository(), Containers: containers, Buckets: buckets, Labels: labels,
+		Locales: renderer, Tenants: postgres.NewAdminTenantRepository(),
+		Containers: containers, Buckets: buckets, Labels: labels,
 		Events: events, Changes: changes, Renderer: renderer, Text: text.Composing{}, IDs: ids, HLC: hybrid,
-	}}
-	if _, err := redeem.Execute(ctx, identityservice.RedeemInvitationCommand{
-		Token: mine.OwnerRedemption, Password: secret.New("seven blue lanterns above the harbour"),
-		Locale: "en",
-	}); err != nil {
-		t.Fatalf("redeeming: %v", err)
+	}, Accounts: postgres.NewAccountRepository()}
+	for _, owner := range []adminservice.ProvisionedTenant{mine, spoken} {
+		if _, err := redeem.Execute(ctx, identityservice.RedeemInvitationCommand{
+			Token: owner.OwnerRedemption, Password: secret.New("seven blue lanterns above the harbour"),
+			Locale: "en",
+		}); err != nil {
+			t.Fatalf("redeeming: %v", err)
+		}
+	}
+
+	// UC-ID-07/8 and UC-ID-07/9: the language the seed was named in is the owner's from now on; an owner who had
+	// one keeps it, and nobody else's account is touched.
+	language := func(account shared.ID) string {
+		t.Helper()
+		var locale *string
+		if err := admin.QueryRow(ctx, `SELECT locale FROM account WHERE id = $1`,
+			account.String()).Scan(&locale); err != nil {
+			t.Fatalf("reading the account's language: %v", err)
+		}
+		if locale == nil {
+			return ""
+		}
+		return *locale
+	}
+	for _, tc := range []struct {
+		whose   string
+		account shared.ID
+		want    string
+	}{
+		{"my owner", mine.OwnerAccountID, "en"},
+		{"the owner who had spoken", spoken.OwnerAccountID, "de"},
+		{"their owner", theirs.OwnerAccountID, ""},
+	} {
+		if got := language(tc.account); got != tc.want {
+			t.Errorf("%s's language is %q, want %q", tc.whose, got, tc.want)
+		}
+	}
+	if kept := countIn(ctx, t, `SELECT count(*) FROM audit_log
+		WHERE tenant_id = $1 AND action = 'auth.invitation_redeemed' AND changes ? 'locale'`,
+		mine.Tenant.ID.String()); kept != 1 {
+		t.Errorf("%d redemption entries name the language kept, want 1", kept)
 	}
 
 	names := func(query string, id shared.ID) []string {
@@ -126,6 +168,8 @@ func TestTheOwnersRedemptionNamesTheSeedInTheOwnersLanguage(t *testing.T) {
 		{"their hub", containerNames, theirs.DefaultHubID, []string{"Allgemein"}},
 		{"their collection", containerNames, theirs.ExampleCollectionID, []string{"Erste Schritte"}},
 		{"their columns", bucketNames, theirs.ExampleCollectionID, []string{"Erledigt", "In Arbeit", "Zu erledigen"}},
+		{"the spoken owner's hub", containerNames, spoken.DefaultHubID, []string{"Allgemein"}},
+		{"the spoken owner's columns", bucketNames, spoken.ExampleCollectionID, []string{"Erledigt", "In Arbeit", "Zu erledigen"}},
 	} {
 		if got := names(tc.query, tc.id); !slices.Equal(got, tc.want) {
 			t.Errorf("%s: %v, want %v", tc.what, got, tc.want)
