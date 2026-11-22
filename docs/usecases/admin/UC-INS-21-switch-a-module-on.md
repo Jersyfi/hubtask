@@ -63,9 +63,10 @@ administrator sees the lock and who set it.
 14. Switching Workflows off where a workflow runs names, before anything is written, the places
     that run one, how many open entries stand in a workflow's status and how many of them could
     then not be completed, and asks whether to convert those places to columns or only to pause;
-    nothing is chosen, and the switch-off waits for the choice. Converting keeps every entry in the
-    column that showed its status and done entries done; pausing changes no entry, and its entries
-    say the workflow is paused. Where no workflow runs the question is the one of check 4.
+    nothing is chosen, and the switch-off waits for the choice. Converting keeps every open entry
+    in the column that showed its status, except one the done column showed, which moves to the
+    first column, and keeps done entries done in the done column; pausing changes no entry, and its
+    entries say the workflow is paused. Where no workflow runs the question is the one of check 4.
 
 ## Where it ends
 

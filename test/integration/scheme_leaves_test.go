@@ -17,9 +17,10 @@ import (
 
 // What the web app's "convert to columns" stands on before Workflows is switched off (UC-INS-21
 // check 14, domain-model.md §3.5a): the preview of removing a scheme row answers, changing nothing,
-// each open entry's status by collection and the board going from WORKFLOW to COLUMNS with no
-// entry changing column; the removal then keeps every entry in the column that showed its status,
-// done ones done, and clears the status.
+// each open entry's status by collection and the board going from WORKFLOW to COLUMNS, counting the
+// one open entry the done column holds as moved; the removal then keeps every other entry in the
+// column that showed its status, done ones done, moves that open one to the first column, and
+// clears the status.
 func TestRemovingAWorkflowKeepsEveryEntryInTheColumnOfItsStatus(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -45,6 +46,8 @@ func TestRemovingAWorkflowKeepsEveryEntryInTheColumnOfItsStatus(t *testing.T) {
 	inDoing := seedOnBoard(ctx, t, tenantA, authorA, collection, doing.ID, false, "doing")
 	inReview := seedOnBoard(ctx, t, tenantA, authorA, collection, doing.ID, false, "review")
 	inDone := seedOnBoard(ctx, t, tenantA, authorA, collection, done.ID, true, "done")
+	// Open, yet standing in a status the done column shows.
+	openInDone := seedOnBoard(ctx, t, tenantA, authorA, collection, done.ID, false, "done")
 
 	leave := usecase.Input{"container_id": collection.String(), "entry_type": "task"}
 	preview, err := workflowservice.PreviewWorkflowScheme{Desk: desk}.Descriptor().Handler.Invoke(ctx, administrator, leave)
@@ -60,13 +63,13 @@ func TestRemovingAWorkflowKeepsEveryEntryInTheColumnOfItsStatus(t *testing.T) {
 			open[from] += move["count"].(int)
 		}
 	}
-	if open["todo"] != 1 || open["doing"] != 1 || open["review"] != 1 || len(open) != 3 {
-		t.Errorf("open entries by status %v; wants todo, doing and review once each", open)
+	if open["todo"] != 1 || open["doing"] != 1 || open["review"] != 1 || open["done"] != 1 || len(open) != 4 {
+		t.Errorf("open entries by status %v; wants todo, doing, review and done once each", open)
 	}
 	boards, _ := preview["boards"].([]usecase.Output)
 	if len(boards) != 1 || boards[0]["level_before"] != "WORKFLOW" || boards[0]["level_after"] != "COLUMNS" ||
-		boards[0]["done_bucket_id"] != done.ID.String() || boards[0]["moved"] != 0 {
-		t.Fatalf("the board %v; wants WORKFLOW → COLUMNS, the done column kept, nobody moved", boards)
+		boards[0]["done_bucket_id"] != done.ID.String() || boards[0]["moved"] != 1 {
+		t.Fatalf("the board %v; wants WORKFLOW → COLUMNS, the done column kept, the open one in it moved", boards)
 	}
 	if entry := readEntry(ctx, t, tenantA, inDoing); entry.Status != "doing" {
 		t.Fatalf("the preview changed the entry: %q", entry.Status)
@@ -76,9 +79,11 @@ func TestRemovingAWorkflowKeepsEveryEntryInTheColumnOfItsStatus(t *testing.T) {
 	if _, err := (workflowservice.SetWorkflowScheme{Desk: desk}).Descriptor().Handler.Invoke(ctx, administrator, leave); err != nil {
 		t.Fatalf("the removal: %v", err)
 	}
-	for id, want := range map[shared.ID]shared.ID{inTodo: todo.ID, inDoing: doing.ID, inReview: doing.ID, inDone: done.ID} {
+	for id, want := range map[shared.ID]shared.ID{
+		inTodo: todo.ID, inDoing: doing.ID, inReview: doing.ID, inDone: done.ID, openInDone: todo.ID,
+	} {
 		entry := readEntry(ctx, t, tenantA, id)
-		if entry.Status != "" || entry.BucketID != want || entry.Completion.IsCompleted != (want == done.ID) {
+		if entry.Status != "" || entry.BucketID != want || entry.Completion.IsCompleted != (id == inDone) {
 			t.Errorf("entry %s: %q in %s, done %v; wants no status in %s", id, entry.Status, entry.BucketID, entry.Completion.IsCompleted, want)
 		}
 	}
