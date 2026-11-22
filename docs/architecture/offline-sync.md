@@ -450,6 +450,11 @@ same write as the push's comment with a heading of its own: `sync.set_aside_vers
 for the person's own text, given up, `sync.replaced_version` for the text the person replaced.
 *Write mine again* after a push's conflict files the replaced text the same way.
 
+A client renders a kept version's heading from its code and parameters, never as a post by the
+person it was filed for, and shows its text as filed. The web app addresses one comment as
+`/items/{id}?comment={commentId}`: the notice after a choice and the conflict's
+`preserved_comment_id` lead there, and the conversation opens on it.
+
 ---
 
 ## 6. Permissions and offline data

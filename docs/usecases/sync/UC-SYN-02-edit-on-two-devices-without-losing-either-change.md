@@ -48,7 +48,11 @@ Anna's app shows a note on the entry offering to compare the two.
 10. When somebody else changes an entry's title or description while a person is typing in it,
     leaving the field writes nothing and says that it was changed meanwhile; the person compares
     both versions and keeps the other or writes their own, and the version that loses is filed as a
-    comment on the entry.
+    comment on the entry. A kept version — this one or the one of check 7 — is shown in the entry's
+    conversation as a kept version whose heading names whose version it holds, never as a post by
+    the person it was filed for, with its text exactly as filed; the notice's *Show the comment* and
+    the offline conflict's link open the conversation on it, marked and focused, and an address of a
+    comment that is gone or out of the reader's sight says so.
 
 ## Where it ends
 
