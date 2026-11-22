@@ -47,7 +47,7 @@ async function openEntry(browser, width) {
   const isNamed = new Promise((resolve) => (named = resolve));
   const state = {
     entry: ENTRY, sent: [], log: [], filed: 0, comments: [], pushed: [], isOffline: false, theirsAway: undefined, isNamed,
-    refuseRead: false, refuseFiling: false, refusePatches: 0, filingHeld: undefined, olderRefused: false,
+    refuseRead: false, refuseFiling: false, refusePatches: 0, filingHeld: undefined, olderRefused: false, commentsRefused: false,
   };
   let delivered = 0;
   await context.unroute('**/api/v1/**');
@@ -117,6 +117,7 @@ async function openEntry(browser, width) {
       return route.fulfill({ status: 201, json: filed });
     }
     // The conversation, newest first, as the server answers it.
+    if (path === `/items/${ENTRY.id}/comments` && method === 'GET' && state.commentsRefused) return route.fulfill(problem(403, 'forbidden'));
     if (path === `/items/${ENTRY.id}/comments` && method === 'GET' && state.olderRefused) {
       if (new URL(request.url()).searchParams.get('cursor')) return route.fulfill(problem(403, 'forbidden'));
       return route.fulfill({ json: { data: [...state.comments].reverse(), page: { has_more: true, next_cursor: 'older' } } });
@@ -395,6 +396,22 @@ test('chromium: 1280 px — an address whose older comments could not be read is
   await page.getByText('You do not have permission for this action.').first().waitFor({ timeout: 10_000 })
     .catch(async () => assert.fail(`the failed read is not said: ${await page.locator('main').innerText()}`));
   assert.equal(await page.getByText('This comment could not be found, or you may not see it.').count(), 0, 'a comment on a page that did not arrive is said to be gone');
+});
+
+test('chromium: 1280 px — an address whose conversation could not be read at all is not said to be gone (UC-SYN-02 check 10)', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, context, state } = await openEntry(browser, 1280);
+  t.after(() => context.close());
+  state.commentsRefused = true;
+  let reads = 0;
+  // The thread's own read and the search's read again: both refused.
+  const searched = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith(`/api/v1/items/${ENTRY.id}/comments`) && ++reads === 2, { timeout: 10_000 });
+
+  await page.goto(`${served.origin}/items/${ENTRY.id}?comment=01a0e2e0-0000-7000-8000-0000000c0f99`);
+  await page.getByText('You do not have permission for this action.').first().waitFor({ timeout: 10_000 })
+    .catch(async () => assert.fail(`the failed read is not said: ${await page.locator('main').innerText()}`));
+  await searched;
+  assert.equal(await page.getByText('This comment could not be found, or you may not see it.').count(), 0, 'a comment in a conversation that did not arrive is said to be gone');
 });
 
 /** Notes written offline meet notes somebody else wrote meanwhile; the strip offers both versions. */

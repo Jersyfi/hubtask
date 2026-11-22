@@ -238,7 +238,8 @@
     }
     if (turn !== seeking) return;
     const found = reach();
-    if (found === undefined && isUnread) return;
+    // A conversation that did not arrive is drawn as the thread's failure; nothing in it was searched.
+    if (found === undefined && (isUnread || page.state.status === 'failed')) return;
     if (found === undefined) {
       markedId = undefined;
       isAddressGone = true;
