@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -166,10 +167,15 @@ func secondAttempts(runs []run) value {
 // the end of the next one that passed. It reads each run's last attempt, so a run that failed and
 // passed when run again counts as passed. Time without a run counts as the state the last run
 // left, so a red Friday is red until Monday's first green; the runs the window had stand beside
-// the hours.
+// the hours. What main was when the window began is what the last run before it left: where the
+// runs read hold none that ended by then, the hours are not measured, since a zero would read as
+// green.
 func redHours(runs []run, w window, now time.Time) value {
 	main := ofPullRequests(runs, false)
 	sort.Slice(main, func(i, j int) bool { return main[i].created.Before(main[j].created) })
+	if !slices.ContainsFunc(main, func(r run) bool { return !r.updated.After(w.from) }) {
+		return unmeasured("no run on `main` ended before the window in the runs read, so what it began as is not known")
+	}
 	var total time.Duration
 	var since time.Time
 	red := false

@@ -589,7 +589,9 @@ How each measure is read:
 * **Red hours** run from the end of a failed run on `main` to the end of the next one that
   passed, inside the window. A run that failed and passed when run again counts as passed. Time
   in which nothing ran counts as what the last run left: the idle days after a red run are red.
-  The number of `main` runs the window had is printed beside the hours.
+  The number of `main` runs the window had is printed beside the hours. The runs read reach two
+  windows back. Where none on `main` ended before a window began, what that window began as is
+  not known and its hours are not measured.
 * **n** stands beside every median and percentage: the runs it was taken from.
 * **Jobs** are read attempt by attempt, one request per attempt of each of the window's runs:
   the API fails to list all attempts of a run at once where a run has many. A job that ran twice

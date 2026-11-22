@@ -118,9 +118,27 @@ func TestRedHours(t *testing.T) {
 		t.Errorf("red for %.2f hours, want 5", got.n)
 	}
 	// The days after a red run on which nothing ran are red.
-	idle := []run{{created: at("2026-11-14 10:00"), updated: at("2026-11-14 12:00"), failed: true}}
+	idle := []run{
+		{created: at("2026-11-10 10:00"), updated: at("2026-11-10 10:30")},
+		{created: at("2026-11-14 10:00"), updated: at("2026-11-14 12:00"), failed: true},
+	}
 	if got := redHours(idle, week, at("2026-11-25 00:00")); got.n != 12+6*24 || got.String() != "156.0 (n = 1 `main` runs)" {
 		t.Errorf("red for %v hours, printed %q; want 156 beside the one run", got.n, got)
+	}
+}
+
+// What main was when the window began is the last run before it. Where the runs read hold none,
+// it is not known - and not green: a zero would close an open finding.
+func TestRedHoursWithoutARunBeforeTheWindow(t *testing.T) {
+	for name, runs := range map[string][]run{
+		"no run at all":             nil,
+		"runs inside the window":    {{created: at("2026-11-15 10:00"), updated: at("2026-11-15 10:30")}},
+		"a run that ended inside":   {{created: at("2026-11-13 23:50"), updated: at("2026-11-14 00:20")}},
+		"a pull request's run only": {{pullRequest: true, created: at("2026-11-10 10:00"), updated: at("2026-11-10 10:30")}},
+	} {
+		if got := redHours(runs, week, at("2026-11-25 00:00")); got.numeric || got.why == "" {
+			t.Errorf("%s: red hours read %q, want not measured", name, got)
+		}
 	}
 }
 
