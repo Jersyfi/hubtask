@@ -110,7 +110,8 @@
     return [...allowed, ...blocked].map((step) => ({ id: step.id, name: step.label, line: step.asks, to: step.to, blockedReason: step.blockedReason, step }));
   });
 
-  function open() {
+  /** Opens the choices from outside the lozenge - ↓ on the step beside it (design-system.md §4). */
+  export function open() {
     if (disabledReason !== undefined) return;
     if (isCompactWidth()) {
       isSheetOpen = true;

@@ -76,6 +76,8 @@
     hasActsOnPhone?: boolean;
     /** The status opens no sheet now (a paused workflow): its step stays in the bar on a phone. */
     hasStepOnPhone?: boolean;
+    /** Opens the status's choices: ↓ on a step does what ↓ on the status does (§4, the state control). */
+    onopenstatus?: () => void;
   }
 
   const {
@@ -100,8 +102,15 @@
     isCompact = false,
     hasActsOnPhone = false,
     hasStepOnPhone = false,
+    onopenstatus,
     isDone = false,
   }: Props = $props();
+
+  function stepKeys(event: KeyboardEvent) {
+    if (event.key !== 'ArrowDown' || !onopenstatus || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    event.preventDefault();
+    onopenstatus();
+  }
 
   let isEditing = $state(false);
   let draft = $state('');
@@ -220,8 +229,8 @@
 
   <div class="action-bar" bind:this={bar}>
     {#if status}{@render status()}{/if}
-    {#if next}<span class="step"><Button tone="primary" size="sm" icon={next.icon} disabledReason={next.disabledReason} onclick={next.onclick}>{next.label}</Button></span>{/if}
-    {#if secondary}<span class="step"><Button tone="secondary" size="sm" icon={secondary.icon} disabledReason={secondary.disabledReason} onclick={secondary.onclick}>{secondary.label}</Button></span>{/if}
+    {#if next}<span class="step"><Button tone="primary" size="sm" icon={next.icon} disabledReason={next.disabledReason} onclick={next.onclick} onkeydown={stepKeys}>{next.label}</Button></span>{/if}
+    {#if secondary}<span class="step"><Button tone="secondary" size="sm" icon={secondary.icon} disabledReason={secondary.disabledReason} onclick={secondary.onclick} onkeydown={stepKeys}>{secondary.label}</Button></span>{/if}
     {#if person || due || deadline || facts}<span class="divider" aria-hidden="true" bind:this={divider} data-alone={isDividerAlone ? '' : undefined}></span>{/if}
     {#if person}
       {#if 'name' in person}

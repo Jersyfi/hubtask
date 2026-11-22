@@ -552,7 +552,8 @@ and every behaviour a test can hold lives in a module beside them: `lozenge.ts`,
   a step that does not complete the entry. Where it completes or reopens it is the APG Checkbox
   pattern (`role="checkbox"`, `aria-checked`), otherwise a button named by its step; the drawn
   mark stays small and its hit area reaches `layout.target` on a phone or with a coarse pointer.
-  Not pressable now, its edge breaks and the reason is said at the mark.
+  Not pressable now, its edge breaks and the reason is said at the mark. ↓ on it opens the chip's
+  menu beside it; a mark alone in a list walks to the next row's mark instead.
 * **`ObjectHead`** — one head for entry, ticket, inventory object, goal, release, agent and
   portfolio (WB-1): the breadcrumb and the tools (hidden on a phone, where the bar carries them), the
   key with its product's tile, the type lozenge and a meta line, the title edited in place (the
@@ -562,7 +563,8 @@ and every behaviour a test can hold lives in a module beside them: `lozenge.ts`,
   divider, the person (an empty one said), the due date, **one** deadline chip (what is breached
   and the next deadline, ET-6), quiet facts and the end tools. On a phone the steps live in the
   status's sheet - where the status opens none now, as under a paused workflow, its step stays in
-  the bar (`hasStepOnPhone`) - and the person is the avatar alone (WB-8).
+  the bar (`hasStepOnPhone`) - and the person is the avatar alone (WB-8). ↓ on a step opens the
+  status's choices (`onopenstatus`), as ↓ on the status does.
 * **`Property`** and **`PropertyRail`** — the rail of ET-1, `layout.rail` wide: sections products
   register (`RailSection`: a title, a product's tile, a count, folded or empty), the form's groups
   in the form's order. A head is a twist (`aria-expanded`); an empty section is one line with "+"

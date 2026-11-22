@@ -160,6 +160,11 @@
         : undefined,
   );
   const primary = $derived(model ? primaryOf(model) : undefined);
+  let statusButton = $state<StatusButton | undefined>(undefined);
+  /** Opens the state's choices from the step beside it: ↓ on either part (design §3.1). */
+  export function openMenu() {
+    statusButton?.open();
+  }
   const verdicts = $derived(new Map((answer?.steps ?? []).map((step) => [step.key, step])));
 
   let isTaking = $state(false);
@@ -302,6 +307,7 @@
 {#if model && (answer || askable === false)}
   <span class="status" data-steps data-status={model.current.id}>
     <StatusButton
+      bind:this={statusButton}
       current={model.current}
       steps={model.steps}
       statuses={model.statuses}

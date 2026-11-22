@@ -1076,6 +1076,18 @@
    */
   function walk(event: KeyboardEvent, node: HTMLElement, id: string): boolean {
     if (event.altKey || event.ctrlKey || event.metaKey) return false;
+    // On a row's mark ↓ opens the state's menu where a chip beside it has one (design §3.1, the
+    // mark's own key); a mark alone - a list without columns - walks to the next row's mark.
+    const mark = (event.target as Element).closest<HTMLElement>('[data-row] .state-mark');
+    if (mark && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
+      if (event.key === 'ArrowDown' && mark.closest('[data-row]')?.querySelector('button[data-state-chip]')) return false;
+      const marks = [...node.querySelectorAll<HTMLElement>('[data-row] .state-mark')];
+      const next = marks[marks.indexOf(mark) + (event.key === 'ArrowDown' ? 1 : -1)];
+      if (!next) return false;
+      event.preventDefault();
+      next.focus();
+      return true;
+    }
     // The row's own title, never a `.content` around the list (the frame has one): the mark and
     // the chip beside the title keep their keys - Space on the mark is its press, not a pick.
     const title = (event.target as Element).closest(TITLE);
@@ -1213,6 +1225,8 @@
 
   /** The menus of the rows, so a right click, a key or a long press can open one. */
   const menus = $state<Record<string, EntryMenu | undefined>>({});
+  /** Each row's state chip, whose menu ↓ on the mark beside it opens. */
+  const chips = $state<Record<string, StateChip | undefined>>({});
   let actions = $state<EntryActions | undefined>(undefined);
 
   /**
@@ -1945,7 +1959,7 @@
         <span class="phone-person">{#if fields.includes('people')}<PeopleMarks assigneeId={row.item.assignee_id} memberIds={[]} />{/if}</span>
         <span class="phone-meta">
           <span class="phone-key">{#if type && (isKeyFirst || showsTypes || fields.includes('type'))}<span class="type-mark" data-entry-type={type.key} title={typeName(type.key)}><Icon name={iconOf(type)} size="sm" /></span>{/if}<EntryKey collection={keyedCollection} number={row.item.number} /></span>
-          {#if rowChip}<StateChip item={row.item} chip={rowChip} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
+          {#if rowChip}<StateChip bind:this={chips[row.item.id]} item={row.item} chip={rowChip} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
           {#if priority}<PriorityMark level={priorityLevel(priority)} label={priority} />{/if}
           {#each rest as field (field)}<span class="meta-field" data-field={field}>{@render fieldValue(row, field)}</span>{/each}
         </span>
@@ -1957,13 +1971,13 @@
         </span>
       {/snippet}
       {#snippet markCell()}
-        <EntryMark item={row.item} mark={markFor(row.item)} stateLabel={rowChipOf(row)?.label ?? ''} isPaused={rowChipOf(row)?.pausedReason !== undefined} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} />
+        <EntryMark item={row.item} mark={markFor(row.item)} stateLabel={rowChipOf(row)?.label ?? ''} isPaused={rowChipOf(row)?.pausedReason !== undefined} onopenstate={() => chips[row.item.id]?.open() ?? false} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} />
       {/snippet}
       {#snippet chipCell()}
         {@const rowChip = rowChipOf(row)}
         {#if isKeyFirst}<span class="lead-key"><EntryKey collection={keyedCollection} number={row.item.number} /></span>{/if}
         {#if rowChip}{@render markCell()}{/if}
-        {#if rowChip}<span class="lead-state"><StateChip item={row.item} chip={rowChip} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} /></span>{:else if hasStateColumn}<span class="lead-state"></span>{/if}
+        {#if rowChip}<span class="lead-state"><StateChip bind:this={chips[row.item.id]} item={row.item} chip={rowChip} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} /></span>{:else if hasStateColumn}<span class="lead-state"></span>{/if}
       {/snippet}
       <!-- One row in every list (L1): a simple list's line is the same row, without the twist,
            because nothing is inside it - and a press on it opens it as everywhere (L6). -->

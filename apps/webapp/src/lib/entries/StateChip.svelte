@@ -28,6 +28,14 @@
     chip.choices.map((choice) => ({ id: choice.id, label: choice.label, icon: choice.isCurrent ? ('check' as const) : undefined })),
   );
 
+  let menu = $state<{ open: (index?: number) => void } | undefined>(undefined);
+  /** Opens the chip's menu from the mark beside it: ↓ on either part of the control (design §3.1). */
+  export function open(): boolean {
+    if (!menu) return false;
+    menu.open(0);
+    return true;
+  }
+
   async function choose(id: string) {
     try {
       await takeChoice(item, { id, label: chip.choices.find((each) => each.id === id)?.label ?? '' });
@@ -42,7 +50,7 @@
 {:else if disabledReason || menuItems.length === 0}
   <span class="chip" data-state-chip title={disabledReason}><StateLozenge label={chip.label} vocabulary="category" state={chip.category} size="sm" /></span>
 {:else}
-  <Menu label={t('app.entries.state_menu', { title: item.title })} items={menuItems} onselect={(id) => void choose(id)}>
+  <Menu bind:this={menu} label={t('app.entries.state_menu', { title: item.title })} items={menuItems} onselect={(id) => void choose(id)}>
     {#snippet trigger(props)}
       <button type="button" class="chip" data-state-chip aria-label={t('app.entries.state_chip', { title: item.title, state: chip.label })} {...props}>
         <StateLozenge label={chip.label} vocabulary="category" state={chip.category} size="sm" hasChevron />

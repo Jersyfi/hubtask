@@ -26,10 +26,17 @@
     stateLabel: string;
     /** The entry's workflow is paused: a completed entry has no step back, and says so. */
     isPaused?: boolean;
+    /** Opens the state's menu beside the mark - ↓ on either part (design §3.1); false where it has none. */
+    onopenstate?: () => boolean;
     onfailure?: (message: string) => void;
   }
 
-  const { item, mark, disabledReason, stateLabel, isPaused = false, onfailure }: Props = $props();
+  const { item, mark, disabledReason, stateLabel, isPaused = false, onopenstate, onfailure }: Props = $props();
+
+  function keys(event: KeyboardEvent) {
+    if (event.key !== 'ArrowDown' || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (onopenstate?.()) event.preventDefault();
+  }
 
   const isCompleted = $derived(item.completion?.is_completed ?? false);
   const isStep = $derived(mark?.kind === 'step');
@@ -61,6 +68,7 @@
       disabledReason={reason}
       {isBusy}
       onclick={() => press()}
+      onkeydown={keys}
     />
   {:else}
     <StateMark
@@ -69,6 +77,7 @@
       disabledReason={reason}
       {isBusy}
       onclick={() => press()}
+      onkeydown={keys}
     />
   {/if}
 </span>

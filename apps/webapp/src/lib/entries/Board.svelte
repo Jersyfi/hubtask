@@ -630,6 +630,8 @@
 
   /** The menus of the cards, so a right click, a key or a long press can open one. */
   const menus = $state<Record<string, EntryMenu | undefined>>({});
+  /** Each card's state chip, whose menu ↓ on the mark beside it opens. */
+  const chips = $state<Record<string, StateChip | undefined>>({});
   let actions = $state<EntryActions | undefined>(undefined);
 
   function chose(card: WorkItem, cards: readonly WorkItem[], id: string) {
@@ -1089,8 +1091,8 @@
                   {#snippet footer()}
                     {@const own = card.entry_type ? levelOfType?.(card.entry_type) : undefined}
                     {@const cardChip = card.type === 'TASK' && isBucketBoard ? chipOf(own?.mode ?? level, card, columns, own?.workflow ?? workflow, own?.mode === 'WORKFLOW' ? { ...chipNames, noColumn: t('app.board.unmapped') } : chipNames) : undefined}
-                    {#if cardChip}<EntryMark item={card} mark={markOf(own?.mode ?? level, card, isWorkflowPaused ? 'paused' : own?.workflow ?? workflow, chipNames.stepName)} stateLabel={cardChip.label} isPaused={cardChip.pausedReason !== undefined} disabledReason={changeRefusal(card)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
-                    {#if cardChip}<StateChip item={card} chip={cardChip} disabledReason={changeRefusal(card)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
+                    {#if cardChip}<EntryMark item={card} mark={markOf(own?.mode ?? level, card, isWorkflowPaused ? 'paused' : own?.workflow ?? workflow, chipNames.stepName)} stateLabel={cardChip.label} isPaused={cardChip.pausedReason !== undefined} onopenstate={() => chips[card.id]?.open() ?? false} disabledReason={changeRefusal(card)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
+                    {#if cardChip}<StateChip bind:this={chips[card.id]} item={card} chip={cardChip} disabledReason={changeRefusal(card)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
                     {#if showsKey}<EntryKey collection={keyedCollection} number={card.number} />{/if}
                     <DueMark item={card} />
                     {#if card.counts && card.counts.parts > 0}

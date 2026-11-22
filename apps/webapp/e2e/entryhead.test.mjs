@@ -515,6 +515,29 @@ for (const [level, step] of [['NONE', 'Done'], ['COLUMNS', 'Shipped'], ['WORKFLO
   });
 }
 
+// The design's keys (§3.1): ↓ on the step opens the state's menu, as ↓ on the state does; Escape
+// gives the focus back to the state.
+test('chromium: ↓ on the head\'s Done opens the status menu', { timeout: 60_000 }, async () => {
+  const extra = (read, method) => {
+    if (method === 'GET' && read === `/containers/${ENTRY.collection_id}`) return { ...COLLECTION, state_mode: 'NONE', state_modes: { task: 'NONE' } };
+    return undefined;
+  };
+  const { page, close } = await open(1280, { runs: false, extra });
+  try {
+    const done = page.locator('[data-tour="entry"]').getByRole('button', { name: 'Done', exact: true });
+    await done.waitFor({ timeout: 10_000 });
+    await done.focus();
+    await page.keyboard.press('ArrowDown');
+    const menu = page.getByRole('menu');
+    await menu.waitFor({ timeout: 5_000 });
+    assert.deepEqual((await menu.getByRole('menuitemradio').allTextContents()).map((each) => each.trim().split(/\s+/)[0]), ['Open', 'Done']);
+    await page.keyboard.press('Escape');
+    assert.match(await page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? ''), /^Status: Open/);
+  } finally {
+    await close();
+  }
+});
+
 // The approved design: completed under a paused workflow, the head offers no step back and says so,
 // as the row's and the card's mark do.
 test('chromium: completed under a paused workflow, the head offers no step and says none leads back', { timeout: 60_000 }, async () => {

@@ -139,6 +139,42 @@ for (const level of ['NONE', 'COLUMNS']) {
   });
 }
 
+// The design's keys (§3.1): ↓ on either part of the state control opens its menu - on a row's mark
+// and on a card's mark the chip's, Escape giving the focus back to the mark; a mark alone (L0)
+// has no menu, and there ↓ walks to the next row's mark, as the list's arrows walk its titles.
+test('chromium: L1 - ↓ on a row\'s or a card\'s mark opens the column menu; at L0 it walks to the next mark', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, context } = await at(browser, 'COLUMNS');
+  t.after(() => context.close());
+  const mark = page.locator(`[data-row="${ITEMS[0].id}"]`).getByRole('checkbox', { name: `Mark ${ITEMS[0].title} as done` });
+  await mark.waitFor({ timeout: 15_000 });
+  await mark.focus();
+  await page.keyboard.press('ArrowDown');
+  const menu = page.getByRole('menu');
+  await menu.waitFor({ timeout: 5_000 });
+  assert.deepEqual((await menu.getByRole('menuitem').allTextContents()).map((each) => each.trim()), BUCKETS.map((bucket) => bucket.name));
+  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('role')), 'menuitem', 'the focus is not in the menu');
+  await page.keyboard.press('Escape');
+  assert.equal(await mark.evaluate((node) => node === document.activeElement), true, 'Escape did not give the focus back to the mark');
+
+  await chooseView(page, 'Board');
+  const cardMark = page.locator(`[data-card="${ITEMS[0].id}"]`).getByRole('checkbox', { name: `Mark ${ITEMS[0].title} as done` });
+  await cardMark.waitFor({ timeout: 15_000 });
+  await cardMark.focus();
+  await page.keyboard.press('ArrowDown');
+  await page.getByRole('menu').waitFor({ timeout: 5_000 });
+  await page.keyboard.press('Escape');
+
+  const list = await at(browser, 'NONE');
+  t.after(() => list.context.close());
+  const first = list.page.locator(`[data-row="${ITEMS[0].id}"]`).getByRole('checkbox', { name: `Mark ${ITEMS[0].title} as done` });
+  await first.waitFor({ timeout: 15_000 });
+  await first.focus();
+  await list.page.keyboard.press('ArrowDown');
+  assert.equal(await list.page.getByRole('menu').count(), 0, 'a mark alone opened a menu');
+  assert.equal(await list.page.evaluate(() => document.activeElement?.getAttribute('aria-label')), `Mark ${ITEMS[1].title} as done`, '↓ did not walk to the next row\'s mark');
+});
+
 // E5 and UC-WRK-05 check 11 at L2: the mark is the next step - an arrow named by it where it does
 // not finish the entry -, the chip beside it lists every step.
 test('chromium: L2 - the row\'s mark takes the next step towards done, an arrow where it does not finish', async (t) => {

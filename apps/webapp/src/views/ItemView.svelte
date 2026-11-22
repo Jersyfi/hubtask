@@ -988,6 +988,7 @@
   const readOnlyNoticeId = `item-${instanceId}-read-only`;
   const pausedNoticeId = `item-${instanceId}-paused`;
   let isWorkflowPaused = $state(false);
+  let entryStatus = $state<EntryStatus | undefined>(undefined);
   provideReasonGroup(() => ({ id: readOnlyNoticeId, reason: readOnlyReason }));
 
   async function unarchive() {
@@ -1537,9 +1538,10 @@
         isCompact={isInPane}
         isDone={item.completion?.is_completed === true}
         hasStepOnPhone={isWorkflowPaused}
+        onopenstatus={() => entryStatus?.openMenu()}
       >
         {#snippet status()}
-          {#key item.id}<EntryStatus {item} bind:runs={hasWorkflow} bind:next={statusNext} bind:second={statusSecond} offersSecond={isDeskEntry} oncomplete={() => void toggleCompleted()} disabledReason={isChangeable ? frozenReason : (roleReason ?? frozenReason)} reasonSaidAt={readOnlyReason ? readOnlyNoticeId : undefined} bind:isPaused={isWorkflowPaused} pausedSaidAt={pausedNoticeId} {onnavigate} />{/key}
+          {#key item.id}<EntryStatus bind:this={entryStatus} {item} bind:runs={hasWorkflow} bind:next={statusNext} bind:second={statusSecond} offersSecond={isDeskEntry} oncomplete={() => void toggleCompleted()} disabledReason={isChangeable ? frozenReason : (roleReason ?? frozenReason)} reasonSaidAt={readOnlyReason ? readOnlyNoticeId : undefined} bind:isPaused={isWorkflowPaused} pausedSaidAt={pausedNoticeId} {onnavigate} />{/key}
         {/snippet}
       </ObjectHead>
       <!-- A ticket's deadlines stand under its head on a phone, each a line (the `deskentry` phone scene). -->
