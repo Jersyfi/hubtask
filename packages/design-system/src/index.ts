@@ -26,6 +26,8 @@ export { default as Button } from './Button.svelte';
 export { default as Checkbox } from './Checkbox.svelte';
 export { default as CheckboxGroup, type CheckboxOption } from './CheckboxGroup.svelte';
 export { default as CodeField } from './CodeField.svelte';
+export { default as MultiSelect } from './MultiSelect.svelte';
+export type { ChoiceGroup, ChoiceOption, Presentation as MultiSelectPresentation, Summary as MultiSelectSummary } from './multiselect.ts';
 export { default as Dialog, type DialogAction } from './Dialog.svelte';
 export { default as Icon } from './Icon.svelte';
 export { default as Kbd } from './Kbd.svelte';

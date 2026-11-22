@@ -219,14 +219,33 @@ attributes selected by a stylesheet, never as an inline `style`:
 [ADR-0028](../adr/ADR-0028-embedded-web-ui.md)'s `style-src 'self'` has no `'unsafe-inline'`, so a
 `style="gap: …"` is refused — silently, in production only. Every component inherits that.
 
-### Wave 1 — nothing works without these (≈ 24)
-Icon · Button · IconButton · Input · CodeField · Textarea · Select · Checkbox · CheckboxGroup · Radio · ChoiceCards · Switch ·
+### Wave 1 — nothing works without these (≈ 25)
+Icon · Button · IconButton · Input · CodeField · Textarea · Select · Checkbox · CheckboxGroup · MultiSelect · Radio · ChoiceCards · Switch ·
 Tooltip · Menu · Popover · Dialog · Toast · Banner · Avatar · AvatarGroup · Badge · Spinner ·
 ProgressBar · Kbd
 
 `CheckboxGroup` is the fieldset `Radio` is, for several answers: a question that needs at least one
 is wrong as a group, so its error is said once under the group and every box is `aria-invalid`,
 which is where a form moves focus (case 3 below).
+
+`MultiSelect` is several of many, one option list in two presentations
+([ADR-0110](../adr/ADR-0110-one-multi-select-two-presentations.md)). `inline` is visible ticks that
+wrap, for up to five options; `field` is one closed button that says what is chosen and opens a
+checklist, for six or more; `presentation="auto"` decides by the count, and a screen forces one
+only where the other would hide what is read at a glance. The closed field shows the chosen as
+chips - a summary, not buttons, cut after two lines with the count of the rest - or the caller's
+sentence ("All except Amount"), or its empty text. The open list is a multi-selectable listbox:
+groups by their heading, a line under an option that describes it and is never part of its name,
+and from eight options a filter, *All* and *None* (which act on what the filter shows) and a count.
+An option with a `disabledReason` cannot change: ticked it is locked on, drawn with a lock and
+first among the chips; unticked it is refused; either way it stays focusable and its reason is a
+line in the list. The whole control locked still opens, read-only. At a phone's width the list is
+the `Popover`'s bottom sheet, rows a thumb's height, with *Done*. `size="md"` draws the ticks as
+`CheckboxGroup` does, `size="sm"` as a setting row's denser ones. **Which of the two a screen
+uses:** a form's question with a few fixed answers whose fieldset and legend a reader should hear
+stays `CheckboxGroup`; a setting or a list of answers whose length the data decides is
+`MultiSelect`, and people and labels keep `AssigneeControl` and `LabelPicker`. One press emits one
+change; *All*, *None* and Ctrl+A emit one change with the whole list.
 
 `ChoiceCards` is `Radio` for a choice whose answers each need a sentence: native radios of one name
 inside their cards' labels — the whole card pressed, the arrow keys walking and choosing, a reader
