@@ -696,8 +696,8 @@ func thisMonthAndNext(now time.Time) []time.Time {
 	return []time.Time{first, first.AddDate(0, 1, 0)}
 }
 
-// ensureStreamPartitions is the audit duty for the three partitioned streams:
-// activity_entry, outbox_event and rule_run get this month and next kept existing, policies and
+// ensureStreamPartitions is the audit duty for the four partitioned streams:
+// activity_entry, outbox_event, rule_run and change_log get this month and next kept existing, policies and
 // grants repaired - ensureAuditPartitions' reasoning verbatim, over ensure_stream_partition.
 func (s Scheduler) ensureStreamPartitions(ctx context.Context) {
 	if s.StreamPartitions == nil {

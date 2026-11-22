@@ -40,7 +40,7 @@ func (p *inDefault) count() int {
 	return p.asked
 }
 
-// The state is reported once per stream and month, not on every tick: three lines every ten
+// The state is reported once per stream and month, not on every tick: four lines every ten
 // seconds bury every other line of the log for a whole month.
 func TestTheDefaultPartitionIsReportedOncePerStreamAndMonth(t *testing.T) {
 	var lines bytes.Buffer
