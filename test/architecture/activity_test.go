@@ -37,7 +37,7 @@ var workManagementTargets = map[string]bool{
 var exemptUseCases = []string{
 	"ArchiveContainer", "AutoAssignWorkItem", "BulkUpdateWorkItems", "ClearEntryEstimate", "CreateBucket",
 	"CreateContainer", "CreateHubFromTemplate", "CreateLabel",
-	"DeleteBucket", "DeleteComment", "DeleteLabel", "DropItemOnColumn", "EditComment", "EmptyTrash", "FileDivergingVersion", "GiveKudos",
+	"DeleteBucket", "DeleteComment", "DeleteLabel", "DropItemOnColumn", "EditComment", "EmptyTrash", "GiveKudos",
 	"MergeWorkItems",
 	"MoveContainer", "NotifyAccount", "NotifyGroup", "NotifyRole",
 	"OpenPrivateHub",

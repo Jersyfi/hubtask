@@ -85,7 +85,7 @@ test('an administrator may change somebody else’s, and an unknown role may not
   assert.equal(mayModerate(theirs, undefined, []), false);
 });
 
-// The heading of a kept version (UC-SYN-02 check 10): the code and its
+// The heading of a kept version (UC-SYN-02 check 7): the code and its
 // parameters rendered here, through the catalogue, never a sentence from the server (rule 8).
 const read: Readings = {
   say: (code, params) => format(SOURCE[code] ?? code, params ?? {}),
@@ -94,14 +94,11 @@ const read: Readings = {
 };
 
 test('a kept version is headed by its code, naming whose version it holds and when', () => {
-  const mine = comment({ id: 'k1', kind: 'SYSTEM', system_code: 'sync.set_aside_version', system_params: { field: 'notes', at: '2026-11-22T09:00:00Z' } });
-  assert.deepEqual(systemNoteOf(mine, 'Amelie Fischer', read), {
+  const displaced = comment({ id: 'k1', kind: 'SYSTEM', system_code: 'sync.displaced_version', system_params: { field: 'notes', device: 'dev-1', at: '2026-11-22T09:00:00Z' } });
+  assert.deepEqual(systemNoteOf(displaced, 'Amelie Fischer', read), {
     label: 'Kept version',
-    heading: 'Version Amelie Fischer set aside at moment 2026-11-22T09:00:00Z, because somebody else changed the text meanwhile. The entry carries the other one.',
+    heading: 'Diverging version from Amelie Fischer, written on this device at moment 2026-11-22T09:00:00Z. This is the text that lost the merge; the entry carries the other one.',
   });
-  const replaced = comment({ id: 'k2', kind: 'SYSTEM', system_code: 'sync.replaced_version', system_params: { field: 'title', at: '2026-11-22T09:00:00Z' } });
-  assert.equal(systemNoteOf(replaced, 'Amelie Fischer', read)?.heading,
-    'The text as it stood before Amelie Fischer replaced it at moment 2026-11-22T09:00:00Z, after somebody else had changed it meanwhile.');
 });
 
 test('a displaced version names the device in words, never by its identifier', () => {

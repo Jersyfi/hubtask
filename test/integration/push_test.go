@@ -433,9 +433,9 @@ func TestADisplacedNotesVersionIsFindableAgainAfterTheMerge(t *testing.T) {
 	}
 }
 
-// UC-SYN-02 check 10 for notes longer than a comment may be: the notes have no bound of their
-// own, so the version that loses is kept whole - by the push and by the online filing - in the
-// real column, while a comment somebody writes keeps its 20000.
+// UC-SYN-02 check 7 for notes longer than a comment may be: the notes have no bound of their
+// own, so the version that loses a push is kept whole in the real column, while a comment
+// somebody writes keeps its 20000.
 func TestNotesLongerThanACommentAreKeptWhole(t *testing.T) {
 	ctx := context.Background()
 	seedMemberships(ctx, t)
@@ -467,48 +467,8 @@ func TestNotesLongerThanACommentAreKeptWhole(t *testing.T) {
 		t.Errorf("the push kept %d characters of %d", len(kept.Body), len(long))
 	}
 
-	filed, err := work.FileDivergingVersion{Comments: comments}.Execute(ctx, actor, work.FileDivergingVersionCommand{
-		ItemID: task, Field: workdomain.FieldNotes, Side: work.VersionMine, Body: long,
-	})
-	if err != nil {
-		t.Fatalf("filing online: %v", err)
-	}
-	if kept := findComment(ctx, t, tenantB, filed.ID); kept.Body != long {
-		t.Errorf("the online filing kept %d characters of %d", len(kept.Body), len(long))
-	}
-
 	if _, err := comments.Execute(ctx, actor, work.AddCommentCommand{ItemID: task, Body: long}); shared.AsError(err).DetailCode != "comments.body_too_long" {
 		t.Errorf("a person's comment of %d characters: %v", len(long), err)
-	}
-}
-
-// UC-SYN-02 check 10: the text filed as the one replaced is the entry's value now, read from the
-// real row in the filing's transaction; any other text is refused and nothing is written.
-func TestOnlyTheTextInPlaceIsFiledAsReplacedAgainstTheRow(t *testing.T) {
-	ctx := context.Background()
-	seedMemberships(ctx, t)
-	collection := collectionFor(ctx, t, tenantB, authorB)
-	task := seedTask(ctx, t, tenantB, authorB, collection)
-	_, comments, _ := mergeCatalogueFor(ctx, t)
-	file := work.FileDivergingVersion{Comments: comments}
-	actor := pushActor(tenantB, authorB)
-	held := findWorkItem(ctx, t, tenantB, task).Title
-
-	if _, err := file.Execute(ctx, actor, work.FileDivergingVersionCommand{
-		ItemID: task, Field: workdomain.FieldTitle, Side: work.VersionReplaced, Body: held + " - and more",
-	}); shared.AsError(err).DetailCode != "comments.version_not_in_place" {
-		t.Fatalf("another text filed as replaced: %v", err)
-	}
-	var rows int
-	if err := adminPool(ctx, t).QueryRow(ctx,
-		`SELECT count(*) FROM comment WHERE item_id = $1`, task.String()).Scan(&rows); err != nil || rows != 0 {
-		t.Fatalf("the refusal left %d comments (%v)", rows, err)
-	}
-	filed, err := file.Execute(ctx, actor, work.FileDivergingVersionCommand{
-		ItemID: task, Field: workdomain.FieldTitle, Side: work.VersionReplaced, Body: held,
-	})
-	if err != nil || findComment(ctx, t, tenantB, filed.ID).Body != held {
-		t.Fatalf("the title in place: %v", err)
 	}
 }
 

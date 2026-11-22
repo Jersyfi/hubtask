@@ -3093,10 +3093,6 @@ class Client:
         """POST /items/{itemId}/comments"""
         return self._call("POST", "/items/{itemId}/comments", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
-    def file_diverging_version(self, item_id: str, body: dict[str, Any], *, idempotency_key: str | None = None) -> "Comment":
-        """Keep a version of the title or the notes that is about to be lost"""
-        return self._call("POST", "/items/{itemId}/comments:file-version", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
-
     def edit_comment(self, item_id: str, comment_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "Comment":
         """PATCH /items/{itemId}/comments/{commentId}"""
         return self._call("PATCH", "/items/{itemId}/comments/{commentId}", {"itemId": item_id, "commentId": comment_id}, None, {"If-Match": if_match}, body, "json", "application/merge-patch+json", "json")

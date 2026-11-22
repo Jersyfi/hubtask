@@ -993,19 +993,19 @@ func (e AiBudgetStateState) Valid() bool {
 
 // Defines values for AiFieldsAskFields.
 const (
-	AiFieldsAskFieldsDueDate AiFieldsAskFields = "due_date"
-	AiFieldsAskFieldsNotes   AiFieldsAskFields = "notes"
-	AiFieldsAskFieldsTitle   AiFieldsAskFields = "title"
+	DueDate AiFieldsAskFields = "due_date"
+	Notes   AiFieldsAskFields = "notes"
+	Title   AiFieldsAskFields = "title"
 )
 
 // Valid indicates whether the value is a known member of the AiFieldsAskFields enum.
 func (e AiFieldsAskFields) Valid() bool {
 	switch e {
-	case AiFieldsAskFieldsDueDate:
+	case DueDate:
 		return true
-	case AiFieldsAskFieldsNotes:
+	case Notes:
 		return true
-	case AiFieldsAskFieldsTitle:
+	case Title:
 		return true
 	default:
 		return false
@@ -12544,42 +12544,6 @@ func (e ListWebhookDeliveriesParamsStatus) Valid() bool {
 	}
 }
 
-// Defines values for FileDivergingVersionJSONBodyField.
-const (
-	FileDivergingVersionJSONBodyFieldNotes FileDivergingVersionJSONBodyField = "notes"
-	FileDivergingVersionJSONBodyFieldTitle FileDivergingVersionJSONBodyField = "title"
-)
-
-// Valid indicates whether the value is a known member of the FileDivergingVersionJSONBodyField enum.
-func (e FileDivergingVersionJSONBodyField) Valid() bool {
-	switch e {
-	case FileDivergingVersionJSONBodyFieldNotes:
-		return true
-	case FileDivergingVersionJSONBodyFieldTitle:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for FileDivergingVersionJSONBodySide.
-const (
-	FileDivergingVersionJSONBodySideMINE     FileDivergingVersionJSONBodySide = "MINE"
-	FileDivergingVersionJSONBodySideREPLACED FileDivergingVersionJSONBodySide = "REPLACED"
-)
-
-// Valid indicates whether the value is a known member of the FileDivergingVersionJSONBodySide enum.
-func (e FileDivergingVersionJSONBodySide) Valid() bool {
-	switch e {
-	case FileDivergingVersionJSONBodySideMINE:
-		return true
-	case FileDivergingVersionJSONBodySideREPLACED:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for SetEntryEstimateJSONBodySize.
 const (
 	SetEntryEstimateJSONBodySizeL   SetEntryEstimateJSONBodySize = "L"
@@ -16616,8 +16580,7 @@ type Comment struct {
 	ItemId   openapi_types.UUID `json:"item_id"`
 
 	// Kind `USER` is what somebody wrote. `SYSTEM` is what the server filed on their behalf: the
-	// displaced version of a free-text field that lost a merge, or a version of the title or
-	// the notes kept when somebody else changed it meanwhile, whose
+	// displaced version of a free-text field that lost a merge, whose
 	// body is the text that lost and whose heading is `system_code` with `system_params` -
 	// a client renders "Diverging version from Anna, 14 Aug 09:12" from the code and the
 	// author, never from a sentence the server wrote. A system comment cannot be edited.
@@ -16627,14 +16590,13 @@ type Comment struct {
 	// SystemCode The message code of a system comment's heading, such as `sync.displaced_version`; null for what somebody wrote.
 	SystemCode *string `json:"system_code,omitempty"`
 
-	// SystemParams The parameters of the heading - for a displaced version, the field, the device and the reading; for a kept version, the field and the time.
+	// SystemParams The parameters of the heading - for a displaced version, the field, the device and the reading.
 	SystemParams *map[string]string `json:"system_params,omitempty"`
 	Version      int                `json:"version"`
 }
 
 // CommentKind `USER` is what somebody wrote. `SYSTEM` is what the server filed on their behalf: the
-// displaced version of a free-text field that lost a merge, or a version of the title or
-// the notes kept when somebody else changed it meanwhile, whose
+// displaced version of a free-text field that lost a merge, whose
 // body is the text that lost and whose heading is `system_code` with `system_params` -
 // a client renders "Diverging version from Anna, 14 Aug 09:12" from the code and the
 // author, never from a sentence the server wrote. A system comment cannot be edited.
@@ -30893,26 +30855,6 @@ type EditCommentParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
-// FileDivergingVersionJSONBody defines parameters for FileDivergingVersion.
-type FileDivergingVersionJSONBody struct {
-	// Body The text, bounded as the field it is a version of: a title at most 500 characters (`items.title_too_long`), notes by no bound of their own beyond the request's size - not by a comment's 20000.
-	Body  string                            `json:"body"`
-	Field FileDivergingVersionJSONBodyField `json:"field"`
-	Side  FileDivergingVersionJSONBodySide  `json:"side"`
-}
-
-// FileDivergingVersionParams defines parameters for FileDivergingVersion.
-type FileDivergingVersionParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
-	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
-}
-
-// FileDivergingVersionJSONBodyField defines parameters for FileDivergingVersion.
-type FileDivergingVersionJSONBodyField string
-
-// FileDivergingVersionJSONBodySide defines parameters for FileDivergingVersion.
-type FileDivergingVersionJSONBodySide string
-
 // ClearCoverParams defines parameters for ClearCover.
 type ClearCoverParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -33086,9 +33028,6 @@ type AddCommentJSONRequestBody AddCommentJSONBody
 
 // EditCommentApplicationMergePatchPlusJSONRequestBody defines body for EditComment for application/merge-patch+json ContentType.
 type EditCommentApplicationMergePatchPlusJSONRequestBody EditCommentApplicationMergePatchPlusJSONBody
-
-// FileDivergingVersionJSONRequestBody defines body for FileDivergingVersion for application/json ContentType.
-type FileDivergingVersionJSONRequestBody FileDivergingVersionJSONBody
 
 // SetCoverJSONRequestBody defines body for SetCover for application/json ContentType.
 type SetCoverJSONRequestBody = CoverInput
@@ -40765,24 +40704,6 @@ type ClientInterface interface {
 	//
 	// Rewrites a comment's text. Only its author or an administrator may; anybody else is refused exactly as any other missing permission is. The displaced text is not preserved - an edit is last writer wins over the body - and a deleted comment cannot be edited back into existence.
 	EditCommentWithApplicationMergePatchPlusJSONBody(ctx context.Context, itemId ItemId, commentId CommentId, params *EditCommentParams, body EditCommentApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// FileDivergingVersionWithBody Keep a version of the title or the notes that is about to be lost
-	//
-	// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`), which nothing on the server holds to check it against; `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`), refused as `comments.version_not_in_place` unless it is the entry's value of the field now - so file it before writing over it. The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
-	//
-	// Takes any type of body and a specified content type.
-	//
-	// Corresponds with POST /items/{itemId}/comments:file-version (the `FileDivergingVersion` operationId).
-	FileDivergingVersionWithBody(ctx context.Context, itemId ItemId, params *FileDivergingVersionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// FileDivergingVersion Keep a version of the title or the notes that is about to be lost
-	//
-	// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`), which nothing on the server holds to check it against; `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`), refused as `comments.version_not_in_place` unless it is the entry's value of the field now - so file it before writing over it. The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
-	//
-	// Takes a body of the `application/json` content type.
-	//
-	// Corresponds with POST /items/{itemId}/comments:file-version (the `FileDivergingVersion` operationId).
-	FileDivergingVersion(ctx context.Context, itemId ItemId, params *FileDivergingVersionParams, body FileDivergingVersionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ClearCover performs a DELETE /items/{itemId}/cover (the `ClearCover` operationId) request.
 	//
@@ -59911,44 +59832,6 @@ func (c *Client) EditCommentWithBody(ctx context.Context, itemId ItemId, comment
 // Rewrites a comment's text. Only its author or an administrator may; anybody else is refused exactly as any other missing permission is. The displaced text is not preserved - an edit is last writer wins over the body - and a deleted comment cannot be edited back into existence.
 func (c *Client) EditCommentWithApplicationMergePatchPlusJSONBody(ctx context.Context, itemId ItemId, commentId CommentId, params *EditCommentParams, body EditCommentApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewEditCommentRequestWithApplicationMergePatchPlusJSONBody(c.Server, itemId, commentId, params, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-// FileDivergingVersionWithBody Keep a version of the title or the notes that is about to be lost
-//
-// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`), which nothing on the server holds to check it against; `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`), refused as `comments.version_not_in_place` unless it is the entry's value of the field now - so file it before writing over it. The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
-//
-// Takes any type of body and a specified content type.
-//
-// Corresponds with POST /items/{itemId}/comments:file-version (the `FileDivergingVersion` operationId).
-func (c *Client) FileDivergingVersionWithBody(ctx context.Context, itemId ItemId, params *FileDivergingVersionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewFileDivergingVersionRequestWithBody(c.Server, itemId, params, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-// FileDivergingVersion Keep a version of the title or the notes that is about to be lost
-//
-// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`), which nothing on the server holds to check it against; `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`), refused as `comments.version_not_in_place` unless it is the entry's value of the field now - so file it before writing over it. The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
-//
-// Takes a body of the `application/json` content type.
-//
-// Corresponds with POST /items/{itemId}/comments:file-version (the `FileDivergingVersion` operationId).
-func (c *Client) FileDivergingVersion(ctx context.Context, itemId ItemId, params *FileDivergingVersionParams, body FileDivergingVersionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewFileDivergingVersionRequest(c.Server, itemId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -94463,68 +94346,6 @@ func NewEditCommentRequestWithBody(server string, itemId ItemId, commentId Comme
 	return req, nil
 }
 
-// NewFileDivergingVersionRequest calls the generic FileDivergingVersion builder with application/json body
-func NewFileDivergingVersionRequest(server string, itemId ItemId, params *FileDivergingVersionParams, body FileDivergingVersionJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewFileDivergingVersionRequestWithBody(server, itemId, params, "application/json", bodyReader)
-}
-
-// NewFileDivergingVersionRequestWithBody constructs an http.Request for the FileDivergingVersion method, with any body, and a specified content type
-func NewFileDivergingVersionRequestWithBody(server string, itemId ItemId, params *FileDivergingVersionParams, contentType string, body io.Reader) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/items/%s/comments:file-version", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", contentType)
-
-	if params != nil {
-
-		if params.IdempotencyKey != nil {
-			var headerParam0 string
-
-			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
-			if err != nil {
-				return nil, err
-			}
-
-			req.Header.Set("Idempotency-Key", headerParam0)
-		}
-
-	}
-
-	return req, nil
-}
-
 // NewClearCoverRequest constructs an http.Request for the ClearCover method
 func NewClearCoverRequest(server string, itemId ItemId, params *ClearCoverParams) (*http.Request, error) {
 	var err error
@@ -121036,24 +120857,6 @@ type ClientWithResponsesInterface interface {
 	//
 	// Rewrites a comment's text. Only its author or an administrator may; anybody else is refused exactly as any other missing permission is. The displaced text is not preserved - an edit is last writer wins over the body - and a deleted comment cannot be edited back into existence.
 	EditCommentWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, itemId ItemId, commentId CommentId, params *EditCommentParams, body EditCommentApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*EditCommentResult, error)
-
-	// FileDivergingVersionWithBodyWithResponse Keep a version of the title or the notes that is about to be lost
-	//
-	// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`), which nothing on the server holds to check it against; `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`), refused as `comments.version_not_in_place` unless it is the entry's value of the field now - so file it before writing over it. The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
-	//
-	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
-	//
-	// Corresponds with POST /items/{itemId}/comments:file-version (the `FileDivergingVersion` operationId).
-	FileDivergingVersionWithBodyWithResponse(ctx context.Context, itemId ItemId, params *FileDivergingVersionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*FileDivergingVersionResult, error)
-
-	// FileDivergingVersionWithResponse Keep a version of the title or the notes that is about to be lost
-	//
-	// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`), which nothing on the server holds to check it against; `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`), refused as `comments.version_not_in_place` unless it is the entry's value of the field now - so file it before writing over it. The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
-	//
-	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
-	//
-	// Corresponds with POST /items/{itemId}/comments:file-version (the `FileDivergingVersion` operationId).
-	FileDivergingVersionWithResponse(ctx context.Context, itemId ItemId, params *FileDivergingVersionParams, body FileDivergingVersionJSONRequestBody, reqEditors ...RequestEditorFn) (*FileDivergingVersionResult, error)
 
 	// ClearCoverWithResponse performs a DELETE /items/{itemId}/cover (the `ClearCover` operationId) request.
 	//
@@ -150606,54 +150409,6 @@ func (r EditCommentResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r EditCommentResult) ContentType() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Header.Get("Content-Type")
-	}
-	return ""
-}
-
-type FileDivergingVersionResult struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	// JSON201 the response for an HTTP 201 `application/json` response
-	JSON201 *Comment
-	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
-	ApplicationproblemJSON4XX *Problem
-}
-
-// GetJSON201 returns the response for an HTTP 201 `application/json` response
-func (r FileDivergingVersionResult) GetJSON201() *Comment {
-	return r.JSON201
-}
-
-// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
-func (r FileDivergingVersionResult) GetApplicationproblemJSON4XX() *Problem {
-	return r.ApplicationproblemJSON4XX
-}
-
-// GetBody returns the raw response body bytes
-func (r FileDivergingVersionResult) GetBody() []byte {
-	return r.Body
-}
-
-// Status returns HTTPResponse.Status
-func (r FileDivergingVersionResult) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r FileDivergingVersionResult) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r FileDivergingVersionResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -182446,36 +182201,6 @@ func (c *ClientWithResponses) EditCommentWithApplicationMergePatchPlusJSONBodyWi
 	return ParseEditCommentResult(rsp)
 }
 
-// FileDivergingVersionWithBodyWithResponse Keep a version of the title or the notes that is about to be lost
-//
-// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`), which nothing on the server holds to check it against; `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`), refused as `comments.version_not_in_place` unless it is the entry's value of the field now - so file it before writing over it. The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
-//
-// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
-//
-// Corresponds with POST /items/{itemId}/comments:file-version (the `FileDivergingVersion` operationId).
-func (c *ClientWithResponses) FileDivergingVersionWithBodyWithResponse(ctx context.Context, itemId ItemId, params *FileDivergingVersionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*FileDivergingVersionResult, error) {
-	rsp, err := c.FileDivergingVersionWithBody(ctx, itemId, params, contentType, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseFileDivergingVersionResult(rsp)
-}
-
-// FileDivergingVersionWithResponse Keep a version of the title or the notes that is about to be lost
-//
-// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`), which nothing on the server holds to check it against; `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`), refused as `comments.version_not_in_place` unless it is the entry's value of the field now - so file it before writing over it. The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
-//
-// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
-//
-// Corresponds with POST /items/{itemId}/comments:file-version (the `FileDivergingVersion` operationId).
-func (c *ClientWithResponses) FileDivergingVersionWithResponse(ctx context.Context, itemId ItemId, params *FileDivergingVersionParams, body FileDivergingVersionJSONRequestBody, reqEditors ...RequestEditorFn) (*FileDivergingVersionResult, error) {
-	rsp, err := c.FileDivergingVersion(ctx, itemId, params, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseFileDivergingVersionResult(rsp)
-}
-
 // ClearCoverWithResponse performs a DELETE /items/{itemId}/cover (the `ClearCover` operationId) request.
 //
 // Takes the cover off the entry. Idempotent: an entry with no cover succeeds and announces nothing.
@@ -208691,39 +208416,6 @@ func ParseEditCommentResult(rsp *http.Response) (*EditCommentResult, error) {
 			headers.ETag = &value
 		}
 		response.Headers200 = &headers
-	}
-
-	return response, nil
-}
-
-// ParseFileDivergingVersionResult parses an HTTP response from a FileDivergingVersionWithResponse call
-func ParseFileDivergingVersionResult(rsp *http.Response) (*FileDivergingVersionResult, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &FileDivergingVersionResult{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
-		var dest Comment
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON201 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
-		var dest Problem
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.ApplicationproblemJSON4XX = &dest
-
 	}
 
 	return response, nil

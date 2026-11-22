@@ -61,15 +61,9 @@ const (
 	CommentBySystem CommentKind = "SYSTEM"
 )
 
-// The headings of the system comments this build files (offline-sync.md §5). DisplacedVersionCode
-// is the version of a free-text field that lost a merge in a push; SetAsideVersionCode is a
-// writer's own title or notes, given up online for a version somebody else wrote meanwhile;
-// ReplacedVersionCode is the version in place that a writer replaced with their own.
-const (
-	DisplacedVersionCode = "sync.displaced_version"
-	SetAsideVersionCode  = "sync.set_aside_version"
-	ReplacedVersionCode  = "sync.replaced_version"
-)
+// DisplacedVersionCode is the heading of the one system comment this build files: the version of
+// a free-text field that lost a merge (offline-sync.md §5).
+const DisplacedVersionCode = "sync.displaced_version"
 
 // MaxCommentBodyLength counts code points rather than bytes, for the reason the title limit does
 // (I-W7): a limit in bytes would measure the alphabet rather than the text.
@@ -102,7 +96,7 @@ type NewCommentInput struct {
 // NewComment validates and builds a comment.
 func NewComment(input NewCommentInput) (Comment, error) {
 	bound := commentBound
-	if keptVersion(input.SystemCode) {
+	if input.SystemCode == DisplacedVersionCode {
 		bound = keptVersionBound(input.SystemParams["field"])
 	}
 	body, err := validCommentBody(input.Body, input.Text, bound)
@@ -206,11 +200,6 @@ func (c Comment) Removed(at time.Time) Comment {
 	c.Body = ""
 	c.DeletedAt = &at
 	return c
-}
-
-// keptVersion reports whether a system comment holds a version of an entry's field.
-func keptVersion(code string) bool {
-	return code == DisplacedVersionCode || code == SetAsideVersionCode || code == ReplacedVersionCode
 }
 
 // bodyBound is a body's length bound in code points - zero for none - and the code that refuses it.

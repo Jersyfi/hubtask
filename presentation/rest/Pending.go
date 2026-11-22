@@ -957,10 +957,6 @@ func (pending) AddComment(w http.ResponseWriter, r *http.Request, _ openapi.Item
 	notAvailable(w, r)
 }
 
-func (pending) FileDivergingVersion(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.FileDivergingVersionParams) {
-	notAvailable(w, r)
-}
-
 func (pending) EditComment(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.CommentId, _ openapi.EditCommentParams) {
 	notAvailable(w, r)
 }

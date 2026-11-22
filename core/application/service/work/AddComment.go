@@ -84,13 +84,10 @@ type AddCommentCommand struct {
 	ID     shared.ID
 	ItemID shared.ID
 	// SystemCode and SystemParams make the comment one the server files on the author's behalf
-	// (offline-sync.md §5). Not declared as inputs: a channel never names a code, only
-	// FileDisplaced and FileDivergingVersion set them, each with its own heading.
+	// (offline-sync.md §5). Not declared as inputs: nobody asks for a system comment over a
+	// channel, and FileDisplaced is the one caller.
 	SystemCode   string
 	SystemParams map[string]string
-	// InPlace names the entry's field the body must be the value of, read inside the write's
-	// transaction (domain.WorkItem.EnsureHolds); empty checks nothing. Not an input either.
-	InPlace string
 	// ParentCommentID is the comment being replied to, empty for a top-level comment.
 	ParentCommentID shared.ID
 	Body            string
@@ -170,11 +167,6 @@ func (h AddComment) Execute(
 		}
 		if err := item.EnsureCommentable(profile); err != nil {
 			return err
-		}
-		if cmd.InPlace != "" {
-			if err := item.EnsureHolds(cmd.InPlace, cmd.Body, w.Text); err != nil {
-				return err
-			}
 		}
 
 		parent, err := w.parentOf(ctx, cmd.ParentCommentID, item.ID)

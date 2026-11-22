@@ -59,14 +59,14 @@
     { id: 'o2', authorName: 'Sofia Marchetti', body: 'I have attached the revised plan to the work package.', when: '4 Sep 2026, 11:48', at: '2026-09-04T09:48:00Z', isChangeable: false },
   ];
 
-  // A version kept when somebody else changed the text meanwhile, between two posts; the link to it
+  // A version kept when two devices changed the text while apart, between two posts; the link to it
   // has landed, so it is marked.
   const kept: ThreadComment[] = [
     { id: 'k0', authorName: 'Jonas Brandt', body: 'I changed the description to the online order.', when: '22 Nov 2026, 09:58', at: '2026-11-22T08:58:00Z', isChangeable: false },
     {
       id: 'k1',
       authorName: 'Amelie Fischer',
-      system: { label: 'Kept version', heading: 'The text as it stood before Amelie Fischer replaced it at 22 Nov 2026, 10:00, after somebody else had changed it meanwhile.' },
+      system: { label: 'Kept version', heading: 'Diverging version from Amelie Fischer, written on this device at 22 Nov 2026, 10:00. This is the text that lost the merge; the entry carries the other one.' },
       body: 'Tiles ordered online already.\nDelivery on Thursday.',
       when: '22 Nov 2026, 10:00',
       at: '2026-11-22T09:00:00Z',

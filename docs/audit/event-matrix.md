@@ -392,7 +392,6 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `comment.created` | AddComment | `comment` | INFO | Every time |
-| `comment.created` | FileDivergingVersion | `comment` | INFO | Every time |
 | `comment.deleted` | DeleteComment | `comment` | INFO | Every time |
 | `comment.list_read` | ListComments | `item` | INFO | When refused |
 | `comment.updated` | EditComment | `comment` | INFO | Every time |

@@ -511,23 +511,6 @@ func ItemNotes(raw string, form text.Normalizer) (string, error) {
 	return shared.NFC(strings.TrimSpace(raw), form)
 }
 
-// EnsureHolds refuses a text that is not the entry's title or notes now, compared in the form
-// both are kept in. A version filed as the one replaced must be the text in place, or anybody
-// who may comment could file any words under that heading (offline-sync.md §5).
-func (i WorkItem) EnsureHolds(field, raw string, form text.Normalizer) error {
-	held, ok := map[string]string{FieldTitle: i.Title, FieldNotes: i.Notes}[field]
-	sent, err := ItemNotes(raw, form)
-	if err != nil {
-		return err
-	}
-	if !ok || sent != held {
-		return shared.ErrValidation.
-			WithDetail("comments.version_not_in_place").
-			WithFields(shared.FieldError{Path: "/body", Code: "comments.version_not_in_place"})
-	}
-	return nil
-}
-
 // itemTitle normalises, trims and checks the title. One line, like a container's name and for
 // the same reason: it survives every layer and then breaks the one that renders it - an export,
 // a log line, a calendar summary. Anything with newlines in it belongs in the notes.

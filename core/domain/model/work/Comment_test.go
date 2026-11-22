@@ -205,7 +205,7 @@ func TestAReplyToAnInternalNoteIsInternal(t *testing.T) {
 	}
 }
 
-// UC-SYN-02 check 10: a kept version is the text of an entry's field, so it is bounded as that
+// UC-SYN-02 check 7: a kept version is the text of an entry's field, so it is bounded as that
 // field is - notes beyond a comment's 20000 characters are kept, a title at its 500 - while a
 // comment somebody writes keeps its own bound.
 func TestAKeptVersionIsBoundedAsTheFieldItHolds(t *testing.T) {
@@ -213,12 +213,10 @@ func TestAKeptVersionIsBoundedAsTheFieldItHolds(t *testing.T) {
 	cases := []struct {
 		name, code, field, body, refused string
 	}{
-		{"notes set aside", work.SetAsideVersionCode, work.FieldNotes, long, ""},
-		{"notes replaced", work.ReplacedVersionCode, work.FieldNotes, long, ""},
 		{"notes displaced in a push", work.DisplacedVersionCode, work.FieldNotes, long, ""},
-		{"a title at its bound", work.SetAsideVersionCode, work.FieldTitle, strings.Repeat("t", work.MaxItemTitleLength), ""},
-		{"a title over its bound", work.ReplacedVersionCode, work.FieldTitle, strings.Repeat("t", work.MaxItemTitleLength+1), "items.title_too_long"},
-		{"a blank version", work.SetAsideVersionCode, work.FieldNotes, "  ", "comments.body_required"},
+		{"a title at its bound", work.DisplacedVersionCode, work.FieldTitle, strings.Repeat("t", work.MaxItemTitleLength), ""},
+		{"a title over its bound", work.DisplacedVersionCode, work.FieldTitle, strings.Repeat("t", work.MaxItemTitleLength+1), "items.title_too_long"},
+		{"a blank version", work.DisplacedVersionCode, work.FieldNotes, "  ", "comments.body_required"},
 		{"a person's comment", "", "", long, "comments.body_too_long"},
 	}
 	for _, c := range cases {

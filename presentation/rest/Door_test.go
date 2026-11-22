@@ -530,28 +530,6 @@ func TestAGeneratedOperationFlattensANestedMember(t *testing.T) {
 	}
 }
 
-// Keeping a diverging version names the entry from the path and hands on the field, the side and
-// the text; the answer is the comment, created (UC-SYN-02 check 10).
-func TestTheVersionDoorHandsOnItsInputs(t *testing.T) {
-	item := "0192f000-0000-7000-8000-0000000c0011"
-	comment := "0192f000-0000-7000-8000-0000000c0012"
-	registry := &catalogue{out: usecase.Output{
-		"id": comment, "item_id": item, "author_id": "0192f000-0000-7000-8000-00000000000d",
-		"parent_comment_id": nil, "body": "Mine", "created_at": "2026-08-17T09:00:00Z",
-		"edited_at": nil, "deleted_at": nil, "version": 1, "kind": "SYSTEM",
-		"system_code": "sync.set_aside_version", "system_params": map[string]any{"field": "notes"}, "internal": false,
-	}}
-	recorder := callDoor(t, registry, http.MethodPost, "/items/"+item+"/comments:file-version",
-		`{"field":"notes","side":"MINE","body":"Mine"}`, map[string]string{"Content-Type": "application/json"})
-	if recorder.Code != http.StatusCreated || registry.name != "FileDivergingVersion" || registry.in["item_id"] != item ||
-		registry.in["field"] != "notes" || registry.in["side"] != "MINE" || registry.in["body"] != "Mine" {
-		t.Fatalf("file: %d %s %v %s", recorder.Code, registry.name, registry.in, recorder.Body)
-	}
-	if !strings.Contains(recorder.Body.String(), `"system_code":"sync.set_aside_version"`) {
-		t.Errorf("answered %s", recorder.Body)
-	}
-}
-
 // The level switch and the workflow from columns name the collection from the path; the done
 // column's successor travels as a query parameter; a scheme's columns reach the use case whole.
 func TestTheBoardLevelDoorsHandOnTheirInputs(t *testing.T) {
