@@ -69,6 +69,10 @@ func (s *switches) Remove(context.Context, settingrepo.Place, setting.Key) (bool
 	return false, nil
 }
 
+func (*switches) PinHubs(context.Context, settingrepo.HubPin, time.Time) ([]shared.ID, error) {
+	return nil, nil
+}
+
 type makers struct {
 	identityrepo.Accounts
 	status map[shared.ID]identity.AccountStatus

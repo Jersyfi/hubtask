@@ -37,6 +37,7 @@ var (
 
 type settings struct {
 	rows map[settingrepo.Place]map[domain.Key]domain.Entry
+	hubs []shared.ID
 }
 
 func (s *settings) Above(context.Context, string) (domain.Layer, domain.Layer, error) {
@@ -155,4 +156,20 @@ func TestAPlanningOperationAHubHasOffIsRefusedThroughEveryDoor(t *testing.T) {
 			t.Errorf("the action answered %v, want %s", err, module.OffCode)
 		}
 	})
+}
+
+// PinHubs writes as the adapter's statement does, over the hubs the store was told exist.
+func (s *settings) PinHubs(ctx context.Context, pin settingrepo.HubPin, at time.Time) ([]shared.ID, error) {
+	var written []shared.ID
+	for _, hub := range s.hubs {
+		place := settingrepo.Place{Level: domain.LevelHub, ScopeID: hub}
+		if _, held := s.rows[place][pin.Key]; held {
+			continue
+		}
+		if err := s.Put(ctx, "", place, pin.Key, domain.Entry{Value: pin.On, Hold: domain.HoldSet}, at); err != nil {
+			return nil, err
+		}
+		written = append(written, hub)
+	}
+	return written, nil
 }

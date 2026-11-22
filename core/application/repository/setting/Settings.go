@@ -40,6 +40,18 @@ type Settings interface {
 	Put(ctx context.Context, id shared.ID, place Place, key domain.Key, entry domain.Entry, at time.Time) error
 	// Remove leaves the key to the level above, and reports whether the place stored it.
 	Remove(ctx context.Context, place Place, key domain.Key) (bool, error)
+	// PinHubs writes a flag as its own value at every hub of the workspace that stores none under
+	// the key - archived and trashed hubs included - and answers the hubs written. It asks no
+	// writer's question: the caller decides that the hubs may hold the value.
+	PinHubs(ctx context.Context, pin HubPin, at time.Time) ([]shared.ID, error)
+}
+
+// HubPin is the flag PinHubs writes: On, except at a hub that stores on under one of OnWhere,
+// which gets on.
+type HubPin struct {
+	Key     domain.Key
+	On      bool
+	OnWhere []domain.Key
 }
 
 // LayersOf groups stored entries into one layer per place, in the order of the places.

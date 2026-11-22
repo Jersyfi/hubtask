@@ -155,3 +155,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0106](./ADR-0106-an-independent-review-and-the-owner-on-the-loop.md) | An independent review, a design brief, and the owner on the loop | accepted | Process, documentation, contributors |
 | [0107](./ADR-0107-the-application-does-not-state-its-maturity-stage.md) | The application does not state its maturity stage | accepted | Release, clients |
 | [0108](./ADR-0108-a-module-switch-and-a-board-comment-are-change-records.md) | A module switch and a board comment are change records | accepted | Synchronisation, clients |
+| [0109](./ADR-0109-a-product-switched-on-at-the-workspace-is-offered-to-hubs.md) | A product switched on at the workspace is offered to hubs, not switched on in them | accepted | Domain, application, API |

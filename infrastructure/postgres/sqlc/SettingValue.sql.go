@@ -124,6 +124,57 @@ func (q *Queries) ListSettingValues(ctx context.Context, arg ListSettingValuesPa
 	return items, nil
 }
 
+const pinHubSettingFlags = `-- name: PinHubSettingFlags :many
+INSERT INTO setting_value (id, tenant_id, level, scope_id, key, value, hold, updated_at)
+SELECT gen_random_uuid(), current_tenant_id(), 'HUB', c.id, $1::text,
+  to_jsonb($2::boolean OR EXISTS (
+    SELECT 1 FROM setting_value held
+    WHERE held.tenant_id = current_tenant_id() AND held.level = 'HUB' AND held.scope_id = c.id
+      AND held.key = ANY($3::text[]) AND held.value = 'true'::jsonb
+  )),
+  'SET', $4
+FROM container c
+WHERE c.tenant_id = current_tenant_id() AND c.type = 'HUB'
+ON CONFLICT (tenant_id, level, scope_id, key) DO NOTHING
+RETURNING scope_id
+`
+
+type PinHubSettingFlagsParams struct {
+	Key       string
+	Value     bool
+	OnWhere   []string
+	UpdatedAt pgtype.Timestamptz
+}
+
+// A flag written at every hub of the workspace that stores none under the key - archived and
+// trashed hubs too, or restoring one would change what it has - answering the hubs written. A hub
+// that stores on under one of `on_where` gets on whatever `value` says. The conflict target is the
+// workspace's own row, and DO NOTHING leaves it as it is.
+func (q *Queries) PinHubSettingFlags(ctx context.Context, arg PinHubSettingFlagsParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, pinHubSettingFlags,
+		arg.Key,
+		arg.Value,
+		arg.OnWhere,
+		arg.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var scope_id pgtype.UUID
+		if err := rows.Scan(&scope_id); err != nil {
+			return nil, err
+		}
+		items = append(items, scope_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const planSettingsOfWorkspaceUnder = `-- name: PlanSettingsOfWorkspaceUnder :many
 SELECT ps.key, ps.value, ps.locked
 FROM tenant t

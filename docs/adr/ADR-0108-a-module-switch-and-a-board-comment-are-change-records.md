@@ -40,5 +40,6 @@ neither could be added to the stream alone.
 ## Consequences
 
 The web app's `pathsFor` names both entities, and a test holds its list to the walk's kinds, so a
-kind added to the walk cannot be dropped by the client unnoticed. A workspace's switch does not
-rewrite each hub's record: a client re-reads the places' modules on any `setting` record.
+kind added to the walk cannot be dropped by the client unnoticed. A workspace's switch records
+each hub it wrote a value into ([ADR-0109](./ADR-0109-a-product-switched-on-at-the-workspace-is-offered-to-hubs.md))
+and no other hub's: a client re-reads the places' modules on any `setting` record.

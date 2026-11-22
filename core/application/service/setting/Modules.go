@@ -210,11 +210,16 @@ type SetModuleCommand struct {
 	Switch Switch
 	// HubID narrows the switch to one hub; zero is the workspace.
 	HubID shared.ID
+	// HubIDs are the existing hubs a workspace's switch on switches the module on in as well.
+	HubIDs []shared.ID
 }
 
 // SetModule switches one module on or off for the workspace or one hub, or leaves it to the level
 // above. Off hides the module's screens, fields and actions and deletes nothing (UC-INS-21
-// check 4); a lock above refuses with its origin (check 6); a hub only narrows (check 3).
+// check 4); a lock above refuses with its origin (check 6); a hub decides inside what the
+// workspace has on (check 3). A workspace's switch changes no hub that exists but the chosen
+// ones, and off then on gives each hub the state it had (check 13): whenever what the workspace
+// resolves to turns, every hub storing no value of its own gets the state it had as its own.
 type SetModule struct{ Modules Modules }
 
 // Execute writes the switch and answers every module at the place afterwards.
@@ -224,14 +229,16 @@ func (h SetModule) Execute(ctx context.Context, actor appshared.ActorContext, cm
 		return nil, shared.ErrValidation.WithDetail("module.switch_invalid").
 			WithFields(shared.FieldError{Path: "/switch", Code: "module.switch_invalid"})
 	}
-	where, err := m.read(ctx, actor, cmd.HubID)
+	if len(cmd.HubIDs) > 0 && (cmd.Switch != SwitchOn || !cmd.HubID.IsZero()) {
+		return nil, shared.ErrValidation.WithDetail("module.hubs_with_on_only").
+			WithFields(shared.FieldError{Path: "/hub_ids", Code: "module.hubs_with_on_only"})
+	}
+	where, err := m.authorised(ctx, actor, cmd.HubID)
 	if err != nil {
 		return nil, err
 	}
-	if err := m.Authorizer.Authorize(ctx, actor, access.Request{
-		Permission: service.PermissionStructure, Path: where.path, Action: ModuleSwitchedAction,
-		TokenScope: workspaceWriteScope, TargetType: moduleTarget, TargetID: where.target,
-	}); err != nil {
+	chosen, err := m.chosen(ctx, actor, cmd.HubIDs)
+	if err != nil {
 		return nil, err
 	}
 	var states []module.State
@@ -246,12 +253,15 @@ func (h SetModule) Execute(ctx context.Context, actor appshared.ActorContext, cm
 			return err
 		}
 		now := m.Clock.Now()
+		var written []shared.ID
 		if cmd.Switch == SwitchOn {
 			// What the module needs first, so a lock on it refuses before anything is written.
 			for _, needed := range cmd.Module.Needs() {
-				if err := m.switchOnNeeded(ctx, actor, where, layers, needed, now); err != nil {
+				hubs, err := m.switchOnNeeded(ctx, actor, where, layers, needed, chosen, now)
+				if err != nil {
 					return err
 				}
+				written = append(written, hubs...)
 			}
 			if layers, err = m.layers(ctx, where.walk); err != nil {
 				return err
@@ -286,31 +296,164 @@ func (h SetModule) Execute(ctx context.Context, actor appshared.ActorContext, cm
 		}
 		states = module.Resolve(layers...)
 		after := domain.Resolve(definition, layers...)
+		pinned, err := m.keepHubs(ctx, where, cmd.Module, before, after, now)
+		if err != nil {
+			return err
+		}
+		if err := m.switchOnChosen(ctx, actor, chosen, cmd.Module, after, now); err != nil {
+			return err
+		}
 		if err := m.resynchronise(ctx, cmd, before, after); err != nil {
 			return err
 		}
-		if err := m.recordAudit(ctx, actor, where, cmd, before, after, now); err != nil {
+		if err := m.recordAudit(ctx, actor, where, cmd, before, after, reach{pinned: pinned, chosen: chosen}, now); err != nil {
 			return err
 		}
-		return m.announce(ctx, actor, where, states)
+		if err := m.announce(ctx, actor, where.target, where.at, states); err != nil {
+			return err
+		}
+		return m.announceHubs(ctx, actor, append(written, pinned...), chosen)
 	})
 	return states, err
 }
 
-// announce records the place's switches as they now stand: filed under the hub for a hub's, under
+// authorised finds the place and asks whether the actor may shape it, outside the transaction a
+// refusal's audit entry would be rolled back with.
+func (m Modules) authorised(ctx context.Context, actor appshared.ActorContext, hubID shared.ID) (place, error) {
+	where, err := m.read(ctx, actor, hubID)
+	if err != nil {
+		return place{}, err
+	}
+	return where, m.Authorizer.Authorize(ctx, actor, access.Request{
+		Permission: service.PermissionStructure, Path: where.path, Action: ModuleSwitchedAction,
+		TokenScope: workspaceWriteScope, TargetType: moduleTarget, TargetID: where.target,
+	})
+}
+
+// chosen answers the hubs a workspace's switch names, each once and each one the actor may shape:
+// one that is not refuses the whole switch (rule 2).
+func (m Modules) chosen(ctx context.Context, actor appshared.ActorContext, hubs []shared.ID) ([]shared.ID, error) {
+	chosen := make([]shared.ID, 0, len(hubs))
+	for _, hub := range hubs {
+		if hub.IsZero() {
+			return nil, shared.ErrValidation.WithDetail("usecase.field_required").
+				WithFields(shared.FieldError{Path: "/hub_ids", Code: "usecase.field_required"})
+		}
+		if slices.Contains(chosen, hub) {
+			continue
+		}
+		if _, err := m.authorised(ctx, actor, hub); err != nil {
+			return nil, err
+		}
+		chosen = append(chosen, hub)
+	}
+	return chosen, nil
+}
+
+// reach is what a workspace's switch did to the hubs, for the trail: those given their state as
+// their own, and those chosen.
+type reach struct {
+	pinned []shared.ID
+	chosen []shared.ID
+}
+
+// keepHubs writes, when the workspace's switch turned what the workspace resolves to, the state
+// each hub had as the hub's own value where it stores none, and answers the hubs written: off
+// before the module comes on, so no existing hub changes; on before it goes off, so that on again
+// gives each hub the state it had (UC-INS-21 check 13).
+func (m Modules) keepHubs(
+	ctx context.Context, where place, key module.Key, before, after domain.Resolution, now time.Time,
+) ([]shared.ID, error) {
+	was, _ := before.Effective.(bool)
+	is, _ := after.Effective.(bool)
+	if where.at.Level != domain.LevelWorkspace || was == is {
+		return nil, nil
+	}
+	pin := settingrepo.HubPin{Key: key.SettingKey(), On: was}
+	if !was {
+		// A hub that stores on for a module needing this one keeps this one on with it, or that
+		// module would come back without what it needs.
+		for _, other := range module.Keys() {
+			if slices.Contains(other.Needs(), key) {
+				pin.OnWhere = append(pin.OnWhere, other.SettingKey())
+			}
+		}
+	}
+	// Not through domain.Check, which refuses a hub's on under a workspace's off: the value is the
+	// hub's state for when the workspace has the module on again, and resolves to off until then.
+	return m.Settings.PinHubs(ctx, pin, now)
+}
+
+// switchOnChosen switches the module on in each chosen hub, under what the workspace now resolves
+// to.
+func (m Modules) switchOnChosen(
+	ctx context.Context, actor appshared.ActorContext, chosen []shared.ID, key module.Key,
+	workspace domain.Resolution, now time.Time,
+) error {
+	if len(chosen) == 0 {
+		return nil
+	}
+	definition := key.Definition()
+	entry := domain.Entry{Value: true, Hold: domain.HoldSet, By: actor.AccountID}
+	if err := domain.Check(definition, domain.LevelHub, workspace, entry); err != nil {
+		return err
+	}
+	for _, hub := range chosen {
+		at := settingrepo.Place{Level: domain.LevelHub, ScopeID: hub}
+		if err := m.Settings.Put(ctx, m.IDs.NewID(), at, definition.Key, entry, now); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// announce records a place's switches as they now stand: filed under the hub for a hub's, under
 // no container for the workspace's, which every member receives.
-func (m Modules) announce(ctx context.Context, actor appshared.ActorContext, where place, states []module.State) error {
+func (m Modules) announce(
+	ctx context.Context, actor appshared.ActorContext, target shared.ID, at settingrepo.Place, states []module.State,
+) error {
+	return m.record(ctx, actor, target, at, SwitchesRecord(at, states))
+}
+
+func (m Modules) record(
+	ctx context.Context, actor appshared.ActorContext, target shared.ID, at settingrepo.Place, payload map[string]any,
+) error {
 	if m.Changes == nil {
 		return nil
 	}
 	change := changelog.Change{
-		TenantID: actor.TenantID, Entity: Entity, EntityID: where.target, Op: changelog.Upsert,
-		ActorID: actor.AccountID, HLC: m.HLC.Next(), Payload: SwitchesRecord(where.at, states),
+		TenantID: actor.TenantID, Entity: Entity, EntityID: target, Op: changelog.Upsert,
+		ActorID: actor.AccountID, HLC: m.HLC.Next(), Payload: payload,
 	}
-	if where.at.Level == domain.LevelHub {
-		change.ContainerID = where.target
+	if at.Level == domain.LevelHub {
+		change.ContainerID = target
 	}
 	return m.Changes.Record(ctx, change)
+}
+
+// announceHubs records the switches of each hub a workspace's switch wrote a value into, so that
+// the record a device holds of a hub is the hub's own decision from then on.
+func (m Modules) announceHubs(ctx context.Context, actor appshared.ActorContext, written ...[]shared.ID) error {
+	if m.Changes == nil {
+		return nil
+	}
+	hubs := slices.Concat(written...)
+	slices.Sort(hubs)
+	hubs = slices.Compact(hubs)
+	if len(hubs) == 0 {
+		return nil
+	}
+	records, err := m.Records(ctx, actor, hubs)
+	if err != nil {
+		return err
+	}
+	for _, hub := range hubs {
+		at := settingrepo.Place{Level: domain.LevelHub, ScopeID: hub}
+		if err := m.record(ctx, actor, hub, at, records[hub]); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // SwitchesRecord is a place's module switches as a device holds them: each module and whether it
@@ -381,28 +524,37 @@ func refuseUnmet(layers []domain.Layer, key domain.Key, to Switch) error {
 }
 
 // switchOnNeeded switches on at the place a module another one needs, where it is not on already,
-// with its own audit entry.
+// with its own audit entry, and in each chosen hub; it answers the hubs it wrote a kept state into.
 func (m Modules) switchOnNeeded(
-	ctx context.Context, actor appshared.ActorContext, where place, layers []domain.Layer, needed module.Key, now time.Time,
-) error {
+	ctx context.Context, actor appshared.ActorContext, where place, layers []domain.Layer, needed module.Key,
+	chosen []shared.ID, now time.Time,
+) ([]shared.ID, error) {
 	definition := needed.Definition()
 	before := domain.Resolve(definition, layers...)
 	if on, _ := before.Effective.(bool); on {
-		return nil
+		return nil, m.switchOnChosen(ctx, actor, chosen, needed, before, now)
 	}
 	entry := domain.Entry{Value: true, Hold: domain.HoldSet, By: actor.AccountID}
 	if err := domain.Check(definition, where.at.Level, domain.Resolve(definition, layers[:len(layers)-1]...), entry); err != nil {
-		return err
+		return nil, err
 	}
 	if err := m.Settings.Put(ctx, m.IDs.NewID(), where.at, definition.Key, entry, now); err != nil {
-		return err
+		return nil, err
 	}
-	after, err := m.layers(ctx, where.walk)
+	stored, err := m.layers(ctx, where.walk)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	after := domain.Resolve(definition, stored...)
+	pinned, err := m.keepHubs(ctx, where, needed, before, after, now)
+	if err != nil {
+		return nil, err
+	}
+	if err := m.switchOnChosen(ctx, actor, chosen, needed, after, now); err != nil {
+		return nil, err
 	}
 	cmd := SetModuleCommand{Module: needed, Switch: SwitchOn}
-	return m.recordAudit(ctx, actor, where, cmd, before, domain.Resolve(definition, after...), now)
+	return pinned, m.recordAudit(ctx, actor, where, cmd, before, after, reach{pinned: pinned, chosen: chosen}, now)
 }
 
 // resynchronise advances the epoch when the workspace's switch of a module the replica narrows
@@ -423,18 +575,37 @@ func (m Modules) resynchronise(ctx context.Context, cmd SetModuleCommand, before
 
 func (m Modules) recordAudit(
 	ctx context.Context, actor appshared.ActorContext, where place, cmd SetModuleCommand,
-	before, after domain.Resolution, now time.Time,
+	before, after domain.Resolution, hubs reach, now time.Time,
 ) error {
+	changes := []audit.Change{{
+		Field: string(cmd.Module.SettingKey()), Classification: audit.Open,
+		From: before.Effective, To: after.Effective,
+	}}
+	// Counts and identifiers only (rule 10). A chosen hub was written twice - its state kept, then
+	// switched on - and counts as chosen.
+	kept := 0
+	for _, hub := range hubs.pinned {
+		if !slices.Contains(hubs.chosen, hub) {
+			kept++
+		}
+	}
+	if kept > 0 {
+		changes = append(changes, audit.Change{Field: "hubs_kept", Classification: audit.Open, To: kept})
+	}
+	if len(hubs.chosen) > 0 {
+		ids := make([]string, 0, len(hubs.chosen))
+		for _, hub := range hubs.chosen {
+			ids = append(ids, hub.String())
+		}
+		changes = append(changes, audit.Change{Field: "hub_ids", Classification: audit.Open, To: ids})
+	}
 	return m.Audit.Append(ctx, audit.Entry{
 		TenantID: actor.TenantID, OccurredAt: now, Action: ModuleSwitchedAction,
 		Outcome: audit.OutcomeSuccess, Severity: audit.SeverityInfo,
 		ActorKind: actor.Kind, ActorID: actor.AccountID, ActorLabel: actor.AccountName,
 		TargetType: moduleTarget, TargetID: where.target,
 		Context: audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
-		Changes: audit.Changes(audit.Change{
-			Field: string(cmd.Module.SettingKey()), Classification: audit.Open,
-			From: before.Effective, To: after.Effective,
-		}),
+		Changes: audit.Changes(changes...),
 	})
 }
 
@@ -478,10 +649,14 @@ func (h SetModule) Descriptor() usecase.Descriptor {
 		Name:       SetModuleName,
 		Permission: service.PermissionStructure,
 		Summary: "Switches one module of the suite on or off for the workspace or one hub, or " +
-			"leaves it to the level above. A hub only switches off what the workspace has on; a " +
-			"module a plan or the installation locks is refused as setting.locked.",
-		SideEffects: "Stores the switch and writes an audit entry. Switching off hides the " +
-			"module and deletes none of its data.",
+			"leaves it to the level above. On at the workspace allows the module and is what a hub " +
+			"made afterwards starts with; it changes no existing hub but those in hub_ids. Off at " +
+			"the workspace takes it from every hub, and on again gives each hub the state it had. " +
+			"A hub never switches on what the workspace has off; a module a plan or the " +
+			"installation locks is refused as setting.locked.",
+		SideEffects: "Stores the switch and writes an audit entry. Where the workspace's switch " +
+			"turns the module on or off, stores each hub's state as the hub's own value where it " +
+			"has none. Switching off hides the module and deletes none of its data.",
 		TokenScope: workspaceWriteScope,
 		Input: []usecase.Field{
 			{Name: "module", Kind: usecase.KindString, Required: true, Enum: modules,
@@ -490,6 +665,8 @@ func (h SetModule) Descriptor() usecase.Descriptor {
 				Enum:        []string{string(SwitchOn), string(SwitchOff), string(SwitchInherit)},
 				Description: "ON, OFF, or INHERIT to leave it to the level above."},
 			{Name: "hub_id", Kind: usecase.KindID, Description: "A hub of the workspace; omitted is the workspace."},
+			{Name: "hub_ids", Kind: usecase.KindIDList,
+				Description: "With switch ON at the workspace: the existing hubs to switch the module on in as well."},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: ModuleSwitchedAction, TargetType: moduleTarget, Severity: audit.SeverityInfo, Required: true,
@@ -506,8 +683,12 @@ func (h SetModule) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
+			hubIDs, err := in.IDList("hub_ids")
+			if err != nil {
+				return nil, err
+			}
 			states, err := h.Execute(ctx, actor, SetModuleCommand{
-				Module: key, Switch: Switch(strings.ToUpper(in.String("switch"))), HubID: hubID,
+				Module: key, Switch: Switch(strings.ToUpper(in.String("switch"))), HubID: hubID, HubIDs: hubIDs,
 			})
 			if err != nil {
 				return nil, err

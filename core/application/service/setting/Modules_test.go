@@ -32,6 +32,7 @@ var (
 type memorySettings struct {
 	instance, plan domain.Layer
 	rows           map[settingrepo.Place]map[domain.Key]domain.Entry
+	hubs           []shared.ID
 }
 
 func newMemory() *memorySettings {
@@ -68,6 +69,29 @@ func (m *memorySettings) Remove(_ context.Context, place settingrepo.Place, key 
 	_, held := m.rows[place][key]
 	delete(m.rows[place], key)
 	return held, nil
+}
+
+// PinHubs writes as the adapter's statement does, over the hubs the store was told exist; a hub
+// it was not told of stands for one made afterwards.
+func (m *memorySettings) PinHubs(ctx context.Context, pin settingrepo.HubPin, at time.Time) ([]shared.ID, error) {
+	var written []shared.ID
+	for _, each := range m.hubs {
+		place := settingrepo.Place{Level: domain.LevelHub, ScopeID: each}
+		if _, held := m.rows[place][pin.Key]; held {
+			continue
+		}
+		on := pin.On
+		for _, key := range pin.OnWhere {
+			if stored, _ := m.rows[place][key].Value.(bool); stored {
+				on = true
+			}
+		}
+		if err := m.Put(ctx, "", place, pin.Key, domain.Entry{Value: on, Hold: domain.HoldSet}, at); err != nil {
+			return nil, err
+		}
+		written = append(written, each)
+	}
+	return written, nil
 }
 
 type containers struct{}
@@ -169,7 +193,8 @@ func TestSwitchingModules(t *testing.T) {
 		t.Errorf("planning after switching on = %+v", state)
 	}
 
-	// Check 3: narrowed to a hub; a hub never widens.
+	// Check 3: a hub made after the switch has the module, decides for itself and switches it off;
+	// it never switches on what the workspace has off.
 	states, err = set.Execute(ctx, actor(), settingservice.SetModuleCommand{Module: module.Planning, Switch: settingservice.SwitchOff, HubID: hub})
 	if err != nil {
 		t.Fatal(err)

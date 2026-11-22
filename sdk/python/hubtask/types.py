@@ -3260,6 +3260,7 @@ class ModulesOn(TypedDict, total=False):
 class ModuleSwitch(TypedDict, total=False):
     switch: Required[Literal["ON", "OFF", "INHERIT"]]
     hub_id: str
+    hub_ids: list[str]
 
 PlanFeature = Literal["AUTOMATION_RULES", "WEBHOOKS", "OWN_SIGN_IN_PROVIDERS"]
 

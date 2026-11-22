@@ -19573,9 +19573,14 @@ paths:
       description: >
         Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it
         to the level above with `INHERIT`. Off hides the module's screens, fields and actions for
-        everyone and deletes none of its data; on again shows it unchanged. A hub only switches off
-        what the workspace has on - switching on there what the workspace has off is refused with
-        `setting.not_allowed`. A module the installation or the plan locks is refused with
+        everyone and deletes none of its data; on again shows it unchanged. On at the workspace
+        allows the module and is what a hub made afterwards starts with; it changes no hub that
+        exists, except the hubs named in `hub_ids`, where it is switched on as well. Off at the
+        workspace takes the module from every hub, and on again gives each hub the state it had.
+        A hub decides for itself inside that: switching on there what the workspace has off is
+        refused with `setting.not_allowed`. `hub_ids` goes with `switch: ON` at the workspace
+        only - otherwise `module.hubs_with_on_only` - and needs the right to change the shape of
+        each hub named. A module the installation or the plan locks is refused with
         `setting.locked`, its `origin` as the parameter. The service desk needs Workflows:
         switching the desk on switches Workflows on with it, and switching Workflows off - or to
         `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change
@@ -34835,6 +34840,12 @@ components:
           type: string
           format: uuid
           description: The hub to switch it for; omitted is the workspace.
+        hub_ids:
+          type: array
+          items: { type: string, format: uuid }
+          description: >
+            With `switch: ON` at the workspace: the existing hubs the module is switched on in as
+            well. Omitted or empty, no existing hub changes.
 
     PlanFeature:
       type: string

@@ -341,6 +341,7 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 		}
 		return nil, shared.ErrNotFound.WithDetail("groups.not_found")
 	case "SetModule":
+		w.inputs[name] = append(w.inputs[name], in)
 		if in.String("module") == string(module.Workflows) && in.String("switch") == "ON" && w.workflowsOff {
 			w.workflowsOff = false
 			w.workflows = map[string]map[string]any{}
@@ -541,6 +542,9 @@ func (s *settings) Put(_ context.Context, _ shared.ID, _ settingrepo.Place, key 
 }
 func (s *settings) Remove(context.Context, settingrepo.Place, setting.Key) (bool, error) {
 	return false, nil
+}
+func (s *settings) PinHubs(context.Context, settingrepo.HubPin, time.Time) ([]shared.ID, error) {
+	return nil, nil
 }
 
 type allow struct{}

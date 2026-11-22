@@ -21,6 +21,24 @@ ON CONFLICT (tenant_id, level, scope_id, key) DO UPDATE
   SET value = excluded.value, hold = excluded.hold, allowed = excluded.allowed,
       set_by = excluded.set_by, updated_at = excluded.updated_at;
 
+-- name: PinHubSettingFlags :many
+-- A flag written at every hub of the workspace that stores none under the key - archived and
+-- trashed hubs too, or restoring one would change what it has - answering the hubs written. A hub
+-- that stores on under one of `on_where` gets on whatever `value` says. The conflict target is the
+-- workspace's own row, and DO NOTHING leaves it as it is.
+INSERT INTO setting_value (id, tenant_id, level, scope_id, key, value, hold, updated_at)
+SELECT gen_random_uuid(), current_tenant_id(), 'HUB', c.id, sqlc.arg('key')::text,
+  to_jsonb(sqlc.arg('value')::boolean OR EXISTS (
+    SELECT 1 FROM setting_value held
+    WHERE held.tenant_id = current_tenant_id() AND held.level = 'HUB' AND held.scope_id = c.id
+      AND held.key = ANY(sqlc.arg('on_where')::text[]) AND held.value = 'true'::jsonb
+  )),
+  'SET', sqlc.arg('updated_at')
+FROM container c
+WHERE c.tenant_id = current_tenant_id() AND c.type = 'HUB'
+ON CONFLICT (tenant_id, level, scope_id, key) DO NOTHING
+RETURNING scope_id;
+
 -- name: DeleteSettingValue :execrows
 DELETE FROM setting_value
 WHERE level = sqlc.arg('level') AND scope_id = sqlc.arg('scope_id') AND key = sqlc.arg('key');

@@ -21726,8 +21726,11 @@ type ModuleState struct {
 // ModuleSwitch defines model for ModuleSwitch.
 type ModuleSwitch struct {
 	// HubId The hub to switch it for; omitted is the workspace.
-	HubId  *openapi_types.UUID `json:"hub_id,omitempty"`
-	Switch ModuleSwitchSwitch  `json:"switch"`
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+
+	// HubIds With `switch: ON` at the workspace: the existing hubs the module is switched on in as well. Omitted or empty, no existing hub changes.
+	HubIds *[]openapi_types.UUID `json:"hub_ids,omitempty"`
+	Switch ModuleSwitchSwitch    `json:"switch"`
 }
 
 // ModuleSwitchSwitch defines model for ModuleSwitch.Switch.

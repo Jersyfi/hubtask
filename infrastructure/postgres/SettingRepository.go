@@ -170,6 +170,33 @@ func (SettingRepository) Remove(ctx context.Context, place settingrepo.Place, ke
 	return removed > 0, nil
 }
 
+// PinHubs writes the flag at every hub of the workspace that stores none under the key.
+func (SettingRepository) PinHubs(ctx context.Context, pin settingrepo.HubPin, at time.Time) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	onWhere := make([]string, 0, len(pin.OnWhere))
+	for _, key := range pin.OnWhere {
+		onWhere = append(onWhere, string(key))
+	}
+	rows, err := queries.PinHubSettingFlags(ctx, sqlc.PinHubSettingFlagsParams{
+		Key: string(pin.Key), Value: pin.On, OnWhere: onWhere, UpdatedAt: timestampOf(at),
+	})
+	if err != nil {
+		return nil, queryFailed("pinning a setting at the hubs", err)
+	}
+	hubs := make([]shared.ID, 0, len(rows))
+	for _, row := range rows {
+		hub, err := idFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		hubs = append(hubs, hub)
+	}
+	return hubs, nil
+}
+
 type allowedDocument struct {
 	Minimum *int     `json:"minimum,omitempty"`
 	Maximum *int     `json:"maximum,omitempty"`

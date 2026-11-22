@@ -192,7 +192,9 @@ place's identifier: the workspace's under no container, reaching every member an
 the capabilities' `modules_on` does; a hub's filed under the hub, reaching whoever may read it, as
 `ListContainerModules` answers. A record carries each module and whether it is on there - keys and
 booleans, never which level decided or locked it, which `ListModules` answers whoever may shape the
-place. `SetModule` records the place it wrote, and nothing else writes a record: what the
+place. `SetModule` records the place it wrote - with a workspace's switch also each hub it wrote
+a value into, the hubs chosen and the hubs given their state as their own - and nothing else
+writes a record: what the
 installation or a plan decides for a workspace reaches a device on its next read of the manifest.
 A hub's record states what the hub resolved to when it was written or walked, so a client re-reads
 every place's modules on any `setting` record rather than deriving a hub's from a held one. The

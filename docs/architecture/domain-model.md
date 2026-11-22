@@ -469,7 +469,16 @@ sandbox out (a scratch copy; what its promotion wrote is a version).
 
 **Modules** (UC-INS-21, package `core/domain/model/module`) are catalogue entries `module.<name>`
 of kind `FLAG`, off by default: the installation and a plan lock one on or off, the workspace
-switches it, a hub only switches off what the workspace has on. A use case of a module declares it
+switches it, a hub decides inside what the workspace has on and never switches on what the
+workspace has off. **On at the workspace allows a module and is what a hub made afterwards starts
+with; no hub that exists changes, except the hubs the switch names (`hub_ids`), and off at the
+workspace covers every hub.** The resolver is unchanged: whenever what the workspace resolves to
+turns - by its own switch or by leaving it to the installation or the plan - `SetModule` writes,
+in the same transaction, the state each hub had as that hub's own value where it stores none
+(archived and trashed hubs too), so on again gives each hub the state it had. An installation's or
+a plan's default that changes reaches the hubs of a workspace that decides nothing itself as
+before: it passes no `SetModule` ([ADR-0109](../adr/ADR-0109-a-product-switched-on-at-the-workspace-is-offered-to-hubs.md)).
+A use case of a module declares it
 (`usecase.Descriptor.Module`); the registry refuses it with `403 module.off` where the module is
 off, through every door: at the hub its input names - directly, through a collection, an entry, a
 page, a board, a configuration item or a goal in it - and at the workspace where it names none. The installation's and a plan's documents carry them as the `module`

@@ -134,6 +134,10 @@ func (planLock) Remove(context.Context, settingrepo.Place, settingmodel.Key) (bo
 	return false, nil
 }
 
+func (planLock) PinHubs(context.Context, settingrepo.HubPin, time.Time) ([]shared.ID, error) {
+	return nil, nil
+}
+
 // UC-TIM-03 offline: a device holds the policy in force - here the plan's locked aggregated
 // visibility over a workspace that set nothing - not the default it would assume without a record.
 func TestTheWalkCarriesThePolicyInForce(t *testing.T) {
