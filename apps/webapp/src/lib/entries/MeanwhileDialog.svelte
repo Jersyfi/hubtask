@@ -43,14 +43,17 @@
   size="s"
   isAlert
   title={field === 'title' ? t('app.sync.meanwhile.dialog_title') : t('app.sync.meanwhile.dialog_notes')}
-  dismissLabel={t('app.workspace.cancel')}
+  dismissLabel={t('app.sheet_close')}
   onDismiss={() => !isOverwriting}
   primary={{ label: t('app.sync.meanwhile.overwrite'), tone: 'danger', onclick: onoverwrite, isBusy: isOverwriting, busyLabel: t('app.sync.meanwhile.overwriting') }}
 >
   {#snippet actions()}
     <Button tone="secondary" onclick={onkeep} disabledReason={isOverwriting ? t('app.sync.meanwhile.overwriting') : undefined}>{t('app.sync.meanwhile.keep')}</Button>
   {/snippet}
-  <p class="said" data-meanwhile={field}>{said} {t('app.sync.meanwhile.consequence')}</p>
+  <p class="said" data-meanwhile={field}>
+    {said} {t('app.sync.meanwhile.consequence')}{#if field === 'notes'} {t('app.sync.meanwhile.not_kept')}{/if}
+  </p>
+  <p class="said">{t('app.sync.meanwhile.close_hint')}</p>
   {#if failure}
     <FailureNote problem={failure}>{t('app.sync.meanwhile.not_written')}</FailureNote>
   {/if}
