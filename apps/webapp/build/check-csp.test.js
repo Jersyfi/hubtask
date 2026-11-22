@@ -45,9 +45,9 @@ test('a planted style attribute fails', () => {
   assert.ok(violations(planted).some((v) => v.includes('style attribute')));
 });
 
-test('a violation inside a comment is not a violation', () => {
+test('a violation inside a comment is a violation', () => {
   const commented = clean.replace('</head>', '<!-- <script>old()</script> --></head>');
-  assert.deepEqual(violations(commented), []);
+  assert.deepEqual(violations(commented), ['an inline <script> without src']);
 });
 
 test('a planted data: font in a stylesheet fails - font-src has no data:', () => {
@@ -76,4 +76,18 @@ test('a script tag with src and attributes on both sides stays clean', () => {
     '<script crossorigin src="/assets/index-abc123.js" type="module"></script>',
   );
   assert.deepEqual(violations(reordered), []);
+});
+
+// Each of these hid a script from a search that stripped comments.
+test('a comment hides no script', () => {
+  assert.deepEqual(violations('<html><!--><script>alert(1)</script><p>-->x</p></html>'), [
+    'an inline <script> without src',
+  ]);
+  assert.deepEqual(violations('<script src=x><!--</script><script>alert(1)</script>-->'), [
+    'an inline <script> without src',
+  ]);
+});
+
+test("Svelte's comment markers alone are clean", () => {
+  assert.deepEqual(violations('<div><!--[--><p>x</p><!--]--><!----><!--[0--><p>y</p><!--]--></div>'), []);
 });

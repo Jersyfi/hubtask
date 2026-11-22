@@ -23,7 +23,20 @@ test('every dynamic or inline shape is found', () => {
   assert.equal(violations('<p style="color:red">x</p>').length, 1);
 });
 
-test('a comment does not hide a finding and does not create one', () => {
-  assert.equal(violations('<!-- <script>ok in a comment</script> -->').length, 0);
-  assert.equal(violations('<!-- x --><script>real</script>').length, 1);
+test('a script inside a comment is found', () => {
+  assert.deepEqual(violations('<!-- <script>in a comment</script> -->'), ['an inline <script>']);
+  assert.deepEqual(violations('<!-- x --><script>real</script>'), ['an inline <script>']);
+});
+
+// Each of these hid a script from a search that stripped comments.
+test('a comment hides no script', () => {
+  assert.deepEqual(violations('<html><!--><script>alert(1)</script><p>-->x</p></html>'), ['an inline <script>']);
+  assert.deepEqual(violations('<script src=x><!--</script><script>alert(1)</script>-->'), [
+    'a <script src> (csr is off; nothing should load code)',
+    'an inline <script>',
+  ]);
+});
+
+test("Svelte's comment markers alone are clean", () => {
+  assert.deepEqual(violations('<div><!--[--><p>x</p><!--]--><!----><!--[0--><p>y</p><!--]--></div>'), []);
 });
