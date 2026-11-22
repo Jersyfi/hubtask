@@ -197,6 +197,14 @@ const MaxChosenHubs = 200
 // TooManyHubsCode is the refusal of a switch naming more hubs than MaxChosenHubs.
 const TooManyHubsCode = "module.hubs_too_many"
 
+// BoundChosenHubs refuses a switch naming more than MaxChosenHubs hubs, at the field's pointer.
+func BoundChosenHubs(count int, path string) error {
+	if count > MaxChosenHubs {
+		return TooManyHubs(path)
+	}
+	return nil
+}
+
 // TooManyHubs refuses the list at the field's pointer.
 func TooManyHubs(path string) error {
 	return shared.ErrValidation.WithDetail(TooManyHubsCode).

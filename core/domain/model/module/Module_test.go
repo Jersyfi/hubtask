@@ -153,3 +153,41 @@ func TestUnmetNamesTheModuleOnWithoutWhatItNeeds(t *testing.T) {
 		}
 	}
 }
+
+// A switch may name up to MaxChosenHubs hubs; one more is refused at the list's pointer, with the
+// bound as the message's parameter.
+func TestBoundChosenHubs(t *testing.T) {
+	cases := []struct {
+		name    string
+		count   int
+		refused bool
+	}{
+		{"none", 0, false},
+		{"below the bound", module.MaxChosenHubs - 1, false},
+		{"at the bound", module.MaxChosenHubs, false},
+		{"above the bound", module.MaxChosenHubs + 1, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := module.BoundChosenHubs(tc.count, "/hub_ids")
+			if !tc.refused {
+				if err != nil {
+					t.Fatalf("BoundChosenHubs(%d) = %v, want nil", tc.count, err)
+				}
+				return
+			}
+			var refusal *shared.Error
+			if !errors.As(err, &refusal) || !errors.Is(err, shared.ErrValidation) ||
+				refusal.DetailCode != module.TooManyHubsCode {
+				t.Fatalf("BoundChosenHubs(%d) = %v, want %s", tc.count, err, module.TooManyHubsCode)
+			}
+			if got := refusal.Params["maximum"]; got != "200" {
+				t.Errorf("maximum = %q, want 200", got)
+			}
+			if len(refusal.Fields) != 1 || refusal.Fields[0].Path != "/hub_ids" ||
+				refusal.Fields[0].Code != module.TooManyHubsCode {
+				t.Errorf("fields = %+v, want one at /hub_ids with %s", refusal.Fields, module.TooManyHubsCode)
+			}
+		})
+	}
+}

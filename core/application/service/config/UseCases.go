@@ -501,8 +501,8 @@ func withChosenHubs(ops []operation, in usecase.Input, hub shared.ID) ([]operati
 	if err != nil || len(chosen) == 0 {
 		return ops, err
 	}
-	if len(chosen) > module.MaxChosenHubs {
-		return nil, module.TooManyHubs("/" + chosenHubsField)
+	if err := module.BoundChosenHubs(len(chosen), "/"+chosenHubsField); err != nil {
+		return nil, err
 	}
 	if !hub.IsZero() {
 		return nil, shared.ErrValidation.WithDetail("module.hubs_with_on_only").

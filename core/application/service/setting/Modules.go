@@ -238,8 +238,8 @@ func (h SetModule) Execute(ctx context.Context, actor appshared.ActorContext, cm
 		return nil, shared.ErrValidation.WithDetail("module.hubs_with_on_only").
 			WithFields(shared.FieldError{Path: "/hub_ids", Code: "module.hubs_with_on_only"})
 	}
-	if len(cmd.HubIDs) > module.MaxChosenHubs {
-		return nil, module.TooManyHubs("/hub_ids")
+	if err := module.BoundChosenHubs(len(cmd.HubIDs), "/hub_ids"); err != nil {
+		return nil, err
 	}
 	where, err := m.authorised(ctx, actor, cmd.HubID)
 	if err != nil {
