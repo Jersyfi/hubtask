@@ -21,9 +21,13 @@
   // decided yet. Either way a warning banner that opens the same resolver with both versions, and
   // whichever version loses is kept as a comment on the entry. Nothing without a conflict, which
   // is almost always.
+  //
+  // The offline dialog's link to the kept version (`?comment=`) closes it without deciding: closing
+  // it otherwise keeps theirs, and following the link is looking, not choosing.
 
   import { Banner, Button, ConflictResolver } from '@hubtask/design-system/components';
 
+  import { commentAddress } from '../data/comments.ts';
   import { items } from '../data/items.svelte.ts';
   import { queue } from '../data/queue.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -52,6 +56,25 @@
   const conflict = $derived(queue.conflictOn(itemId));
   let isOpen = $state(false);
   let rewriteFailure = $state<string | undefined>(undefined);
+  let resolver = $state<HTMLElement | undefined>(undefined);
+  let isFollowing = false;
+
+  $effect(() => {
+    const node = resolver;
+    if (!node) return;
+    const follow = (event: MouseEvent) => {
+      if (!(event.target as Element | null)?.closest('a[href]')) return;
+      isFollowing = true;
+      isOpen = false;
+    };
+    node.addEventListener('click', follow, true);
+    return () => node.removeEventListener('click', follow, true);
+  });
+
+  function closed(): void {
+    if (isFollowing) isFollowing = false;
+    else void keep();
+  }
 
   async function keep(): Promise<void> {
     isOpen = false;
@@ -120,6 +143,7 @@
       <Button size="sm" onclick={() => (isOpen = true)}>{t('app.sync.conflict.show')}</Button>
     {/snippet}
   </Banner>
+  <div class="resolver" bind:this={resolver}>
   <ConflictResolver
     bind:isOpen
     title={t('app.sync.conflict.title')}
@@ -128,17 +152,20 @@
     theirsLabel={t('app.sync.conflict.theirs')}
     mine={String(conflict.mine ?? '')}
     mineLabel={t('app.sync.conflict.mine')}
-    preservedHref={conflict.preservedCommentId ? `#comment-${conflict.preservedCommentId}` : undefined}
+    preservedHref={conflict.preservedCommentId ? commentAddress(itemId, conflict.preservedCommentId) : undefined}
     preservedLabel={conflict.preservedCommentId ? t('app.sync.conflict.preserved') : undefined}
     keepLabel={t('app.sync.conflict.keep')}
     rewriteLabel={t('app.sync.conflict.rewrite')}
     dismissLabel={t('app.workspace.cancel')}
-    onKeep={keep}
+    onKeep={closed}
     onRewrite={rewrite}
   />
+  </div>
 {/if}
 
 <style>
+  .resolver { display: contents; }
+
   /* The reason a choice did not go through, on its own line under the banner's sentence. */
   .failure {
     display: block;

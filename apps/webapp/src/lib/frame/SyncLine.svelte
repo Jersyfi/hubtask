@@ -26,6 +26,7 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { session } from '../session.svelte.ts';
   import { items } from '../data/items.svelte.ts';
+  import { commentAddress } from '../data/comments.ts';
 
   $effect(() => {
     if (!session.isSignedIn) return;
@@ -116,6 +117,26 @@
     return { headline: t('app.sync.state.ok'), tone: 'ok' };
   });
 
+  // Its link to the kept version closes the dialog without deciding, as the entry's strip does.
+  let resolver = $state<HTMLElement | undefined>(undefined);
+  let isFollowing = false;
+  $effect(() => {
+    const node = resolver;
+    if (!node) return;
+    const follow = (event: MouseEvent) => {
+      if (!(event.target as Element | null)?.closest('a[href]')) return;
+      isFollowing = true;
+      isResolverOpen = false;
+    };
+    node.addEventListener('click', follow, true);
+    return () => node.removeEventListener('click', follow, true);
+  });
+
+  function closed(): void {
+    if (isFollowing) isFollowing = false;
+    else void keep();
+  }
+
   async function keep(): Promise<void> {
     isResolverOpen = false;
     if (resolving) await queue.dismissConflict(resolving.conflictId);
@@ -156,6 +177,7 @@
   />
   {#if drafting}<RefusedDraft refusal={drafting} bind:isOpen={isDraftOpen} />{/if}
   {#if resolving}
+    <div class="resolver" bind:this={resolver}>
     <ConflictResolver
       bind:isOpen={isResolverOpen}
       title={t('app.sync.conflict.title')}
@@ -164,13 +186,19 @@
       theirsLabel={t('app.sync.conflict.theirs')}
       mine={resolving.mine}
       mineLabel={t('app.sync.conflict.mine')}
-      preservedHref={resolving.preservedCommentId ? `/items/${resolving.itemId}#comment-${resolving.preservedCommentId}` : undefined}
+      preservedHref={resolving.preservedCommentId ? commentAddress(resolving.itemId, resolving.preservedCommentId) : undefined}
       preservedLabel={resolving.preservedCommentId ? t('app.sync.conflict.preserved') : undefined}
       keepLabel={t('app.sync.conflict.keep')}
       rewriteLabel={t('app.sync.conflict.rewrite')}
       dismissLabel={t('app.workspace.cancel')}
-      onKeep={keep}
+      onKeep={closed}
       onRewrite={rewrite}
     />
+    </div>
   {/if}
 {/if}
+
+<style>
+  /* Only a hook for the link's click; it draws nothing of its own. */
+  .resolver { display: contents; }
+</style>

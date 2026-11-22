@@ -90,6 +90,7 @@
   import { formatDecimal } from '../lib/i18n/number.ts';
   import { formatDuration } from '../lib/i18n/duration.ts';
   import { comments, commentsPath } from '../lib/data/comments.svelte.ts';
+  import { addressedComment, commentAddress } from '../lib/data/comments.ts';
   import { engine } from '../lib/data/engine.ts';
   import { entryEditOf, inlineWriteOf, type EntryDraft, type EntryEdit, type TextField } from '../lib/data/edits.ts';
   import { items } from '../lib/data/items.svelte.ts';
@@ -173,9 +174,11 @@
     isInPane?: boolean;
     /** Takes this address's place in the history: the right view for one link (PO-5). */
     onreplace?: (path: string) => void;
+    /** The comment the address names (`?comment=`): the conversation opens on it. */
+    comment?: string;
   }
 
-  const { id, onnavigate, isInPane = false, onreplace }: Props = $props();
+  const { id, onnavigate, isInPane = false, onreplace, comment }: Props = $props();
 
   /** The head's primary act, from the status (E-23): the next step, or *Done* without a workflow. */
   let statusNext = $state<{ label: string; icon?: 'check' | 'arrow-right'; disabledReason?: string; onclick: () => void } | undefined>(undefined);
@@ -1176,6 +1179,8 @@
   /** Theirs is already a comment: a refused write of mine, chosen again, does not file it twice. */
   let theirsFiled = false;
   let keptAs = $state<'MINE' | 'REPLACED' | undefined>(undefined);
+  /** The comment the last choice filed, which *Show the comment* leads to. */
+  let keptComment: string | undefined;
   let isChoosing = false;
   const meanwhile = $derived(
     item && meanwhileField
@@ -1270,7 +1275,7 @@
     const theirs = field === 'title' ? item.title : (item.notes ?? '');
     isChoosing = true;
     try {
-      if (mine.trim() !== '') await comments.fileVersion(item.id, field, 'MINE', mine, crypto.randomUUID());
+      keptComment = mine.trim() !== '' ? (await comments.fileVersion(item.id, field, 'MINE', mine, crypto.randomUUID())).id : undefined;
     } catch (error) {
       meanwhileFailure = t('app.sync.meanwhile.mine_not_kept', { reason: renderProblem(error as never, messages).message });
       announcer.say(meanwhileFailure);
@@ -1296,7 +1301,7 @@
     const theirs = field === 'title' ? item.title : (item.notes ?? '');
     isChoosing = true;
     try {
-      if (!theirsFiled && theirs.trim() !== '') await comments.fileVersion(item.id, field, 'REPLACED', theirs, crypto.randomUUID());
+      if (!theirsFiled && theirs.trim() !== '') keptComment = (await comments.fileVersion(item.id, field, 'REPLACED', theirs, crypto.randomUUID())).id;
       theirsFiled = true;
     } catch (error) {
       meanwhileFailure = t('app.sync.meanwhile.theirs_not_kept', { reason: renderProblem(error as never, messages).message });
@@ -1329,9 +1334,27 @@
 
   function showKeptComment() {
     keptAs = undefined;
+    if (!item || !keptComment) return;
+    // At its address on the entry's page, so a reload keeps it; in the pane, in place.
+    if (!isInPane && onnavigate) onnavigate(commentAddress(item.id, keptComment));
+    else openOnComment(keptComment);
+  }
+
+  /** The comment an address names: the conversation opens, on a tab that shows it, and the thread finds it. */
+  let addressed = $state<string | undefined>(undefined);
+  function openOnComment(commentId: string) {
+    addressed = commentId;
     mark = 'entry-conversation';
+    if (activeTab === 'history' || activeTab === 'notes') activeTab = 'all';
     document.getElementById('entry-conversation')?.scrollIntoView({ block: 'start' });
   }
+  $effect(() => {
+    const named = addressedComment(comment);
+    untrack(() => {
+      if (named) openOnComment(named);
+      else addressed = undefined;
+    });
+  });
 
   function revertInline() {
     if (!item) return;
@@ -1653,7 +1676,7 @@
                  desk's is known only after the manifest and its collection arrive. -->
             {#key `${shownTab}/${isDeskEntry}`}
               <CommentPanel {item} path={peoplePath} mayComment={frozenReason === undefined ? mayCommentHere : false} isClosed={frozenReason !== undefined}
-                isDesk={isDeskEntry} show={shownTab === 'all' ? 'all' : shownTab === 'replies' ? 'replies' : shownTab === 'notes' ? 'notes' : 'comments'} events={quietRows} requester={requesterName} />
+                isDesk={isDeskEntry} show={shownTab === 'all' ? 'all' : shownTab === 'replies' ? 'replies' : shownTab === 'notes' ? 'notes' : 'comments'} events={quietRows} requester={requesterName} {addressed} />
             {/key}
           {:else}
             <Stack gap="150">

@@ -102,3 +102,56 @@ export function mayModerate(
 export function mayReplyTo(comment: Comment): boolean {
   return !isRemoved(comment);
 }
+
+/** What a system comment's heading is rendered with: the catalogue, the moment and a device's words. */
+export interface Readings {
+  readonly say: (code: string, params?: Readonly<Record<string, string>>) => string;
+  readonly moment: (iso: string) => string;
+  /** The words for the device a displaced version was written on, by its identifier. */
+  readonly device: (id: string) => string;
+}
+
+/** A system comment as the thread draws it: its mark word and its heading. */
+export interface SystemNote {
+  readonly label: string;
+  readonly heading: string;
+}
+
+/**
+ * The heading of a comment the server filed (`kind: SYSTEM`): `system_code` rendered through the
+ * catalogue with `system_params`, the author's name and the moment as the reader writes it - the
+ * server sends a code and its parameters, never a sentence (rule 8). Undefined for what somebody
+ * wrote.
+ */
+export function systemNoteOf(comment: Comment, author: string, read: Readings): SystemNote | undefined {
+  if (comment.kind !== 'SYSTEM' || !comment.system_code) return undefined;
+  const params: Record<string, string> = { ...(comment.system_params ?? {}), author };
+  if (params['at']) params['at'] = read.moment(params['at']);
+  if (params['device']) params['device'] = read.device(params['device']);
+  return { label: read.say('app.comments.kept_version'), heading: read.say(comment.system_code, params) };
+}
+
+/** The query parameter that addresses a comment of an entry: `/items/<id>?comment=<id>`. */
+export const COMMENT_QUERY = 'comment';
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The address of one comment in its entry's conversation. */
+export function commentAddress(itemId: string, commentId: string): string {
+  return `/items/${encodeURIComponent(itemId)}?${COMMENT_QUERY}=${encodeURIComponent(commentId)}`;
+}
+
+/** The comment an address names, or undefined where it names none a comment could have. */
+export function addressedComment(value: string | undefined): string | undefined {
+  const id = value?.trim();
+  return id && UUID.test(id) ? id.toLowerCase() : undefined;
+}
+
+/**
+ * How many threads, from the first, must be drawn for the comment to be among them - its own, or
+ * the one it answers. Undefined where these threads hold no such comment.
+ */
+export function threadsToShow(threads: readonly Thread[], commentId: string): number | undefined {
+  const at = threads.findIndex(({ comment, replies }) => comment.id === commentId || replies.some((reply) => reply.id === commentId));
+  return at < 0 ? undefined : at + 1;
+}

@@ -562,7 +562,7 @@
     <LazyView load={views.ArchiveView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'item'}
     {#key route.params.id}
-      <LazyView load={views.ItemView} props={{ id: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
+      <LazyView load={views.ItemView} props={{ id: route.params.id ?? '', comment: route.query['comment'], onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
     {/key}
   {:else if route.name === 'approvals'}
     <LazyView load={views.ApprovalsView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
