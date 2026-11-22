@@ -103,6 +103,6 @@ test('the published manifest is one the registry accepts and lists', () => {
   assert.ok(manifest.keywords.includes('n8n-community-node-package'));
   assert.equal(manifest.license, 'Apache-2.0');
   assert.ok(manifest.files.includes('LICENSE') && manifest.files.includes('README.md'));
-  assert.match(manifest.repository.url, /github\.com\/Jersyfi\/hubtask/);
+  assert.equal(manifest.repository.url, 'git+https://github.com/Jersyfi/hubtask.git');
   assert.equal(manifest.repository.directory, 'packages/n8n-nodes-hubtask');
 });

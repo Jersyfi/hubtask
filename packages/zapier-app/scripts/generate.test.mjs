@@ -183,6 +183,6 @@ test('the pushed manifest names its source and pins the platform', () => {
   assert.equal(manifest.version, '1.2.3');
   assert.equal(manifest.license, 'Apache-2.0');
   assert.equal(manifest.dependencies['zapier-platform-core'], manifest.zapier.convertedByCLIVersion);
-  assert.match(manifest.repository.url, /github\.com\/Jersyfi\/hubtask/);
+  assert.equal(manifest.repository.url, 'git+https://github.com/Jersyfi/hubtask.git');
   assert.equal(manifest.repository.directory, 'packages/zapier-app');
 });

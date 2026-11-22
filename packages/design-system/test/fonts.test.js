@@ -114,5 +114,5 @@ test('installing the faces runs nothing and installs no telemetry', () => {
   }
   const workspace = read(repositoryRoot, 'pnpm-workspace.yaml');
   assert.match(workspace, /^overrides:[\s\S]*^\s+'@ibm\/telemetry-js': '-'$/m, 'the override removing @ibm/telemetry-js is gone');
-  assert.match(workspace, /^allowBuilds:\n(?:\s+.*\n)*?\s+'@ibm\/plex-sans-sc': false$/m, "@ibm/plex-sans-sc's install script is no longer refused");
+  assert.match(workspace, /^allowBuilds:\n(?:[ \t]+\S.*\n)*?[ \t]+'@ibm\/plex-sans-sc': false$/m, "@ibm/plex-sans-sc's install script is no longer refused");
 });
