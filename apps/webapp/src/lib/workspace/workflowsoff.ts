@@ -70,6 +70,8 @@ export function strandedBy(
   columnsOf: (collectionId: string) => readonly Pick<Bucket, 'id' | 'statuses' | 'is_done_bucket'>[],
 ): Stranded {
   const lines = new Map<string, StatusLine>();
+  // Counted per move: two rows of one collection may run different workflows through one status.
+  let stuck = 0;
   const collections = new Set<string>();
   for (const { row, preview } of reaches) {
     const shape = workflows.find((each) => each.key === row.workflow)?.published ?? undefined;
@@ -79,13 +81,15 @@ export function strandedBy(
       if (move.completed || !move.from) continue;
       const key = `${move.collection_id} ${move.from}`;
       const before = lines.get(key);
+      const isStuck = !reachesDone(shape, move.from);
+      if (isStuck) stuck += move.count;
       const column = columnsOf(move.collection_id).find((each) => !each.is_done_bucket && (each.statuses ?? []).includes(move.from ?? ''));
       lines.set(key, {
         collectionId: move.collection_id,
         status: move.from,
         count: (before?.count ?? 0) + move.count,
         columnId: column?.id,
-        isStuck: !reachesDone(shape, move.from),
+        isStuck: (before?.isStuck ?? false) || isStuck,
       });
     }
   }
@@ -94,7 +98,7 @@ export function strandedBy(
     places: [...new Set(reaches.map((each) => each.row.container_id))],
     collections: [...collections],
     open: all.reduce((sum, line) => sum + line.count, 0),
-    stuck: all.filter((line) => line.isStuck).reduce((sum, line) => sum + line.count, 0),
+    stuck,
     lines: all,
   };
 }

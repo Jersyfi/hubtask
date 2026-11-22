@@ -67,6 +67,21 @@ test('the open entries by status, the stuck ones, and the column each status kee
   assert.equal(needsChoice(stranded), true);
 });
 
+test('two workflows of one collection sharing a status: each decides only its own entries', () => {
+  // `quick` goes from draft straight to done; under `offer` a draft is stuck while paused.
+  const quick = { key: 'quick', published: { ...offers.published, steps: [{ key: 'ship', from: ['draft'], to: 'sent' }] } } as unknown as WorkflowList['data'][number];
+  const preview = (count: number) => ({ moves: [move('col', 'draft', count)], entries: count, removed: [], columns_before: [], columns_after: [] }) as unknown as WorkflowPreview;
+  const reaches = [
+    { row: { container_id: 'col', entry_type: 'task', workflow: 'offer' }, preview: preview(2) },
+    { row: { container_id: 'col', entry_type: 'bug', workflow: 'quick' }, preview: preview(3) },
+  ];
+  for (const order of [reaches, [...reaches].reverse()]) {
+    const stranded = strandedBy(order, [offers, quick], () => []);
+    assert.equal(stranded.open, 5);
+    assert.equal(stranded.stuck, 2, 'the last row decided the stuck entries of both');
+  }
+});
+
 test('a status no column shows, or a list without columns, has no column of its own; nothing open needs no choice', () => {
   const preview = { moves: [move('list', 'draft', 2), move('list', 'sent', 1, true)], entries: 3, removed: [], columns_before: [], columns_after: [] } as unknown as WorkflowPreview;
   const stranded = strandedBy([{ row: { container_id: 'list', entry_type: null, workflow: 'offer' }, preview }], [offers], () => []);
