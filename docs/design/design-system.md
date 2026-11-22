@@ -251,8 +251,15 @@ change; *All*, *None* and Ctrl+A emit one change with the whole list.
 `ChoiceCards` is `Radio` for a choice whose answers each need a sentence: native radios of one name
 inside their cards' labels — the whole card pressed, the arrow keys walking and choosing, a reader
 hearing a named radio group — each card a title, one line and an optional mark; the chosen one
-marked by its edge, its surface and the filled dot. A switch-off's *convert or pause* and a start's
-template tiles are its cases.
+marked by its edge, its surface and the filled dot. A switch-off's *convert or pause* is its stack.
+A start's template tiles are its grid: `layout="grid"` fills the width with tiles no narrower than
+`layout.gallery.card`, one per row on a phone; `mark="tick"` puts an empty ring in the top end
+corner that fills with the tick when chosen, and doubles the chosen edge inward; a tile carries a
+square mark, a summary cut after two lines and its products as neutral pills, and the start from
+nothing (`isBlank`) is dashed until it is chosen. `groups` are families: each a fieldset with its
+legend inside the one radio group, so the arrows walk and choose across them and Tab comes in on the
+chosen tile; a value whose tile a filter leaves out stays chosen. **A gallery that is a choice is
+`ChoiceCards`; a gallery whose card carries its own act** (*Take*, *Import*) **is `TemplateCard`.**
 
 `CodeField` is **one** native input drawn as its places — never one box per digit, which breaks
 pasting and `Backspace` and makes a screen reader announce six fields. Six places or eight, the group

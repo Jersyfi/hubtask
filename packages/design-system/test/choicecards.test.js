@@ -48,3 +48,39 @@ test('nothing is chosen unless the caller chose it', () => {
   assert.match(source, /value = \$bindable\(''\)/);
   assert.doesNotMatch(markup, /\bchecked\b/, 'no card is checked by the component');
 });
+
+// --- the tiles of a gallery that is a choice -------------------------------------------------------
+
+test('a tick is an empty ring until chosen, then filled: a shape, not a hue', () => {
+  assert.match(markup, /\{#if mark === 'tick'\}\s*<span class="tick" aria-hidden="true"><Icon name="check"/);
+  const ring = style.match(/\n {2}\.tick \{[^}]*\}/)?.[0] ?? '';
+  assert.match(ring, /border: var\(--bw-hairline\) solid var\(--border-default\)/, 'not chosen, the tick is a ring');
+  assert.match(ring, /color: transparent/, 'not chosen, the ring is empty');
+  assert.match(style, /\.native:checked \+ \.tick \{[^}]*background: var\(--accent-primary\);[^}]*color: var\(--text-inverse\)/, 'chosen, it fills with the tick');
+  assert.match(style, /\[data-mark='tick'\] \.control \{[^}]*position: absolute;[^}]*inset-inline-end:/, 'the tick sits in the top end corner');
+});
+
+test('the families are fieldsets with legends inside the one radio group, and every radio shares one name', () => {
+  assert.equal(markup.match(/role="radiogroup"/g)?.length, 1, 'one radio group, however many families');
+  const group = markup.slice(markup.indexOf('{#each groups'), markup.indexOf('{/each}', markup.indexOf('{#each groups')));
+  assert.match(group, /<fieldset class="group">\s*<legend class="heading">\{group\.label\}<\/legend>/);
+  assert.match(group, /\{@render cards\(group\.options\)\}/, 'a family draws the same cards');
+  assert.equal(markup.match(/type="radio"/g)?.length, 1, 'one radio in the markup, drawn for every card of every family');
+  assert.match(markup, /type="radio"[^>]*\{name\}/, 'and it carries the one name, so the arrows walk across the families');
+});
+
+test('the grid sits on an element inside the fieldset, and a tile is never narrower than a gallery card', () => {
+  assert.match(style, /\[data-layout='grid'\] \.cards \{[^}]*display: grid;[^}]*minmax\(min\(100%, var\(--layout-gallery-card\)\), 1fr\)/);
+  assert.doesNotMatch(style, /\.choices\[data-layout='grid'\] \{[^}]*display: grid/, 'a grid on the fieldset itself has differed between engines');
+});
+
+test('the start from nothing is dashed until it is chosen', () => {
+  assert.match(markup, /data-blank=\{option\.isBlank \? '' : undefined\}/);
+  assert.match(style, /\.card\[data-blank\]:not\(:has\(\.native:checked\)\) \{ border-style: dashed; \}/);
+});
+
+test('a summary is cut after two lines; it and the chips describe the radio', () => {
+  assert.match(style, /\.summary \{[^}]*line-clamp: 2;/);
+  assert.match(markup, /option\.summary \? `\$\{optionId\}-summary`/);
+  assert.match(markup, /hasChips \? `\$\{optionId\}-chips`/);
+});
