@@ -14878,6 +14878,9 @@
                 }
               }
             }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
           }
         }
       }
@@ -14904,6 +14907,9 @@
             }
           },
           "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
             "$ref": "#/components/responses/Problem"
           }
         }
@@ -15046,6 +15052,9 @@
           },
           "403": {
             "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
           }
         }
       }
@@ -15173,6 +15182,9 @@
           },
           "403": {
             "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
           }
         }
       }
@@ -15256,6 +15268,9 @@
           },
           "404": {
             "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
           }
         }
       }
@@ -15284,6 +15299,9 @@
             }
           },
           "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
             "$ref": "#/components/responses/Problem"
           }
         }
@@ -15322,6 +15340,9 @@
             "$ref": "#/components/responses/Problem"
           },
           "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
             "$ref": "#/components/responses/Problem"
           }
         }
@@ -15459,6 +15480,9 @@
           },
           "403": {
             "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
           }
         }
       }
@@ -15540,6 +15564,9 @@
             }
           },
           "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
             "$ref": "#/components/responses/Problem"
           }
         }
@@ -15659,6 +15686,9 @@
           },
           "409": {
             "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
           }
         }
       }
@@ -15750,6 +15780,9 @@
           },
           "404": {
             "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
           }
         }
       }
@@ -15796,6 +15829,9 @@
             "$ref": "#/components/responses/Problem"
           },
           "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
             "$ref": "#/components/responses/Problem"
           }
         }
@@ -15846,6 +15882,9 @@
           },
           "409": {
             "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
           }
         }
       }
@@ -15887,6 +15926,9 @@
             "$ref": "#/components/responses/Problem"
           },
           "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
             "$ref": "#/components/responses/Problem"
           }
         }
@@ -16006,6 +16048,9 @@
           },
           "422": {
             "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
           }
         }
       }
@@ -16037,6 +16082,9 @@
             }
           },
           "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
             "$ref": "#/components/responses/Problem"
           }
         }
@@ -16179,6 +16227,9 @@
           },
           "403": {
             "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
           }
         }
       },
@@ -16225,6 +16276,9 @@
             "$ref": "#/components/responses/Problem"
           },
           "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
             "$ref": "#/components/responses/Problem"
           }
         }
@@ -16284,6 +16338,9 @@
           },
           "409": {
             "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
           }
         }
       }
@@ -16329,6 +16386,9 @@
                 }
               }
             }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
           }
         }
       },
@@ -16373,6 +16433,9 @@
             }
           },
           "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
             "$ref": "#/components/responses/Problem"
           }
         }
@@ -16520,6 +16583,9 @@
                 }
               }
             }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
           }
         }
       }
@@ -16558,6 +16624,9 @@
           },
           "404": {
             "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
           }
         }
       }
@@ -16594,6 +16663,9 @@
             }
           },
           "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
             "$ref": "#/components/responses/Problem"
           }
         }
@@ -16673,6 +16745,9 @@
           },
           "400": {
             "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
           }
         }
       }
@@ -16700,6 +16775,9 @@
                 }
               }
             }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
           }
         }
       }
@@ -21383,6 +21461,9 @@
                 }
               }
             }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
           }
         }
       }
@@ -23937,6 +24018,9 @@
                 }
               }
             }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
           }
         }
       }
@@ -24374,6 +24458,9 @@
             }
           },
           "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
             "$ref": "#/components/responses/Problem"
           }
         }
@@ -30357,6 +30444,9 @@
           },
           "403": {
             "$ref": "#/components/responses/Problem"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
           }
         }
       }
@@ -33761,6 +33851,9 @@
           },
           "409": {
             "description": "Another lock holds the file"
+          },
+          "411": {
+            "description": "The request names no length"
           },
           "413": {
             "description": "Larger than the installation takes"
