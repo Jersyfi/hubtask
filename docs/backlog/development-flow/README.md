@@ -1033,12 +1033,14 @@ decision. The whole change is reversible by reverting one pull request; none of 
   and status the baseline lists. A new wrong body there passes until the line is removed, so the
   gate holds new operations and the corrected ones, and the rest only as each line goes.
   `make gate-walks` prints both numbers on every run.
-* **The walk judge fails on an answer that depends on timing.** A stub that answers every request
-  with an error also answers a background request of the page, a pull or a push, and whether one
-  is sent in that moment differs from run to run. 34 of the contract's 907 operations declare no
-  client-error answer, the sync operations among them, so such an answer is outside the contract.
-  It turned `main` red once (2026-11-22); the walk in `settings` is narrowed, and
-  `manifest.test.mjs` answers every request with `401` on purpose and can still meet it.
+* **The walk judge once failed on an answer that depends on timing.** A stub that answers every
+  request with an error also answers a background request of the page, a pull or a push, and
+  whether one is sent in that moment differs from run to run. While 34 of the contract's 907
+  operations declared no `4XX` answer, `sync:pull` and `sync:push` among them, a `401` there was outside
+  the contract; it turned `main` red once (2026-11-22), and the walk in `settings` is narrowed.
+  Now 903 operations declare `4XX`, so the `401` that `manifest.test.mjs` gives every request
+  presenting the ended credential is within the contract wherever it lands. The four WOPI operations declare their
+  protocol's own bodyless codes alone; the document server calls them, never the web app.
 * **Risks the additions bring**, and what bounds each: a worker deletes a true sentence it took
   for false — the reviewer answers for each removed paragraph, and the ADR and git keep the
   reasoning; a tool reports live code as dead — removal is its own pull request and must pass

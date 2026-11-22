@@ -195,7 +195,6 @@ status-undeclared DELETE /containers/{containerId}/buckets/{bucketId} 204
 status-undeclared GET /auth/sign-in-rules 500
 status-undeclared GET /automation/runs 503
 status-undeclared GET /integrations/webhooks/{webhookId}/deliveries 503
-status-undeclared GET /meta/capabilities 401
 status-undeclared GET /meta/capabilities 503
 status-undeclared GET /tenant 500
 status-undeclared POST /auth/mfa/totp:enroll 200

@@ -38,7 +38,7 @@ test('chromium: the dev build signs in and opens Today without a Svelte warning'
 
   const out = await browser.newContext();
   t.after(() => out.close());
-  await out.route('**/api/v1/**', (route) => route.fulfill({ status: 401, json: { code: 'auth.unauthenticated' } }));
+  await out.route('**/api/v1/**', (route) => route.fulfill({ status: 401, json: { code: 'unauthenticated', status: 401 } }));
   assert.deepEqual(await warningsOn(await out.newPage(), '/'), [], 'signed out');
 
   const { context, page } = await signedIn(browser, 1280);
