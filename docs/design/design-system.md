@@ -498,7 +498,9 @@ Every routed view renders exactly one page kind; the kinds take compositions in 
 * **L2 `Sheet`** — the bottom sheet of a phone: grabber, title, a body or a list of `items`,
   actions; as tall as what it holds and at most 85 % of the screen, beyond that the body
   scrolls under a fixed head; every sheet has its grabber; a pull down, ✕ or Escape closes it; the
-  `overlay` rank of `layers.ts`. **`Dialog`** gains `size` (`s` · `m` · `l`, `layout.dialog.*`):
+  `overlay` rank of `layers.ts`, except the sheet a `Popover` or a `Menu` becomes on a phone, which
+  keeps the `popover` rank (`layer`), so that Escape closes it before a dialog it was opened from
+  (ADR-0110). **`Dialog`** gains `size` (`s` · `m` · `l`, `layout.dialog.*`):
   head and foot fixed, the body scrolls; below `medium` an `m` or `l` is full screen with ✕ at
   the start and the `primary` in its bar; `onDismiss` lets the caller ask *Discard changes?*.
   Without `size` a dialog keeps its earlier look.
