@@ -228,6 +228,10 @@
     if (reaches.status === 'loading' || reaches.status === 'idle') {
       return { label: t('app.modules.off_confirm'), tone: 'danger' as const, onclick: confirmOff, disabledReason: t('app.modules.off_wf_reading') };
     }
+    // Unread, what it strands is unknown, and so is whether a choice is owed: it is not switched off unseen.
+    if (reaches.status === 'failed') {
+      return { label: t('app.modules.off_confirm'), tone: 'danger' as const, onclick: confirmOff, disabledReason: renderProblem(reaches.error as never, messages).message };
+    }
     if (!needsChoice(stranded)) return { label: t('app.modules.off_confirm'), tone: 'danger' as const, onclick: confirmOff };
     if (offChoice === 'convert') {
       return {

@@ -54,7 +54,7 @@ const PREVIEW = {
 };
 
 /** The workspace with Workflows on, its scheme and what each write does, kept in memory. */
-function backend({ scheme = [{ container_id: COLLECTION.id, entry_type: null, workflow: OFFER.key }], refuseScheme = false } = {}) {
+function backend({ scheme = [{ container_id: COLLECTION.id, entry_type: null, workflow: OFFER.key }], refuseScheme = false, refusePreview = false } = {}) {
   const states = [{ module: 'WORKFLOWS', on: true, source: 'WORKSPACE' }];
   const rows = [...scheme];
   return (method, path, query, body) => {
@@ -65,6 +65,9 @@ function backend({ scheme = [{ container_id: COLLECTION.id, entry_type: null, wo
       return { json: { modules: states } };
     }
     if (path === '/workflows' && method === 'GET') return { json: { data: [OFFER], scheme: rows } };
+    if (path === '/workflow-scheme:preview' && method === 'POST' && refusePreview) {
+      return { status: 403, json: { type: 'about:blank', title: 'forbidden', status: 403, code: 'forbidden' } };
+    }
     if (path === '/workflow-scheme:preview' && method === 'POST') return { json: PREVIEW };
     if (path === '/workflow-scheme' && method === 'PUT') {
       const refused = typeof refuseScheme === 'function' ? refuseScheme(body) : refuseScheme;
@@ -258,6 +261,20 @@ test('chromium: at 390 px the focus stays inside the alert dialog as it grows, r
   release();
   await dialog.getByText(/Converting stopped: the place does not run on columns yet/).waitFor({ timeout: 5_000 });
   assert.deepEqual(await focusedOn(page, dismiss), { isInside: true, tag: 'BUTTON', name: dismiss }, 'the stopped question lost its focus');
+});
+
+test('chromium: where what switching off strands could not be read, the switch-off waits', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, dialog, written, close } = await askToSwitchOff(browser, { refusePreview: true });
+  t.after(close);
+  await dialog.getByRole('paragraph').filter({ hasText: 'You do not have permission for this action.' }).waitFor({ timeout: 10_000 });
+  const confirm = dialog.getByRole('button', { name: 'Switch off', exact: true });
+  assert.equal(await confirm.getAttribute('aria-disabled'), 'true', 'the switch-off is offered without its consequences');
+  await confirm.click({ force: true });
+  assert.deepEqual(switchedOff(written), [], 'switched off unseen');
+  await dialog.getByRole('button', { name: 'Keep it on' }).click();
+  await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
+  assert.equal(await page.locator('[data-module="WORKFLOWS"]').getByRole('switch').isChecked(), true, 'Workflows was switched off');
 });
 
 test('chromium: where no workflow runs, switching Workflows off asks as briefly as before', async (t) => {
