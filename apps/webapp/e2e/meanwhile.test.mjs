@@ -30,16 +30,28 @@ const DISPLACED = '01a0e2e0-0000-7000-8000-0000000c0fd1';
 const served = await serve(DIST);
 test.after(() => served.close());
 
-/** The entry as the backend holds it, the requests the reader's client sent, and the change log. */
+/** A refusal as the server words it. */
+const problem = (status, code, detail = code) => ({
+  status, contentType: 'application/problem+json', json: { type: 'about:blank', title: code, status, code, detail_code: detail },
+});
+
+/**
+ * The entry as the backend holds it, the requests the reader's client sent, and the change log.
+ * `refuseRead`, `refuseFiling` and `refusePatches` make it refuse the entry's read, a filing or
+ * that many writes; a filing is answered only once `filingHeld` settles.
+ */
 async function openEntry(browser, width) {
   const { page, context, failures } = await signedIn(browser, width, 1000);
   let named;
   /** The reader's name was read: a name asked for offline is not asked again until something else wants it. */
   const isNamed = new Promise((resolve) => (named = resolve));
-  const state = { entry: ENTRY, sent: [], log: [], filed: 0, comments: [], pushed: [], isOffline: false, theirsAway: undefined, isNamed };
+  const state = {
+    entry: ENTRY, sent: [], log: [], filed: 0, comments: [], pushed: [], isOffline: false, theirsAway: undefined, isNamed,
+    refuseRead: false, refuseFiling: false, refusePatches: 0, filingHeld: undefined,
+  };
   let delivered = 0;
   await context.unroute('**/api/v1/**');
-  await context.route('**/api/v1/**', (route) => {
+  await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
     const method = request.method();
@@ -79,13 +91,20 @@ async function openEntry(browser, width) {
     if (method !== 'GET') state.sent.push({ method, path, body: request.postDataJSON(), ifMatch: request.headers()['if-match'] });
     if (path === `/items/${ENTRY.id}` && method === 'GET') {
       state.sent.push({ method, path, version: state.entry.version });
+      if (state.refuseRead) return route.fulfill(problem(429, 'rate_limited'));
       return route.fulfill({ json: state.entry, headers: { ETag: `"${state.entry.version}"` } });
     }
     if (path === `/items/${ENTRY.id}` && method === 'PATCH') {
+      if (state.refusePatches > 0) {
+        state.refusePatches -= 1;
+        return route.fulfill(problem(403, 'forbidden'));
+      }
       state.entry = { ...state.entry, ...request.postDataJSON(), version: state.entry.version + 1 };
       return route.fulfill({ json: state.entry, headers: { ETag: `"${state.entry.version}"` } });
     }
     if (path === `/items/${ENTRY.id}/comments:file-version` && method === 'POST') {
+      if (state.refuseFiling) return route.fulfill(problem(403, 'forbidden'));
+      if (state.filingHeld) await state.filingHeld;
       const { field, side, body } = request.postDataJSON();
       state.filed += 1;
       const filed = {
@@ -333,4 +352,37 @@ test('chromium: 1280 px — offline, the conflict’s link to the displaced vers
   await page.getByRole('button', { name: 'Show both versions' }).click();
   await dialog.getByRole('button', { name: 'Write mine again' }).waitFor({ timeout: 5_000 });
   assert.deepEqual(failures, []);
+});
+
+/** Notes written offline meet notes somebody else wrote meanwhile; the strip offers both versions. */
+async function conflictWhileAway(page, context, state) {
+  await state.isNamed;
+  state.isOffline = true;
+  await context.setOffline(true);
+  await page.waitForFunction(() => document.querySelector('.trigger')?.getAttribute('data-connection') === 'offline', null, { timeout: 5_000 });
+  await page.getByRole('textbox', { name: 'Notes' }).fill('Tiles from the big market, ask for Ana.');
+  await page.locator('[data-tour="entry"]').getByRole('button', { name: 'Edit title' }).focus();
+  await page.waitForFunction(() => document.querySelector('.trigger')?.getAttribute('aria-label')?.includes('1 change is waiting to be sent'), null, { timeout: 5_000 })
+    .catch(() => assert.fail('the notes were not kept as a waiting change'));
+  state.theirsAway = 'Tiles ordered online already.';
+  state.isOffline = false;
+  await context.setOffline(false);
+  const strip = page.getByText('The notes were changed by somebody else while you were away.');
+  await strip.waitFor({ timeout: 15_000 });
+  return strip;
+}
+
+test('chromium: 1280 px — offline, write mine again whose filing is refused keeps the conflict and says why (UC-SYN-02 check 10)', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, context, state } = await openEntry(browser, 1280);
+  t.after(() => context.close());
+
+  const strip = await conflictWhileAway(page, context, state);
+  state.refuseFiling = true;
+  await page.getByRole('button', { name: 'Show both versions' }).click();
+  await page.getByRole('dialog', { name: 'Two versions of the notes' }).getByRole('button', { name: 'Write mine again' }).click();
+  await page.getByText('You do not have permission for this action.').waitFor({ timeout: 10_000 })
+    .catch(async () => assert.fail(`the refusal is not said: ${await page.locator('main').innerText()}`));
+  assert.equal(await strip.count(), 1, 'the refused choice dropped the conflict');
+  assert.equal(writes(state).filter((each) => each.method === 'PATCH').length, 0, 'mine was written over theirs unkept');
 });

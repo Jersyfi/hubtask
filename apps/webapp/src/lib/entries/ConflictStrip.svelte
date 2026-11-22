@@ -58,6 +58,8 @@
   let rewriteFailure = $state<string | undefined>(undefined);
   let resolver = $state<HTMLElement | undefined>(undefined);
   let isFollowing = false;
+  /** *Write mine again* closes the dialog too, and that close is not keeping theirs. */
+  let isRewriting = false;
 
   $effect(() => {
     const node = resolver;
@@ -72,8 +74,10 @@
   });
 
   function closed(): void {
-    if (isFollowing) isFollowing = false;
-    else void keep();
+    if (isFollowing || isRewriting) {
+      isFollowing = false;
+      isRewriting = false;
+    } else void keep();
   }
 
   async function keep(): Promise<void> {
@@ -84,6 +88,7 @@
   async function rewrite(): Promise<void> {
     if (!conflict) return;
     const { id, mine } = conflict;
+    isRewriting = true;
     isOpen = false;
     rewriteFailure = undefined;
     try {
