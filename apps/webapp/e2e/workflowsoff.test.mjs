@@ -57,7 +57,7 @@ const PREVIEW = {
 function backend({ scheme = [{ container_id: COLLECTION.id, entry_type: null, workflow: OFFER.key }], refuseScheme = false } = {}) {
   const states = [{ module: 'WORKFLOWS', on: true, source: 'WORKSPACE' }];
   const rows = [...scheme];
-  return (method, path) => {
+  return (method, path, query, body) => {
     if (path === '/tenant/modules' && method === 'GET') return { json: { modules: states } };
     if (path === '/tenant/modules/WORKFLOWS/reach' && method === 'GET') return { json: { module: 'WORKFLOWS', on: true, people: 14, rules: 3 } };
     if (path === '/tenant/modules/WORKFLOWS' && method === 'PUT') {
@@ -67,9 +67,10 @@ function backend({ scheme = [{ container_id: COLLECTION.id, entry_type: null, wo
     if (path === '/workflows' && method === 'GET') return { json: { data: [OFFER], scheme: rows } };
     if (path === '/workflow-scheme:preview' && method === 'POST') return { json: PREVIEW };
     if (path === '/workflow-scheme' && method === 'PUT') {
-      if (refuseScheme) return { status: 403, json: { type: 'about:blank', title: 'forbidden', status: 403, code: 'forbidden', detail_code: 'auth.forbidden' } };
-      rows.splice(0, rows.length);
-      return { json: { container_id: COLLECTION.id, entry_type: null, workflow: null, entries_moved: 17 } };
+      const refused = typeof refuseScheme === 'function' ? refuseScheme(body) : refuseScheme;
+      if (refused) return { status: 403, json: { type: 'about:blank', title: 'forbidden', status: 403, code: 'forbidden', detail_code: 'auth.forbidden' } };
+      rows.splice(0, rows.length, ...rows.filter((row) => row.container_id !== body?.container_id));
+      return { json: { container_id: body?.container_id ?? COLLECTION.id, entry_type: null, workflow: null, entries_moved: 17 } };
     }
     if (path === `/containers/${COLLECTION.id}/buckets` && method === 'GET') return { json: COLUMNS };
     if (path === `/containers/${COLLECTION.id}` && method === 'GET') return { json: COLLECTION };
@@ -183,6 +184,34 @@ test('chromium: a conversion that stops keeps Workflows on and says how far it c
   await dialog.getByText(/Converting stopped: 0 of 1 places run on columns now/).waitFor({ timeout: 5_000 });
   // The progress the conversion drew stays where it stopped: no place done of one, and the switch.
   assert.equal(await dialog.getByRole('progressbar', { name: 'Converting' }).getAttribute('value'), '0');
+  assert.deepEqual(switchedOff(written), [], 'switched off after a conversion that stopped');
+});
+
+// Two places, a collection and a hub: the run counts the places it set out to convert, not the
+// question's reading after each write, so the second place is "2 of 2" and a stop there says one
+// of two places runs on columns.
+test('chromium: converting two places counts both through the run and after a stop at the second', async (t) => {
+  const browser = await sharedChromium(t);
+  const scheme = [{ container_id: COLLECTION.id, entry_type: null, workflow: OFFER.key }, { container_id: HUB.id, entry_type: null, workflow: OFFER.key }];
+  const { page, dialog, written, close } = await askToSwitchOff(browser, { scheme, refuseScheme: (body) => body?.container_id === HUB.id });
+  t.after(close);
+  await dialog.locator('[data-off-open]').waitFor({ timeout: 10_000 });
+  assert.match(await dialog.innerText(), /2 places run a workflow\./);
+  await dialog.getByRole('radio', { name: /Convert to columns/ }).check();
+  let release = () => {};
+  const held = new Promise((done) => (release = done));
+  await page.route('**/api/v1/workflow-scheme', async (route) => {
+    if (route.request().method() === 'PUT' && route.request().postDataJSON()?.container_id === HUB.id) await held;
+    return route.fallback();
+  });
+  await dialog.getByRole('button', { name: 'Convert and switch off' }).click();
+  const run = page.getByRole('alertdialog', { name: 'Converting …' });
+  await run.getByText(/^Converting 2 of 2: /).waitFor({ timeout: 5_000 });
+  assert.equal(await run.getByRole('progressbar', { name: 'Converting' }).getAttribute('value'), '33', 'one place of two and the switch');
+  release();
+  await dialog.getByText(/Converting stopped: 1 of 2 places run on columns now/).waitFor({ timeout: 5_000 });
+  assert.equal(await dialog.getByRole('progressbar', { name: 'Converting' }).getAttribute('value'), '33');
+  assert.deepEqual(written.filter((each) => each.method === 'PUT' && each.path === '/workflow-scheme').map((each) => each.body.container_id), [COLLECTION.id, HUB.id]);
   assert.deepEqual(switchedOff(written), [], 'switched off after a conversion that stopped');
 });
 

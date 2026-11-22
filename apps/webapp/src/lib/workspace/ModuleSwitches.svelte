@@ -153,8 +153,12 @@
   });
   const stranded = $derived(reached ? strandedBy(reached, workflows.list?.data ?? [], (id) => buckets.of(id)) : undefined);
   let offChoice = $state<OffChoice>(undefined);
-  /** Converting: the places done so far, the one at, and why it stopped. */
-  let converting = $state<{ done: number; at?: string; failure?: string } | undefined>(undefined);
+  /**
+   * Converting: how many places the run set out to convert, those done so far, the one at, and why
+   * it stopped. The count is the run's own, taken when it starts: each write changes the scheme,
+   * and the question's reading of what is stranded follows it.
+   */
+  let converting = $state<{ total: number; done: number; at?: string; failure?: string } | undefined>(undefined);
   /** Under way, the question gives way to the run; stopped, it comes back with how far it came. */
   const isConverting = $derived(converting !== undefined && converting.failure === undefined);
 
@@ -182,16 +186,17 @@
   /** Removes each scheme row in reach, then switches off; a failure stops and keeps the module on. */
   async function convertAndSwitchOff(state: ModuleState) {
     const rows = reached?.map((each) => each.row) ?? [];
-    converting = { done: 0 };
+    const total = rows.length;
+    converting = { total, done: 0 };
     for (const row of rows) {
-      converting = { done: converting.done, at: placeName(row.container_id) };
+      converting = { total, done: converting.done, at: placeName(row.container_id) };
       try {
         await workflows.setScheme({ container_id: row.container_id, ...(row.entry_type ? { entry_type: row.entry_type } : {}) });
       } catch (error) {
-        converting = { done: converting.done, failure: renderProblem(error as never, messages).message };
+        converting = { total, done: converting.done, failure: renderProblem(error as never, messages).message };
         return;
       }
-      converting = { done: converting.done + 1 };
+      converting = { total, done: converting.done + 1 };
     }
     // The last step drawn in the run is the switch itself; a refused switch is said on its row.
     await send(state, 'OFF');
@@ -490,12 +495,12 @@
     actions={isConverting ? undefined : keepOn}
     isAlert={asksWorkflows}
   >
-    {#if isConverting && converting && stranded}
+    {#if isConverting && converting}
       <!-- The run: where it is, how far, and what happens if it stops. One step per place and one
            for the switch itself, so the bar is not full before the module is off. -->
-      <p class="quiet" role="status" data-converting>{#if converting.at}{t('app.modules.off_wf_converting', { at: converting.done + 1, count: stranded.places.length, place: converting.at })}{:else}{t('app.modules.off_wf_switching')}{/if}</p>
+      <p class="quiet" role="status" data-converting>{#if converting.at}{t('app.modules.off_wf_converting', { at: converting.done + 1, count: converting.total, place: converting.at })}{:else}{t('app.modules.off_wf_switching')}{/if}</p>
       <div class="progress" data-converting-progress>
-        <ProgressBar label={t('app.modules.off_wf_converting_short')} value={Math.round((converting.done / (stranded.places.length + 1)) * 100)} />
+        <ProgressBar label={t('app.modules.off_wf_converting_short')} value={Math.round((converting.done / (converting.total + 1)) * 100)} />
       </div>
       <p class="quiet">{t('app.modules.off_wf_converting_keep')}</p>
     {:else if asksWorkflows}
@@ -535,13 +540,14 @@
             </Disclosure>
           </div>
         {/if}
-        {#if converting?.failure}
-          <div class="progress" data-converting-progress>
-            <ProgressBar label={t('app.modules.off_wf_converting_short')} value={Math.round((converting.done / (stranded.places.length + 1)) * 100)} />
-          </div>
-          <p class="quiet" role="status" data-converting>{t('app.modules.off_wf_stopped', { done: converting.done, count: stranded.places.length })}</p>
-          <p class="refusal-inline" role="alert">{converting.failure}</p>
-        {/if}
+      {/if}
+      <!-- A stopped run, said whatever the question now reads: the places it converted stay so. -->
+      {#if converting?.failure}
+        <div class="progress" data-converting-progress>
+          <ProgressBar label={t('app.modules.off_wf_converting_short')} value={Math.round((converting.done / (converting.total + 1)) * 100)} />
+        </div>
+        <p class="quiet" role="status" data-converting>{t('app.modules.off_wf_stopped', { done: converting.done, count: converting.total })}</p>
+        <p class="refusal-inline" role="alert">{converting.failure}</p>
       {/if}
     {:else}
       <p class="quiet">{t('app.modules.off_explain')}</p>
