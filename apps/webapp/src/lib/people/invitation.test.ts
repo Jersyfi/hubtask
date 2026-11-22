@@ -67,3 +67,18 @@ test('the last mail of another kind says its kind, an invitation its own words',
   }
   assert.deepEqual(deliveryLine({ state: 'SENT', at: '2026-11-04T09:00:00Z', code: null, category: 'INVITATION' }), { code: 'app.people.delivery_sent' });
 });
+
+// UC-ID-14 check 8: an invited person's row answers the invitation record itself, read from the
+// notifications once the queue has cleared its job - with `category: INVITATION` it keeps the
+// invitation's own words in every state, a link handed over instead included.
+test('an invitation record from the notifications says the invitation\'s own words', () => {
+  const catalogue = JSON.parse(readFileSync(new URL('../../../../../locales/en.json', import.meta.url), 'utf8')) as Record<string, string>;
+  for (const state of ['QUEUED', 'SENDING', 'SENT', 'FAILED', 'CANCELLED'] as const) {
+    const line = deliveryLine({ state, at: '2026-11-04T09:00:00Z', code: null, category: 'INVITATION' });
+    assert.equal(line.code, `app.people.delivery_${state.toLowerCase()}`);
+    assert.equal(line.kind, undefined);
+    assert.ok(catalogue[line.code], `${state} has no words`);
+  }
+  const failed = deliveryLine({ state: 'FAILED', at: '2026-11-04T09:00:00Z', code: 'notifications.no_address', category: 'INVITATION' });
+  assert.deepEqual(failed, { code: 'app.people.delivery_failed', reason: { code: 'notifications.no_address', params: {} } });
+});

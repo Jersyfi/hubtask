@@ -1328,7 +1328,11 @@ The six groups of `configuration/ui.md` §1 stay. Inside them:
   recorded the mail, then by the invitation notification - sent, failed or suppressed with its
   reason, or withdrawn for a link -, or, where it is newer, the person's last notification of any
   other kind with its `category` and its delivery job's failure (*Last mail (a comment) sent …*).
-  *Copy invitation link* where
+  While the person is invited and has not accepted, no other mail takes the invitation's place,
+  a newer failed one neither: the row shows the invitation job, else the newest invitation
+  notification, also once the queue has cleared the job; only with no invitation mail on record
+  (an installation that sends no mail, an invitation older than the records kept) the last other
+  mail (UC-ID-14 check 8). *Copy invitation link* where
   mail is configured is `delivery: LINK` on the renewal, behind step-up and the role ceiling,
   audited as `LINK`; it cancels the waiting invitation job and delivery and sets the unsent record
   aside, and is refused (`accounts.invitation_mail_sending`) while a delivery is being sent, since

@@ -2979,7 +2979,8 @@ func run() error {
 		identity.GetAccount{Members: authorizer, Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.ResolveAccounts{Members: authorizer, Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.ReadInvitationDeliveries{
-			Jobs: postgres.NewInvitationJobRepository(), Authorizer: authorizer, UnitOfWork: unitOfWork,
+			Jobs: postgres.NewInvitationJobRepository(), Accounts: accounts,
+			Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		identity.ReadSignInDetails{
 			Details: postgres.NewAccountRepository(), Authorizer: authorizer, UnitOfWork: unitOfWork,

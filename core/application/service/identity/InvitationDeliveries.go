@@ -5,6 +5,7 @@ package identity
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -38,12 +39,14 @@ type InvitationDelivery struct {
 }
 
 // ReadInvitationDeliveries answers, for the people list's rows, how the last mail to each account
-// went (user-experience.md §8.3) - the invitation, or the newer of it and any other mail: a person
-// who asks "did my invitation go out?" or "why did she not hear of it?" is answered on the row, not
-// by the operator's log. Asked of MANAGE_MEMBERS at the workspace, the right that sends an
-// invitation.
+// went (user-experience.md §8.3) - for a person still invited the invitation, otherwise the newer
+// of it and any other mail: a person who asks "did my invitation go out?" or "why did she not hear
+// of it?" is answered on the row, not by the operator's log. Asked of MANAGE_MEMBERS at the
+// workspace, the right that sends an invitation.
 type ReadInvitationDeliveries struct {
-	Jobs       repository.InvitationJobs
+	Jobs repository.InvitationJobs
+	// Accounts says who is still invited; MANAGE_MEMBERS covers reading them.
+	Accounts   repository.Accounts
 	Authorizer Authorizer
 	UnitOfWork persistence.UnitOfWork
 }
@@ -71,13 +74,24 @@ func (h ReadInvitationDeliveries) Execute(
 		return nil, err
 	}
 	var jobs []repository.InvitationJob
-	var mails []repository.LastMail
+	var mails, invitations []repository.LastMail
+	var invited map[shared.ID]bool
 	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
 		if jobs, err = h.Jobs.Latest(ctx, accountIDs); err != nil {
 			return err
 		}
-		mails, err = h.Jobs.LatestMail(ctx, accountIDs)
+		if mails, err = h.Jobs.LatestMail(ctx, accountIDs); err != nil {
+			return err
+		}
+		if invited, err = h.stillInvited(ctx, mails); err != nil || len(invited) == 0 {
+			return err
+		}
+		ids := make([]shared.ID, 0, len(invited))
+		for id := range invited {
+			ids = append(ids, id)
+		}
+		invitations, err = h.Jobs.LatestInvitationMail(ctx, ids)
 		return err
 	})
 	if err != nil {
@@ -110,25 +124,64 @@ func (h ReadInvitationDeliveries) Execute(
 		}
 		out = append(out, delivery)
 	}
-	return newerMail(out, jobs, mails), nil
+	return newerMail(out, jobs, mails, invited, invitations), nil
+}
+
+// stillInvited answers which of the accounts whose last mail is of another kind are still invited:
+// only there can that mail stand where the invitation belongs. An account not found is not.
+func (h ReadInvitationDeliveries) stillInvited(ctx context.Context, mails []repository.LastMail) (map[shared.ID]bool, error) {
+	invited := map[shared.ID]bool{}
+	for _, mail := range mails {
+		if mail.Category == "INVITATION" {
+			continue
+		}
+		account, err := h.Accounts.Find(ctx, mail.AccountID)
+		if errors.Is(err, shared.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		if account.Status == domain.AccountInvited {
+			invited[mail.AccountID] = true
+		}
+	}
+	return invited, nil
 }
 
 // newerMail puts the last mail of another kind in place of an account's invitation where it is
 // newer, and adds it for an account without one. An invitation the queue still knows is said by
 // its job, which also knows the mail before it was recorded; the record alone stands for one the
-// queue has cleared.
-func newerMail(out []InvitationDelivery, jobs []repository.InvitationJob, mails []repository.LastMail) []InvitationDelivery {
+// queue has cleared. For a person still invited no other mail takes the invitation's place
+// (UC-ID-14/8): the job, else the newest invitation record; with neither on record, the last
+// other mail.
+func newerMail(
+	out []InvitationDelivery, jobs []repository.InvitationJob, mails []repository.LastMail,
+	invited map[shared.ID]bool, invitations []repository.LastMail,
+) []InvitationDelivery {
 	at := make(map[shared.ID]int, len(out))
 	for i, delivery := range out {
 		at[delivery.AccountID] = i
 	}
-	invited := make(map[shared.ID]bool, len(jobs))
+	queued := make(map[shared.ID]bool, len(jobs))
 	for _, job := range jobs {
-		invited[job.AccountID] = true
+		queued[job.AccountID] = true
+	}
+	invitation := make(map[shared.ID]repository.LastMail, len(invitations))
+	for _, mail := range invitations {
+		invitation[mail.AccountID] = mail
 	}
 	for _, mail := range mails {
-		if mail.Category == "INVITATION" && invited[mail.AccountID] {
+		if mail.Category == "INVITATION" && queued[mail.AccountID] {
 			continue
+		}
+		if invited[mail.AccountID] {
+			if _, ok := at[mail.AccountID]; ok {
+				continue
+			}
+			if record, ok := invitation[mail.AccountID]; ok {
+				mail = record
+			}
 		}
 		delivery := lastMailDelivery(mail)
 		if i, ok := at[mail.AccountID]; ok {
@@ -211,8 +264,9 @@ func (h ReadInvitationDeliveries) Descriptor() usecase.Descriptor {
 		Permission: service.PermissionManageMembers,
 		Summary: "Reads, for up to 200 accounts, how the last mail to each went - the invitation, " +
 			"or a newer mail of another kind with its category: queued, being sent, sent, failed " +
-			"with its message code, or cancelled, and when. An account with no mail on record is " +
-			"left out.",
+			"with its message code, or cancelled, and when. While an account is invited its " +
+			"invitation mail is answered, whatever other mail went out since; with no invitation " +
+			"mail on record, the last other mail. An account with no mail on record is left out.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  membersRead,
 		ReadOnly:    true,
