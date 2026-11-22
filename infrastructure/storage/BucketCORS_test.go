@@ -231,6 +231,32 @@ func TestAWorkspaceOriginPassesTheWildcardRule(t *testing.T) {
 	}
 }
 
+// deployment.md §6.1: the browser also reads presigned downloads from the bucket with a GET - a
+// file's first page, a board's picture drawn onto a canvas - so the rule answers a GET from the
+// interface's origin as well, and still nothing else.
+func TestTheRuleLetsTheBrowserReadADownload(t *testing.T) {
+	bucket := &fakeBucket{rules: []CORSRule{HubtaskRule([]string{"https://hubtask.example.eu"})}}
+	server := httptest.NewServer(bucket)
+	defer server.Close()
+
+	for method, wanted := range map[string]int{http.MethodGet: http.StatusOK, http.MethodPut: http.StatusOK, http.MethodDelete: http.StatusForbidden} {
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodOptions, server.URL+"/bucket/"+corsProbeKey, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Origin", "https://hubtask.example.eu")
+		req.Header.Set("Access-Control-Request-Method", method)
+		resp, err := server.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = resp.Body.Close()
+		if resp.StatusCode != wanted {
+			t.Errorf("a preflight for %s = %d, want %d", method, resp.StatusCode, wanted)
+		}
+	}
+}
+
 // deployment.md §6.1: the configuration is read and written on the bucket's `?cors`, signed
 // over the real body with Content-MD5 beside it; a bucket without one reads as no rules.
 func TestTheCORSConfigurationIsReadAndWrittenSigned(t *testing.T) {

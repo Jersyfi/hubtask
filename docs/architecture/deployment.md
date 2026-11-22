@@ -338,8 +338,9 @@ runs it as a pre-upgrade hook (`instanceCheck.enabled`, on where an instance fil
 upgrade stops with the refusal in the hook's log while the running pods keep serving. What only the
 database can judge (a plan against the installation's values) is still the start's to refuse.
 
-With `HUBTASK_STORAGE_KIND=s3` the browser uploads straight to the bucket, so the bucket needs a
-CORS rule. Hubtask checks it: every process asks the bucket what a browser asks - an unsigned
+With `HUBTASK_STORAGE_KIND=s3` the browser uploads straight to the bucket and reads a file's bytes
+from it (a document's first page, a board's pictures in an export), so the bucket needs a CORS rule
+that allows `PUT` and `GET`. Hubtask checks it: every process asks the bucket what a browser asks - an unsigned
 `OPTIONS` with the interface's `Origin`, `PUT` and `content-type` - at start and then every
 15 minutes, and while the bucket refuses, `/meta/health` warns `config.storage_cors_missing`
 with the bucket, the refused origin, when it was checked and how often it is asked again. Each
@@ -370,7 +371,7 @@ the bucket matches and answers with the asking origin):
 [
   {
     "AllowedHeaders": ["Content-Type"],
-    "AllowedMethods": ["PUT"],
+    "AllowedMethods": ["PUT", "GET"],
     "AllowedOrigins": ["https://tasks.example.org"]
   }
 ]

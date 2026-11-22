@@ -24,9 +24,11 @@ import (
 )
 
 // The browser's upload is a PUT of the presigned URL with a Content-Type and no credentials, so
-// that is exactly what the preflight asks and what the rule allows (deployment.md §6.1).
+// that is exactly what the preflight asks and what the rule allows (deployment.md §6.1); its
+// read of a presigned download is a GET, which the rule allows too.
 const (
 	uploadMethod = http.MethodPut
+	readMethod   = http.MethodGet
 	uploadHeader = "Content-Type"
 
 	// HubtaskRuleID marks the one CORS rule Hubtask writes, so that a later apply can tell it
@@ -184,13 +186,14 @@ type corsConfiguration struct {
 	Rules   []CORSRule `xml:"CORSRule"`
 }
 
-// HubtaskRule is the rule the browser's upload needs from these origins: PUT with a
-// Content-Type, and no credentials - the presigned URL is the credential.
+// HubtaskRule is the rule the browser needs from these origins: PUT with a Content-Type for an
+// upload, GET for reading a download's bytes, and no credentials - the presigned URL is the
+// credential.
 func HubtaskRule(origins []string) CORSRule {
 	return CORSRule{
 		ID:             HubtaskRuleID,
 		AllowedOrigins: append([]string(nil), origins...),
-		AllowedMethods: []string{uploadMethod},
+		AllowedMethods: []string{uploadMethod, readMethod},
 		AllowedHeaders: []string{uploadHeader},
 	}
 }
