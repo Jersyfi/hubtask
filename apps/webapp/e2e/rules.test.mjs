@@ -82,6 +82,16 @@ const MANIFEST = {
     },
   },
 };
+/** What a signed-out reader is answered: nothing held on the workspace, no action's declarations. */
+const SIGNED_OUT_MANIFEST = {
+  ...MANIFEST,
+  workspace_permissions: undefined,
+  automation: { ...MANIFEST.automation, action_fields: {}, action_summaries: {} },
+};
+const TOKENS = {
+  token_type: 'Bearer', access_token: 'e2e-access', refresh_token: 'e2e-refresh',
+  access_token_expires_at: '2099-01-01T00:00:00Z', refresh_token_expires_at: '2099-01-01T00:00:00Z',
+};
 const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: false } };
 
 const ITEM = { id: '01a0e2e0-0000-7000-8000-000000000020', type: 'TASK', title: 'Campaign approval Q4', collection_id: COLLECTION.id, order_key: 'a0', version: 1 };
@@ -362,6 +372,40 @@ test('chromium: a step\'s form shows what a rule can decide: no plumbing, the ru
   assert.equal(labels.some((label) => label.trim() === 'body'), true);
   await inspector.getByText('The run supplies item id').waitFor();
   assert.equal(await inspector.locator('input[type="datetime-local"]').count(), 1, 'a date-time is a date and time field');
+});
+
+// Signed out the manifest carries the action declarations as empty maps; the rule editor's fields
+// come from the manifest read again as the person who signed in, before the editor opened.
+test('chromium: signed out the manifest declares no action\'s fields, and the editor after sign-in shows them', async (t) => {
+  const browser = await sharedChromium(t);
+  const context = await browser.newContext({ viewport: { width: 1400, height: 1000 } });
+  t.after(() => context.close());
+  const asked = [];
+  const rest = stubFor([]);
+  await context.route('**/api/v1/**', (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (path.endsWith('/api/v1/meta/capabilities')) {
+      const bearer = request.headers().authorization ?? null;
+      asked.push(bearer);
+      return route.fulfill({ json: bearer ? MANIFEST : SIGNED_OUT_MANIFEST });
+    }
+    if (path.endsWith('/api/v1/auth/sessions') && request.method() === 'POST') return route.fulfill({ status: 201, json: TOKENS });
+    return rest(route);
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/rules/${RULE.id}`);
+  await page.locator('input[type="email"]').fill('rules@example.invalid');
+  await page.locator('input[autocomplete="current-password"]').fill('a long enough password');
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+
+  await page.locator('[data-card="1/then/0"]').click();
+  const inspector = page.locator('aside.inspector');
+  await inspector.getByText('The run supplies item id').waitFor();
+  const labels = await inspector.locator('label').allTextContents();
+  assert.equal(labels.some((label) => label.trim() === 'body'), true, 'the action\'s fields are drawn');
+  assert.equal(asked[0], null, 'the first read was signed out');
+  assert.ok(asked.includes(`Bearer ${TOKENS.access_token}`), `the manifest was not read again signed in: ${asked.join(', ')}`);
 });
 
 test('chromium: a card moves by drag into a branch below it, arms and all', async (t) => {
