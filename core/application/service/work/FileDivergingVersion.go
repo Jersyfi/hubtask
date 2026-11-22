@@ -106,7 +106,8 @@ func (h FileDivergingVersion) Descriptor() usecase.Descriptor {
 			},
 			{
 				Name: "body", Kind: usecase.KindString, Required: true,
-				Description: "The text, up to 20000 characters.",
+				Description: "The text, bounded as the field it is a version of: a title at most " +
+					"500 characters, notes by no bound of their own beyond the request's size.",
 			},
 		},
 		Audit: usecase.AuditDeclaration{

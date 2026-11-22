@@ -4,6 +4,7 @@
 package work
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -144,4 +145,53 @@ func TestTheVersionDoorTakesTheContractsInputThroughTheRegistry(t *testing.T) {
 	if len(h.comments.inserted) != 1 {
 		t.Errorf("rows written: %d", len(h.comments.inserted))
 	}
+}
+
+// UC-SYN-02 check 10 for notes longer than a comment may be: the notes carry no bound of their
+// own, so a version of them is kept whole - through the use case, through the registry, and
+// through the push's own filing - while a comment somebody writes keeps its 20000.
+func TestNotesLongerThanACommentAreStillKept(t *testing.T) {
+	long := strings.Repeat("n", domain.MaxCommentBodyLength+1)
+
+	t.Run("the use case", func(t *testing.T) {
+		h := newCommentHarness(t)
+		h.withItem(domain.ItemTask)
+		comment, err := fileVersion(h).Execute(t.Context(), actor(), FileDivergingVersionCommand{
+			ItemID: assignedItem, Field: domain.FieldNotes, Side: VersionMine, Body: long,
+		})
+		if err != nil || comment.Body != long {
+			t.Fatalf("filing %d characters: %v", len(long), err)
+		}
+	})
+	t.Run("the registry", func(t *testing.T) {
+		h := newCommentHarness(t)
+		item := h.withItem(domain.ItemTask)
+		item.Notes = long
+		h.items.stored[assignedItem] = item
+		registry, err := usecase.NewRegistry(nil, fileVersion(h).Descriptor())
+		if err != nil {
+			t.Fatal(err)
+		}
+		out, err := registry.Invoke(t.Context(), FileDivergingVersionName, actor(), usecase.Input{
+			"item_id": assignedItem.String(), "field": "notes", "side": "REPLACED", "body": long,
+		})
+		if err != nil || out["body"] != long {
+			t.Fatalf("filing %d characters through the registry: %v", len(long), err)
+		}
+	})
+	t.Run("the push's filing", func(t *testing.T) {
+		h := newCommentHarness(t)
+		h.withItem(domain.ItemTask)
+		comment, err := AddComment{Writer: h.writer}.FileDisplaced(t.Context(), actor(), assignedItem, long,
+			map[string]string{"field": domain.FieldNotes, "device": "d1", "at": "2026-08-17T09:00:00Z"})
+		if err != nil || comment.Body != long || comment.SystemCode != domain.DisplacedVersionCode {
+			t.Fatalf("the push filed %d characters: %v", len(long), err)
+		}
+	})
+	t.Run("a person's comment", func(t *testing.T) {
+		h := newCommentHarness(t)
+		h.withItem(domain.ItemTask)
+		_, err := AddComment{Writer: h.writer}.Execute(t.Context(), actor(), addCmd(long))
+		assertValidation(t, err, "comments.body_too_long")
+	})
 }

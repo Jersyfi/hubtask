@@ -30895,6 +30895,7 @@ type EditCommentParams struct {
 
 // FileDivergingVersionJSONBody defines parameters for FileDivergingVersion.
 type FileDivergingVersionJSONBody struct {
+	// Body The text, bounded as the field it is a version of: a title at most 500 characters (`items.title_too_long`), notes by no bound of their own beyond the request's size - not by a comment's 20000.
 	Body  string                            `json:"body"`
 	Field FileDivergingVersionJSONBodyField `json:"field"`
 	Side  FileDivergingVersionJSONBodySide  `json:"side"`

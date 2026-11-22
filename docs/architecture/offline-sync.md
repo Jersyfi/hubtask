@@ -450,6 +450,11 @@ same write as the push's comment with a heading of its own: `sync.set_aside_vers
 for the person's own text, given up, `sync.replaced_version` for the text the person replaced.
 *Write mine again* after a push's conflict files the replaced text the same way.
 
+A kept version — any of the three headings — is bounded as the field it holds, not as a comment:
+a title at its 500 characters, notes by no bound of their own (the column is unbounded text; only
+the request body limit caps them), so notes longer than a comment's 20 000 characters are kept
+whole. A comment somebody writes keeps its bound.
+
 A client renders a kept version's heading from its code and parameters, never as a post by the
 person it was filed for, and shows its text as filed. The web app addresses one comment as
 `/items/{id}?comment={commentId}`: the notice after a choice and the conflict's

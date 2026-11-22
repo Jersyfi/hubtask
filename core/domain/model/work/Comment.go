@@ -101,7 +101,11 @@ type NewCommentInput struct {
 
 // NewComment validates and builds a comment.
 func NewComment(input NewCommentInput) (Comment, error) {
-	body, err := validCommentBody(input.Body, input.Text)
+	bound := commentBound
+	if keptVersion(input.SystemCode) {
+		bound = keptVersionBound(input.SystemParams["field"])
+	}
+	body, err := validCommentBody(input.Body, input.Text, bound)
 	if err != nil {
 		return Comment{}, err
 	}
@@ -179,7 +183,7 @@ func (c Comment) Edited(body string, form text.Normalizer, at time.Time) (Commen
 			WithDetail("comments.system_comment_immutable").
 			WithFields(shared.FieldError{Path: "/body", Code: "comments.system_comment_immutable"})
 	}
-	valid, err := validCommentBody(body, form)
+	valid, err := validCommentBody(body, form, commentBound)
 	if err != nil {
 		return Comment{}, err
 	}
@@ -204,12 +208,39 @@ func (c Comment) Removed(at time.Time) Comment {
 	return c
 }
 
-// validCommentBody applies the two body rules: not empty once trimmed, and at most
-// MaxCommentBodyLength code points. Newlines are fine - a comment is prose, not a title - and the
+// keptVersion reports whether a system comment holds a version of an entry's field.
+func keptVersion(code string) bool {
+	return code == DisplacedVersionCode || code == SetAsideVersionCode || code == ReplacedVersionCode
+}
+
+// bodyBound is a body's length bound in code points - zero for none - and the code that refuses it.
+type bodyBound struct {
+	maximum int
+	code    string
+}
+
+var commentBound = bodyBound{maximum: MaxCommentBodyLength, code: "comments.body_too_long"}
+
+// keptVersionBound is the bound of the field a kept version holds, not a comment's: what was
+// written into a field must survive being kept (offline-sync.md §5). Notes have no bound of their
+// own - the column is unbounded text and only the request body limit caps them - so neither has
+// their kept version. A field this does not know keeps a comment's bound.
+func keptVersionBound(field string) bodyBound {
+	switch field {
+	case FieldNotes:
+		return bodyBound{}
+	case FieldTitle:
+		return bodyBound{maximum: MaxItemTitleLength, code: "items.title_too_long"}
+	}
+	return commentBound
+}
+
+// validCommentBody applies the two body rules: not empty once trimmed, and within its bound.
+// Newlines are fine - a comment is prose, not a title - and the
 // text is stored as sent apart from Unicode normal form C, which it is brought to here for the
 // reason a container's name is (i18n-l10n.md §5): two spellings of the same word must compare
 // equal, and the length is the length of what a person sees.
-func validCommentBody(raw string, form text.Normalizer) (string, error) {
+func validCommentBody(raw string, form text.Normalizer, bound bodyBound) (string, error) {
 	body, err := shared.NFC(raw, form)
 	if err != nil {
 		return "", err
@@ -219,11 +250,11 @@ func validCommentBody(raw string, form text.Normalizer) (string, error) {
 			WithDetail("comments.body_required").
 			WithFields(shared.FieldError{Path: "/body", Code: "comments.body_required"})
 	}
-	if utf8.RuneCountInString(body) > MaxCommentBodyLength {
+	if bound.maximum > 0 && utf8.RuneCountInString(body) > bound.maximum {
 		return "", shared.ErrValidation.
-			WithDetail("comments.body_too_long").
-			WithParams(map[string]string{"maximum": strconv.Itoa(MaxCommentBodyLength)}).
-			WithFields(shared.FieldError{Path: "/body", Code: "comments.body_too_long"})
+			WithDetail(bound.code).
+			WithParams(map[string]string{"maximum": strconv.Itoa(bound.maximum)}).
+			WithFields(shared.FieldError{Path: "/body", Code: bound.code})
 	}
 	return body, nil
 }
