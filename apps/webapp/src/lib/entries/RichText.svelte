@@ -173,6 +173,8 @@
   /** Starts the text over - a comment sent, another one to edit - even while the focus is in it. */
   export function reset(markdown: string): void {
     current = markdown;
+    // The writer has changed nothing of the new text yet: a value arriving now is taken on leaving.
+    atFocus = markdown;
     isEmpty = markdown.trim() === '';
     if (editor && library) editor.commands.setContent(library.fromMarkdown(markdown) as never, { emitUpdate: false });
   }
