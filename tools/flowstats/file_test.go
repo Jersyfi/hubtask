@@ -126,6 +126,9 @@ func TestAReportTooLongFailsAfterTheFindings(t *testing.T) {
 	if err := file(r, nil, bot, strings.Repeat("ä", commentLimit), nil, nil, nil); err != nil {
 		t.Errorf("a report of exactly the limit ends with %v", err)
 	}
+	if want := []string{`create "Flow report" [] -> #1`, fmt.Sprintf("comment #1 %q", strings.Repeat("ä", commentLimit))}; !reflect.DeepEqual(r.calls, want) {
+		t.Errorf("a report of exactly the limit is not posted on the thread: %d calls, the first %.60q", len(r.calls), strings.Join(r.calls, " "))
+	}
 }
 
 func TestWithin(t *testing.T) {
