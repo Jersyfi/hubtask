@@ -22,7 +22,7 @@ func moduleGroup() group {
 		summary: "the modules switched on for the workspace or a hub",
 		commands: []command{
 			{name: "ls", summary: "every module, on or off, and who decided it", run: moduleList},
-			{name: "on", summary: "switch a module on", run: moduleSwitch("on", openapi.ModuleSwitchSwitchON)},
+			{name: "on", summary: "switch a module on; at the workspace no existing hub changes but those in --hubs", run: moduleSwitch("on", openapi.ModuleSwitchSwitchON)},
 			{name: "off", summary: "switch a module off; its data is kept and hidden", run: moduleSwitch("off", openapi.ModuleSwitchSwitchOFF)},
 			{name: "inherit", summary: "leave a module to the level above", run: moduleSwitch("inherit", openapi.ModuleSwitchSwitchINHERIT)},
 		},
@@ -54,13 +54,24 @@ func moduleList(ctx context.Context, cli *CLI, args []string) error {
 	return cli.Emit(list, moduleTable(list))
 }
 
-// moduleSwitch is one of the three verbs: on, off and inherit take the module and an optional hub.
+// moduleSwitch is one of the three verbs: on, off and inherit take the module and an optional hub;
+// on at the workspace also takes the existing hubs to switch it on in.
 func moduleSwitch(verb string, to openapi.ModuleSwitchSwitch) func(context.Context, *CLI, []string) error {
 	return func(ctx context.Context, cli *CLI, args []string) error {
-		flags := commandFlags(cli, "module", verb, "[--hub <id>] <module>")
+		usage, hubs := "[--hub <id>] <module>", new(string)
+		if to == openapi.ModuleSwitchSwitchON {
+			usage = "[--hub <id> | --hubs <id>,<id>] <module>"
+		}
+		flags := commandFlags(cli, "module", verb, usage)
 		hub := flags.String("hub", "", "the hub to switch it for; omitted is the workspace")
+		if to == openapi.ModuleSwitchSwitchON {
+			hubs = flags.String("hubs", "", "at the workspace: the existing hubs to switch it on in as well, separated by commas")
+		}
 		if err := parseCommand(flags, args); err != nil {
 			return err
+		}
+		if *hub != "" && *hubs != "" {
+			return usagef("hubctl module %s takes --hub for one hub's own switch or --hubs with the workspace's, not both", verb)
 		}
 		if flags.NArg() != 1 {
 			return usagef("hubctl module %s takes one module: %s", verb, moduleNames())
@@ -76,6 +87,13 @@ func moduleSwitch(verb string, to openapi.ModuleSwitchSwitch) func(context.Conte
 				return err
 			}
 			body.HubId = &parsed
+		}
+		if *hubs != "" {
+			chosen, err := cli.parseIDs("--hubs", *hubs)
+			if err != nil {
+				return err
+			}
+			body.HubIds = &chosen
 		}
 		client, err := cli.client()
 		if err != nil {
