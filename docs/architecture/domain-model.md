@@ -821,7 +821,9 @@ with `module.off`, so a client moves an entry at L1 by the column write and keep
 A workflow stays in force with the module off - `WorkflowGate.InForce` knows no module -: the
 collection stays at L2, completing takes the first allowed step into done or is refused with
 `workflows.no_step_to_done`, and nothing else moves its entries until the module is on again or the
-workflow goes (L2 → L1 below).
+workflow goes (L2 → L1 below). So switching the module off where a workflow runs asks first whether
+to convert those places to columns - each scheme row removed through `SetWorkflowScheme` while the
+module is still on, one write per row and not atomic - or only to pause (UC-INS-21 check 14).
 
 Switching levels always previews:
 
