@@ -22,10 +22,22 @@ test('a lock above offers no switch and says whose it is (UC-INS-21 check 6)', (
   assert.equal(unavailableBecause(state({ on: true, source: 'WORKSPACE' }), 'WORKSPACE'), undefined);
 });
 
-test('a hub never widens what the workspace has off (UC-INS-21 check 3)', () => {
-  assert.equal(unavailableBecause(state({ on: false, source: 'WORKSPACE' }), 'HUB'), 'app.modules.off_in_workspace');
-  assert.equal(unavailableBecause(state({ on: true, source: 'WORKSPACE' }), 'HUB'), undefined);
-  assert.equal(unavailableBecause(state({ on: false, source: 'HUB' }), 'HUB'), undefined);
+test('a hub never switches on what the workspace has off, whatever it stores itself (UC-INS-21 check 3)', () => {
+  assert.equal(unavailableBecause(state({ on: false, source: 'WORKSPACE' }), 'HUB', []), 'app.modules.off_in_workspace');
+  // A workspace's switch leaves each hub a value of its own, so "set here" says nothing about the lock.
+  assert.equal(unavailableBecause(state({ on: false, source: 'HUB' }), 'HUB', []), 'app.modules.off_in_workspace');
+  assert.equal(unavailableBecause(state({ on: false, source: 'HUB' }), 'HUB', ['TIME']), 'app.modules.off_in_workspace');
+  // Before the workspace's set is read nothing is offered.
+  assert.equal(unavailableBecause(state({ on: false, source: 'HUB' }), 'HUB', undefined), 'app.modules.off_in_workspace');
+});
+
+test('a hub decides for itself what the workspace has on (UC-INS-21 check 3)', () => {
+  assert.equal(unavailableBecause(state({ on: false, source: 'HUB' }), 'HUB', ['PLANNING']), undefined);
+  assert.equal(unavailableBecause(state({ on: true, source: 'HUB' }), 'HUB', ['PLANNING']), undefined);
+  assert.equal(unavailableBecause(state({ on: true, source: 'WORKSPACE' }), 'HUB', ['PLANNING']), undefined);
+  assert.equal(unavailableBecause(state({ on: true, source: 'WORKSPACE', locked_by: 'WORKSPACE' }), 'HUB', ['PLANNING']), 'app.modules.locked_workspace');
+  // The workspace's own switch does not ask its own set.
+  assert.equal(unavailableBecause(state({ on: false, source: 'DEFAULT' }), 'WORKSPACE'), undefined);
 });
 
 test('only a value set here is handed back to the level above', () => {

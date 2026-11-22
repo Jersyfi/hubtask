@@ -20,13 +20,17 @@ export function asksFirst(state: ModuleState, next: boolean): boolean {
 
 /**
  * The message code of why a module cannot be switched here, or none: a lock above (check 6), or -
- * at a hub - a module the workspace has off, which a hub never widens (check 3).
+ * at a hub - a module the workspace has off, which a hub never switches on (check 3). The
+ * workspace's set decides that, not where the hub's value comes from: a hub keeps a value of its
+ * own under a workspace that is off. Unread, the workspace's set allows nothing.
  */
-export function unavailableBecause(state: ModuleState, place: ModulePlace): string | undefined {
+export function unavailableBecause(
+  state: ModuleState, place: ModulePlace, workspaceOn?: readonly string[],
+): string | undefined {
   if (state.locked_by === 'INSTANCE') return 'app.modules.locked_installation';
   if (state.locked_by === 'PLAN') return 'app.modules.locked_plan';
   if (state.locked_by === 'WORKSPACE' && place === 'HUB') return 'app.modules.locked_workspace';
-  if (place === 'HUB' && !state.on && state.source !== 'HUB') return 'app.modules.off_in_workspace';
+  if (place === 'HUB' && !state.on && !(workspaceOn ?? []).includes(state.module)) return 'app.modules.off_in_workspace';
   return undefined;
 }
 

@@ -3,7 +3,7 @@
 <script lang="ts">
   // The module switches of one place (UC-INS-21): the workspace under *How we work → Modules*, or
   // one hub in its settings. One switch per module, with where its state comes from and whether a
-  // level above locked it; a hub only switches off what the workspace has on (check 3).
+  // level above locked it; a hub decides for itself inside what the workspace has on (check 3).
   //
   // **A switch acts at once**, as every single switch of the administration does - one row is not
   // a form. Switching off asks first and says that the data is kept and hidden (check 4); switching
@@ -22,6 +22,7 @@
   import ViewAsFile from '../settings/ViewAsFile.svelte';
   import SectionFindings from '../settings/SectionFindings.svelte';
   import { asksFirst, isSetHere, moduleCodes, modules, offReach, unavailableBecause } from '../data/modules.svelte.ts';
+  import { manifest } from '../data/capabilities.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -170,7 +171,7 @@
     <div class="modules" class:region={hubId !== undefined}>
       {#each all as state (state.module)}
         {@const codes = moduleCodes(state)}
-        {@const reason = unavailableBecause(state, place)}
+        {@const reason = unavailableBecause(state, place, manifest.value?.modules_on)}
         <!-- The product's settings beside its switch, at the workspace and while it is on (§8.2). -->
         {@const settings = place === 'WORKSPACE' && state.on ? settingsOf(state.module, (permission) => holdsHere(permission) === true) : undefined}
         <div class="module" data-module={state.module} data-setting={`module.${state.module.toLowerCase()}`}>
