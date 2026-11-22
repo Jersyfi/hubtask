@@ -40768,7 +40768,7 @@ type ClientInterface interface {
 
 	// FileDivergingVersionWithBody Keep a version of the title or the notes that is about to be lost
 	//
-	// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`); `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`). The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
+	// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`), which nothing on the server holds to check it against; `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`), refused as `comments.version_not_in_place` unless it is the entry's value of the field now - so file it before writing over it. The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -40777,7 +40777,7 @@ type ClientInterface interface {
 
 	// FileDivergingVersion Keep a version of the title or the notes that is about to be lost
 	//
-	// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`); `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`). The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
+	// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`), which nothing on the server holds to check it against; `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`), refused as `comments.version_not_in_place` unless it is the entry's value of the field now - so file it before writing over it. The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -59923,7 +59923,7 @@ func (c *Client) EditCommentWithApplicationMergePatchPlusJSONBody(ctx context.Co
 
 // FileDivergingVersionWithBody Keep a version of the title or the notes that is about to be lost
 //
-// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`); `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`). The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
+// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`), which nothing on the server holds to check it against; `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`), refused as `comments.version_not_in_place` unless it is the entry's value of the field now - so file it before writing over it. The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
 //
 // Takes any type of body and a specified content type.
 //
@@ -59942,7 +59942,7 @@ func (c *Client) FileDivergingVersionWithBody(ctx context.Context, itemId ItemId
 
 // FileDivergingVersion Keep a version of the title or the notes that is about to be lost
 //
-// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`); `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`). The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
+// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`), which nothing on the server holds to check it against; `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`), refused as `comments.version_not_in_place` unless it is the entry's value of the field now - so file it before writing over it. The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -121039,7 +121039,7 @@ type ClientWithResponsesInterface interface {
 
 	// FileDivergingVersionWithBodyWithResponse Keep a version of the title or the notes that is about to be lost
 	//
-	// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`); `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`). The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
+	// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`), which nothing on the server holds to check it against; `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`), refused as `comments.version_not_in_place` unless it is the entry's value of the field now - so file it before writing over it. The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -121048,7 +121048,7 @@ type ClientWithResponsesInterface interface {
 
 	// FileDivergingVersionWithResponse Keep a version of the title or the notes that is about to be lost
 	//
-	// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`); `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`). The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
+	// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`), which nothing on the server holds to check it against; `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`), refused as `comments.version_not_in_place` unless it is the entry's value of the field now - so file it before writing over it. The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -182238,7 +182238,7 @@ func (c *ClientWithResponses) EditCommentWithApplicationMergePatchPlusJSONBodyWi
 
 // FileDivergingVersionWithBodyWithResponse Keep a version of the title or the notes that is about to be lost
 //
-// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`); `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`). The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
+// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`), which nothing on the server holds to check it against; `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`), refused as `comments.version_not_in_place` unless it is the entry's value of the field now - so file it before writing over it. The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -182253,7 +182253,7 @@ func (c *ClientWithResponses) FileDivergingVersionWithBodyWithResponse(ctx conte
 
 // FileDivergingVersionWithResponse Keep a version of the title or the notes that is about to be lost
 //
-// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`); `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`). The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
+// Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`), which nothing on the server holds to check it against; `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`), refused as `comments.version_not_in_place` unless it is the entry's value of the field now - so file it before writing over it. The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

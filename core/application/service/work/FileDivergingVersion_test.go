@@ -18,6 +18,54 @@ func fileVersion(h *commentHarness) FileDivergingVersion {
 	return FileDivergingVersion{Comments: AddComment{Writer: h.writer}}
 }
 
+// withText puts the text into the entry's title or notes.
+func (h *commentHarness) withText(field, body string) {
+	item := h.items.stored[assignedItem]
+	if field == domain.FieldTitle {
+		item.Title = body
+	} else {
+		item.Notes = body
+	}
+	h.items.stored[assignedItem] = item
+}
+
+// UC-SYN-02 check 10: REPLACED files the text in place and nothing else - the entry's value of the
+// field, read in the filing's own transaction - so nobody can file another text under the heading
+// of the one replaced. MINE is the caller's own text, which nothing on the server holds to compare.
+func TestOnlyTheTextInPlaceIsFiledAsReplaced(t *testing.T) {
+	cases := []struct {
+		name, field, side, held, body string
+		refused                       bool
+	}{
+		{"the notes in place", domain.FieldNotes, VersionReplaced, "Bring the ladder", "Bring the ladder", false},
+		{"other notes", domain.FieldNotes, VersionReplaced, "Bring the ladder", "Bring a rope", true},
+		{"the title in place", domain.FieldTitle, VersionReplaced, "Paint the shed", "Paint the shed", false},
+		{"another title", domain.FieldTitle, VersionReplaced, "Paint the shed", "Paint the house", true},
+		{"the notes filed as the title", domain.FieldTitle, VersionReplaced, "Paint the shed", "Buy oat milk", true},
+		{"mine, which nothing holds", domain.FieldNotes, VersionMine, "Bring the ladder", "Bring a rope", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			h := newCommentHarness(t)
+			h.withItem(domain.ItemTask)
+			h.withText(c.field, c.held)
+			_, err := fileVersion(h).Execute(t.Context(), actor(), FileDivergingVersionCommand{
+				ItemID: assignedItem, Field: c.field, Side: c.side, Body: c.body,
+			})
+			if !c.refused {
+				if err != nil || len(h.comments.inserted) != 1 {
+					t.Fatalf("refused %v, rows %d", err, len(h.comments.inserted))
+				}
+				return
+			}
+			assertValidation(t, err, "comments.version_not_in_place")
+			if len(h.comments.inserted)+len(h.events.appended)+len(h.audit.entries) != 0 {
+				t.Error("the refusal still wrote something")
+			}
+		})
+	}
+}
+
 // UC-SYN-02 check 10: the version that loses is filed as a comment on the entry - the writer's
 // own text when they keep the other, the other text when they write theirs - for the title as for
 // the notes, in the writer's name, with the same four records as any comment.
@@ -34,6 +82,8 @@ func TestADivergingVersionIsFiledAsTheEntrysSystemComment(t *testing.T) {
 		t.Run(c.field+"/"+c.side, func(t *testing.T) {
 			h := newCommentHarness(t)
 			h.withItem(domain.ItemTask)
+			// The entry holds the text: REPLACED files only what is in place.
+			h.withText(c.field, "Bring the long ladder")
 
 			comment, err := fileVersion(h).Execute(t.Context(), actor(), FileDivergingVersionCommand{
 				ItemID: assignedItem, Field: c.field, Side: c.side, Body: "Bring the long ladder",
@@ -66,6 +116,7 @@ func TestADivergingVersionIsFiledAsTheEntrysSystemComment(t *testing.T) {
 func TestAFiledVersionsAuditEntryCarriesNoText(t *testing.T) {
 	h := newCommentHarness(t)
 	h.withItem(domain.ItemTask)
+	h.withText(domain.FieldTitle, "A secret plan")
 	if _, err := fileVersion(h).Execute(t.Context(), actor(), FileDivergingVersionCommand{
 		ItemID: assignedItem, Field: domain.FieldTitle, Side: VersionReplaced, Body: "A secret plan",
 	}); err != nil {

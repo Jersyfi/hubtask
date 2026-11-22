@@ -335,3 +335,31 @@ func TestTheDeclaredTypesAreTheKnownOnes(t *testing.T) {
 		t.Errorf("types = %v, want the three of domain-model.md §2", ItemTypes())
 	}
 }
+
+// UC-SYN-02 check 10: the text filed as the one replaced is the field's value now - in the form
+// the field is kept in, trimmed and in normal form C - or it is refused as not in place.
+func TestAReplacedTextIsTheFieldsValueNow(t *testing.T) {
+	item := WorkItem{Title: "Buy oat milk", Notes: "Café at nine"}
+	cases := []struct {
+		name, field, text string
+		inPlace           bool
+	}{
+		{"the notes as held", FieldNotes, "Café at nine", true},
+		{"the notes as sent, untrimmed and decomposed", FieldNotes, "  Café at nine\n", true},
+		{"the title as held", FieldTitle, "Buy oat milk", true},
+		{"other notes", FieldNotes, "Café at ten", false},
+		{"the title filed as the notes", FieldNotes, "Buy oat milk", false},
+		{"a field without text", FieldDueAt, "Buy oat milk", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			err := item.EnsureHolds(c.field, c.text, text.Composing{})
+			if c.inPlace && err != nil {
+				t.Fatalf("refused: %v", err)
+			}
+			if !c.inPlace && shared.AsError(err).DetailCode != "comments.version_not_in_place" {
+				t.Fatalf("answered %v, want comments.version_not_in_place", err)
+			}
+		})
+	}
+}

@@ -482,6 +482,36 @@ func TestNotesLongerThanACommentAreKeptWhole(t *testing.T) {
 	}
 }
 
+// UC-SYN-02 check 10: the text filed as the one replaced is the entry's value now, read from the
+// real row in the filing's transaction; any other text is refused and nothing is written.
+func TestOnlyTheTextInPlaceIsFiledAsReplacedAgainstTheRow(t *testing.T) {
+	ctx := context.Background()
+	seedMemberships(ctx, t)
+	collection := collectionFor(ctx, t, tenantB, authorB)
+	task := seedTask(ctx, t, tenantB, authorB, collection)
+	_, comments, _ := mergeCatalogueFor(ctx, t)
+	file := work.FileDivergingVersion{Comments: comments}
+	actor := pushActor(tenantB, authorB)
+	held := findWorkItem(ctx, t, tenantB, task).Title
+
+	if _, err := file.Execute(ctx, actor, work.FileDivergingVersionCommand{
+		ItemID: task, Field: workdomain.FieldTitle, Side: work.VersionReplaced, Body: held + " - and more",
+	}); shared.AsError(err).DetailCode != "comments.version_not_in_place" {
+		t.Fatalf("another text filed as replaced: %v", err)
+	}
+	var rows int
+	if err := adminPool(ctx, t).QueryRow(ctx,
+		`SELECT count(*) FROM comment WHERE item_id = $1`, task.String()).Scan(&rows); err != nil || rows != 0 {
+		t.Fatalf("the refusal left %d comments (%v)", rows, err)
+	}
+	filed, err := file.Execute(ctx, actor, work.FileDivergingVersionCommand{
+		ItemID: task, Field: workdomain.FieldTitle, Side: work.VersionReplaced, Body: held,
+	})
+	if err != nil || findComment(ctx, t, tenantB, filed.ID).Body != held {
+		t.Fatalf("the title in place: %v", err)
+	}
+}
+
 // SY-12: a move that would close a cycle is detected and rejected, in the contract's word, and
 // the tree is as it was.
 func TestAMoveThatWouldCloseACycleIsRejected(t *testing.T) {

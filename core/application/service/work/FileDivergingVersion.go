@@ -54,19 +54,20 @@ func (h FileDivergingVersion) Execute(
 			WithDetail("comments.version_field_unknown").
 			WithFields(shared.FieldError{Path: "/field", Code: "comments.version_field_unknown"})
 	}
-	code := ""
+	code, inPlace := "", ""
 	switch cmd.Side {
 	case VersionMine:
+		// The caller's own text: nothing on the server holds it to compare against.
 		code = domain.SetAsideVersionCode
 	case VersionReplaced:
-		code = domain.ReplacedVersionCode
+		code, inPlace = domain.ReplacedVersionCode, cmd.Field
 	default:
 		return domain.Comment{}, shared.ErrValidation.
 			WithDetail("comments.version_side_unknown").
 			WithFields(shared.FieldError{Path: "/side", Code: "comments.version_side_unknown"})
 	}
 	return h.Comments.Execute(ctx, actor, AddCommentCommand{
-		ItemID: cmd.ItemID, Body: cmd.Body, SystemCode: code,
+		ItemID: cmd.ItemID, Body: cmd.Body, SystemCode: code, InPlace: inPlace,
 		SystemParams: map[string]string{
 			"field": cmd.Field,
 			"at":    h.Comments.Writer.Clock.Now().UTC().Format(time.RFC3339),
@@ -81,9 +82,10 @@ func (h FileDivergingVersion) Descriptor() usecase.Descriptor {
 		Permission: service.PermissionWriteItems,
 		Summary: "Keeps a version of an entry's title or notes that somebody else changed " +
 			"meanwhile, as a system comment on the entry in the caller's name: MINE is the " +
-			"caller's own text, given up for the one in place; REPLACED is the text in place " +
-			"the caller is about to replace. The same permission as any comment; the entry " +
-			"itself is not changed.",
+			"caller's own text, given up for the one in place, which nothing on the server can " +
+			"check; REPLACED is the text in place the caller is about to replace, refused unless " +
+			"it is the entry's value of the field now. The same permission as any comment; the " +
+			"entry itself is not changed.",
 		SideEffects: "Writes the comment, announces " + string(event.CommentCreated) +
 			", records the change for offline clients, writes an audit entry and a step of the " +
 			"entry's history.",
@@ -102,7 +104,7 @@ func (h FileDivergingVersion) Descriptor() usecase.Descriptor {
 				Name: "side", Kind: usecase.KindString, Required: true,
 				Enum: []string{VersionMine, VersionReplaced},
 				Description: "MINE for the caller's own text, given up; REPLACED for the text in " +
-					"place the caller is about to replace.",
+					"place the caller is about to replace, which must be the entry's value now.",
 			},
 			{
 				Name: "body", Kind: usecase.KindString, Required: true,

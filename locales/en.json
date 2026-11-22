@@ -877,6 +877,7 @@
   "comments.version_conflict": "Someone else changed that comment in the meantime. Read it again and reapply.",
   "comments.version_field_unknown": "Only a version of the title or the notes can be kept.",
   "comments.version_side_unknown": "Say whether the version is yours or the one you replace.",
+  "comments.version_not_in_place": "That is no longer the text the entry holds. Load the entry again and choose anew.",
   "kudos.not_completed": "Kudos are for finished work. This entry is still open.",
   "kudos.own_completion": "Kudos are for what somebody else finished.",
   "media.type_mismatch": "The file does not look like {claimed}. Send it as what it is, or without a content type.",

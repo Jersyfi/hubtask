@@ -21693,8 +21693,11 @@ paths:
         Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the
         caller's name, so that a text somebody else changed meanwhile is not lost whichever
         version stays. `MINE` is the caller's own text, given up for the one in place
-        (`sync.set_aside_version`); `REPLACED` is the text in place that the caller is about to
-        replace (`sync.replaced_version`). The heading's parameters are the field and the time.
+        (`sync.set_aside_version`), which nothing on the server holds to check it against;
+        `REPLACED` is the text in place that the caller is about to replace
+        (`sync.replaced_version`), refused as `comments.version_not_in_place` unless it is the
+        entry's value of the field now - so file it before writing over it. The heading's
+        parameters are the field and the time.
         The same permission as any comment: refused where the caller may not comment, and for a
         type without a discussion. The entry itself is not changed.
       parameters:

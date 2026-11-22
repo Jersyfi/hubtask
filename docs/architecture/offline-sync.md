@@ -448,7 +448,10 @@ else changed the same field to something else meanwhile, it writes nothing and l
 choose. Whichever version loses is filed through `POST /items/{itemId}/comments:file-version`, the
 same write as the push's comment with a heading of its own: `sync.set_aside_version` (field, time)
 for the person's own text, given up, `sync.replaced_version` for the text the person replaced.
-*Write mine again* after a push's conflict files the replaced text the same way.
+*Write mine again* after a push's conflict files the replaced text the same way. The replaced text
+must be the entry's value of the field when it is filed, read in the filing's transaction, else it
+is refused (`comments.version_not_in_place`) — so a client files it before writing over it. The
+person's own text cannot be checked against anything and is filed as sent.
 
 A kept version — any of the three headings — is bounded as the field it holds, not as a comment:
 a title at its 500 characters, notes by no bound of their own (the column is unbounded text; only
