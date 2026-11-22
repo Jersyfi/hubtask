@@ -78,7 +78,8 @@ async function open(width, { runs, asks = false, requires = false, path = `/item
     // with the Workflows module on or off; the server completes it into the done column.
     if (board && read === `/items/${ENTRY.id}` && request.method() === 'PATCH') {
       patches.push(request.postDataJSON());
-      return route.fulfill({ json: { ...ENTRY, bucket_id: BOARD[2].id, version: ENTRY.version + 1, completion: { is_completed: true } } });
+      const chosen = BOARD.find((column) => column.id === request.postDataJSON()?.bucket_id);
+      return route.fulfill({ json: { ...ENTRY, bucket_id: chosen?.id ?? null, version: ENTRY.version + 1, completion: { is_completed: chosen?.completes ?? false } } });
     }
     if (board && read.endsWith(':drop')) patches.push({ drop: request.postDataJSON() });
     if (!runs && read === `/items/${ENTRY.id}/steps`) {
