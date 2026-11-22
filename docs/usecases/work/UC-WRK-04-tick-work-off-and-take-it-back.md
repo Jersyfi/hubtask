@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-08, P-11, P-12, P-13]
 state: partial
 tasks: [B-07, F2-09, F6-13]
-checked_by: [test/integration/completion_test.go, test/integration/rollup_test.go, core/domain/model/work/Completion_test.go, core/domain/model/work/CompletionPolicy_test.go, core/application/service/work/CompleteWorkItem_test.go, apps/webapp/e2e/entry.test.mjs, apps/webapp/e2e/structure.test.mjs, test/integration/capability_profile_test.go, apps/webapp/e2e/boardlevels.test.mjs, apps/webapp/src/lib/entries/statechip.test.ts]
+checked_by: [test/integration/completion_test.go, test/integration/rollup_test.go, core/domain/model/work/Completion_test.go, core/domain/model/work/CompletionPolicy_test.go, core/application/service/work/CompleteWorkItem_test.go, apps/webapp/e2e/entry.test.mjs, apps/webapp/e2e/structure.test.mjs, test/integration/capability_profile_test.go, apps/webapp/e2e/boardlevels.test.mjs, apps/webapp/e2e/entryhead.test.mjs, apps/webapp/src/lib/entries/statechip.test.ts]
 ---
 
 # Tick work off, and take it back
@@ -55,4 +55,5 @@ it.
 
 ## Today
 
-* Check 1: partly met — the mark alone (L0), the mark with the column chip (L1) and the mark with the status chip (L2) are the one control on the list row, the card and the entry head; the phone sheet is not yet walked.
+* Check 6: not proven — no test cites it.
+* Check 8: not proven — no test cites it.
