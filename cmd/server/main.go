@@ -202,6 +202,10 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "account" {
 		os.Exit(runAccountCommand(os.Args[2:], os.Stdout, os.Stderr))
 	}
+	// The bucket's CORS rule, asked about and set with the server's own storage keys.
+	if len(os.Args) > 1 && os.Args[1] == "storage" {
+		os.Exit(runStorageCommand(os.Args[2:], os.Stdout, os.Stderr))
+	}
 
 	// The bootstrap logger exists before the configuration does, because the first thing that
 	// can fail is reading the configuration - and that error is logged (T-18).

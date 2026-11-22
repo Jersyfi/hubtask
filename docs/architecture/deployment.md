@@ -332,6 +332,47 @@ runs it as a pre-upgrade hook (`instanceCheck.enabled`, on where an instance fil
 upgrade stops with the refusal in the hook's log while the running pods keep serving. What only the
 database can judge (a plan against the installation's values) is still the start's to refuse.
 
+With `HUBTASK_STORAGE_KIND=s3` the browser uploads straight to the bucket, so the bucket needs a
+CORS rule. Hubtask checks it: every process asks the bucket what a browser asks - an unsigned
+`OPTIONS` with the interface's `Origin`, `PUT` and `content-type` - at start and then every
+15 minutes, and while the bucket refuses, `/meta/health` warns `config.storage_cors_missing`
+with the bucket, the refused origin and when it was checked. A bucket that does not answer is not
+a missing rule; the storage probe reports it. The origins asked are `HUBTASK_BASE_URL`'s, and in
+multi mode with `HUBTASK_WORKSPACE_HOSTS=subdomain` also one workspace's, `https://hubtask-cors-check.<base host>`.
+With `assigned` hosts only the base origin is asked: each assigned host is an origin of its own
+and has to be added to the rule by hand.
+
+`docker compose run --rm --no-deps app storage cors check` asks once and prints each origin's
+answer; `... storage cors apply` reads the bucket's rules (`GET ?cors`) and writes Hubtask's rule
+(`PUT ?cors`, signed with the server's keys, `Content-MD5` beside the body). It puts its rule first
+and keeps the rules others set; a rule of others that allows `PUT` from one of the same origins
+(or `*`) answers the upload on its own terms, so `apply` then writes nothing and prints the
+bucket's rules and its own (exit 4). `--replace` removes those rules - it prints each one first
+and writes only after `--yes` or the bucket's name typed on a terminal. After a successful
+`apply` a running server's warning goes at its next check, at the latest after 15 minutes: the
+command runs in a process of its own and cannot reach the answer the server holds. A key that may
+not read or set the configuration (`s3:GetBucketCORS`, `s3:PutBucketCORS`) gets one sentence
+and the rule as JSON for the provider's console (exit 1); a provider that does not take the call
+(`501`, `NotImplemented`) gets "set it in the provider's own way" (exit 3) - such a provider
+may still pass `check` where it answers preflights from a setting of its own. The rule, for a
+console, in single mode (in subdomain mode `https://*.<base host>` joins the base origin, a pattern
+the bucket matches and answers with the asking origin):
+
+```json
+[
+  {
+    "AllowedHeaders": ["Content-Type"],
+    "AllowedMethods": ["PUT"],
+    "AllowedOrigins": ["https://tasks.example.org"]
+  }
+]
+```
+
+The calls are tested against a stand-in server built from the S3 documentation and against
+SeaweedFS, the S3 server the integration suite runs (`test/integration/storage_cors_test.go`),
+which takes the rule and answers the preflight from it. How AWS and the hosted providers answer
+is not proven.
+
 Required, with no default: `HUBTASK_DB_DSN` (the connection as `hubtask_app`) and
 `HUBTASK_SECRET_KEY` — the installation secret, at least 32 characters. It peppers stored
 credential hashes, signs cursors, mints media and feed tokens and keys the audit trail's
@@ -362,7 +403,7 @@ one that has none, and on a row naming a variable no code reads:
 | `HUBTASK_DB_MAX_CONNS` / `_MIN_CONNS` | `10` / `2` | Pool size **per process**; several roles mean several pools |
 | `HUBTASK_DB_STATEMENT_TIMEOUT` / `HUBTASK_DB_WORKER_STATEMENT_TIMEOUT` | `5s` / `60s` | Query budget on the interactive path / for background work |
 | `HUBTASK_DB_CONNECT_TIMEOUT`, `HUBTASK_DB_MAX_CONN_LIFETIME`, `HUBTASK_DB_MAX_CONN_IDLE_TIME` | `5s`, `1h`, `30m` | Reaching the database once; how long a pooled connection is reused, so that a failover reaches the pool rather than pinning it to a former primary; how long an idle one is kept |
-| `HUBTASK_STORAGE_KIND`, `HUBTASK_S3_*` | `local` | With `s3`, the bucket and both keys are mandatory; path style is the default (`HUBTASK_S3_USE_PATH_STYLE`), and requests are signed for `us-east-1` unless `HUBTASK_S3_REGION` names the provider's region. The interface's policy names the bucket's origin ([ADR-0047](../adr/ADR-0047-media-origin-in-the-interface-policy.md)). **The bucket needs a CORS rule for the upload**, which Hubtask cannot set: allowed origin exactly the interface's origin (never `*`), method `PUT`, header `Content-Type`, no credentials — the presigned URL is the credential. Without it an upload fails in the browser with a message naming the bucket |
+| `HUBTASK_STORAGE_KIND`, `HUBTASK_S3_*` | `local` | With `s3`, the bucket and both keys are mandatory; path style is the default (`HUBTASK_S3_USE_PATH_STYLE`), and requests are signed for `us-east-1` unless `HUBTASK_S3_REGION` names the provider's region. The interface's policy names the bucket's origin ([ADR-0047](../adr/ADR-0047-media-origin-in-the-interface-policy.md)). **The bucket needs a CORS rule for the upload** - allowed origin the interface's origin, method `PUT`, header `Content-Type`, no credentials, the presigned URL being the credential - which `hubtask storage cors apply` sets and the health report checks (below the table). `*` as the origin works for the browser and is not recommended: it lets any page upload with a URL it holds. Without the rule an upload fails in the browser with a message naming the bucket |
 | `HUBTASK_STORAGE_LOCAL_PATH` | `/var/lib/hubtask/media` | Where `local` storage keeps the media - **a backup of the installation has to include this volume** (the Compose stack mounts `media` there); empty with `local` refuses the start (`config.storage_path_missing`) |
 | `HUBTASK_CLAMD_ADDRESS`, `HUBTASK_CLAMD_TIMEOUT`, `HUBTASK_CLAMD_STREAM_MAX_BYTES` | —, `2m`, `25 MiB` | The ClamAV daemon uploads are scanned by ([security.md](./security.md) §4), overriding the instance file's `upload_scanner`; a scan past the timeout holds the file; with a scanner, uploads are capped to the daemon's stream limit, so no accepted file is one it refuses for size. Empty: no scan |
 | `HUBTASK_SMTP_*` | port `587`, `starttls`, `10s` | Without a host, mail degrades (warning); with one, `_FROM` is mandatory |
