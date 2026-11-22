@@ -267,6 +267,10 @@ for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
       assert.equal(await list(page).getByRole('group').count(), 4, 'the four groups are not named groups');
       await walkClear(page, 'Grouped at 1280×720');
       const filter = page.getByRole('searchbox', { name: 'Filter the fields' });
+      // The button that empties the filter has a name of its own, not the filter's.
+      await filter.fill('da');
+      assert.equal(await page.getByRole('button', { name: 'Filter the fields', exact: true }).count(), 0, 'a button is named as the filter is');
+      assert.equal(await page.getByRole('button', { name: 'Clear the filter', exact: true }).count(), 1, 'the filter has no button named Clear the filter');
       await filter.fill('person');
       assert.deepEqual(
         await list(page).getByRole('group').evaluateAll((nodes) => nodes.map((node) => document.getElementById(node.getAttribute('aria-labelledby')).textContent)),

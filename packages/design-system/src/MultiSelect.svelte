@@ -69,6 +69,8 @@
     /** A sentence instead of the chips - "All 15" - or `undefined` to show the chips. */
     summary?: Summary;
     filterLabel: string;
+    /** The filter's button that empties it - "Clear the filter"; never the filter's own name. */
+    clearLabel: string;
     /** What a filter that matched nothing says (voice-and-tone.md §4.2). */
     noMatchLabel: string;
     allLabel: string;
@@ -99,6 +101,7 @@
     emptyLabel,
     summary,
     filterLabel,
+    clearLabel,
     noMatchLabel,
     allLabel,
     noneLabel,
@@ -426,7 +429,7 @@
               <SearchField
                 label={filterLabel}
                 isLabelHidden
-                clearLabel={filterLabel}
+                {clearLabel}
                 size="sm"
                 bind:value={term}
                 oninput={() => (active = 0)}

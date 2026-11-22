@@ -63,7 +63,7 @@ export const invalid: Story = {
 export const grouped: Story = {
   name: 'Grouped, with a line per option',
   about:
-    'The four groups of what a level carries. Each group is a named `group` inside the listbox; an option’s line describes it and is not part of its name. Type in the filter: a group with no match is left out, and a filter that matches nothing says so.',
+    'The four groups of what a level carries. Each group is a named `group` inside the listbox; an option’s line describes it and is not part of its name. Type in the filter: a group with no match is left out, and a filter that matches nothing says so. The ✕ that empties the filter is named by `clearLabel` - *Clear the filter* - and never by the filter’s own name.',
   args: { mode: 'grouped' },
 };
 

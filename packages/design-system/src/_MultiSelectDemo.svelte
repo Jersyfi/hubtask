@@ -169,6 +169,7 @@
           label: 'Was Aufgabe trägt',
           empty: 'Nichts gewählt',
           filter: 'Felder filtern',
+          clear: 'Filter leeren',
           noMatch: 'Kein Feld passt zu diesem Filter.',
           all: 'Alle',
           none: 'Keine',
@@ -179,6 +180,7 @@
           label: 'What a task carries',
           empty: 'Nothing chosen',
           filter: 'Filter the fields',
+          clear: 'Clear the filter',
           noMatch: 'No field matches this filter.',
           all: 'All',
           none: 'None',
@@ -209,6 +211,7 @@
     summary={extra.summary}
     emptyLabel={texts.empty}
     filterLabel={texts.filter}
+    clearLabel={texts.clear}
     noMatchLabel={texts.noMatch}
     allLabel={texts.all}
     noneLabel={texts.none}
@@ -245,6 +248,7 @@
       size="sm"
       emptyLabel="No level"
       filterLabel="Filter the levels"
+      clearLabel="Clear the filter"
       noMatchLabel="No level matches."
       allLabel="All"
       noneLabel="None"
@@ -260,6 +264,7 @@
       error={selected.length === 0 ? 'Offer at least one view.' : undefined}
       emptyLabel="No view"
       filterLabel="Filter the views"
+      clearLabel="Clear the filter"
       noMatchLabel="No view matches."
       allLabel="All"
       noneLabel="None"
@@ -291,6 +296,7 @@
           size="sm"
           emptyLabel="No level"
           filterLabel="Filter the levels"
+          clearLabel="Clear the filter"
           noMatchLabel="No level matches."
           allLabel="All"
           noneLabel="None"
