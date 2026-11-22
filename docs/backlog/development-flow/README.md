@@ -1046,10 +1046,11 @@ decision. The whole change is reversible by reverting one pull request; none of 
   CodeRabbit's comments are followed blindly — each is fixed or answered, and the gates decide.
 * **Baseline level 1 is not reached at the close.** The answers file reads 22 Met and 2 Unmet
   (`docs/evidence/best-practices-answers.md`). The two unmet rows name the same file, the
-  Android build's committed Gradle wrapper; removing it is a change to that build and was not
-  made here. Two rows rest on the owner: `main`'s protection binds administrators, and the
-  account has a second factor (2026-11-22). D-15 names level 1; it holds once the
-  wrapper's two rows are answered.
+  Android build's committed Gradle wrapper. It stays, on the owner's word of 2026-11-22:
+  `tauri android build` runs it, and Tauri's template writes it. Its SHA-256 is the one Gradle
+  publishes for 9.6.1. Two rows rest on the owner: `main`'s protection binds
+  administrators, and the account has a second factor (2026-11-22). D-15 names level 1; it is not
+  reached while the wrapper is committed.
 * **The owner has not read the walk rules' wording.** D-4 accepted the rules of §5.4; the
   sentences in `apps/webapp/e2e/AGENTS.md` are stage 1's.
 * **Still unverified:** how many of the functions and files `deadcode` and Knip list are unused,
