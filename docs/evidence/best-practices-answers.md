@@ -4,9 +4,9 @@ The answers a worker enters on <https://www.bestpractices.dev> for the passing l
 ([ci-cd.md](../architecture/ci-cd.md) §12), and for OSPS Baseline level 1 below them. The criteria
 are the 67 of the questionnaire's passing level, read on 2026-11-21 from the badge project's own
 criteria file (`criteria/criteria.yml` in `coreinfrastructure/best-practices-badge`). Today:
-63 Met, 1 Unmet, 3 N/A; one is marked **Verify at submission**, because the fact
+64 Met, 0 Unmet, 3 N/A; one is marked **Verify at submission**, because the fact
 behind it could not be read from the repository or from GitHub. The facts that could were read on
-2026-11-21 and each row says so.
+2026-11-21 or 2026-11-22 and each row says which.
 
 This file stays while the badge is shown. The weekly flow report reads the badge's level from the
 badge site and opens a `finding` when it is below `passing` ([ci-cd.md](../architecture/ci-cd.md)
@@ -16,16 +16,9 @@ The links point at `main`, so they resolve once the change that adds a file has 
 ## The steps at the close
 
 1. Read each row marked **Verify at submission** and correct the answer here. Read the dated
-   facts again where the submission is later than 2026-11-21.
-2. Put the written summary on the release page of v0.10.2, above the list GitHub generated. Once,
-   and only once - a second run would put it there twice:
-
-   ```bash
-   { cat docs/releases/v0.10.2.md; printf '\n\n'; gh release view v0.10.2 --repo Jersyfi/hubtask --json body --jq .body; } > /tmp/v0.10.2-notes.md
-   gh release edit v0.10.2 --repo Jersyfi/hubtask --notes-file /tmp/v0.10.2-notes.md
-   ```
-
-   Then `release_notes` is Met; change its row and the count above.
+   facts again where the submission is later than 2026-11-22.
+2. The release page of v0.10.2 carries its written summary; later releases get theirs from
+   `release.yml`.
 3. Close each remaining *Unmet* row, or leave it and say so: the badge is granted only when every
    MUST is Met or N/A.
 4. Open <https://www.bestpractices.dev/en/projects/new> in the browser and bring the page to the
@@ -38,9 +31,8 @@ The links point at `main`, so they resolve once the change that adds a file has 
    `[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/<id>/badge)](https://www.bestpractices.dev/projects/<id>)`
    Set the same id as `project` of `best_practices_badge` in `tools/flowstats/thresholds.json`:
    from then on the weekly flow report reads the badge's level.
-7. OSPS Baseline level 1: enter the answers of the last section. Its *Unknown* row and its three
-   *Unmet* rows come first: the owner's account, one setting of the repository, and one file of
-   the Android build that two rows name.
+7. OSPS Baseline level 1: enter the answers of the last section. Its two *Unmet* rows name one
+   file of the Android build.
 
 ## The answers
 
@@ -73,7 +65,7 @@ The links point at `main`, so they resolve once the change that adds a file has 
 | `version_unique` | Met | Every release is a tag `vX.Y.Z`. | <https://github.com/Jersyfi/hubtask/releases> |
 | `version_semver` | Met | Semantic Versioning. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/versioning-release.md> |
 | `version_tags` | Met | Each release is a git tag; `release.yml` runs on it. | <https://github.com/Jersyfi/hubtask/tags> |
-| `release_notes` | Unmet | Unmet until step 2 below has run, Met after it. From v0.10.2 on every release has a written summary of its major changes in `docs/releases/vX.Y.Z.md`, which `release.yml` puts above GitHub's generated list and without which it stops (versioning-release.md §3). The published page of v0.10.2 still holds the generated list alone (read 2026-11-21); step 2 puts its summary there. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/versioning-release.md> |
+| `release_notes` | Met | From v0.10.2 on every release has a written summary of its major changes in `docs/releases/vX.Y.Z.md`, which `release.yml` puts above GitHub's generated list and without which it stops (versioning-release.md §3). The published page of v0.10.2 carries its summary above the generated list (written and read 2026-11-22). | <https://github.com/Jersyfi/hubtask/releases/tag/v0.10.2> |
 | `release_notes_vulns` | N/A | No release has fixed a publicly known vulnerability: the repository has published no security advisory (read 2026-11-21, `gh api repos/Jersyfi/hubtask/security-advisories`: none). From then on the release's file names the CVE (versioning-release.md §3). | <https://github.com/Jersyfi/hubtask/security/advisories> |
 
 ### Reporting
@@ -146,14 +138,14 @@ The links point at `main`, so they resolve once the change that adds a file has 
 The site's criteria page lists *Baseline Level 1* as a set of its own beside passing, silver and
 gold (read 2026-11-21, <https://www.bestpractices.dev/en/criteria>); the page does not say whether
 it is granted as a badge of its own. The controls are the 24 of `baseline-1` in the badge project's
-`criteria/baseline_criteria.yml`, drawn from the Baseline of 2026-08-28. Today: 20 Met, 3 Unmet,
-1 Unknown. Every control allows N/A with a justification; none is answered that way.
+`criteria/baseline_criteria.yml`, drawn from the Baseline of 2026-08-28. Today: 22 Met, 2 Unmet.
+Every control allows N/A with a justification; none is answered that way.
 
 | Control | Answer | Justification | URL |
 |---|---|---|---|
-| `osps_ac_01_01` | Unknown | Whether the maintainer's GitHub account requires a second factor: the API answers this to the account's owner alone, and not to a worker's token (read 2026-11-21: no value). The owner says. | <https://github.com/Jersyfi> |
+| `osps_ac_01_01` | Met | The repository has one collaborator, its owner, whose GitHub account has two-factor authentication on (the owner's word, 2026-11-22; the API answers this to the account's owner alone). | <https://github.com/Jersyfi> |
 | `osps_ac_02_01` | Met | The repository belongs to a personal account and has one collaborator, its owner (read 2026-11-21). GitHub adds a collaborator only by an invitation the owner sends by hand. | <https://github.com/Jersyfi/hubtask> |
-| `osps_ac_03_01` | Unmet | `main` is protected: a pull request and the check `CI required` are required, force pushes are off. The protection does not apply to administrators (read 2026-11-21: `enforce_admins` is off), so the owner's account can still push to `main` directly. Met once "Do not allow bypassing the above settings" is on; that is a repository setting, the owner's to change. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/ci-cd.md> |
+| `osps_ac_03_01` | Met | `main` is protected: a pull request and the check `CI required` are required, force pushes are off, and the protection applies to administrators (`enforce_admins` on, set and read 2026-11-22), so no account pushes to `main` directly. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/ci-cd.md> |
 | `osps_ac_03_02` | Met | The branch protection of `main` forbids its deletion (read 2026-11-21). | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/ci-cd.md> |
 | `osps_br_01_01` | Met | `after-ci.yml`, the workflow that runs with write rights after a fork's run, hands what the run carries to its script as environment variables, not as script text; CodeQL reads every workflow for injection. The other workflows were not read line by line here. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/ci-cd.md> |
 | `osps_br_01_03` | Met | No workflow runs on `pull_request_target`; a fork's pull request runs without secrets. `after-ci.yml` runs on `workflow_run` with write rights and checks out the default branch's scripts only, nothing of the run (ci-cd.md §3.5). | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/ci-cd.md> |
