@@ -84,3 +84,10 @@ test('a summary is cut after two lines; it and the chips describe the radio', ()
   assert.match(markup, /option\.summary \? `\$\{optionId\}-summary`/);
   assert.match(markup, /hasChips \? `\$\{optionId\}-chips`/);
 });
+
+test('the tile keeps the create-hub draft’s measures, from the tokens', () => {
+  assert.match(style, /min-block-size: calc\(var\(--sp-1000\) \+ var\(--sp-150\)\);/, 'a tile is as high as the draft’s from 600px');
+  assert.match(style, /\.chip \{\s*padding: var\(--bw-hairline\) var\(--sp-100\);/, 'the chip has the draft’s block padding');
+  assert.match(style, /\.tick :global\(\.icon\) \{ inline-size: var\(--fs-075\); block-size: var\(--fs-075\); \}/, 'the tick’s glyph is the caption’s size');
+  assert.match(style, /\.mark :global\(\.icon\) \{ inline-size: var\(--fs-200\); block-size: var\(--fs-200\); \}/, 'the mark’s glyph is the body’s size');
+});

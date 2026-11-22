@@ -342,8 +342,9 @@
 
   .chips { display: flex; flex-wrap: wrap; gap: var(--sp-050); margin-block-start: var(--sp-050); }
 
+  /* The space scale has no step as small as the pill's block padding: it is the hairline's. */
   .chip {
-    padding-inline: var(--sp-100);
+    padding: var(--bw-hairline) var(--sp-100);
     border-radius: var(--r-full);
     background: var(--status-neutral-surface);
     color: var(--status-neutral-text);
@@ -356,9 +357,14 @@
   .choices[data-layout='grid'] .card {
     align-content: start;
     column-gap: var(--sp-150);
-    min-block-size: var(--sp-1000);
+    min-block-size: calc(var(--sp-1000) + var(--sp-150));
     border-radius: var(--r-lg);
   }
+
+  /* The glyphs a size below Icon's own, as the tile draws them: the tick in the caption's size,
+     the mark in the body's. */
+  .tick :global(.icon) { inline-size: var(--fs-075); block-size: var(--fs-075); }
+  .choices[data-layout='grid'] .mark :global(.icon) { inline-size: var(--fs-200); block-size: var(--fs-200); }
 
   .choices[data-layout='grid'] .mark {
     align-items: center;
