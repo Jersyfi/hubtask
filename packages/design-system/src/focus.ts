@@ -115,6 +115,37 @@ export function safeAnswer<T extends AnswerControl>(foot: readonly T[], dismiss:
   return foot.find(usable) ?? (dismiss && dismiss.offsetParent !== null ? dismiss : undefined);
 }
 
+/** What `keptFocus` reads of an open dialog at one moment. */
+export interface DialogFocus<T extends AnswerControl> {
+  /** The focused element, `null` where the focus fell to the page's body. */
+  readonly active: T | null;
+  /** Whether `active` lies inside this dialog; outside it, another layer holds the focus. */
+  readonly isInside: boolean;
+  /** Whether `active` is the heading this rule put the focus on for want of an answer. */
+  readonly isOnFallback: boolean;
+  readonly isAlert: boolean;
+  readonly foot: readonly T[];
+  readonly dismiss: T | null | undefined;
+  readonly heading: T;
+}
+
+/**
+ * Where an open dialog's focus goes when its content changes under it (WCAG 2.4.3): a control
+ * removed, or hidden by the dialog growing to the full screen, drops the focus to the body. It then
+ * goes to the safe answer of an alert (`safeAnswer`), to the close control of any other dialog,
+ * and with neither drawn to the dialog's own heading - and from that heading to the answer once one
+ * is drawn again. `undefined`: the focus stays where it is, also in another layer over this one.
+ */
+export function keptFocus<T extends AnswerControl>(now: DialogFocus<T>): { readonly target: T; readonly isFallback: boolean } | undefined {
+  const isDrawn = (control: T) => control.offsetParent !== null;
+  if (now.active !== null && !now.isInside) return undefined;
+  const answer = now.isAlert ? safeAnswer(now.foot, now.dismiss) : now.dismiss && isDrawn(now.dismiss) ? now.dismiss : undefined;
+  const isLost = now.active === null || !isDrawn(now.active);
+  if (isLost) return answer ? { target: answer, isFallback: false } : { target: now.heading, isFallback: true };
+  if (now.isOnFallback && answer) return { target: answer, isFallback: false };
+  return undefined;
+}
+
 /**
  * What can be focused inside a container. `Dialog` needs none of this - a modal `<dialog>` is
  * trapped by the browser - but a popover is not modal, and the first thing it does on open is

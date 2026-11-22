@@ -12,7 +12,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { clearanceUnder, escapeHandler, focusReturn, rovingIndex, typeAheadIndex } from '../src/focus.ts';
+import { clearanceUnder, escapeHandler, focusReturn, keptFocus, rovingIndex, typeAheadIndex } from '../src/focus.ts';
 import { LayerRegister } from '../src/layers.ts';
 
 test('the arrows walk the list and wrap at both ends', () => {
@@ -116,4 +116,31 @@ test('a field the save bar covers is moved up by what it covers; nothing that is
   // A region taking focus because it was pressed - `main`, taller than the room above the bar -
   // cannot be cleared, and moving it would move what the pointer is pressing.
   assert.equal(clearanceUnder({ top: 49, bottom: 930 }, 850, 49), 0);
+});
+
+// Dialog keeps its focus through every change of its content: an alert that grows to the full
+// screen hides its foot, a run replaces its answers, a stop draws them again.
+test('a dialog\'s focus lost to the body goes to the safe answer, else the heading, and back to the answer', () => {
+  const control = (name, isDrawn = true, isDisabled = false) => ({ name, offsetParent: isDrawn ? {} : null, getAttribute: (key) => (key === 'aria-disabled' && isDisabled ? 'true' : null) });
+  const heading = control('heading');
+  const keep = control('keep');
+  const off = control('off');
+  const close = control('close');
+  const alert = { isAlert: true, heading, isOnFallback: false, isInside: true };
+  assert.equal(keptFocus({ ...alert, active: null, foot: [keep, off], dismiss: close }).target, keep, 'lost: the safe answer, never the destructive one');
+  assert.equal(keptFocus({ ...alert, active: keep, foot: [keep, off], dismiss: close }), undefined, 'kept where it is');
+  // At a phone's width the foot is hidden: the focus on Keep it on is lost, and the close control is the same answer.
+  const hidden = control('keep', false);
+  assert.equal(keptFocus({ ...alert, active: hidden, foot: [hidden, control('off', false)], dismiss: close }).target, close);
+  // A run with no answer and no close: the heading, marked as a fallback.
+  const run = keptFocus({ ...alert, active: null, foot: [], dismiss: undefined });
+  assert.deepEqual([run.target, run.isFallback], [heading, true]);
+  // Stopped, the answers come back and the focus leaves the heading for the safe one.
+  assert.equal(keptFocus({ ...alert, active: heading, isOnFallback: true, foot: [keep, off], dismiss: close }).target, keep);
+  assert.equal(keptFocus({ ...alert, active: heading, isOnFallback: false, foot: [keep, off], dismiss: close }), undefined, 'a heading the person reached is left alone');
+  // Another layer over it - the confirmation a dismissal opens - holds its own focus.
+  assert.equal(keptFocus({ ...alert, active: control('other'), isInside: false, foot: [keep], dismiss: close }), undefined);
+  // Not an alert: the close control, else the heading - never a button of the foot.
+  assert.equal(keptFocus({ ...alert, isAlert: false, active: null, foot: [off], dismiss: close }).target, close);
+  assert.equal(keptFocus({ ...alert, isAlert: false, active: null, foot: [off], dismiss: undefined }).target, heading);
 });

@@ -20,7 +20,9 @@
   // dialog whose whole purpose is to be answered opened with the caret on its close button. Where
   // the body holds a field, the focus goes into the field instead; where it holds none, the
   // browser's own answer stands, because focusing a destructive button for somebody would be
-  // worse than focusing nothing.
+  // worse than focusing nothing. While it is open the focus never falls out to the page: a control
+  // removed or hidden under it - the foot a full screen hides, answers a run replaces - hands it on
+  // by `keptFocus`, to the safe answer or the close control, else to the heading.
   //
   // ## The three sizes (page-system §5)
   //
@@ -49,7 +51,7 @@
   import Button from './Button.svelte';
   import IconButton from './IconButton.svelte';
   import { anchorTo } from './anchor.ts';
-  import { escapeHandler, focusReturn, safeAnswer } from './focus.ts';
+  import { escapeHandler, focusReturn, keptFocus, safeAnswer } from './focus.ts';
   import { layers } from './layers.ts';
   import { closeName } from './media.ts';
 
@@ -119,6 +121,7 @@
   let body = $state<HTMLDivElement | null>(null);
   let foot = $state<HTMLElement | null>(null);
   let head = $state<HTMLElement | null>(null);
+  let heading = $state<HTMLHeadingElement | null>(null);
   let opener: Element | null = null;
 
   /** The first control in the body somebody would type into, if there is one. */
@@ -169,6 +172,42 @@
       }
     });
 
+    // The focus kept through every change of the content (`keptFocus`): a foot hidden when the
+    // dialog grows to the full screen, answers replaced by a run, answers drawn again after it.
+    // The focus on the page's body is read as the last control focused here: still drawn, the
+    // person moved it out by a press on the text, and it is theirs to leave; gone or hidden, lost.
+    let isOnFallback = false;
+    let last: HTMLElement | null = null;
+    const onFocusin = (event: FocusEvent) => {
+      if (event.target instanceof HTMLElement) last = event.target;
+    };
+    function keep() {
+      if (!heading || !dialog) return;
+      const focused = document.activeElement;
+      const isOnPage = focused === null || focused === document.body;
+      const active = isOnPage ? (last?.isConnected ? last : null) : focused instanceof HTMLElement ? focused : null;
+      const next = keptFocus({
+        active,
+        isInside: active !== null && dialog.contains(active),
+        isOnFallback: isOnFallback && active === heading,
+        isAlert,
+        foot: [...(foot?.querySelectorAll<HTMLElement>('button') ?? [])],
+        dismiss: head?.querySelector<HTMLElement>('.dismiss button'),
+        heading,
+      });
+      if (!next) return;
+      isOnFallback = next.isFallback;
+      next.target.focus();
+    }
+    const watch = new MutationObserver(keep);
+    watch.observe(dialog, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-disabled', 'hidden', 'class', 'data-size'] });
+    const sized = new ResizeObserver(keep);
+    sized.observe(dialog);
+    if (document.activeElement instanceof HTMLElement && dialog.contains(document.activeElement)) last = document.activeElement;
+    const onFocusout = () => queueMicrotask(keep);
+    dialog.addEventListener('focusin', onFocusin);
+    dialog.addEventListener('focusout', onFocusout);
+
     // Refused, the dismissal leaves the dialog open, so it goes back into the register - below the
     // confirmation the caller opens next, which is opened later at the same rank.
     let handle = layers.open('dialog', function onEscape() {
@@ -178,6 +217,10 @@
     document.addEventListener('keydown', onKeydown);
 
     return () => {
+      watch.disconnect();
+      sized.disconnect();
+      dialog.removeEventListener('focusin', onFocusin);
+      dialog.removeEventListener('focusout', onFocusout);
       untie?.();
       document.removeEventListener('keydown', onKeydown);
       handle.release();
@@ -223,7 +266,9 @@
 >
   <div class="panel">
     <header class="head" bind:this={head} data-dismissible={dismissLabel !== undefined ? '' : undefined}>
-      <h2 id={titleId} class="title">{title}</h2>
+      <!-- Focusable by script alone: where the content changes and no answer is drawn, the focus
+           rests on the dialog's own heading rather than falling out to the page. -->
+      <h2 id={titleId} class="title" tabindex="-1" bind:this={heading}>{title}</h2>
       {#if primary && size}
         <span class="bar-primary">
           <Button tone={primary.tone ?? 'primary'} size="sm" onclick={primary.onclick} disabledReason={primary.disabledReason} isBusy={primary.isBusy} busyLabel={primary.busyLabel}>
