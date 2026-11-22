@@ -256,14 +256,32 @@ func summaryJobsIn(workflow []byte) map[string]bool {
 	return names
 }
 
+// jobsBudget is the time the reading of jobs has in all. It is one request per attempt of each
+// run, each with its own timeout, and nothing is printed or filed before it ends: without a bound
+// a slow API uses up the job's time (flow.yml) and the week has no report.
+const jobsBudget = 10 * time.Minute
+
 // jobsOf reads the jobs of each run, attempt by attempt: the API fails to list every attempt of
 // a run at once where a run has many. unread counts the runs it did not answer for - one lost
 // answer leaves the report standing - and why is its first refusal.
 func jobsOf(repo string, runs []run, summary map[string]bool) (jobs []job, unread int, why string) {
-	for _, r := range runs {
+	return readJobs(runs, summary, time.Now().Add(jobsBudget), time.Now, func(id int64, attempt int) ([]byte, error) {
+		return gh("api", "--paginate", fmt.Sprintf("repos/%s/actions/runs/%d/attempts/%d/jobs?per_page=100", repo, id, attempt))
+	})
+}
+
+// readJobs asks fetch for each attempt until the time is up; the runs left then are unread.
+func readJobs(runs []run, summary map[string]bool, until time.Time, now func() time.Time, fetch func(id int64, attempt int) ([]byte, error)) (jobs []job, unread int, why string) {
+	for i, r := range runs {
 		seen := map[string]bool{}
 		for attempt := 1; attempt <= max(1, r.attempt); attempt++ {
-			out, err := gh("api", "--paginate", fmt.Sprintf("repos/%s/actions/runs/%d/attempts/%d/jobs?per_page=100", repo, r.id, attempt))
+			if !now().Before(until) {
+				if why == "" {
+					why = fmt.Sprintf("the reading of jobs ran out of its %.0f minutes", jobsBudget.Minutes())
+				}
+				return jobs, unread + len(runs) - i, why
+			}
+			out, err := fetch(r.id, attempt)
 			if err == nil {
 				var read []job
 				if read, err = parseJobs(out, summary, seen); err == nil {

@@ -206,6 +206,37 @@ func TestParseJobs(t *testing.T) {
 	}
 }
 
+// The reading of jobs has a time of its own: runs it does not reach are counted as not read, and
+// the report is still printed and filed.
+func TestTheReadingOfJobsStopsWhenItsTimeIsUp(t *testing.T) {
+	start := at("2026-11-21 05:00")
+	clock := start
+	asked := 0
+	fetch := func(int64, int) ([]byte, error) {
+		asked++
+		clock = clock.Add(4 * time.Minute) // each answer is slow
+		return []byte(firstAttempt), nil
+	}
+	runs := []run{{id: 1, attempt: 1}, {id: 2, attempt: 2}, {id: 3, attempt: 1}, {id: 4, attempt: 1}}
+	jobs, unread, why := readJobs(runs, map[string]bool{"CI required": true}, start.Add(jobsBudget), func() time.Time { return clock }, fetch)
+	// Run 1, then the first attempt of run 2, then its second: twelve minutes, over the ten.
+	if asked != 3 || len(jobs) != 4 || unread != 2 {
+		t.Errorf("%d requests, %d jobs, %d runs not read; want 3 requests, 4 jobs and the last 2 runs not read", asked, len(jobs), unread)
+	}
+	if !strings.Contains(why, "ran out") {
+		t.Errorf("the reason reads %q", why)
+	}
+	// A refusal stays the reason where it came first.
+	clock = start
+	_, unread, why = readJobs(runs, nil, start.Add(jobsBudget), func() time.Time { return clock }, func(id int64, _ int) ([]byte, error) {
+		clock = clock.Add(6 * time.Minute)
+		return nil, errString("gh api: exit status 1: gh: Server Error (HTTP 502)")
+	})
+	if unread != 4 || why != "the API did not answer (HTTP 502)" {
+		t.Errorf("%d runs not read, because %q; want all 4 and the API's refusal", unread, why)
+	}
+}
+
 // The names are read from ci.yml itself, so a renamed summary job does not come back into the
 // tables unseen.
 func TestSummaryJobsAreReadFromTheWorkflow(t *testing.T) {
