@@ -58,7 +58,8 @@
   import { laneOf, lanesOf } from '../data/viewquery.ts';
   import { NO_COLUMN, columnRefusals, unmappedStatuses } from './boardlevel.ts';
   import StateChip from './StateChip.svelte';
-  import { chipOf } from './statechip.ts';
+  import StateMark from './StateMark.svelte';
+  import { chipOf, markOf } from './statechip.ts';
 
   import { announcer } from '../announce.svelte.ts';
   import { celebration } from '../celebration.svelte.ts';
@@ -137,9 +138,11 @@
     /**
      * The collection's level for its tasks (build-plan §5): COLUMNS - the columns are the states;
      * WORKFLOW - each column shows one or more statuses of `workflow`, the statuses no column shows
-     * stand folded in *Ohne Spalte*. Every drop goes through `:drop`, which decides at either.
+     * stand folded in *Ohne Spalte*. A move at COLUMNS is the column write, at WORKFLOW `:drop`.
      */
     level?: StateMode;
+    /** The Workflows module is off here: a workflow in force is paused, its cards do not move. */
+    isWorkflowPaused?: boolean;
     /** An entry type's own level and workflow where it differs from the tasks' (build-plan §5). */
     levelOfType?: (entryType: string) => { readonly mode: StateMode | undefined; readonly workflow: WorkflowShape | undefined } | undefined;
     /** The workflow the collection runs, where it runs one: the statuses' names. */
@@ -159,6 +162,7 @@
     mayCreate,
     mayShape,
     level,
+    isWorkflowPaused = false,
     levelOfType,
     workflow,
     showsKey = false,
@@ -265,6 +269,7 @@
     get noColumn() { return t('app.board.unmapped'); },
     statusName,
     stepName: (_key: string, name: string | null | undefined, to: string) => name ?? statusName(to),
+    paused: isWorkflowPaused ? { label: t('app.entries.workflow_paused'), reason: t('app.entries.workflow_paused_reason') } : undefined,
   });
   /** The statuses no column shows (*Ohne Spalte*), folded, never hidden (build-plan §5). */
   const unmapped = $derived(isWorkflow && isBucketBoard ? unmappedStatuses(columns, workflow?.statuses.map((each) => each.key) ?? []) : []);
@@ -287,7 +292,7 @@
     stopCarried = undefined;
     carriedSteps = undefined;
     carriedFrom = card ? from : undefined;
-    if (card && isWorkflow) {
+    if (card && isWorkflow && !isWorkflowPaused) {
       stopCarried = workflows.steps(card.id, (state) => {
         if (state.status === 'ready') carriedSteps = state.data;
       });
@@ -487,11 +492,16 @@
     }
   }
 
+  /** A card's own level: its entry type's where that differs from the tasks'. */
+  const levelOfCard = (card: WorkItem) => (card.entry_type ? levelOfType?.(card.entry_type)?.mode : undefined) ?? level;
+
   /**
-   * Drops a card on a column through `:drop` (build-plan §5): the server decides at the
-   * collection's level - a move (the done column completes, leaving it reopens), the one step that
-   * reaches the column, or the steps to choose among, which opens the picker and writes nothing
-   * until one is chosen. A refusal is the server's code, said in words.
+   * Moves a card into a column (build-plan §5). Where no workflow runs (L1) it is the base
+   * product's column write, `PATCH bucket_id` - the server completes into the done column and
+   * reopens out of it, and it works with the Workflows module off, which refuses `:drop`
+   * (UC-FLW-06 check 5). Under a workflow (L2) it is `:drop`: the one step that reaches the column,
+   * or the steps to choose among, which opens the picker and writes nothing until one is chosen.
+   * A refusal is the server's code, said in words.
    */
   async function moveTo(item: WorkItem, bucketId: string | null, step?: string): Promise<WorkItem | undefined> {
     writeFailure = undefined;
@@ -499,8 +509,15 @@
     // A limit is advice: the move goes ahead, and is announced as going over it (UC-WRK-31 check 3).
     const isOverLimit =
       item.bucket_id !== bucketId && goesOverLimit(target?.wip_limit, countOf(bucketId), cardsOf(bucketId).length);
+    // A paused workflow still decides where its entries stand, and its steps are the module's.
+    if (isWorkflowPaused && levelOfCard(item) === 'WORKFLOW') {
+      writeFailure = { message: t('app.entries.workflow_paused_board') } as ReturnType<typeof renderProblem>;
+      return undefined;
+    }
     try {
-      const answer: DropAnswer = await items.drop(item.id, bucketId, item.version, step);
+      const answer: DropAnswer = levelOfCard(item) === 'WORKFLOW'
+        ? await items.drop(item.id, bucketId, item.version, step)
+        : { outcome: 'MOVED', steps: [], item: await items.setBucket(item.id, bucketId, item.version) };
       if (answer.outcome === 'CHOOSE') {
         choosing = { item, bucketId, steps: answer.steps };
         return undefined;
@@ -1072,6 +1089,7 @@
                   {#snippet footer()}
                     {@const own = card.entry_type ? levelOfType?.(card.entry_type) : undefined}
                     {@const cardChip = card.type === 'TASK' && isBucketBoard ? chipOf(own?.mode ?? level, card, columns, own?.workflow ?? workflow, own?.mode === 'WORKFLOW' ? { ...chipNames, noColumn: t('app.board.unmapped') } : chipNames) : undefined}
+                    {#if cardChip}<StateMark item={card} mark={markOf(own?.mode ?? level, card, isWorkflowPaused ? undefined : own?.workflow ?? workflow, chipNames.stepName)} stateLabel={cardChip.label} disabledReason={changeRefusal(card)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
                     {#if cardChip}<StateChip item={card} chip={cardChip} disabledReason={changeRefusal(card)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
                     {#if showsKey}<EntryKey collection={keyedCollection} number={card.number} />{/if}
                     <DueMark item={card} />

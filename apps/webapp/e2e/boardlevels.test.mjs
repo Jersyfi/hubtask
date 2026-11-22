@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // The list, board and workflow model (build-plan §5) on screen: the state control by level on the
-// list row and the card - L0 a checkbox, L1 a column chip, L2 a status chip -; at L2 the columns
+// list row and the card - L0 the mark, L1 the mark and a column chip, L2 the mark and a status
+// chip (UC-WRK-05 check 11), a board moving its cards with Workflows off (UC-FLW-06 check 5) -; at L2 the columns
 // name the statuses they show, the statuses no column shows stand folded in *Ohne Spalte*; a drop
 // several steps reach asks which (`CHOOSE`); a column a carried card may not enter dims with its
 // reason; the done column stands folded. Columns a collection keeps without offering a board are
@@ -90,7 +91,10 @@ async function at(browser, level, { width = 1280, view = 'List', drop, workflows
   return { ...tab, written, entries };
 }
 
-test('chromium: L1 - a task row shows its column chip, not a checkbox; choosing a column drops it', async (t) => {
+// UC-WRK-05 check 11 and UC-FLW-06 check 5, with the Workflows module off (it is off in this
+// suite unless a level runs a workflow): the row's mark and its column chip; a column is the base
+// product's write, `PATCH bucket_id`, never the module's `:drop`; the mark completes (E6).
+test('chromium: L1 - a task row shows the mark and its column chip; a column is written by PATCH with Workflows off', async (t) => {
   const browser = await sharedChromium(t);
   const { page, written, context } = await at(browser, 'COLUMNS');
   t.after(() => context.close());
@@ -98,15 +102,58 @@ test('chromium: L1 - a task row shows its column chip, not a checkbox; choosing 
   const chip = row.locator('[data-state-chip]');
   await chip.waitFor({ timeout: 15_000 });
   assert.match((await chip.textContent()) ?? '', new RegExp(BUCKETS[0].name));
-  assert.equal(await row.getByRole('checkbox').count(), 0, 'a checkbox beside the column chip');
+  const mark = row.getByRole('checkbox', { name: `Mark ${ITEMS[0].title} as done` });
+  assert.equal(await mark.count(), 1, 'the mark beside the column chip');
   await chip.click();
   const choices = await page.getByRole('menuitem').allTextContents();
   assert.deepEqual(choices.map((each) => each.trim()), BUCKETS.map((bucket) => bucket.name));
   await page.getByRole('menuitem', { name: BUCKETS[2].name }).click();
   await page.waitForTimeout(300);
-  const drop = written.find((each) => each.path === `/items/${ITEMS[0].id}:drop`);
-  assert.equal(drop?.body?.bucket_id, BUCKETS[2].id);
+  const move = written.find((each) => each.method === 'PATCH' && each.path === `/items/${ITEMS[0].id}`);
+  assert.equal(move?.body?.bucket_id, BUCKETS[2].id);
+  assert.equal(written.filter((each) => each.path.endsWith(':drop')).length, 0, 'the column went through the module\'s :drop');
   assert.equal(written.filter((each) => each.path.endsWith(':complete')).length, 0, 'the client completed it itself');
+
+  const completed = page.waitForResponse((response) => response.url().endsWith(`/items/${ITEMS[0].id}:complete`));
+  await row.getByRole('checkbox', { name: `Mark ${ITEMS[0].title} as done` }).click();
+  await completed;
+  assert.equal(written.filter((each) => each.path === `/items/${ITEMS[0].id}:complete`).length, 1, 'the mark did not complete the entry');
+});
+
+// E5 and UC-WRK-05 check 11 at L2: the mark is the next step - an arrow named by it where it does
+// not finish the entry -, the chip beside it lists every step.
+test('chromium: L2 - the row\'s mark takes the next step towards done, an arrow where it does not finish', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, written, context } = await at(browser, 'WORKFLOW');
+  t.after(() => context.close());
+  const row = page.locator(`[data-row="${ITEMS[0].id}"]`);
+  await row.locator('[data-state-chip]').waitFor({ timeout: 15_000 });
+  const step = row.getByRole('button', { name: `${ITEMS[0].title}: Move on – Start` });
+  assert.equal(await step.count(), 1, 'the mark is not the next step');
+  const answered = page.waitForResponse((response) => response.url().endsWith(`/items/${ITEMS[0].id}:step`));
+  await step.click();
+  await answered;
+  const taken = written.find((each) => each.path === `/items/${ITEMS[0].id}:step`);
+  assert.deepEqual(taken?.body, { step: 'start' });
+});
+
+// A workflow stays in force on the server with its module off (`WorkflowGate`): the row says it
+// is paused instead of pretending to be a list, offers no step, and its mark completes through the
+// base product's `:complete`, which the server answers.
+test('chromium: L2 with Workflows off - the chip says the workflow is paused, the mark completes', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, written, context } = await at(browser, 'WORKFLOW', { workflowsOn: false });
+  t.after(() => context.close());
+  const row = page.locator(`[data-row="${ITEMS[0].id}"]`);
+  const chip = row.locator('[data-state-chip]');
+  await chip.waitFor({ timeout: 15_000 });
+  assert.match((await chip.textContent()) ?? '', /Workflow paused/);
+  assert.equal(await chip.getByRole('button').count(), 0, 'a paused chip offers a menu');
+  const completed = page.waitForResponse((response) => response.url().endsWith(`/items/${ITEMS[0].id}:complete`));
+  await row.getByRole('checkbox', { name: `Mark ${ITEMS[0].title} as done` }).click();
+  await completed;
+  assert.equal(written.filter((each) => each.path === `/items/${ITEMS[0].id}:complete`).length, 1);
+  assert.equal(written.filter((each) => each.path.endsWith(':step') || each.path.endsWith(':drop')).length, 0, 'a module door was asked');
 });
 
 // A thumb's target (user-experience.md §7): on a phone the status chip, drawn small, takes a press
@@ -199,8 +246,12 @@ test('chromium: L1 - Alt and an arrow carry a card into the next column by keybo
   await card.getByRole('link').first().focus();
   await page.keyboard.press('Alt+ArrowRight');
   await page.waitForTimeout(300);
-  const drop = written.find((each) => each.path === `/items/${ITEMS[0].id}:drop`);
-  assert.equal(drop?.body?.bucket_id, BUCKETS[1].id);
+  // With Workflows off a board moves its cards by the base product's write (UC-FLW-06 check 5).
+  const move = written.find((each) => each.method === 'PATCH' && each.path === `/items/${ITEMS[0].id}`);
+  assert.equal(move?.body?.bucket_id, BUCKETS[1].id);
+  assert.equal(written.filter((each) => each.path.endsWith(':drop')).length, 0);
+  // The card carries the mark and its column chip in its foot (UC-WRK-05 check 11).
+  assert.equal(await card.getByRole('checkbox', { name: `Mark ${ITEMS[0].title} as done` }).count(), 1, 'the card has no mark');
 });
 
 /** Opens the collection's own menu and one of its items. */

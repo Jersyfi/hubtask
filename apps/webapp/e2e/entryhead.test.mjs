@@ -16,7 +16,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ACCOUNT, ITEMS, LABELS, MANIFEST, OTHER, PERMISSIONS, signedIn, stub } from './fixture.mjs';
+import { ACCOUNT, COLLECTION, ITEMS, LABELS, MANIFEST, OTHER, PERMISSIONS, signedIn, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -56,8 +56,8 @@ async function open(width, { runs, asks = false, requires = false, path = `/item
     }
     // The server answers an entry's steps only where the workflows module is on (`module.off`
     // otherwise), so a board whose steps it answers is such a place.
-    if (board && !runs && read === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: [...(MANIFEST.modules_on ?? []), 'WORKFLOWS'] } });
-    if (board && !runs && /\/containers\/[^/]+\/modules$/.test(read)) return route.fulfill({ json: { modules_on: [...(MANIFEST.modules_on ?? []), 'WORKFLOWS'] } });
+    if (board === true && !runs && read === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: [...(MANIFEST.modules_on ?? []), 'WORKFLOWS'] } });
+    if (board === true && !runs && /\/containers\/[^/]+\/modules$/.test(read)) return route.fulfill({ json: { modules_on: [...(MANIFEST.modules_on ?? []), 'WORKFLOWS'] } });
     const answered = extra?.(read, request.method());
     if (answered) return route.fulfill({ json: answered });
     if (title && read === `/items/${ENTRY.id}`) return route.fulfill({ json: { ...ENTRY, title } });
@@ -74,11 +74,13 @@ async function open(width, { runs, asks = false, requires = false, path = `/item
     if (board && read === `/items/${ENTRY.id}/steps`) {
       return route.fulfill({ json: { state_mode: 'COLUMNS', columns: BOARD, column_id: BOARD[0].id, workflow: null, status: null, steps: [], blocked: [], done_route: [], by_default: true, may_design: false } });
     }
-    // A column chosen in the status menu is the board's drop (`:drop`); the server completes it.
-    if (board && read === `/items/${ENTRY.id}:drop` && request.method() === 'POST') {
+    // A column chosen in the status menu is the base product's column write (`PATCH bucket_id`),
+    // with the Workflows module on or off; the server completes it into the done column.
+    if (board && read === `/items/${ENTRY.id}` && request.method() === 'PATCH') {
       patches.push(request.postDataJSON());
-      return route.fulfill({ json: { outcome: 'MOVED', steps: [], item: { ...ENTRY, bucket_id: BOARD[2].id, version: ENTRY.version + 1, completion: { is_completed: true } } } });
+      return route.fulfill({ json: { ...ENTRY, bucket_id: BOARD[2].id, version: ENTRY.version + 1, completion: { is_completed: true } } });
     }
+    if (board && read.endsWith(':drop')) patches.push({ drop: request.postDataJSON() });
     if (!runs && read === `/items/${ENTRY.id}/steps`) {
       return route.fulfill({ json: { workflow: null, status: null, steps: [], blocked: [], done_route: [], picture: SHAPE, by_default: true, may_design: false } });
     }
@@ -344,7 +346,93 @@ test('chromium: on a board without a workflow the menu lists its columns, the do
     assert.ok(await page.locator('[data-tour="entry"]').getByRole('button', { name: 'Done', exact: true }).isVisible(), 'Done stays the main action');
     await rows.nth(2).click();
     await page.waitForTimeout(400);
-    assert.deepEqual(patches, [{ bucket_id: BOARD[2].id }], 'choosing a column drops the entry into it, the server keeping the done column');
+    assert.deepEqual(patches, [{ bucket_id: BOARD[2].id }], 'choosing a column writes it by PATCH, the server keeping the done column');
+  } finally {
+    await close();
+  }
+});
+
+// UC-FLW-06 check 5 with the Workflows module off: the board's columns are the states all the same,
+// built from the collection's level and its column list (the steps are the module's and are not
+// asked), the menu is headed *Column*, a column is written by PATCH and never by `:drop`.
+test('chromium: on a board with Workflows off the entry still shows its columns and writes one by PATCH (UC-FLW-06/5)', { timeout: 60_000 }, async () => {
+  const patches = [];
+  const columns = BOARD.map((column, n) => ({ id: column.id, collection_id: ENTRY.collection_id, name: column.name, order_key: `a${n}`, wip_limit: null, is_done_bucket: column.completes, color_token: null, version: 1 }));
+  const asked = [];
+  const extra = (read, method) => {
+    if (read.endsWith('/steps')) asked.push(read);
+    if (method === 'GET' && read === `/containers/${ENTRY.collection_id}`) return { ...COLLECTION, state_mode: 'COLUMNS', state_modes: { task: 'COLUMNS' } };
+    if (method === 'GET' && read === `/containers/${ENTRY.collection_id}/buckets`) return columns;
+    if (method === 'GET' && read === `/items/${ENTRY.id}`) return { ...ENTRY, bucket_id: BOARD[1].id };
+    return undefined;
+  };
+  const { page, close } = await open(1280, { runs: false, board: 'off', patches, extra });
+  try {
+    const status = page.locator('[data-steps]');
+    await status.waitFor({ timeout: 10_000 });
+    assert.equal(await status.getAttribute('data-status'), BOARD[1].id);
+    await status.getByRole('button', { name: /Change status/ }).click();
+    assert.ok(await page.getByText('Column', { exact: true }).first().isVisible(), 'the menu is headed Column, no module\'s word');
+    const rows = page.getByRole('menuitemradio');
+    assert.deepEqual((await rows.allInnerTexts()).map((text) => text.split('\n')[0].trim()), ['Ideas', 'Building', 'Shipped']);
+    const written = page.waitForResponse((response) => response.request().method() === 'PATCH' && response.url().endsWith(`/items/${ENTRY.id}`));
+    await rows.nth(0).click();
+    await written;
+    assert.deepEqual(patches, [{ bucket_id: BOARD[0].id }], 'the column went through PATCH');
+    assert.deepEqual(asked, [], 'the module\'s steps were asked with the module off');
+    assert.ok(await page.locator('[data-tour="entry"]').getByRole('button', { name: 'Done', exact: true }).isVisible(), 'Done is the main action');
+  } finally {
+    await close();
+  }
+});
+
+// The original complaint (D3): in a list an entry is completed from inside it, and once done the
+// same place offers *Reopen* - the state reads *Open* / *Done* (E7).
+test('chromium: in a list the state reads Open, Done completes, and a completed entry keeps Reopen (UC-FLW-06/5)', { timeout: 60_000 }, async () => {
+  const written = [];
+  const extra = (read, method) => {
+    if (method === 'GET' && read === `/containers/${ENTRY.collection_id}`) return { ...COLLECTION, state_mode: 'NONE', state_modes: { task: 'NONE' } };
+    if (method === 'GET' && read === `/items/${ENTRY.id}`) return { ...ENTRY, completion: { is_completed: true, completed_at: '2026-11-20T09:00:00Z', completed_by: ACCOUNT.id } };
+    if (method === 'POST' && read.endsWith(':reopen')) { written.push(read); return { ...ENTRY, version: ENTRY.version + 1, completion: { is_completed: false } }; }
+    return undefined;
+  };
+  const { page, close } = await open(1280, { runs: false, extra });
+  try {
+    const head = page.locator('[data-tour="entry"]');
+    await page.locator('[data-steps]').waitFor({ timeout: 10_000 });
+    assert.match(await page.locator('[data-steps]').innerText(), /Done/);
+    const reopen = head.getByRole('button', { name: 'Reopen', exact: true });
+    assert.ok(await reopen.isVisible(), 'a completed entry offers Reopen in the head');
+    const reopened = page.waitForResponse((response) => response.url().endsWith(':reopen'));
+    await reopen.click();
+    await reopened;
+    assert.deepEqual(written, [`/items/${ENTRY.id}:reopen`]);
+  } finally {
+    await close();
+  }
+});
+
+// A workflow in force while the module is off (`WorkflowGate` knows no module): the head says the
+// workflow is paused, with the reason, offers no step, and Done goes to the base product's
+// `:complete`, which the server answers with the step to done or a refusal in words.
+test('chromium: a workflow paused with Workflows off says so, and Done asks the server to complete (UC-FLW-06/5)', { timeout: 60_000 }, async () => {
+  const written = [];
+  const extra = (read, method) => {
+    if (method === 'GET' && read === `/containers/${ENTRY.collection_id}`) return { ...COLLECTION, state_mode: 'WORKFLOW', state_modes: { task: 'WORKFLOW' } };
+    if (method === 'POST' && read.endsWith(':complete')) { written.push(read); return { ...ENTRY, version: ENTRY.version + 1, completion: { is_completed: true } }; }
+    if (read.endsWith('/steps') || read.endsWith(':step')) written.push(read);
+    return undefined;
+  };
+  const { page, close } = await open(1280, { runs: false, extra });
+  try {
+    const status = page.locator('[data-steps]');
+    await status.waitFor({ timeout: 10_000 });
+    assert.match(await status.innerText(), /Workflow paused/);
+    assert.ok(await page.getByText(/Workflows is switched off here/).first().isVisible(), 'the reason is said');
+    const completed = page.waitForResponse((response) => response.url().endsWith(':complete'));
+    await page.locator('[data-tour="entry"]').getByRole('button', { name: 'Done', exact: true }).click();
+    await completed;
+    assert.deepEqual(written, [`/items/${ENTRY.id}:complete`]);
   } finally {
     await close();
   }

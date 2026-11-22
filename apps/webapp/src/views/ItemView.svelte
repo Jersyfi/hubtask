@@ -178,7 +178,7 @@
   const { id, onnavigate, isInPane = false, onreplace }: Props = $props();
 
   /** The head's primary act, from the status (E-23): the next step, or *Done* without a workflow. */
-  let statusNext = $state<{ label: string; icon?: 'check'; onclick: () => void } | undefined>(undefined);
+  let statusNext = $state<{ label: string; icon?: 'check' | 'arrow-right'; onclick: () => void } | undefined>(undefined);
   /** A ticket's second act beside it: the step that waits for the requester (deskentry.d). */
   let statusSecond = $state<{ label: string; onclick: () => void } | undefined>(undefined);
   /** The ticket's one deadline chip in the action bar (ET-6). */

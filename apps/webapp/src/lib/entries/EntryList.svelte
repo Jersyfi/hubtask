@@ -53,8 +53,9 @@
   import { buckets } from '../data/buckets.svelte.ts';
   import { statusLabel } from '../data/workflows.ts';
   import StateChip from './StateChip.svelte';
-  import { advanceOf, chipOf, type Chip } from './statechip.ts';
-  import { takeChoice } from './statetake.ts';
+  import StateMark from './StateMark.svelte';
+  import { chipOf, markOf, type Chip, type Mark } from './statechip.ts';
+  import { takeMark } from './statetake.ts';
   import SlaRemaining from '../servicedesk/SlaRemaining.svelte';
   import { accounts } from '../data/accounts.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
@@ -202,10 +203,12 @@
     /** The fields the installation can sort by, so only those heads are buttons. */
     sortable?: readonly string[];
     /**
-     * The collection's level for its tasks (build-plan §5): at COLUMNS a task's row shows its column
-     * chip, at WORKFLOW its status chip, both in the checkbox's place; at NONE the checkbox completes.
+     * The collection's level for its tasks (build-plan §5): at COLUMNS a task's row shows the mark
+     * and its column chip, at WORKFLOW the mark and its status chip; at NONE the mark alone.
      */
     stateMode?: StateMode;
+    /** The Workflows module is off here: a workflow in force is paused, and its chip says so. */
+    isWorkflowPaused?: boolean;
     /** The workflow the collection runs, for the status chip's names and steps. */
     workflow?: WorkflowShape;
     /**
@@ -251,6 +254,7 @@
     rowLimit,
     isAddedInPlace = false,
     stateMode,
+    isWorkflowPaused = false,
     workflow,
     levelOfType,
     withSla = false,
@@ -263,23 +267,36 @@
     const wanted = collectionId;
     return untrack(() => buckets.open(wanted));
   });
-  /** The state chip of a task's row at L1 and L2, or nothing where the checkbox completes. */
-  function chipFor(entry: WorkItem): Chip | undefined {
-    if (entry.type !== 'TASK') return undefined;
+  /** A task's level and the workflow it runs: its type's own where that differs. */
+  function levelFor(entry: WorkItem) {
     const own = entry.entry_type ? levelOfType?.(entry.entry_type) : undefined;
     const mode = own?.mode ?? stateMode;
-    const shape = own?.workflow ?? workflow;
+    return { mode, shape: own?.workflow ?? workflow };
+  }
+  function stepNameIn(shape: WorkflowShape | undefined) {
+    return (_key: string, name: string | null | undefined, to: string) => {
+      const status = shape?.statuses.find((each) => each.key === to);
+      return name ?? (status ? statusLabel(status, t) : to);
+    };
+  }
+  /** The state chip of a task's row at L1 and L2, or nothing where the mark alone stands. */
+  function chipFor(entry: WorkItem): Chip | undefined {
+    if (entry.type !== 'TASK') return undefined;
+    const { mode, shape } = levelFor(entry);
     return chipOf(mode, entry, buckets.of(collectionId), shape, {
       noColumn: mode === 'WORKFLOW' ? t('app.board.unmapped') : t('app.board.unbucketed'),
       statusName: (key) => {
         const status = shape?.statuses.find((each) => each.key === key);
         return status ? statusLabel(status, t) : key;
       },
-      stepName: (_key, name, to) => {
-        const status = shape?.statuses.find((each) => each.key === to);
-        return name ?? (status ? statusLabel(status, t) : to);
-      },
+      stepName: stepNameIn(shape),
+      paused: isWorkflowPaused ? { label: t('app.entries.workflow_paused'), reason: t('app.entries.workflow_paused_reason') } : undefined,
     });
+  }
+  /** What one press on a row's mark does (E5): completes, reopens, or takes the next step. */
+  function markFor(entry: WorkItem): Mark | undefined {
+    const { mode, shape } = levelFor(entry);
+    return markOf(entry.type === 'TASK' ? mode : undefined, entry, isWorkflowPaused ? undefined : shape, stepNameIn(shape));
   }
   let isAllRowsShown = $state(false);
   /** Where `rowLimit` cuts the rows: before the first top-level row past the limit. */
@@ -295,25 +312,25 @@
   const isFolded = (fold: string) => folded.includes(fold);
   const toggleFold = (fold: string) => (folded = isFolded(fold) ? folded.filter((each) => each !== fold) : [...folded, fold]);
 
-  /** Where a swipe towards the end - and the menu's *advance* - carries an entry at L1 and L2. */
+  /** Where a swipe towards the end - and the menu's *advance* - carries an entry at L2. */
   function advanceFor(item: WorkItem) {
-    const chip = chipFor(item);
-    return chip ? advanceOf(chip) : undefined;
+    const mark = markFor(item);
+    return mark?.kind === 'step' ? mark.choice : undefined;
   }
 
   /**
-   * A row's one act (work-surface concept §7): at L0 it completes - or reopens - the entry, at L1
-   * and L2 it carries it to the next column or along the first step. Its menu offers the same.
+   * A row's one act (work-surface concept §7): the mark's - at L0 and L1 it completes or reopens
+   * the entry (E6), at L2 it takes the next step. Its menu offers the same.
    */
   async function act(id: string) {
     const row = rowById.get(id);
     if (!row || isFrozen(row)) return;
-    if (!chipFor(row.item)) return void toggleComplete(row.item);
-    const next = advanceFor(row.item);
-    if (!next) return;
+    const mark = markFor(row.item);
+    if (!mark) return;
+    if (mark.kind !== 'step') return void toggleComplete(row.item);
     writeFailure = undefined;
     try {
-      await takeChoice(row.item, next);
+      await takeMark(row.item, mark);
     } catch (error) {
       writeFailure = renderProblem(error as never, messages);
     }
@@ -1934,9 +1951,13 @@
           <EntryMenu bind:this={menus[row.item.id]} title={row.item.title} items={menuItems(row)} onselect={(id) => chose(row, id)} />
         </span>
       {/snippet}
+      {#snippet markCell()}
+        <StateMark item={row.item} mark={markFor(row.item)} stateLabel={rowChipOf(row)?.label ?? ''} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} />
+      {/snippet}
       {#snippet chipCell()}
         {@const rowChip = rowChipOf(row)}
         {#if isKeyFirst}<span class="lead-key"><EntryKey collection={keyedCollection} number={row.item.number} /></span>{/if}
+        {#if rowChip}{@render markCell()}{/if}
         {#if rowChip}<span class="lead-state"><StateChip item={row.item} chip={rowChip} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} /></span>{:else if hasStateColumn}<span class="lead-state"></span>{/if}
       {/snippet}
       <!-- One row in every list (L1): a simple list's line is the same row, without the twist,
@@ -1971,7 +1992,7 @@
             ? expanded.filter((id) => id !== row.item.id)
             : [...expanded, row.item.id])}
         trailing={isPhoneRow ? phoneEnd : rowEnd}
-        state={!isPhoneRow && (rowChipOf(row) || isKeyFirst) ? chipCell : undefined}
+        state={isPhoneRow ? (rowChipOf(row) ? markCell : undefined) : rowChipOf(row) || isKeyFirst ? chipCell : undefined}
         isOneLine={root !== undefined}
         isRuled={root === undefined}
       />

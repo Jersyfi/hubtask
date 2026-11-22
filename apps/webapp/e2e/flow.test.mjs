@@ -39,7 +39,8 @@ async function flow(browser, width, colorScheme = 'light') {
     const path = new URL(request.url()).pathname;
     if (request.method() !== 'GET') written.push({ method: request.method(), path, body: request.postDataJSON() });
     if (path.endsWith('/buckets')) return route.fulfill({ json: COLUMNS });
-    if (request.method() === 'POST' && path.endsWith(`/items/${REFUSED.id}:drop`)) {
+    // A board without a workflow writes the column by PATCH; the server's flow gate refuses it there.
+    if (request.method() === 'PATCH' && path.endsWith(`/items/${REFUSED.id}`)) {
       return route.fulfill({
         status: 422,
         contentType: 'application/problem+json',
@@ -80,9 +81,9 @@ test('chromium: UC-WRK-31 check 1 — a flow opens on the board, its states the 
   const done = page.locator(`[data-column-zone="${BUCKETS[2].id}"] .done`);
   assert.equal(await done.getAttribute('title'), 'Entries moved here are marked as done.');
   assert.equal(await page.locator(`[data-column-zone="${BUCKETS[0].id}"] .done`).count(), 0);
-  // And an entry put in it is dropped there; the server completes it (build-plan §5), the client
-  // sends no completion of its own.
-  const dropped = page.waitForRequest((request) => request.method() === 'POST' && request.url().endsWith(`/items/${ACCEPTED.id}:drop`));
+  // And an entry put in it is moved there by the column write; the server completes it (build-plan
+  // §5, UC-WRK-05 check 6), the client sends no completion of its own.
+  const dropped = page.waitForRequest((request) => request.method() === 'PATCH' && request.url().endsWith(`/items/${ACCEPTED.id}`));
   await moveByMenu(page, ACCEPTED, BUCKETS[2].name);
   assert.equal((await dropped).postDataJSON()?.bucket_id, BUCKETS[2].id);
   await page.waitForTimeout(300);
@@ -108,7 +109,7 @@ test('chromium: UC-WRK-31 checks 2 and 3 — a refusal names the field; a move i
     (await said.textContent())?.trim(),
     `${ACCEPTED.title} moved to ${BUCKETS[1].name}, which now holds more than its limit of 1.`,
   );
-  const move = written.find((each) => each.method === 'POST' && each.path.endsWith(`/items/${ACCEPTED.id}:drop`));
+  const move = written.find((each) => each.method === 'PATCH' && each.path.endsWith(`/items/${ACCEPTED.id}`));
   assert.equal(move?.body?.bucket_id, BUCKETS[1].id, 'the move into the full column was not sent');
   assert.deepEqual(failures, []);
 });

@@ -1,11 +1,11 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The state control at L1 and L2 (build-plan §5): a chip with the entry's column or status, its
-  // menu the columns or the steps. The same on the list row, the board card and the phone sheet;
-  // at L0 there is none - the row's checkbox completes. Every choice goes to the server's door: a
-  // column through `:drop` (completion follows the done column there), a step through the step.
-  import { Menu, StateLozenge, type MenuItem } from '@hubtask/design-system/components';
+  // Where the entry stands at L1 and L2 (build-plan §5): a chip with the entry's column or status,
+  // its menu the columns or the steps; beside the mark, the same on the list row, the board card and
+  // the phone sheet. At L0 there is none - the mark alone completes. A paused workflow's chip only
+  // reads and says why. Every choice goes through `takeChoice`.
+  import { Menu, StateLozenge, VisuallyHidden, type MenuItem } from '@hubtask/design-system/components';
   import type { WorkItem } from '@hubtask/sync-engine';
 
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -37,7 +37,9 @@
   }
 </script>
 
-{#if disabledReason || menuItems.length === 0}
+{#if chip.pausedReason}
+  <span class="chip" data-state-chip data-paused title={chip.pausedReason}><StateLozenge label={chip.label} tone="warning" icon="pause" size="sm" /><VisuallyHidden>{chip.pausedReason}</VisuallyHidden></span>
+{:else if disabledReason || menuItems.length === 0}
   <span class="chip" data-state-chip title={disabledReason}><StateLozenge label={chip.label} vocabulary="category" state={chip.category} size="sm" /></span>
 {:else}
   <Menu label={t('app.entries.state_menu', { title: item.title })} items={menuItems} onselect={(id) => void choose(id)}>
