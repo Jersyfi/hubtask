@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // A reason never moves the page (UC-WRK-32 checks 1 and 6, design-system.md §4), measured in the
-// three engines rather than argued.
+// three engines rather than argued. CI's `engines` job runs Chromium alone (ADR-0089); Firefox and
+// WebKit run by hand, with ENGINES=firefox,webkit.
 //
 // What runs is the design system's workbench as `make workbench-build` leaves it in
 // packages/design-system/dist/workbench, served by serve.mjs under the product's own
