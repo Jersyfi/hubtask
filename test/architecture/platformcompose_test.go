@@ -24,8 +24,8 @@ var platformServiceDifferences = map[string]string{
 	"ops": "",         // [C5]
 }
 
-// Every environment line the reference's migrate and app pass is passed here with the same value,
-// and nothing else is - unless the line carries its [Cn] mark. The list is the reference itself.
+// Every environment line the reference's services pass is passed here with the same value, and
+// nothing else is - unless the line carries its [Cn] mark. The list is the reference itself.
 func TestThePlatformComposeFilePassesWhatTheReferencePasses(t *testing.T) {
 	reference := composeServices(t, referenceCompose)
 	platform := composeServices(t, platformCompose)
@@ -45,9 +45,12 @@ func TestThePlatformComposeFilePassesWhatTheReferencePasses(t *testing.T) {
 		}
 	}
 
-	for _, service := range []string{"upgrade-dump", "migrate", "app"} {
+	for _, service := range []string{"db", "upgrade-dump", "migrate", "app"} {
 		ref, plat := serviceEnvironment(reference[service]), serviceEnvironment(platform[service])
-		if len(ref) < 4 {
+		if service == "db" {
+			plat = serviceEnvironment(platform[platformServiceDifferences["db"]])
+		}
+		if len(ref) < 3 {
 			t.Fatalf("the reference's %s yielded %d variables - the parsing has stopped matching", service, len(ref))
 		}
 		for key, value := range ref {

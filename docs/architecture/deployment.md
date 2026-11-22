@@ -138,10 +138,12 @@ walked on. Plain Compose refuses `exclude_from_hc`, so the file is for the platf
 
 What it does not give, said plainly:
 
-* **No gate starts it.** `test/architecture` holds it to the reference - the same variables with the
-  same values, the same database image and digest, every DSN and `PGHOST` naming its own file's
-  database service, each DSN carrying its role's password - and `make gate-compose` starts the
-  reference only. It was walked by hand by the owner on one release. Through the platform's proxy
+* **No gate starts it.** `test/architecture` holds it to the reference - every key each service
+  sets (health check, restart, read-only, security options, tmpfs, shared memory, entrypoint,
+  dependencies, volumes), the same variables with the same values, the same database image and
+  digest, every DSN and `PGHOST` naming its own file's database service, each DSN carrying its
+  role's password, each marked difference named in the test with its mark - and
+  `make gate-compose` starts the reference only. It was walked by hand by the owner on one release. Through the platform's proxy
   the event stream of `/api/v1/stream` was seen unbuffered; the WebSocket upgrade of
   `/api/v1/realtime/` was not checked. Without it pages and boards open read-only (above).
 * **No `backup.sh` or `restore.sh`.** The system backup is the platform's scheduled backup of the

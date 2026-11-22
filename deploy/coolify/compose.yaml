@@ -17,7 +17,8 @@
 #   [C9] the volumes carry the names of the walked installation, so one moved onto this file keeps
 #        its data.
 #
-# test/architecture/platformcompose_test.go holds this file to the reference. No gate starts it.
+# test/architecture/platformcompose*_test.go hold this file to the reference, key for key and line
+# for line, with these marks as the only differences. No gate starts it.
 
 services:
   postgres:                                                         # [C4]
