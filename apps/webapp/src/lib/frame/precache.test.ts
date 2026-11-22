@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Every screen's chunk is fetched once the signed-in session is idle, so a screen never opened
-// before going offline opens from the copy (offline-sync.md §13).
+// Every chunk of a screen the reader can open is fetched once the signed-in session is idle, so a
+// screen never opened before going offline opens from the copy (offline-sync.md §14).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,7 +10,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { precacheWhenIdle } from './precache.ts';
+import { precacheByReach, precacheWhenIdle } from './precache.ts';
 
 const idleNow = (run: () => void) => {
   run();
@@ -41,9 +41,69 @@ test('nothing is fetched offline or on a connection asking to save data', async 
   assert.equal(fetched, 0);
 });
 
-test('the app precaches its table of lazy screens and the parts the screens load', () => {
+test('the app precaches its table of lazy screens and the parts the screens load, by reach', () => {
   const app = readFileSync(new URL('../../App.svelte', import.meta.url), 'utf8');
-  assert.match(app, /precacheWhenIdle\(\[\.\.\.Object\.values\(views\), \.\.\.partLoaders\(\)\]/);
+  assert.match(app, /precacheByReach\(views, partLoaders\(\)\)/);
+  assert.match(app, /precache\(\{ signedIn: session\.isSignedIn, administration: reachesAdministrationArea\(\) \}\)/);
+});
+
+/** A table of screens whose loaders record what was fetched. */
+function screens(fetched: string[]) {
+  const loader = (name: string) => async () => {
+    fetched.push(name);
+    return {};
+  };
+  return { views: { TodayView: loader('today'), AdministrationArea: loader('administration') }, parts: [loader('part')] };
+}
+
+const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
+const always = { idle: idleNow, online: () => true };
+
+test('a member\'s precache has no administration chunk; an administrator\'s has', async () => {
+  for (const [administration, want] of [
+    [false, ['today', 'part']],
+    [undefined, ['today', 'part']],
+    [true, ['today', 'part', 'administration']],
+  ] as const) {
+    const fetched: string[] = [];
+    const { views, parts } = screens(fetched);
+    precacheByReach(views, parts, always)({ signedIn: true, administration });
+    await settled();
+    assert.deepEqual(fetched, want, `reach ${String(administration)}`);
+  }
+});
+
+test('reach turning true after the first run precaches the administration chunk, once', async () => {
+  const fetched: string[] = [];
+  const { views, parts } = screens(fetched);
+  const precache = precacheByReach(views, parts, always);
+
+  precache({ signedIn: false, administration: undefined });
+  await settled();
+  assert.deepEqual(fetched, [], 'nothing before sign-in');
+
+  // The manifest is not read yet at the first run, and then says the reader reaches the area.
+  precache({ signedIn: true, administration: undefined });
+  precache({ signedIn: true, administration: true });
+  precache({ signedIn: true, administration: true });
+  await settled();
+  precache({ signedIn: true, administration: false });
+  precache({ signedIn: true, administration: true });
+  await settled();
+  assert.deepEqual(fetched, ['today', 'part', 'administration']);
+});
+
+test('the reach precache is still skipped offline and on a connection asking to save data', async () => {
+  for (const conditions of [
+    { idle: idleNow, online: () => false },
+    { idle: idleNow, online: () => true, saveData: () => true },
+  ]) {
+    const fetched: string[] = [];
+    const { views, parts } = screens(fetched);
+    precacheByReach(views, parts, conditions)({ signedIn: true, administration: true });
+    await settled();
+    assert.deepEqual(fetched, []);
+  }
 });
 
 // A chunk loaded anywhere else would be missing offline until its screen had been opened once.

@@ -698,3 +698,21 @@ it, order it and decide who may touch it.
 |---|---|---|
 | SY-E | Awareness across processes - closed: relayed on `hubtask_awareness` (see *Awareness* above) | - |
 | SY-F | Reconnect traffic - closed on the client: the writer answers the server's empty vector with the difference to the state it was just handed (`packages/editor` `LiveDocument`). Measured by `live.test.ts` (*a reconnecting writer sends only what the server lacks*): a page of about 107 KB and 20 writers reconnecting, half with offline words, sent 107,090 bytes per reconnect before and under 200 after, so the log grows by the offline words. Compacting without a writer needs a server-side merge (a CRDT library in Go), which the owner's answer A rules out; the log is bounded instead: a writer that opens a document past 500 updates is asked at once, an update landing more than 2,500 past the snapshot is counted (`hubtask_realtime_document_backlog_total{outcome="overdue"}`, A-24), and at 5,000 the log refuses new updates (`realtime.compaction_overdue`, counted `refused`) and asks the writer again - its snapshot is its whole state, the refused words included, and lifts the refusal (`TestALogNobodyCompactsIsBounded`, `TestALogNobodyCompactsRefusesUpdatesUntilASnapshot`, `TestARefusedUpdateAsksTheWriterForItsSnapshot`) | a log measured to outgrow the 500-update compaction |
+
+## 14. What a signed-in tab fetches ahead
+
+The web app's screens and the parts they open are chunks of their own, fetched when first reached.
+Offline that is too late, so once a signed-in tab is idle it fetches, one at a time, every screen's
+and part's chunk the reader can open (`apps/webapp/src/lib/frame/precache.ts`):
+
+* **For everybody signed in:** every screen and part but the administration area, once per tab.
+* **For somebody who reaches the administration** (`STRUCTURE` or `READ_CONFIGURATION` on the
+  workspace): that area's chunk too, as soon as the manifest says so - at its first read or after a
+  role granted later in the session - once, after the first list. Somebody who cannot open it never
+  fetches it; the area is online only anyway (§1).
+* **Not at all** while the browser is offline or the connection asks to save data; a chunk that
+  cannot be fetched then is fetched when its screen is reached.
+
+The manifest the reach is read from (`/meta/capabilities`) is not kept by the browser's cache: it
+stays `no-store`, and the tab re-reads it with the tag of the copy it holds in memory
+([api-guidelines.md](./api-guidelines.md) §1, item 4); sign-out holds none (§9 rule 6).

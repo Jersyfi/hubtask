@@ -3,9 +3,9 @@
 
 // The screens are their own chunks (F-10), fetched when their route is first reached. Offline
 // that is too late: the copy holds a hub's pages and boards, but a screen this tab never opened
-// has no code to draw them (offline-sync.md §13). So once a signed-in session is idle every
-// screen's chunk is fetched, one at a time so the work in front is not slowed; the module system
-// keeps them for this tab, and their immutable caching for the next.
+// has no code to draw them (offline-sync.md §14). So once a signed-in session is idle every
+// screen's chunk the reader can open is fetched, one at a time so the work in front is not slowed;
+// the module system keeps them for this tab, and their immutable caching for the next.
 
 type Loader = () => Promise<unknown>;
 
@@ -46,4 +46,38 @@ export function precacheWhenIdle(loaders: Loader[], conditions: Conditions = bro
       })();
     });
   });
+}
+
+/** Where a signed-in session stands for the precache: whether it is, and what the manifest says. */
+export type Reach = { readonly signedIn: boolean; readonly administration: boolean | undefined };
+
+/**
+ * precacheByReach is the precache of one tab: every screen but the administration area once
+ * somebody is signed in, and that area once the manifest says they reach it - at the first read
+ * or after a role granted later - each once, the second after the first. Somebody who cannot open
+ * the area never fetches its chunk, which is the largest there is.
+ */
+export function precacheByReach(
+  views: Readonly<Record<string, Loader>>,
+  parts: Loader[],
+  conditions: Conditions = browser,
+): (reach: Reach) => void {
+  const { AdministrationArea: administration, ...everyone } = views;
+  let queue = Promise.resolve();
+  let first = false;
+  let area = administration === undefined;
+  const after = (loaders: Loader[]) => {
+    queue = queue.then(() => precacheWhenIdle(loaders, conditions));
+  };
+  return ({ signedIn, administration: reaches }) => {
+    if (!signedIn) return;
+    if (!first) {
+      first = true;
+      after([...Object.values(everyone), ...parts]);
+    }
+    if (!area && reaches === true && administration) {
+      area = true;
+      after([administration]);
+    }
+  };
 }
