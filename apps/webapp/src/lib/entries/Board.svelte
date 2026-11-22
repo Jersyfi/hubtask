@@ -86,6 +86,8 @@
   interface Props {
     collectionId: string;
     isReadOnly?: boolean;
+    /** Why the board is read-only, said on each card's state controls. */
+    readOnlyReason?: string;
     /**
      * What the reader has asked of the board: a filter, an order, and the field it groups by.
      *
@@ -152,6 +154,7 @@
   const {
     collectionId,
     isReadOnly = false,
+    readOnlyReason,
     query,
     lastResults,
     onopen,
@@ -175,6 +178,8 @@
 
   /** Whether a card may be carried, ranked or moved: not archived, and the reader's to change. */
   const isMovable = (card: WorkItem) => !isReadOnly && changeRefusal(card) === undefined;
+  /** Why a card's mark and state chip are off: a read-only board first, then the reader's role. */
+  const stateRefusal = (card: WorkItem) => (isReadOnly ? readOnlyReason : undefined) ?? changeRefusal(card);
 
   /** The sentence one card shows about the last bulk, or nothing where it was not in it. */
   function bulkNote(itemId: string): string | undefined {
@@ -1094,8 +1099,8 @@
                   {#snippet footer()}
                     {@const own = card.entry_type ? levelOfType?.(card.entry_type) : undefined}
                     {@const cardChip = card.type === 'TASK' && isBucketBoard ? chipOf(own?.mode ?? level, card, columns, own?.workflow ?? workflow, own?.mode === 'WORKFLOW' ? { ...chipNames, noColumn: t('app.board.unmapped') } : chipNames) : undefined}
-                    {#if cardChip}<EntryMark item={card} mark={markOf(own?.mode ?? level, card, isWorkflowPaused ? 'paused' : own?.workflow ?? workflow, chipNames.stepName)} stateLabel={cardChip.label} isPaused={cardChip.pausedReason !== undefined} onopenstate={() => chips[card.id]?.open() ?? false} disabledReason={changeRefusal(card)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
-                    {#if cardChip}<StateChip bind:this={chips[card.id]} item={card} chip={cardChip} disabledReason={changeRefusal(card)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
+                    {#if cardChip}<EntryMark item={card} mark={markOf(own?.mode ?? level, card, isWorkflowPaused ? 'paused' : own?.workflow ?? workflow, chipNames.stepName)} stateLabel={cardChip.label} isPaused={cardChip.pausedReason !== undefined} onopenstate={() => chips[card.id]?.open() ?? false} disabledReason={stateRefusal(card)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
+                    {#if cardChip}<StateChip bind:this={chips[card.id]} item={card} chip={cardChip} disabledReason={stateRefusal(card)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
                     {#if showsKey}<EntryKey collection={keyedCollection} number={card.number} />{/if}
                     <DueMark item={card} />
                     {#if card.counts && card.counts.parts > 0}

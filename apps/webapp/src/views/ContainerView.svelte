@@ -1661,6 +1661,7 @@
             <Board
               collectionId={container.id}
               isReadOnly={isReadOnly}
+              {readOnlyReason}
               {query}
               {lastResults}
               onopen={opensBeside ? openBeside : undefined}
