@@ -401,6 +401,17 @@ func (a Account) WithPreferences(p Preferences) (Account, error) {
 	return a, nil
 }
 
+// WithLocale returns the account with its language set and every other preference as it was,
+// checked as WithPreferences checks it.
+func (a Account) WithLocale(raw string) (Account, error) {
+	locale, err := localeTag(raw)
+	if err != nil {
+		return Account{}, err
+	}
+	a.Locale = locale
+	return a, nil
+}
+
 // productsSeenOf reads the products whose first-visit mark was seen: module keys, each once in the
 // order given, an empty member ignored. An unknown key is refused by name rather than kept, since
 // nothing could ever be shown for it.
