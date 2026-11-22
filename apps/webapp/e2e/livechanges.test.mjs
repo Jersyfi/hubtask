@@ -66,7 +66,8 @@ function workspace(modulesOn) {
       if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: state.modulesOn } });
       if (/^\/containers\/[^/]+\/modules$/.test(path)) return route.fulfill({ json: { modules_on: state.modulesOn } });
       if (path === '/tenant/modules' && method === 'GET') return route.fulfill({ json: { modules: states() } });
-      if (/^\/tenant\/modules\/[A-Z_]+\/reach$/.test(path)) return route.fulfill({ json: { people: 0, rules: 0 } });
+      const reach = /^\/tenant\/modules\/([A-Z_]+)\/reach$/.exec(path);
+      if (reach) return route.fulfill({ json: { module: reach[1], on: state.modulesOn.includes(reach[1]), people: 0, rules: 0 } });
       const switched = /^\/tenant\/modules\/([A-Z_]+)$/.exec(path);
       if (switched && method === 'PUT') {
         const on = request.postDataJSON().switch === 'ON';
