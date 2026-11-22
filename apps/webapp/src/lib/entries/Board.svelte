@@ -58,7 +58,7 @@
   import { laneOf, lanesOf } from '../data/viewquery.ts';
   import { NO_COLUMN, columnRefusals, unmappedStatuses } from './boardlevel.ts';
   import StateChip from './StateChip.svelte';
-  import StateMark from './StateMark.svelte';
+  import EntryMark from './EntryMark.svelte';
   import { chipOf, markOf } from './statechip.ts';
 
   import { announcer } from '../announce.svelte.ts';
@@ -1089,7 +1089,7 @@
                   {#snippet footer()}
                     {@const own = card.entry_type ? levelOfType?.(card.entry_type) : undefined}
                     {@const cardChip = card.type === 'TASK' && isBucketBoard ? chipOf(own?.mode ?? level, card, columns, own?.workflow ?? workflow, own?.mode === 'WORKFLOW' ? { ...chipNames, noColumn: t('app.board.unmapped') } : chipNames) : undefined}
-                    {#if cardChip}<StateMark item={card} mark={markOf(own?.mode ?? level, card, isWorkflowPaused ? undefined : own?.workflow ?? workflow, chipNames.stepName)} stateLabel={cardChip.label} disabledReason={changeRefusal(card)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
+                    {#if cardChip}<EntryMark item={card} mark={markOf(own?.mode ?? level, card, isWorkflowPaused ? undefined : own?.workflow ?? workflow, chipNames.stepName)} stateLabel={cardChip.label} disabledReason={changeRefusal(card)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
                     {#if cardChip}<StateChip item={card} chip={cardChip} disabledReason={changeRefusal(card)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
                     {#if showsKey}<EntryKey collection={keyedCollection} number={card.number} />{/if}
                     <DueMark item={card} />

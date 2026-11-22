@@ -53,7 +53,7 @@
   import { buckets } from '../data/buckets.svelte.ts';
   import { statusLabel } from '../data/workflows.ts';
   import StateChip from './StateChip.svelte';
-  import StateMark from './StateMark.svelte';
+  import EntryMark from './EntryMark.svelte';
   import { chipOf, markOf, type Chip, type Mark } from './statechip.ts';
   import { takeMark } from './statetake.ts';
   import SlaRemaining from '../servicedesk/SlaRemaining.svelte';
@@ -1952,7 +1952,7 @@
         </span>
       {/snippet}
       {#snippet markCell()}
-        <StateMark item={row.item} mark={markFor(row.item)} stateLabel={rowChipOf(row)?.label ?? ''} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} />
+        <EntryMark item={row.item} mark={markFor(row.item)} stateLabel={rowChipOf(row)?.label ?? ''} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} />
       {/snippet}
       {#snippet chipCell()}
         {@const rowChip = rowChipOf(row)}

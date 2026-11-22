@@ -3641,6 +3641,7 @@
   "app.entries.reopen_step": "Wieder öffnen",
   "app.entries.move_on": "{title}: Weiter – {step}",
   "app.entries.no_step_on": "Aus „{status}“ führt kein Schritt weiter.",
+  "app.entries.steps_offline": "Schritte brauchen eine Verbindung. Der Eintrag bleibt, wie er ist.",
   "app.entries.no_step_back": "Aus „{status}“ führt kein Schritt zurück.",
   "app.entries.workflow_paused": "Workflow pausiert",
   "app.entries.workflow_paused_reason": "Workflows ist hier ausgeschaltet. Der Status bleibt gespeichert und erscheint wieder, wenn Workflows eingeschaltet wird. Abhaken geht, wo ein Schritt zu Erledigt führt.",
