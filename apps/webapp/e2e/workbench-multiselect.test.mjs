@@ -188,6 +188,16 @@ for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
       const said = await closed.evaluate((node) => node.getAttribute('aria-labelledby').split(' ').map((id) => document.getElementById(id).textContent).join(' '));
       for (const name of ['Done or open', 'Amount', 'Board column']) assert.match(said, new RegExp(name), `the field does not say ${name}`);
 
+      // Opened and closed by presses that do not focus the field - a button's click in Safari and
+      // in Firefox on macOS, stood for by a mousedown held back - focus still ends on the field.
+      await story(page, server.origin, 'some');
+      await field(page).evaluate((node) => node.addEventListener('mousedown', (event) => event.preventDefault()));
+      await field(page).click();
+      await list(page).waitFor();
+      await field(page).click();
+      await list(page).waitFor({ state: 'detached' });
+      assert.equal((await focused(page)).isField, true, 'a second press on the field closed the list and left focus nowhere');
+
       // --- all chosen: the chips are cut after two lines, a reader still hears all -----------
       await story(page, server.origin, 'all');
       const chips = page.locator('.host .chips:not(.measure) .chip');
