@@ -1067,13 +1067,18 @@
     return () => node.removeEventListener('keydown', onKeydown);
   });
 
+  /** A row's title, the link `ListRow` draws for it. */
+  const TITLE = '[data-row] .task-row > .row > .content';
+
   /**
    * The table's keys (WB-4): ↑ and ↓ walk from a row's title to the next one's, Enter opens it (the
    * title is a link), Space on it picks it for the bulk bar. Alt with the arrows stays the rank's.
    */
   function walk(event: KeyboardEvent, node: HTMLElement, id: string): boolean {
     if (event.altKey || event.ctrlKey || event.metaKey) return false;
-    const title = (event.target as Element).closest('.content');
+    // The row's own title, never a `.content` around the list (the frame has one): the mark and
+    // the chip beside the title keep their keys - Space on the mark is its press, not a pick.
+    const title = (event.target as Element).closest(TITLE);
     if (!title) return false;
     if (event.key === ' ' && isSelectable) {
       event.preventDefault();
@@ -1081,7 +1086,7 @@
       return true;
     }
     if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return false;
-    const titles = [...node.querySelectorAll<HTMLElement>('[data-row] .content')];
+    const titles = [...node.querySelectorAll<HTMLElement>(TITLE)];
     const next = titles[titles.indexOf(title as HTMLElement) + (event.key === 'ArrowDown' ? 1 : -1)];
     if (!next) return false;
     event.preventDefault();

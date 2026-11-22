@@ -120,6 +120,25 @@ test('chromium: L1 - a task row shows the mark and its column chip; a column is 
   assert.equal(written.filter((each) => each.path === `/items/${ITEMS[0].id}:complete`).length, 1, 'the mark did not complete the entry');
 });
 
+// UC-WRK-45 check 5 and the design's keys (Enter/Space = the step): Space on a row's mark is
+// the mark's press, as Enter is - it completes the entry and picks no row for the bulk bar.
+for (const level of ['NONE', 'COLUMNS']) {
+  test(`chromium: ${level === 'NONE' ? 'L0' : 'L1'} - Space on a row's mark completes it and selects nothing`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { page, written, context } = await at(browser, level);
+    t.after(() => context.close());
+    const mark = page.locator(`[data-row="${ITEMS[0].id}"]`).getByRole('checkbox', { name: `Mark ${ITEMS[0].title} as done` });
+    await mark.waitFor({ timeout: 15_000 });
+    await mark.focus();
+    const completed = page.waitForResponse((response) => response.url().endsWith(`/items/${ITEMS[0].id}:complete`));
+    await page.keyboard.press('Space');
+    await completed;
+    assert.equal(written.filter((each) => each.path === `/items/${ITEMS[0].id}:complete`).length, 1, 'Space did not complete the entry');
+    assert.equal(await page.getByRole('checkbox', { name: `Select ${ITEMS[0].title}` }).count(), 0, 'Space picked the row for the bulk bar');
+    assert.equal(await mark.evaluate((node) => node === document.activeElement), true, 'the focus left the mark');
+  });
+}
+
 // E5 and UC-WRK-05 check 11 at L2: the mark is the next step - an arrow named by it where it does
 // not finish the entry -, the chip beside it lists every step.
 test('chromium: L2 - the row\'s mark takes the next step towards done, an arrow where it does not finish', async (t) => {
