@@ -84,7 +84,8 @@ async function askToSwitchOff(browser, options) {
   const row = walk.page.locator('[data-module="WORKFLOWS"]');
   await row.getByRole('switch').waitFor({ timeout: 10_000 });
   await row.getByRole('switch').click();
-  const dialog = walk.page.getByRole('dialog');
+  // The APG Alert Dialog: a consequence that interrupts on purpose.
+  const dialog = walk.page.getByRole('alertdialog', { name: 'Switch Workflows off?' });
   await dialog.waitFor({ timeout: 5_000 });
   return { ...walk, dialog };
 }
@@ -95,6 +96,8 @@ test('chromium: switching Workflows off lists what it strands and waits for a ch
   const browser = await sharedChromium(t);
   const { page, dialog, written, close, errors } = await askToSwitchOff(browser);
   t.after(close);
+  // The focus starts on the safe answer, never on the switch.
+  await page.waitForFunction(() => document.activeElement?.textContent?.trim() === 'Keep it on', undefined, { timeout: 5_000 });
   const open = dialog.locator('[data-off-open]');
   await open.waitFor({ timeout: 10_000 });
   const text = await dialog.innerText();
@@ -103,6 +106,8 @@ test('chromium: switching Workflows off lists what it strands and waits for a ch
   assert.match(text, /17 open entries stand in a status that exists only under a workflow\./);
   assert.match(text, /13 of them could then not even be completed/);
   assert.match(text, /3 switched-on rules use it and pause/);
+  // The rules are named by count; where they are managed is one link away (no filter by product there).
+  assert.equal(await dialog.getByRole('link', { name: 'View rules' }).getAttribute('href'), '/administration/rules');
   // Nothing is chosen, and the switch waits for the choice with its reason.
   const options = dialog.getByRole('radio');
   assert.equal(await options.count(), 2);
@@ -135,8 +140,21 @@ test('chromium: converting to columns shows where the entries go, removes each s
   assert.deepEqual((await where.locator('[data-off-line]').allInnerTexts()).map((each) => each.trim()), [
     'Draft → Open: 6 entries', 'In review → Working: 7 entries', 'Released → Working: 4 entries',
   ]);
+  // The scheme write held until the run is read: the question gives way to where it is and how far.
+  let release = () => {};
+  const held = new Promise((done) => (release = done));
+  await page.route('**/api/v1/workflow-scheme', async (route) => {
+    if (route.request().method() === 'PUT') await held;
+    return route.fallback();
+  });
   const answered = page.waitForResponse((response) => response.url().endsWith('/tenant/modules/WORKFLOWS'));
   await dialog.getByRole('button', { name: 'Convert and switch off' }).click();
+  const run = page.getByRole('alertdialog', { name: 'Converting …' });
+  await run.getByText('Converting 1 of 1: Kitchen (House)').waitFor({ timeout: 5_000 });
+  assert.equal(await run.getByRole('progressbar', { name: 'Converting' }).getAttribute('value'), '0');
+  assert.match(await run.innerText(), /If something stops, Workflows stays on/);
+  assert.equal(await run.getByRole('button', { name: 'Keep it on' }).count(), 0, 'the run offers a way out it cannot keep');
+  release();
   await answered;
   const order = written.filter((each) => each.method === 'PUT').map((each) => each.path);
   assert.deepEqual(order, ['/workflow-scheme', '/tenant/modules/WORKFLOWS'], 'the places are converted before the switch');
@@ -153,6 +171,8 @@ test('chromium: a conversion that stops keeps Workflows on and says how far it c
   await dialog.getByRole('radio', { name: /Convert to columns/ }).check();
   await dialog.getByRole('button', { name: 'Convert and switch off' }).click();
   await dialog.getByText(/Converting stopped: 0 of 1 places run on columns now/).waitFor({ timeout: 5_000 });
+  // The progress the conversion drew stays where it stopped: no place done of one, and the switch.
+  assert.equal(await dialog.getByRole('progressbar', { name: 'Converting' }).getAttribute('value'), '0');
   assert.deepEqual(switchedOff(written), [], 'switched off after a conversion that stopped');
 });
 

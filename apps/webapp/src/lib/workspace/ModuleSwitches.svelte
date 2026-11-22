@@ -16,7 +16,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, CheckboxGroup, Dialog, Icon, IconButton, Inline, Radio, SettingRow, Spinner, Switch } from '@hubtask/design-system/components';
+  import { Button, CheckboxGroup, Dialog, Icon, IconButton, Inline, ProgressBar, Radio, SettingRow, Spinner, Switch } from '@hubtask/design-system/components';
   import type { ConfigTemplate, ConfigTemplateList, ModuleList, ModuleReach, ModuleState, ResourceState } from '@hubtask/sync-engine';
 
   import { buckets } from '../data/buckets.svelte.ts';
@@ -155,6 +155,8 @@
   let offChoice = $state<OffChoice>(undefined);
   /** Converting: the places done so far, the one at, and why it stopped. */
   let converting = $state<{ done: number; at?: string; failure?: string } | undefined>(undefined);
+  /** Under way, the question gives way to the run; stopped, it comes back with how far it came. */
+  const isConverting = $derived(converting !== undefined && converting.failure === undefined);
 
   /** A place as the question names it: a collection with its hub, a hub with all its collections. */
   function placeName(id: string): string {
@@ -191,10 +193,11 @@
       }
       converting = { done: converting.done + 1 };
     }
+    // The last step drawn in the run is the switch itself; a refused switch is said on its row.
+    await send(state, 'OFF');
     converting = undefined;
     isConfirming = false;
     confirming = undefined;
-    await send(state, 'OFF');
     toast.show({ text: t('app.modules.off_wf_converted', { count: rows.length }), tone: 'success' });
   }
   const offPrimary = $derived.by(() => {
@@ -461,12 +464,23 @@
   <Dialog
     size={asksWorkflows && needsChoice(stranded) ? 'm' : 's'}
     bind:isOpen={isConfirming}
-    title={t('app.modules.off_title', { module: t(moduleCodes(confirming).name) })}
-    dismissLabel={t('app.modules.off_cancel')}
+    title={isConverting ? t('app.modules.off_wf_converting_title') : t('app.modules.off_title', { module: t(moduleCodes(confirming).name) })}
+    dismissLabel={isConverting ? undefined : t('app.modules.off_cancel')}
+    onDismiss={() => !isConverting}
     onClose={() => (confirming = undefined)}
-    primary={offPrimary}
+    primary={isConverting ? undefined : offPrimary}
+    actions={isConverting ? undefined : keepOn}
+    isAlert
   >
-    {#if asksWorkflows}
+    {#if isConverting && converting && stranded}
+      <!-- The run: where it is, how far, and what happens if it stops. One step per place and one
+           for the switch itself, so the bar is not full before the module is off. -->
+      <p class="quiet" role="status" data-converting>{#if converting.at}{t('app.modules.off_wf_converting', { at: converting.done + 1, count: stranded.places.length, place: converting.at })}{:else}{t('app.modules.off_wf_switching')}{/if}</p>
+      <div class="progress" data-converting-progress>
+        <ProgressBar label={t('app.modules.off_wf_converting_short')} value={Math.round((converting.done / (stranded.places.length + 1)) * 100)} />
+      </div>
+      <p class="quiet">{t('app.modules.off_wf_converting_keep')}</p>
+    {:else if asksWorkflows}
       <!-- What switching off strands, as the alert dialog's list of consequences (UC-INS-21 check 14). -->
       <p class="quiet">{t('app.modules.off_wf_explain')}</p>
       {#if reaches.status === 'loading'}
@@ -481,7 +495,9 @@
         {#if stranded && stranded.open > 0}
           <li data-tone="warning" data-off-open={stranded.open}><Icon name="triangle-alert" size="sm" /><span><strong>{t('app.modules.off_wf_open', { count: stranded.open })}</strong>{#if stranded.stuck > 0}<small data-off-stuck={stranded.stuck}>{t('app.modules.off_wf_stuck', { count: stranded.stuck })}</small>{/if}</span></li>
         {/if}
-        {#each reachLines as line (line.code)}<li data-off-reach><Icon name={line.code === 'app.modules.off_rules' ? 'pause' : 'info'} size="sm" /><span>{t(line.code, line.params)}</span></li>{/each}
+        {#each reachLines as line (line.code)}
+          <li data-off-reach><Icon name={line.code === 'app.modules.off_rules' ? 'pause' : 'info'} size="sm" /><span>{t(line.code, line.params)}{#if line.code === 'app.modules.off_rules'}<small><a class="act" href="/administration/rules" data-off-rules>{t('app.modules.off_rules_view')}</a></small>{/if}</span></li>
+        {/each}
         <li><Icon name="info" size="sm" /><span>{t('app.modules.off_wf_kept')}</span></li>
       </ul>
       {#if stranded && needsChoice(stranded)}
@@ -508,22 +524,24 @@
             {/each}
           </div>
         {/if}
-        {#if converting}
-          <p class="quiet" role="status" data-converting>
-            {#if converting.failure}{t('app.modules.off_wf_stopped', { done: converting.done, count: stranded.places.length })}{:else if converting.at}{t('app.modules.off_wf_converting', { at: converting.done + 1, count: stranded.places.length, place: converting.at })}{/if}
-          </p>
-          {#if converting.failure}<p class="refusal-inline" role="alert">{converting.failure}</p>{/if}
+        {#if converting?.failure}
+          <div class="progress" data-converting-progress>
+            <ProgressBar label={t('app.modules.off_wf_converting_short')} value={Math.round((converting.done / (stranded.places.length + 1)) * 100)} />
+          </div>
+          <p class="quiet" role="status" data-converting>{t('app.modules.off_wf_stopped', { done: converting.done, count: stranded.places.length })}</p>
+          <p class="refusal-inline" role="alert">{converting.failure}</p>
         {/if}
       {/if}
     {:else}
       <p class="quiet">{t('app.modules.off_explain')}</p>
       {#each reachLines as line (line.code)}<p class="quiet" data-off-reach>{t(line.code, line.params)}</p>{/each}
     {/if}
-    {#snippet actions()}
-      <Button tone="secondary" onclick={() => (isConfirming = false)}>{t('app.modules.off_cancel')}</Button>
-    {/snippet}
   </Dialog>
 {/if}
+
+{#snippet keepOn()}
+  <Button tone="secondary" onclick={() => (isConfirming = false)}>{t('app.modules.off_cancel')}</Button>
+{/snippet}
 
 {#if asking}
   <Dialog
@@ -603,5 +621,6 @@
   .where-place { color: var(--text-secondary); }
   .where ul { margin: 0; padding-inline-start: var(--sp-200); }
   .refusal-inline { margin: 0; color: var(--text-danger); }
+  .progress { margin-block-start: var(--sp-150); }
   .act { color: var(--text-brand); font-weight: var(--fw-medium); }
 </style>
