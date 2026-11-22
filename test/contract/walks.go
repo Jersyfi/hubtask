@@ -8,7 +8,9 @@ package contract
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -250,6 +252,11 @@ func (s *specification) judgeWalkAnswer(operations []walkOperation, answer walkA
 	decoder.UseNumber()
 	if err := decoder.Decode(&value); err != nil {
 		violation.Detail = "the body is not JSON"
+		return violation
+	}
+	// Decode reads one value and stops; what follows it would never be held to the schema.
+	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
+		violation.Detail = "the body holds more than one JSON value"
 		return violation
 	}
 	problems := s.check("", node, value)
