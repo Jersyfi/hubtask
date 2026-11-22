@@ -182,7 +182,7 @@
   const starts = $derived(shown.map((_, at) => shown.slice(0, at).reduce((sum, section) => sum + section.options.length, 0)));
   const chosenCount = $derived(all.filter((each) => selected.includes(each.value)).length);
 
-  let filterBox = $state<HTMLElement | null>(null);
+  let headBox = $state<HTMLElement | null>(null);
   let footBox = $state<HTMLElement | null>(null);
 
   function focusActive(): void {
@@ -201,7 +201,7 @@
   }
 
   // Focus is never hidden by a stuck region (design-system.md §10, 2.4.11): the browser scrolls a
-  // focused option into the surface, not clear of the filter and the foot stuck inside it, so the
+  // focused option into the surface, not clear of the head and the foot stuck inside it, so the
   // option and its ring are scrolled out from under them here.
   function keepClear(node: HTMLElement): void {
     node.scrollIntoView({ block: 'nearest' });
@@ -210,7 +210,7 @@
     const style = getComputedStyle(node);
     const ring = (Number.parseFloat(style.outlineOffset) || 0) + (Number.parseFloat(style.outlineWidth) || 0);
     const box = node.getBoundingClientRect();
-    const top = filterBox?.getBoundingClientRect().bottom;
+    const top = headBox?.getBoundingClientRect().bottom;
     const bottom = footBox?.getBoundingClientRect().top;
     if (top !== undefined && box.top - ring < top) scroller.scrollTop -= top - (box.top - ring);
     else if (bottom !== undefined && box.bottom + ring > bottom) scroller.scrollTop += box.bottom + ring - bottom;
@@ -415,21 +415,25 @@
 
     <Popover {label} bind:isOpen at={button ?? undefined} sheetActions={sheetDone}>
       <div class="panel">
-        {#if isReadOnly}
-          <p class="notice" id={noticeId}><Icon name="lock" size="sm" /><span>{disabledReason}</span></p>
-        {/if}
-        {#if isFilterable}
-          <div class="filter" bind:this={filterBox}>
-          <SearchField
-            label={filterLabel}
-            isLabelHidden
-            clearLabel={filterLabel}
-            size="sm"
-            bind:value={term}
-            oninput={() => (active = 0)}
-            placeholder={filterLabel}
-            onkeydown={onFilterKeydown}
-          />
+        {#if isReadOnly || isFilterable}
+          <!-- The read-only reason stands in the stuck head with the filter: under the head's cover
+               it would be cut through as the list scrolls. -->
+          <div class="top" bind:this={headBox}>
+            {#if isReadOnly}
+              <p class="notice" id={noticeId}><Icon name="lock" size="sm" /><span>{disabledReason}</span></p>
+            {/if}
+            {#if isFilterable}
+              <SearchField
+                label={filterLabel}
+                isLabelHidden
+                clearLabel={filterLabel}
+                size="sm"
+                bind:value={term}
+                oninput={() => (active = 0)}
+                placeholder={filterLabel}
+                onkeydown={onFilterKeydown}
+              />
+            {/if}
           </div>
         {/if}
         {#if flat.length === 0}
@@ -657,8 +661,9 @@
 
   .empty { margin: 0; padding: var(--sp-150); color: var(--text-subtle); font-size: var(--fs-075); }
 
-  /* The filter and the foot stay in view while a long list scrolls under them in the surface. */
-  .filter,
+  /* The head - the read-only reason and the filter - and the foot stay in view while a long list
+     scrolls under them in the surface. */
+  .top,
   .foot {
     position: sticky;
     z-index: var(--z-sticky);
@@ -667,7 +672,7 @@
 
   /* The surface's own padding lies between a stuck part and its edge: covered, so no row shows
      through the gap as it scrolls past. */
-  .filter::before,
+  .top::before,
   .foot::after {
     content: '';
     position: absolute;
@@ -676,10 +681,16 @@
     background: var(--bg-raised);
   }
 
-  .filter::before { inset-block-end: 100%; }
+  .top::before { inset-block-end: 100%; }
   .foot::after { inset-block-start: 100%; }
 
-  .filter { inset-block-start: 0; padding-block-end: var(--sp-050); }
+  .top {
+    inset-block-start: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-100);
+    padding-block-end: var(--sp-050);
+  }
 
   .foot {
     inset-block-end: 0;

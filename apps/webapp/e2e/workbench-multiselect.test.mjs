@@ -106,6 +106,25 @@ async function walkClear(page, what) {
   assert.deepEqual(hidden, [], `${what}: a focused option lies under a stuck region`);
 }
 
+/** Every line of a text, from its top to its bottom, is the text itself and not something drawn over it. */
+async function linesCovered(page, locator) {
+  await settled(page);
+  return locator.evaluate((node) => {
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const out = [];
+    for (const line of range.getClientRects()) {
+      for (const x of [line.left + 2, line.left + line.width / 2, line.right - 2]) {
+        for (const y of [line.top + 2, line.top + line.height / 2, line.bottom - 2]) {
+          const hit = document.elementFromPoint(x, y);
+          if (!hit || !node.contains(hit)) out.push(`${hit?.className ?? 'nothing'} at ${Math.round(x)},${Math.round(y)}`);
+        }
+      }
+    }
+    return out;
+  });
+}
+
 for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
   test(`MultiSelect is operable by keyboard, keeps a locked option and becomes a sheet, in ${engine}`, { timeout: 5 * 60_000 }, async () => {
     assert.ok(existsSync(join(WORKBENCH, 'index.html')), 'no built workbench: run `make workbench-build` first');
@@ -235,6 +254,7 @@ for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
       assert.deepEqual(await selectedNames(page), before, 'a read-only list changed');
       assert.equal(await page.getByRole('button', { name: 'All', exact: true }).count(), 0, 'a read-only list offers All');
       assert.match(await description(option(page, 'Reminders')), /Locked by the workspace/);
+      assert.deepEqual(await linesCovered(page, page.getByRole('dialog').getByText(/^Locked by the workspace/)), [], 'the read-only reason is covered at 1280');
       await page.keyboard.press('Escape');
 
       // --- the filter: label and hint, groups left out, a sentence for no match ---------------
@@ -309,11 +329,16 @@ for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
       await sheet.waitFor({ state: 'hidden' });
       assert.equal((await focused(page)).isField, true, 'Done did not put focus back on the field');
 
-      // The sheet scrolls under its stuck filter and foot too.
+      // The sheet scrolls under its stuck filter and foot too, and the read-only reason stays clear.
       await story(page, server.origin, 'grouped');
       await field(page).click();
       await list(page).waitFor();
       await walkClear(page, 'Grouped as the sheet at 390×844');
+      await page.keyboard.press('Escape');
+      await story(page, server.origin, 'read-only');
+      await field(page).click();
+      await list(page).waitFor();
+      assert.deepEqual(await linesCovered(page, page.getByRole('dialog').getByText(/^Locked by the workspace/)), [], 'the read-only reason is covered at 390');
       await page.keyboard.press('Escape');
       await page.setViewportSize({ width: 390, height: 667 });
       await story(page, server.origin, 'german');
