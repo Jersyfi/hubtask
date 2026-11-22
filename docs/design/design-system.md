@@ -1365,7 +1365,7 @@ the others stacked beside it; below, one. Top to bottom:
 
 * **On you** — the reader's open dated entries in three bands of their own day: *Overdue* (past
   due), *Today* (due before their next day begins) and *Coming up*. Each row has its working
-  checkbox — the ordinary completion, queued while offline — and its place, the hub's mark before
+  round mark (`StateMark`) — the ordinary completion, queued while offline — and its place, the hub's mark before
   the collection's. What is past carries the overdue mark with its date; nothing blames.
 * **Lists** — every collection whose figure is *open*, as one tile with the figure, drawn in the
   collection's colour where it has one; its entries are not rows in the bands.
@@ -1493,10 +1493,12 @@ between columns is the card's menu (§11.9).
 
 **An entry screen**, top to bottom:
 
-1. **The head**: the completion checkbox, the title and the notes edited in place — an input that
+1. **The head**: the state control, the title and the notes edited in place — an input that
    looks like text until focused, the same `PATCH` and conflict path — and the set values as chips,
-   one height whether or not they carry a mark. Where the collection has columns and the reader may
-   write, the column's chip is the menu that moves the entry to another column, the done column
+   one height whether or not they carry a mark. The state control is the state's lozenge
+   (`StatusButton`) followed by the step as a labelled button (`ObjectHead`'s `next`): in a list the
+   lozenge reads *Open* or *Done* and the button *Done* or *Reopen*; where the collection has columns, the column's lozenge
+   is the menu that moves the entry to another column by `PATCH {bucket_id}`, the done column
    completing it as a drop on the board does. Where a workflow runs for the entry, the head
    carries its status with the steps the reader may take from it instead, and names the type in
    place of the level; neither the level nor *No column* is drawn there (`user-experience.md` §5.6).
@@ -1507,7 +1509,7 @@ between columns is the card's menu (§11.9).
 2. **The whole subtree**: `EntryList` with a `rootId` — no second flatten, row menu or drag; its rows
    carry the one entry menu every place that shows an entry carries (UC-WRK-28 check 1), without
    *Select*, since no bulk bar acts there. Every
-   level carries its checkbox, type mark, twist and "done of total" count, each row one line ruled
+   level carries its round mark, type mark, twist and "done of total" count, each row one line ruled
    from the next (`TaskRow` `isOneLine`, the title losing its end); the section heading is the
    manifest's name for the child type. The top level ends in the capture field drawn in place
    (C-4: the same parser and chips, the level as its kind pill, Enter adds and the line stays);
@@ -1541,10 +1543,10 @@ its manual order, so nothing is dragged in it; the menu's moves stay.
 ([UC-WRK-25](../usecases/work/UC-WRK-25-keep-a-simple-list.md)): the open entries under the
 collection's categories in their order, the entries ticked in the last 24 hours under the
 collection's name for done entries (*Done* without one), and the older ones under *Recently*, most
-often completed first. A line is its box and its words, with no twist and no type mark: the list has
+often completed first. A line is its mark and its words, with no twist and no type mark: the list has
 one level. Capture, opened there, takes several lines as several entries and reads a leading amount
-where the collection offers one, showing it as a chip before submitting. **The checkbox ticks; the row opens**, here as in every list: a
-row is ticked by a tap on its start — a target of at least 44 points around the box — or by a swipe
+where the collection offers one, showing it as a chip before submitting. **The mark ticks; the row opens**, here as in every list: a
+row is ticked by a tap on its start — a target of at least 44 points around the mark — or by a swipe
 towards the inline end, and a tap anywhere else but its controls opens the entry; a still hold opens
 the row's menu with *Select* first ([ADR-0088](../adr/ADR-0088-a-long-press-opens-the-entry-menu.md)),
 and the grip drags within its section. The row's menu holds the amount and the category. For somebody who may change the shape, the *Done* heading can be
@@ -1609,8 +1611,9 @@ it, so the way back is where the way there was. Below
 **Selection is a mode, off by default.** No list draws a selection control until somebody selects:
 the toolbar's *Select*, the entry menu's *Select* (a long press on a coarse pointer opens it), or
 `Ctrl`/`Cmd`-click on a row. While on,
-rows carry the checkbox, the page head becomes the count and the bulk verbs, and `Escape` ends it.
-Otherwise a row's leading slot holds the completion checkbox only, and the type is a mark on the
+rows carry the selection checkbox, the page head becomes the count and the bulk verbs, and `Escape`
+ends it. Otherwise a row's leading slot holds the round completion mark (`StateMark`), followed by
+the column or status chip where the entry stands on a board or under a workflow, and the type is a mark on the
 title's line. List and board share one selection store; switching keeps the selection.
 
 **A list row's tools show where the reader is.** Where the pointer hovers (`hover: hover`) and from

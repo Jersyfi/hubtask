@@ -1059,12 +1059,16 @@ or switches off (configuration.md, `itil_service_desk@17`), never by a computati
   and the done column one (a ticked card moves to the done column; a card dropped there
   completes), as D-02 says for workflow collections; a column cut at the edge shows a scroll hint.
   As built with the work surface, the server keeps column and completion together at every level
-  (domain-model.md §3.5a): an entry's state is one control - a checkbox in a list (L0), the column
-  chip on a board without a workflow (L1), the status chip under one (L2) - the same on the list
-  row, the card and the entry head; a board under a workflow names each column's statuses and folds
-  the unmapped ones into *Ohne Spalte*, a drop target; every drop goes through `POST
+  (domain-model.md §3.5a): an entry's state is one control of two parts, the step and the state -
+  in a row and on a card the round mark followed by the column chip on a board without a workflow
+  (L1) and by the status chip under one (L2), the mark alone in a list (L0); in the entry head the
+  state's lozenge and the step as a labelled button - the same on the list row, the card and the
+  entry head. One press of the mark completes (into the done column on a board), or under a
+  workflow takes the next step towards done. A board under a workflow names each column's statuses
+  and folds the unmapped ones into *Ohne Spalte*, a drop target; there a drop goes through `POST
   /items/{id}:drop`, a choice among several steps opens a picker and a refusal says its reason at
-  the card. *Show as board*, *Back to the list* and *Workflow from these columns* sit in the
+  the card. A board without a workflow writes the column through `PATCH /items/{id}`
+  (`bucket_id`), which belongs to the base product and so works with Workflows switched off. *Show as board*, *Back to the list* and *Workflow from these columns* sit in the
   collection's ⋯ and preview the server's dry run first. A collection that keeps columns but offers
   no board says so in its settings under the views, with *Remove columns* - the same switch back to
   a list, whose confirmation says it cannot be undone: a board switched on later starts with two
