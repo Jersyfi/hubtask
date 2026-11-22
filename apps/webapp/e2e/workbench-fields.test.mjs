@@ -104,12 +104,13 @@ test('a missing value is marked, said and described, in chromium', { timeout: 5 
     assert.equal(await comments.nth(1).getByRole('button').count(), 0, 'somebody else’s comment offers a control');
 
     // A box that shares the area's reason points at the notice, draws no bubble and does not flip.
+    // A row's box is the round state mark, a checkbox by its role.
     await page.goto(`${server.origin}/?story=wave-2-structure-read-only-notice--rows`);
     const note = page.locator('.host [role="note"] p');
     await note.waitFor();
     const noteId = await note.getAttribute('id');
     assert.ok(noteId, 'the notice’s sentence has no id to point at');
-    const boxes = page.locator('.host input[type="checkbox"]');
+    const boxes = page.locator('.host').getByRole('checkbox');
     assert.equal(await boxes.count(), 2);
     for (let index = 0; index < 2; index += 1) {
       const each = boxes.nth(index);
