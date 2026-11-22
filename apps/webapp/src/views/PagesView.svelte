@@ -295,7 +295,7 @@
     await trashAndLeave(page, {
       drop: () => {
         titleDraft = undefined;
-        pageEditor?.dropPending();
+        return pageEditor?.dropPending();
       },
       trash: async () => {
         const answer = await act(() => pages.trash(page), undefined);

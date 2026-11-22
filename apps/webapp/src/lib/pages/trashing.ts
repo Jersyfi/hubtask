@@ -4,8 +4,11 @@
 /** Putting the open page in the trash and leaving it for its space's pages. */
 
 export interface TrashSteps<T> {
-  /** Forgets the page's pending saves; one fired after the delete is refused. */
-  readonly drop: () => void;
+  /**
+   * Holds the page's pending saves (one fired after the delete is refused); what it returns gives
+   * them back, called only when the delete was refused.
+   */
+  readonly drop: () => unknown;
   /** The delete; undefined when it was refused. */
   readonly trash: () => Promise<T | undefined>;
   readonly leave: (path: string) => void;
@@ -17,8 +20,9 @@ export interface TrashSteps<T> {
  */
 export async function trashAndLeave<T>(page: { readonly hub_id: string }, steps: TrashSteps<T>): Promise<T | undefined> {
   const hubId = page.hub_id;
-  steps.drop();
+  const restore = steps.drop();
   const answer = await steps.trash();
   if (answer !== undefined) steps.leave(`/hubs/${hubId}/pages`);
+  else if (typeof restore === 'function') restore();
   return answer;
 }

@@ -26,3 +26,15 @@ test('a refused delete stays on the page', async () => {
   assert.equal(answer, undefined);
   assert.deepEqual(left, []);
 });
+
+test('a refused delete gives the held saves back, an accepted one does not', async () => {
+  for (const [answer, restored] of [[undefined, true], [{ trashed: 1 }, false]] as const) {
+    let back = false;
+    await trashAndLeave({ hub_id: 'hub-1' }, {
+      drop: () => () => { back = true; },
+      trash: async () => answer,
+      leave: () => {},
+    });
+    assert.equal(back, restored);
+  }
+});
