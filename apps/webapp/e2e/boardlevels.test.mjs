@@ -5,7 +5,8 @@
 // list row and the card - L0 a checkbox, L1 a column chip, L2 a status chip -; at L2 the columns
 // name the statuses they show, the statuses no column shows stand folded in *Ohne Spalte*; a drop
 // several steps reach asks which (`CHOOSE`); a column a carried card may not enter dims with its
-// reason; the done column stands folded.
+// reason; the done column stands folded. Columns a collection keeps without offering a board are
+// named in its settings with *Remove columns*, confirmed as final (UC-WRK-05 check 13).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -263,3 +264,67 @@ test('chromium: L1 - deleting the done column asks which column means done, the 
   const deletes = written.filter((each) => each.method === 'DELETE');
   assert.deepEqual(deletes.map((each) => each.query), ['', `?new_done_bucket_id=${BUCKETS[1].id}`]);
 });
+
+/**
+ * The collection's settings at L1 while it offers no board: the level, the columns and a
+ * `board:switch` that empties both once it is sent without `dry_run`, each switch recorded.
+ */
+async function settingsWithoutBoard(browser, width) {
+  const written = [];
+  let removed = false;
+  const tab = await signedIn(browser, width, 900);
+  const structure = { ...COLLECTION.structure, settings: { ...COLLECTION.structure.settings, views: { offered: ['LIST_COLLAPSED', 'LIST_EXPANDED', 'TIMELINE'], default: 'LIST_COLLAPSED' } } };
+  await tab.context.unroute('**/api/v1/**');
+  await tab.context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, '');
+    if (request.method() === 'GET' && path === `/containers/${COLLECTION.id}`) return route.fulfill({ json: { ...COLLECTION, structure, state_mode: removed ? 'NONE' : 'COLUMNS' } });
+    if (request.method() === 'GET' && path === `/containers/${COLLECTION.id}/buckets`) return route.fulfill({ json: removed ? [] : BUCKETS.map((bucket) => ({ ...bucket, statuses: [] })) });
+    if (request.method() === 'POST' && path === `/containers/${COLLECTION.id}/board:switch`) {
+      const body = request.postDataJSON();
+      written.push(body);
+      if (body?.dry_run === false) removed = true;
+      return route.fulfill({ json: { dry_run: body?.dry_run ?? false, level_before: 'COLUMNS', level_after: 'NONE', columns_created: 0, columns_removed: BUCKETS.length, entries_placed: 4 } });
+    }
+    // The collection offers no board wherever it is answered - the hub's list of collections too.
+    const shaped = (value) => Array.isArray(value)
+      ? value.map(shaped)
+      : value && typeof value === 'object'
+        ? Object.fromEntries(Object.entries(value.id === COLLECTION.id && value.type === 'COLLECTION' ? { ...value, structure } : value).map(([key, each]) => [key, shaped(each)]))
+        : value;
+    return stub(new Proxy(route, { get: (target, name) => name === 'fulfill' ? (answer) => target.fulfill(answer?.json ? { ...answer, json: shaped(answer.json) } : answer) : target[name].bind(target) }));
+  });
+  await tab.page.goto(`${served.origin}/collections/${COLLECTION.id}/settings/views`);
+  return { ...tab, written };
+}
+
+// UC-WRK-05 check 13: columns kept without a board are named in the settings with their number and
+// *Remove columns*; the confirmation, read from the dry run, says how many go, that completion
+// stays and that it cannot be undone; confirming sends the switch without `dry_run`, and the
+// settings no longer name columns.
+for (const width of [1280, 375]) {
+  test(`chromium: a collection with columns and no board offers to remove them, and says it is final, at ${width}`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { page, written, context } = await settingsWithoutBoard(browser, width);
+    t.after(() => context.close());
+    const hint = page.getByRole('note').filter({ hasText: 'offers no board' });
+    await hint.waitFor({ timeout: 15_000 });
+    assert.match((await hint.textContent()) ?? '', /This collection has 3 columns that set its entries' state, but offers no board\./);
+    assert.deepEqual(written, [], 'the hint asked the server before anybody pressed');
+
+    await hint.getByRole('button', { name: 'Remove columns' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Remove columns' });
+    const preview = dialog.locator('[data-level-preview]');
+    await preview.waitFor({ timeout: 5_000 });
+    assert.match((await preview.textContent()) ?? '', /3 columns are removed.*4 entries leave their column.*Done stays done, open stays open\./s);
+    assert.match((await dialog.getByRole('note').textContent()) ?? '', /This cannot be undone\. A board switched on later starts with two new columns, Open and Done, not these\./);
+    assert.deepEqual(written, [{ to: 'NONE', dry_run: true }], 'the preview is not the dry run');
+
+    const sent = page.waitForRequest((request) => request.url().endsWith('/board:switch') && request.postDataJSON()?.dry_run === false);
+    await dialog.getByRole('button', { name: 'Remove columns' }).click();
+    await sent;
+    assert.deepEqual(written.at(-1), { to: 'NONE', dry_run: false });
+    await dialog.waitFor({ state: 'detached', timeout: 5_000 });
+    await hint.waitFor({ state: 'detached', timeout: 15_000 });
+  });
+}

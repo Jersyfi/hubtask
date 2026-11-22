@@ -145,7 +145,7 @@ func TestShowingAListAsABoardGivesItAnOpenAndADoneColumn(t *testing.T) {
 }
 
 // Back to a list: every column is taken off, the done column last, its entries standing in no
-// column and keeping their completion.
+// column and keeping their completion - what *Remove columns* confirms (UC-WRK-05 check 13).
 func TestABoardBackToAListTakesTheColumnsOffTheDoneOneLast(t *testing.T) {
 	h := newSwitchHarness()
 	threeColumnBoard(h.buckets)

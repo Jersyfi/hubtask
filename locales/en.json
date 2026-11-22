@@ -5671,6 +5671,7 @@
   "app.structure.views_offered": "Views offered",
   "app.structure.views_default": "Opens as",
   "app.structure.views_missing": "Offer at least one view.",
+  "app.structure.columns_without_board": "{count, plural, one {This collection has # column that sets its entries' state, but offers no board.} other {This collection has # columns that set its entries' state, but offers no board.}}",
   "app.structure.capture_label": "What capture recognises",
   "app.structure.automation_label": "What the collection keeps to by itself",
   "app.structure.automation.NEW_INTO_FIRST_COLUMN": "A new task starts in the first column",

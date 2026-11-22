@@ -1063,7 +1063,10 @@ or switches off (configuration.md, `itil_service_desk@17`), never by a computati
   the unmapped ones into *Ohne Spalte*, a drop target; every drop goes through `POST
   /items/{id}:drop`, a choice among several steps opens a picker and a refusal says its reason at
   the card. *Show as board*, *Back to the list* and *Workflow from these columns* sit in the
-  collection's ⋯ and preview the server's dry run first.
+  collection's ⋯ and preview the server's dry run first. A collection that keeps columns but offers
+  no board says so in its settings under the views, with *Remove columns* - the same switch back to
+  a list, whose confirmation says it cannot be undone: a board switched on later starts with two
+  new columns, not these (UC-WRK-05 check 13).
 * **The default view comes from the template** per collection kind: Kanban opens on the board, a
   classic project on its plan, a desk on its queue, Scrum on the sprint board.
 

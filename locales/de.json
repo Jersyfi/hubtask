@@ -4862,6 +4862,7 @@
   "app.structure.views_offered": "Angebotene Ansichten",
   "app.structure.views_default": "Öffnet als",
   "app.structure.views_missing": "Biete mindestens eine Ansicht an.",
+  "app.structure.columns_without_board": "{count, plural, one {Diese Sammlung hat # Spalte, die den Stand ihrer Einträge bestimmt, bietet aber kein Board an.} other {Diese Sammlung hat # Spalten, die den Stand ihrer Einträge bestimmen, bietet aber kein Board an.}}",
   "app.structure.capture_label": "Was das Erfassen erkennt",
   "app.structure.automation_label": "Was die Sammlung von selbst einhält",
   "app.structure.automation.NEW_INTO_FIRST_COLUMN": "Eine neue Aufgabe beginnt in der ersten Spalte",

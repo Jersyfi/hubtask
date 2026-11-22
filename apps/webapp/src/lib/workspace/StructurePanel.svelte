@@ -39,6 +39,7 @@
   import NarrowingDialog from './NarrowingDialog.svelte';
   import { reachOf } from '../settings/reach.ts';
   import SavePresetDialog from './SavePresetDialog.svelte';
+  import UnusedColumnsHint from './UnusedColumnsHint.svelte';
   import { GROUP_CODES, STRUCTURE_GROUPS, groupOf, isGroup, orderSections, sectionOf, type StructureGroup } from './placeSections.ts';
   import { DRAWABLE } from '../entries/layouts.ts';
   import { toast } from '../frame/toasts.svelte.ts';
@@ -814,6 +815,7 @@
                   />
                 {/snippet}
               </SettingRow>
+              <UnusedColumnsHint {container} offered={(structure.settings.views?.offered ?? []) as readonly string[]} mayShape={mayShapeHere} />
             {:else if setting === 'counts' && figures}
               <SettingRow label={titleOf(setting)} help={t('app.figure.intro')} fieldWidth="md" lockReason={lockReason('counts')}>
                 {#snippet source()}{@render chipFor(setting)}{/snippet}
