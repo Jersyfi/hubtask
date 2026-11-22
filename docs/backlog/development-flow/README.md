@@ -1,8 +1,8 @@
 # Concept — the development flow: guidelines, proof, and the owner on the loop
 
-**State:** 2026-11-21. The owner accepted D-1 to D-15 and D-8a that day (§6).
-It is built on the branch `concept/development-flow`, stage by stage, on 2026-11-21; what
-remains is the close (§7). §3 holds what was measured before the build, against `main` at
+**State:** 2026-11-22. The owner accepted D-1 to D-15 and D-8a on 2026-11-21 (§6).
+It was built on the branch `concept/development-flow`, stage by stage, and is on `main` since
+2026-11-22 (`a198ed9ce`); §7 says what the merge showed. §3 holds what was measured before the build, against `main` at
 `77661b5a6` and the GitHub API; a figure read while building says so. Where something was not
 checked, the text says so. What was not built is named where it is described, and in §9.
 
@@ -998,10 +998,26 @@ The repository's setting of allowed actions lacks `ossf/scorecard-action@*`, and
 owner accepted the action with D-13; adding it to the setting is the owner's word (`ci-cd.md`
 §4), and no run of `ci.yml` on this branch starts before it is there.
 
-**What can only be seen after the merge**, and is checked then by the orchestrator or the next
-worker: the first Scorecard result and its badge, which exist only once the workflow has run on `main`;
-the first weekly report on its issue, after which a worker closes issue 1309; what the job's
-token may read of the security alerts; the pull request median falling in the report.
+**What the merge showed** (2026-11-22, read by the orchestrator):
+
+* The owner added `ossf/scorecard-action@*` to the allowed actions, and CI ran: green on the
+  pull request and on `main`.
+* The first Scorecard run and the first CodeQL analysis of JavaScript opened 37 code scanning
+  alerts. Of CodeQL's 24, 17 were fixed in code and 7 dismissed with their reason. Of the
+  Scorecard's 13, the five base images are pinned by digest; four installs that take no hash,
+  the committed Gradle wrapper and the missing approving review are dismissed with their reason;
+  three of nine advisories are closed by raising a dependency, and the six left are notices
+  without a severity, named in `apps/webapp/src-tauri/osv-scanner.toml`; the badge's alert
+  closes with the badge.
+* The walk judge turned `main` red once, on an answer that depends on timing (§8).
+* The weekly job ran once by hand: it wrote its report and opened a finding for each of three
+  measures over their threshold.
+* The Best Practices badge is at passing since 2026-11-22
+  ([project 17000](https://www.bestpractices.dev/projects/17000)).
+
+Not read yet: whether the Scorecard takes the six notices' file and closes its alert, which its
+next run on `main` shows; whether the pull request median falls in the next reports; whether a
+worker closes issue 1309 after them.
 
 **Later, as experiments:** `make proof` (§5.4), which is not built, then generated catching tests on the structural class,
 run nightly for four weeks — kept only if at least half of what it reports is real, counted on its
@@ -1048,10 +1064,11 @@ decision. The whole change is reversible by reverting one pull request; none of 
   CodeRabbit's comments are followed blindly — each is fixed or answered, and the gates decide.
 * **Baseline level 1 is not reached at the close.** The answers file reads 22 Met and 2 Unmet
   (`docs/evidence/best-practices-answers.md`). The two unmet rows name the same file, the
-  Android build's committed Gradle wrapper; removing it is a change to that build and was not
-  made here. Two rows rest on the owner: `main`'s protection binds administrators, and the
-  account has a second factor (2026-11-22). D-15 names level 1; it holds once the
-  wrapper's two rows are answered.
+  Android build's committed Gradle wrapper. It stays, on the owner's word of 2026-11-22:
+  `tauri android build` runs it, and Tauri's template writes it. Its SHA-256 is the one Gradle
+  publishes for 9.6.1. Two rows rest on the owner: `main`'s protection binds
+  administrators, and the account has a second factor (2026-11-22). D-15 names level 1; it is not
+  reached while the wrapper is committed.
 * **The owner has not read the walk rules' wording.** D-4 accepted the rules of §5.4; the
   sentences in `apps/webapp/e2e/AGENTS.md` are stage 1's.
 * **Still unverified:** how many of the functions and files `deadcode` and Knip list are unused,
