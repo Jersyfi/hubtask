@@ -1034,13 +1034,12 @@ decision. The whole change is reversible by reverting one pull request; none of 
   reasoning; a tool reports live code as dead — removal is its own pull request and must pass
   every test; the writing rules produce shorthand — rule 5 forbids it and no length is gated;
   CodeRabbit's comments are followed blindly — each is fixed or answered, and the gates decide.
-* **Baseline level 1 is not reached at the close.** The answers file reads 20 Met, 3 Unmet and
-  1 Unknown (`docs/evidence/best-practices-answers.md`). One unmet row is the owner's: `main`'s
-  protection does not bind administrators, and turning that on is a security setting of the
-  repository. Two unmet rows name the same file, the Android build's committed Gradle wrapper;
-  removing it is a change to that build and was not made here. The unknown row is the owner's
-  too: whether the account requires a second factor, which the API tells the account's owner
-  alone. D-15 names level 1; it holds once those four rows are answered.
+* **Baseline level 1 is not reached at the close.** The answers file reads 22 Met and 2 Unmet
+  (`docs/evidence/best-practices-answers.md`). The two unmet rows name the same file, the
+  Android build's committed Gradle wrapper; removing it is a change to that build and was not
+  made here. Two rows rest on the owner: `main`'s protection binds administrators, and the
+  account has a second factor (2026-11-22). D-15 names level 1; it holds once the
+  wrapper's two rows are answered.
 * **The owner has not read the walk rules' wording.** D-4 accepted the rules of §5.4; the
   sentences in `apps/webapp/e2e/AGENTS.md` are stage 1's.
 * **Still unverified:** how many of the functions and files `deadcode` and Knip list are unused,

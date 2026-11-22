@@ -376,7 +376,8 @@ permissions:
   a branch need not be up to date with `main` (§3.5); conversations resolved before a merge; no
   force push, no deletion. No approving review is required (the owner's word to merge is the
   review), merges are squash merges only (a repository setting, so the history is linear without
-  the rule), and administrators are not held to the protection.
+  the rule), and administrators are held to the protection as everyone is. Where CI itself is
+  broken, the owner lifts the hold on administrators for the fix and sets it again.
 
 ---
 

@@ -67,7 +67,9 @@ request's `CI required`.
    `gh run list --workflow ci.yml --branch <branch> --event workflow_dispatch --limit 1`.
 3. Watch it in the background: `gh run watch <id> --exit-status`. Its end arrives as a
    notification; wait for it in no `sleep` or `until` loop.
-4. Build the next family meanwhile. A red run is fixed before that family goes on.
+4. Build the next family meanwhile. A red run is fixed before that family goes on. A run that
+   the next checkpoint's run cancelled is not started again: CI holds the head, so a later green
+   run on the branch closes the earlier family too.
 
 ## The close
 
