@@ -1287,8 +1287,10 @@
     } finally {
       isChoosing = false;
     }
-    if (field === 'title') inlineTitle = theirs;
-    else inlineNotes = theirs;
+    // What the reader typed while their version was being filed is a change of its own over theirs.
+    const isRetyped = (field === 'title' ? inlineTitle : inlineNotes) !== mine;
+    if (!isRetyped && field === 'title') inlineTitle = theirs;
+    else if (!isRetyped) inlineNotes = theirs;
     inlineBase = { ...(inlineBase ?? (heldNow() as EntryDraft)), [field]: theirs };
     meanwhileField = undefined;
     meanwhileFailure = undefined;

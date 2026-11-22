@@ -402,3 +402,28 @@ test('chromium: 1280 px — offline, write mine again while the entry cannot be 
   assert.deepEqual(writes(state).slice(before), [], 'a text was filed or written without the entry’s current version');
   assert.equal(await strip.count(), 1, 'the conflict was dropped');
 });
+
+test('chromium: 1280 px — keep theirs: what the reader types while their version is being filed stays (UC-SYN-02 check 10)', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, context, failures, state, changeElsewhere } = await openEntry(browser, 1280);
+  t.after(() => context.close());
+
+  const notes = await typeWhileChanged(page, changeElsewhere, 'Tiles from the big market, ask for Ana.', 'Tiles ordered online already.');
+  let release;
+  state.filingHeld = new Promise((resolve) => (release = resolve));
+  const asked = page.waitForRequest((request) => request.url().endsWith('/comments:file-version'), { timeout: 10_000 });
+  await page.locator('[data-meanwhile="notes"]').getByRole('button', { name: 'Compare both versions' }).click();
+  await page.getByRole('dialog', { name: 'Two versions of the description' }).getByRole('button', { name: 'Keep theirs' }).click();
+  await asked;
+  await notes.fill('Tiles ordered online already. Ask Ana about the grout.');
+  const patched = page.waitForRequest((request) => request.method() === 'PATCH' && new URL(request.url()).pathname.endsWith(`/api/v1/items/${ENTRY.id}`), { timeout: 10_000 });
+  release();
+  await page.getByText('Your version is kept as a comment on the entry').waitFor({ timeout: 10_000 });
+  await notes.filter({ hasText: 'Ask Ana about the grout.' }).waitFor({ timeout: 5_000 })
+    .catch(async () => assert.fail(`the text typed meanwhile is gone: ${await notes.textContent()}`));
+  // It is the reader's change of the entry's text, written as any other once the field is left.
+  await page.locator('[data-tour="entry"]').getByRole('button', { name: 'Edit title' }).focus();
+  await patched.catch(() => assert.fail(`the text typed meanwhile was not written: ${JSON.stringify(writes(state))}`));
+  assert.deepEqual(writes(state).slice(1), [{ method: 'PATCH', path: `/items/${ENTRY.id}`, body: { notes: 'Tiles ordered online already. Ask Ana about the grout.' } }]);
+  assert.deepEqual(failures, []);
+});
