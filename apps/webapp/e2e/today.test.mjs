@@ -350,3 +350,19 @@ test('chromium 390 px: the phone swipes the cards and switches between your day 
   assert.equal(scroll.width, scroll.viewport, `the page scrolls sideways (${scroll.width} of ${scroll.viewport}): ${wide}`);
   assert.deepEqual(failures, []);
 });
+
+test('chromium: a tick on Today the server refuses is taken back, and says why', async (t) => {
+  showToday();
+  const browser = await sharedChromium(t);
+  const { page, context } = await open(browser);
+  t.after(() => context.close());
+  await page.route(`**/api/v1/items/${TODAYS.id}:complete`, (route) => route.fulfill({
+    status: 403, contentType: 'application/problem+json', json: { type: 'about:blank', title: 'forbidden', status: 403, code: 'forbidden' },
+  }));
+
+  const box = page.getByRole('region', { name: 'Your day', exact: true }).getByRole('checkbox', { name: `Mark ${TODAYS.title} as done` });
+  await box.click();
+  await page.getByRole('alert').filter({ hasText: 'You do not have permission for this action.' }).waitFor({ timeout: 10_000 });
+  await page.waitForFunction((name) => document.querySelector(`[aria-label="${name}"]`)?.getAttribute('aria-checked') === 'false', `Mark ${TODAYS.title} as done`, { timeout: 5_000 })
+    .catch(async () => assert.fail(`the refused tick stays drawn: aria-checked ${await box.getAttribute('aria-checked')}`));
+});
