@@ -85,6 +85,11 @@ test('a summary is cut after two lines; it and the chips describe the radio', ()
   assert.match(markup, /hasChips \? `\$\{optionId\}-chips`/);
 });
 
+test('a caller can type its families: ChoiceCardGroup is exported with ChoiceCards', () => {
+  const index = fs.readFileSync(path.join(sourceDir, 'index.ts'), 'utf8');
+  assert.match(index, /export \{ default as ChoiceCards, [^}]*\btype ChoiceCardGroup\b[^}]*\} from '\.\/ChoiceCards\.svelte';/);
+});
+
 test('the tile keeps the create-hub draft’s measures, from the tokens', () => {
   assert.match(style, /min-block-size: calc\(var\(--sp-1000\) \+ var\(--sp-150\)\);/, 'a tile is as high as the draft’s from 600px');
   assert.match(style, /\.chip \{\s*padding: var\(--bw-hairline\) var\(--sp-100\);/, 'the chip has the draft’s block padding');
