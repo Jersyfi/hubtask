@@ -227,14 +227,18 @@
     const turn = ++seeking;
     isAddressGone = false;
     const reach = () => threadsToShow(threadOf(inView()), id);
+    let isUnread = false;
     try {
       if (reach() === undefined) await page.refresh();
       while (reach() === undefined && hasMore && turn === seeking) await page.loadMore();
-    } catch {
-      // A read that failed is drawn as the thread's own failure; what was read is searched.
+    } catch (error) {
+      // An older page that failed is said where *Load more* asks again: the comment may stand on it.
+      isUnread = true;
+      olderFailed = renderProblem(error as never, messages).message;
     }
     if (turn !== seeking) return;
     const found = reach();
+    if (found === undefined && isUnread) return;
     if (found === undefined) {
       markedId = undefined;
       isAddressGone = true;

@@ -47,7 +47,7 @@ async function openEntry(browser, width) {
   const isNamed = new Promise((resolve) => (named = resolve));
   const state = {
     entry: ENTRY, sent: [], log: [], filed: 0, comments: [], pushed: [], isOffline: false, theirsAway: undefined, isNamed,
-    refuseRead: false, refuseFiling: false, refusePatches: 0, filingHeld: undefined,
+    refuseRead: false, refuseFiling: false, refusePatches: 0, filingHeld: undefined, olderRefused: false,
   };
   let delivered = 0;
   await context.unroute('**/api/v1/**');
@@ -117,6 +117,10 @@ async function openEntry(browser, width) {
       return route.fulfill({ status: 201, json: filed });
     }
     // The conversation, newest first, as the server answers it.
+    if (path === `/items/${ENTRY.id}/comments` && method === 'GET' && state.olderRefused) {
+      if (new URL(request.url()).searchParams.get('cursor')) return route.fulfill(problem(403, 'forbidden'));
+      return route.fulfill({ json: { data: [...state.comments].reverse(), page: { has_more: true, next_cursor: 'older' } } });
+    }
     if (path === `/items/${ENTRY.id}/comments` && method === 'GET') {
       return route.fulfill({ json: { data: [...state.comments].reverse(), page: { has_more: false, next_cursor: null } } });
     }
@@ -352,6 +356,23 @@ test('chromium: 1280 px — offline, the conflict’s link to the displaced vers
   await page.getByRole('button', { name: 'Show both versions' }).click();
   await dialog.getByRole('button', { name: 'Write mine again' }).waitFor({ timeout: 5_000 });
   assert.deepEqual(failures, []);
+});
+
+test('chromium: 1280 px — an address whose older comments could not be read is not said to be gone (UC-SYN-02 check 10)', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, context, state } = await openEntry(browser, 1280);
+  t.after(() => context.close());
+  state.olderRefused = true;
+  state.comments.push({
+    id: '01a0e2e0-0000-7000-8000-0000000c0f41', item_id: ENTRY.id, author_id: ACCOUNT.id, parent_comment_id: null,
+    body: 'Tiles ordered online already.', created_at: '2026-11-22T09:00:00Z', edited_at: null, deleted_at: null, version: 1,
+    kind: 'SYSTEM', system_code: 'sync.set_aside_version', system_params: { field: 'notes', at: '2026-11-22T09:00:00Z' }, internal: false,
+  });
+
+  await page.goto(`${served.origin}/items/${ENTRY.id}?comment=01a0e2e0-0000-7000-8000-0000000c0f99`);
+  await page.getByText('You do not have permission for this action.').first().waitFor({ timeout: 10_000 })
+    .catch(async () => assert.fail(`the failed read is not said: ${await page.locator('main').innerText()}`));
+  assert.equal(await page.getByText('This comment could not be found, or you may not see it.').count(), 0, 'a comment on a page that did not arrive is said to be gone');
 });
 
 /** Notes written offline meet notes somebody else wrote meanwhile; the strip offers both versions. */
