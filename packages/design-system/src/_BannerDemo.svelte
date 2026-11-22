@@ -12,9 +12,9 @@
 
 {#if mode === 'frame'}
   <Stack gap="200">
-    <!-- The two the frame needs. Both are this component with content: ADR-0035 §2's
-         maturity banner, dismissible for the session, and §4's HealthBanner, which comes back
-         while the degradation lasts. -->
+    <!-- Two kinds of banner, both this component with content: a notice dismissible for the
+         session, and a degradation that comes back while it lasts. The sample text is a
+         sample; the application states no maturity stage. -->
     {#if !dismissed}
       <Banner
         title="Hubtask is experimental"

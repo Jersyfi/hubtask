@@ -4,7 +4,7 @@
   // A note in prose that is true whenever it is read.
   //
   // Not a `Banner`: a banner announces something about *this page, now* - a degradation, a
-  // maturity stage - and is a live region for it. A callout is documentation: "an idempotency key
+  // newer release of the app - and is a live region for it. A callout is documentation: "an idempotency key
   // is required on every mutation", true on Tuesday and true in print, read in the flow of the
   // text it sits in and announced by nobody. So `role="note"`, no dismissal, no timeout, and the
   // tone says what kind of note it is - rule 3's mark beside the colour, as everywhere.

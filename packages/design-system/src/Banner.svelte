@@ -5,12 +5,12 @@
   //
   // That is the whole difference from `Toast`, and it decides everything else: a banner is in the
   // flow, it does not time out, and it moves the content below it rather than covering it. The
-  // frame needs it twice - ADR-0035 §2's maturity banner and §4's `HealthBanner` are both a banner
-  // with content, which is why neither of them is a component of its own.
+  // frame's notices - a newer release of the app, a private hub's emergency access - are each a
+  // banner with content, which is why none of them is a component of its own.
   //
   // Dismissal is `onDismiss`, not a boolean the component owns. Whether a banner comes back on the
-  // next page is a decision about the *thing being announced* - the maturity banner is dismissed
-  // for the session, a degradation comes back while it lasts - and a component that remembered
+  // next page is a decision about the *thing being announced* - one notice may be gone for the
+  // session, a degradation comes back while it lasts - and a component that remembered
   // would be answering a question it cannot see.
 
   import type { Snippet } from 'svelte';
@@ -41,7 +41,7 @@
   const { tone = 'info', title, icon, dismissLabel, onDismiss, action, children }: Props = $props();
 
   // A degradation and a failure interrupt; a notice waits for a pause. Assertive on everything
-  // would make the maturity banner talk over whatever the reader was doing on arrival.
+  // would make a mere notice talk over whatever the reader was doing on arrival.
   const live = $derived(tone === 'danger' || tone === 'warning' ? 'alert' : 'status');
 </script>
 

@@ -20,6 +20,6 @@ export const tones: Story = {
 export const frame: Story = {
   name: 'The two the frame needs',
   about:
-    'ADR-0035 §2’s maturity banner and design-system.md §4’s HealthBanner are both a Banner with content, which is why neither is a component of its own. Dismissal is the caller’s: the first is gone for the session, the second comes back while the degradation lasts.',
+    'A notice dismissed for the session and a degradation that comes back while it lasts are both a Banner with content, which is why neither is a component of its own. Dismissal is the caller’s.',
   args: { mode: 'frame' },
 };
