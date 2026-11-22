@@ -19,6 +19,7 @@ import (
 	knowledgeservice "github.com/Jersyfi/hubtask/core/application/service/knowledge"
 	planningservice "github.com/Jersyfi/hubtask/core/application/service/planning"
 	servicedeskservice "github.com/Jersyfi/hubtask/core/application/service/servicedesk"
+	settingservice "github.com/Jersyfi/hubtask/core/application/service/setting"
 	timeservice "github.com/Jersyfi/hubtask/core/application/service/timekeeping"
 	whiteboardservice "github.com/Jersyfi/hubtask/core/application/service/whiteboard"
 	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
@@ -53,7 +54,7 @@ var walkKinds = []string{
 	entityPortfolio,
 	entityAgentModel, entityAgent, entityAgentRequest, entityAgentCase, entityAgentRun,
 	entityApproval, entityEntrySLA, entitySatisfaction, entityCodeLink, entityFileLink,
-	entityWorkflowScheme,
+	entityWorkflowScheme, entitySetting,
 }
 
 const (
@@ -86,6 +87,9 @@ const (
 	// entityWhiteboard is a board with its scene, filed under its hub: a board is read where its
 	// hub is (M4).
 	entityWhiteboard = whiteboard.DocumentKind
+	// entitySetting is a place's module switches: one record for the workspace, which every
+	// member holds, and one for each hub, filed under it (UC-INS-21 check 12).
+	entitySetting = settingservice.Entity
 	// entityCI and entityCIRelation are a configuration item and a relation between two, each
 	// filed under its hub: an inventory is read where its hub is (M6).
 	entityCI         = cmdbservice.CIEntity
@@ -345,6 +349,10 @@ func (p PullChanges) readKind(
 			rows, err = p.scheme(ctx, actor, after)
 			return err
 		}
+		if kind == entitySetting {
+			rows, err = p.switches(ctx, actor, after, batch)
+			return err
+		}
 		if timeKind(kind) {
 			rows, err = p.time(ctx, actor, kind, after, batch)
 			return err
@@ -401,6 +409,72 @@ func (p PullChanges) scheme(ctx context.Context, actor appshared.ActorContext, a
 		entity: entityWorkflowScheme, entityID: actor.TenantID,
 		payload: workflowservice.SchemeOutput(schemes), key: actor.TenantID.String(),
 	}}, nil
+}
+
+// switchesFirstKey is the key the workspace's record is resumed after; the hubs' records, paged
+// by identifier, follow it. No identifier reads so.
+const switchesFirstKey = "workspace"
+
+// switches pages the module switches: the workspace's record first, then one for each living hub.
+// Who holds which is decided where every row is judged - the workspace's by membership, a hub's
+// by reading the hub.
+func (p PullChanges) switches(ctx context.Context, actor appshared.ActorContext, after string, batch int) ([]walkRow, error) {
+	if p.Switches == nil {
+		return nil, nil
+	}
+	first := after == ""
+	afterHub := shared.ID(after)
+	if first {
+		batch--
+	}
+	if first || after == switchesFirstKey {
+		afterHub = ""
+	}
+	hubs, err := p.hubsAfter(ctx, afterHub, batch)
+	if err != nil {
+		return nil, err
+	}
+	records, err := p.Switches.Records(ctx, actor, hubs)
+	if err != nil {
+		return nil, err
+	}
+	rows := make([]walkRow, 0, len(hubs)+1)
+	if first {
+		rows = append(rows, walkRow{
+			entity: entitySetting, entityID: actor.TenantID, payload: records[actor.TenantID], key: switchesFirstKey,
+		})
+	}
+	for _, hub := range hubs {
+		rows = append(rows, walkRow{
+			entity: entitySetting, entityID: hub, containerID: hub, payload: records[hub], key: hub.String(),
+		})
+	}
+	return rows, nil
+}
+
+// hubsAfter answers up to batch living hubs after an identifier, in the containers' order: the
+// snapshot pages hubs and collections together, and a short answer has to mean no hub is left.
+func (p PullChanges) hubsAfter(ctx context.Context, after shared.ID, batch int) ([]shared.ID, error) {
+	hubs := make([]shared.ID, 0, batch)
+	for len(hubs) < batch {
+		containers, err := p.Snapshot.Containers(ctx, after, snapshotBatch)
+		if err != nil {
+			return nil, err
+		}
+		for _, container := range containers {
+			after = container.ID
+			if container.Type != work.ContainerHub {
+				continue
+			}
+			if hubs = append(hubs, container.ID); len(hubs) == batch {
+				return hubs, nil
+			}
+		}
+		if len(containers) < snapshotBatch {
+			break
+		}
+	}
+	return hubs, nil
 }
 
 // timeKind reports whether the time module's walk reads the kind.

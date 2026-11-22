@@ -2005,6 +2005,8 @@ func run() error {
 		// A switch of the goals at the workspace resynchronises its devices (offline-sync.md §8).
 		Epochs: postgres.NewEpochRepository(),
 		Hold:   postgres.NewConfigRepository(),
+		// A switch reaches the other devices as a change record (offline-sync.md §3.1).
+		Changes: changes, HLC: hybrid,
 	}
 	// The configuration document (F-6): read and written through the registry it is part of, so
 	// every block it changes goes through the use case every other door reaches.
@@ -4338,6 +4340,8 @@ func run() error {
 				Settings: postgres.SettingRepository{},
 				// A kind the walk skipped is counted (A-39).
 				Signals: metrics,
+				// The module switches of the workspace and of each hub, as their records carry them.
+				Switches: modules,
 			},
 			Signals: metrics,
 			// The push applies a device's queue through the catalogue as the pushing person:

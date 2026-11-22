@@ -129,6 +129,14 @@ type PullChanges struct {
 	Settings settingrepo.Settings
 	// Signals counts a kind the walk skipped; nil counts nothing.
 	Signals WalkSignals
+	// Switches answers the module switches' records the walk hands out; nil hands out none.
+	Switches ModuleRecords
+}
+
+// ModuleRecords answers the record of the workspace's module switches and of each hub named,
+// keyed by the place, inside the caller's transaction.
+type ModuleRecords interface {
+	Records(ctx context.Context, actor appshared.ActorContext, hubs []shared.ID) (map[shared.ID]map[string]any, error)
 }
 
 // Pull answers one page.

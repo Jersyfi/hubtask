@@ -15,6 +15,7 @@ import (
 	"time"
 
 	settingrepo "github.com/Jersyfi/hubtask/core/application/repository/setting"
+	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -39,6 +40,10 @@ const (
 	ModuleSwitchedAction audit.Action = "module.switched"
 	// ModulesReadAction is the code a refused read is recorded under.
 	ModulesReadAction audit.Action = "module.read"
+
+	// Entity is the change log's name for a place's module switches (offline-sync.md §3.1): one
+	// record for the workspace and one for each hub, identified by the place.
+	Entity = "setting"
 
 	moduleTarget        = "module"
 	workspaceReadScope  = "workspace:read"
@@ -72,6 +77,10 @@ type Modules struct {
 	// two switches at once otherwise each judge what a module needs on what the other has not
 	// committed yet. Nil holds nothing.
 	Hold Holder
+	// Changes and HLC tell the other devices of a switch, so that a module switched off leaves
+	// them without a reload (UC-INS-21 check 12). A nil Changes records nothing.
+	Changes changelog.ChangeLog
+	HLC     clock.HLCSource
 }
 
 // Holder holds the workspace's configuration until the transaction ends.
@@ -280,9 +289,71 @@ func (h SetModule) Execute(ctx context.Context, actor appshared.ActorContext, cm
 		if err := m.resynchronise(ctx, cmd, before, after); err != nil {
 			return err
 		}
-		return m.recordAudit(ctx, actor, where, cmd, before, after, now)
+		if err := m.recordAudit(ctx, actor, where, cmd, before, after, now); err != nil {
+			return err
+		}
+		return m.announce(ctx, actor, where, states)
 	})
 	return states, err
+}
+
+// announce records the place's switches as they now stand: filed under the hub for a hub's, under
+// no container for the workspace's, which every member receives.
+func (m Modules) announce(ctx context.Context, actor appshared.ActorContext, where place, states []module.State) error {
+	if m.Changes == nil {
+		return nil
+	}
+	change := changelog.Change{
+		TenantID: actor.TenantID, Entity: Entity, EntityID: where.target, Op: changelog.Upsert,
+		ActorID: actor.AccountID, HLC: m.HLC.Next(), Payload: SwitchesRecord(where.at, states),
+	}
+	if where.at.Level == domain.LevelHub {
+		change.ContainerID = where.target
+	}
+	return m.Changes.Record(ctx, change)
+}
+
+// SwitchesRecord is a place's module switches as a device holds them: each module and whether it
+// is on there - what the capabilities and ListContainerModules answer whoever reads the place.
+// Keys and booleans only: which level decided or locked a module is ListModules' to answer, to
+// whoever may shape the place.
+func SwitchesRecord(at settingrepo.Place, states []module.State) map[string]any {
+	rows := make([]any, 0, len(states))
+	for _, state := range states {
+		rows = append(rows, map[string]any{"module": string(state.Module), "on": state.On()})
+	}
+	out := map[string]any{"hub_id": nil, "modules": rows}
+	if at.Level == domain.LevelHub {
+		out["hub_id"] = at.ScopeID.String()
+	}
+	return out
+}
+
+// Records answers the switches' record of the workspace and of each hub named, keyed by the
+// place, inside the caller's transaction: what a device starting from nothing is handed. Who
+// receives which is the reader's to decide.
+func (m Modules) Records(ctx context.Context, actor appshared.ActorContext, hubs []shared.ID) (map[shared.ID]map[string]any, error) {
+	workspace := settingrepo.Place{Level: domain.LevelWorkspace, ScopeID: actor.TenantID}
+	places := make([]settingrepo.Place, 0, len(hubs)+1)
+	places = append(places, workspace)
+	for _, hub := range hubs {
+		places = append(places, settingrepo.Place{Level: domain.LevelHub, ScopeID: hub})
+	}
+	instance, plan, err := m.Settings.Above(ctx, module.Area+".")
+	if err != nil {
+		return nil, err
+	}
+	stored, err := m.Settings.At(ctx, places, module.Area+".")
+	if err != nil {
+		return nil, err
+	}
+	layers := settingrepo.LayersOf(places, stored)
+	records := make(map[shared.ID]map[string]any, len(places))
+	records[actor.TenantID] = SwitchesRecord(workspace, module.Resolve(instance, plan, layers[0]))
+	for i, hub := range hubs {
+		records[hub] = SwitchesRecord(places[i+1], module.Resolve(instance, plan, layers[0], layers[i+1]))
+	}
+	return records, nil
 }
 
 // refuseUnmet refuses a switch off, or back to the level above, that would leave a module on
