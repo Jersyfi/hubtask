@@ -470,7 +470,8 @@ describe('a reason never moves the page', { concurrency: true }, () => {
     test(`a reason never moves the page, in ${name} (${part})`, { timeout: 15 * 60_000 }, async () => {
       assert.ok(existsSync(join(WORKBENCH, 'index.html')), 'no built workbench: run `make workbench-build` first');
       const server = await serve(WORKBENCH, { headers: { 'content-security-policy': "style-src 'self'" } });
-      const browser = await engine.launch();
+      // A browser that cannot start closes the server too: an open server keeps the run alive forever.
+      const browser = await engine.launch().catch(async (error) => { await server.close(); throw error; });
       try {
         const context = await browser.newContext({ viewport: { width: 1800, height: 1100 }, hasTouch: true });
         const page = await context.newPage();
