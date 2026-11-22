@@ -12,13 +12,14 @@ import (
 // The database image of the Compose stacks is pinned to a release and its digest. A floating tag
 // (`pg16`) is re-pushed on every PostgreSQL minor and pgvector release, so the same file pulled a
 // week apart runs a different server and an upgrade is not reproducible (deployment.md §2.1).
-// Dependabot moves the pin (.github/dependabot.yml). The reference stack's db, upgrade-dump and ops
-// share one image, so pg_dump and pg_restore always match the server.
+// Dependabot moves the pin in every file in one pull request (.github/dependabot.yml). The
+// reference stack's db, upgrade-dump and ops share one image, so pg_dump and pg_restore always
+// match the server, and the platform file's two carry the same one.
 func TestTheComposeDatabaseImageIsPinnedByDigest(t *testing.T) {
 	pinned := regexp.MustCompile(`^pgvector/pgvector:\d+\.\d+\.\d+-pg\d+@sha256:[0-9a-f]{64}$`)
 	image := regexp.MustCompile(`(?m)^\s+image:\s*(\S+)\s*$`)
 	var seen []string
-	for _, file := range []string{"../../deploy/docker/compose.yaml", "../../deploy/docker/compose.dev.yaml"} {
+	for _, file := range []string{"../../deploy/docker/compose.yaml", "../../deploy/docker/compose.dev.yaml", "../../deploy/coolify/compose.yaml"} {
 		for _, m := range image.FindAllStringSubmatch(string(readFile(t, file)), -1) {
 			if strings.HasPrefix(m[1], "${HUBTASK_IMAGE") {
 				continue
@@ -29,8 +30,9 @@ func TestTheComposeDatabaseImageIsPinnedByDigest(t *testing.T) {
 			seen = append(seen, m[1])
 		}
 	}
-	if len(seen) != 4 {
-		t.Errorf("found %d database images, want the reference stack's three and the dev stack's one", len(seen))
+	if len(seen) != 6 {
+		t.Errorf("found %d database images, want the reference stack's three, the dev stack's one and "+
+			"the platform file's two", len(seen))
 	}
 	for _, s := range seen {
 		if s != seen[0] {

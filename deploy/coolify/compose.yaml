@@ -1,0 +1,184 @@
+# Hubtask on Coolify - best effort, not a supported path (deployment.md §2.1, "On Coolify";
+# support-matrix.md §2). The reference stack, deploy/docker/compose.yaml, arranged for the platform:
+# its comments carry the reasoning and are not repeated here. Every difference is marked [Cn]:
+#
+#   [C1] no published ports: the platform's proxy reaches app:8080 on the service network, and the
+#        operations port stays inside it.
+#   [C2] the database password, the application role's password and the secret key are the
+#        platform's generated SERVICE_PASSWORD_64_* values, not variables an operator sets.
+#   [C3] upgrade-dump and migrate are taken out of the platform's health check: a one-shot that has
+#        exited is not unhealthy.
+#   [C4] the database service is named postgres, as on the installation this was walked on.
+#   [C5] no ops service and no ./backup bind mount: the platform runs no profile and has no checkout,
+#        so backup.sh and restore.sh do not run here.
+#   [C6] HUBTASK_TRUSTED_PROXIES is required: every request arrives through the platform's proxy.
+#   [C7] a required variable is written ${NAME:?}, without a message, the form the walked file used.
+#   [C8] no top-level name: the platform names the project itself.
+#   [C9] the volumes carry the names of the walked installation, so one moved onto this file keeps
+#        its data.
+#
+# test/architecture/platformcompose_test.go holds this file to the reference. No gate starts it.
+
+services:
+  postgres:                                                         # [C4]
+    image: pgvector/pgvector:0.8.7-pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-hubtask}
+      POSTGRES_USER: ${POSTGRES_USER:-hubtask}
+      POSTGRES_PASSWORD: ${SERVICE_PASSWORD_64_PGOWNER}             # [C2]
+    volumes:
+      - hubtask-db:/var/lib/postgresql/data                         # [C9]
+    shm_size: 256mb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hubtask} -d ${POSTGRES_DB:-hubtask} -h 127.0.0.1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  upgrade-dump:
+    image: pgvector/pgvector:0.8.7-pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f
+    environment:
+      PGHOST: postgres                                              # [C4]
+      PGUSER: ${POSTGRES_USER:-hubtask}
+      PGPASSWORD: ${SERVICE_PASSWORD_64_PGOWNER}                    # [C2]
+      PGDATABASE: ${POSTGRES_DB:-hubtask}
+      RELEASE: ${HUBTASK_VERSION:?}                                 # [C7]
+      ENABLED: ${HUBTASK_UPGRADE_DUMP:-true}
+      KEPT: ${HUBTASK_UPGRADE_DUMPS_KEPT:-3}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        if [ "$$ENABLED" = "false" ]; then echo "upgrade dump switched off"; exit 0; fi
+        # Assigned first: under -e a database that cannot be reached stops here, never reads as new.
+        migrated=$$(psql -tAc "SELECT to_regclass('public.goose_db_version') IS NOT NULL")
+        if [ "$$migrated" != "t" ]; then echo "a new database: nothing to dump"; exit 0; fi
+        last=$$(cat /dumps/release 2>/dev/null || true)
+        if [ "$$last" = "$$RELEASE" ]; then echo "$$RELEASE has run on this database: nothing to dump"; exit 0; fi
+        file="/dumps/hubtask-$$(date -u +%Y%m%dT%H%M%SZ)-before-$$RELEASE.dump"
+        pg_dump -Fc -f "$$file.partial"
+        mv "$$file.partial" "$$file"
+        echo "$$RELEASE" > /dumps/release
+        ls -1t /dumps/hubtask-*.dump | tail -n +$$((KEPT + 1)) | xargs -r rm -f --
+        echo "dumped before $$RELEASE: $$file"
+    volumes:
+      - hubtask-upgrade-dumps:/dumps                                # [C9]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    exclude_from_hc: true                                           # [C3]
+
+  migrate:
+    image: ${HUBTASK_IMAGE:-ghcr.io/jersyfi/hubtask}:${HUBTASK_VERSION:?}   # [C7]
+    entrypoint: ["/usr/local/bin/hubtask-migrate", "up"]
+    environment:
+      HUBTASK_DB_DSN: postgres://${POSTGRES_USER:-hubtask}:${SERVICE_PASSWORD_64_PGOWNER}@postgres:5432/${POSTGRES_DB:-hubtask}?sslmode=disable   # [C2] [C4]
+      HUBTASK_DB_APP_PASSWORD: ${SERVICE_PASSWORD_64_PGAPP}         # [C2]
+      HUBTASK_DB_CONNECT_WAIT: ${HUBTASK_DB_CONNECT_WAIT:-5m}
+      HUBTASK_MIGRATE_TIMEOUT: ${HUBTASK_MIGRATE_TIMEOUT:-30m}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      upgrade-dump:
+        condition: service_completed_successfully
+    restart: "no"
+    exclude_from_hc: true                                           # [C3]
+
+  app:
+    image: ${HUBTASK_IMAGE:-ghcr.io/jersyfi/hubtask}:${HUBTASK_VERSION:?}   # [C7]
+    restart: unless-stopped
+    environment:
+      HUBTASK_ROLES: api,worker,scheduler,automation
+      HUBTASK_DB_DSN: postgres://hubtask_app:${SERVICE_PASSWORD_64_PGAPP}@postgres:5432/${POSTGRES_DB:-hubtask}?sslmode=disable   # [C2] [C4]
+      HUBTASK_BASE_URL: ${HUBTASK_BASE_URL:?}                       # [C7]
+      HUBTASK_TENANCY_MODE: ${HUBTASK_TENANCY_MODE:-single}
+      HUBTASK_WORKSPACE_HOSTS: ${HUBTASK_WORKSPACE_HOSTS:-subdomain}
+      HUBTASK_OPERATORS: ${HUBTASK_OPERATORS:-}
+      HUBTASK_TRUSTED_PROXIES: ${HUBTASK_TRUSTED_PROXIES:?}         # [C6] [C7]
+      HUBTASK_SECRET_KEY: ${SERVICE_PASSWORD_64_HUBTASKSECRET}      # [C2]
+      HUBTASK_ENCRYPTION_KEYS: ${HUBTASK_ENCRYPTION_KEYS:-}
+      HUBTASK_ENCRYPTION_KEY_K1: ${HUBTASK_ENCRYPTION_KEY_K1:-}
+      HUBTASK_LOG_FORMAT: json
+      HUBTASK_BACKUP_LOCAL_PATH: /var/lib/hubtask/backups
+      HUBTASK_BACKUP_TENANT_TARGETS: ${HUBTASK_BACKUP_TENANT_TARGETS:-false}
+      HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS: ${HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS:-false}
+      HUBTASK_DOCUMENT_SERVER_PRIVATE_NETWORK: ${HUBTASK_DOCUMENT_SERVER_PRIVATE_NETWORK:-true}
+      HUBTASK_COVER_IMAGES_URL: ${HUBTASK_COVER_IMAGES_URL:-}
+      HUBTASK_RESTORE_DRILL_RECORD_FILE: ${HUBTASK_RESTORE_DRILL_RECORD_FILE:-/var/lib/hubtask/restore-drill/last_success_unix}
+      HUBTASK_SMTP_HOST: ${HUBTASK_SMTP_HOST:-}
+      HUBTASK_SMTP_PORT: ${HUBTASK_SMTP_PORT:-}
+      HUBTASK_SMTP_USER: ${HUBTASK_SMTP_USER:-}
+      HUBTASK_SMTP_PASSWORD: ${HUBTASK_SMTP_PASSWORD:-}
+      HUBTASK_SMTP_FROM: ${HUBTASK_SMTP_FROM:-}
+      HUBTASK_SMTP_SECURITY: ${HUBTASK_SMTP_SECURITY:-}
+      HUBTASK_MAIL_INBOUND_DOMAIN: ${HUBTASK_MAIL_INBOUND_DOMAIN:-}
+      HUBTASK_MAIL_INBOUND_KEY: ${HUBTASK_MAIL_INBOUND_KEY:-}
+      HUBTASK_ALEXA_SKILL_IDS: ${HUBTASK_ALEXA_SKILL_IDS:-}
+      HUBTASK_MAIL_OAUTH_GOOGLE_CLIENT_ID: ${HUBTASK_MAIL_OAUTH_GOOGLE_CLIENT_ID:-}
+      HUBTASK_MAIL_OAUTH_GOOGLE_CLIENT_SECRET: ${HUBTASK_MAIL_OAUTH_GOOGLE_CLIENT_SECRET:-}
+      HUBTASK_MAIL_OAUTH_MICROSOFT_CLIENT_ID: ${HUBTASK_MAIL_OAUTH_MICROSOFT_CLIENT_ID:-}
+      HUBTASK_MAIL_OAUTH_MICROSOFT_CLIENT_SECRET: ${HUBTASK_MAIL_OAUTH_MICROSOFT_CLIENT_SECRET:-}
+      HUBTASK_STORAGE_KIND: ${HUBTASK_STORAGE_KIND:-}
+      HUBTASK_S3_ENDPOINT: ${HUBTASK_S3_ENDPOINT:-}
+      HUBTASK_S3_BUCKET: ${HUBTASK_S3_BUCKET:-}
+      HUBTASK_S3_ACCESS_KEY: ${HUBTASK_S3_ACCESS_KEY:-}
+      HUBTASK_S3_SECRET_KEY: ${HUBTASK_S3_SECRET_KEY:-}
+      HUBTASK_S3_REGION: ${HUBTASK_S3_REGION:-}
+      HUBTASK_S3_USE_PATH_STYLE: ${HUBTASK_S3_USE_PATH_STYLE:-}
+      HUBTASK_CLAMD_ADDRESS: ${HUBTASK_CLAMD_ADDRESS:-}
+      HUBTASK_CLAMD_TIMEOUT: ${HUBTASK_CLAMD_TIMEOUT:-2m}
+      HUBTASK_CLAMD_STREAM_MAX_BYTES: ${HUBTASK_CLAMD_STREAM_MAX_BYTES:-26214400}
+      HUBTASK_AI_ALLOW_THIRD_COUNTRY_TRANSFER: ${HUBTASK_AI_ALLOW_THIRD_COUNTRY_TRANSFER:-}
+      HUBTASK_AI_DUPLICATE_THRESHOLD: ${HUBTASK_AI_DUPLICATE_THRESHOLD:-}
+      HUBTASK_RATE_LIMIT_TOKEN_PER_MINUTE: ${HUBTASK_RATE_LIMIT_TOKEN_PER_MINUTE:-}
+      HUBTASK_RATE_LIMIT_TENANT_PER_MINUTE: ${HUBTASK_RATE_LIMIT_TENANT_PER_MINUTE:-}
+      HUBTASK_RATE_LIMIT_BURST: ${HUBTASK_RATE_LIMIT_BURST:-}
+      HUBTASK_RATE_LIMIT_TENANT_BURST: ${HUBTASK_RATE_LIMIT_TENANT_BURST:-}
+      HUBTASK_UI_ENABLED: ${HUBTASK_UI_ENABLED:-}
+      HUBTASK_UI_FRAME_ANCESTORS: ${HUBTASK_UI_FRAME_ANCESTORS:-}
+      HUBTASK_UI_FRAME_SOURCES: ${HUBTASK_UI_FRAME_SOURCES:-}
+      HUBTASK_CORS_ALLOWED_ORIGINS: ${HUBTASK_CORS_ALLOWED_ORIGINS:-}
+      HUBTASK_HTTP_ALLOWED_HOSTS: ${HUBTASK_HTTP_ALLOWED_HOSTS:-}
+      HUBTASK_HTTP_CA_FILE: ${HUBTASK_HTTP_CA_FILE:-}
+      HUBTASK_DEFAULT_LOCALE: ${HUBTASK_DEFAULT_LOCALE:-}
+      HUBTASK_DEFAULT_TIMEZONE: ${HUBTASK_DEFAULT_TIMEZONE:-}
+      HUBTASK_MAX_UPLOAD_BYTES: ${HUBTASK_MAX_UPLOAD_BYTES:-}
+      HUBTASK_MAX_MAIL_BYTES: ${HUBTASK_MAX_MAIL_BYTES:-}
+      HUBTASK_REQUEST_TIMEOUT: ${HUBTASK_REQUEST_TIMEOUT:-}
+      HUBTASK_NATS_URL: ${HUBTASK_NATS_URL:-}
+      HUBTASK_NATS_SUBJECT_PREFIX: ${HUBTASK_NATS_SUBJECT_PREFIX:-}
+      HUBTASK_TRACING_ENABLED: ${HUBTASK_TRACING_ENABLED:-}
+      HUBTASK_TRACING_ENDPOINT: ${HUBTASK_TRACING_ENDPOINT:-}
+      HUBTASK_TRACING_SAMPLE_RATIO: ${HUBTASK_TRACING_SAMPLE_RATIO:-}
+      HUBTASK_INSTANCE_FILE: ${HUBTASK_INSTANCE_FILE:-}
+      HUBTASK_INSTANCE_FILE_MODE: ${HUBTASK_INSTANCE_FILE_MODE:-}
+    volumes:
+      - hubtask-media:/var/lib/hubtask/media                        # [C9]
+      - hubtask-backups:/var/lib/hubtask/backups                    # [C9]
+      - hubtask-restore-drill:/var/lib/hubtask/restore-drill        # [C9]
+    # [C1] no ports.
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/hubtask", "healthcheck"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp"]
+
+# [C5] no ops service.
+
+volumes:                                                            # [C9]
+  hubtask-db:
+  hubtask-media:
+  hubtask-backups:
+  hubtask-restore-drill:
+  hubtask-upgrade-dumps:
