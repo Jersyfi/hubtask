@@ -109,7 +109,7 @@
   </span>
 {/if}
 {#if sheetName !== undefined}
-  <Sheet bind:isOpen title={label} closeLabel={sheetName} onClose={() => (sheetName = undefined)}>
+  <Sheet bind:isOpen title={label} closeLabel={sheetName} layer="popover" onClose={() => (sheetName = undefined)}>
     {@render children()}
   </Sheet>
 {:else if isOpen}

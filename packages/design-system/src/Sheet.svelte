@@ -18,7 +18,7 @@
   import IconButton from './IconButton.svelte';
   import type { IconName } from './icons/index.ts';
   import { escapeHandler, focusReturn } from './focus.ts';
-  import { layers } from './layers.ts';
+  import { layers, type DismissibleLayer } from './layers.ts';
   import { closeName } from './media.ts';
   import type { MenuItem } from './overlay.ts';
 
@@ -38,6 +38,11 @@
     /** The buttons at its foot - *Clear* and *Show 9 people*. */
     actions?: Snippet;
     children?: Snippet;
+    /**
+     * What `Escape` ranks it as (layers.ts). A popover that became a sheet keeps the popover's
+     * rank: opened from inside a dialog, it is what `Escape` closes first, not the dialog.
+     */
+    layer?: DismissibleLayer;
   }
 
   let {
@@ -51,6 +56,7 @@
     onselect,
     actions,
     children,
+    layer = 'overlay',
   }: Props = $props();
 
   const instanceId = $props.id();
@@ -109,7 +115,7 @@
       const rows = [...sheet.querySelectorAll<HTMLElement>('[role="menuitem"]')];
       (rows.find((row) => !row.hasAttribute('data-destructive') && row.getAttribute('aria-disabled') !== 'true') ?? rows[0])?.focus();
     }
-    const handle = layers.open('overlay', close);
+    const handle = layers.open(untrack(() => layer), close);
     const onKeydown = escapeHandler();
     document.addEventListener('keydown', onKeydown);
     return () => {
