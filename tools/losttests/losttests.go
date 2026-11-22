@@ -189,19 +189,20 @@ func In(diff string, deleted map[string]bool) []Test {
 	closeRun()
 
 	// A removed name that is added nowhere is gone; within a run, a gone test and a new one pair
-	// up, in order, as a rename.
+	// up, in order, as a rename. A title too short to name its test is no name: it comes back
+	// nowhere, and pairs up only within its run.
 	gone := map[string][]declaration{}
 	renamedTo := map[string]bool{}
 	for _, r := range runs {
 		var fresh []declaration
 		for _, d := range r.added {
-			if !removedName[d.name] {
+			if d.name == "" || !removedName[d.name] {
 				fresh = append(fresh, d)
 			}
 		}
 		for _, d := range r.removed {
 			switch {
-			case addedName[d.name]:
+			case d.name != "" && addedName[d.name]:
 			case len(fresh) > 0 && !deleted[r.path]:
 				renamedTo[fresh[0].name] = true
 				fresh = fresh[1:]

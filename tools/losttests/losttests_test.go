@@ -47,6 +47,11 @@ func TestIn(t *testing.T) {
 			goHead + " func TestKept(t *testing.T) {\n+\t// t.Skip is not what this does\n }\n", nil},
 		{"a test moved to another file",
 			goHead + "-func TestMoved(t *testing.T) {\n-}\n diff --git a/core/b/b_test.go b/core/b/b_test.go\n--- a/core/b/b_test.go\n+++ b/core/b/b_test.go\n@@ -1,2 +1,4 @@\n package b\n+func TestMoved(t *testing.T) {\n+}\n", nil},
+		{"a title too short to name its test does not come back as another file's short title",
+			jsHead + "-test(`case ${kind}`, () => {\n-});\n diff --git a/apps/webapp/e2e/b.test.mjs b/apps/webapp/e2e/b.test.mjs\n--- a/apps/webapp/e2e/b.test.mjs\n+++ b/apps/webapp/e2e/b.test.mjs\n@@ -1,2 +1,4 @@\n import x from 'x';\n+test(`row ${id}`, () => {\n+});\n",
+			[]Test{{Path: "apps/webapp/e2e/a.test.mjs", Name: "a.test.mjs", How: "removed"}}},
+		{"a title too short to name its test, changed in place, is a rename",
+			jsHead + "-test(`case ${kind}`, () => {\n+test(`case ${kind} x`, () => {\n });\n", nil},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
