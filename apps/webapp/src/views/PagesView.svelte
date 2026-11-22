@@ -208,7 +208,9 @@
 
   /** An empty space started from one of Hubtask's space templates, in one press. */
   async function startSpace(key: ShippedSpace) {
-    const space = shippedSpace(key, t);
+    // Stored names, in the naming language as a new page's are.
+    await naming.ready;
+    const space = shippedSpace(key, named);
     const made = await act(() => pages.create(hubId, { title: space.title, body: space.body, subpages: space.subpages }));
     if (made) onnavigate(`/pages/${made.id}`);
   }
