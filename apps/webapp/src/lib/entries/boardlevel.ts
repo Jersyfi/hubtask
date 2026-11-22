@@ -10,8 +10,12 @@
 
 import type { BoardPreview, EntrySteps, StateMode } from '@hubtask/sync-engine';
 
-/** A level switch a person asks for: L0 → L1, L1 → L0, L1 → L2. */
-export type LevelSwitch = 'board' | 'list' | 'workflow';
+/**
+ * A level switch a person asks for: L0 → L1, L1 → L0, L1 → L2. `remove` is L1 → L0 asked from the
+ * settings of a collection that offers no board (UC-WRK-05 check 13): the same switch, named for
+ * what it does there.
+ */
+export type LevelSwitch = 'board' | 'list' | 'workflow' | 'remove';
 
 /** The key a board uses for the column of entries no column shows. */
 export const NO_COLUMN = 'none';
