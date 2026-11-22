@@ -626,14 +626,16 @@ What it says:
     §3.1, "Performance is measured, not gated").
   - `goalswalk`, `servicedeskwalk` and `timewalk` failed in 7, 6 and 6, mostly together: their
     record of errors (`productwalk.mjs`) held requests the browser had cancelled
-    (`net::ERR_ABORTED` on a lazily loaded file, `/api/v1/stream` or a sync request). Read, not
-    fixed. Three of those runs were read a second time, both attempts of each: 2026-11-09, 11-16
-    and 11-19. Each was a pull request of Dependabot's that raises Playwright from 1.64.1 to
-    1.65, and the three walks failed in both attempts — so there it is no flake. With 1.64.1,
-    which `main` has, Chromium reports no failed request when a walk leaves a page with one
-    under way; that was tried on a worker's machine. That 1.65 reports them is what the logs
-    suggest and nobody verified. A `finding`: the record must tell a request cancelled by
-    leaving the page from a failed one before Playwright is raised.
+    (`net::ERR_ABORTED` on a lazily loaded file, `/api/v1/stream` or a sync request). Three of
+    those runs were read a second time, both attempts of each: 2026-11-09, 11-16 and 11-19. Each
+    was a pull request of Dependabot's that raises Playwright from 1.64.1 to 1.65, and the three
+    walks failed in both attempts — so there it is no flake. On 2026-11-22 Dependabot's pull
+    request 1876, which raises Playwright to 1.65.1, failed the same way in the second attempt
+    of run 45015522979, and there `workspacetemplates` failed too. Reproduced on a worker's
+    machine: with 1.64.1 Chromium reports nothing for a request a page leaves under way; with
+    1.65.1 it reports `net::ERR_ABORTED` between the next document's request and its commit.
+    Fixed: the record (`scalewalk-errors.mjs`) leaves out exactly that, and keeps every failure
+    of a document that stays.
   - `voice` and `productsband` failed in 5 each, on 2026-11-07 only; `instanceworkspaces` in 5,
     fixed on `main` on 2026-11-21. Twenty-one more suites failed in one to four attempts.
     `voice`, `productsband`, `celebrate`, `shell` and those others were counted and are unread:
