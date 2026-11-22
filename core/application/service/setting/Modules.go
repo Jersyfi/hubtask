@@ -115,14 +115,19 @@ func (m Modules) placeOf(ctx context.Context, actor appshared.ActorContext, hubI
 	}
 	if hub.Type != work.ContainerHub {
 		// A module is switched for a hub and never for one collection (UC-INS-21, *Where it ends*).
-		return place{}, shared.ErrValidation.WithDetail("module.hub_only").
-			WithFields(shared.FieldError{Path: "/hub_id", Code: "module.hub_only"})
+		return place{}, hubOnly("/hub_id")
 	}
 	at := settingrepo.Place{Level: domain.LevelHub, ScopeID: hubID}
 	return place{
 		at: at, walk: []settingrepo.Place{workspace, at},
 		path: service.ContainerScopes(hub), target: hubID,
 	}, nil
+}
+
+const hubOnlyCode = "module.hub_only"
+
+func hubOnly(path string) error {
+	return shared.ErrValidation.WithDetail(hubOnlyCode).WithFields(shared.FieldError{Path: path, Code: hubOnlyCode})
 }
 
 // read finds the place in its own read, so that a refusal's audit entry is written outside the
@@ -346,6 +351,11 @@ func (m Modules) chosen(ctx context.Context, actor appshared.ActorContext, hubs 
 			continue
 		}
 		if _, err := m.authorised(ctx, actor, hub); err != nil {
+			// A collection among them is refused at the list that named it.
+			var refusal *shared.Error
+			if errors.As(err, &refusal) && refusal.DetailCode == hubOnlyCode {
+				return nil, hubOnly("/hub_ids")
+			}
 			return nil, err
 		}
 		chosen = append(chosen, hub)

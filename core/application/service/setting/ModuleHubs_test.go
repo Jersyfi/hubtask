@@ -249,6 +249,11 @@ func TestTheChosenHubsAreRefusedWhole(t *testing.T) {
 			if refusal.is != nil && !errors.Is(err, refusal.is) || refusal.want != "" && !refusedWith(err, refusal.want) {
 				t.Fatalf("the switch answered %v", err)
 			}
+			// Every refusal of the list points at the list, a collection named in it too.
+			var answered *shared.Error
+			if refusal.want != "" && (!errors.As(err, &answered) || len(answered.Fields) != 1 || answered.Fields[0].Path != "/hub_ids") {
+				t.Errorf("the refusal points at %+v, want /hub_ids", answered)
+			}
 			if len(store.rows) != 0 || len(sink.entries) != 0 {
 				t.Errorf("a refused switch stored %v and wrote %d trail entries", store.rows, len(sink.entries))
 			}
