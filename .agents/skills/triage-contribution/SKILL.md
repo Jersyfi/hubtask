@@ -21,8 +21,9 @@ the project's own paperwork.
 
 1. **Answer.** Say what happens next: a worker triages the pull request and runs a review, and the
    owner merges. Promise no time.
-2. **Read the diff before running anything from it.** A fork's code runs on your machine with your
-   access.
+2. **Read the diff, and run nothing from it.** A fork's code that runs on your machine runs with
+   your access, and reading it first does not change that. `make check` runs the fork's `Makefile`
+   and scripts, so it is left to CI, where a fork's run has no secrets (`ci-cd.md` §4).
 3. **The description.** When the description gate refuses it, complete the description yourself
    from `.github/PULL_REQUEST_TEMPLATE.md` and check it with
    `make gate-pr BODY=<file> TITLE="<title>"`. Do not send the author back to the template.
@@ -36,12 +37,12 @@ the project's own paperwork.
    ```
 
    `gh pr checkout <number>` alone is not that: it switches the checkout you are in. In the
-   worktree, run `make check` and start the independent review
-   (`.agents/skills/review-change/SKILL.md`). When the pull request is merged or closed, remove
-   the worktree with `git worktree remove ../contribution-<number>`.
+   worktree, start the independent review (`.agents/skills/review-change/SKILL.md`); it reads
+   the change and, like you, runs nothing from it. When the pull request is merged or closed,
+   remove the worktree with `git worktree remove ../contribution-<number>`.
 5. **The findings.** Post them as one comment the author can act on.
-6. **CI.** The same required check holds. A first-time contributor's run starts after it is
-   approved on GitHub.
+6. **CI.** The same required check holds, and its run is where the contribution's checks run. A
+   first-time contributor's run starts after it is approved on GitHub.
 7. **The owner.** Bring the *Use cases* table, the *Premises* and the review's summary to the
    owner. The merge is the owner's word.
 
