@@ -16,7 +16,7 @@ import type {
 } from '@hubtask/sync-engine';
 
 import { engine, INTENT } from './engine.ts';
-import { livePath } from './pages.ts';
+import { livePath, trashInvalidates } from './pages.ts';
 
 export * from './pages.ts';
 
@@ -114,14 +114,10 @@ class Pages {
     });
   }
 
-  /**
-   * Invalidates what lists the page, not the page: `/pages/{id}` is a prefix of its labels,
-   * comments and backlinks, and the screen still showing it would read them all again and find
-   * them gone. Its own reads stay cached until a restore invalidates them.
-   */
-  trash(page: Page): Promise<PageTrashed> {
+  /** `leaving` when the screen showing the page leaves it at once (see `trashInvalidates`). */
+  trash(page: Page, { leaving = false }: { leaving?: boolean } = {}): Promise<PageTrashed> {
     return engine.mutate<PageTrashed>('DELETE', pagePath(page.id), undefined, {
-      invalidates: [pagesPath(page.hub_id), '/trash'],
+      invalidates: trashInvalidates(page, leaving),
     });
   }
 

@@ -298,7 +298,7 @@
         return pageEditor?.dropPending();
       },
       trash: async () => {
-        const answer = await act(() => pages.trash(page), undefined);
+        const answer = await act(() => pages.trash(page, { leaving: true }), undefined);
         if (answer) toast.show({ text: t('app.pages.trashed', { count: String(answer.trashed) }), tone: 'success' });
         return answer;
       },
