@@ -17110,7 +17110,7 @@
         "x-hubtask-rest-list": "data",
         "x-hubtask-rest-answer": "invitationDeliveryResponse",
         "summary": "How the last mail to each of many accounts went",
-        "description": "For the people list's rows: for up to 200 accounts, the last mail this workspace queued\nfor each - an invitation, or any other mail it tells a person by (`category`) - queued,\nbeing sent, sent, failed with its code, or cancelled, and when. The newer of the last\ninvitation and the last other mail is answered. An account with no mail on record (none\nqueued, an installation that hands invitations over as links, or one finished long enough\nago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation\ndoes.\n",
+        "description": "For the people list's rows: for up to 200 accounts, the last mail this workspace queued\nfor each - an invitation, or any other mail it tells a person by (`category`) - queued,\nbeing sent, sent, failed with its code, or cancelled, and when. While an account is\ninvited and has not accepted, its last invitation mail is answered, whatever other mail\nwent out since - cancelled where the invitation was handed over by link; with no\ninvitation mail on record, the last other mail. For any other account the newer of the\nlast invitation and the last other mail is answered. An account with no mail on record (none\nqueued, an installation that hands invitations over as links, or one finished long enough\nago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation\ndoes.\n",
         "requestBody": {
           "required": true,
           "content": {

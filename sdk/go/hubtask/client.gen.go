@@ -34778,8 +34778,11 @@ type ClientInterface interface {
 	//
 	// For the people list's rows: for up to 200 accounts, the last mail this workspace queued
 	// for each - an invitation, or any other mail it tells a person by (`category`) - queued,
-	// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
-	// invitation and the last other mail is answered. An account with no mail on record (none
+	// being sent, sent, failed with its code, or cancelled, and when. While an account is
+	// invited and has not accepted, its last invitation mail is answered, whatever other mail
+	// went out since - cancelled where the invitation was handed over by link; with no
+	// invitation mail on record, the last other mail. For any other account the newer of the
+	// last invitation and the last other mail is answered. An account with no mail on record (none
 	// queued, an installation that hands invitations over as links, or one finished long enough
 	// ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
 	// does.
@@ -34793,8 +34796,11 @@ type ClientInterface interface {
 	//
 	// For the people list's rows: for up to 200 accounts, the last mail this workspace queued
 	// for each - an invitation, or any other mail it tells a person by (`category`) - queued,
-	// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
-	// invitation and the last other mail is answered. An account with no mail on record (none
+	// being sent, sent, failed with its code, or cancelled, and when. While an account is
+	// invited and has not accepted, its last invitation mail is answered, whatever other mail
+	// went out since - cancelled where the invitation was handed over by link; with no
+	// invitation mail on record, the last other mail. For any other account the newer of the
+	// last invitation and the last other mail is answered. An account with no mail on record (none
 	// queued, an installation that hands invitations over as links, or one finished long enough
 	// ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
 	// does.
@@ -47174,8 +47180,11 @@ func (c *Client) CreateManagedAccount(ctx context.Context, params *CreateManaged
 //
 // For the people list's rows: for up to 200 accounts, the last mail this workspace queued
 // for each - an invitation, or any other mail it tells a person by (`category`) - queued,
-// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
-// invitation and the last other mail is answered. An account with no mail on record (none
+// being sent, sent, failed with its code, or cancelled, and when. While an account is
+// invited and has not accepted, its last invitation mail is answered, whatever other mail
+// went out since - cancelled where the invitation was handed over by link; with no
+// invitation mail on record, the last other mail. For any other account the newer of the
+// last invitation and the last other mail is answered. An account with no mail on record (none
 // queued, an installation that hands invitations over as links, or one finished long enough
 // ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
 // does.
@@ -47199,8 +47208,11 @@ func (c *Client) ReadInvitationDeliveriesWithBody(ctx context.Context, contentTy
 //
 // For the people list's rows: for up to 200 accounts, the last mail this workspace queued
 // for each - an invitation, or any other mail it tells a person by (`category`) - queued,
-// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
-// invitation and the last other mail is answered. An account with no mail on record (none
+// being sent, sent, failed with its code, or cancelled, and when. While an account is
+// invited and has not accepted, its last invitation mail is answered, whatever other mail
+// went out since - cancelled where the invitation was handed over by link; with no
+// invitation mail on record, the last other mail. For any other account the newer of the
+// last invitation and the last other mail is answered. An account with no mail on record (none
 // queued, an installation that hands invitations over as links, or one finished long enough
 // ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
 // does.
@@ -114360,8 +114372,11 @@ type ClientWithResponsesInterface interface {
 	//
 	// For the people list's rows: for up to 200 accounts, the last mail this workspace queued
 	// for each - an invitation, or any other mail it tells a person by (`category`) - queued,
-	// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
-	// invitation and the last other mail is answered. An account with no mail on record (none
+	// being sent, sent, failed with its code, or cancelled, and when. While an account is
+	// invited and has not accepted, its last invitation mail is answered, whatever other mail
+	// went out since - cancelled where the invitation was handed over by link; with no
+	// invitation mail on record, the last other mail. For any other account the newer of the
+	// last invitation and the last other mail is answered. An account with no mail on record (none
 	// queued, an installation that hands invitations over as links, or one finished long enough
 	// ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
 	// does.
@@ -114375,8 +114390,11 @@ type ClientWithResponsesInterface interface {
 	//
 	// For the people list's rows: for up to 200 accounts, the last mail this workspace queued
 	// for each - an invitation, or any other mail it tells a person by (`category`) - queued,
-	// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
-	// invitation and the last other mail is answered. An account with no mail on record (none
+	// being sent, sent, failed with its code, or cancelled, and when. While an account is
+	// invited and has not accepted, its last invitation mail is answered, whatever other mail
+	// went out since - cancelled where the invitation was handed over by link; with no
+	// invitation mail on record, the last other mail. For any other account the newer of the
+	// last invitation and the last other mail is answered. An account with no mail on record (none
 	// queued, an installation that hands invitations over as links, or one finished long enough
 	// ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
 	// does.
@@ -171429,8 +171447,11 @@ func (c *ClientWithResponses) CreateManagedAccountWithResponse(ctx context.Conte
 //
 // For the people list's rows: for up to 200 accounts, the last mail this workspace queued
 // for each - an invitation, or any other mail it tells a person by (`category`) - queued,
-// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
-// invitation and the last other mail is answered. An account with no mail on record (none
+// being sent, sent, failed with its code, or cancelled, and when. While an account is
+// invited and has not accepted, its last invitation mail is answered, whatever other mail
+// went out since - cancelled where the invitation was handed over by link; with no
+// invitation mail on record, the last other mail. For any other account the newer of the
+// last invitation and the last other mail is answered. An account with no mail on record (none
 // queued, an installation that hands invitations over as links, or one finished long enough
 // ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
 // does.
@@ -171450,8 +171471,11 @@ func (c *ClientWithResponses) ReadInvitationDeliveriesWithBodyWithResponse(ctx c
 //
 // For the people list's rows: for up to 200 accounts, the last mail this workspace queued
 // for each - an invitation, or any other mail it tells a person by (`category`) - queued,
-// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
-// invitation and the last other mail is answered. An account with no mail on record (none
+// being sent, sent, failed with its code, or cancelled, and when. While an account is
+// invited and has not accepted, its last invitation mail is answered, whatever other mail
+// went out since - cancelled where the invitation was handed over by link; with no
+// invitation mail on record, the last other mail. For any other account the newer of the
+// last invitation and the last other mail is answered. An account with no mail on record (none
 // queued, an installation that hands invitations over as links, or one finished long enough
 // ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
 // does.
