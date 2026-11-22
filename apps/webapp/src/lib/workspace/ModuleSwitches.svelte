@@ -16,8 +16,13 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, CheckboxGroup, Dialog, IconButton, Inline, SettingRow, Spinner, Switch } from '@hubtask/design-system/components';
+  import { Button, CheckboxGroup, Dialog, Icon, IconButton, Inline, Radio, SettingRow, Spinner, Switch } from '@hubtask/design-system/components';
   import type { ConfigTemplate, ConfigTemplateList, ModuleList, ModuleReach, ModuleState, ResourceState } from '@hubtask/sync-engine';
+
+  import { buckets } from '../data/buckets.svelte.ts';
+  import { workflows } from '../data/workflows.svelte.ts';
+  import { statusLabel } from '../data/workflows.ts';
+  import { needsChoice, rowsInReach, strandedBy, type OffChoice, type RowReach, type SchemeRow } from './workflowsoff.ts';
 
   import ValueSource from './ValueSource.svelte';
   import ViewAsFile from '../settings/ViewAsFile.svelte';
@@ -96,6 +101,118 @@
     return untrack(() => modules.reach(module, at, (next) => (reach = next)));
   });
   const reachLines = $derived(offReach(reach.status === 'ready' ? reach.data : undefined));
+
+  // Switching Workflows off (UC-INS-21 check 14): a workflow stays in force on the
+  // server with its module off, so the question lists what it strands - read while the module is
+  // still on: the scheme, one preview of removing each row in reach, each board's columns - and
+  // asks whether to convert those places to columns or only pause; nothing is chosen at first.
+  const asksWorkflows = $derived(confirming?.module === 'WORKFLOWS');
+  $effect(() => {
+    if (!asksWorkflows) return;
+    const at = hubId;
+    return untrack(() => {
+      const stops = [workflows.open()];
+      if (at) stops.push(containers.openLevel(at));
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  const inReach = $derived.by((): SchemeRow[] | undefined => {
+    const list = workflows.list;
+    if (!asksWorkflows || !list) return undefined;
+    if (hubId && containers.isLevelLoading(hubId)) return undefined;
+    return rowsInReach(list.scheme, hubId, hubId ? containers.collectionsOf(hubId).map((each) => each.id) : []);
+  });
+  let reaches = $state<
+    | { status: 'idle' | 'loading' }
+    | { status: 'ready'; data: readonly RowReach[] }
+    | { status: 'failed'; error: unknown }
+  >({ status: 'idle' });
+  $effect(() => {
+    const rows = inReach;
+    reaches = { status: rows ? 'loading' : 'idle' };
+    if (!rows) return;
+    let isCurrent = true;
+    void Promise.all(rows.map(async (row) => ({
+      row,
+      preview: await workflows.previewScheme({ container_id: row.container_id, ...(row.entry_type ? { entry_type: row.entry_type } : {}) }),
+    }))).then(
+      (data) => { if (isCurrent) reaches = { status: 'ready', data }; },
+      (error) => { if (isCurrent) reaches = { status: 'failed', error }; },
+    );
+    return () => { isCurrent = false; };
+  });
+  const reached = $derived(reaches.status === 'ready' ? reaches.data : undefined);
+  // The places and boards named in the question: their names and the columns that show each status.
+  $effect(() => {
+    const ids = [...new Set([...(reached ?? []).map((each) => each.row.container_id), ...(reached ?? []).flatMap((each) => each.preview.moves.map((move) => move.collection_id))])];
+    if (ids.length === 0) return;
+    return untrack(() => {
+      const stops = ids.flatMap((id) => [containers.openSingle(id), buckets.open(id)]);
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  const stranded = $derived(reached ? strandedBy(reached, workflows.list?.data ?? [], (id) => buckets.of(id)) : undefined);
+  let offChoice = $state<OffChoice>(undefined);
+  /** Converting: the places done so far, the one at, and why it stopped. */
+  let converting = $state<{ done: number; at?: string; failure?: string } | undefined>(undefined);
+
+  /** A place as the question names it: a collection with its hub, a hub with all its collections. */
+  function placeName(id: string): string {
+    const place = containers.find(id);
+    if (!place) return t('app.modules.off_wf_unknown');
+    if (place.type === 'HUB') return t('app.modules.off_wf_hub_place', { hub: place.name });
+    const hub = place.parent_id ? containers.find(place.parent_id) : undefined;
+    return hub ? t('app.modules.off_wf_collection_place', { collection: place.name, hub: hub.name }) : place.name;
+  }
+  function statusName(collectionId: string, key: string): string {
+    const row = reached?.find((each) => each.preview.moves.some((move) => move.collection_id === collectionId));
+    const shape = workflows.list?.data.find((each) => each.key === row?.row.workflow)?.published;
+    const status = shape?.statuses.find((each) => each.key === key);
+    return status ? statusLabel(status, t) : key;
+  }
+  function columnAfter(collectionId: string, columnId: string | undefined): string {
+    const columns = buckets.of(collectionId);
+    const column = columns.find((each) => each.id === columnId);
+    if (column) return column.name;
+    return columns[0] ? t('app.modules.off_wf_first_column', { column: columns[0].name }) : t('app.modules.off_wf_no_board');
+  }
+
+  /** Removes each scheme row in reach, then switches off; a failure stops and keeps the module on. */
+  async function convertAndSwitchOff(state: ModuleState) {
+    const rows = reached?.map((each) => each.row) ?? [];
+    converting = { done: 0 };
+    for (const row of rows) {
+      converting = { done: converting.done, at: placeName(row.container_id) };
+      try {
+        await workflows.setScheme({ container_id: row.container_id, ...(row.entry_type ? { entry_type: row.entry_type } : {}) });
+      } catch (error) {
+        converting = { done: converting.done, failure: renderProblem(error as never, messages).message };
+        return;
+      }
+      converting = { done: converting.done + 1 };
+    }
+    converting = undefined;
+    isConfirming = false;
+    confirming = undefined;
+    await send(state, 'OFF');
+    toast.show({ text: t('app.modules.off_wf_converted', { count: rows.length }), tone: 'success' });
+  }
+  const offPrimary = $derived.by(() => {
+    if (!asksWorkflows) return { label: t('app.modules.off_confirm'), tone: 'danger' as const, onclick: confirmOff };
+    if (reaches.status === 'loading' || reaches.status === 'idle') {
+      return { label: t('app.modules.off_confirm'), tone: 'danger' as const, onclick: confirmOff, disabledReason: t('app.modules.off_wf_reading') };
+    }
+    if (!needsChoice(stranded)) return { label: t('app.modules.off_confirm'), tone: 'danger' as const, onclick: confirmOff };
+    if (offChoice === 'convert') {
+      return {
+        label: t('app.modules.off_wf_convert_confirm'), tone: 'danger' as const,
+        onclick: () => { if (confirming) void convertAndSwitchOff(confirming); },
+        isBusy: converting !== undefined && !converting.failure, busyLabel: t('app.modules.off_wf_converting_short'),
+      };
+    }
+    if (offChoice === 'pause') return { label: t('app.modules.off_wf_pause_confirm'), tone: 'danger' as const, onclick: confirmOff };
+    return { label: t('app.modules.off_confirm'), tone: 'danger' as const, onclick: confirmOff, disabledReason: t('app.modules.off_wf_choose_first') };
+  });
 
   // A private hub counts only a role held on it, so its memberships are read; a shared hub
   // follows the workspace's, which the manifest already answers.
@@ -190,6 +307,8 @@
     if (asksFirst(state, next)) {
       control.checked = state.on;
       drawn[state.module] = state.on;
+      offChoice = undefined;
+      converting = undefined;
       confirming = state;
       isConfirming = true;
       return;
@@ -340,15 +459,66 @@
 
 {#if confirming}
   <Dialog
-    size="s"
+    size={asksWorkflows && needsChoice(stranded) ? 'm' : 's'}
     bind:isOpen={isConfirming}
     title={t('app.modules.off_title', { module: t(moduleCodes(confirming).name) })}
     dismissLabel={t('app.modules.off_cancel')}
     onClose={() => (confirming = undefined)}
-    primary={{ label: t('app.modules.off_confirm'), tone: 'danger', onclick: confirmOff }}
+    primary={offPrimary}
   >
-    <p class="quiet">{t('app.modules.off_explain')}</p>
-    {#each reachLines as line (line.code)}<p class="quiet" data-off-reach>{t(line.code, line.params)}</p>{/each}
+    {#if asksWorkflows}
+      <!-- What switching off strands, as the alert dialog's list of consequences (UC-INS-21 check 14). -->
+      <p class="quiet">{t('app.modules.off_wf_explain')}</p>
+      {#if reaches.status === 'loading'}
+        <p class="waiting"><Spinner label={t('app.modules.off_wf_reading')} /><span>{t('app.modules.off_wf_reading')}</span></p>
+      {:else if reaches.status === 'failed'}
+        <FailureNote problem={renderProblem(reaches.error as never, messages)} />
+      {/if}
+      <ul class="consequences" data-off-workflows>
+        {#if stranded && stranded.places.length > 0}
+          <li data-tone="warning"><Icon name="triangle-alert" size="sm" /><span><strong>{t('app.modules.off_wf_places', { count: stranded.places.length })}</strong><small>{stranded.places.map(placeName).join(' · ')}</small></span></li>
+        {/if}
+        {#if stranded && stranded.open > 0}
+          <li data-tone="warning" data-off-open={stranded.open}><Icon name="triangle-alert" size="sm" /><span><strong>{t('app.modules.off_wf_open', { count: stranded.open })}</strong>{#if stranded.stuck > 0}<small data-off-stuck={stranded.stuck}>{t('app.modules.off_wf_stuck', { count: stranded.stuck })}</small>{/if}</span></li>
+        {/if}
+        {#each reachLines as line (line.code)}<li data-off-reach><Icon name={line.code === 'app.modules.off_rules' ? 'pause' : 'info'} size="sm" /><span>{t(line.code, line.params)}</span></li>{/each}
+        <li><Icon name="info" size="sm" /><span>{t('app.modules.off_wf_kept')}</span></li>
+      </ul>
+      {#if stranded && needsChoice(stranded)}
+        <Radio
+          label={t('app.modules.off_wf_question', { count: stranded.open })}
+          options={[
+            { value: 'convert', label: t('app.modules.off_wf_convert'), hint: t('app.modules.off_wf_convert_hint') },
+            { value: 'pause', label: t('app.modules.off_wf_pause'), hint: t('app.modules.off_wf_pause_hint', { open: stranded.open, stuck: stranded.stuck }) },
+          ]}
+          bind:value={() => offChoice ?? '', (value) => (offChoice = value === 'convert' || value === 'pause' ? value : undefined)}
+          disabledReason={converting && !converting.failure ? t('app.modules.off_wf_converting_short') : undefined}
+        />
+        {#if offChoice === 'convert'}
+          <!-- Where the entries go, per collection: each status today and the column that keeps it. -->
+          <div class="where" data-off-where>
+            <p class="where-title">{t('app.modules.off_wf_where')}</p>
+            {#each [...new Set(stranded.lines.map((line) => line.collectionId))] as collectionId (collectionId)}
+              <p class="where-place">{containers.find(collectionId)?.name ?? t('app.modules.off_wf_unknown')}</p>
+              <ul>
+                {#each stranded.lines.filter((line) => line.collectionId === collectionId) as line (line.status)}
+                  <li data-off-line>{t('app.modules.off_wf_line', { status: statusName(collectionId, line.status), column: columnAfter(collectionId, line.columnId), count: line.count })}</li>
+                {/each}
+              </ul>
+            {/each}
+          </div>
+        {/if}
+        {#if converting}
+          <p class="quiet" role="status" data-converting>
+            {#if converting.failure}{t('app.modules.off_wf_stopped', { done: converting.done, count: stranded.places.length })}{:else if converting.at}{t('app.modules.off_wf_converting', { at: converting.done + 1, count: stranded.places.length, place: converting.at })}{/if}
+          </p>
+          {#if converting.failure}<p class="refusal-inline" role="alert">{converting.failure}</p>{/if}
+        {/if}
+      {/if}
+    {:else}
+      <p class="quiet">{t('app.modules.off_explain')}</p>
+      {#each reachLines as line (line.code)}<p class="quiet" data-off-reach>{t(line.code, line.params)}</p>{/each}
+    {/if}
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isConfirming = false)}>{t('app.modules.off_cancel')}</Button>
     {/snippet}
@@ -414,5 +584,24 @@
     background: var(--accent-primary-subtle);
   }
   .card-title { margin: 0; font-weight: var(--fw-medium); }
+
+  /* The consequences of switching Workflows off, one line each with its mark (UX-7: never by colour alone). */
+  .consequences { display: grid; gap: var(--sp-100); margin: var(--sp-150) 0; padding: 0; list-style: none; }
+  .consequences li { display: grid; grid-template-columns: auto 1fr; gap: var(--sp-100); align-items: start; color: var(--text-secondary); }
+  .consequences li[data-tone='warning'] {
+    padding: var(--sp-100);
+    border-radius: var(--r-sm);
+    background: var(--status-warning-surface);
+    color: var(--status-warning-text);
+  }
+  .consequences li[data-tone='warning'] small { color: inherit; }
+  .consequences strong { display: block; font-weight: var(--fw-semibold); }
+  .consequences small { display: block; color: var(--text-secondary); font-size: var(--fs-075); }
+  .where { display: grid; gap: var(--sp-050); margin-block-start: var(--sp-150); font-size: var(--fs-075); }
+  .where p { margin: 0; }
+  .where-title { font-weight: var(--fw-medium); }
+  .where-place { color: var(--text-secondary); }
+  .where ul { margin: 0; padding-inline-start: var(--sp-200); }
+  .refusal-inline { margin: 0; color: var(--text-danger); }
   .act { color: var(--text-brand); font-weight: var(--fw-medium); }
 </style>

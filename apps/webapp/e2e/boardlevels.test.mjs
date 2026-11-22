@@ -138,8 +138,8 @@ test('chromium: L2 - the row\'s mark takes the next step towards done, an arrow 
 });
 
 // A workflow stays in force on the server with its module off (`WorkflowGate`): the row says it
-// is paused instead of pretending to be a list, offers no step, and its mark completes through the
-// base product's `:complete`, which the server answers.
+// is paused instead of pretending to be a list (UC-INS-21 check 14), offers no step, and its mark
+// completes through the base product's `:complete`, which the server answers.
 test('chromium: L2 with Workflows off - the chip says the workflow is paused, the mark completes', async (t) => {
   const browser = await sharedChromium(t);
   const { page, written, context } = await at(browser, 'WORKFLOW', { workflowsOn: false });
