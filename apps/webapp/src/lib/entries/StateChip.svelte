@@ -46,14 +46,14 @@
 </script>
 
 {#if chip.pausedReason}
-  <span class="chip" data-state-chip data-paused title={chip.pausedReason}><StateLozenge label={chip.label} tone="warning" icon="pause" size="sm" /><VisuallyHidden>{chip.pausedReason}</VisuallyHidden></span>
+  <span class="chip" data-state-chip data-paused title={chip.pausedReason}><StateLozenge label={chip.label} tone="warning" icon="pause" size="mark" /><VisuallyHidden>{chip.pausedReason}</VisuallyHidden></span>
 {:else if disabledReason || menuItems.length === 0}
-  <span class="chip" data-state-chip title={disabledReason}><StateLozenge label={chip.label} vocabulary="category" state={chip.category} size="sm" /></span>
+  <span class="chip" data-state-chip title={disabledReason}><StateLozenge label={chip.label} vocabulary="category" state={chip.category} size="mark" /></span>
 {:else}
   <Menu bind:this={menu} label={t('app.entries.state_menu', { title: item.title })} items={menuItems} onselect={(id) => void choose(id)}>
     {#snippet trigger(props)}
       <button type="button" class="chip" data-state-chip aria-label={t('app.entries.state_chip', { title: item.title, state: chip.label })} {...props}>
-        <StateLozenge label={chip.label} vocabulary="category" state={chip.category} size="sm" hasChevron />
+        <StateLozenge label={chip.label} vocabulary="category" state={chip.category} size="mark" hasChevron />
       </button>
     {/snippet}
   </Menu>

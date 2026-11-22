@@ -270,6 +270,8 @@ for (const level of ['COLUMNS', 'WORKFLOW']) {
     const [m, c] = await Promise.all([mark.boundingBox(), chip.boundingBox()]);
     assert.ok(c.x > m.x + m.width - 1 && c.x - (m.x + m.width) <= 12, `the chip does not follow the mark: ${JSON.stringify({ m, c })}`);
     assert.ok(Math.abs((m.y + m.height / 2) - (c.y + c.height / 2)) < 3, 'mark and chip are not on one line');
+    // The chip is the mark's height, so the two read as one control (the approved design).
+    assert.ok(Math.abs(c.height - m.height) < 1, `the chip is ${c.height} px beside a ${m.height} px mark`);
   });
 
   test(`chromium: ${tier} - at 390 px a row holds mark, chip and title on one line; the chip opens the sheet`, async (t) => {
