@@ -20,7 +20,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { BUCKETS, COLLECTION, GROCERIES, HUB, ITEMS, PAGE, signedIn, stub, chooseView } from './fixture.mjs';
+import { BUCKETS, COLLECTION, GROCERIES, HUB, ITEMS, MANIFEST, PAGE, signedIn, stub, chooseView } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -161,9 +161,17 @@ test('chromium: a click anywhere on a board card opens it', { timeout: 60_000 },
 // are its states, and no second column menu stands beside it.
 test('chromium: the entry\'s column is changed from the entry', { timeout: 60_000 }, async () => {
   const columns = BUCKETS.map((bucket) => ({ id: bucket.id, name: bucket.name, completes: bucket.is_done_bucket }));
-  const answer = (route, request, read) => (read === `/items/${ITEMS[2].id}/steps`
-    ? route.fulfill({ json: { state_mode: 'COLUMNS', columns, column_id: BUCKETS[0].id, workflow: null, status: null, steps: [], blocked: [], done_route: [], by_default: true, may_design: false } })
-    : null);
+  // The server answers an entry's steps only where the workflows module is on (`module.off`
+  // otherwise), so the board is such a place.
+  const modulesOn = [...(MANIFEST.modules_on ?? []), 'WORKFLOWS'];
+  const answer = (route, request, read) => {
+    if (read === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: modulesOn } });
+    if (/^\/containers\/[^/]+\/modules$/.test(read)) return route.fulfill({ json: { modules_on: modulesOn } });
+    if (read === `/items/${ITEMS[2].id}/steps`) {
+      return route.fulfill({ json: { state_mode: 'COLUMNS', columns, column_id: BUCKETS[0].id, workflow: null, status: null, steps: [], blocked: [], done_route: [], by_default: true, may_design: false } });
+    }
+    return null;
+  };
   const { page, written, close } = await open(1280, `/items/${ITEMS[2].id}`, { answer });
   try {
     const status = page.locator('[data-steps]');

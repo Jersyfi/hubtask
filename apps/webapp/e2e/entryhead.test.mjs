@@ -54,6 +54,10 @@ async function open(width, { runs, asks = false, requires = false, path = `/item
     if (runs && read === '/meta/capabilities') {
       return route.fulfill({ json: { ...MANIFEST, modules_on: [...(MANIFEST.modules_on ?? []), 'WORKFLOWS'], workspace_permissions: PERMISSIONS.OWNER } });
     }
+    // The server answers an entry's steps only where the workflows module is on (`module.off`
+    // otherwise), so a board whose steps it answers is such a place.
+    if (board && !runs && read === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: [...(MANIFEST.modules_on ?? []), 'WORKFLOWS'] } });
+    if (board && !runs && /\/containers\/[^/]+\/modules$/.test(read)) return route.fulfill({ json: { modules_on: [...(MANIFEST.modules_on ?? []), 'WORKFLOWS'] } });
     const answered = extra?.(read, request.method());
     if (answered) return route.fulfill({ json: answered });
     if (title && read === `/items/${ENTRY.id}`) return route.fulfill({ json: { ...ENTRY, title } });
