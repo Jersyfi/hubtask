@@ -266,6 +266,49 @@ test('the head’s second step carries an icon and a reason the way the first do
   assert.match(head, /<Button tone="primary" size="sm" icon=\{next\.icon\} disabledReason=\{next\.disabledReason\}/);
 });
 
+// --- StateMark ----------------------------------------------------------------------------------
+
+import { markLook } from '../src/statemark.ts';
+
+test('the mark is a checkbox where one press completes or reopens, a button named by its step otherwise', () => {
+  assert.deepEqual(markLook('check', false), { role: 'checkbox', ariaChecked: 'false', icon: 'check' });
+  assert.deepEqual(markLook('check', true), { role: 'checkbox', ariaChecked: 'true', icon: 'check' });
+  assert.deepEqual(markLook('step', false), { role: undefined, ariaChecked: undefined, icon: 'arrow-right' });
+  assert.equal(markLook('step', true).ariaChecked, undefined, 'a step is never announced as checked');
+});
+
+test('the mark is one round control, named by what the press does, filled once done', () => {
+  const mark = source('StateMark.svelte');
+  assert.match(mark, /role=\{look\.role\}\s+aria-checked=\{look\.ariaChecked\}\s+aria-label=\{label\}/);
+  assert.match(mark, /border-radius: var\(--r-full\);/, 'round, the same shape on every level');
+  assert.match(mark, /inline-size: calc\(var\(--sp-250\) \+ var\(--sp-025\)\);\s*block-size: calc\(var\(--sp-250\) \+ var\(--sp-025\)\);/, 'the drawn mark is twenty-two pixels, from the space scale');
+  assert.match(mark, /border: var\(--bw-thick\) solid var\(--border-default\);/);
+  assert.match(mark, /\.state-mark\[data-on\] \{\s*border-color: var\(--status-success-accent\);\s*background: var\(--status-success-accent\);\s*color: var\(--text-inverse\);/);
+  assert.match(mark, /\.state-mark\[aria-disabled='true'\] \{ border-style: dashed;/, 'unavailable reads without colour');
+});
+
+test('the mark’s hit area grows to the thumb’s target on a phone, the drawn mark does not (§7)', () => {
+  const mark = source('StateMark.svelte');
+  assert.match(mark, /\.state-mark::after \{\s*content: '';\s*position: absolute;\s*inset: calc\(\(100% - var\(--density-control-sm-min\)\) \/ 2\);/);
+  assert.match(mark, /@media \(pointer: coarse\), \(width < 600px\) \{\s*\.state-mark::after \{ inset: calc\(\(100% - var\(--layout-target\)\) \/ 2\); \}/);
+});
+
+test('an unavailable or busy mark refuses the press and says why at the mark', () => {
+  const mark = source('StateMark.svelte');
+  assert.match(mark, /function press\(\) \{\s*if \(unavailable \|\| isBusy\) return;/);
+  assert.match(mark, /aria-describedby=\{reasonId\}/);
+  assert.match(mark, /<Reason id=\{reasonId\}/);
+  // Under a reason a group states once there is no bubble, and still no key or click gets past it.
+  assert.match(mark, /if \(!\(unavailable && groupReasonId\) && !isBusy\) return;\s*return guard\(\[button\], \(\) => \{\}\);/);
+});
+
+test('a press is drawn at once, and the caller’s next answer replaces it', () => {
+  const mark = source('StateMark.svelte');
+  assert.match(mark, /if \(form === 'check'\) pressed = !\(pressed \?\? checked\);/);
+  assert.match(mark, /\$effect\.pre\(\(\) => \{\s*void checked;\s*pressed = undefined;/);
+  assert.match(mark, /if \(answer instanceof Promise\) void answer\.finally\(\(\) => \(pressed = undefined\)\);/, 'a write that changed nothing ends the drawing');
+});
+
 // --- BucketColumn (board, build-plan §5) ------------------------------------------------------
 
 test('a folded column unfolds by a button, and a refused one says why in words (rule 3)', () => {

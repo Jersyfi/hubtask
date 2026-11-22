@@ -267,6 +267,8 @@ export { pageBar, providePageBar, type PageBack, type PageBar, type PageHead, ty
 // built from, and the arithmetic behind them.
 export { default as StateLozenge } from './StateLozenge.svelte';
 export { default as StatusButton } from './StatusButton.svelte';
+export { default as StateMark } from './StateMark.svelte';
+export { markLook, type MarkForm } from './statemark.ts';
 export { default as ObjectHead, type DeadlineChip, type ObjectKey } from './ObjectHead.svelte';
 export { default as Property } from './Property.svelte';
 export { default as PropertyRail, type RailSection } from './PropertyRail.svelte';

@@ -506,7 +506,7 @@ while the page scrolls sticks under `--page-sticky-top`, the app bar's height un
 otherwise.
 
 ### Wave 7 — the work surface
-`StateLozenge` · `StatusButton` · `ObjectHead` · `Property` · `PropertyRail` · `JumpMarks` ·
+`StateLozenge` · `StatusButton` · `StateMark` · `ObjectHead` · `Property` · `PropertyRail` · `JumpMarks` ·
 `StepBar` · `FoldingSection` · `ProductBand` · `Card` · `Widget` · `WidgetStrip` · `SummaryStrip` · `Composer` · `QueryLine` · `PriorityMark` ·
 `DeadlineBar` · `DeadlineList` · `DensitySwitch` · `TrustLine` · `PageOutline` · `FloatingBar` · `FloatingToolbar` ·
 `BlockHandle` · `BoxPopover` · `InsertList` · `LiveBlock`
@@ -533,6 +533,13 @@ and every behaviour a test can hold lives in a module beside them: `lozenge.ts`,
   the lozenge without a chevron and the reason beside it. `primaryStep` in `steps.ts` chooses the
   next step: the workflow's marked one if the reader may take it, otherwise the first allowed step
   forward, never a step back; `defaultSteps` makes every status reachable with *Done* as the next.
+* **`StateMark`** — the one press of an entry's state control in a row and on a card: a small round
+  mark in the checkbox's place on every level, before the column or status chip where there is
+  one. Empty where one press completes, filled with a tick once done, an arrow where the press takes
+  a step that does not complete the entry. Where it completes or reopens it is the APG Checkbox
+  pattern (`role="checkbox"`, `aria-checked`), otherwise a button named by its step; the drawn
+  mark stays small and its hit area reaches `layout.target` on a phone or with a coarse pointer.
+  Not pressable now, its edge breaks and the reason is said at the mark.
 * **`ObjectHead`** — one head for entry, ticket, inventory object, goal, release, agent and
   portfolio (WB-1): the breadcrumb and the tools (hidden on a phone, where the bar carries them), the
   key with its product's tile, the type lozenge and a meta line, the title edited in place (the
