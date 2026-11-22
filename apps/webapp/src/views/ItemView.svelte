@@ -30,6 +30,7 @@
 
   import {
     ActivityFeed,
+    Banner,
     Breadcrumb,
     Button,
     DetailPage,
@@ -985,6 +986,8 @@
   const isWritable = $derived(isChangeable && frozenReason === undefined);
   const instanceId = $props.id();
   const readOnlyNoticeId = `item-${instanceId}-read-only`;
+  const pausedNoticeId = `item-${instanceId}-paused`;
+  let isWorkflowPaused = $state(false);
   provideReasonGroup(() => ({ id: readOnlyNoticeId, reason: readOnlyReason }));
 
   async function unarchive() {
@@ -1495,6 +1498,13 @@
     <!-- One object, one shape (WB-1, §6.9): the head spans the full width - key with its product's
          tile, type, the title edited in place, and the action bar: status with its steps, the next
          step, person, due date, the one deadline chip, ⋯. Only under it the page splits. -->
+    <!-- A workflow in force with its module off: said once above the head, as the approved design
+         draws it; the head's paused state refers to this notice instead of repeating it. -->
+    {#if isWorkflowPaused}
+      <div class="paused-notice" id={pausedNoticeId} data-paused-notice>
+        <Banner tone="info" icon="pause" title={t('app.entries.workflow_paused_title')}>{t('app.entries.workflow_paused_text')}</Banner>
+      </div>
+    {/if}
     <!-- `data-tour`: where the tour points for "what an entry carries". -->
     <div class="head" data-tour="entry" data-celebrating={moment && moment.item.id === item.id ? '' : undefined}>
       {#if moment && moment.item.id === item.id}
@@ -1528,7 +1538,7 @@
         isDone={item.completion?.is_completed === true}
       >
         {#snippet status()}
-          {#key item.id}<EntryStatus {item} bind:runs={hasWorkflow} bind:next={statusNext} bind:second={statusSecond} offersSecond={isDeskEntry} oncomplete={() => void toggleCompleted()} disabledReason={isChangeable ? frozenReason : (roleReason ?? frozenReason)} reasonSaidAt={readOnlyReason ? readOnlyNoticeId : undefined} {onnavigate} />{/key}
+          {#key item.id}<EntryStatus {item} bind:runs={hasWorkflow} bind:next={statusNext} bind:second={statusSecond} offersSecond={isDeskEntry} oncomplete={() => void toggleCompleted()} disabledReason={isChangeable ? frozenReason : (roleReason ?? frozenReason)} reasonSaidAt={readOnlyReason ? readOnlyNoticeId : undefined} bind:isPaused={isWorkflowPaused} pausedSaidAt={pausedNoticeId} {onnavigate} />{/key}
         {/snippet}
       </ObjectHead>
       <!-- A ticket's deadlines stand under its head on a phone, each a line (the `deskentry` phone scene). -->
@@ -2022,6 +2032,7 @@
 
 
   .head { display: flex; flex-direction: column; gap: var(--sp-150); position: relative; }
+  .paused-notice { margin-block-end: var(--sp-150); }
 
   /* The main column under the full-width head; the jump marks stay on top while it scrolls. */
   .entry-main { display: flex; flex-direction: column; min-inline-size: 0; }

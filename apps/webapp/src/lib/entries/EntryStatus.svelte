@@ -50,10 +50,14 @@
     disabledReason?: string;
     /** The id of the page's notice that says the reason already. */
     reasonSaidAt?: string;
+    /** A workflow in force with its module off: the page draws the notice that says so. */
+    isPaused?: boolean;
+    /** The id of that notice, which the paused state refers to instead of repeating it. */
+    pausedSaidAt?: string;
     onnavigate?: (path: string) => void;
   }
 
-  let { item, runs = $bindable(false), next = $bindable(undefined), second = $bindable(undefined), offersSecond = false, oncomplete, disabledReason, reasonSaidAt, onnavigate }: Props = $props();
+  let { item, runs = $bindable(false), next = $bindable(undefined), second = $bindable(undefined), offersSecond = false, oncomplete, disabledReason, reasonSaidAt, isPaused = $bindable(false), pausedSaidAt, onnavigate }: Props = $props();
 
   // Keyed on the entry by its caller, so the entry's id is fixed for its life. Where workflows are off
   // the steps are not asked (the server refuses them) and the default flow holds.
@@ -253,6 +257,7 @@
 
   $effect(() => {
     runs = Boolean(model && !model.byDefault);
+    isPaused = Boolean(model?.paused);
   });
 
   // The one press beside the state (E-23): *Done* without a workflow, the workflow's next step
@@ -307,7 +312,7 @@
       workflow={answer?.picture && !model.byDefault ? { label: t('app.workflows.view'), onview: () => (isPictureOpen = true) } : undefined}
       look={model.paused ? { tone: 'warning', icon: 'pause' } : undefined}
       disabledReason={disabledReason ?? (model.paused ? t('app.entries.workflow_paused_reason') : undefined)}
-      reasonSaidAt={disabledReason ? reasonSaidAt : undefined}
+      reasonSaidAt={disabledReason ? reasonSaidAt : model.paused ? pausedSaidAt : undefined}
       onstep={choose}
       closeLabel={t('app.workflows.close')}
       grabLabel={t('app.workflows.close')}

@@ -259,6 +259,7 @@
     --sb-border: var(--status-neutral-border);
     --sb-text: var(--status-neutral-text);
     display: inline-flex;
+    box-sizing: border-box;
     align-items: center;
     gap: var(--sp-050);
     min-block-size: var(--density-control-sm-min);
@@ -313,6 +314,7 @@
     outline-offset: var(--sp-025);
   }
 
+  /* Read only it is a span, whose box would otherwise add its padding to the least height. */
   .status[data-readonly] { cursor: default; }
   .reason { color: var(--text-subtle); font-size: var(--fs-075); }
 

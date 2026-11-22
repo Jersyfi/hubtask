@@ -3693,6 +3693,8 @@
   "app.entries.no_step_back": "No step leads back from “{status}”.",
   "app.entries.no_step_back_paused": "No step leads back while the workflow is paused.",
   "app.entries.workflow_paused": "Workflow paused",
+  "app.entries.workflow_paused_title": "Workflows is switched off here.",
+  "app.entries.workflow_paused_text": "The status of this entry stays stored and returns when Workflows is switched on. Completing works where a step leads to done.",
   "app.entries.workflow_paused_reason": "Workflows is switched off here. The status stays stored and returns when Workflows is switched on. Completing works where a step leads to done.",
   "app.entries.workflow_paused_board": "Workflows is switched off here, so the cards of this workflow do not move. Switch Workflows on, or convert the collection to columns.",
   "app.entries.expand": "Show what is inside {title}",

@@ -459,6 +459,36 @@ test('chromium: a workflow paused with Workflows off says so, and Done asks the 
   }
 });
 
+// The approved design's paused head: the notice above the head says it once, the paused state stays
+// a lozenge of its own height, and Done stands beside it on one line.
+for (const width of [1280]) {
+  test(`chromium ${width}: a paused workflow's head - the notice above it, the paused state and Done on one line`, { timeout: 60_000 }, async () => {
+    const extra = (read, method) => {
+      if (method === 'GET' && read === `/containers/${ENTRY.collection_id}`) return { ...COLLECTION, state_mode: 'WORKFLOW', state_modes: { task: 'WORKFLOW' } };
+      return undefined;
+    };
+    const { page, close } = await open(width, { runs: false, extra });
+    try {
+      const head = page.locator('[data-tour="entry"]');
+      const state = head.locator('[data-steps] .status');
+      await state.waitFor({ timeout: 10_000 });
+      const notice = page.locator('[data-paused-notice]');
+      assert.match(await notice.innerText(), /Workflows is switched off here\.[\s\S]*Completing works where a step leads to done/);
+      const done = head.getByRole('button', { name: 'Done', exact: true });
+      assert.ok(await done.isVisible(), 'Done is not in the head');
+      const [n, s, d] = await Promise.all([notice.boundingBox(), state.boundingBox(), done.boundingBox()]);
+      assert.ok(n.y + n.height <= s.y, 'the notice does not stand above the head');
+      // The state stands at the step button's height: a control's on a desk, a thumb's on a phone.
+      assert.ok(s.height <= d.height + 1, `the paused state is ${s.height} px high beside a ${d.height} px step`);
+      assert.ok(Math.abs((s.y + s.height / 2) - (d.y + d.height / 2)) < 4, 'Done is not on the paused state\'s line');
+      assert.equal(await head.locator('[data-steps] .reason').count(), 0, 'the reason is said a second time beside the state');
+      assert.equal(await state.getAttribute('aria-describedby'), await notice.getAttribute('id'), 'the state does not refer to the notice');
+    } finally {
+      await close();
+    }
+  });
+}
+
 // The approved design: completed under a paused workflow, the head offers no step back and says so,
 // as the row's and the card's mark do.
 test('chromium: completed under a paused workflow, the head offers no step and says none leads back', { timeout: 60_000 }, async () => {
