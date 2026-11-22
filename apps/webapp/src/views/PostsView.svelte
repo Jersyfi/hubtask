@@ -16,7 +16,7 @@
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { formatDateTime, formatDay, formatMonth, formatRelative } from '../lib/i18n/datetime.ts';
-  import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import { defaultName, messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { coverBackground } from '../lib/pages/covers.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -79,7 +79,7 @@
     if (isCreating) return;
     isCreating = true;
     try {
-      const made = await posts.draft(hubId, t('app.posts.untitled'));
+      const made = await posts.draft(hubId, await defaultName('app.posts.untitled'));
       onnavigate(`/posts/${made.page_id}/write`);
     } catch (error) {
       toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });

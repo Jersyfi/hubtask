@@ -46,7 +46,7 @@
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { formatDateTime, formatDay, formatRelative } from '../lib/i18n/datetime.ts';
-  import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import { messages, naming, t } from '../lib/i18n/i18n.svelte.ts';
   import PageAccess from '../lib/pages/PageAccess.svelte';
   import PageLabels from '../lib/pages/PageLabels.svelte';
   import PageEditor from '../lib/pages/PageEditor.svelte';
@@ -181,13 +181,23 @@
 
   // A new page opens at once (S-6): no dialog; its templates wait under its empty title.
   let isMaking = false;
+  const named = (code: string, params?: Record<string, string>) => naming.t(code, params);
+  /** The untitled words a page carries: the stored language's, or the interface's for a page made before. */
+  const untitledAs = (title: string) => {
+    const interfaceWords = t('app.pages.untitled');
+    return title.trim() === interfaceWords ? interfaceWords : named('app.pages.untitled');
+  };
+
   async function startCreate(parent?: string, template?: ShippedTemplate) {
     if (isMaking || !hubId) return;
     isMaking = true;
-    const shipped = template ? shippedTemplate(template, t) : undefined;
+    // The page's title and a template's words are stored: the account's language, else the
+    // workspace's (`naming.ts`), not the interface's.
+    await naming.ready;
+    const shipped = template ? shippedTemplate(template, named) : undefined;
     const made = await act(() =>
       pages.create(hubId, {
-        title: shipped?.title ?? t('app.pages.untitled'),
+        title: shipped?.title ?? named('app.pages.untitled'),
         ...(parent ? { parent_id: parent } : {}),
         ...(shipped && template ? { body: shipped.body, icon: START_ICONS[template] } : {}),
       }),
@@ -231,11 +241,11 @@
     const start = chosenStart;
     if (!start) return undefined;
     if (start.kind === 'shipped') {
-      const made = shippedTemplate(start.key, t);
+      const made = shippedTemplate(start.key, named);
       return { ...made, icon: START_ICONS[start.key], lead: `${t(`app.pages.template.${start.key}.lead`)} ${t('app.pages.start_shipped')}`, subpages: [] };
     }
     if (start.kind === 'space') {
-      const made = shippedSpace(start.key, t);
+      const made = shippedSpace(start.key, named);
       return { ...made, icon: null, lead: t(`app.pages.space.${start.key}.lead`), subpages: made.subpages };
     }
     return { title: start.title, icon: start.icon, lead: t('app.pages.template_own_hint'), body: ownStart?.id === start.id ? ownStart.body : '', subpages: [] };
@@ -258,7 +268,7 @@
     // them, so the new page takes the blank one's place.
     if (start?.kind === 'own' && hasSubpages(rows, start.id)) {
       const blank = current;
-      const title = blank.title.trim() === t('app.pages.untitled') ? shown.title : blank.title;
+      const title = blank.title.trim() === untitledAs(blank.title) ? shown.title : blank.title;
       const made = await act(() => pages.create(blank.hub_id, { title, template_id: start.id, with_subpages: true, ...(blank.parent_id ? { parent_id: blank.parent_id } : {}) }));
       if (made) {
         await act(() => pages.trash(blank), undefined);
@@ -267,7 +277,7 @@
       isUsingStart = false;
       return;
     }
-    const change = startChange(current, t('app.pages.untitled'), shown);
+    const change = startChange(current, untitledAs(current.title), shown);
     const changed = await act(() => pages.change(current, change));
     if (changed) {
       replaced = { body: change.body };

@@ -34,7 +34,7 @@
   import { newBoardPath, whiteboards } from '../data/whiteboards.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import { viewport } from '../frame/viewport.svelte.ts';
-  import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { defaultName, messages, t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
     /** Where the reader stands, as the route names it: the place every kind is made in (C-2). */
@@ -142,7 +142,7 @@
   }
 
   async function atOnce(kind: CreateKind, hubId: string): Promise<string> {
-    const title = t('app.create.untitled', { kind });
+    const title = await defaultName('app.create.untitled', { kind });
     if (kind === 'page') return `/pages/${(await pages.create(hubId, { title })).id}`;
     if (kind === 'whiteboard') return newBoardPath((await whiteboards.create(hubId, { title })).id);
     return `/dashboards/${(await goals.createDashboard({ hub_id: hubId, name: title })).id}`;
