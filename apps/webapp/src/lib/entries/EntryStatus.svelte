@@ -18,6 +18,7 @@
   import { customFields } from '../data/customfields.svelte.ts';
   import { fieldName } from '../data/customfields.ts';
   import { groups } from '../data/groups.svelte.ts';
+  import { live } from '../data/live.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { modules } from '../data/modules.svelte.ts';
   import { workflows } from '../data/workflows.svelte.ts';
@@ -37,12 +38,12 @@
     /** Whether a workflow runs for the entry. */
     runs?: boolean;
     /** The head's primary act: the workflow's next step, or *Done* without one. */
-    next?: { label: string; icon?: 'check' | 'arrow-right'; onclick: () => void };
+    next?: { label: string; icon?: 'check' | 'arrow-right'; disabledReason?: string; onclick: () => void };
     /**
      * A second step beside it where `offersSecond` asks for one (a ticket's *Wait for the
      * requester*): the first other allowed step that neither finishes nor goes back.
      */
-    second?: { label: string; onclick: () => void };
+    second?: { label: string; icon?: 'undo-2'; disabledReason?: string; onclick: () => void };
     offersSecond?: boolean;
     /** Completing or reopening without a workflow: the same write as the row's checkbox. */
     oncomplete: () => void;
@@ -256,7 +257,11 @@
 
   // The one press beside the state (E-23): *Done* without a workflow, the workflow's next step
   // under one - a tick where it lands in done, an arrow otherwise -; once done it stays as the
-  // secondary *Reopen*, or the step out of the done status (UC-FLW-06 check 5).
+  // secondary *Reopen* with its arrow back, or the step out of the done status (UC-FLW-06 check 5).
+  // A workflow's step is not queued offline (`replica.ts`), so offline it says it needs a connection;
+  // completing and a column are queued and stay pressable.
+  const isWorkflowStep = $derived(Boolean(model && !model.byDefault && !model.columns && !model.paused));
+  const stepsWait = $derived(isWorkflowStep && live.state === 'offline' ? t('app.entries.steps_offline') : undefined);
   $effect(() => {
     second = undefined;
     next = undefined;
@@ -264,19 +269,20 @@
     if (!model || !press || disabledReason !== undefined || (askable !== false && answer?.steps === undefined)) return;
     if (press.kind !== 'step') {
       if (press.kind === 'complete') next = { label: t('app.workflows.complete'), icon: 'check', onclick: () => oncomplete() };
-      else second = { label: t('app.entries.reopen_step'), onclick: () => oncomplete() };
+      else second = { label: t('app.entries.reopen_step'), icon: 'undo-2', onclick: () => oncomplete() };
       return;
     }
     const step = press.step;
+    const reason = stepsWait;
     if (model.current.category === 'done') {
-      second = { label: step.label, onclick: () => choose(step) };
+      second = { label: step.label, icon: 'undo-2', disabledReason: reason, onclick: () => choose(step) };
       return;
     }
-    next = { label: step.label, icon: step.to.category === 'done' ? 'check' : 'arrow-right', onclick: () => choose(step) };
+    next = { label: step.label, icon: step.to.category === 'done' ? 'check' : 'arrow-right', disabledReason: reason, onclick: () => choose(step) };
     const other = offersSecond
       ? model.steps.find((each) => each !== step && each.blockedReason === undefined && each.to.category === 'progress')
       : undefined;
-    if (other) second = { label: other.label, onclick: () => choose(other) };
+    if (other) second = { label: other.label, disabledReason: reason, onclick: () => choose(other) };
   });
   /** Done under a workflow with no step out: said beside the state instead of a button. */
   const isStuckInDone = $derived(Boolean(model && !model.byDefault && model.current.category === 'done' && !primary && disabledReason === undefined));

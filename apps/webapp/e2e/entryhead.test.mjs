@@ -403,10 +403,31 @@ test('chromium: in a list the state reads Open, Done completes, and a completed 
     assert.match(await page.locator('[data-steps]').innerText(), /Done/);
     const reopen = head.getByRole('button', { name: 'Reopen', exact: true });
     assert.ok(await reopen.isVisible(), 'a completed entry offers Reopen in the head');
+    assert.equal(await reopen.locator('svg').count(), 1, 'Reopen carries its arrow back, as the design draws it');
     const reopened = page.waitForResponse((response) => response.url().endsWith(':reopen'));
     await reopen.click();
     await reopened;
     assert.deepEqual(written, [`/items/${ENTRY.id}:reopen`]);
+  } finally {
+    await close();
+  }
+});
+
+// A workflow's step is not queued offline (only completing and a column are), so the head's step
+// stays drawn and says it needs a connection instead of failing after the press.
+test('chromium: offline, the head\'s workflow step waits for a connection and says so', { timeout: 60_000 }, async () => {
+  const { page, close } = await open(1280, { runs: true });
+  try {
+    const head = page.locator('[data-tour="entry"]');
+    const step = head.getByRole('button', { name: 'Start work' });
+    await step.waitFor({ timeout: 10_000 });
+    assert.equal(await step.getAttribute('aria-disabled'), null, 'online the step is pressable');
+    await page.context().setOffline(true);
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-tour="entry"] button[aria-disabled="true"]')].some((button) => button.textContent?.includes('Start work')), null, { timeout: 5_000 });
+    const said = await step.evaluate((button) => (button.getAttribute('aria-describedby') ?? '').split(' ').map((id) => document.getElementById(id)?.textContent ?? '').join(' '));
+    assert.match(said, /Steps need a connection/);
+    await page.context().setOffline(false);
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-tour="entry"] button')].some((button) => button.textContent?.includes('Start work') && !button.hasAttribute('aria-disabled')), null, { timeout: 5_000 });
   } finally {
     await close();
   }
