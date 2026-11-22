@@ -19512,7 +19512,7 @@
         "x-hubtask-rest-shown-once": "owner_redemption_token",
         "x-hubtask-rest-location": "/admin/tenants",
         "summary": "Provision a workspace",
-        "description": "Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
+        "description": "Creates the tenant with its defaults: a default hub, an example collection with the standard labels (and its starting columns only where the structure in force opens it on its board), the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"

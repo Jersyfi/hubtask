@@ -606,8 +606,9 @@ func (h ProvisionTenant) Descriptor() usecase.Descriptor {
 		Name: ProvisionTenantName,
 		Summary: "Creates a workspace with its defaults: the tenant, an invited owner whose " +
 			"invitation is mailed where this installation sends mail and whose redemption token " +
-			"is answered once where it does not, a default hub, an example collection, standard " +
-			"buckets and labels. Multi mode only, and idempotent under an Idempotency-Key.",
+			"is answered once where it does not, a default hub, an example collection with the " +
+			"standard labels, and the starting columns only where the structure in force opens " +
+			"the collection on its board. Multi mode only, and idempotent under an Idempotency-Key.",
 		SideEffects: "Writes the tenant and its seeded structure, queues the owner's invitation " +
 			"mail where this installation sends mail, announces the structure's events, records the provisioning in the new tenant's audit trail and in the " +
 			"instance journal.",

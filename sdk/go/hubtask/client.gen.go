@@ -35530,7 +35530,7 @@ type ClientInterface interface {
 
 	// ProvisionTenantWithBody Provision a workspace
 	//
-	// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+	// Creates the tenant with its defaults: a default hub, an example collection with the standard labels (and its starting columns only where the structure in force opens it on its board), the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -35539,7 +35539,7 @@ type ClientInterface interface {
 
 	// ProvisionTenant Provision a workspace
 	//
-	// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+	// Creates the tenant with its defaults: a default hub, an example collection with the standard labels (and its starting columns only where the structure in force opens it on its board), the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -48676,7 +48676,7 @@ func (c *Client) ListTenants(ctx context.Context, reqEditors ...RequestEditorFn)
 
 // ProvisionTenantWithBody Provision a workspace
 //
-// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+// Creates the tenant with its defaults: a default hub, an example collection with the standard labels (and its starting columns only where the structure in force opens it on its board), the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type.
 //
@@ -48695,7 +48695,7 @@ func (c *Client) ProvisionTenantWithBody(ctx context.Context, params *ProvisionT
 
 // ProvisionTenant Provision a workspace
 //
-// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+// Creates the tenant with its defaults: a default hub, an example collection with the standard labels (and its starting columns only where the structure in force opens it on its board), the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -115333,7 +115333,7 @@ type ClientWithResponsesInterface interface {
 
 	// ProvisionTenantWithBodyWithResponse Provision a workspace
 	//
-	// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+	// Creates the tenant with its defaults: a default hub, an example collection with the standard labels (and its starting columns only where the structure in force opens it on its board), the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -115342,7 +115342,7 @@ type ClientWithResponsesInterface interface {
 
 	// ProvisionTenantWithResponse Provision a workspace
 	//
-	// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+	// Creates the tenant with its defaults: a default hub, an example collection with the standard labels (and its starting columns only where the structure in force opens it on its board), the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -172926,7 +172926,7 @@ func (c *ClientWithResponses) ListTenantsWithResponse(ctx context.Context, reqEd
 
 // ProvisionTenantWithBodyWithResponse Provision a workspace
 //
-// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+// Creates the tenant with its defaults: a default hub, an example collection with the standard labels (and its starting columns only where the structure in force opens it on its board), the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -172941,7 +172941,7 @@ func (c *ClientWithResponses) ProvisionTenantWithBodyWithResponse(ctx context.Co
 
 // ProvisionTenantWithResponse Provision a workspace
 //
-// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+// Creates the tenant with its defaults: a default hub, an example collection with the standard labels (and its starting columns only where the structure in force opens it on its board), the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
