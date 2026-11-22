@@ -127,6 +127,28 @@ func TestRedHours(t *testing.T) {
 	}
 }
 
+// Main is what its newest commit's run left, so the runs are taken in the order they began.
+func TestRedHoursFollowTheCommitsWhereRunsOverlap(t *testing.T) {
+	green := run{created: at("2026-11-10 10:00"), updated: at("2026-11-10 10:30")}
+	// The newer commit fails fast while the older one's run still goes, and passes after it.
+	newerRed := []run{green,
+		{created: at("2026-11-15 09:00"), updated: at("2026-11-15 09:20")},
+		{created: at("2026-11-15 09:05"), updated: at("2026-11-15 09:10"), failed: true},
+		{created: at("2026-11-15 12:00"), updated: at("2026-11-15 12:10")},
+	}
+	if got := redHours(newerRed, week, at("2026-11-25 00:00")); got.n != 3 {
+		t.Errorf("red for %v hours, want the 3 from the newer commit's failure to the next green", got.n)
+	}
+	// The older commit's run fails after the newer commit's has passed: main stays green.
+	olderRed := []run{green,
+		{created: at("2026-11-15 09:00"), updated: at("2026-11-15 09:40"), failed: true},
+		{created: at("2026-11-15 09:05"), updated: at("2026-11-15 09:25")},
+	}
+	if got := redHours(olderRed, week, at("2026-11-25 00:00")); got.n != 0 {
+		t.Errorf("red for %v hours, want none", got.n)
+	}
+}
+
 // What main was when the window began is the last run before it. Where the runs read hold none,
 // it is not known - and not green: a zero would close an open finding.
 func TestRedHoursWithoutARunBeforeTheWindow(t *testing.T) {
