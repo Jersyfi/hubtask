@@ -624,3 +624,22 @@ test('without a build of its own the client sends none, and another 503 is not r
   assert.equal(calls.length, 1);
   assert.equal(new Headers(calls[0]?.init.headers).get('X-Hubtask-Client-Build'), null);
 });
+
+test('a read that names its copy sends If-None-Match, and its 304 is an answer without a body', async () => {
+  const { fetch, calls } = recordingFetch(() => new Response(null, { status: 304, headers: { ETag: '"m1"' } }));
+  const transport = new FetchTransport({ baseUrl: '/api/v1', fetch });
+
+  const answer = await transport.get('/meta/capabilities', { timeoutMs: 1000, ifNoneMatch: '"m1"' });
+
+  assert.equal(new Headers(calls[0]?.init.headers).get('If-None-Match'), '"m1"');
+  assert.deepEqual(answer, { status: 304, body: undefined, etag: '"m1"' });
+});
+
+test('a 304 to a read that named no copy is a failure, not an answer', async () => {
+  const { fetch, calls } = recordingFetch(() => new Response(null, { status: 304 }));
+  await assert.rejects(
+    new FetchTransport({ baseUrl: '/api/v1', fetch }).get('/meta/capabilities', { timeoutMs: 1000 }),
+    (error: unknown) => error instanceof TransportError && error.status === 304,
+  );
+  assert.equal(new Headers(calls[0]?.init.headers).get('If-None-Match'), null);
+});

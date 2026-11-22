@@ -120,6 +120,14 @@ export class FakeTransport implements Transport {
     return this;
   }
 
+  #notModified = new Set<string>();
+
+  /** The path answers 304 whatever the read holds: a server that answers what nobody asked. */
+  notModified(path: string): this {
+    this.#notModified.add(path);
+    return this;
+  }
+
   /** Sets what a path fails with. */
   fail(path: string, error: Error): this {
     this.#failures.set(path, error);
@@ -276,6 +284,12 @@ export class FakeTransport implements Transport {
     }
     const failure = this.#failures.get(path);
     if (failure) throw failure;
+
+    // The server's revalidation: the tag the read holds is still the path's, or a 304 was scripted.
+    const etag = this.#etags.get(path);
+    if (this.#notModified.has(path) || (options.ifNoneMatch !== undefined && options.ifNoneMatch === etag)) {
+      return { status: 304, body: undefined as T, etag };
+    }
 
     const sequence = this.#sequences.get(path);
     if (sequence && sequence.length > 0) {

@@ -53,6 +53,11 @@ export interface RequestOptions {
    */
   readonly ifMatch?: string;
   /**
+   * The `If-None-Match` of a read that holds a copy: the tag of that copy. A `304` is then an
+   * answer - status `304`, no body - and only then; without it a `304` is a failure.
+   */
+  readonly ifNoneMatch?: string;
+  /**
    * The media type a `document` asks for, where one operation answers several files - the time
    * export's CSV or spreadsheet. Absent, the default list stands; the other calls ignore it.
    */

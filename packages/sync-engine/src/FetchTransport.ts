@@ -402,6 +402,7 @@ export class FetchTransport implements Transport {
     if (options.token) headers.set('Authorization', `Bearer ${options.token}`);
     if (options.idempotencyKey) headers.set('Idempotency-Key', options.idempotencyKey);
     if (options.ifMatch) headers.set('If-Match', options.ifMatch);
+    if (options.ifNoneMatch) headers.set('If-None-Match', options.ifNoneMatch);
     if (options.stepUpToken) headers.set('X-Hubtask-Step-Up', options.stepUpToken);
     // Derived from the method rather than passed in per call, because in this contract it *is* a
     // property of the method: every PATCH declares `application/merge-patch+json`, which is what
@@ -449,13 +450,17 @@ export class FetchTransport implements Transport {
       throw new TransportError(aborted ? 'timeout' : 'offline', { cause });
     }
 
-    return this.#read<T>(answer);
+    return this.#read<T>(answer, headers.has('If-None-Match'));
   }
 
-  async #read<T>(answer: globalThis.Response): Promise<Response<T>> {
+  async #read<T>(answer: globalThis.Response, conditional = false): Promise<Response<T>> {
     const etag = answer.headers.get('ETag') ?? undefined;
     const build = answer.headers.get('X-Hubtask-Build');
     if (build && this.#onServerBuild) this.#onServerBuild(build);
+
+    // Not modified is an answer only to a read that said what it holds; to any other it would be
+    // a body nobody can supply, and it fails below like every status that is not a success.
+    if (answer.status === 304 && conditional) return { status: 304, body: undefined as T, etag };
 
     // 204 and an empty body are the same thing to a caller: nothing came back, and that is not an
     // error. Parsing it as JSON would be.
