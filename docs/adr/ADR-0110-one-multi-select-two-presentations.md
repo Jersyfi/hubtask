@@ -18,7 +18,7 @@ but nothing for a list whose length the data decides.
   visible ticks that wrap, for up to five options; `field` is one closed button that says what is
   chosen and opens a checklist, for six or more. `auto` decides by the count; a screen may force
   one. The option shape is `CheckboxGroup`'s, so a call site moves between the two unchanged, and
-  `CheckboxGroup` stays as the form's fieldset.
+  `CheckboxGroup` stays as the form's fieldset, its boxes drawn by the same ticks.
 * **The closed field summarises.** The chosen as chips - a summary, not buttons - cut after two
   lines with the count of the rest; or the caller's sentence when nearly all are chosen; or
   its empty text. Removing happens in the list.

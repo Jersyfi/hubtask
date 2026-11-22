@@ -226,7 +226,8 @@ ProgressBar · Kbd
 
 `CheckboxGroup` is the fieldset `Radio` is, for several answers: a question that needs at least one
 is wrong as a group, so its error is said once under the group and every box is `aria-invalid`,
-which is where a form moves focus (case 3 below).
+which is where a form moves focus (case 3 below). Its boxes are `MultiSelect`'s inline ticks, so the
+two look and behave alike.
 
 `MultiSelect` is several of many, one option list in two presentations
 ([ADR-0110](../adr/ADR-0110-one-multi-select-two-presentations.md)). `inline` is visible ticks that
