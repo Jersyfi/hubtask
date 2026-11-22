@@ -440,7 +440,15 @@ When two versions of an entry's notes collide, one loses but does not disappear:
 * The activity entry marks the merge.
 * The push answers `CONFLICT` with `field`, `mine`, `theirs` and `preserved_comment_id`, so a client can offer a choice.
 
-This applies to the notes only; titles and structured fields merge unambiguously.
+In the push this applies to the notes only; titles and structured fields merge unambiguously.
+
+Online, the web app compares each of the title and the notes three ways — as the person began,
+as they hold it, as the entry holds it now — and sends only what the person changed; when somebody
+else changed the same field to something else meanwhile, it writes nothing and lets the person
+choose. Whichever version loses is filed through `POST /items/{itemId}/comments:file-version`, the
+same write as the push's comment with a heading of its own: `sync.set_aside_version` (field, time)
+for the person's own text, given up, `sync.replaced_version` for the text the person replaced.
+*Write mine again* after a push's conflict files the replaced text the same way.
 
 ---
 

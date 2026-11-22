@@ -271,6 +271,7 @@ var restDoors = map[string]restDoor{
 	"exportWhiteboard":                  {UseCase: "ExportWhiteboard", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"extendDataSubjectRequest":          {UseCase: "ExtendDataSubjectRequest", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"fetchCoverImage":                   {UseCase: "FetchCoverImage", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"fileDivergingVersion":              {UseCase: "FileDivergingVersion", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"findDuplicatesByTitle":             {UseCase: "FindDuplicatesByTitle", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), NoStore: true},
 	"followHubPosts":                    {UseCase: "FollowHubPosts", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"forgetPassword":                    {UseCase: "ForgetPassword", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"host", "tenant_header"}, Empty: true},
@@ -2572,6 +2573,12 @@ func (c *RestController) ExtendDataSubjectRequest(w http.ResponseWriter, r *http
 func (c *RestController) FetchCoverImage(w http.ResponseWriter, r *http.Request, pageId openapi.PageId, pictureId string) {
 	var answer openapi.CoverImageFetched
 	c.door(w, r, restDoors["fetchCoverImage"], usecase.Input{"page_id": pageId.String(), "picture_id": pictureId}, nil, nil, &answer)
+}
+
+// FileDivergingVersion answers POST /items/{itemId}/comments:file-version by the generated mapping.
+func (c *RestController) FileDivergingVersion(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.FileDivergingVersionParams) {
+	var body openapi.FileDivergingVersionJSONRequestBody
+	c.door(w, r, restDoors["fileDivergingVersion"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(commentResponse))
 }
 
 // FindDuplicatesByTitle answers POST /items:duplicates by the generated mapping.

@@ -61,9 +61,15 @@ const (
 	CommentBySystem CommentKind = "SYSTEM"
 )
 
-// DisplacedVersionCode is the heading of the one system comment this build files: the version of
-// a free-text field that lost a merge (offline-sync.md §5).
-const DisplacedVersionCode = "sync.displaced_version"
+// The headings of the system comments this build files (offline-sync.md §5). DisplacedVersionCode
+// is the version of a free-text field that lost a merge in a push; SetAsideVersionCode is a
+// writer's own title or notes, given up online for a version somebody else wrote meanwhile;
+// ReplacedVersionCode is the version in place that a writer replaced with their own.
+const (
+	DisplacedVersionCode = "sync.displaced_version"
+	SetAsideVersionCode  = "sync.set_aside_version"
+	ReplacedVersionCode  = "sync.replaced_version"
+)
 
 // MaxCommentBodyLength counts code points rather than bytes, for the reason the title limit does
 // (I-W7): a limit in bytes would measure the alphabet rather than the text.

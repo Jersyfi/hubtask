@@ -3888,6 +3888,11 @@ export class HubtaskClient {
     return this.call("POST", "/items/{itemId}/comments", { "itemId": itemId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Keep a version of the title or the notes that is about to be lost */
+  fileDivergingVersion(itemId: string, body: NonNullable<operations["fileDivergingVersion"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["fileDivergingVersion"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/items/{itemId}/comments:file-version", { "itemId": itemId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** PATCH /items/{itemId}/comments/{commentId} */
   editComment(itemId: string, commentId: string, body: NonNullable<operations["editComment"]['requestBody']>['content']["application/merge-patch+json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["editComment"]['responses'][200]['content']["application/json"]> {
     return this.call("PATCH", "/items/{itemId}/comments/{commentId}", { "itemId": itemId, "commentId": commentId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/merge-patch+json", "json", options.signal);

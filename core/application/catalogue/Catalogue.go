@@ -536,6 +536,7 @@ func Descriptors() []usecase.Descriptor {
 		work.AddMember{}.Descriptor(),
 		work.RemoveMember{}.Descriptor(),
 		work.AddComment{}.Descriptor(),
+		work.FileDivergingVersion{}.Descriptor(),
 		work.ListComments{}.Descriptor(),
 		work.ReadKudos{}.Descriptor(),
 		work.GiveKudos{}.Descriptor(),

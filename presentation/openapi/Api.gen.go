@@ -987,19 +987,19 @@ func (e AiBudgetStateState) Valid() bool {
 
 // Defines values for AiFieldsAskFields.
 const (
-	DueDate AiFieldsAskFields = "due_date"
-	Notes   AiFieldsAskFields = "notes"
-	Title   AiFieldsAskFields = "title"
+	AiFieldsAskFieldsDueDate AiFieldsAskFields = "due_date"
+	AiFieldsAskFieldsNotes   AiFieldsAskFields = "notes"
+	AiFieldsAskFieldsTitle   AiFieldsAskFields = "title"
 )
 
 // Valid indicates whether the value is a known member of the AiFieldsAskFields enum.
 func (e AiFieldsAskFields) Valid() bool {
 	switch e {
-	case DueDate:
+	case AiFieldsAskFieldsDueDate:
 		return true
-	case Notes:
+	case AiFieldsAskFieldsNotes:
 		return true
-	case Title:
+	case AiFieldsAskFieldsTitle:
 		return true
 	default:
 		return false
@@ -12538,6 +12538,42 @@ func (e ListWebhookDeliveriesParamsStatus) Valid() bool {
 	}
 }
 
+// Defines values for FileDivergingVersionJSONBodyField.
+const (
+	FileDivergingVersionJSONBodyFieldNotes FileDivergingVersionJSONBodyField = "notes"
+	FileDivergingVersionJSONBodyFieldTitle FileDivergingVersionJSONBodyField = "title"
+)
+
+// Valid indicates whether the value is a known member of the FileDivergingVersionJSONBodyField enum.
+func (e FileDivergingVersionJSONBodyField) Valid() bool {
+	switch e {
+	case FileDivergingVersionJSONBodyFieldNotes:
+		return true
+	case FileDivergingVersionJSONBodyFieldTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FileDivergingVersionJSONBodySide.
+const (
+	FileDivergingVersionJSONBodySideMINE     FileDivergingVersionJSONBodySide = "MINE"
+	FileDivergingVersionJSONBodySideREPLACED FileDivergingVersionJSONBodySide = "REPLACED"
+)
+
+// Valid indicates whether the value is a known member of the FileDivergingVersionJSONBodySide enum.
+func (e FileDivergingVersionJSONBodySide) Valid() bool {
+	switch e {
+	case FileDivergingVersionJSONBodySideMINE:
+		return true
+	case FileDivergingVersionJSONBodySideREPLACED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SetEntryEstimateJSONBodySize.
 const (
 	SetEntryEstimateJSONBodySizeL   SetEntryEstimateJSONBodySize = "L"
@@ -16574,7 +16610,8 @@ type Comment struct {
 	ItemId   openapi_types.UUID `json:"item_id"`
 
 	// Kind `USER` is what somebody wrote. `SYSTEM` is what the server filed on their behalf: the
-	// displaced version of a free-text field that lost a merge, whose
+	// displaced version of a free-text field that lost a merge, or a version of the title or
+	// the notes kept when somebody else changed it meanwhile, whose
 	// body is the text that lost and whose heading is `system_code` with `system_params` -
 	// a client renders "Diverging version from Anna, 14 Aug 09:12" from the code and the
 	// author, never from a sentence the server wrote. A system comment cannot be edited.
@@ -16584,13 +16621,14 @@ type Comment struct {
 	// SystemCode The message code of a system comment's heading, such as `sync.displaced_version`; null for what somebody wrote.
 	SystemCode *string `json:"system_code,omitempty"`
 
-	// SystemParams The parameters of the heading - for a displaced version, the field, the device and the reading.
+	// SystemParams The parameters of the heading - for a displaced version, the field, the device and the reading; for a kept version, the field and the time.
 	SystemParams *map[string]string `json:"system_params,omitempty"`
 	Version      int                `json:"version"`
 }
 
 // CommentKind `USER` is what somebody wrote. `SYSTEM` is what the server filed on their behalf: the
-// displaced version of a free-text field that lost a merge, whose
+// displaced version of a free-text field that lost a merge, or a version of the title or
+// the notes kept when somebody else changed it meanwhile, whose
 // body is the text that lost and whose heading is `system_code` with `system_params` -
 // a client renders "Diverging version from Anna, 14 Aug 09:12" from the code and the
 // author, never from a sentence the server wrote. A system comment cannot be edited.
@@ -30849,6 +30887,25 @@ type EditCommentParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// FileDivergingVersionJSONBody defines parameters for FileDivergingVersion.
+type FileDivergingVersionJSONBody struct {
+	Body  string                            `json:"body"`
+	Field FileDivergingVersionJSONBodyField `json:"field"`
+	Side  FileDivergingVersionJSONBodySide  `json:"side"`
+}
+
+// FileDivergingVersionParams defines parameters for FileDivergingVersion.
+type FileDivergingVersionParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// FileDivergingVersionJSONBodyField defines parameters for FileDivergingVersion.
+type FileDivergingVersionJSONBodyField string
+
+// FileDivergingVersionJSONBodySide defines parameters for FileDivergingVersion.
+type FileDivergingVersionJSONBodySide string
+
 // ClearCoverParams defines parameters for ClearCover.
 type ClearCoverParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -33016,6 +33073,9 @@ type AddCommentJSONRequestBody AddCommentJSONBody
 
 // EditCommentApplicationMergePatchPlusJSONRequestBody defines body for EditComment for application/merge-patch+json ContentType.
 type EditCommentApplicationMergePatchPlusJSONRequestBody EditCommentApplicationMergePatchPlusJSONBody
+
+// FileDivergingVersionJSONRequestBody defines body for FileDivergingVersion for application/json ContentType.
+type FileDivergingVersionJSONRequestBody FileDivergingVersionJSONBody
 
 // SetCoverJSONRequestBody defines body for SetCover for application/json ContentType.
 type SetCoverJSONRequestBody = CoverInput
@@ -35460,6 +35520,9 @@ type ServerInterface interface {
 
 	// (PATCH /items/{itemId}/comments/{commentId})
 	EditComment(w http.ResponseWriter, r *http.Request, itemId ItemId, commentId CommentId, params EditCommentParams)
+	// FileDivergingVersion Keep a version of the title or the notes that is about to be lost
+	// (POST /items/{itemId}/comments:file-version)
+	FileDivergingVersion(w http.ResponseWriter, r *http.Request, itemId ItemId, params FileDivergingVersionParams)
 
 	// (DELETE /items/{itemId}/cover)
 	ClearCover(w http.ResponseWriter, r *http.Request, itemId ItemId, params ClearCoverParams)
@@ -53035,6 +53098,56 @@ func (siw *ServerInterfaceWrapper) EditComment(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// FileDivergingVersion operation middleware
+func (siw *ServerInterfaceWrapper) FileDivergingVersion(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params FileDivergingVersionParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.FileDivergingVersion(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ClearCover operation middleware
 func (siw *ServerInterfaceWrapper) ClearCover(w http.ResponseWriter, r *http.Request) {
 
@@ -67469,6 +67582,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:bulk", wrapper.BulkUpdateWorkItems)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/comments", wrapper.ListComments)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}/comments", wrapper.AddComment)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}/comments:file-version", wrapper.FileDivergingVersion)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/comments/{commentId}", wrapper.DeleteComment)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/items/{itemId}/comments/{commentId}", wrapper.EditComment)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/activity", wrapper.ListActivity)

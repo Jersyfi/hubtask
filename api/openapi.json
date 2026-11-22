@@ -31564,6 +31564,78 @@
         }
       }
     },
+    "/items/{itemId}/comments:file-version": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ItemId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "comments"
+        ],
+        "operationId": "fileDivergingVersion",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-answer": "commentResponse",
+        "summary": "Keep a version of the title or the notes that is about to be lost",
+        "description": "Files a version of an entry's title or notes as a `SYSTEM` comment on the entry, in the caller's name, so that a text somebody else changed meanwhile is not lost whichever version stays. `MINE` is the caller's own text, given up for the one in place (`sync.set_aside_version`); `REPLACED` is the text in place that the caller is about to replace (`sync.replaced_version`). The heading's parameters are the field and the time. The same permission as any comment: refused where the caller may not comment, and for a type without a discussion. The entry itself is not changed.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "field",
+                  "side",
+                  "body"
+                ],
+                "properties": {
+                  "field": {
+                    "type": "string",
+                    "enum": [
+                      "notes",
+                      "title"
+                    ]
+                  },
+                  "side": {
+                    "type": "string",
+                    "enum": [
+                      "MINE",
+                      "REPLACED"
+                    ]
+                  },
+                  "body": {
+                    "type": "string",
+                    "maxLength": 20000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Filed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/items/{itemId}/comments/{commentId}": {
       "parameters": [
         {
@@ -66162,7 +66234,7 @@
               "SYSTEM"
             ],
             "default": "USER",
-            "description": "`USER` is what somebody wrote. `SYSTEM` is what the server filed on their behalf: the\ndisplaced version of a free-text field that lost a merge, whose\nbody is the text that lost and whose heading is `system_code` with `system_params` -\na client renders \"Diverging version from Anna, 14 Aug 09:12\" from the code and the\nauthor, never from a sentence the server wrote. A system comment cannot be edited.\n"
+            "description": "`USER` is what somebody wrote. `SYSTEM` is what the server filed on their behalf: the\ndisplaced version of a free-text field that lost a merge, or a version of the title or\nthe notes kept when somebody else changed it meanwhile, whose\nbody is the text that lost and whose heading is `system_code` with `system_params` -\na client renders \"Diverging version from Anna, 14 Aug 09:12\" from the code and the\nauthor, never from a sentence the server wrote. A system comment cannot be edited.\n"
           },
           "system_code": {
             "type": [
@@ -66179,7 +66251,7 @@
             "additionalProperties": {
               "type": "string"
             },
-            "description": "The parameters of the heading - for a displaced version, the field, the device and the reading."
+            "description": "The parameters of the heading - for a displaced version, the field, the device and the reading; for a kept version, the field and the time."
           },
           "internal": {
             "type": "boolean",

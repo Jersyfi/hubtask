@@ -3579,6 +3579,7 @@ func run() error {
 		work.UnassignWorkItem{Assignment: assignment}.Descriptor(),
 		autoAssign.Descriptor(),
 		work.AddComment{Writer: commentWriter}.Descriptor(),
+		work.FileDivergingVersion{Comments: work.AddComment{Writer: commentWriter}}.Descriptor(),
 		work.EditComment{Writer: commentWriter}.Descriptor(),
 		work.DeleteComment{Writer: commentWriter}.Descriptor(),
 		work.AddMember{Writer: itemMemberWriter}.Descriptor(),
