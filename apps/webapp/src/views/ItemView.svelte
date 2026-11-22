@@ -1196,6 +1196,16 @@
   });
   /** The reader's own title while their change of it is not saved: the title field opens with it. */
   const unsavedTitle = $derived(item && isInlineDirty && inlineBase && inlineTitle !== inlineBase.title ? inlineTitle : undefined);
+  // A newer saved version while the question is open: the dialog shows it, and it is said.
+  let asked: { field: TextField; theirs: string } | undefined;
+  $effect(() => {
+    const field = meanwhileField;
+    const theirs = field && item ? (field === 'title' ? item.title : (item.notes ?? '')) : undefined;
+    untrack(() => {
+      if (field && theirs !== undefined && asked?.field === field && asked.theirs !== theirs && isAsking) announcer.say(t('app.sync.meanwhile.changed_again'));
+      asked = field && theirs !== undefined ? { field, theirs } : undefined;
+    });
+  });
   // An unanswered warning holds a text that is not saved: leaving the entry would drop it unseen.
   $effect(() => leaveGuard.hold(() => (meanwhileField ? 1 : 0)));
 

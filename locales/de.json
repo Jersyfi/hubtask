@@ -9912,6 +9912,7 @@
   "app.sync.meanwhile.by_you_title": "Du hast den Titel{when, select, known { am {at}} other {}} an anderer Stelle geändert, während du ihn hier bearbeitet hast. Davon ist hier noch nichts gespeichert.",
   "app.sync.meanwhile.somebody": "Jemand anderes",
   "app.sync.meanwhile.consequence": "Behältst du die gespeicherte Fassung, wird deine verworfen; überschreibst du sie, gilt deine.",
+  "app.sync.meanwhile.changed_again": "Die gespeicherte Fassung wurde erneut geändert.",
   "app.sync.meanwhile.theirs": "Die gespeicherte Fassung",
   "app.sync.meanwhile.mine": "Deine Fassung, nicht gespeichert",
   "app.sync.meanwhile.keep": "Gespeicherte Fassung behalten",

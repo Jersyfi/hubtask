@@ -9912,6 +9912,7 @@
   "app.sync.meanwhile.by_you_title": "You changed the title elsewhere{when, select, known { at {at}} other {}}, while you were editing it here. Nothing of this is saved yet.",
   "app.sync.meanwhile.somebody": "Somebody else",
   "app.sync.meanwhile.consequence": "Keep the saved version and yours is dropped, or overwrite it with yours.",
+  "app.sync.meanwhile.changed_again": "The saved version changed again.",
   "app.sync.meanwhile.theirs": "The saved version",
   "app.sync.meanwhile.mine": "Your version, not saved",
   "app.sync.meanwhile.keep": "Keep the saved version",
