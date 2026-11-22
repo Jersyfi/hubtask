@@ -507,8 +507,9 @@ finding only when it also carries the label `finding`. Where several match, the 
 
 **When the job fails.** Filing is part of the tool (`-file-as`), so the job has one step, and it
 fails visibly: when GitHub does not answer for the pull requests or the runs after one retry,
-when an issue cannot be read or written, and when the report is longer than the 65,536
-characters a comment takes. In that last case the findings are filed first and the report stays
+when an issue cannot be read or written, when the search for the job's issues answers
+incompletely (an issue it left out would be opened twice), and when the report is longer than
+the 65,536 characters a comment takes. In that last case the findings are filed first and the report stays
 in the run's summary. A single measure GitHub refuses does not fail the job: its row says "not
 measured" and why.
 

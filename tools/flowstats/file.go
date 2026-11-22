@@ -6,6 +6,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -165,9 +166,16 @@ func parseIssues(data []byte) ([]issue, error) {
 	var issues []issue
 	dec := json.NewDecoder(bytes.NewReader(data))
 	for dec.More() {
-		var page struct{ Items []issue }
+		var page struct {
+			Incomplete bool `json:"incomplete_results"`
+			Items      []issue
+		}
 		if err := dec.Decode(&page); err != nil {
 			return nil, err
+		}
+		// What a search that timed out left out would be opened a second time.
+		if page.Incomplete {
+			return nil, errors.New("the search answered incompletely")
 		}
 		issues = append(issues, page.Items...)
 	}

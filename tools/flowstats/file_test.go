@@ -110,6 +110,16 @@ func TestFile(t *testing.T) {
 	}
 }
 
+// A search that ran out of time answers what it found so far. An issue it left out would be
+// opened a second time, so such an answer is no answer.
+func TestAnIncompleteSearchIsRefused(t *testing.T) {
+	answer := `{"total_count": 1, "incomplete_results": false, "items": [{"number": 7, "title": "Flow report"}]}` +
+		`{"total_count": 1, "incomplete_results": true, "items": []}`
+	if issues, err := parseIssues([]byte(answer)); err == nil {
+		t.Errorf("an incomplete page reads as %+v", issues)
+	}
+}
+
 // A report over the length a comment takes fails the job, after the findings are filed.
 func TestAReportTooLongFailsAfterTheFindings(t *testing.T) {
 	r := &recorder{}
