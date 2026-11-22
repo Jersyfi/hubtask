@@ -283,6 +283,26 @@ func TestFixAfterFeat(t *testing.T) {
 	}
 }
 
+// A count that lacks pull requests is a lower bound: it is printed, and it neither breaches the
+// rule nor comes back within it.
+func TestAPartialFixAfterFeatCountHoldsNoThreshold(t *testing.T) {
+	limits, err := parseThresholds([]byte(`{"fix_after_feat": {"rule": "no_rise_twice"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	whole := measure{id: "fix_after_feat", now: fixCount(2, 0), before: fixCount(2, 0), earlier: fixCount(1, 0)}
+	if _, over, known := held(whole, limits); over || !known {
+		t.Errorf("a whole count: over %v, known %v; want within its threshold", over, known)
+	}
+	partial := measure{id: "fix_after_feat", now: fixCount(2, 1), before: fixCount(2, 1), earlier: fixCount(1, 1)}
+	if _, over, known := held(partial, limits); over || known {
+		t.Errorf("a partial count: over %v, known %v; want neither", over, known)
+	}
+	if got, want := partial.now.String(), "2 (not read: 1 pull requests whose merge commit is not in this clone)"; got != want {
+		t.Errorf("a partial count prints %q, want %q", got, want)
+	}
+}
+
 func TestReasonFor(t *testing.T) {
 	body := "## Impact\n\n- `TestGone` asserted the old retry, which this change removes on purpose\n"
 	if got, want := reasonFor(body, losttests.Test{Name: "TestGone", Identifier: true}), "- `TestGone` asserted the old retry, which this change removes on purpose"; got != want {

@@ -603,7 +603,8 @@ How each measure is read:
   file's directory too, named at most five segments deep: `apps/webapp/src/lib/board`,
   `apps/webapp/e2e`, `packages/sync-engine/src`. Any other file belongs to none. The files of a
   `feat` and a `fix` are read from the merge commit, whole; a pull request whose merge commit the
-  clone lacks is counted beside the value as not read.
+  clone lacks is counted beside the value as not read. The value is then a lower bound and is
+  held to no threshold: it neither opens a finding nor closes one.
 * **The tree's measures** are read from the checkout's commit, and beside it from the commit the
   window started with: the totals of `apps/webapp/e2e/bounds.json`, the lines of
   `test/contract/testdata/walks-baseline.txt`, the bound `uncitedBuiltAtMost` that

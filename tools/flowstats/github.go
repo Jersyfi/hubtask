@@ -41,13 +41,7 @@ func githubPart(b *bytes.Buffer, found map[string]measure, repo, reviewer string
 		"pr_run_median_minutes":       func(x window) value { return prMedian(createdIn(runs, x)) },
 		"pr_runs_failed_percent":      func(x window) value { return prFailed(createdIn(runs, x)) },
 		"main_second_attempt_percent": func(x window) value { return secondAttempts(createdIn(runs, x)) },
-		"fix_after_feat": func(x window) value {
-			v := count(fixAfterFeat(prs, x))
-			if unreadFiles > 0 {
-				v.text += fmt.Sprintf(" (not read: %d pull requests whose merge commit is not in this clone)", unreadFiles)
-			}
-			return v
-		},
+		"fix_after_feat":              func(x window) value { return fixCount(fixAfterFeat(prs, x), unreadFiles) },
 	} {
 		found[id] = measure{now: read(w), before: read(p), earlier: read(pp)}
 	}
@@ -514,6 +508,15 @@ func fixAfterFeat(prs []pullRequest, w window) int {
 		}
 	}
 	return n
+}
+
+// fixCount is the count beside the pull requests whose files were not read. A count that lacks
+// some is a lower bound in each window, so it is printed as text and held to no threshold.
+func fixCount(n, unread int) value {
+	if unread == 0 {
+		return count(n)
+	}
+	return words(fmt.Sprintf("%d (not read: %d pull requests whose merge commit is not in this clone)", n, unread))
 }
 
 func shares(a, b map[string]bool) bool {
