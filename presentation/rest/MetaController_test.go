@@ -700,8 +700,11 @@ func TestTheManifestIsRevalidatedAndNeverStored(t *testing.T) {
 		}
 	}
 
-	if stale := readCapabilities(t, reader, `"not-this-one"`); stale.Code != http.StatusOK || stale.Body.Len() == 0 {
-		t.Errorf("a tag the caller's answer does not carry answered %d with %d bytes", stale.Code, stale.Body.Len())
+	// A comma may stand inside an entity-tag: `"a,*,b"` is one tag, not a list holding `*`.
+	for _, other := range []string{`"not-this-one"`, `"a,*,b"`} {
+		if stale := readCapabilities(t, reader, other); stale.Code != http.StatusOK || stale.Body.Len() == 0 {
+			t.Errorf("%s, a tag the caller's answer does not carry, answered %d with %d bytes", other, stale.Code, stale.Body.Len())
+		}
 	}
 }
 

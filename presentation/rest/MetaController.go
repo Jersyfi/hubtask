@@ -89,11 +89,15 @@ func writeRevalidated(w http.ResponseWriter, r *http.Request, body any, ifNoneMa
 	}
 }
 
-// noneMatchHolds is If-None-Match's weak comparison (RFC 9110 §13.1.2): any listed tag, or `*`.
+// noneMatchHolds is If-None-Match's weak comparison (RFC 9110 §13.1.2): any listed tag, or `*`
+// as the whole header. A comma may stand inside a tag, so a piece of one is never taken for `*`;
+// it matches nothing either, as the tags given out here hold no comma.
 func noneMatchHolds(header, tag string) bool {
+	if strings.TrimSpace(header) == "*" {
+		return true
+	}
 	for _, candidate := range strings.Split(header, ",") {
-		candidate = strings.TrimSpace(candidate)
-		if candidate == "*" || strings.TrimPrefix(candidate, "W/") == tag {
+		if strings.TrimPrefix(strings.TrimSpace(candidate), "W/") == tag {
 			return true
 		}
 	}
