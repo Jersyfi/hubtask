@@ -715,8 +715,12 @@ test('chromium: every session is listed, this one marked, and an ended one says 
   t.after(() => context.close());
   let ended = false;
   await context.route('**/api/v1/**', async (route) => {
-    if (ended) return route.fulfill({ status: 401, json: { code: 'errors.unauthenticated', status: 401, request_id: 'req_e2e' } });
     const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    // Only the list and the exchange are refused: a background pull of the page before the reload
+    // would otherwise get a 401 that syncPull does not declare, whenever it outlasts the reload.
+    if (ended && (path === '/auth/sessions' || path === '/auth/sessions:refresh')) {
+      return route.fulfill({ status: 401, json: { code: 'errors.unauthenticated', status: 401, request_id: 'req_e2e' } });
+    }
     if (path === '/auth/sessions') return route.fulfill({ json: SESSIONS });
     return answer(route);
   });
