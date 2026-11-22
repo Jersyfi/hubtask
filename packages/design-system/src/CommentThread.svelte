@@ -157,6 +157,8 @@
   let revealed: string | undefined;
   $effect(() => {
     const id = markedId;
+    // An address that cleared is a new address when it comes back.
+    if (!id) revealed = undefined;
     if (!id || id === revealed || !isDrawn(id)) return;
     revealed = id;
     untrack(async () => {

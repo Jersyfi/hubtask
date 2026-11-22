@@ -358,6 +358,28 @@ test('chromium: 1280 px — offline, the conflict’s link to the displaced vers
   assert.deepEqual(failures, []);
 });
 
+test('chromium: 1280 px — back from a kept version and forward to it again, it is focused again (UC-SYN-02 check 10)', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, context, failures, state, changeElsewhere } = await openEntry(browser, 1280);
+  t.after(() => context.close());
+
+  await typeWhileChanged(page, changeElsewhere, 'Tiles from the big market, ask for Ana.', 'Tiles ordered online already.');
+  await page.locator('[data-meanwhile="notes"]').getByRole('button', { name: 'Compare both versions' }).click();
+  await page.getByRole('dialog', { name: 'Two versions of the description' }).getByRole('button', { name: 'Write mine' }).click();
+  await page.locator('[data-meanwhile-kept="REPLACED"]').getByRole('button', { name: 'Show the comment' }).click();
+  const [kept] = state.comments;
+  const heading = /The text as it stood before Jérôme Winkel replaced it at .+, after somebody else had changed it meanwhile\./;
+  await landsOnKept(page, kept.id, heading, 'Tiles ordered online already.');
+
+  await page.goBack();
+  await page.waitForURL((url) => !url.searchParams.has('comment'), { timeout: 5_000 });
+  await page.locator('[data-tour="entry"]').getByRole('button', { name: 'Edit title' }).focus();
+  await page.goForward();
+  await page.waitForURL((url) => url.searchParams.get('comment') === kept.id, { timeout: 5_000 });
+  await landsOnKept(page, kept.id, heading, 'Tiles ordered online already.');
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: 1280 px — an address whose older comments could not be read is not said to be gone (UC-SYN-02 check 10)', async (t) => {
   const browser = await sharedChromium(t);
   const { page, context, state } = await openEntry(browser, 1280);
