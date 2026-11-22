@@ -47,6 +47,9 @@ invitation used twice, or after it expired, gets one plain sentence and the name
    their language.
 9. An owner who already has a language accepts the invitation on a card read in another: those
    defaults carry their names in the owner's language, and the profile still shows it.
+10. A member or guest with no language of their own accepts the invitation with a password on a
+    card read in a language the installation has: their profile shows it as their language, and
+    nothing in the workspace is renamed. One who already has a language keeps it.
 
 ## Where it ends
 
