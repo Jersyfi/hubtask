@@ -6,7 +6,7 @@
   // version and the reader's, and asks. Two answers: keep the saved version - the reader's text is
   // dropped, the safe answer the focus starts on - or overwrite it with the reader's. Closing it
   // answers nothing: the text stays as the reader had it, unsaved, and the next save asks again.
-  // A refused overwrite says so here and keeps the question open.
+  // While the overwrite runs it cannot be closed; a refusal says so here and keeps the question open.
 
   import { Button, Dialog } from '@hubtask/design-system/components';
 
@@ -44,6 +44,7 @@
   isAlert
   title={field === 'title' ? t('app.sync.meanwhile.dialog_title') : t('app.sync.meanwhile.dialog_notes')}
   dismissLabel={t('app.workspace.cancel')}
+  onDismiss={() => !isOverwriting}
   primary={{ label: t('app.sync.meanwhile.overwrite'), tone: 'danger', onclick: onoverwrite, isBusy: isOverwriting, busyLabel: t('app.sync.meanwhile.overwriting') }}
 >
   {#snippet actions()}
