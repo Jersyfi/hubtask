@@ -123,7 +123,8 @@ export function pathsFor(record: ChangeRecord): readonly string[] {
     case 'whiteboard': {
       // Filed under its hub; a trash and a restore are upserts. The open page or board is not
       // re-read on an upsert: the writer's own body save records one too, and re-reading would
-      // draw the saved body over the one being typed. A DELETE is a page gone from this reader.
+      // draw the saved body over the one being typed. A DELETE is a page gone from this reader -
+      // and also what a save of a restricted page or a post records, so that one is re-read.
       const kind = record.entity === 'page' ? 'pages' : 'whiteboards';
       return [
         container ? `/hubs/${container}/${kind}` : `/hubs/*/${kind}`, '/trash',
