@@ -372,7 +372,8 @@
 
 <style>
   .status { display: inline-flex; }
-  .no-way-back { font-size: var(--fs-075); color: var(--text-secondary); }
+  /* The approved design's reason tone, as the read-only status's own reason (`StatusButton`). */
+  .no-way-back { font-size: var(--fs-075); color: var(--text-subtle); }
   .refusal { margin: 0; color: var(--text-danger); flex-basis: 100%; }
   .refusal p, .refusal ul { margin: 0; }
   .rest { margin: 0; padding-inline-start: var(--sp-200); }
