@@ -117,7 +117,13 @@ test('chromium: switching Workflows off lists what it strands and waits for a ch
   await confirm.click({ force: true });
   assert.deepEqual(switchedOff(written), [], 'switched off without a choice');
 
-  await dialog.getByRole('radio', { name: /Only pause/ }).check();
+  // The consequences are one list, a line each; the two answers are cards of one named radio group,
+  // chosen with the arrow keys as any radio group.
+  assert.equal(await dialog.getByRole('list', { name: 'What switching off reaches' }).getByRole('listitem').count(), 4);
+  const choice = dialog.getByRole('radiogroup', { name: 'What should happen to the 17 entries?' });
+  await choice.getByRole('radio', { name: /Convert to columns/ }).focus();
+  await page.keyboard.press('ArrowDown');
+  assert.equal(await choice.getByRole('radio', { name: /Only pause/ }).isChecked(), true, 'the arrow key did not choose the next card');
   await dialog.getByText(/the cards of these boards do not move/).waitFor({ timeout: 5_000 });
   const answered = page.waitForResponse((response) => response.url().endsWith('/tenant/modules/WORKFLOWS'));
   await dialog.getByRole('button', { name: 'Pause and switch off' }).click();
@@ -136,9 +142,13 @@ test('chromium: converting to columns shows where the entries go, removes each s
   const where = dialog.locator('[data-off-where]');
   await where.waitFor({ timeout: 5_000 });
   assert.match(await where.innerText(), /Kitchen/);
-  // Each status keeps the column that showed it; done entries stay done and are not listed.
-  assert.deepEqual((await where.locator('[data-off-line]').allInnerTexts()).map((each) => each.trim()), [
-    'Draft → Open: 6 entries', 'In review → Working: 7 entries', 'Released → Working: 4 entries',
+  // A fold, open at once, with one list per collection: each status keeps the column that showed it,
+  // with how many; done entries stay done and are not listed.
+  assert.equal(await where.getByRole('button', { name: 'Where the entries go' }).getAttribute('aria-expanded'), 'true');
+  const kitchen = where.getByRole('list', { name: 'Kitchen' });
+  const lines = await kitchen.locator('[data-off-line]').evaluateAll((rows) => rows.map((row) => [...row.children].map((cell) => cell.textContent.trim())));
+  assert.deepEqual(lines, [
+    ['Draft → Open', '6 entries'], ['In review → Working', '7 entries'], ['Released → Working', '4 entries'],
   ]);
   // The scheme write held until the run is read: the question gives way to where it is and how far.
   let release = () => {};

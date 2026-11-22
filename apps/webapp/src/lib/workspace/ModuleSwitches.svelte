@@ -16,7 +16,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, CheckboxGroup, Dialog, Icon, IconButton, Inline, ProgressBar, Radio, SettingRow, Spinner, Switch } from '@hubtask/design-system/components';
+  import { Button, CheckboxGroup, ChoiceCards, Dialog, Disclosure, IconButton, Inline, MoveCheck, ProgressBar, SettingRow, Spinner, Switch, type MoveCheckItem } from '@hubtask/design-system/components';
   import type { ConfigTemplate, ConfigTemplateList, ModuleList, ModuleReach, ModuleState, ResourceState } from '@hubtask/sync-engine';
 
   import { buckets } from '../data/buckets.svelte.ts';
@@ -200,6 +200,24 @@
     confirming = undefined;
     toast.show({ text: t('app.modules.off_wf_converted', { count: rows.length }), tone: 'success' });
   }
+  /** What switching Workflows off reaches, as the question's framed list (the draft's order). */
+  const consequences = $derived.by((): MoveCheckItem[] => {
+    const items: MoveCheckItem[] = [];
+    if (stranded && stranded.places.length > 0) {
+      items.push({ id: 'places', tone: 'warning', text: t('app.modules.off_wf_places', { count: stranded.places.length }), detail: stranded.places.map(placeName).join(' · ') });
+    }
+    if (stranded && stranded.open > 0) {
+      items.push({ id: 'open', tone: 'warning', text: t('app.modules.off_wf_open', { count: stranded.open }), ...(stranded.stuck > 0 ? { detail: t('app.modules.off_wf_stuck', { count: stranded.stuck }) } : {}) });
+    }
+    const rules = reachLines.find((line) => line.code === 'app.modules.off_rules');
+    if (rules) items.push({ id: 'rules', tone: 'warning', icon: 'pause', text: t(rules.code, rules.params), way: { label: t('app.modules.off_rules_view'), href: '/administration/rules' } });
+    const people = reachLines.find((line) => line.code === 'app.modules.off_people');
+    items.push(people
+      ? { id: 'kept', tone: 'ok', icon: 'info', text: t(people.code, people.params), detail: t('app.modules.off_wf_kept') }
+      : { id: 'kept', tone: 'ok', icon: 'info', text: t('app.modules.off_wf_kept') });
+    return items;
+  });
+  let isWhereOpen = $state(true);
   const offPrimary = $derived.by(() => {
     if (!asksWorkflows) return { label: t('app.modules.off_confirm'), tone: 'danger' as const, onclick: confirmOff };
     if (reaches.status === 'loading' || reaches.status === 'idle') {
@@ -488,40 +506,33 @@
       {:else if reaches.status === 'failed'}
         <FailureNote problem={renderProblem(reaches.error as never, messages)} />
       {/if}
-      <ul class="consequences" data-off-workflows>
-        {#if stranded && stranded.places.length > 0}
-          <li data-tone="warning"><Icon name="triangle-alert" size="sm" /><span><strong>{t('app.modules.off_wf_places', { count: stranded.places.length })}</strong><small>{stranded.places.map(placeName).join(' · ')}</small></span></li>
-        {/if}
-        {#if stranded && stranded.open > 0}
-          <li data-tone="warning" data-off-open={stranded.open}><Icon name="triangle-alert" size="sm" /><span><strong>{t('app.modules.off_wf_open', { count: stranded.open })}</strong>{#if stranded.stuck > 0}<small data-off-stuck={stranded.stuck}>{t('app.modules.off_wf_stuck', { count: stranded.stuck })}</small>{/if}</span></li>
-        {/if}
-        {#each reachLines as line (line.code)}
-          <li data-off-reach><Icon name={line.code === 'app.modules.off_rules' ? 'pause' : 'info'} size="sm" /><span>{t(line.code, line.params)}{#if line.code === 'app.modules.off_rules'}<small><a class="act" href="/administration/rules" data-off-rules>{t('app.modules.off_rules_view')}</a></small>{/if}</span></li>
-        {/each}
-        <li><Icon name="info" size="sm" /><span>{t('app.modules.off_wf_kept')}</span></li>
-      </ul>
+      <div class="consequences" data-off-workflows data-off-open={stranded && stranded.open > 0 ? stranded.open : undefined}>
+        <MoveCheck label={t('app.modules.off_wf_reach_label')} items={consequences} toneLabels={{ ok: t('app.modules.off_tone_ok'), obstacle: t('app.modules.off_tone_obstacle'), warning: t('app.modules.off_tone_warning') }} isFramed />
+      </div>
       {#if stranded && needsChoice(stranded)}
-        <Radio
+        <ChoiceCards
           label={t('app.modules.off_wf_question', { count: stranded.open })}
           options={[
-            { value: 'convert', label: t('app.modules.off_wf_convert'), hint: t('app.modules.off_wf_convert_hint') },
-            { value: 'pause', label: t('app.modules.off_wf_pause'), hint: t('app.modules.off_wf_pause_hint', { open: stranded.open, stuck: stranded.stuck }) },
+            { value: 'convert', label: t('app.modules.off_wf_convert'), description: t('app.modules.off_wf_convert_hint') },
+            { value: 'pause', label: t('app.modules.off_wf_pause'), description: t('app.modules.off_wf_pause_hint', { open: stranded.open, stuck: stranded.stuck }) },
           ]}
           bind:value={() => offChoice ?? '', (value) => (offChoice = value === 'convert' || value === 'pause' ? value : undefined)}
           disabledReason={converting && !converting.failure ? t('app.modules.off_wf_converting_short') : undefined}
         />
         {#if offChoice === 'convert'}
-          <!-- Where the entries go, per collection: each status today and the column that keeps it. -->
+          <!-- Where the entries go, per collection: each status today, the column that keeps it, how many.
+               Rows, not a table: a dialog holds no table (design-system.md, where a task opens). -->
           <div class="where" data-off-where>
-            <p class="where-title">{t('app.modules.off_wf_where')}</p>
-            {#each [...new Set(stranded.lines.map((line) => line.collectionId))] as collectionId (collectionId)}
-              <p class="where-place">{containers.find(collectionId)?.name ?? t('app.modules.off_wf_unknown')}</p>
-              <ul>
-                {#each stranded.lines.filter((line) => line.collectionId === collectionId) as line (line.status)}
-                  <li data-off-line>{t('app.modules.off_wf_line', { status: statusName(collectionId, line.status), column: columnAfter(collectionId, line.columnId), count: line.count })}</li>
-                {/each}
-              </ul>
-            {/each}
+            <Disclosure label={t('app.modules.off_wf_where')} bind:isOpen={isWhereOpen}>
+              {#each [...new Set(stranded.lines.map((line) => line.collectionId))] as collectionId (collectionId)}
+                <p class="where-place" id={`off-where-${collectionId}`}>{containers.find(collectionId)?.name ?? t('app.modules.off_wf_unknown')}</p>
+                <ul class="moves" aria-labelledby={`off-where-${collectionId}`}>
+                  {#each stranded.lines.filter((line) => line.collectionId === collectionId) as line (line.status)}
+                    <li data-off-line><span>{t('app.modules.off_wf_move', { status: statusName(collectionId, line.status), column: columnAfter(collectionId, line.columnId) })}</span><span class="count">{t('app.modules.off_wf_entries', { count: line.count })}</span></li>
+                  {/each}
+                </ul>
+              {/each}
+            </Disclosure>
           </div>
         {/if}
         {#if converting?.failure}
@@ -603,23 +614,18 @@
   }
   .card-title { margin: 0; font-weight: var(--fw-medium); }
 
-  /* The consequences of switching Workflows off, one line each with its mark (UX-7: never by colour alone). */
-  .consequences { display: grid; gap: var(--sp-100); margin: var(--sp-150) 0; padding: 0; list-style: none; }
-  .consequences li { display: grid; grid-template-columns: auto 1fr; gap: var(--sp-100); align-items: start; color: var(--text-secondary); }
-  .consequences li[data-tone='warning'] {
-    padding: var(--sp-100);
-    border-radius: var(--r-sm);
-    background: var(--status-warning-surface);
-    color: var(--status-warning-text);
+  .consequences { margin: var(--sp-150) 0 var(--sp-200); }
+  .where { margin-block-start: var(--sp-150); }
+  .where-place { margin: var(--sp-100) 0 0; color: var(--text-subtle); font-size: var(--fs-075); font-weight: var(--fw-semibold); }
+  .moves { margin: 0; padding: 0; list-style: none; font-size: var(--fs-075); }
+  .moves li {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--sp-150);
+    padding: var(--sp-050) var(--sp-100);
+    border-block-end: var(--bw-hairline) solid var(--border-subtle);
   }
-  .consequences li[data-tone='warning'] small { color: inherit; }
-  .consequences strong { display: block; font-weight: var(--fw-semibold); }
-  .consequences small { display: block; color: var(--text-secondary); font-size: var(--fs-075); }
-  .where { display: grid; gap: var(--sp-050); margin-block-start: var(--sp-150); font-size: var(--fs-075); }
-  .where p { margin: 0; }
-  .where-title { font-weight: var(--fw-medium); }
-  .where-place { color: var(--text-secondary); }
-  .where ul { margin: 0; padding-inline-start: var(--sp-200); }
+  .count { flex: none; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
   .refusal-inline { margin: 0; color: var(--text-danger); }
   .progress { margin-block-start: var(--sp-150); }
   .act { color: var(--text-brand); font-weight: var(--fw-medium); }
