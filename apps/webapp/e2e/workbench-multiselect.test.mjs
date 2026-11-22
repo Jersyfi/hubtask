@@ -5,8 +5,9 @@
 // walked in the built workbench as workbench-fields.test.mjs walks it, under the same
 // `style-src 'self'`. It holds the keyboard of the closed field and of the open list, the option
 // that is locked on and cannot be cleared, the refused option and the read-only control, the
-// filter, the visible ticks, the bottom sheet at a phone's width with *Done*, and `Escape` closing
-// one layer at a time inside a dialog - at both widths. The call sites' checks (UC-WRK-32,
+// filter, focus never under the list's stuck filter and foot, the visible ticks, the bottom sheet
+// at a phone's width with *Done*, and `Escape` closing one layer at a time inside a dialog - at
+// both widths. The call sites' checks (UC-WRK-32,
 // UC-WRK-23) are walked where a screen uses it.
 
 import { test } from 'node:test';
@@ -55,6 +56,54 @@ const selectedNames = (page) =>
 async function story(page, origin, name) {
   await page.goto(`${origin}/?story=${STORY}--${name}`);
   await page.locator('.host').waitFor();
+}
+
+/**
+ * Where the focused option is covered (design-system.md §10, 2.4.7 and 2.4.11): its box and its
+ * ring against every stuck region of the open list - the filter and the foot - and the corners
+ * of its top and bottom edges against what the page draws there, which also finds a stuck region's cover.
+ */
+async function focusCover(page) {
+  return page.evaluate(() => {
+    const node = document.activeElement;
+    const style = getComputedStyle(node);
+    const ring = Number.parseFloat(style.outlineOffset) + Number.parseFloat(style.outlineWidth);
+    const box = node.getBoundingClientRect();
+    const reach = { top: box.top - ring, bottom: box.bottom + ring };
+    const covers = [];
+    for (const stuck of node.closest('[role="dialog"], dialog').querySelectorAll('*')) {
+      if (getComputedStyle(stuck).position !== 'sticky') continue;
+      const over = stuck.getBoundingClientRect();
+      if (reach.top < over.bottom - 0.5 && reach.bottom > over.top + 0.5) covers.push(`${stuck.className} ${Math.round(over.top)}-${Math.round(over.bottom)}`);
+    }
+    for (const [x, y] of [[box.left + box.width / 2, box.top + 1], [box.left + box.width / 2, box.bottom - 1]]) {
+      const hit = document.elementFromPoint(x, y);
+      if (!hit || !node.contains(hit)) covers.push(`${hit?.className ?? 'nothing'} at ${Math.round(x)},${Math.round(y)}`);
+    }
+    const name = document.getElementById(node.getAttribute('aria-labelledby'))?.textContent?.trim();
+    return { name, at: `${Math.round(reach.top)}-${Math.round(reach.bottom)}`, covers };
+  });
+}
+
+/** Arrows from the first option to the last and back; at each step the focused one is in clear view. */
+/** A sheet rises as it opens: measured while it moves, everything in it reads as off the screen. */
+async function settled(page) {
+  await page.evaluate(() => Promise.all(document.getAnimations().map((each) => each.finished.catch(() => undefined))));
+}
+
+async function walkClear(page, what) {
+  await settled(page);
+  await page.keyboard.press('Home');
+  const count = await list(page).getByRole('option').count();
+  const hidden = [];
+  for (const [key, steps] of [['ArrowDown', count - 1], ['ArrowUp', count - 1]]) {
+    for (let step = 0; step <= steps; step += 1) {
+      if (step > 0) await page.keyboard.press(key);
+      const seen = await focusCover(page);
+      if (seen.covers.length > 0) hidden.push(`${key} ${seen.name} (${seen.at}) under ${seen.covers.join(', ')}`);
+    }
+  }
+  assert.deepEqual(hidden, [], `${what}: a focused option lies under a stuck region`);
 }
 
 for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
@@ -189,10 +238,14 @@ for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
       await page.keyboard.press('Escape');
 
       // --- the filter: label and hint, groups left out, a sentence for no match ---------------
+      // At a height where the list scrolls under its stuck filter and foot: the arrows never leave
+      // focus under them.
+      await page.setViewportSize({ width: 1280, height: 720 });
       await story(page, server.origin, 'grouped');
       await field(page).click();
       await list(page).waitFor();
       assert.equal(await list(page).getByRole('group').count(), 4, 'the four groups are not named groups');
+      await walkClear(page, 'Grouped at 1280×720');
       const filter = page.getByRole('searchbox', { name: 'Filter the fields' });
       await filter.fill('person');
       assert.deepEqual(
@@ -206,6 +259,7 @@ for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
       await page.getByText('No field matches this filter.').waitFor();
       assert.equal(await list(page).count(), 0, 'an empty listbox is left standing');
       await page.keyboard.press('Escape');
+      await page.setViewportSize({ width: 1280, height: 860 });
 
       // --- the visible ticks: each one its own stop -------------------------------------------
       await story(page, server.origin, 'inline');
@@ -254,6 +308,20 @@ for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
       await sheet.getByRole('button', { name: 'Done' }).click();
       await sheet.waitFor({ state: 'hidden' });
       assert.equal((await focused(page)).isField, true, 'Done did not put focus back on the field');
+
+      // The sheet scrolls under its stuck filter and foot too.
+      await story(page, server.origin, 'grouped');
+      await field(page).click();
+      await list(page).waitFor();
+      await walkClear(page, 'Grouped as the sheet at 390×844');
+      await page.keyboard.press('Escape');
+      await page.setViewportSize({ width: 390, height: 667 });
+      await story(page, server.origin, 'german');
+      await field(page).click();
+      await list(page).waitFor();
+      await walkClear(page, 'German as the sheet at 390×667');
+      await page.keyboard.press('Escape');
+      await page.setViewportSize({ width: 390, height: 844 });
 
       // The sheet over a full-screen dialog: Escape closes the sheet only, Done returns focus.
       await story(page, server.origin, 'in-dialog');

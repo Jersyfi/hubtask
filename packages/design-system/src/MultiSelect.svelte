@@ -182,8 +182,38 @@
   const starts = $derived(shown.map((_, at) => shown.slice(0, at).reduce((sum, section) => sum + section.options.length, 0)));
   const chosenCount = $derived(all.filter((each) => selected.includes(each.value)).length);
 
+  let filterBox = $state<HTMLElement | null>(null);
+  let footBox = $state<HTMLElement | null>(null);
+
   function focusActive(): void {
-    list?.querySelector<HTMLElement>(`[data-index="${active}"]`)?.focus();
+    const node = list?.querySelector<HTMLElement>(`[data-index="${active}"]`);
+    if (!node) return;
+    node.focus({ preventScroll: true });
+    keepClear(node);
+  }
+
+  /** The surface that scrolls the list: the popover's, or the sheet's body. */
+  function scrollerOf(node: HTMLElement): HTMLElement | null {
+    for (let at = node.parentElement; at; at = at.parentElement) {
+      if (at.scrollHeight > at.clientHeight && /auto|scroll/.test(getComputedStyle(at).overflowY)) return at;
+    }
+    return null;
+  }
+
+  // Focus is never hidden by a stuck region (design-system.md §10, 2.4.11): the browser scrolls a
+  // focused option into the surface, not clear of the filter and the foot stuck inside it, so the
+  // option and its ring are scrolled out from under them here.
+  function keepClear(node: HTMLElement): void {
+    node.scrollIntoView({ block: 'nearest' });
+    const scroller = scrollerOf(node);
+    if (!scroller) return;
+    const style = getComputedStyle(node);
+    const ring = (Number.parseFloat(style.outlineOffset) || 0) + (Number.parseFloat(style.outlineWidth) || 0);
+    const box = node.getBoundingClientRect();
+    const top = filterBox?.getBoundingClientRect().bottom;
+    const bottom = footBox?.getBoundingClientRect().top;
+    if (top !== undefined && box.top - ring < top) scroller.scrollTop -= top - (box.top - ring);
+    else if (bottom !== undefined && box.bottom + ring > bottom) scroller.scrollTop += box.bottom + ring - bottom;
   }
 
   async function open(): Promise<void> {
@@ -389,7 +419,7 @@
           <p class="notice" id={noticeId}><Icon name="lock" size="sm" /><span>{disabledReason}</span></p>
         {/if}
         {#if isFilterable}
-          <div class="filter">
+          <div class="filter" bind:this={filterBox}>
           <SearchField
             label={filterLabel}
             isLabelHidden
@@ -427,7 +457,7 @@
           </div>
         {/if}
         {#if isFilterable && !isReadOnly}
-          <div class="foot">
+          <div class="foot" bind:this={footBox}>
             <Button tone="subtle" size="sm" onclick={chooseAll}>{allLabel}</Button>
             <Button tone="subtle" size="sm" onclick={chooseNone}>{noneLabel}</Button>
             {#if countLabel}<span class="count" dir="auto">{countLabel(chosenCount, all.length)}</span>{/if}
