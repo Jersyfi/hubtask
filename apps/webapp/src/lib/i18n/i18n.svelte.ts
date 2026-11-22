@@ -170,9 +170,18 @@ class NamingWords {
   #messages = $state.raw<Messages | undefined>(undefined);
   #ready: Promise<void> = Promise.resolve();
 
-  /** Settles when the catalogue of the locale last adopted has arrived, or failed to. */
+  /**
+   * Settles when the catalogue of the locale last adopted has arrived, or failed to. A locale
+   * adopted while one loaded replaces that load, so the wait goes on to the one current then.
+   */
   get ready(): Promise<void> {
-    return this.#ready;
+    return (async () => {
+      let awaited: Promise<void>;
+      do {
+        awaited = this.#ready;
+        await awaited;
+      } while (awaited !== this.#ready);
+    })();
   }
 
   adopt(locale: string): void {
@@ -193,12 +202,7 @@ export const naming = new NamingWords();
 
 /** A default name as it is stored: in the account's language, else the workspace's (`naming.ts`). */
 export async function defaultName(code: string, params?: MessageParams): Promise<string> {
-  // A locale adopted while the last one loaded replaces its load: wait for the one current then.
-  let awaited: Promise<void>;
-  do {
-    awaited = naming.ready;
-    await awaited;
-  } while (awaited !== naming.ready);
+  await naming.ready;
   return naming.t(code, params);
 }
 
