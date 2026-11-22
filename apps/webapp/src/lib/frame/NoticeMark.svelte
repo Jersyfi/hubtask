@@ -8,11 +8,9 @@
   // and **the manifest this client could not read**, with the way to ask again. The maturity stage
   // is not among them: it is stated in the release notes only (ADR-0107).
   //
-  // The manifest came from `SyncStatus`, which 1022's own "what this does not fix" left
-  // open because this mark did not exist yet. It is a statement about the application rather than
-  // about this copy's changes - but what decides it is simpler than the category: **`SyncLine` is
-  // drawn only with a session, this mark always**, and `/meta/capabilities` is read before
-  // anybody signs in. A retry behind a mark that is not on the screen is no retry.
+  // The manifest is here rather than in `SyncLine` because **`SyncLine` is drawn only with a
+  // session, this mark always**, and `/meta/capabilities` is read before anybody signs in. A
+  // retry behind a mark that is not on the screen is no retry.
   //
   // It is the pattern the connection's mark already is (ADR-0063 decision 5): unpressed it says
   // only that there is something; pressed it says all of it.
