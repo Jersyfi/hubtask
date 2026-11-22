@@ -58,6 +58,12 @@ var walkKinds = []string{
 	entityWorkflowScheme, entitySetting,
 }
 
+// WalkedEntities answers the entities a device holds - the walk's kinds without its own name for
+// the set pass - for the test that holds a client's list of them to this one.
+func WalkedEntities() []string {
+	return slices.DeleteFunc(slices.Clone(walkKinds), func(kind string) bool { return kind == kindSet })
+}
+
 const (
 	entityContainer  = "container"
 	entityBucket     = "bucket"
