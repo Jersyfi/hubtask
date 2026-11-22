@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import type { Capabilities, EffectiveStructure, Preset } from '@hubtask/sync-engine';
 
 import {
+  afterSave,
   changeOf,
   chooseEntryTypesOf,
   chooseFieldsOf,
@@ -198,4 +199,13 @@ test('an edit undone after a change elsewhere follows the structure in force', (
   const undone = setValue(kept, 'celebration', 'ALL');
   const followed = followStructure(undone, changed, undefined, changed);
   assert.equal(changeOf(followed, changed, undefined), undefined, "the change made elsewhere is not sent as the reader's");
+});
+
+test('a save answered after a newer structure came into force does not offer the answer as a change', () => {
+  const answer = { ...project, settings: { ...project.settings, celebration: 'SUBTLE' } } as unknown as EffectiveStructure;
+  // Saved later elsewhere, published while the save's answer was on its way.
+  const newer = { ...answer, settings: { ...answer.settings, completion: 'MANUAL' } } as unknown as EffectiveStructure;
+  const after = afterSave(answer, project, newer);
+  const followed = followStructure(after, newer, undefined, newer);
+  assert.equal(changeOf(followed, newer, undefined), undefined, 'the newer setting is not overwritten by the older answer');
 });

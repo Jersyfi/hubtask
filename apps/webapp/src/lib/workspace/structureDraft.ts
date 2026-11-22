@@ -65,6 +65,15 @@ export function startAnswered(structure: EffectiveStructure): Draft {
 }
 
 /**
+ * The draft once a save is answered. `before` is the structure in force when it was sent: if
+ * another one came into force meanwhile it is the answer or a later one - an earlier version
+ * `If-Match` refuses - so the draft starts from it, never measures it against the answer.
+ */
+export function afterSave(answer: EffectiveStructure, before: EffectiveStructure | undefined, inForce: EffectiveStructure | undefined): Draft {
+  return inForce === undefined || inForce === before ? startAnswered(answer) : startDraft(inForce);
+}
+
+/**
  * The draft once the structure in force changed while the panel is open - another tab, another
  * device, a template applied. A draft the reader has not changed starts again from it, so a change
  * made elsewhere is never counted as theirs; one they changed is kept, and the save's `If-Match`
