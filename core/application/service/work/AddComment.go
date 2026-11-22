@@ -84,8 +84,8 @@ type AddCommentCommand struct {
 	ID     shared.ID
 	ItemID shared.ID
 	// SystemCode and SystemParams make the comment one the server files on the author's behalf
-	// (offline-sync.md §5). Not declared as inputs: nobody asks for a system comment over a
-	// channel, and FileDisplaced is the one caller.
+	// (offline-sync.md §5). Not declared as inputs: a channel never names a code, only
+	// FileDisplaced and FileDivergingVersion set them, each with its own heading.
 	SystemCode   string
 	SystemParams map[string]string
 	// ParentCommentID is the comment being replied to, empty for a top-level comment.
