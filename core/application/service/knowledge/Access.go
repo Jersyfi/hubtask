@@ -558,10 +558,14 @@ func (h ListSharedPages) Descriptor() usecase.Descriptor {
 // personalSpace answers the caller's own notes' hub, making it first when asked to.
 func (s Space) personalSpace(ctx context.Context, actor appshared.ActorContext, create bool) (shared.ID, error) {
 	var hub shared.ID
-	found := false
+	found, workspaceLocale := false, ""
 	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		hub, found, err = s.Pages.PersonalSpace(ctx, actor.AccountID)
+		if hub, found, err = s.Pages.PersonalSpace(ctx, actor.AccountID); err != nil || found || !create || s.Workspaces == nil {
+			return err
+		}
+		workspace, err := s.Workspaces.Find(ctx)
+		workspaceLocale = workspace.DefaultLocale
 		return err
 	})
 	if err != nil || found || !create {
@@ -570,7 +574,9 @@ func (s Space) personalSpace(ctx context.Context, actor appshared.ActorContext, 
 	if s.PersonalHubs == nil || s.Words == nil {
 		return "", shared.ErrConflict.WithDetail("pages.personal_space_unavailable")
 	}
-	made, err := s.PersonalHubs.MakePrivateHub(ctx, actor, s.Words.Render(actor.Locale, personalSpaceNameCode, nil))
+	// The name is stored, so it follows the account, not the browser that asked (i18n-l10n.md §2).
+	name := s.Words.Render(actor.NamingLocale(workspaceLocale), personalSpaceNameCode, nil)
+	made, err := s.PersonalHubs.MakePrivateHub(ctx, actor, name)
 	if err != nil {
 		return "", err
 	}

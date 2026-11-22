@@ -12,6 +12,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/knowledge"
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -343,7 +344,7 @@ func TestADailyNoteOpensInAPersonalSpace(t *testing.T) {
 	f.clock.at = time.Date(2026, 10, 29, 23, 30, 0, 0, time.UTC)
 	ctx := context.Background()
 	actor := as(anna)
-	actor.Locale, actor.TimeZone = "de", "Europe/Vienna"
+	actor.Locale, actor.AccountLocale, actor.TimeZone = "de", "de", "Europe/Vienna"
 
 	note, err := (OpenDailyNote{Space: f.space}).Execute(ctx, actor, "")
 	if err != nil {
@@ -366,6 +367,34 @@ func TestADailyNoteOpensInAPersonalSpace(t *testing.T) {
 	}
 	if _, err := (ReadPage{Space: f.space}).Execute(ctx, as(bert), note.ID); err == nil {
 		t.Error("somebody else read the daily note")
+	}
+}
+
+type workspaceOf struct{ locale string }
+
+func (w workspaceOf) Find(context.Context) (identity.Workspace, error) {
+	return identity.Workspace{Tenant: identity.Tenant{DefaultLocale: w.locale}}, nil
+}
+
+// UC-DOC-07 check 5: the personal hub is named in the language of the person's account, or the
+// workspace's default where the account sets none, whatever language the browser asked for.
+func TestThePersonalHubIsNamedInTheAccountsLanguageElseTheWorkspaces(t *testing.T) {
+	for _, tc := range []struct{ accountLocale, want string }{
+		{"", "de:" + personalSpaceNameCode},
+		{"fr", "fr:" + personalSpaceNameCode},
+	} {
+		f := newFixture()
+		hubs := &privateHubs{}
+		f.space.PersonalHubs, f.space.Words, f.space.Workspaces = hubs, words{}, workspaceOf{locale: "de"}
+		f.clock.at = time.Date(2026, 10, 29, 12, 0, 0, 0, time.UTC)
+		actor := as(anna)
+		actor.Locale, actor.AccountLocale = "en", tc.accountLocale
+		if _, err := (OpenDailyNote{Space: f.space}).Execute(context.Background(), actor, ""); err != nil {
+			t.Fatalf("account %q: OpenDailyNote: %v", tc.accountLocale, err)
+		}
+		if hubs.named != tc.want {
+			t.Errorf("account %q, browser en: the space is named %q, want %q", tc.accountLocale, hubs.named, tc.want)
+		}
 	}
 }
 

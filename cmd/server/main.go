@@ -2064,6 +2064,7 @@ func run() error {
 		Authorizer: authorizer, Reader: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Text: forms, Reviews: reviewClocks, Changes: changes, HLC: hybrid,
 		PersonalHubs: privateHubMaker{catalogue: personalHubs}, Words: renderer,
+		Workspaces: postgres.NewWorkspaceSettingsRepository(),
 		// A page's public link, where the workspace allows it (UC-DOC-08).
 		Public: knowledgeservice.PublicLinking{
 			Links:    postgres.NewPagePublicLinkRepository(security.NewPageLinkHasher(cfg.SecretKey)),
