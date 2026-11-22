@@ -19550,6 +19550,9 @@ type HubFromTemplate struct {
 	Icon        *string `json:"icon,omitempty"`
 	Name        string  `json:"name"`
 
+	// Private Makes the new hub private: reached only by people holding a role on it or below it, not by the workspace's owners and administrators; its creator becomes its owner. It asks no less than a shared hub from a template does: without the right to change the workspace's shape it is refused (`access.not_permitted`), even for somebody who may create a private hub with `POST /containers`. Refused for a service account, and where the workspace does not allow private hubs (`containers.private_hubs_off`); a refusal leaves no hub.
+	Private *bool `json:"private,omitempty"`
+
 	// Samples True takes the template's sample entries into the hub, marked and removable at once.
 	Samples *bool `json:"samples,omitempty"`
 
@@ -38900,7 +38903,7 @@ type ClientInterface interface {
 
 	// CreateHubFromTemplateWithBody Creates a hub from a template of the catalogue
 	//
-	// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+	// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape, with `private` too. A private hub is private from its first row, its creator its owner, and takes every part a shared one takes: none of them gives anybody a role in it, and its saved views and rules read and act only for those who reach it. The answer is the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -38909,7 +38912,7 @@ type ClientInterface interface {
 
 	// CreateHubFromTemplate Creates a hub from a template of the catalogue
 	//
-	// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+	// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape, with `private` too. A private hub is private from its first row, its creator its owner, and takes every part a shared one takes: none of them gives anybody a role in it, and its saved views and rules read and act only for those who reach it. The answer is the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -55848,7 +55851,7 @@ func (c *Client) UnarchiveContainer(ctx context.Context, containerId ContainerId
 
 // CreateHubFromTemplateWithBody Creates a hub from a template of the catalogue
 //
-// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape, with `private` too. A private hub is private from its first row, its creator its owner, and takes every part a shared one takes: none of them gives anybody a role in it, and its saved views and rules read and act only for those who reach it. The answer is the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -55867,7 +55870,7 @@ func (c *Client) CreateHubFromTemplateWithBody(ctx context.Context, params *Crea
 
 // CreateHubFromTemplate Creates a hub from a template of the catalogue
 //
-// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape, with `private` too. A private hub is private from its first row, its creator its owner, and takes every part a shared one takes: none of them gives anybody a role in it, and its saved views and rules read and act only for those who reach it. The answer is the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -118861,7 +118864,7 @@ type ClientWithResponsesInterface interface {
 
 	// CreateHubFromTemplateWithBodyWithResponse Creates a hub from a template of the catalogue
 	//
-	// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+	// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape, with `private` too. A private hub is private from its first row, its creator its owner, and takes every part a shared one takes: none of them gives anybody a role in it, and its saved views and rules read and act only for those who reach it. The answer is the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -118870,7 +118873,7 @@ type ClientWithResponsesInterface interface {
 
 	// CreateHubFromTemplateWithResponse Creates a hub from a template of the catalogue
 	//
-	// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+	// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape, with `private` too. A private hub is private from its first row, its creator its owner, and takes every part a shared one takes: none of them gives anybody a role in it, and its saved views and rules read and act only for those who reach it. The answer is the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -178890,7 +178893,7 @@ func (c *ClientWithResponses) UnarchiveContainerWithResponse(ctx context.Context
 
 // CreateHubFromTemplateWithBodyWithResponse Creates a hub from a template of the catalogue
 //
-// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape, with `private` too. A private hub is private from its first row, its creator its owner, and takes every part a shared one takes: none of them gives anybody a role in it, and its saved views and rules read and act only for those who reach it. The answer is the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -178905,7 +178908,7 @@ func (c *ClientWithResponses) CreateHubFromTemplateWithBodyWithResponse(ctx cont
 
 // CreateHubFromTemplateWithResponse Creates a hub from a template of the catalogue
 //
-// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape, with `private` too. A private hub is private from its first row, its creator its owner, and takes every part a shared one takes: none of them gives anybody a role in it, and its saved views and rules read and act only for those who reach it. The answer is the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

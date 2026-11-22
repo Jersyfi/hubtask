@@ -19908,7 +19908,10 @@ paths:
         the modules it needs come on. A refused part refuses the whole: no hub is left. A template
         without a hub part is refused with `config.template_not_for_hubs`. Sent with an
         `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change
-        the workspace's shape. The answer is the hub.
+        the workspace's shape, with `private` too. A private hub is private from its first row,
+        its creator its owner, and takes every part a shared one takes: none of them gives anybody
+        a role in it, and its saved views and rules read and act only for those who reach it. The
+        answer is the hub.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -36557,6 +36560,17 @@ components:
           minLength: 1
           maxLength: 100
           description: A template of the catalogue (`GET /config/templates`) with a hub part, by its key.
+        private:
+          type: boolean
+          default: false
+          description: >
+            Makes the new hub private: reached only by people holding a role on it or below it,
+            not by the workspace's owners and administrators; its creator becomes its owner. It
+            asks no less than a shared hub from a template does: without the right to change the
+            workspace's shape it is refused (`access.not_permitted`), even for somebody who may
+            create a private hub with `POST /containers`. Refused for a service account, and where
+            the workspace does not allow private hubs (`containers.private_hubs_off`); a refusal
+            leaves no hub.
         answers:
           type: object
           additionalProperties: { type: string }

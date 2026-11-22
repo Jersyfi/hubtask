@@ -3852,6 +3852,7 @@ class HubFromTemplate(TypedDict, total=False):
     icon: str | None
     color_token: str | None
     template: Required[str]
+    private: bool
     answers: dict[str, Any]
     samples: bool
     acknowledge: bool

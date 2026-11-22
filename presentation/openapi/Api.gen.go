@@ -19544,6 +19544,9 @@ type HubFromTemplate struct {
 	Icon        *string `json:"icon,omitempty"`
 	Name        string  `json:"name"`
 
+	// Private Makes the new hub private: reached only by people holding a role on it or below it, not by the workspace's owners and administrators; its creator becomes its owner. It asks no less than a shared hub from a template does: without the right to change the workspace's shape it is refused (`access.not_permitted`), even for somebody who may create a private hub with `POST /containers`. Refused for a service account, and where the workspace does not allow private hubs (`containers.private_hubs_off`); a refusal leaves no hub.
+	Private *bool `json:"private,omitempty"`
+
 	// Samples True takes the template's sample entries into the hub, marked and removable at once.
 	Samples *bool `json:"samples,omitempty"`
 

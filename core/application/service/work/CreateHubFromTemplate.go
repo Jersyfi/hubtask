@@ -26,12 +26,14 @@ type HubTemplates interface {
 	TakeForHub(ctx context.Context, actor appshared.ActorContext, take StarterTemplate, hub shared.ID) error
 }
 
-// CreateHubFromTemplateCommand is the hub's name and look and the template it takes.
+// CreateHubFromTemplateCommand is the hub's name and look, whether it is private, and the template
+// it takes.
 type CreateHubFromTemplateCommand struct {
 	Name        string
 	Description string
 	Icon        string
 	ColorToken  string
+	Private     bool
 	Template    StarterTemplate
 }
 
@@ -59,9 +61,9 @@ func (h CreateHubFromTemplate) Execute(
 	}
 	create := CreateContainerCommand{
 		Type: domain.ContainerHub, Name: cmd.Name, Description: cmd.Description,
-		Icon: cmd.Icon, ColorToken: cmd.ColorToken,
+		Icon: cmd.Icon, ColorToken: cmd.ColorToken, Private: cmd.Private,
 	}
-	if err := h.Containers.authorize(ctx, actor, create); err != nil {
+	if err := h.authorize(ctx, actor, create); err != nil {
 		return domain.Container{}, nil, err
 	}
 	var hub domain.Container
@@ -72,11 +74,14 @@ func (h CreateHubFromTemplate) Execute(
 		if err := h.Templates.TakeWorkspacePartOnce(ctx, actor, cmd.Template); err != nil {
 			return err
 		}
+		// Both creates were authorised above: a refusal in here would be rolled back with its
+		// audit entry (audit.md §7). A private hub is written private and its creator its owner
+		// before the collection and the hub part, which ask at the hub, are taken.
 		var err error
-		if hub, structure, err = h.Containers.create(ctx, actor, create); err != nil {
+		if hub, structure, err = h.Containers.createAuthorized(ctx, actor, create); err != nil {
 			return err
 		}
-		if _, _, err := h.Containers.create(ctx, actor, firstCollectionOf(hub)); err != nil {
+		if _, _, err := h.Containers.createAuthorized(ctx, actor, firstCollectionOf(hub)); err != nil {
 			return err
 		}
 		return h.Templates.TakeForHub(ctx, actor, cmd.Template, hub.ID)
@@ -85,6 +90,23 @@ func (h CreateHubFromTemplate) Execute(
 		return domain.Container{}, nil, err
 	}
 	return hub, structure, nil
+}
+
+// authorize asks STRUCTURE on the workspace whether or not the hub is private: a template shapes
+// the workspace, so the private hub's own question - any role anywhere - never replaces it
+// (UC-ID-16 check 9). For a private hub that question and the workspace's switch are asked after it.
+//
+// The first collection is covered by the same answer: STRUCTURE on the workspace reaches a shared
+// hub below it, and a private hub's creator is its owner.
+func (h CreateHubFromTemplate) authorize(
+	ctx context.Context, actor appshared.ActorContext, create CreateContainerCommand,
+) error {
+	shaped := create
+	shaped.Private = false
+	if err := h.Containers.authorize(ctx, actor, shaped); err != nil || !create.Private {
+		return err
+	}
+	return h.Containers.authorize(ctx, actor, create)
 }
 
 // Descriptor is the catalogue entry.
@@ -96,7 +118,9 @@ func (h CreateHubFromTemplate) Descriptor() usecase.Descriptor {
 			"the workspace has not taken it, the hub with a first collection named as the hub, and its " +
 			"hub part, as ApplyConfig would apply them, all in one transaction - a refused part leaves " +
 			"no hub. A template without a hub " +
-			"part is refused. Needs the right to change the workspace's shape.",
+			"part is refused. Needs the right to change the workspace's shape, private or not. A private " +
+			"hub is private from its first row with its creator its owner, and takes every part a shared " +
+			"one takes: none of them gives anybody a role in it.",
 		SideEffects: "Writes the hub as CreateContainer does - its event, change and audit entry - " +
 			"and the configuration versions and audit entries ApplyConfig writes for each part taken.",
 		TokenScope: workspaceManageScope,
@@ -106,6 +130,12 @@ func (h CreateHubFromTemplate) Descriptor() usecase.Descriptor {
 			{Name: "icon", Kind: usecase.KindString},
 			{Name: "color_token", Kind: usecase.KindString, Description: "One of the ten label colours."},
 			{Name: "template", Kind: usecase.KindString, Required: true, Description: "A template with a hub part, by key."},
+			{
+				Name: "private", Kind: usecase.KindBool,
+				Description: "A hub reached only by its own members, the workspace's administrators included; " +
+					"the creator becomes its owner. Asks the right to change the workspace's shape as a shared " +
+					"one does; refused for a service account and where private hubs are not allowed.",
+			},
 			{Name: "answers", Kind: usecase.KindObject, Description: "The template's questions answered, by key."},
 			{Name: "samples", Kind: usecase.KindBool, Description: "True takes the template's sample entries into the hub."},
 			{
@@ -134,7 +164,7 @@ func (h CreateHubFromTemplate) invoke(
 	}
 	hub, structure, err := h.Execute(ctx, actor, CreateHubFromTemplateCommand{
 		Name: in.String("name"), Description: in.String("description"),
-		Icon: in.String("icon"), ColorToken: in.String("color_token"),
+		Icon: in.String("icon"), ColorToken: in.String("color_token"), Private: in.Bool("private"),
 		Template: StarterTemplate{
 			Key: in.String("template"), Answers: answers,
 			Samples: in.Bool("samples"), Acknowledge: in.Bool("acknowledge"),
