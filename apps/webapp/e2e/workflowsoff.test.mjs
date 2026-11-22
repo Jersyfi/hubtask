@@ -79,8 +79,9 @@ function backend({ scheme = [{ container_id: COLLECTION.id, entry_type: null, wo
   };
 }
 
-async function askToSwitchOff(browser, options) {
-  const walk = await productWalk(browser, { modules: ['WORKFLOWS'], answer: backend(options) });
+async function askToSwitchOff(browser, options = {}) {
+  const width = options.width ?? 1280;
+  const walk = await productWalk(browser, { modules: ['WORKFLOWS'], answer: backend(options), width, height: width < 600 ? 844 : 900, isMobile: width < 600 });
   await walk.page.goto(`${served.origin}/administration/modules`);
   const row = walk.page.locator('[data-module="WORKFLOWS"]');
   await row.getByRole('switch').waitFor({ timeout: 10_000 });
@@ -89,6 +90,21 @@ async function askToSwitchOff(browser, options) {
   const dialog = walk.page.getByRole('alertdialog', { name: 'Switch Workflows off?' });
   await dialog.waitFor({ timeout: 5_000 });
   return { ...walk, dialog };
+}
+
+/** Where the focus is: inside the alert dialog, and on which control or heading by its name. */
+const focusOf = (page) => page.evaluate(() => {
+  const active = document.activeElement;
+  const dialog = active?.closest('[role="alertdialog"]');
+  return { isInside: dialog !== null && dialog !== undefined, tag: active?.tagName, name: (active?.getAttribute('aria-label') ?? active?.textContent ?? '').trim().slice(0, 60) };
+});
+/** Waits until the focus stands on `name` inside the alert dialog (WCAG 2.4.3), then says where it is. */
+async function focusedOn(page, name) {
+  await page.waitForFunction((wanted) => {
+    const active = document.activeElement;
+    return active?.closest('[role="alertdialog"]') && (active.getAttribute('aria-label') ?? active.textContent ?? '').trim() === wanted;
+  }, name, { timeout: 5_000 }).catch(() => {});
+  return focusOf(page);
 }
 
 const switchedOff = (written) => written.filter((each) => each.method === 'PUT' && each.path === '/tenant/modules/WORKFLOWS');
@@ -165,6 +181,8 @@ test('chromium: converting to columns shows where the entries go, removes each s
   assert.equal(await run.getByRole('progressbar', { name: 'Converting' }).getAttribute('value'), '0');
   assert.match(await run.innerText(), /If something stops, Workflows stays on/);
   assert.equal(await run.getByRole('button', { name: 'Keep it on' }).count(), 0, 'the run offers a way out it cannot keep');
+  // The answers gave way to the run: the focus rests on the dialog's heading, not on the page.
+  assert.deepEqual(await focusedOn(page, 'Converting …'), { isInside: true, tag: 'H2', name: 'Converting …' });
   release();
   await answered;
   const order = written.filter((each) => each.method === 'PUT').map((each) => each.path);
@@ -176,12 +194,14 @@ test('chromium: converting to columns shows where the entries go, removes each s
 
 test('chromium: a conversion that stops keeps Workflows on and says how far it came', async (t) => {
   const browser = await sharedChromium(t);
-  const { dialog, written, close } = await askToSwitchOff(browser, { refuseScheme: true });
+  const { page, dialog, written, close } = await askToSwitchOff(browser, { refuseScheme: true });
   t.after(close);
   await dialog.locator('[data-off-open]').waitFor({ timeout: 10_000 });
   await dialog.getByRole('radio', { name: /Convert to columns/ }).check();
   await dialog.getByRole('button', { name: 'Convert and switch off' }).click();
   await dialog.getByText(/Converting stopped: 0 of 1 places run on columns now/).waitFor({ timeout: 5_000 });
+  // The question is back: the focus on its safe answer again.
+  assert.deepEqual(await focusedOn(page, 'Keep it on'), { isInside: true, tag: 'BUTTON', name: 'Keep it on' });
   // The progress the conversion drew stays where it stopped: no place done of one, and the switch.
   assert.equal(await dialog.getByRole('progressbar', { name: 'Converting' }).getAttribute('value'), '0');
   assert.deepEqual(switchedOff(written), [], 'switched off after a conversion that stopped');
@@ -213,6 +233,31 @@ test('chromium: converting two places counts both through the run and after a st
   assert.equal(await dialog.getByRole('progressbar', { name: 'Converting' }).getAttribute('value'), '33');
   assert.deepEqual(written.filter((each) => each.method === 'PUT' && each.path === '/workflow-scheme').map((each) => each.body.container_id), [COLLECTION.id, HUB.id]);
   assert.deepEqual(switchedOff(written), [], 'switched off after a conversion that stopped');
+});
+
+// At 390 the question opens small and grows to the full screen once it knows what is stranded,
+// which hides its foot: the focus moves to the close control in the bar, the same answer; through
+// the run to the heading; after a stop back to the close control.
+test('chromium: at 390 px the focus stays inside the alert dialog as it grows, runs and stops', async (t) => {
+  const browser = await sharedChromium(t);
+  let release = () => {};
+  const held = new Promise((done) => (release = done));
+  const { page, dialog, close } = await askToSwitchOff(browser, { width: 390, refuseScheme: true });
+  t.after(close);
+  await dialog.locator('[data-off-open]').waitFor({ timeout: 10_000 });
+  const dismiss = await dialog.locator('.dismiss button').evaluate((node) => (node.getAttribute('aria-label') ?? node.textContent ?? '').trim());
+  assert.deepEqual(await focusedOn(page, dismiss), { isInside: true, tag: 'BUTTON', name: dismiss }, 'the grown dialog lost its focus');
+  await dialog.getByRole('radio', { name: /Convert to columns/ }).check();
+  await page.route('**/api/v1/workflow-scheme', async (route) => {
+    if (route.request().method() === 'PUT') await held;
+    return route.fallback();
+  });
+  await dialog.getByRole('button', { name: 'Convert and switch off' }).first().click();
+  await page.getByRole('alertdialog', { name: 'Converting …' }).waitFor({ timeout: 5_000 });
+  assert.deepEqual(await focusedOn(page, 'Converting …'), { isInside: true, tag: 'H2', name: 'Converting …' });
+  release();
+  await dialog.getByText(/Converting stopped: 0 of 1 places/).waitFor({ timeout: 5_000 });
+  assert.deepEqual(await focusedOn(page, dismiss), { isInside: true, tag: 'BUTTON', name: dismiss }, 'the stopped question lost its focus');
 });
 
 test('chromium: where no workflow runs, switching Workflows off asks as briefly as before', async (t) => {
