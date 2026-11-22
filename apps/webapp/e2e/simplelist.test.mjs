@@ -148,8 +148,8 @@ test('a tap on the row\'s start ticks it once, on a target of at least 44 by 44,
     while (node && !node.matches?.('h2.group-head, .section-row')) node = node.previousElementSibling;
     return (node?.matches('.section-row') ? node.querySelector('h2') : node)?.querySelector('span')?.textContent?.trim() === 'In the trolley';
   }, idOf('salt'));
-  // The checkbox inside the row is the checkbox's own: one press, one tick.
-  await page.locator(`[data-row="${idOf('bread')}"] input[type="checkbox"]`).tap();
+  // The mark inside the row is the mark's own: one press, one tick.
+  await page.locator(`[data-row="${idOf('bread')}"] [role="checkbox"]`).tap();
   await page.waitForTimeout(400);
   const ticks = writes.filter((write) => write.path.endsWith(':complete'));
   assert.deepEqual(ticks.map((write) => write.path.split('/').pop()), [`${idOf('salt')}:complete`, `${idOf('bread')}:complete`]);

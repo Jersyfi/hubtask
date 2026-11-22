@@ -309,6 +309,12 @@ test('a press is drawn at once, and the caller’s next answer replaces it', () 
   assert.match(mark, /if \(answer instanceof Promise\) void answer\.finally\(\(\) => \(pressed = undefined\)\);/, 'a write that changed nothing ends the drawing');
 });
 
+test('a task row completes by the mark, the same one a board card and a level-1 row carry', () => {
+  const row = source('TaskRow.svelte');
+  assert.match(row, /<StateMark\s+label=\{completeLabel\}\s+checked=\{isCompleted\}\s+disabledReason=\{completeDisabledReason\}/);
+  assert.doesNotMatch(row, /<Checkbox/);
+});
+
 // --- BucketColumn (board, build-plan §5) ------------------------------------------------------
 
 test('a folded column unfolds by a button, and a refused one says why in words (rule 3)', () => {

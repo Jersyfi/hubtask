@@ -344,7 +344,7 @@ the rows and fields under it say nothing about it.
 
 | Component | Why it follows from the model |
 |---|---|
-| `TaskRow` | `TASK`, `WORK_PACKAGE`, `ACTIVITY`: `type` gives the mark and the indent, `expansion` whether the row hides anything. A type the manifest reports and the icon set has no mark for still gets a row. Which levels of a subtree are open is the device's (§11.10). A row waiting to synchronise takes a `pendingLabel` and the `pending` motion role, in opacity alone |
+| `TaskRow` | `TASK`, `WORK_PACKAGE`, `ACTIVITY`: `type` gives the mark and the indent, `expansion` whether the row hides anything. A type the manifest reports and the icon set has no mark for still gets a row. Which levels of a subtree are open is the device's (§11.10). A row waiting to synchronise takes a `pendingLabel` and the `pending` motion role, in opacity alone. It completes by the round `StateMark` (wave 7), the same mark a board card and every level's row carry |
 | `WorkItemCard` | Kanban, with `cover` as colour **or** image. A colour cover is a strip, not a filled card, because a label token's background was measured against its own foreground only. The card itself is what is dragged (§11.9) |
 | `BucketColumn` | `wipLimit` and `isDoneBucket` are **announced, never enforced** — the server accepts a card past the limit and completes nothing in a done column; the board acts, the component writes nothing |
 | `LabelChip` + `LabelPicker` | Ten `colorToken` values, each a **pair** (`bg`, `fg`) measured together. The picker is handed one collection's labels; the tick, not the colour, says which are on the entry |
