@@ -427,7 +427,9 @@ the mark the bar carries; how the product uses them is §11.
   `--nav-plane`, the raised panel of a flyout or a drawer), **`NavFlyout`** (*Recent*, the hub quick
   switch, which drops from the hub's head through `anchor`), **`NavLevel`** (the workspace or the hub level, sliding in), **`ProductTile`** (a
   product's mark on its label tile), **`MoveCheck`** (the pre-check's list of obstacles and
-  warnings, each with its way out); on `compact` **`BrowseStack`** (a stack per bottom-bar tab) and
+  warnings, each with its way out — a button, or a link where it is a place; `isFramed` draws it as
+  a step's consequences in a dialog: one bordered group with hairlines, each line a heading over a
+  quieter detail; a line may bring its own glyph); on `compact` **`BrowseStack`** (a stack per bottom-bar tab) and
   **`Sheet`** (a bottom sheet with a heading and *Close*). The content tree is a `role="tree"` with
   `aria-level` and `aria-expanded`.
 * **`PageHeader`** — the breadcrumb (the parent only on `compact`), the title and an optional
