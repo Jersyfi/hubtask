@@ -59,7 +59,8 @@ func (workspaceModules) PinHubs(context.Context, settingrepo.HubPin, time.Time) 
 // registry with the module gate, the base product's column write - PATCH /items/{id} with
 // bucket_id - moves the entry, the done column completes it and a move out of it reopens it,
 // while the board's drop belongs to the module and is refused with module.off. Switched on, the
-// drop moves again, so the refusal is the gate's and not the fixture's.
+// drop moves again, so the refusal is the gate's and not the fixture's. It holds the server's
+// behaviour the board relies on; the checks are proven by the web app's tests in checked_by.
 func TestABoardMovesItsEntriesWithWorkflowsOff(t *testing.T) {
 	h := coupledUpdateHarness()
 	h.handler.Completion.Boards = h.handler.Boards

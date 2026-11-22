@@ -20,7 +20,8 @@ import (
 // each open entry's status by collection and the board going from WORKFLOW to COLUMNS, counting the
 // one open entry the done column holds as moved; the removal then keeps every other entry in the
 // column that showed its status, done ones done, moves that open one to the first column, and
-// clears the status.
+// clears the status. It holds the server's behaviour the conversion relies on; the check is proven
+// by the web app's tests in checked_by.
 func TestRemovingAWorkflowKeepsEveryEntryInTheColumnOfItsStatus(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
