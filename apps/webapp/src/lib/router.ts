@@ -96,9 +96,8 @@ export function queryOf(input: string): Record<string, string> {
   const at = input.indexOf('?');
   if (at < 0) return {};
   const end = input.indexOf('#', at);
-  const query: Record<string, string> = {};
-  for (const [name, value] of new URLSearchParams(input.slice(at + 1, end < 0 ? undefined : end))) query[name] = value;
-  return query;
+  // Defined, not assigned: a name such as `__proto__` is then a value like any other.
+  return Object.fromEntries(new URLSearchParams(input.slice(at + 1, end < 0 ? undefined : end)));
 }
 
 export function resolve(routes: readonly Route[], input: string): Resolution {

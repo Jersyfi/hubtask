@@ -95,6 +95,13 @@ test('the query travels with the resolution, and the path stays clean of it', ()
   assert.deepEqual(queryOf('/a?item=%2Fx'), { item: '/x' });
 });
 
+test('a query name an object already answers to is a value like any other', () => {
+  const query = queryOf('/a?__proto__=x&constructor=y&item=i1');
+  assert.deepEqual(Object.keys(query).sort(), ['__proto__', 'constructor', 'item']);
+  assert.equal(Object.getOwnPropertyDescriptor(query, '__proto__')?.value, 'x');
+  assert.equal(Object.getPrototypeOf(query), Object.prototype, 'the name replaced the prototype');
+});
+
 test('a link of the shell at tauri://localhost stays in the application, though its origin is opaque', () => {
   const shell = { protocol: 'tauri:', host: 'localhost' };
   const link = new URL('/hubs/7', 'tauri://localhost/today');
