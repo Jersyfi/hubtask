@@ -1952,14 +1952,12 @@
         {/if}
       {/snippet}
       {#snippet phoneEnd()}
-        {@const rowChip = rowChipOf(row)}
         {@const type = typeOf(entryTypes.all, row.item.type, row.item.entry_type)}
         {@const priority = priorityOf(row.item, [])}
         {@const rest = cellFields.filter((field) => !['key', 'type', 'priority', 'sla', 'people', 'requester'].includes(field))}
         <span class="phone-person">{#if fields.includes('people')}<PeopleMarks assigneeId={row.item.assignee_id} memberIds={[]} />{/if}</span>
         <span class="phone-meta">
           <span class="phone-key">{#if type && (isKeyFirst || showsTypes || fields.includes('type'))}<span class="type-mark" data-entry-type={type.key} title={typeName(type.key)}><Icon name={iconOf(type)} size="sm" /></span>{/if}<EntryKey collection={keyedCollection} number={row.item.number} /></span>
-          {#if rowChip}<StateChip bind:this={chips[row.item.id]} item={row.item} chip={rowChip} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
           {#if priority}<PriorityMark level={priorityLevel(priority)} label={priority} />{/if}
           {#each rest as field (field)}<span class="meta-field" data-field={field}>{@render fieldValue(row, field)}</span>{/each}
         </span>
@@ -1972,6 +1970,12 @@
       {/snippet}
       {#snippet markCell()}
         <EntryMark item={row.item} mark={markFor(row.item)} stateLabel={rowChipOf(row)?.label ?? ''} isPaused={rowChipOf(row)?.pausedReason !== undefined} onopenstate={() => chips[row.item.id]?.open() ?? false} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} />
+      {/snippet}
+      <!-- A phone row's state as the approved design draws it: the mark and its chip on the title's
+           line, before the title - never the chip apart on the meta line. -->
+      {#snippet phoneState()}
+        {@const rowChip = rowChipOf(row)}
+        {#if rowChip}<span class="phone-state">{@render markCell()}<StateChip bind:this={chips[row.item.id]} item={row.item} chip={rowChip} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} /></span>{/if}
       {/snippet}
       {#snippet chipCell()}
         {@const rowChip = rowChipOf(row)}
@@ -2011,7 +2015,7 @@
             ? expanded.filter((id) => id !== row.item.id)
             : [...expanded, row.item.id])}
         trailing={isPhoneRow ? phoneEnd : rowEnd}
-        state={isPhoneRow ? (rowChipOf(row) ? markCell : undefined) : rowChipOf(row) || isKeyFirst ? chipCell : undefined}
+        state={isPhoneRow ? (rowChipOf(row) ? phoneState : undefined) : rowChipOf(row) || isKeyFirst ? chipCell : undefined}
         isOneLine={root !== undefined}
         isRuled={root === undefined}
       />
@@ -2490,6 +2494,10 @@
   .phone-person { grid-column: 3; grid-row: 1; display: inline-flex; }
   .phone-meta { grid-column: 2 / 4; grid-row: 2; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); min-inline-size: 0; font-size: var(--fs-075); }
   .phone-key { display: inline-flex; align-items: center; gap: var(--sp-050); }
+  .phone-state { display: inline-flex; align-items: center; gap: var(--sp-100); }
+  /* Mark and chip stand on the title's first line: the leading is that line high, and what is
+     taller in it - the twist's thumb target - overflows it evenly. */
+  .row[data-phone] :global(.task-row > .row > .leading:has(.phone-state)) { align-self: start; block-size: calc(var(--fs-100) * var(--lh-normal)); }
   .phone-key:empty { display: none; }
   .phone-sla { grid-column: 2 / 4; grid-row: 3; display: flex; min-inline-size: 0; }
   .phone-sla :global(.sla), .phone-sla :global(.deadline) { flex: 1; }

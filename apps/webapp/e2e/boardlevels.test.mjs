@@ -252,6 +252,32 @@ test('chromium: L2 - at 375 px the status chip of a row takes a 44 px press', as
   assert.ok(area.width >= 44 && area.height >= 44, `the status chip takes ${JSON.stringify(area)}`);
 });
 
+// UC-WRK-05 check 11 on the phone: a phone row holds mark, chip and title on one line, as the
+// approved design draws it.
+for (const level of ['COLUMNS', 'WORKFLOW']) {
+  const tier = level === 'COLUMNS' ? 'L1' : 'L2';
+  const markName = level === 'COLUMNS' ? `Mark ${ITEMS[0].title} as done` : `${ITEMS[0].title}: Move on – Start`;
+  const markRole = level === 'COLUMNS' ? 'checkbox' : 'button';
+  test(`chromium: ${tier} - at 390 px a row holds mark, chip and title on one line`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { page, context } = await at(browser, level, { width: 390 });
+    t.after(() => context.close());
+    const row = page.locator(`[data-row="${ITEMS[0].id}"]`);
+    const mark = row.getByRole(markRole, { name: markName });
+    await mark.waitFor({ timeout: 15_000 });
+    const chip = row.locator('[data-state-chip]');
+    const title = row.getByRole('link', { name: ITEMS[0].title });
+    const [m, c, ti] = await Promise.all([mark.boundingBox(), chip.boundingBox(), title.boundingBox()]);
+    assert.ok(c.x > m.x && c.x - (m.x + m.width) <= 12, `the chip is ${Math.round(c.x - (m.x + m.width))} px from the mark`);
+    assert.ok(Math.abs((m.y + m.height / 2) - (c.y + c.height / 2)) < 3, 'mark and chip are not on one line');
+    assert.ok(ti.x > c.x + c.width - 1, 'the title does not follow the chip');
+    // The title's first line: the top of its words and half a line.
+    const line = await title.evaluate((node) => { const words = node.querySelector('.title') ?? node; return words.getBoundingClientRect().y + parseFloat(getComputedStyle(words).lineHeight) / 2; });
+    assert.ok(Math.abs((c.y + c.height / 2) - line) < 4, 'the chip is not on the title\'s first line');
+    assert.ok(ti.x > 0);
+  });
+}
+
 // UC-WRK-31 check 5: under a workflow each column names its statuses, the rest fold into Ohne Spalte.
 test('chromium: L2 - the status chip lists the steps; the board names its statuses and folds Ohne Spalte', async (t) => {
   const browser = await sharedChromium(t);
