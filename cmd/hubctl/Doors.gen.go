@@ -1256,6 +1256,7 @@ var generatedCommands = []door{
 			{Name: "from_sandbox", Kind: "boolean", Help: "Promotes the sandbox - what it changed since its copy - instead of a document", Required: false},
 			{Name: "hub_id", Kind: "uuid", Help: "A hub, for the hub's own document (its modules, structure, workflow scheme and business calendars); …", Required: false},
 			{Name: "mode", Kind: "string", Help: "", Required: false},
+			{Name: "module_hub_ids", Kind: "strings", Help: "With the workspace's document: the existing hubs in which a module this apply switches on for the …", Required: false},
 			{Name: "plan_hash", Kind: "string", Help: "", Required: true},
 			{Name: "template", Kind: "string", Help: "The template@version the document came from, recorded as the workspace's provenance - or with …", Required: false},
 			{Name: "to_version", Kind: "integer", Help: "", Required: false},

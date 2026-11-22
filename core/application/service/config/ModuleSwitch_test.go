@@ -4,11 +4,13 @@
 package config
 
 import (
+	"errors"
 	"slices"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/module"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
 func workflowsOn(blocks map[string]any) map[string]any {
@@ -39,6 +41,44 @@ func TestADocumentThatSwitchesAModuleOnWritesItsSection(t *testing.T) {
 	switched, created := slices.Index(f.world.calls, "SetModule"), slices.Index(f.world.calls, "CreateWorkflow")
 	if switched < 0 || created < switched {
 		t.Errorf("the calls ran %v, want the switch before the workflow", f.world.calls)
+	}
+}
+
+// UC-INS-21 check 13: an apply of the workspace's document that names existing hubs - the hub a
+// template is taken for - names them in each switch of a module on, so the switch does not leave
+// that hub without the module; the plan is the document's, with hubs named or not, and a hub's
+// own document takes none.
+func TestAnApplyNamesTheChosenHubsInItsSwitch(t *testing.T) {
+	f := newFixture()
+	f.world.workflowsOff = true
+	document := workflowsOn(map[string]any{"card": map[string]any{"name": "Card", "shape": serviceShape("todo")}})
+	plan := invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{"document": document})
+	invoke(t, ApplyConfig{f.desk}.Descriptor(), person, usecase.Input{
+		"document": document, "plan_hash": plan["plan_hash"], "acknowledge": true, "module_hub_ids": []any{supportHub},
+	})
+	switches := f.world.inputs["SetModule"]
+	if len(switches) != 1 || switches[0].String("switch") != "ON" || switches[0].String("hub_id") != "" {
+		t.Fatalf("the workspace's document switched %v", switches)
+	}
+	named, err := switches[0].IDList("hub_ids")
+	if err != nil || len(named) != 1 || named[0].String() != supportHub {
+		t.Errorf("the switch names %v (%v), want the chosen hub", switches[0]["hub_ids"], err)
+	}
+
+	hub := hubFixture()
+	own := map[string]any{"scheme": map[string]any{"every_type": map[string]any{"workflow": "service"}}}
+	hub.world.preview = usecase.Output{"entries": 0, "moves": []usecase.Output{}, "removed": []usecase.Output{}}
+	hubPlan := invoke(t, PlanConfig{hub.desk}.Descriptor(), person, usecase.Input{"document": own, "hub_id": supportHub})
+	_, err = ApplyConfig{hub.desk}.Descriptor().Handler.Invoke(t.Context(), person, usecase.Input{
+		"document": own, "hub_id": supportHub, "plan_hash": hubPlan["plan_hash"], "acknowledge": true,
+		"module_hub_ids": []any{supportHub},
+	})
+	var refusal *shared.Error
+	if !errors.As(err, &refusal) || refusal.DetailCode != "module.hubs_with_on_only" {
+		t.Errorf("a hub's own document with chosen hubs answered %v", err)
+	}
+	if len(hub.world.calls) != 0 {
+		t.Errorf("the refused apply ran %v", hub.world.calls)
 	}
 }
 

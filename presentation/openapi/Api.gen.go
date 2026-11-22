@@ -16626,9 +16626,12 @@ type ConfigApplyRequest struct {
 	FromSandbox *bool `json:"from_sandbox,omitempty"`
 
 	// HubId A hub, for the hub's own document (its modules, structure, workflow scheme and business calendars); omitted is the workspace's.
-	HubId    *openapi_types.UUID     `json:"hub_id,omitempty"`
-	Mode     *ConfigApplyRequestMode `json:"mode,omitempty"`
-	PlanHash string                  `json:"plan_hash"`
+	HubId *openapi_types.UUID     `json:"hub_id,omitempty"`
+	Mode  *ConfigApplyRequestMode `json:"mode,omitempty"`
+
+	// ModuleHubIds With the workspace's document: the existing hubs in which a module this apply switches on for the workspace is switched on as well, as `hub_ids` of `setModule` - the hub a template is taken for. Omitted, no existing hub changes. With `hub_id` it is refused as `module.hubs_with_on_only`. A plan that waits for a person carries none.
+	ModuleHubIds *[]openapi_types.UUID `json:"module_hub_ids,omitempty"`
+	PlanHash     string                `json:"plan_hash"`
 
 	// Template The template@version the document came from, recorded as the workspace's provenance - or with `hub_id` as the hub's, for a template with a hub part, and with `collection_id` as the collection's, for a template with a collection part.
 	Template  *string `json:"template,omitempty"`

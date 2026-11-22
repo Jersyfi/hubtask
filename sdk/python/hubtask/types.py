@@ -3091,6 +3091,7 @@ class ConfigApplyRequest(TypedDict, total=False):
     template: str
     hub_id: str
     collection_id: str
+    module_hub_ids: list[str]
     from_sandbox: bool
 
 class ConfigDraft(TypedDict, total=False):

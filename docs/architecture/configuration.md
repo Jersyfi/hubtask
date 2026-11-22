@@ -82,6 +82,15 @@ new and applied after the switch, so a template's part that names its modules be
 workflows is taken in one apply into a workspace that has them off (user-experience.md §3.2). A
 block the module kept while it was off makes its create refuse the apply whole.
 
+**A workspace's `modules` block that switches a module on changes no hub that exists**
+([domain-model.md](./domain-model.md) §2, the modules): each existing hub's own `modules` block
+turns from `INHERIT` to `OFF` in that apply, without anybody having edited the hub's document, and
+back the other way a workspace's `OFF` turns a hub's `INHERIT` into `ON`, which counts again once
+the workspace has the module on. The apply of the workspace's document takes `module_hub_ids`, the
+existing hubs to switch the module on in as well - the hub a template is taken for, so that its
+workspace part does not leave that very hub without the module its hub part builds on. The hubs are
+no part of the document or its plan; a proposal carries none.
+
 **Apply is all or nothing,** carries the version it was planned against (`If-Match`; a configuration
 somebody changed since is refused with `version_conflict`), writes one configuration version and
 one trail entry naming the actor (`actor.type = AI_AGENT` for an agent) and the counts — never
