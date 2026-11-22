@@ -37,7 +37,10 @@ is [support-matrix.md](./support-matrix.md).
 One image, several roles ([ADR-0014](../adr/ADR-0014-single-image-multi-role.md)): one binary,
 distroless, non-root, read-only root filesystem. `HUBTASK_ROLES` chooses which of `api`, `worker`,
 `scheduler` and `automation` a process runs (default: all four). The image also carries the
-migrator (`hubtask-migrate`) and the restore drill.
+migrator (`hubtask-migrate`) and the restore drill. Every public base image in
+`deploy/docker/Dockerfile` is pinned by digest beside its tag (`image:tag@sha256:…`), so a build
+never changes one unseen, and Dependabot moves the pin as a reviewed change. The previous
+release's image, which the upgrade stage reads, comes in by its tag.
 
 ### 2.1 Self-hosting (Docker/Podman)
 

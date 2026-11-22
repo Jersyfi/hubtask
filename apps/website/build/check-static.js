@@ -20,16 +20,16 @@ import path from 'node:path';
 /** Everything that would make a document dynamic or inline-styled. Empty when clean. */
 export function violations(html) {
   const found = [];
-  const stripped = html.replace(/<!--[\s\S]*?-->/g, '');
-
-  for (const tag of stripped.matchAll(/<script\b([^>]*)>/gi)) {
+  // The page is searched as it is, comments included: a comment is where a script hides from a
+  // search, and no built page needs one stripped.
+  for (const tag of html.matchAll(/<script\b([^>]*)>/gi)) {
     found.push(/\bsrc\s*=/i.test(tag[1]) ? 'a <script src> (csr is off; nothing should load code)' : 'an inline <script>');
   }
-  if (/<style\b/i.test(stripped)) found.push('a <style> element');
-  for (const tag of stripped.matchAll(/<[a-z][^>]*?\s(on\w+)\s*=/gi)) {
+  if (/<style\b/i.test(html)) found.push('a <style> element');
+  for (const tag of html.matchAll(/<[a-z][^>]*?\s(on\w+)\s*=/gi)) {
     found.push(`an inline event handler (${tag[1]})`);
   }
-  if (/<[a-z][^>]*?\sstyle\s*=/i.test(stripped)) found.push('a style attribute');
+  if (/<[a-z][^>]*?\sstyle\s*=/i.test(html)) found.push('a style attribute');
 
   return found;
 }

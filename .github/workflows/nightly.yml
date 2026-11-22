@@ -230,7 +230,7 @@ jobs:
           cache: true
       - name: GNU make, which the Windows image does not carry
         if: runner.os == 'Windows'
-        run: choco install make --no-progress -y
+        run: choco install make --version 4.4.1 --no-progress -y
       # The CLI is the one artefact that runs natively on somebody's machine rather than in a
       # container, so its matrix is about operating systems in a way the server's is not
       # (support-matrix.md §4). Cross-compilation proves a binary links; only a native runner

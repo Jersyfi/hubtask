@@ -23,16 +23,16 @@ import path from 'node:path';
  */
 export function violations(html) {
   const found = [];
-  const stripped = html.replace(/<!--[\s\S]*?-->/g, '');
-
-  for (const tag of stripped.matchAll(/<script\b([^>]*)>/gi)) {
+  // The page is searched as it is, comments included: a comment is where a script hides from a
+  // search, and no built page needs one stripped.
+  for (const tag of html.matchAll(/<script\b([^>]*)>/gi)) {
     if (!/\bsrc\s*=/i.test(tag[1])) found.push('an inline <script> without src');
   }
-  if (/<style\b/i.test(stripped)) found.push('a <style> element');
-  for (const tag of stripped.matchAll(/<[a-z][^>]*?\s(on\w+)\s*=/gi)) {
+  if (/<style\b/i.test(html)) found.push('a <style> element');
+  for (const tag of html.matchAll(/<[a-z][^>]*?\s(on\w+)\s*=/gi)) {
     found.push(`an inline event handler (${tag[1]})`);
   }
-  if (/<[a-z][^>]*?\sstyle\s*=/i.test(stripped)) found.push('a style attribute');
+  if (/<[a-z][^>]*?\sstyle\s*=/i.test(html)) found.push('a style attribute');
 
   return found;
 }

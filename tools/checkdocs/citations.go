@@ -45,7 +45,7 @@ var codeExtensions = map[string]bool{
 }
 
 // citationExempt are files that name these things as data, not as citations: the gates that check
-// them, the script that recreates the repository, the issue forms' examples.
+// them, the issue forms' examples.
 var citationExempt = map[string]bool{
 	"test/architecture/instructions_test.go": true,
 	"tools/checkdocs/agents.go":              true,
@@ -57,7 +57,6 @@ var citationExempt = map[string]bool{
 	"tools/checkdocs/main.go":                true,
 	"tools/checkpr/main.go":                  true,
 	"tools/checkpr/rules.go":                 true,
-	"scripts/relaunch.sh":                    true,
 }
 
 func citationScope(file string) bool {
