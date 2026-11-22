@@ -259,6 +259,13 @@ test('the head’s title is edited in place with Enter and Escape, and the edit 
   assert.match(head, /label=\{editTitleLabel\}/, 'the keyboard’s way in is a named button');
 });
 
+test('the head’s second step carries an icon and a reason the way the first does', () => {
+  const head = source('ObjectHead.svelte');
+  assert.match(head, /secondary\?: \{ label: string; icon\?: IconName; disabledReason\?: string; onclick: \(\) => void \}/);
+  assert.match(head, /<Button tone="secondary" size="sm" icon=\{secondary\.icon\} disabledReason=\{secondary\.disabledReason\}/);
+  assert.match(head, /<Button tone="primary" size="sm" icon=\{next\.icon\} disabledReason=\{next\.disabledReason\}/);
+});
+
 // --- BucketColumn (board, build-plan §5) ------------------------------------------------------
 
 test('a folded column unfolds by a button, and a refused one says why in words (rule 3)', () => {

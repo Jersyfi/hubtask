@@ -51,10 +51,10 @@
     onrename?: (title: string, opened: string) => void;
     /** The `StatusButton`, or a `StateLozenge` where the state is not the reader's to change. */
     status?: Snippet;
-    /** The next step, the head's one primary act. */
-    next?: { label: string; icon?: IconName; onclick: () => void };
-    /** A second step the workflow offers beside it: *Wait for Hannah*. */
-    secondary?: { label: string; onclick: () => void };
+    /** The next step, the head's one primary act; with a reason, drawn and not pressable now. */
+    next?: { label: string; icon?: IconName; disabledReason?: string; onclick: () => void };
+    /** A second step the workflow offers beside it: *Wait for Hannah*; or *Reopen* with its arrow once done. */
+    secondary?: { label: string; icon?: IconName; disabledReason?: string; onclick: () => void };
     /** Who has it; `emptyLabel` when nobody does, said, never left blank (P-05). */
     person?: { name: string; src?: string } | { emptyLabel: string };
     due?: { label: string; tone?: 'neutral' | 'warning' | 'danger' };
@@ -217,8 +217,8 @@
 
   <div class="action-bar" bind:this={bar}>
     {#if status}{@render status()}{/if}
-    {#if next}<span class="step"><Button tone="primary" size="sm" icon={next.icon} onclick={next.onclick}>{next.label}</Button></span>{/if}
-    {#if secondary}<span class="step"><Button tone="secondary" size="sm" onclick={secondary.onclick}>{secondary.label}</Button></span>{/if}
+    {#if next}<span class="step"><Button tone="primary" size="sm" icon={next.icon} disabledReason={next.disabledReason} onclick={next.onclick}>{next.label}</Button></span>{/if}
+    {#if secondary}<span class="step"><Button tone="secondary" size="sm" icon={secondary.icon} disabledReason={secondary.disabledReason} onclick={secondary.onclick}>{secondary.label}</Button></span>{/if}
     {#if person || due || deadline || facts}<span class="divider" aria-hidden="true" bind:this={divider} data-alone={isDividerAlone ? '' : undefined}></span>{/if}
     {#if person}
       {#if 'name' in person}

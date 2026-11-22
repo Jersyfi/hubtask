@@ -30,7 +30,7 @@ export const ticket: Story = {
 
 export const empty: Story = {
   name: 'Nobody has it',
-  about: 'An empty person is said, never a blank; without a workflow the primary is ✓ Done.',
+  about: 'An empty person is said, never a blank; without a workflow the primary is ✓ Done, and once done the secondary *Reopen* with its arrow back.',
   args: { mode: 'empty' },
 };
 

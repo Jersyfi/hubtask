@@ -537,7 +537,8 @@ and every behaviour a test can hold lives in a module beside them: `lozenge.ts`,
   portfolio (WB-1): the breadcrumb and the tools (hidden on a phone, where the bar carries them), the
   key with its product's tile, the type lozenge and a meta line, the title edited in place (the
   words or the pencil; Enter keeps, Escape gives the old title back, blur keeps), and the action
-  bar — the status, the next step as the one primary, a second step the workflow offers, a
+  bar — the status, the next step as the one primary, a second step the workflow offers (or
+  *Reopen* with its arrow back once done; either step with its reason where it cannot be taken now), a
   divider, the person (an empty one said), the due date, **one** deadline chip (what is breached
   and the next deadline, ET-6), quiet facts and the end tools. On a phone the steps live in the
   status's sheet and the person is the avatar alone (WB-8).
