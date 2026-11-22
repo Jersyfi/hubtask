@@ -22,7 +22,7 @@
 
   import { Button, Checkbox, DataTable, Input, SaveBar, Select, SettingRow, SettingsLayout, SettingsSection, SourceChip } from '@hubtask/design-system/components';
   import type { DataColumn, PageHead, SectionLink } from '@hubtask/design-system/components';
-  import type { Container, CustomFieldDefinition, EntryType, StructureChange, StructurePreview, StructureSettings, Workflow } from '@hubtask/sync-engine';
+  import type { Container, CustomFieldDefinition, EffectiveStructure, EntryType, StructureChange, StructurePreview, StructureSettings, Workflow } from '@hubtask/sync-engine';
 
   import { announcer } from '../announce.svelte.ts';
   import { accounts } from '../data/accounts.svelte.ts';
@@ -146,6 +146,7 @@
   let isViewMissing = $state(false);
 
   // Opening starts from what is in force; a save starts again from what the server answered.
+  let seen: EffectiveStructure | undefined;
   $effect(() => {
     if (!isOpen || !structure) {
       draft = undefined;
@@ -154,11 +155,13 @@
     const current = structure;
     if (draft !== undefined) {
       untrack(() => {
-        if (draft) draft = followStructure(draft, current, draft.preset ? presets.find(draft.preset) : undefined);
+        if (draft) draft = followStructure(draft, current, draft.preset ? presets.find(draft.preset) : undefined, seen);
+        seen = current;
       });
       return;
     }
     untrack(() => {
+      seen = current;
       draft = startDraft(structure);
       failure = undefined;
       isFieldMissing = false;

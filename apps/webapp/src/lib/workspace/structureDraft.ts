@@ -61,10 +61,11 @@ export function startDraft(structure: EffectiveStructure): Draft {
  * The draft once the structure in force changed while the panel is open - another tab, another
  * device, a template applied. A draft the reader has not changed starts again from it, so a change
  * made elsewhere is never counted as theirs; one they changed is kept, and the save's `If-Match`
- * refuses it if it is stale.
+ * refuses it if it is stale. `seen` is the structure in force at the last call: unchanged, the
+ * draft was only reassigned - a save's answer before the container's refresh - and stays.
  */
-export function followStructure(draft: Draft, structure: EffectiveStructure, chosen: Preset | undefined): Draft {
-  if (draft.from === undefined || draft.from === structure) return draft;
+export function followStructure(draft: Draft, structure: EffectiveStructure, chosen: Preset | undefined, seen?: EffectiveStructure): Draft {
+  if (draft.from === undefined || draft.from === structure || seen === structure) return draft;
   return changeOf(draft, draft.from, chosen) === undefined ? startDraft(structure) : draft;
 }
 

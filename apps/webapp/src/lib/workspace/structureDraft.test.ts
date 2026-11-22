@@ -176,3 +176,13 @@ test('a draft the reader changed is kept when the structure changes elsewhere', 
   const chosen = choosePreset(startDraft(project), project, list);
   assert.equal(followStructure(chosen, changed, list), chosen, 'a preset chosen is a change');
 });
+
+test('a just-saved draft is not rolled back while the structure in force is still the one before the save', () => {
+  const answered = { ...project, settings: { ...project.settings, celebration: 'SUBTLE' } } as unknown as EffectiveStructure;
+  const saved = startDraft(answered);
+  // The panel's own reassignment, the container not refreshed yet: no upstream transition.
+  assert.equal(followStructure(saved, project, undefined, project), saved);
+  // The refresh arrives: the draft follows it.
+  const refreshed = { ...answered } as EffectiveStructure;
+  assert.equal(followStructure(saved, refreshed, undefined, project).from, refreshed);
+});
