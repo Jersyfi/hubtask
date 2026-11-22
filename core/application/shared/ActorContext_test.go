@@ -257,3 +257,25 @@ func TestRequireAnyScopeOfNothingRefuses(t *testing.T) {
 		t.Fatal("naming no scope admitted the actor")
 	}
 }
+
+// A name stored from a default text is in the account's language, else the workspace's default -
+// never the request's, which Locale carries (i18n-l10n.md §2).
+func TestANameIsStoredInTheAccountsLanguageElseTheWorkspaces(t *testing.T) {
+	tests := []struct {
+		name      string
+		actor     ActorContext
+		workspace string
+		want      string
+	}{
+		{"the account's language wins", ActorContext{Locale: "fr", AccountLocale: "fr"}, "de", "fr"},
+		{"no account language takes the workspace's, not the request's", ActorContext{Locale: "en"}, "de", "de"},
+		{"an actor nobody signed in as takes the workspace's", ActorContext{Kind: ActorServiceAccount}, "de", "de"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.actor.NamingLocale(tc.workspace); got != tc.want {
+				t.Errorf("NamingLocale(%q) = %q, want %q", tc.workspace, got, tc.want)
+			}
+		})
+	}
+}

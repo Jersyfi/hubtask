@@ -869,6 +869,36 @@ func TestASessionTokenAuthenticates(t *testing.T) {
 	}
 }
 
+// A session carries the account's own language beside the resolved one, and none where the
+// account set none - the request's language never stands in for it (i18n-l10n.md §2).
+func TestASessionCarriesTheAccountsOwnLanguageAlone(t *testing.T) {
+	for _, c := range []struct{ accountLocale, wantLocale, wantAccount string }{
+		{"de", "de", "de"},
+		{"", "en", ""},
+	} {
+		sessions := newSessionsStore()
+		credential, _ := refreshCredential(now)
+		credential.Account.Locale = c.accountLocale
+		sessions.sessions[sessionRowID] = repository.SessionCredential{
+			TenantStatus: domain.TenantActive, Session: credential.Session, Account: credential.Account,
+			TenantLocale: "fr", TenantTimeZone: "UTC",
+		}
+		signer := validatingSigner{token: "hbt_sat_x", claims: cryptoport.SessionClaims{
+			TenantID: tenant, SessionID: sessionRowID, AccountID: account,
+			ExpiresAt: now.Add(10 * time.Minute),
+		}}
+		actor, err := sessionAuthenticator(sessions, signer, now).Execute(t.Context(),
+			AuthenticateTokenCommand{Credential: "hbt_sat_x", RequestedLocale: "en"})
+		if err != nil {
+			t.Fatalf("authenticating: %v", err)
+		}
+		if actor.Locale != c.wantLocale || actor.AccountLocale != c.wantAccount {
+			t.Errorf("account %q: locale %q and account locale %q, want %q and %q",
+				c.accountLocale, actor.Locale, actor.AccountLocale, c.wantLocale, c.wantAccount)
+		}
+	}
+}
+
 // Revoking a session refuses its access token on the very next request - the acceptance's
 // "immediately", proved against the row rather than the token's own fifteen minutes.
 func TestARevokedSessionRefusesItsPairImmediately(t *testing.T) {

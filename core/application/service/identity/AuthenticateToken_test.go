@@ -274,6 +274,32 @@ func TestTheInstallationDefaultIsTheLastResort(t *testing.T) {
 	}
 }
 
+// The account's own language travels beside the resolved one, alone: a name stored from a default
+// text follows the account, else the workspace - never the request's language (i18n-l10n.md §2).
+func TestTheAccountsOwnLanguageTravelsWithoutTheRequests(t *testing.T) {
+	cases := []struct {
+		name, accountLocale, wantLocale, wantAccount string
+	}{
+		{"the account says German", "de", "de", "de"},
+		{"the account says nothing", "", "en", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			raw, credential := mintCredential(t)
+			credential.Account.Locale = c.accountLocale
+			actor, err := handlerFor(&tokens{credential: credential}, &unitOfWork{}).Execute(t.Context(),
+				AuthenticateTokenCommand{Credential: raw, RequestedLocale: "en", FallbackLocale: "en"})
+			if err != nil {
+				t.Fatalf("authentication failed: %v", err)
+			}
+			if actor.Locale != c.wantLocale || actor.AccountLocale != c.wantAccount {
+				t.Errorf("locale %q and account locale %q, want %q and %q",
+					actor.Locale, actor.AccountLocale, c.wantLocale, c.wantAccount)
+			}
+		})
+	}
+}
+
 // UC-ID-17 check 5, its first half: a revoked token's next request fails (`access.token_revoked`).
 func TestARefusedCredential(t *testing.T) {
 	raw, valid := mintCredential(t)

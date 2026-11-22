@@ -344,6 +344,29 @@ func TestEveryActionIsPerformedAsTheRulesAccount(t *testing.T) {
 	}
 }
 
+// UC-WRK-31 check 6, where a rule creates the collection: the actor a rule's action runs as carries
+// no account language, even when a person who set one started the run, so the columns it names are
+// in the workspace's default - neither the person's nor the request's language.
+func TestARulesActorNamesInTheWorkspacesLanguage(t *testing.T) {
+	rule := enabledRule()
+	rule.Actions = []domain.Action{{Kind: "CREATE_BUCKET", Params: map[string]any{"name": "Doing"}}}
+	h := newEngine(t, rule)
+	starter := engineActor()
+	starter.Locale, starter.AccountLocale = "fr", "fr"
+
+	if _, err := h.engine.Execute(context.Background(), starter, command(0)); err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if len(h.dispatcher.calls) != 1 {
+		t.Fatalf("%d actions dispatched, want one", len(h.dispatcher.calls))
+	}
+	runAs := h.dispatcher.calls[0].actor
+	if runAs.AccountLocale != "" || runAs.NamingLocale("de") != "de" {
+		t.Errorf("the rule's actor carries the account language %q and names in %q, want the workspace's de",
+			runAs.AccountLocale, runAs.NamingLocale("de"))
+	}
+}
+
 // A `run_as` account lacking a right fails that action with the authoriser's own refusal on the run.
 func TestARefusedActionCarriesTheAuthorisersOwnCode(t *testing.T) {
 	rule := enabledRule()
