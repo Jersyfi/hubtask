@@ -475,8 +475,10 @@ body to each catalogue.
 example collection, its columns and its labels in the workspace's language, because the owner's is
 not known yet. The owner's redemption sends the language the invitation card was read in, and
 whatever of that seed is still untouched — at its first version, under the name the workspace's
-language gives it — is renamed into it, with the events and change entries a rename owes
-(`admin.LocaliseSeed`). Anybody else's redemption renames nothing.
+language gives it — is renamed into the account's own language, else into the one sent where a
+catalogue serves it, with the events and change entries a rename owes (`admin.LocaliseSeed`); the
+one sent then becomes the account's language ([i18n-l10n.md](./i18n-l10n.md) §2). Anybody else's
+redemption renames nothing and keeps no language.
 
 ---
 

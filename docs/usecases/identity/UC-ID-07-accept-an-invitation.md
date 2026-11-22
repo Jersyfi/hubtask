@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-10, P-12, P-13]
 state: built
 tasks: [H-01, SI-14, SI-15, SC-13, SC-24, SC-32, SC-10, CP-14]
-checked_by: [apps/webapp/e2e/signin.test.mjs, apps/webapp/e2e/terms.test.mjs, core/application/service/identity/OidcInvitation_test.go, core/application/service/identity/OidcInvitationStart_test.go, core/application/service/identity/TermsInvitation_test.go, core/application/service/identity/InspectInvitation_test.go, test/integration/invitation_by_provider_test.go, test/integration/oidc_flow_invitation_test.go, test/integration/invitation_link_test.go, test/integration/terms_flow_test.go, docs/evidence/SC-15-D5-terms-2026-10-13.md, core/domain/model/identity/Session_test.go, core/application/service/identity/InvitationLink_test.go, core/application/service/notification/DeliverNotification_test.go, core/application/service/identity/LocateOidcFlow_test.go, presentation/rest/OidcLocate_test.go, test/integration/identity_provider_test.go, apps/webapp/src/lib/data/oidc.test.ts, docs/evidence/CP-14-2026-10-16.md, apps/webapp/src/lib/signin/fragmentToken.test.ts]
+checked_by: [apps/webapp/e2e/signin.test.mjs, apps/webapp/e2e/terms.test.mjs, core/application/service/identity/OidcInvitation_test.go, core/application/service/identity/OidcInvitationStart_test.go, core/application/service/identity/TermsInvitation_test.go, core/application/service/identity/InspectInvitation_test.go, test/integration/invitation_by_provider_test.go, test/integration/oidc_flow_invitation_test.go, test/integration/invitation_link_test.go, test/integration/terms_flow_test.go, docs/evidence/SC-15-D5-terms-2026-10-13.md, core/domain/model/identity/Session_test.go, core/application/service/identity/InvitationLink_test.go, core/application/service/notification/DeliverNotification_test.go, core/application/service/identity/LocateOidcFlow_test.go, presentation/rest/OidcLocate_test.go, test/integration/identity_provider_test.go, apps/webapp/src/lib/data/oidc.test.ts, docs/evidence/CP-14-2026-10-16.md, apps/webapp/src/lib/signin/fragmentToken.test.ts, core/application/service/identity/RedemptionLocale_test.go, core/application/service/admin/LocaliseSeed_test.go, test/integration/seed_locale_test.go]
 ---
 
 # Accept an invitation and set up my account
@@ -41,6 +41,12 @@ invitation used twice, or after it expired, gets one plain sentence and the name
    sees that task.
 7. In multi-tenant operation, an invitation link and the return from a sign-in provider lead to the
    workspace's own address, never the installation's.
+8. The owner a new workspace was made for, with no language of their own, accepts the invitation on
+   a card read in a language the installation has: the default hub, example collection, columns
+   and labels nobody renamed carry their names in that language, and their profile shows it as
+   their language.
+9. An owner who already has a language accepts the invitation on a card read in another: those
+   defaults carry their names in the owner's language, and the profile still shows it.
 
 ## Where it ends
 
