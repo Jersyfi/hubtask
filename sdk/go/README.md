@@ -24,6 +24,13 @@ for _, container := range res.JSON200.Data { … }
 entry and reads it back; `go run ./sdk/go/examples/quickstart` with `HUBTASK_URL`,
 `HUBTASK_TOKEN` and `HUBTASK_HUB` set.
 
+**Revalidating the manifest.** `GetCapabilities` and `GetCapabilitiesWithResponse` take
+`*hubtask.GetCapabilitiesParams` (its `IfNoneMatch` the tag the caller holds; `nil` asks without
+one). This is a source change for a caller written against v0.10.2 or earlier, which passed no
+parameters: pass `nil` there. A `304` is the answer that the copy held is still current: read
+`res.StatusCode() == http.StatusNotModified` before `Check`, which counts every answer outside
+2xx as a refusal.
+
 What is hand-written is [`hubtask.go`](./hubtask/hubtask.go) and nothing else: the bearer, the
 idempotency and `If-Match` editors, and `Check`. Everything else is regenerated from the contract
 on every `make generate`, and `test/contract` drives the client against the in-process server so
