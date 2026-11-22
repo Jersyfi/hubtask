@@ -108,10 +108,11 @@ export interface AnswerControl {
  * Where an alert dialog's focus starts (APG Alert Dialog): on its safe answer - the first control
  * of its foot that is drawn and usable, which the caller places first (*Keep it on*) - and where
  * the foot is gone, as on a phone's full screen, on the close control, which is the same answer.
- * Never on the destructive one.
+ * Never on the destructive one, not even where the safe answer is unavailable for now.
  */
 export function safeAnswer<T extends AnswerControl>(foot: readonly T[], dismiss: T | null | undefined): T | undefined {
-  const usable = (control: T) => control.offsetParent !== null && control.getAttribute('aria-disabled') !== 'true';
+  const usable = (control: T) =>
+    control.offsetParent !== null && control.getAttribute('aria-disabled') !== 'true' && control.getAttribute('data-tone') !== 'danger';
   return foot.find(usable) ?? (dismiss && dismiss.offsetParent !== null ? dismiss : undefined);
 }
 

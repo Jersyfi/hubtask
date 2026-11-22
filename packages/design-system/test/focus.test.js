@@ -132,6 +132,11 @@ test('a dialog\'s focus lost to the body goes to the safe answer, else the headi
   // At a phone's width the foot is hidden: the focus on Keep it on is lost, and the close control is the same answer.
   const hidden = control('keep', false);
   assert.equal(keptFocus({ ...alert, active: hidden, foot: [hidden, control('off', false)], dismiss: close }).target, close);
+  // The safe answer unavailable: never the destructive primary beside it, but the close control, else the heading.
+  const danger = { ...control('off'), getAttribute: (key) => (key === 'data-tone' ? 'danger' : null) };
+  const waiting = control('keep', true, true);
+  assert.equal(keptFocus({ ...alert, active: null, foot: [waiting, danger], dismiss: close }).target, close);
+  assert.equal(keptFocus({ ...alert, active: null, foot: [waiting, danger], dismiss: undefined }).target, heading);
   // A run with no answer and no close: the heading, marked as a fallback.
   const run = keptFocus({ ...alert, active: null, foot: [], dismiss: undefined });
   assert.deepEqual([run.target, run.isFallback], [heading, true]);
