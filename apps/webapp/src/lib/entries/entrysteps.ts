@@ -12,6 +12,8 @@
 import type { StatusCategory, StatusRef, WorkflowStep } from '@hubtask/design-system/components';
 import type { Bucket, EntrySteps, StepVerdict, WorkflowStatus } from '@hubtask/sync-engine';
 
+import { systemKeyOf } from '../data/entrytypes.ts';
+
 type BlockedStep = NonNullable<EntrySteps['blocked']>[number];
 
 /** L0's two words, resolved by the caller: *Open*, *Done* (E7). */
@@ -93,6 +95,16 @@ export function listSteps(isCompleted: boolean, words: ListWords): EntryStatusMo
 /** A workflow in force with its module off: the state says so, and no choice is offered. */
 export function pausedSteps(isCompleted: boolean, label: string): EntryStatusModel {
   return { current: { id: 'paused', label, category: isCompleted ? 'done' : 'todo' }, byDefault: true, paused: true, steps: [] };
+}
+
+/**
+ * The entry type whose level the collection's base read is asked for: the entry's own, else its
+ * level's system type. None for a document that carries no type: a change queued offline for an
+ * entry the copy does not hold predicts only the fields it wrote, until the server answers whole.
+ */
+export function levelTypeKey(item: { readonly entry_type?: string | null; readonly type?: string }): string | undefined {
+  if (item.entry_type) return item.entry_type;
+  return typeof item.type === 'string' ? systemKeyOf(item.type) : undefined;
 }
 
 /**

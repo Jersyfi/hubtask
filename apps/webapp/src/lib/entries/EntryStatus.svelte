@@ -29,8 +29,7 @@
   import { renderProblem } from '../problem.ts';
   import { buckets } from '../data/buckets.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
-  import { systemKeyOf } from '../data/entrytypes.ts';
-  import { columnSteps, listSteps, pausedSteps, primaryOf, readSteps, stepsAskable } from './entrysteps.ts';
+  import { columnSteps, levelTypeKey, listSteps, pausedSteps, primaryOf, readSteps, stepsAskable } from './entrysteps.ts';
   import WorkflowPicture from './WorkflowPicture.svelte';
 
   interface Props {
@@ -86,8 +85,9 @@
   $effect(() => {
     if (askable !== false) return;
     const collectionId = item.collection_id;
-    const typeKey = item.entry_type ?? systemKeyOf(item.type);
+    const typeKey = levelTypeKey(item);
     const isTask = item.type === 'TASK';
+    if (typeKey === undefined) return;
     return untrack(() => {
       level = undefined;
       return containers.levelOf(collectionId, (tasks, byType) => {

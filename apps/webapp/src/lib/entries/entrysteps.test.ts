@@ -9,7 +9,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { EntrySteps } from '@hubtask/sync-engine';
-import { columnSteps, listSteps, pausedSteps, primaryOf, readSteps, stepsAskable, type StepWords } from './entrysteps.ts';
+import { columnSteps, levelTypeKey, listSteps, pausedSteps, primaryOf, readSteps, stepsAskable, type StepWords } from './entrysteps.ts';
 
 const words: StepWords = {
   status: (status) => status.name ?? `status:${status.key}`,
@@ -96,6 +96,15 @@ test('workflows off at the workspace or the entry\'s hub: the steps are not aske
   assert.equal(stepsAskable(['WORKFLOWS'], null), true);
   // The hub's set not yet read: wait rather than ask what may be refused.
   assert.equal(stepsAskable(['WORKFLOWS'], undefined), undefined);
+});
+
+test('the type a level is read for: the entry type, else the level\'s system type, and none for an entry known only by fields written offline', () => {
+  assert.equal(levelTypeKey({ entry_type: 'bug', type: 'TASK' }), 'bug');
+  assert.equal(levelTypeKey({ type: 'WORK_PACKAGE' }), 'work_package');
+  // A change queued for an entry the copy does not hold predicts the fields it wrote, and nothing else.
+  // The copy hands it on typed as an entry, though it holds no type.
+  const predicted = { id: 'e1', notes: 'Tiles from the big market.' } as unknown as Parameters<typeof levelTypeKey>[0];
+  assert.equal(levelTypeKey(predicted), undefined);
 });
 
 // UC-FLW-06 check 5 with the Workflows module off: the steps are not asked, and the level is
