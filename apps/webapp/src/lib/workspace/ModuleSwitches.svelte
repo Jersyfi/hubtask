@@ -488,7 +488,7 @@
     onClose={() => (confirming = undefined)}
     primary={isConverting ? undefined : offPrimary}
     actions={isConverting ? undefined : keepOn}
-    isAlert
+    isAlert={asksWorkflows}
   >
     {#if isConverting && converting && stranded}
       <!-- The run: where it is, how far, and what happens if it stops. One step per place and one
