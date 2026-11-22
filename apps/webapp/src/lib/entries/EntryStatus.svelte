@@ -50,14 +50,21 @@
 
   let { item, runs = $bindable(false), next = $bindable(undefined), second = $bindable(undefined), offersSecond = false, oncomplete, disabledReason, reasonSaidAt, onnavigate }: Props = $props();
 
-  // Keyed on the entry by its caller, so the entry is fixed for its life. Where workflows are off
+  // Keyed on the entry by its caller, so the entry's id is fixed for its life. Where workflows are off
   // the steps are not asked (the server refuses them) and the default flow holds.
   const itemId = untrack(() => item.id);
   let placeOn = $state<readonly string[] | null | undefined>(undefined);
-  $effect(() => untrack(() => modules.here(item.collection_id, (next) => {
-    if (next.status === 'ready') placeOn = next.data.modules_on;
-    else if (next.status === 'failed') placeOn = null;
-  })));
+  // The entry moved to another collection keeps its id, and so this component: its place is read again.
+  $effect(() => {
+    const collectionId = item.collection_id;
+    return untrack(() => {
+      placeOn = undefined;
+      return modules.here(collectionId, (next) => {
+        if (next.status === 'ready') placeOn = next.data.modules_on;
+        else if (next.status === 'failed') placeOn = null;
+      });
+    });
+  });
   const askable = $derived(stepsAskable(manifest.value?.modules_on, placeOn));
   let stepsState = $state<ResourceState<EntrySteps> | undefined>(undefined);
   $effect(() => {
