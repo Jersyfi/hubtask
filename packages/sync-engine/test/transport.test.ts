@@ -87,6 +87,17 @@ test('a base URL with a trailing slash does not produce a double one', async () 
   assert.equal(calls[0]?.url, 'https://example.org/api/v1/accounts/me');
 });
 
+test('a base URL of many slashes is trimmed in the time its length takes', async () => {
+  const { fetch, calls } = recordingFetch(() => ok({}));
+  const slashes = '/'.repeat(200_000);
+  const start = performance.now();
+  const transport = new FetchTransport({ baseUrl: `${slashes}x${slashes}`, fetch });
+  assert.ok(performance.now() - start < 2000, 'trimming retried every start of the run of slashes');
+  await transport.get('/accounts/me', { timeoutMs: 1000 });
+
+  assert.equal(calls[0]?.url, `${slashes}x/accounts/me`);
+});
+
 test('a problem document becomes a TransportError carrying its code', async () => {
   const body = { code: 'errors.forbidden', params: { scope: 'items:write' }, request_id: 'r-9' };
   const { fetch } = recordingFetch(() => new Response(JSON.stringify(body), { status: 403 }));

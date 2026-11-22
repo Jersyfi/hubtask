@@ -52,7 +52,10 @@ const TERM = /^(-?)([A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)*):\s*(.*)$/su;
  * the last space.
  */
 export function segments(text: string): { pieces: string[]; rest: string } {
-  const finished = /\s$/u.test(text) || text === '' ? text : text.slice(0, Math.max(text.search(/\S+$/u), 0));
+  // Counted back from the end: a search for the last word retries every start of a long run.
+  let cut = text.length;
+  while (cut > 0 && !/\s/u.test(text[cut - 1] ?? '')) cut -= 1;
+  const finished = text.slice(0, cut);
   let tokens;
   try {
     tokens = lexQuery(finished);

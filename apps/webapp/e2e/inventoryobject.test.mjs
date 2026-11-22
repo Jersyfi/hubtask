@@ -537,7 +537,7 @@ test('chromium: the files and the history follow the register as the scene marks
   assert.doesNotMatch(sentences[0], /set to/u, 'a file put on is named, not set');
   assert.match(sentences[1], /changed the stage.*In stock.*In use/u);
   assert.match(sentences[2], /changed this object.*Source.*glpi/u);
-  assert.match(sentences[3], /^You created this object|created this object/u);
+  assert.match(sentences[3], /created this object/u);
   assert.deepEqual(failures, []);
 });
 

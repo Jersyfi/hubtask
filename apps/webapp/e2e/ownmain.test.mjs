@@ -144,7 +144,7 @@ test('chromium: the own domain is the main address; the subdomain beside it is t
   const dialog = page.getByRole('dialog', { name: `Make ${SUB} the main address again` });
   await dialog.waitFor();
   const said = (await dialog.textContent()) ?? '';
-  assert.match(said, new RegExp(`Passkeys made at ${OWN.replaceAll('.', '\\.')} stop working\\.`));
+  assert.ok(said.includes(`Passkeys made at ${OWN} stop working.`), said);
   assert.ok(said.includes(`${OWN} stays set up and sends browsers on to ${SUB}, so you can make it the main address again later.`), said);
   await dialog.getByRole('button', { name: 'Make it the main address' }).click();
   const prove = page.getByRole('dialog', { name: 'Prove it is you' });

@@ -68,7 +68,10 @@ export class FetchTransport implements Transport {
 
   constructor(options: FetchTransportOptions) {
     // Trailing slash removed once, here, so that every path below is written the same way.
-    this.#baseUrl = options.baseUrl.replace(/\/+$/, '');
+    // Counted, not matched: a pattern for the run retried from every slash in it.
+    let end = options.baseUrl.length;
+    while (end > 0 && options.baseUrl[end - 1] === '/') end -= 1;
+    this.#baseUrl = options.baseUrl.slice(0, end);
     this.#fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
     this.#clientBuild = options.clientBuild;
     this.#onServerBuild = options.onServerBuild;

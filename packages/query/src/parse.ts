@@ -572,7 +572,7 @@ class QueryParser {
 
 function bareCustom(word: string): unknown {
   if (word === 'true' || word === 'false') return word === 'true';
-  if (/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(word)) {
+  if (/^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/.test(word)) {
     const number = Number(word);
     if (Number.isFinite(number)) return number;
   }

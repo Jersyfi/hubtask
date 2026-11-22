@@ -111,7 +111,8 @@ const fieldSuggestion = (negation: string) => (field: QueryField): QuerySuggesti
 });
 
 function suggestWord(catalogue: FieldCatalogue, word: string): QuerySuggestion[] {
-  const colon = /^(-?)([\w.]+):\s*(.*)$/.exec(word);
+  // The value starts at a character that is no space, so the spaces before it are read one way only.
+  const colon = /^(-?)([\w.]+):\s*(\S.*)?$/.exec(word);
   if (colon) {
     const negation = colon[1] ?? '';
     const key = colon[2] ?? '';

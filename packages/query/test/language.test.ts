@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { countRequest, createCatalogue, createLanguage, relabelled, segments, valuesRequest, type QueryKey } from '../src/index.ts';
+import { formatQuery } from '../src/parse.ts';
 
 const wording = { key: (key: string) => key.toUpperCase(), problem: (error: { code: string }) => error.code };
 
@@ -58,4 +59,23 @@ test('chips cut before the words arrived are renamed in place', () => {
   assert.equal(renamed[0]?.kind === 'chip' ? renamed[0].fieldLabel : '', 'Erstellt');
   assert.equal(relabelled(renamed, after.parse(line).tokens), undefined, 'nothing to rename once named');
   assert.equal(relabelled(shown, after.parse('created: -2w ').tokens), undefined, 'another line is cut again, not renamed');
+});
+
+/** How long a call takes, in milliseconds. */
+function elapsed(run: () => unknown): number {
+  const start = performance.now();
+  run();
+  return performance.now() - start;
+}
+
+// A line is typed or pasted by a person and a view's tree comes from the server: neither may make
+// a pattern retry every start, which freezes the page on a long run of one character.
+test('a long run of one character costs its length, not its square', () => {
+  const run = '!'.repeat(200_000);
+  assert.deepEqual(segments(`${run} x`).rest, 'x');
+  assert.ok(elapsed(() => segments(`${run} x`)) < 2000, 'cutting the line retried every start of the run');
+  const digits = `${'0'.repeat(200_000)}x`;
+  const query = { filter: { field: 'custom_fields.code', op: 'EQ', value: digits } };
+  assert.equal(formatQuery(query), `cf.code: ${digits}`);
+  assert.ok(elapsed(() => formatQuery(query)) < 2000, 'reading a custom value as a number retried every split of its digits');
 });
