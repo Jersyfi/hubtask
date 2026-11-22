@@ -124,6 +124,12 @@ function quotable(status: number | undefined): boolean {
 }
 
 export function renderProblem(error: TransportError, messages: Messages, now: number = Date.now()): RenderedProblem {
+  // Screens hand every caught error here, and one their own code threw is no transport failure:
+  // it is said as the floor rather than read for fields it does not have.
+  if (!Array.isArray((error as Partial<TransportError> | undefined)?.fieldErrors)) {
+    const message = messages.t('app.something_went_wrong');
+    return { message, sentence: message, code: 'app.something_went_wrong', fields: new Map(), wholes: [], isServerFault: true };
+  }
   // The request id travels as a parameter as well as a field, because `errors.internal` renders it
   // inside its own sentence. Where it does, showing it again beneath would say it twice.
   const params: MessageParams = {

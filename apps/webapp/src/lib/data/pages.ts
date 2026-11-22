@@ -246,3 +246,14 @@ export function changedFrom(choice: ChangedWithin, now: Date): string | undefine
   const days = CHANGED_WITHIN[choice];
   return days === 0 ? undefined : new Date(now.getTime() - days * 86_400_000).toISOString();
 }
+
+/**
+ * What putting a page in the trash makes stale. A screen that leaves the page invalidates only what
+ * lists it: `/pages/{id}` is a prefix of its labels, comments and backlinks, which the screen still
+ * showing it would read again and find gone. Any other caller re-reads the page too, so a screen
+ * that stays on it learns that it went.
+ */
+export function trashInvalidates(page: Pick<Page, 'id' | 'hub_id'>, leaving: boolean): string[] {
+  const lists = [`/hubs/${page.hub_id}/pages`, '/trash'];
+  return leaving ? lists : [`/pages/${page.id}`, `/hubs/${page.hub_id}/pages`, `/pages/${page.id}/versions`];
+}

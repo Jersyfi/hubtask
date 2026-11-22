@@ -198,6 +198,13 @@ func person(id shared.ID, name, email, locale string) identity.Account {
 	}
 }
 
+// invited is a person whose invitation is still open.
+func invited(id shared.ID, name, email, locale string) identity.Account {
+	account := person(id, name, email, locale)
+	account.Status = identity.AccountInvited
+	return account
+}
+
 func (s *accountStore) Find(_ context.Context, id shared.ID) (identity.Account, error) {
 	account, found := s.byID[id]
 	if !found {

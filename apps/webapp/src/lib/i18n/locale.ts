@@ -88,6 +88,18 @@ export function resolveLocale(
 }
 
 /**
+ * The list a locale is resolved against. An unread manifest declares nothing, and resolving against
+ * that empty list would answer the source language and undo the browser's choice made at boot.
+ */
+export function localesToResolve(
+  manifestRead: boolean,
+  declared: readonly SupportedLocale[],
+  bundled: readonly SupportedLocale[],
+): readonly SupportedLocale[] {
+  return manifestRead ? declared : bundled;
+}
+
+/**
  * Which way the document runs, from the manifest rather than from a list written here. A client
  * that carried its own table of right-to-left languages would be wrong about the installation that
  * added one — `/meta/capabilities` reports the direction per supported locale for that reason.

@@ -41,7 +41,8 @@ and its member — each receive one mail; Carla, who wrote it, receives none.
    never undone by it.
 8. The same event mails each person once, even when the event is handed over twice.
 9. Being given a role on a hub, a collection or one entry sends the person one mail that names who
-   gave it, the role and what it opens, and links to it.
+   gave it, the role and what it opens, and links to it — unless their invitation is still open:
+   the invitation is then their one mail, and the role is there when they arrive.
 
 ## Where it ends
 

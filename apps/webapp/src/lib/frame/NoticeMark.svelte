@@ -3,23 +3,17 @@
 <script lang="ts">
   // What the application has to say **about itself**, as one mark in the bar (ADR-0065 decision 4).
   //
-  // Three things qualify, and the rule that lets them in is that they would say the same thing on
-  // every screen: the maturity stage, which ADR-0035 §2 requires the application to state while it
-  // is not `stable`; the health report, where the reader may read one and it says something is
-  // wrong; and **the manifest this client could not read**, with the way to ask again. The first
-  // two were banners above the page's own head - a statement about a *release* drawn where a
-  // statement about the *page* belongs, taking a row of every screen with it.
+  // Two things qualify, and the rule that lets them in is that they would say the same thing on
+  // every screen: the health report, where the reader may read one and it says something is wrong;
+  // and **the manifest this client could not read**, with the way to ask again. The maturity stage
+  // is not among them: it is stated in the release notes only (ADR-0107).
   //
-  // The third came from `SyncStatus`, which 1022's own "what this does not fix" left
-  // open because this mark did not exist yet. It is a statement about the application rather than
-  // about this copy's changes - but what decides it is simpler than the category: **`SyncLine` is
-  // drawn only with a session, this mark always**, and `/meta/capabilities` is read before
-  // anybody signs in. A retry behind a mark that is not on the screen is no retry.
+  // The manifest is here rather than in `SyncLine` because **`SyncLine` is drawn only with a
+  // session, this mark always**, and `/meta/capabilities` is read before anybody signs in. A
+  // retry behind a mark that is not on the screen is no retry.
   //
   // It is the pattern the connection's mark already is (ADR-0063 decision 5): unpressed it says
-  // only that there is something; pressed it says all of it. The stage is not dismissible any
-  // more, and that is a simplification rather than a loss - the dismiss existed because the banner
-  // was in the way, and nothing that is not in the way needs pushing out of it.
+  // only that there is something; pressed it says all of it.
   //
   // A notice about **the page** - a refused write, a check's findings - stays where `PageHeader`
   // draws it. This is for what is true wherever the reader stands.
@@ -34,7 +28,6 @@
   import { health } from '../data/health.svelte.ts';
   import { instance } from '../data/instance.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
-  import { MATURITY, shouldAnnounce } from '../maturity.ts';
   import { renderProblem } from '../problem.ts';
   import { session } from '../session.svelte.ts';
 
@@ -64,8 +57,6 @@
     return health.start(mayReadHealth);
   });
 
-  /** Whether the stage is worth stating. `lib/maturity.ts` is the one place that decides. */
-  const hasStage = $derived(shouldAnnounce());
   /** Whether the report says something is wrong. Nothing at all without a report or a right to it. */
   const isUnwell = $derived(health.isTroubled);
   /**
@@ -83,18 +74,13 @@
   });
   /** Anything wrong: the report, or an installation this client never read. */
   const isTroubled = $derived(isUnwell || unread !== undefined);
-  const hasAnything = $derived(hasStage || isTroubled);
 
   /**
-   * The mark, and what it says without being pressed.
-   *
-   * The ordinary case is the quiet mark: there is something to read and nothing is wrong. A
-   * degraded or down installation is the one state somebody has to see before they ask, so it
-   * takes the dot and the tone - rule 3, which asks for a mark and a word rather than a colour.
+   * The mark, and what it says without being pressed. It is drawn only when something is wrong, so
+   * it always takes the dot and the tone - rule 3, which asks for a mark and a word rather than a
+   * colour.
    */
-  const label = $derived(
-    unread ? t('app.installation.unread') : isUnwell ? t('app.health.title') : t(`app.maturity.${MATURITY}.title`),
-  );
+  const label = $derived(unread ? t('app.installation.unread') : t('app.health.title'));
 
   let isOpen = $state(false);
 </script>
@@ -121,7 +107,7 @@
           </Stack>
         </section>
       {/if}
-      <!-- Then the report: what is wrong outranks what the release promises. -->
+      <!-- Then the report. -->
       {#if isUnwell}
         <section class="notice" data-tone={health.isDown ? 'danger' : 'warning'} aria-label={t('app.health.title')}>
           <Stack gap="050">
@@ -129,14 +115,6 @@
             {#each health.degradations as degradation (degradation.feature)}
               <p class="line">{t('app.health.feature', { feature: featureNameCode(degradation.feature) ? t(featureNameCode(degradation.feature)!) : degradation.feature, reason: t(degradation.reasonCode) })}</p>
             {/each}
-          </Stack>
-        </section>
-      {/if}
-      {#if hasStage}
-        <section class="notice" aria-label={t(`app.maturity.${MATURITY}.title`)}>
-          <Stack gap="050">
-            <h3 class="heading">{t(`app.maturity.${MATURITY}.title`)}</h3>
-            <p class="line">{t(`app.maturity.${MATURITY}.body`)}</p>
           </Stack>
         </section>
       {/if}
@@ -151,7 +129,7 @@
   </span>
 {/snippet}
 
-{#if hasAnything}
+{#if isTroubled}
   <div class="notice-mark">
     {#if viewport.isCompact}
       <!-- The same choice `SyncStatus` and the account group make: on a phone there is no room

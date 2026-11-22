@@ -68,11 +68,12 @@ RUN test -d ./presentation/webui/dist/assets || \
     { echo "the ui stage produced no assets - refusing to build a binary with the placeholder"; exit 1; }
 ARG VERSION=0.0.0-dev
 ARG COMMIT=unknown
+ARG BUILD_DATE=unknown
 ARG TARGETOS TARGETARCH
 RUN --mount=type=cache,target=/root/.cache/go-build \
     GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
       -trimpath \
-      -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
+      -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.buildDate=${BUILD_DATE}" \
       -o /out/hubtask ./cmd/server && \
     GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
       -trimpath -ldflags "-s -w" -o /out/hubtask-migrate ./cmd/migrate && \

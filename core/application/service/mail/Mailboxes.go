@@ -177,12 +177,12 @@ func (h ConnectMailbox) invoke(ctx context.Context, actor appshared.ActorContext
 		if err := b.Mailboxes.Insert(ctx, box, sealed, actor.AccountID); err != nil {
 			return err
 		}
-		return b.Mailboxes.RecordCheck(ctx, box)
+		if err := b.Mailboxes.RecordCheck(ctx, box); err != nil {
+			return err
+		}
+		return b.seed(ctx, box, now)
 	})
 	if err != nil {
-		return nil, err
-	}
-	if err := b.seed(ctx, box, now); err != nil {
 		return nil, err
 	}
 	b.record(ctx, actor, mailboxConnected, box)
@@ -210,12 +210,12 @@ func (h CheckMailbox) invoke(ctx context.Context, actor appshared.ActorContext, 
 	}
 	box = box.Checked(now, codeOf(err))
 	if err := b.Writer.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		return b.Mailboxes.RecordCheck(ctx, box)
+		if err := b.Mailboxes.RecordCheck(ctx, box); err != nil {
+			return err
+		}
+		// Read now rather than in a minute: whoever pressed *Check* wants to see their test mail.
+		return b.seed(ctx, box, now)
 	}); err != nil {
-		return nil, err
-	}
-	// Read now rather than in a minute: whoever pressed *Check* wants to see their test mail.
-	if err := b.seed(ctx, box, now); err != nil {
 		return nil, err
 	}
 	b.record(ctx, actor, mailboxChecked, box)
@@ -280,7 +280,8 @@ func (b Boxes) load(ctx context.Context, scope persistence.Scope, id shared.ID) 
 	return box, password, nil
 }
 
-// seed makes sure the mailbox's read is queued, now. The dedupe key keeps one per mailbox.
+// seed makes sure the mailbox's read is queued, now. The dedupe key keeps one per mailbox; the
+// queue writes only inside the caller's unit of work.
 func (b Boxes) seed(ctx context.Context, box domain.Mailbox, now time.Time) error {
 	if b.Jobs == nil {
 		return nil

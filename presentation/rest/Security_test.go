@@ -6,6 +6,7 @@ package rest
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -242,6 +243,29 @@ func TestTheAppOriginsPassWithoutTheAllowlist(t *testing.T) {
 		request.Header.Set("Origin", origin)
 		if got := secured(t, env.CORSConfig{}, request).Header().Get("Access-Control-Allow-Origin"); got != "" {
 			t.Errorf("%s was allowed as %q", origin, got)
+		}
+	}
+}
+
+// The installed apps resume the event stream with its cursor in Last-Event-ID; a preflight that
+// does not allow it is refused by the webview, and the app shows "Reconnecting" for good.
+func TestAPreflightAllowsTheStreamCursor(t *testing.T) {
+	preflight := httptest.NewRequestWithContext(t.Context(), http.MethodOptions, "/api/v1/stream", nil)
+	preflight.Header.Set("Origin", "http://tauri.localhost")
+	preflight.Header.Set("Access-Control-Request-Method", http.MethodGet)
+	preflight.Header.Set("Access-Control-Request-Headers", "authorization, last-event-id")
+
+	response := secured(t, env.CORSConfig{}, preflight)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("preflight answered %d, want 204", response.Code)
+	}
+	allowed := map[string]bool{}
+	for _, name := range strings.Split(response.Header().Get("Access-Control-Allow-Headers"), ",") {
+		allowed[strings.ToLower(strings.TrimSpace(name))] = true
+	}
+	for _, name := range []string{"authorization", "last-event-id"} {
+		if !allowed[name] {
+			t.Errorf("Access-Control-Allow-Headers lacks %s", name)
 		}
 	}
 }

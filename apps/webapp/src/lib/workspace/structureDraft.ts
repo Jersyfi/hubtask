@@ -34,6 +34,10 @@ export interface Draft {
   readonly values: StructureSettings;
   /** The settings sent back to what is set above. */
   readonly reset: readonly SettingName[];
+  /** The structure in force when the draft was started; what the reader's own change is measured against. */
+  readonly from?: EffectiveStructure;
+  /** Started from a save's answer the structure in force has not caught up with yet. */
+  readonly answered?: true;
 }
 
 /** The source of a value the container sets itself: a collection's own, or a hub's. */
@@ -52,7 +56,36 @@ export function isOwn(structure: EffectiveStructure, setting: SettingName, conta
 const cloneSettings = (settings: StructureSettings): StructureSettings => JSON.parse(JSON.stringify(settings)) as StructureSettings;
 
 export function startDraft(structure: EffectiveStructure): Draft {
-  return { preset: undefined, values: cloneSettings(structure.settings), reset: [] };
+  return { preset: undefined, values: cloneSettings(structure.settings), reset: [], from: structure };
+}
+
+/** The draft a save's answer starts, before the container's refresh brings it into force. */
+export function startAnswered(structure: EffectiveStructure): Draft {
+  return { ...startDraft(structure), answered: true };
+}
+
+/**
+ * The draft once a save is answered. `before` is the structure in force when it was sent: if
+ * another one came into force meanwhile it is the answer or a later one - an earlier version
+ * `If-Match` refuses - so the draft starts from it, never measures it against the answer.
+ */
+export function afterSave(answer: EffectiveStructure, before: EffectiveStructure | undefined, inForce: EffectiveStructure | undefined): Draft {
+  return inForce === undefined || inForce === before ? startAnswered(answer) : startDraft(inForce);
+}
+
+/**
+ * The draft once the structure in force changed while the panel is open - another tab, another
+ * device, a template applied. A draft the reader has not changed starts again from it, so a change
+ * made elsewhere is never counted as theirs. One they changed is kept as it is: the save sends the
+ * refreshed version, so its `If-Match` passes and a setting changed elsewhere is saved back as
+ * theirs - there is no conflict hint yet. `seen` is the structure in force at the last call: a save's answer
+ * stays while it is unchanged, since the container has not refreshed yet.
+ */
+export function followStructure(draft: Draft, structure: EffectiveStructure, chosen: Preset | undefined, seen?: EffectiveStructure): Draft {
+  if (draft.from === undefined || draft.from === structure) return draft;
+  if (draft.answered && seen === structure) return draft;
+  if (changeOf(draft, draft.from, chosen) === undefined) return startDraft(structure);
+  return draft.answered ? { ...draft, answered: undefined } : draft;
 }
 
 /**

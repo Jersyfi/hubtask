@@ -6,7 +6,13 @@ import { test } from 'node:test';
 
 import type { Page } from '@hubtask/sync-engine';
 
-import { SHIPPED_SPACES, SHIPPED_TEMPLATES, ancestorsOf, homePageOf, publicPreviewOf, writersHere, draftStateOf, hasSubpages, shippedSpace, writtenBody, caretOf, changedFrom, withLabels, exportFileName, publicLinkAddress, pageTree, shippedTemplate, subtreeOf, verifiedUntil } from './pages.ts';
+import { SHIPPED_SPACES, SHIPPED_TEMPLATES, ancestorsOf, homePageOf, publicPreviewOf, writersHere, draftStateOf, hasSubpages, shippedSpace, writtenBody, caretOf, changedFrom, withLabels, exportFileName, publicLinkAddress, pageTree, shippedTemplate, subtreeOf, verifiedUntil, trashInvalidates } from './pages.ts';
+
+test('a trash that leaves the page invalidates what lists it; any other re-reads the page as before', () => {
+  const page = { id: 'p-1', hub_id: 'h-1' };
+  assert.deepEqual(trashInvalidates(page, true), ['/hubs/h-1/pages', '/trash']);
+  assert.deepEqual(trashInvalidates(page, false), ['/pages/p-1', '/hubs/h-1/pages', '/pages/p-1/versions']);
+});
 
 const page = (id: string, parent: string | null, position: string, title = id): Page => ({
   id, hub_id: 'hub', parent_id: parent, title, icon: null, position, template: false, content_language: null, owner_id: null,

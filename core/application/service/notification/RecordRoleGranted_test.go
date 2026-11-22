@@ -16,6 +16,7 @@ import (
 var (
 	hubGranted = shared.ID("01936f2a-7c1e-7000-8000-0000000000f1")
 	grantID    = shared.ID("01936f2a-7c1e-7000-8000-0000000000f2")
+	dora       = shared.ID("01936f2a-7c1e-7000-8000-0000000000f4")
 )
 
 func grantOn(scope identity.Scope, account, group shared.ID) identity.Grant {
@@ -28,7 +29,8 @@ func grantOn(scope identity.Scope, account, group shared.ID) identity.Grant {
 // UC-NOT-01 check 9 at the recording: one MEMBERSHIP record naming the grant for the person given
 // the role, its delivery queued under its own kind - and the rules every other message keeps:
 // nobody is told of their own act (check 2), nobody without an address is mailed and the record
-// says why (check 6), and a group given a role mails nobody.
+// says why (check 6), a group given a role mails nobody, and a person whose invitation is still
+// open hears of the place through the invitation alone.
 func TestARoleGivenIsRecordedForThePersonOnly(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
@@ -42,6 +44,7 @@ func TestARoleGivenIsRecordedForThePersonOnly(t *testing.T) {
 		{"a person", grantOn(identity.HubScope(hubGranted), bert, ""), anna, 1, domain.StatePending, "", true},
 		{"oneself", grantOn(identity.HubScope(hubGranted), anna, ""), anna, 1, domain.StateSuppressed, domain.ReasonSelfCaused, false},
 		{"no address", grantOn(identity.HubScope(hubGranted), carla, ""), anna, 1, domain.StateSuppressed, domain.ReasonNoAddress, false},
+		{"invited", grantOn(identity.HubScope(hubGranted), dora, ""), anna, 1, domain.StateSuppressed, domain.ReasonRecipientInvited, false},
 		{"a group", grantOn(identity.HubScope(hubGranted), "", shared.ID("01936f2a-7c1e-7000-8000-0000000000f3")), anna, 0, "", "", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -52,6 +55,7 @@ func TestARoleGivenIsRecordedForThePersonOnly(t *testing.T) {
 					person(anna, "Anna", "anna@example.org", "en"),
 					person(bert, "Bert", "bert@example.org", "de"),
 					person(carla, "Carla", "", "en"),
+					invited(dora, "Dora", "dora@example.org", "de"),
 				),
 				Preferences: newPreferences(), Jobs: jobs, Clock: clock.Fixed(now), IDs: &idSequence{},
 			}

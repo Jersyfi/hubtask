@@ -32,7 +32,7 @@ import { createMessages } from './messages.ts';
  * reader whose browser asks for German loads the German catalogue at boot rather than the English
  * one first. The direction is the platform's guess; the manifest's answer replaces it.
  */
-const BUNDLED: readonly SupportedLocale[] = bundledLocales().map((locale) => ({ locale, direction: platformDirection(locale) }));
+export const BUNDLED: readonly SupportedLocale[] = bundledLocales().map((locale) => ({ locale, direction: platformDirection(locale) }));
 
 class ActiveMessages {
   #locale = $state(SOURCE_LOCALE);

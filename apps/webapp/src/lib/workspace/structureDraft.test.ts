@@ -9,16 +9,19 @@ import assert from 'node:assert/strict';
 import type { Capabilities, EffectiveStructure, Preset } from '@hubtask/sync-engine';
 
 import {
+  afterSave,
   changeOf,
   chooseEntryTypesOf,
   chooseFieldsOf,
   choosePreset,
   countOf,
+  followStructure,
   isOwn,
   levelRefusal,
   renameLevel,
   resetSetting,
   setValue,
+  startAnswered,
   startDraft,
   toggleLevel,
   typesTopDown,
@@ -154,4 +157,55 @@ test('ticking a level types narrows it, ticking all leaves it out, ticking none 
   assert.deepEqual(chooseEntryTypesOf(undefined, 'TASK', inUse, ['feature', 'bug']), { TASK: ['bug', 'feature'] });
   assert.deepEqual(chooseEntryTypesOf({ TASK: ['bug'] } as never, 'TASK', inUse, inUse), {});
   assert.deepEqual(chooseEntryTypesOf({ TASK: ['bug'] } as never, 'TASK', inUse, []), { TASK: ['bug'] });
+});
+
+test('a structure changed elsewhere is not counted as the reader\'s change', () => {
+  const changed = { ...project, settings: { ...project.settings, celebration: 'SUBTLE', completion: 'MANUAL' } } as unknown as EffectiveStructure;
+  const opened = startDraft(project);
+  // The draft opened before: compared with what is in force now, it counts the change made elsewhere.
+  assert.equal(countOf(changeOf(opened, changed, undefined)), 2);
+
+  const followed = followStructure(opened, changed, undefined);
+  assert.equal(countOf(changeOf(followed, changed, undefined)), 0, 'an untouched draft follows the structure');
+  assert.equal(followed.values.celebration, 'SUBTLE');
+  assert.equal(followStructure(followed, changed, undefined), followed, 'the same structure keeps the draft');
+});
+
+test('a draft the reader changed is kept when the structure changes elsewhere', () => {
+  const changed = { ...project, settings: { ...project.settings, completion: 'MANUAL' } } as unknown as EffectiveStructure;
+  const edited = setValue(startDraft(project), 'celebration', 'SUBTLE');
+  assert.equal(followStructure(edited, changed, undefined), edited);
+  const chosen = choosePreset(startDraft(project), project, list);
+  assert.equal(followStructure(chosen, changed, list), chosen, 'a preset chosen is a change');
+});
+
+test('a just-saved draft is not rolled back while the structure in force is still the one before the save', () => {
+  const answered = { ...project, settings: { ...project.settings, celebration: 'SUBTLE' } } as unknown as EffectiveStructure;
+  const saved = startAnswered(answered);
+  // The panel's own reassignment, the container not refreshed yet: no upstream transition.
+  assert.equal(followStructure(saved, project, undefined, project), saved);
+  // The refresh arrives: the draft follows it.
+  const refreshed = { ...answered } as EffectiveStructure;
+  assert.equal(followStructure(saved, refreshed, undefined, project).from, refreshed);
+});
+
+test('an edit undone after a change elsewhere follows the structure in force', () => {
+  const changed = { ...project, settings: { ...project.settings, completion: 'MANUAL' } } as unknown as EffectiveStructure;
+  const edited = setValue(startDraft(project), 'celebration', 'SUBTLE');
+  // The change elsewhere arrives; the edit is kept, and the panel records what it saw.
+  const kept = followStructure(edited, changed, undefined, project);
+  assert.equal(kept, edited);
+  // The reader takes the edit back; the panel's own reassignment runs with the same structure seen.
+  const undone = setValue(kept, 'celebration', 'ALL');
+  const followed = followStructure(undone, changed, undefined, changed);
+  assert.equal(changeOf(followed, changed, undefined), undefined, "the change made elsewhere is not sent as the reader's");
+});
+
+test('a save answered after a newer structure came into force does not offer the answer as a change', () => {
+  const answer = { ...project, settings: { ...project.settings, celebration: 'SUBTLE' } } as unknown as EffectiveStructure;
+  // Saved later elsewhere, published while the save's answer was on its way.
+  const newer = { ...answer, settings: { ...answer.settings, completion: 'MANUAL' } } as unknown as EffectiveStructure;
+  const after = afterSave(answer, project, newer);
+  const followed = followStructure(after, newer, undefined, newer);
+  assert.equal(changeOf(followed, newer, undefined), undefined, 'the newer setting is not overwritten by the older answer');
 });

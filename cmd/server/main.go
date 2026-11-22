@@ -4318,6 +4318,8 @@ func run() error {
 				// script cannot saturate the shared database's writes for every tenant.
 				Workspaces: realtimeadapter.NewBudget(realtimeadapter.DefaultWorkspaceBytes),
 				Signals:    metrics,
+				// The socket admits exactly the origins the REST layer does (security.md §9).
+				OriginPatterns: rest.SocketOrigins(cfg.CORS),
 			},
 			Registry: streams,
 		}

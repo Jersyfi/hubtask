@@ -184,7 +184,7 @@ class Policies {
 
   /** What the rule would catch. Writes nothing, and is what has to be read before it is armed. */
   async preview(policyId: string): Promise<Preview> {
-    const answer = await engine.mutate<Preview>('POST', `${POLICIES}/${policyId}:preview`, {});
+    const answer = await engine.mutate<Preview>('POST', `${POLICIES}/${policyId}:preview`, {}, { invalidates: [] });
     this.#previews = { ...this.#previews, [policyId]: answer };
     return answer;
   }

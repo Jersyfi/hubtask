@@ -4,11 +4,12 @@
   // What a screen that broke while drawing becomes (the frame's error boundary): one sentence, a
   // client reference, Reload and Copy details - instead of an empty page. The frame around it
   // stays, so the person can go elsewhere. The details carry no content (crash.ts).
+  import { untrack } from 'svelte';
   import { Button, ErrorState, Inline, VisuallyHidden } from '@hubtask/design-system/components';
   import { t } from '../i18n/i18n.svelte.ts';
   import { toast } from './toasts.svelte.ts';
   import { currentEntry } from './chunkfailure.ts';
-  import { crashDetails, newReference } from './crash.ts';
+  import { crashDetails, logCrash, newReference } from './crash.ts';
 
   type Props = {
     error: unknown;
@@ -19,6 +20,8 @@
 
   const reference = newReference();
   const at = new Date();
+  // Once, for the failure this page was drawn for.
+  logCrash({ reference, build: currentEntry(), path: location.pathname, userAgent: navigator.userAgent, at, error: untrack(() => error) });
 
   async function copy(): Promise<void> {
     const details = crashDetails({

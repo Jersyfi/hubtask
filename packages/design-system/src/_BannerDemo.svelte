@@ -12,16 +12,15 @@
 
 {#if mode === 'frame'}
   <Stack gap="200">
-    <!-- The two the frame needs. Both are this component with content: ADR-0035 §2's
-         maturity banner, dismissible for the session, and §4's HealthBanner, which comes back
-         while the degradation lasts. -->
+    <!-- Two kinds of banner, both this component with content: a notice dismissible for the
+         session, and a degradation that comes back while it lasts. -->
     {#if !dismissed}
       <Banner
-        title="Hubtask is experimental"
+        title="A newer release is available"
         dismissLabel="Dismiss"
         onDismiss={() => (dismissed = true)}
       >
-        Screens appear, move and disappear without notice, and data may not survive an update.
+        Reload the page to use it.
       </Banner>
     {/if}
     <Banner tone="warning" title="Search is slower than usual">

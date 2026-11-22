@@ -975,7 +975,7 @@ refused before the hub is looked up (`access.not_permitted`).
   `notification.emergency_access`, which a process of the previous release has no handler for, so
   it is never sent with another category's words during a rollout. Every member is also told in
   the app from their own record, whatever the mail did - `GET /accounts/me/emergency-notices`, the
-  last 30 days, on every page - which is how a managed account without a mailbox is told; the hub
+  last 30 days, on the start view (not in every view: a work view keeps its layout) - which is how a managed account without a mailbox is told; the hub
   lists its accesses to whoever reads it (`GET /private-hubs/{hubId}/accesses`).
 * **What it opens, and for whom.** While it runs, the authoriser judges a path through the hub as
   shared for the opener alone, and only while they still hold `OWNER` on the workspace. It counts

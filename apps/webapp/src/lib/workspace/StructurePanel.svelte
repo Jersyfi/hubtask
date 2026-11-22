@@ -22,7 +22,7 @@
 
   import { Button, Checkbox, DataTable, Input, SaveBar, Select, SettingRow, SettingsLayout, SettingsSection, SourceChip } from '@hubtask/design-system/components';
   import type { DataColumn, PageHead, SectionLink } from '@hubtask/design-system/components';
-  import type { Container, CustomFieldDefinition, EntryType, StructureChange, StructurePreview, StructureSettings, Workflow } from '@hubtask/sync-engine';
+  import type { Container, CustomFieldDefinition, EffectiveStructure, EntryType, StructureChange, StructurePreview, StructureSettings, Workflow } from '@hubtask/sync-engine';
 
   import { announcer } from '../announce.svelte.ts';
   import { accounts } from '../data/accounts.svelte.ts';
@@ -63,6 +63,8 @@
     chooseFieldsOf,
     setValue,
     startDraft,
+    afterSave,
+    followStructure,
     toggleLevel,
     typesTopDown,
     type Draft,
@@ -136,7 +138,8 @@
     accounts.resolve(Object.values(structure.locks ?? {}).map((lock) => lock.locked_by));
   });
 
-  let draft = $state<Draft | undefined>(undefined);
+  // Raw: the draft keeps the structure it started from by reference, which a deep proxy would replace.
+  let draft = $state.raw<Draft | undefined>(undefined);
   let isSaving = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   /** A sum without its field, or no view offered: marked when the reader saves (case 3). */
@@ -144,13 +147,22 @@
   let isViewMissing = $state(false);
 
   // Opening starts from what is in force; a save starts again from what the server answered.
+  let seen: EffectiveStructure | undefined;
   $effect(() => {
     if (!isOpen || !structure) {
       draft = undefined;
       return;
     }
-    if (draft !== undefined) return;
+    const current = structure;
+    if (draft !== undefined) {
+      untrack(() => {
+        if (draft) draft = followStructure(draft, current, draft.preset ? presets.find(draft.preset) : undefined, seen);
+        seen = current;
+      });
+      return;
+    }
     untrack(() => {
+      seen = current;
       draft = startDraft(structure);
       failure = undefined;
       isFieldMissing = false;
@@ -527,8 +539,9 @@
   }
 
   async function write(change: StructureChange) {
+    const before = structure;
     const answered = await containers.setStructure(container.id, change, container.version);
-    if (answered.structure) draft = startDraft(answered.structure);
+    if (answered.structure) draft = afterSave(answered.structure, before, structure);
     const kept = answered.kept_by_lock ?? [];
     announcer.say(t('app.structure.saved_announced'));
     if (kept.length > 0) toast.show({ text: t('app.structure.kept_by_lock', { count: String(kept.length) }) });
@@ -690,7 +703,7 @@
         {/snippet}
       </SettingRow>
     {/each}
-    <div class="setting" data-setting="fields">
+    <div data-setting="fields">
     {#each offeredTypes as type, index (type)}
       <SettingRow
         label={t('app.structure.fields_of', { level: levelName(type) })}

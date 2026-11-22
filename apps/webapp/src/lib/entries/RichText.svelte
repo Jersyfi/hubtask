@@ -19,6 +19,7 @@
   import { engine } from '../data/engine.ts';
   import { referencesIn, resolveRequest, targetLabel } from '../data/links.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
+  import { catchUpOnBlur } from './richtext.ts';
 
   interface Props {
     /** The Markdown shown and edited. */
@@ -45,6 +46,8 @@
   /** What the editor holds, so a value coming back from the server is not drawn over the typing. */
   let current = untrack(() => value);
   let isFocused = $state(false);
+  /** What the editor held when the focus came in, so leaving can tell whether the writer typed. */
+  let atFocus = untrack(() => value);
   let isEmpty = $state(untrack(() => value.trim() === ''));
   /** The editor has drawn the text. Before, a text that is there is a skeleton - never a blank box. */
   let isReady = $state(false);
@@ -101,10 +104,20 @@
           onchange?.(markdown);
         },
       });
-      made.on('focus', () => (isFocused = true));
+      made.on('focus', () => {
+        isFocused = true;
+        atFocus = current;
+      });
       made.on('blur', () => {
         if (isGone) return;
         isFocused = false;
+        const missed = catchUpOnBlur(untrack(() => value), current, atFocus);
+        if (missed !== undefined) {
+          current = missed;
+          isEmpty = missed.trim() === '';
+          made.commands.setContent(lib.fromMarkdown(missed) as never, { emitUpdate: false });
+          void resolve(missed);
+        }
         oncommit?.();
       });
       if (lang) made.view.dom.setAttribute('lang', lang);
@@ -160,6 +173,8 @@
   /** Starts the text over - a comment sent, another one to edit - even while the focus is in it. */
   export function reset(markdown: string): void {
     current = markdown;
+    // The writer has changed nothing of the new text yet: a value arriving now is taken on leaving.
+    atFocus = markdown;
     isEmpty = markdown.trim() === '';
     if (editor && library) editor.commands.setContent(library.fromMarkdown(markdown) as never, { emitUpdate: false });
   }

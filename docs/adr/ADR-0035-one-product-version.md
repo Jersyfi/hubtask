@@ -1,8 +1,8 @@
 # ADR-0035 — One product version for the server and every first-party client
 
-**Status:** accepted · **Date:** 2026-08-25
+**Status:** accepted (§2's notice in the application superseded by [ADR-0107](./ADR-0107-the-application-does-not-state-its-maturity-stage.md)) · **Date:** 2026-08-25
 
-**Rule lives in:** [versioning-release.md](../architecture/versioning-release.md) §1, §5, §7; the maturity mark (formerly the banner): [design-system.md](../design/design-system.md) §11.6
+**Rule lives in:** [versioning-release.md](../architecture/versioning-release.md) §1, §5, §7
 
 ## Context
 

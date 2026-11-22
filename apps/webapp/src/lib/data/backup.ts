@@ -195,6 +195,26 @@ export function sftpTarget(draft: SftpDraft): { config: Record<string, string>; 
   return Object.keys(credentials).length > 0 ? { config, credentials } : { config };
 }
 
+export interface S3Draft {
+  readonly endpoint: string;
+  readonly bucket: string;
+  readonly path: string;
+  readonly region: string;
+}
+
+/**
+ * An S3 target's configuration as the server reads it: `path` is the prefix inside the bucket the
+ * archives are written under, and an empty one writes at the bucket's root.
+ */
+export function s3Target(draft: S3Draft): Record<string, string> {
+  return {
+    endpoint: draft.endpoint.trim(),
+    bucket: draft.bucket.trim(),
+    ...(draft.path.trim() ? { path: draft.path.trim() } : {}),
+    ...(draft.region.trim() ? { region: draft.region.trim() } : {}),
+  };
+}
+
 export interface WebdavDraft {
   readonly url: string;
   readonly username: string;

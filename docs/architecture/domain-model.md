@@ -527,7 +527,8 @@ a group's members are the workspace administrators' to change ([identity.md](./i
 **A person given a role is told by mail** (UC-NOT-01 check 9): `GrantMembership` writes a
 `MEMBERSHIP` notification naming the grant in its own transaction — a grant is not an event (§4) —
 and the mail names who gave it, the role and the place, and links to it. Not for a role the person
-already held at that scope, and not for a grant to a group: the group's members did not change, and
+already held at that scope, not for a person whose invitation is still open — the invitation is
+their one mail (`notifications.recipient_invited`) — and not for a grant to a group: the group's members did not change, and
 a grant to a large group would mail all of them at once — joining a group mails nobody either. The
 grants made as a side effect (the owner of a new private hub, a provider newcomer, a managed
 account) tell nobody. A role revoked before its mail went takes the record with it.

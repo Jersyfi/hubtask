@@ -76,8 +76,7 @@
         <span class="wordmark">Hubtask Workbench</span>
         <!-- This page is public (ADR-0038), so it says what it is rather than leaving a reader
              to infer it: a development tool showing parts that mostly do not exist yet. The
-             stage word is ADR-0035's vocabulary, and the obligation is the one ADR-0035 put on
-             the application's maturity banner, applied to the surface that shows the parts. -->
+             stage word is ADR-0035's vocabulary; the application itself states no stage. -->
         <span class="stage-word">experimental</span>
       </span>
     {/snippet}

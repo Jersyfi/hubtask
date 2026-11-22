@@ -50,6 +50,7 @@
   import PageAccess from '../lib/pages/PageAccess.svelte';
   import PageLabels from '../lib/pages/PageLabels.svelte';
   import PageEditor from '../lib/pages/PageEditor.svelte';
+  import { oneTrashAtATime, trashAndLeave } from '../lib/pages/trashing.ts';
   import PageHistory from '../lib/pages/PageHistory.svelte';
   import PageStarts from '../lib/pages/PageStarts.svelte';
   import PageCover from '../lib/pages/PageCover.svelte';
@@ -278,6 +279,7 @@
     isUsingStart = false;
   }
 
+  let pageEditor = $state<PageEditor | undefined>(undefined);
   let titleDraft = $state<string | undefined>(undefined);
   async function rename() {
     if (!current || titleDraft === undefined) return;
@@ -287,13 +289,22 @@
     await act(() => pages.change(current, { title }));
   }
 
-  async function trash() {
+  const trash = oneTrashAtATime(async () => {
     if (!current) return;
-    const answer = await act(() => pages.trash(current), undefined);
-    if (!answer) return;
-    toast.show({ text: t('app.pages.trashed', { count: String(answer.trashed) }), tone: 'success' });
-    onnavigate(`/hubs/${current.hub_id}/pages`);
-  }
+    const page = current;
+    await trashAndLeave(page, {
+      drop: () => {
+        titleDraft = undefined;
+        return pageEditor?.dropPending();
+      },
+      trash: async () => {
+        const answer = await act(() => pages.trash(page, { leaving: true }), undefined);
+        if (answer) toast.show({ text: t('app.pages.trashed', { count: String(answer.trashed) }), tone: 'success' });
+        return answer;
+      },
+      leave: onnavigate,
+    });
+  });
 
   async function copy() {
     if (!current) return;
@@ -765,6 +776,7 @@
 
               <div class="body" bind:this={bodyElement}>
                 <PageEditor
+                  bind:this={pageEditor}
                   page={current}
                   {spacePages}
                   views={hubViews}

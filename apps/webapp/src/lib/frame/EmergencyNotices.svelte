@@ -2,8 +2,9 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // The frame's notice that one of the reader's private hubs was opened through the emergency access
-  // (ADR-0073 §4): on every page, from the record written when it was opened, for thirty days.
-  // It is how a person without a mailbox is told at all; the hub itself says it too.
+  // (ADR-0073 §4): on the start view only (`emergencyplacement.ts`), from the record written when
+  // it was opened, for thirty days. It is how a person without a mailbox is told at all; the hub
+  // itself says it too.
 
   import { untrack } from 'svelte';
 

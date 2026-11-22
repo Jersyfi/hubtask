@@ -11,7 +11,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { generations, insecureReasons, readRule, sftpTarget, webdavTarget } from './backup.ts';
+import { generations, insecureReasons, readRule, s3Target, sftpTarget, webdavTarget } from './backup.ts';
 
 test('the rule the contract gives as its own example reads as what it means', () => {
   const reading = readRule('FREQ=DAILY;BYHOUR=3;BYMINUTE=0');
@@ -116,6 +116,15 @@ test('a WebDAV target names its address and user in its configuration, and only 
   });
   assert.deepEqual(webdavTarget({ url: 'https://dav.example.invalid/', username: '', password: '' }), {
     config: { url: 'https://dav.example.invalid/' },
+  });
+});
+
+test('an S3 target carries its path, the prefix the server writes under, and drops an empty one', () => {
+  assert.deepEqual(s3Target({ endpoint: ' https://s3.example.invalid ', bucket: ' backups ', path: ' hubtask/nightly ', region: '' }), {
+    endpoint: 'https://s3.example.invalid', bucket: 'backups', path: 'hubtask/nightly',
+  });
+  assert.deepEqual(s3Target({ endpoint: 'https://s3.example.invalid', bucket: 'backups', path: ' ', region: 'eu-central-1' }), {
+    endpoint: 'https://s3.example.invalid', bucket: 'backups', region: 'eu-central-1',
   });
 });
 

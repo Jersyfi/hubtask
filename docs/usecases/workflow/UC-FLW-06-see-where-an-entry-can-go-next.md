@@ -54,4 +54,5 @@ to do, in progress and done, and the main button is *Done*, which completes the 
 
 ## Today
 
+* Check 5: not met where the Workflows module is off — the steps are read from the workflows module, so a board's entry shows open and done instead of the board's columns; tracked in #1864.
 * Check 6: not proven — the steps' door is one use case behind REST, MCP and `hubctl item steps`, and no test compares their answers.

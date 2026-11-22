@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { applyDocumentLocale, directionOf, fallbackChain, languageName, platformDirection, resolveLocale, scriptOf } from './locale.ts';
+import { applyDocumentLocale, directionOf, fallbackChain, languageName, localesToResolve, platformDirection, resolveLocale, scriptOf } from './locale.ts';
 
 const supported = [
   { locale: 'en', direction: 'ltr' as const },
@@ -76,4 +76,12 @@ test('before the manifest, the platform says which way a locale runs', () => {
   assert.equal(platformDirection('de'), 'ltr');
   assert.equal(platformDirection('ar'), 'rtl');
   assert.equal(platformDirection('not a tag'), 'ltr');
+});
+
+test('before the manifest is read, the locales the build carries answer, not an empty list', () => {
+  const bundled = [{ locale: 'en', direction: 'ltr' as const }, { locale: 'de', direction: 'ltr' as const }];
+  // What the boot effect handed over before: an unread manifest's empty list, which resolves to English.
+  assert.equal(resolveLocale({ requested: ['de-DE'] }, []), 'en');
+  assert.equal(resolveLocale({ requested: ['de-DE'] }, localesToResolve(false, [], bundled)), 'de');
+  assert.equal(resolveLocale({ requested: ['de-DE'] }, localesToResolve(true, [{ locale: 'en', direction: 'ltr' }], bundled)), 'en');
 });

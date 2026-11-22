@@ -108,6 +108,11 @@ class Workflows {
     return engine.subscribe<EntrySteps>({ path: stepsPath(itemId) }, into);
   }
 
+  /** Reads an entry's steps again, after a step or a move of it. */
+  async refreshSteps(itemId: string): Promise<void> {
+    await engine.refresh<EntrySteps>({ path: stepsPath(itemId) });
+  }
+
   /**
    * Takes a step - by key, or the first one to a status, which is what a drop on a board knows
    * (UC-FLW-03 check 2). The server refuses with what the step still needs.

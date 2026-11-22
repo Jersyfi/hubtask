@@ -3,6 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import { matchesPath } from '@hubtask/sync-engine';
 
@@ -45,4 +46,14 @@ test('the names are the engine\'s marks, spelled once', () => {
   assert.equal(entryDocument(ID), `/items/${ID}$`);
   assert.equal(ENTRY_LISTS, '/items:query');
   assert.equal(matchesPath(ANY_ENTRY_DOCUMENT, '/items:query'), false, 'the lists are not a document');
+});
+
+// A move to another collection can bring workflows on there; the entry's steps read before belong
+// to the old place, and a status screen that subscribes again would get them without a load.
+test('a move invalidates the steps of the entries it reaches', () => {
+  const source = readFileSync(new URL('./items.svelte.ts', import.meta.url), 'utf8');
+  const start = source.indexOf('`/items/${id}:move`');
+  assert.ok(start >= 0, 'the move is found');
+  const move = source.slice(start, source.indexOf('\n  }\n', start));
+  assert.match(move, /invalidates: TOUCHES_ANY_STATUS\b/u);
 });

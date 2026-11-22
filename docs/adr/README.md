@@ -153,3 +153,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0104](./ADR-0104-wopi-host-and-file-viewer.md) | A WOPI host for a document server, and one file viewer | accepted | Security, application, adapters, web client |
 | [0105](./ADR-0105-one-object-shape-and-product-colours.md) | One object shape, and product colours that identify | accepted | Design system, clients |
 | [0106](./ADR-0106-an-independent-review-and-the-owner-on-the-loop.md) | An independent review, a design brief, and the owner on the loop | accepted | Process, documentation, contributors |
+| [0107](./ADR-0107-the-application-does-not-state-its-maturity-stage.md) | The application does not state its maturity stage | accepted | Release, clients |

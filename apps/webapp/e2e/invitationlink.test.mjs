@@ -342,7 +342,7 @@ test('each row says how the last mail of any kind to the person went', async () 
     await page.goto(`${served.origin}/administration/people`);
     const arrived = page.getByRole('row').filter({ hasText: ACCOUNT.display_name });
     await arrived.locator('[data-delivery="SENT"][data-mail-kind="COMMENT"]').waitFor();
-    assert.match(await arrived.locator('[data-delivery]').innerText(), /^Last mail \(a comment\) sent /);
+    assert.match(await arrived.locator('[data-delivery]').innerText(), /^Last mail: a comment · sent on /);
     const invited = page.getByRole('row').filter({ hasText: 'Bert' });
     assert.match(await invited.locator('[data-delivery="FAILED"]').innerText(), /^Invitation mail failed /);
     assert.deepEqual([...sent.deliveriesOf].sort(), [ACCOUNT.id, INVITED.id].sort(), 'not everybody on the list was asked for');

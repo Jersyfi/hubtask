@@ -49,6 +49,7 @@
   import ToastStack from './ToastStack.svelte';
   import ViewAsBanner from './ViewAsBanner.svelte';
   import EmergencyNotices from './EmergencyNotices.svelte';
+  import { isFrameEmergencyNoticeShown } from './emergencyplacement.ts';
   import AppUpdateBanner from './AppUpdateBanner.svelte';
   import { appUpdate } from './appupdate.svelte.ts';
   import TourGuide from './TourGuide.svelte';
@@ -952,7 +953,9 @@
           <!-- The session shows the app as another person (UC-ID-29). -->
           <ViewAsBanner />
           <!-- A private hub of the reader's was opened through the emergency access (ADR-0073 §4). -->
-          <EmergencyNotices onnavigate={go} />
+          {#if isFrameEmergencyNoticeShown(route.name)}
+            <EmergencyNotices onnavigate={go} />
+          {/if}
           {#if addressNotices.notice}
             <div class="confirmed" data-address-notice>
               <Banner tone="info">

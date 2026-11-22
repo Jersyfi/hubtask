@@ -228,9 +228,25 @@
     timer = setTimeout(() => void save(markdown), SAVE_AFTER_MS);
   }
 
+  let isTrashing = false;
+
+  /**
+   * Holds every save, the teardown's included, while the page goes to the trash: a save after the
+   * delete is refused. The text is not counted as saved, so the returned function, called when the
+   * trash was refused, schedules it again.
+   */
+  export function dropPending(): () => void {
+    clearTimeout(timer);
+    isTrashing = true;
+    return () => {
+      isTrashing = false;
+      if (editor) changed(markdownOf(editor));
+    };
+  }
+
   async function save(markdown: string) {
     void resolve(markdown);
-    if (markdown === lastSaved) return;
+    if (isTrashing || markdown === lastSaved) return;
     saving = 'saving';
     saveRefusal = undefined;
     try {

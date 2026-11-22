@@ -17,7 +17,9 @@
   import LazyFrame from './lib/frame/LazyFrame.svelte';
   import LazyView from './lib/frame/LazyView.svelte';
   import ViewFailed from './lib/frame/ViewFailed.svelte';
-  import { messages, t } from './lib/i18n/i18n.svelte.ts';
+  import { BUNDLED, messages, t } from './lib/i18n/i18n.svelte.ts';
+  import { localesToResolve } from './lib/i18n/locale.ts';
+  import { signedOutScreen } from './lib/signin/signedOutScreen.ts';
   import { Router, type Resolution } from './lib/router.ts';
   import { ScrollMemory, landingOf, windowScroller } from './lib/frame/scroll.ts';
   import { leaveGuard } from './lib/frame/leave.svelte.ts';
@@ -254,6 +256,15 @@
    * screen a moment later.
    */
   /** The module a page belongs to where it is off: said in place of the page (moduleroute.ts). */
+  const signedOut = $derived(
+    signedOutScreen({
+      browserSignIn: platform.browserSignIn !== undefined,
+      manifestRead: manifest.isRead,
+      manifestFailed: manifest.failure !== undefined,
+      setupOpen: manifest.isSetupOpen,
+      deviceListHome: deviceList.isHome,
+    }),
+  );
   const offModule = $derived(offModuleOf(route.name ?? '', manifest.value?.modules_on));
   const reach = $derived(
     route.area === 'administration'
@@ -279,7 +290,7 @@
   $effect(() => {
     messages.adopt(
       { account: actor.locale, requested: navigator.languages },
-      manifest.supportedLocales,
+      localesToResolve(manifest.isRead, manifest.supportedLocales, BUNDLED),
     );
   });
 
@@ -445,19 +456,22 @@
     <!-- Before the sign-in screen: somebody arriving with an invitation has no password yet, and
          asking them for one would be asking for the thing this screen exists to set. -->
     <RedeemView onnavigate={(path) => router.navigate(path)} />
-  {:else if platform.browserSignIn}
+  {:else if signedOut === 'app-sign-in'}
     <!-- An installed app signs in through the system browser at the workspace's own host
          (ADR-0096), so its card asks which workspace and waits; the sign-in card is the browser's. -->
     <LazyView load={views.AppSignInView} />
-  {:else if manifest.isSetupOpen}
+  {:else if signedOut === 'setup'}
     <!-- A fresh installation: nothing to sign in to yet, so the first start's setup takes the
          sign-in card's place until the first workspace exists (UC-INS-01). -->
     <SetupView onnavigate={(path) => router.navigate(path)} />
-  {:else if deviceList.isHome}
+  {:else if signedOut === 'workspaces'}
     <!-- The installation's own address in multi mode, signed out: the device's list of workspaces
          and no sign-in card - no workspace answers here, and no field looks one up (UC-ID-25
          check 3, Decision 7). -->
     <YourWorkspacesView />
+  {:else if signedOut === 'loading'}
+    <!-- Before the manifest says whether a setup is open: nothing drawn, as for the list's home
+         below, rather than a card that may be the wrong one. -->
   {:else if deviceList.mayBeHome}
     <!-- A redirect to the list's home, before the manifest said whether this is it: nothing drawn,
          so the redirect there and back stays invisible. -->

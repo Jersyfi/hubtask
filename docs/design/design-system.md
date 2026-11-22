@@ -1315,20 +1315,19 @@ the reason. **At most one action per state**: *Try again* while not connected, *
 refusal (with *Dismiss* beside it), *Resolve* for a conflict. **Connected means the stream was
 accepted**, not that a record arrived.
 
-**The notice mark** (`apps/webapp/src/lib/frame/NoticeMark.svelte`) is drawn always, signed in or
-not:
+**The notice mark** (`apps/webapp/src/lib/frame/NoticeMark.svelte`) is drawn signed in or not,
+whenever there is something wrong to say:
 
 | What | The mark | Pressed |
 |---|---|---|
-| The product's maturity stage, while it is not `stable` | The quiet mark, no dot | The stage's sentence and what it promises |
 | The health report says something is wrong | The mark with a `status.warning` dot | The report's own words, per component |
 | The manifest could not be read | The mark with a dot | That it could not, and the way to ask again |
-| Several of these | The dot | All of them, the report first |
+| Both | The dot | Both, the report first |
 
-The stage comes from the one constant in `apps/webapp/src/lib/maturity.ts`
-([ADR-0035](../adr/ADR-0035-one-product-version.md),
-[`versioning-release.md`](../architecture/versioning-release.md)), never from `/meta/capabilities`.
-It is not dismissible. No banner above a page states the stage or the health report.
+With neither, no mark is drawn. The product's maturity stage is not stated in the application, only
+in the release notes ([ADR-0107](../adr/ADR-0107-the-application-does-not-state-its-maturity-stage.md),
+[`versioning-release.md`](../architecture/versioning-release.md) §5). No banner above a page states
+the health report.
 
 ### 11.7 Today, the archive and the trash
 

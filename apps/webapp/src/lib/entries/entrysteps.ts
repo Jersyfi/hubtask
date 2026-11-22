@@ -66,6 +66,37 @@ function readColumns(answer: EntrySteps, isCompleted: boolean): EntryStatusModel
   };
 }
 
+function defaultFlow(isCompleted: boolean, ref: (key: string) => StatusRef): EntryStatusModel {
+  const current = ref(isCompleted ? 'done' : 'todo');
+  const choices = DEFAULT_KEYS.map(ref);
+  return {
+    current,
+    byDefault: true,
+    statuses: choices,
+    steps: choices.filter((each) => each.id !== current.id).map((to) => ({ id: to.id, label: to.label, to, isNext: to.category === 'done' })),
+  };
+}
+
+/**
+ * Whether an entry's steps may be asked: not where workflows are off at the workspace or at the
+ * entry's hub, which the server refuses with `module.off`. `placeOn` undefined is not read yet
+ * (wait), null is unreadable (the workspace decides); an unknown workspace is asked, as
+ * `modulereads.svelte.ts` does.
+ */
+export function stepsAskable(workspaceOn: readonly string[] | undefined, placeOn: readonly string[] | null | undefined): boolean | undefined {
+  if (workspaceOn !== undefined && !workspaceOn.includes('WORKFLOWS')) return false;
+  if (placeOn === undefined) return undefined;
+  return placeOn === null || placeOn.includes('WORKFLOWS');
+}
+
+/** The default flow without the server's answer: where workflows are off, none can run. */
+export function defaultSteps(isCompleted: boolean, words: Pick<StepWords, 'status'>): EntryStatusModel {
+  return defaultFlow(isCompleted, (key) => {
+    const category = key === 'done' ? 'DONE' : 'TODO';
+    return { id: key, label: words.status({ key, name: null, category }), category: categoryOf(category) };
+  });
+}
+
 export function readSteps(answer: EntrySteps, isCompleted: boolean, words: StepWords): EntryStatusModel {
   const statuses = answer.picture?.statuses ?? [];
   const ref = (key: string): StatusRef => {
@@ -77,16 +108,7 @@ export function readSteps(answer: EntrySteps, isCompleted: boolean, words: StepW
   const stepName = (name: string | null | undefined, to: string) => name ?? ref(to).label;
 
   if (answer.by_default || !answer.workflow || !answer.status) {
-    const board = readColumns(answer, isCompleted);
-    if (board) return board;
-    const current = ref(isCompleted ? 'done' : 'todo');
-    const choices = DEFAULT_KEYS.map(ref);
-    return {
-      current,
-      byDefault: true,
-      statuses: choices,
-      steps: choices.filter((each) => each.id !== current.id).map((to) => ({ id: to.id, label: to.label, to, isNext: to.category === 'done' })),
-    };
+    return readColumns(answer, isCompleted) ?? defaultFlow(isCompleted, ref);
   }
 
   const nextKey = answer.done_route?.[0]?.key;

@@ -296,5 +296,6 @@ test('chromium: a member is told in the frame and on the hub, whatever their mai
   const onHub = page.locator('[data-emergency-notice="member"]');
   await onHub.waitFor({ timeout: 10_000 });
   assert.ok((await onHub.textContent()).includes(OTHER.display_name));
+  assert.equal(await page.locator('[data-emergency-notice="frame"]').count(), 0, 'the frame draws its notice on the start view only');
   assert.deepEqual(failures, []);
 });

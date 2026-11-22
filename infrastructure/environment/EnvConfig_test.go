@@ -423,6 +423,39 @@ func TestS3WithCredentialsIsAccepted(t *testing.T) {
 	}
 }
 
+// compose.yaml passes the region and the addressing as ${VAR:-}, so an operator who sets neither
+// hands the server empty strings: those must mean the defaults, not an empty region.
+func TestEmptyS3RegionAndPathStyleKeepTheDefaults(t *testing.T) {
+	cases := []struct {
+		name, region, pathStyle string
+		wantRegion              string
+		wantPathStyle           bool
+	}{
+		{"empty", "", "", "us-east-1", true},
+		{"set", "eu-central-003", "false", "eu-central-003", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			withRequiredSecrets(t)
+			t.Setenv("HUBTASK_STORAGE_KIND", "s3")
+			t.Setenv("HUBTASK_S3_BUCKET", "hubtask-media")
+			t.Setenv("HUBTASK_S3_ACCESS_KEY", "AKIAEXAMPLE")
+			t.Setenv("HUBTASK_S3_SECRET_KEY", "s3cr3t")
+			t.Setenv("HUBTASK_S3_REGION", tc.region)
+			t.Setenv("HUBTASK_S3_USE_PATH_STYLE", tc.pathStyle)
+
+			cfg, err := load(t)
+			if err != nil {
+				t.Fatalf("the S3 configuration was rejected: %v", err)
+			}
+			if cfg.Storage.Region != tc.wantRegion || cfg.Storage.UsePathStyle != tc.wantPathStyle {
+				t.Errorf("region %q, path style %v; want %q, %v",
+					cfg.Storage.Region, cfg.Storage.UsePathStyle, tc.wantRegion, tc.wantPathStyle)
+			}
+		})
+	}
+}
+
 // Without SMTP nothing breaks: notifications are caught up later (ADR-0016). It is a warning,
 // not an error - and which warning it is depends on whether this installation fires anything.
 func TestNoSMTPIsAWarningNotAnError(t *testing.T) {

@@ -190,6 +190,9 @@ const (
 	// ReasonUndeliverable is an address the mail server refused for good before: a suppression
 	// until the person clears the mark, since every further try would be refused as well.
 	ReasonUndeliverable = "notifications.undeliverable"
+	// ReasonRecipientInvited is a role given to somebody whose invitation is still open: the
+	// invitation is the one mail they get, and the role waits for them behind it.
+	ReasonRecipientInvited = "notifications.recipient_invited"
 )
 
 // Notification is one thing somebody is to be told.
