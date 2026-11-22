@@ -165,6 +165,9 @@ func In(diff string, deleted map[string]bool) []Test {
 			if isTest {
 				current.removed = append(current.removed, test)
 				removedName[test.name] = true
+			} else if m := goFuncDecl.FindStringSubmatch(text); isGo && m != nil {
+				// A helper whose declaration line changed is the base's helper, not a new one.
+				removedName[m[1]] = true
 			}
 			if skipsIn(text, isGo) {
 				skipsGone++
@@ -232,7 +235,7 @@ func In(diff string, deleted map[string]bool) []Test {
 	for _, s := range skips {
 		lost := Test{Path: s.path, Name: path.Base(s.path), How: "skipped"}
 		if s.in != nil {
-			// A test the branch itself adds was never proof at the base.
+			// A test or a helper the branch itself adds was never proof at the base.
 			if s.in.added && !removedName[s.in.name] && !renamedTo[s.in.name] {
 				continue
 			}
