@@ -12,7 +12,7 @@
   // is the only way to put them there while the control itself stays the caller's. The wrapper is
   // the anchor, which is also what `openOverlay` measures against.
 
-  import type { Snippet } from 'svelte';
+  import { tick, type Snippet } from 'svelte';
 
   import Sheet from './Sheet.svelte';
   import { focusReturn, focusables } from './focus.ts';
@@ -94,6 +94,16 @@
     if (!focusReturn(opener)) focusReturn(anchor?.firstElementChild);
   }
 
+  // The sheet returns focus to what had it when it opened. A press that does not focus a button -
+  // Safari's, and Firefox's on macOS - left nothing, and focus is lost with the sheet: once it is
+  // gone, focus goes to the control the popover hangs from.
+  async function closeSheet() {
+    sheetName = undefined;
+    await tick();
+    const now = document.activeElement;
+    if (now === null || now === document.body) focusReturn(at ?? anchor?.firstElementChild);
+  }
+
   $effect(() => {
     const from = at ?? anchor;
     if (!isOpen || sheetName !== undefined || !from || !surface) return;
@@ -112,7 +122,7 @@
   </span>
 {/if}
 {#if sheetName !== undefined}
-  <Sheet bind:isOpen title={label} closeLabel={sheetName} layer="popover" actions={sheetActions} onClose={() => (sheetName = undefined)}>
+  <Sheet bind:isOpen title={label} closeLabel={sheetName} layer="popover" actions={sheetActions} onClose={closeSheet}>
     {@render children()}
   </Sheet>
 {:else if isOpen}

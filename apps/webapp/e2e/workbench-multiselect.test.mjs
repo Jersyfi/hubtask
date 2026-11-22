@@ -385,6 +385,20 @@ for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
       await sheet.getByRole('button', { name: 'Done' }).click();
       await sheet.waitFor({ state: 'hidden' });
       assert.equal((await focused(page)).isField, true, 'Done did not put focus back on the field');
+      // Opened by a press that does not focus the field - a button's click in Safari and in Firefox
+      // on macOS - the sheet has nothing to return to: Done and Escape still put focus on the field.
+      // A press whose mousedown is held back from focusing the field stands for those engines.
+      await field(page).evaluate((node) => node.addEventListener('mousedown', (event) => event.preventDefault()));
+      for (const close of ['Done', 'Escape']) {
+        await page.evaluate(() => document.activeElement?.blur());
+        await field(page).click();
+        await sheet.waitFor();
+        await settled(page);
+        if (close === 'Done') await sheet.getByRole('button', { name: 'Done' }).click();
+        else await page.keyboard.press('Escape');
+        await sheet.waitFor({ state: 'hidden' });
+        assert.equal((await focused(page)).isField, true, `${close} after a press that did not focus the field left focus elsewhere`);
+      }
 
       // The sheet scrolls under its stuck filter and foot too, and the read-only reason stays clear.
       await story(page, server.origin, 'grouped');
