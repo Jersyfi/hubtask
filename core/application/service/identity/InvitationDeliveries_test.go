@@ -6,6 +6,7 @@ package identity
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -19,7 +20,10 @@ import (
 type invitationJobsDouble struct {
 	jobs  []repository.InvitationJob
 	mails []repository.LastMail
-	asked []shared.ID
+	// invitations are the invitation records on file; askedInvitations whose were read.
+	invitations      []repository.LastMail
+	askedInvitations []shared.ID
+	asked            []shared.ID
 	// cancelled is whose open invitation mail was cancelled; open how many it finds.
 	cancelled []shared.ID
 	open      int
@@ -37,6 +41,17 @@ func (d *invitationJobsDouble) Latest(_ context.Context, ids []shared.ID) ([]rep
 
 func (d *invitationJobsDouble) LatestMail(_ context.Context, _ []shared.ID) ([]repository.LastMail, error) {
 	return d.mails, nil
+}
+
+func (d *invitationJobsDouble) LatestInvitationMail(_ context.Context, ids []shared.ID) ([]repository.LastMail, error) {
+	d.askedInvitations = append(d.askedInvitations, ids...)
+	var out []repository.LastMail
+	for _, mail := range d.invitations {
+		if slices.Contains(ids, mail.AccountID) {
+			out = append(out, mail)
+		}
+	}
+	return out, nil
 }
 
 // §8.3: the row says the last mail of any kind - a newer mail in place of the invitation, the last

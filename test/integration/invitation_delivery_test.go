@@ -237,3 +237,69 @@ func TestTheLastMailPerAccountStaysInItsWorkspace(t *testing.T) {
 		t.Errorf("tenant B read %+v of its own", got)
 	}
 }
+
+// UC-ID-14 check 8: the row of a person still invited reads the account's newest invitation
+// notification, past any newer mail of another kind, with its own delivery job's failure - of the
+// reading workspace only: another workspace asking the same account, and its delivery jobs keyed
+// by this workspace's notification, stay out (gate SG-3).
+func TestTheLastInvitationRecordPerAccountStaysInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	admin := adminPool(ctx, t)
+	personA := seedAccount(ctx, t, tenantA)
+	personB := seedAccount(ctx, t, tenantB)
+
+	notification := func(tenant, account shared.ID, category, state, age string) shared.ID {
+		t.Helper()
+		id := freshID(t)
+		if _, err := admin.Exec(ctx, `
+			INSERT INTO notification (id, tenant_id, recipient_id, category, channel, state, created_at)
+			VALUES ($1, $2, $3, $4, 'EMAIL', $5, now() - $6::interval)`,
+			id.String(), tenant.String(), account.String(), category, state, age); err != nil {
+			t.Fatalf("seeding the notification: %v", err)
+		}
+		return id
+	}
+	delivery := func(tenant, notification shared.ID, lastError string) {
+		t.Helper()
+		if _, err := admin.Exec(ctx, `
+			INSERT INTO job (id, tenant_id, kind, state, dedupe_key, last_error, created_at, finished_at, payload)
+			VALUES ($1, $2, 'notification.deliver', 'DEAD_LETTER', $3, $4, now(), now(), '{}')`,
+			freshID(t).String(), tenant.String(), notification.String(), lastError); err != nil {
+			t.Fatalf("seeding the delivery: %v", err)
+		}
+	}
+	notification(tenantA, personA, "INVITATION", "SENT", "3 days")
+	renewed := notification(tenantA, personA, "INVITATION", "PENDING", "2 days")
+	delivery(tenantA, renewed, "mail.recipient_rejected")
+	notification(tenantA, personA, "MEMBERSHIP", "SENT", "1 hour")
+	// A job in tenant B keyed by tenant A's notification is not tenant A's delivery.
+	delivery(tenantB, renewed, "mail.unavailable")
+	notification(tenantB, personB, "INVITATION", "SENT", "1 minute")
+
+	jobs := postgres.NewInvitationJobRepository()
+	latest := func(tenant shared.ID, ids ...shared.ID) []repository.LastMail {
+		t.Helper()
+		var got []repository.LastMail
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			var err error
+			got, err = jobs.LatestInvitationMail(ctx, ids)
+			return err
+		}); err != nil {
+			t.Fatalf("reading: %v", err)
+		}
+		return got
+	}
+
+	got := latest(tenantA, personA, personB)
+	if len(got) != 1 || got[0].AccountID != personA || got[0].Category != "INVITATION" ||
+		got[0].State != "PENDING" || got[0].DeliveryError != "mail.recipient_rejected" || got[0].DeliveryEnded.IsZero() {
+		t.Fatalf("tenant A read %+v, want only its own newest invitation with its own delivery", got)
+	}
+	if got := latest(tenantB, personA); len(got) != 0 {
+		t.Errorf("tenant B read tenant A's invitation: %+v", got)
+	}
+	if got := latest(tenantB, personB); len(got) != 1 || got[0].State != "SENT" {
+		t.Errorf("tenant B read %+v of its own", got)
+	}
+}
