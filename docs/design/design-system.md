@@ -219,14 +219,20 @@ attributes selected by a stylesheet, never as an inline `style`:
 [ADR-0028](../adr/ADR-0028-embedded-web-ui.md)'s `style-src 'self'` has no `'unsafe-inline'`, so a
 `style="gap: …"` is refused — silently, in production only. Every component inherits that.
 
-### Wave 1 — nothing works without these (≈ 23)
-Icon · Button · IconButton · Input · CodeField · Textarea · Select · Checkbox · CheckboxGroup · Radio · Switch ·
+### Wave 1 — nothing works without these (≈ 24)
+Icon · Button · IconButton · Input · CodeField · Textarea · Select · Checkbox · CheckboxGroup · Radio · ChoiceCards · Switch ·
 Tooltip · Menu · Popover · Dialog · Toast · Banner · Avatar · AvatarGroup · Badge · Spinner ·
 ProgressBar · Kbd
 
 `CheckboxGroup` is the fieldset `Radio` is, for several answers: a question that needs at least one
 is wrong as a group, so its error is said once under the group and every box is `aria-invalid`,
 which is where a form moves focus (case 3 below).
+
+`ChoiceCards` is `Radio` for a choice whose answers each need a sentence: native radios of one name
+inside their cards' labels — the whole card pressed, the arrow keys walking and choosing, a reader
+hearing a named radio group — each card a title, one line and an optional mark; the chosen one
+marked by its edge, its surface and the filled dot. A switch-off's *convert or pause* and a start's
+template tiles are its cases.
 
 `CodeField` is **one** native input drawn as its places — never one box per digit, which breaks
 pasting and `Backspace` and makes a screen reader announce six fields. Six places or eight, the group
@@ -264,7 +270,7 @@ flow at every moment and always its `aria-describedby`: it shows on hover of the
 bubble (it stays while the pointer is over either, WCAG 1.4.13), on focus, and on a click or a tap,
 and goes on blur, `Escape` and a press elsewhere. A composite says one reason for all of its parts,
 from a mark at its heading. `test/conventions.test.js` fails a native `disabled` anywhere but on an
-option and in `Radio`; `apps/webapp/e2e/workbench-layout.test.mjs` measures in three engines that
+option and in `Radio` and `ChoiceCards`; `apps/webapp/e2e/workbench-layout.test.mjs` measures in three engines that
 no reason moves a box. The eight cases, and the pattern each takes:
 
 1. *The role forbids it* — not shown (P-05); where a page needs it for orientation, a gate with a

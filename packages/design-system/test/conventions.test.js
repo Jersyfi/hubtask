@@ -148,10 +148,11 @@ test('a control that can be switched off carries its reason', () => {
 
 /**
  * Where the native attribute stays: an option of a native list has no focus of its own to show a
- * reason on and says it in its text, and a radio's option says it in its own line (design-system.md
+ * reason on and says it in its text, and a radio's option - in `Radio` or a card of `ChoiceCards` -
+ * says it in its own line (design-system.md
  * §4). Everywhere else an unavailable control keeps its focus.
  */
-const NATIVE_DISABLED_ALLOWED = { tags: new Set(['option', 'optgroup']), components: new Set(['Radio.svelte']) };
+const NATIVE_DISABLED_ALLOWED = { tags: new Set(['option', 'optgroup']), components: new Set(['Radio.svelte', 'ChoiceCards.svelte']) };
 
 test('an unavailable control stays focusable', () => {
   // design-system.md §4: a control that cannot be used now is `aria-disabled` and keeps its focus,
