@@ -17371,7 +17371,7 @@ type ContainerCreate struct {
 	Name        string              `json:"name"`
 	ParentId    *openapi_types.UUID `json:"parent_id,omitempty"`
 
-	// Preset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set. A collection whose structure offers the board starts with the columns to do, in progress and done, named in the creating person's language, or the workspace's default; where the board is its default view, the column in progress is limited to three.
+	// Preset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set. A collection whose structure opens on the board starts with the columns to do, in progress and done, named in the creating person's language, or the workspace's default, the column in progress limited to three; one that offers the board only beside a list starts without columns.
 	Preset *ContainerCreatePreset `json:"preset,omitempty"`
 
 	// PresetId A saved preset to start from instead - the workspace's, the installation's or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
@@ -17382,7 +17382,7 @@ type ContainerCreate struct {
 	Type    ContainerType `json:"type"`
 }
 
-// ContainerCreatePreset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set. A collection whose structure offers the board starts with the columns to do, in progress and done, named in the creating person's language, or the workspace's default; where the board is its default view, the column in progress is limited to three.
+// ContainerCreatePreset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set. A collection whose structure opens on the board starts with the columns to do, in progress and done, named in the creating person's language, or the workspace's default, the column in progress limited to three; one that offers the board only beside a list starts without columns.
 type ContainerCreatePreset string
 
 // ContainerMilestone defines model for ContainerMilestone.
