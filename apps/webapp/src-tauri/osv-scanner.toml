@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 Jérôme Bastian Winkel
+
+# The advisories on the shell's lock file that name no vulnerability and that no raise here can
+# close: each is a notice that a crate is unmaintained or has an unsound interface, without a
+# severity, on a crate the shell names nowhere, brought in by its dependencies. The OpenSSF
+# Scorecard reads this file (ci-cd.md §12). An entry goes when the crate leaves the lock file.
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0543"
+reason = "chrono is unmaintained. It is in the lock through serde_with only and is not built for any target of the shell."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0429"
+reason = "An unsound iterator in glib 0.18. The shell calls no glib interface; the fixed glib 0.20 needs a later gtk than the 0.18 line Tauri builds on."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0370"
+reason = "proc-macro-error is unmaintained. It runs at build time only, as a macro of the gtk crates."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0371"
+reason = "zbus_names is unmaintained since it merged into zbus 6. It comes with zbus 5, through the keyring and Tauri's opener on Linux."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0370"
+reason = "zvariant is unmaintained since it merged into zbus 6. It comes with zbus 5, through the keyring and Tauri's opener on Linux."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0372"
+reason = "zvariant_derive is unmaintained since it merged into zbus 6. It comes with zbus 5, through the keyring and Tauri's opener on Linux."

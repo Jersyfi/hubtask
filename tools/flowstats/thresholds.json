@@ -10,5 +10,5 @@
   "suites_without_use_case": { "rule": "no_rise" },
   "answers_outside_contract": { "rule": "no_rise" },
   "comment_blocks": { "rule": "no_rise" },
-  "best_practices_badge": { "level": "passing", "project": 0 }
+  "best_practices_badge": { "level": "passing", "project": 17000 }
 }

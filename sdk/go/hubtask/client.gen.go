@@ -130716,6 +130716,8 @@ type RedeliverPlatformSubscriptionResult struct {
 		// Queued How many dead letters were queued again.
 		Queued int `json:"queued"`
 	}
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON202 returns the response for an HTTP 202 `application/json` response
@@ -130724,6 +130726,11 @@ func (r RedeliverPlatformSubscriptionResult) GetJSON202() *struct {
 	Queued int `json:"queued"`
 } {
 	return r.JSON202
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RedeliverPlatformSubscriptionResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -132954,11 +132961,18 @@ type SetAiArrivalProposalsResult struct {
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
 	JSON200 *AiSource
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
 func (r SetAiArrivalProposalsResult) GetJSON200() *AiSource {
 	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetAiArrivalProposalsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -133813,6 +133827,8 @@ type ListAuditEntriesResult struct {
 	}
 	// ApplicationproblemJSON403 the response for an HTTP 403 `application/problem+json` response
 	ApplicationproblemJSON403 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -133826,6 +133842,11 @@ func (r ListAuditEntriesResult) GetJSON200() *struct {
 // GetApplicationproblemJSON403 returns the response for an HTTP 403 `application/problem+json` response
 func (r ListAuditEntriesResult) GetApplicationproblemJSON403() *Problem {
 	return r.ApplicationproblemJSON403
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListAuditEntriesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -133916,6 +133937,8 @@ type ExportAuditTrailResult struct {
 	ApplicationproblemJSON403 *Problem
 	// ApplicationproblemJSON404 the response for an HTTP 404 `application/problem+json` response
 	ApplicationproblemJSON404 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON202 returns the response for an HTTP 202 `application/json` response
@@ -133936,6 +133959,11 @@ func (r ExportAuditTrailResult) GetApplicationproblemJSON403() *Problem {
 // GetApplicationproblemJSON404 returns the response for an HTTP 404 `application/problem+json` response
 func (r ExportAuditTrailResult) GetApplicationproblemJSON404() *Problem {
 	return r.ApplicationproblemJSON404
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ExportAuditTrailResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -134003,6 +134031,8 @@ type VerifyAuditChainResult struct {
 	}
 	// ApplicationproblemJSON403 the response for an HTTP 403 `application/problem+json` response
 	ApplicationproblemJSON403 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -134042,6 +134072,11 @@ func (r VerifyAuditChainResult) GetJSON200() *struct {
 // GetApplicationproblemJSON403 returns the response for an HTTP 403 `application/problem+json` response
 func (r VerifyAuditChainResult) GetApplicationproblemJSON403() *Problem {
 	return r.ApplicationproblemJSON403
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r VerifyAuditChainResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -137190,6 +137225,8 @@ type CreateBackupScheduleResult struct {
 	JSON201 *BackupSchedule
 	// ApplicationproblemJSON400 the response for an HTTP 400 `application/problem+json` response
 	ApplicationproblemJSON400 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON201 returns the response for an HTTP 201 `application/json` response
@@ -137200,6 +137237,11 @@ func (r CreateBackupScheduleResult) GetJSON201() *BackupSchedule {
 // GetApplicationproblemJSON400 returns the response for an HTTP 400 `application/problem+json` response
 func (r CreateBackupScheduleResult) GetApplicationproblemJSON400() *Problem {
 	return r.ApplicationproblemJSON400
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreateBackupScheduleResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -137327,6 +137369,8 @@ type ListBackupTargetsResult struct {
 	JSON200 *[]BackupTarget
 	// ApplicationproblemJSON403 the response for an HTTP 403 `application/problem+json` response
 	ApplicationproblemJSON403 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -137337,6 +137381,11 @@ func (r ListBackupTargetsResult) GetJSON200() *[]BackupTarget {
 // GetApplicationproblemJSON403 returns the response for an HTTP 403 `application/problem+json` response
 func (r ListBackupTargetsResult) GetApplicationproblemJSON403() *Problem {
 	return r.ApplicationproblemJSON403
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListBackupTargetsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -137377,6 +137426,8 @@ type CreateBackupTargetResult struct {
 	ApplicationproblemJSON400 *Problem
 	// ApplicationproblemJSON403 the response for an HTTP 403 `application/problem+json` response
 	ApplicationproblemJSON403 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON201 returns the response for an HTTP 201 `application/json` response
@@ -137392,6 +137443,11 @@ func (r CreateBackupTargetResult) GetApplicationproblemJSON400() *Problem {
 // GetApplicationproblemJSON403 returns the response for an HTTP 403 `application/problem+json` response
 func (r CreateBackupTargetResult) GetApplicationproblemJSON403() *Problem {
 	return r.ApplicationproblemJSON403
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreateBackupTargetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -137471,6 +137527,8 @@ type ListBackupsAtTargetResult struct {
 	JSON200 *[]BackupArchive
 	// ApplicationproblemJSON403 the response for an HTTP 403 `application/problem+json` response
 	ApplicationproblemJSON403 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -137481,6 +137539,11 @@ func (r ListBackupsAtTargetResult) GetJSON200() *[]BackupArchive {
 // GetApplicationproblemJSON403 returns the response for an HTTP 403 `application/problem+json` response
 func (r ListBackupsAtTargetResult) GetApplicationproblemJSON403() *Problem {
 	return r.ApplicationproblemJSON403
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListBackupsAtTargetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -137573,6 +137636,8 @@ type StartBackupResult struct {
 	ApplicationproblemJSON404 *Problem
 	// ApplicationproblemJSON409 the response for an HTTP 409 `application/problem+json` response
 	ApplicationproblemJSON409 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON202 returns the response for an HTTP 202 `application/json` response
@@ -137598,6 +137663,11 @@ func (r StartBackupResult) GetApplicationproblemJSON404() *Problem {
 // GetApplicationproblemJSON409 returns the response for an HTTP 409 `application/problem+json` response
 func (r StartBackupResult) GetApplicationproblemJSON409() *Problem {
 	return r.ApplicationproblemJSON409
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r StartBackupResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -137638,6 +137708,8 @@ type GetBackupRunResult struct {
 	ApplicationproblemJSON403 *Problem
 	// ApplicationproblemJSON404 the response for an HTTP 404 `application/problem+json` response
 	ApplicationproblemJSON404 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -137653,6 +137725,11 @@ func (r GetBackupRunResult) GetApplicationproblemJSON403() *Problem {
 // GetApplicationproblemJSON404 returns the response for an HTTP 404 `application/problem+json` response
 func (r GetBackupRunResult) GetApplicationproblemJSON404() *Problem {
 	return r.ApplicationproblemJSON404
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GetBackupRunResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -137695,6 +137772,8 @@ type VerifyBackupResult struct {
 	ApplicationproblemJSON404 *Problem
 	// ApplicationproblemJSON409 the response for an HTTP 409 `application/problem+json` response
 	ApplicationproblemJSON409 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON202 returns the response for an HTTP 202 `application/json` response
@@ -137715,6 +137794,11 @@ func (r VerifyBackupResult) GetApplicationproblemJSON404() *Problem {
 // GetApplicationproblemJSON409 returns the response for an HTTP 409 `application/problem+json` response
 func (r VerifyBackupResult) GetApplicationproblemJSON409() *Problem {
 	return r.ApplicationproblemJSON409
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r VerifyBackupResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -148413,6 +148497,8 @@ type ImportEntriesResult struct {
 	ApplicationproblemJSON404 *Problem
 	// ApplicationproblemJSON422 the response for an HTTP 422 `application/problem+json` response
 	ApplicationproblemJSON422 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON202 returns the response for an HTTP 202 `application/json` response
@@ -148433,6 +148519,11 @@ func (r ImportEntriesResult) GetApplicationproblemJSON404() *Problem {
 // GetApplicationproblemJSON422 returns the response for an HTTP 422 `application/problem+json` response
 func (r ImportEntriesResult) GetApplicationproblemJSON422() *Problem {
 	return r.ApplicationproblemJSON422
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ImportEntriesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -148471,6 +148562,8 @@ type GetImportResult struct {
 	JSON200 *ImportRun
 	// ApplicationproblemJSON404 the response for an HTTP 404 `application/problem+json` response
 	ApplicationproblemJSON404 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -148481,6 +148574,11 @@ func (r GetImportResult) GetJSON200() *ImportRun {
 // GetApplicationproblemJSON404 returns the response for an HTTP 404 `application/problem+json` response
 func (r GetImportResult) GetApplicationproblemJSON404() *Problem {
 	return r.ApplicationproblemJSON404
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GetImportResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -153185,6 +153283,8 @@ type RetainItemResult struct {
 	JSON200 *WorkItem
 	// ApplicationproblemJSON404 the response for an HTTP 404 `application/problem+json` response
 	ApplicationproblemJSON404 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -153195,6 +153295,11 @@ func (r RetainItemResult) GetJSON200() *WorkItem {
 // GetApplicationproblemJSON404 returns the response for an HTTP 404 `application/problem+json` response
 func (r RetainItemResult) GetApplicationproblemJSON404() *Problem {
 	return r.ApplicationproblemJSON404
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RetainItemResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -154577,6 +154682,8 @@ type ListLegalHoldsResult struct {
 	JSON200 *[]LegalHold
 	// ApplicationproblemJSON403 the response for an HTTP 403 `application/problem+json` response
 	ApplicationproblemJSON403 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -154587,6 +154694,11 @@ func (r ListLegalHoldsResult) GetJSON200() *[]LegalHold {
 // GetApplicationproblemJSON403 returns the response for an HTTP 403 `application/problem+json` response
 func (r ListLegalHoldsResult) GetApplicationproblemJSON403() *Problem {
 	return r.ApplicationproblemJSON403
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListLegalHoldsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -154629,6 +154741,8 @@ type PlaceLegalHoldResult struct {
 	ApplicationproblemJSON403 *Problem
 	// ApplicationproblemJSON409 the response for an HTTP 409 `application/problem+json` response
 	ApplicationproblemJSON409 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON201 returns the response for an HTTP 201 `application/json` response
@@ -154649,6 +154763,11 @@ func (r PlaceLegalHoldResult) GetApplicationproblemJSON403() *Problem {
 // GetApplicationproblemJSON409 returns the response for an HTTP 409 `application/problem+json` response
 func (r PlaceLegalHoldResult) GetApplicationproblemJSON409() *Problem {
 	return r.ApplicationproblemJSON409
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r PlaceLegalHoldResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -154693,6 +154812,8 @@ type ReleaseLegalHoldResult struct {
 	ApplicationproblemJSON404 *Problem
 	// ApplicationproblemJSON409 the response for an HTTP 409 `application/problem+json` response
 	ApplicationproblemJSON409 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -154718,6 +154839,11 @@ func (r ReleaseLegalHoldResult) GetApplicationproblemJSON404() *Problem {
 // GetApplicationproblemJSON409 returns the response for an HTTP 409 `application/problem+json` response
 func (r ReleaseLegalHoldResult) GetApplicationproblemJSON409() *Problem {
 	return r.ApplicationproblemJSON409
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReleaseLegalHoldResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -156203,6 +156329,8 @@ type GetCapabilitiesResult struct {
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
 	JSON200 *Capabilities
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 	// Headers200 the parsed response headers for an HTTP 200 response
 	Headers200 *GetCapabilitiesResult200Headers
 	// Headers304 the parsed response headers for an HTTP 304 response
@@ -156212,6 +156340,11 @@ type GetCapabilitiesResult struct {
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
 func (r GetCapabilitiesResult) GetJSON200() *Capabilities {
 	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GetCapabilitiesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -156298,6 +156431,8 @@ type GetHealthReportResult struct {
 	JSON200 *HealthReport
 	// ApplicationproblemJSON403 the response for an HTTP 403 `application/problem+json` response
 	ApplicationproblemJSON403 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -156308,6 +156443,11 @@ func (r GetHealthReportResult) GetJSON200() *HealthReport {
 // GetApplicationproblemJSON403 returns the response for an HTTP 403 `application/problem+json` response
 func (r GetHealthReportResult) GetApplicationproblemJSON403() *Problem {
 	return r.ApplicationproblemJSON403
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GetHealthReportResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -161412,6 +161552,8 @@ type ListDataSubjectRequestsResult struct {
 	}
 	// ApplicationproblemJSON403 the response for an HTTP 403 `application/problem+json` response
 	ApplicationproblemJSON403 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -161425,6 +161567,11 @@ func (r ListDataSubjectRequestsResult) GetJSON200() *struct {
 // GetApplicationproblemJSON403 returns the response for an HTTP 403 `application/problem+json` response
 func (r ListDataSubjectRequestsResult) GetApplicationproblemJSON403() *Problem {
 	return r.ApplicationproblemJSON403
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListDataSubjectRequestsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -163253,6 +163400,8 @@ type StartRestoreResult struct {
 	ApplicationproblemJSON403 *Problem
 	// ApplicationproblemJSON409 the response for an HTTP 409 `application/problem+json` response
 	ApplicationproblemJSON409 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON202 returns the response for an HTTP 202 `application/json` response
@@ -163273,6 +163422,11 @@ func (r StartRestoreResult) GetApplicationproblemJSON403() *Problem {
 // GetApplicationproblemJSON409 returns the response for an HTTP 409 `application/problem+json` response
 func (r StartRestoreResult) GetApplicationproblemJSON409() *Problem {
 	return r.ApplicationproblemJSON409
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r StartRestoreResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -163313,6 +163467,8 @@ type GetRestoreRunResult struct {
 	ApplicationproblemJSON403 *Problem
 	// ApplicationproblemJSON404 the response for an HTTP 404 `application/problem+json` response
 	ApplicationproblemJSON404 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -163328,6 +163484,11 @@ func (r GetRestoreRunResult) GetApplicationproblemJSON403() *Problem {
 // GetApplicationproblemJSON404 returns the response for an HTTP 404 `application/problem+json` response
 func (r GetRestoreRunResult) GetApplicationproblemJSON404() *Problem {
 	return r.ApplicationproblemJSON404
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GetRestoreRunResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -163364,11 +163525,18 @@ type ListRetentionPoliciesResult struct {
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
 	JSON200 *[]RetentionPolicy
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
 func (r ListRetentionPoliciesResult) GetJSON200() *[]RetentionPolicy {
 	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListRetentionPoliciesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -163407,6 +163575,8 @@ type CreateRetentionPolicyResult struct {
 	JSON201 *RetentionPolicy
 	// ApplicationproblemJSON400 the response for an HTTP 400 `application/problem+json` response
 	ApplicationproblemJSON400 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON201 returns the response for an HTTP 201 `application/json` response
@@ -163417,6 +163587,11 @@ func (r CreateRetentionPolicyResult) GetJSON201() *RetentionPolicy {
 // GetApplicationproblemJSON400 returns the response for an HTTP 400 `application/problem+json` response
 func (r CreateRetentionPolicyResult) GetApplicationproblemJSON400() *Problem {
 	return r.ApplicationproblemJSON400
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreateRetentionPolicyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -163554,6 +163729,8 @@ type PreviewRetentionPolicyResult struct {
 		// ShareOfScope The share of the holdings (0..1)
 		ShareOfScope *float32 `json:"share_of_scope,omitempty"`
 	}
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -163571,6 +163748,11 @@ func (r PreviewRetentionPolicyResult) GetJSON200() *struct {
 	ShareOfScope *float32 `json:"share_of_scope,omitempty"`
 } {
 	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r PreviewRetentionPolicyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -164692,6 +164874,8 @@ type ReindexSearchResult struct {
 	JSON202 *SearchReindex
 	// ApplicationproblemJSON403 the response for an HTTP 403 `application/problem+json` response
 	ApplicationproblemJSON403 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON202 returns the response for an HTTP 202 `application/json` response
@@ -164702,6 +164886,11 @@ func (r ReindexSearchResult) GetJSON202() *SearchReindex {
 // GetApplicationproblemJSON403 returns the response for an HTTP 403 `application/problem+json` response
 func (r ReindexSearchResult) GetApplicationproblemJSON403() *Problem {
 	return r.ApplicationproblemJSON403
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReindexSearchResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -165739,11 +165928,18 @@ type ListSyncDevicesResult struct {
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
 	JSON200 *[]SyncDevice
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
 func (r ListSyncDevicesResult) GetJSON200() *[]SyncDevice {
 	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListSyncDevicesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -165823,6 +166019,8 @@ type SyncPullResult struct {
 	JSON200 *SyncPullResponse
 	// ApplicationproblemJSON409 the response for an HTTP 409 `application/problem+json` response
 	ApplicationproblemJSON409 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -165833,6 +166031,11 @@ func (r SyncPullResult) GetJSON200() *SyncPullResponse {
 // GetApplicationproblemJSON409 returns the response for an HTTP 409 `application/problem+json` response
 func (r SyncPullResult) GetApplicationproblemJSON409() *Problem {
 	return r.ApplicationproblemJSON409
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SyncPullResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -165871,6 +166074,8 @@ type SyncPushResult struct {
 	JSON200 *SyncPushResponse
 	// ApplicationproblemJSON400 the response for an HTTP 400 `application/problem+json` response
 	ApplicationproblemJSON400 *Problem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -165881,6 +166086,11 @@ func (r SyncPushResult) GetJSON200() *SyncPushResponse {
 // GetApplicationproblemJSON400 returns the response for an HTTP 400 `application/problem+json` response
 func (r SyncPushResult) GetApplicationproblemJSON400() *Problem {
 	return r.ApplicationproblemJSON400
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SyncPushResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -194483,6 +194693,13 @@ func ParseRedeliverPlatformSubscriptionResult(rsp *http.Response) (*RedeliverPla
 		}
 		response.JSON202 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil
@@ -196037,6 +196254,13 @@ func ParseSetAiArrivalProposalsResult(rsp *http.Response) (*SetAiArrivalProposal
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil
@@ -196635,6 +196859,13 @@ func ParseListAuditEntriesResult(rsp *http.Response) (*ListAuditEntriesResult, e
 		}
 		response.ApplicationproblemJSON403 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil
@@ -196715,6 +196946,13 @@ func ParseExportAuditTrailResult(rsp *http.Response) (*ExportAuditTrailResult, e
 		}
 		response.ApplicationproblemJSON404 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil
@@ -196776,6 +197014,13 @@ func ParseVerifyAuditChainResult(rsp *http.Response) (*VerifyAuditChainResult, e
 			return nil, err
 		}
 		response.ApplicationproblemJSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
 
 	}
 
@@ -198982,6 +199227,13 @@ func ParseCreateBackupScheduleResult(rsp *http.Response) (*CreateBackupScheduleR
 		}
 		response.ApplicationproblemJSON400 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil
@@ -199077,6 +199329,13 @@ func ParseListBackupTargetsResult(rsp *http.Response) (*ListBackupTargetsResult,
 		}
 		response.ApplicationproblemJSON403 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil
@@ -199116,6 +199375,13 @@ func ParseCreateBackupTargetResult(rsp *http.Response) (*CreateBackupTargetResul
 			return nil, err
 		}
 		response.ApplicationproblemJSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
 
 	}
 
@@ -199178,6 +199444,13 @@ func ParseListBackupsAtTargetResult(rsp *http.Response) (*ListBackupsAtTargetRes
 			return nil, err
 		}
 		response.ApplicationproblemJSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
 
 	}
 
@@ -199266,6 +199539,13 @@ func ParseStartBackupResult(rsp *http.Response) (*StartBackupResult, error) {
 		}
 		response.ApplicationproblemJSON409 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil
@@ -199305,6 +199585,13 @@ func ParseGetBackupRunResult(rsp *http.Response) (*GetBackupRunResult, error) {
 			return nil, err
 		}
 		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
 
 	}
 
@@ -199352,6 +199639,13 @@ func ParseVerifyBackupResult(rsp *http.Response) (*VerifyBackupResult, error) {
 			return nil, err
 		}
 		response.ApplicationproblemJSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
 
 	}
 
@@ -206942,6 +207236,13 @@ func ParseImportEntriesResult(rsp *http.Response) (*ImportEntriesResult, error) 
 		}
 		response.ApplicationproblemJSON422 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil
@@ -206974,6 +207275,13 @@ func ParseGetImportResult(rsp *http.Response) (*GetImportResult, error) {
 			return nil, err
 		}
 		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
 
 	}
 
@@ -210420,6 +210728,13 @@ func ParseRetainItemResult(rsp *http.Response) (*RetainItemResult, error) {
 		}
 		response.ApplicationproblemJSON404 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil
@@ -211450,6 +211765,13 @@ func ParseListLegalHoldsResult(rsp *http.Response) (*ListLegalHoldsResult, error
 		}
 		response.ApplicationproblemJSON403 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil
@@ -211496,6 +211818,13 @@ func ParsePlaceLegalHoldResult(rsp *http.Response) (*PlaceLegalHoldResult, error
 			return nil, err
 		}
 		response.ApplicationproblemJSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
 
 	}
 
@@ -211550,6 +211879,13 @@ func ParseReleaseLegalHoldResult(rsp *http.Response) (*ReleaseLegalHoldResult, e
 			return nil, err
 		}
 		response.ApplicationproblemJSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
 
 	}
 
@@ -212572,6 +212908,13 @@ func ParseGetCapabilitiesResult(rsp *http.Response) (*GetCapabilitiesResult, err
 	case rsp.StatusCode == 304:
 		break // No content-type
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	switch {
@@ -212660,6 +213003,13 @@ func ParseGetHealthReportResult(rsp *http.Response) (*GetHealthReportResult, err
 			return nil, err
 		}
 		response.ApplicationproblemJSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
 
 	}
 
@@ -216207,6 +216557,13 @@ func ParseListDataSubjectRequestsResult(rsp *http.Response) (*ListDataSubjectReq
 		}
 		response.ApplicationproblemJSON403 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil
@@ -217495,6 +217852,13 @@ func ParseStartRestoreResult(rsp *http.Response) (*StartRestoreResult, error) {
 		}
 		response.ApplicationproblemJSON409 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil
@@ -217535,6 +217899,13 @@ func ParseGetRestoreRunResult(rsp *http.Response) (*GetRestoreRunResult, error) 
 		}
 		response.ApplicationproblemJSON404 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil
@@ -217560,6 +217931,13 @@ func ParseListRetentionPoliciesResult(rsp *http.Response) (*ListRetentionPolicie
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
 
 	}
 
@@ -217593,6 +217971,13 @@ func ParseCreateRetentionPolicyResult(rsp *http.Response) (*CreateRetentionPolic
 			return nil, err
 		}
 		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
 
 	}
 
@@ -217693,6 +218078,13 @@ func ParsePreviewRetentionPolicyResult(rsp *http.Response) (*PreviewRetentionPol
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
 
 	}
 
@@ -218480,6 +218872,13 @@ func ParseReindexSearchResult(rsp *http.Response) (*ReindexSearchResult, error) 
 		}
 		response.ApplicationproblemJSON403 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil
@@ -219204,6 +219603,13 @@ func ParseListSyncDevicesResult(rsp *http.Response) (*ListSyncDevicesResult, err
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil
@@ -219266,6 +219672,13 @@ func ParseSyncPullResult(rsp *http.Response) (*SyncPullResult, error) {
 		}
 		response.ApplicationproblemJSON409 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil
@@ -219298,6 +219711,13 @@ func ParseSyncPushResult(rsp *http.Response) (*SyncPushResult, error) {
 			return nil, err
 		}
 		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
 
 	}
 

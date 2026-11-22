@@ -9114,6 +9114,8 @@ paths:
           headers:
             ETag:
               schema: { type: string }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /meta/health:
     get:
@@ -9148,6 +9150,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthReport"
         "403":
+          $ref: "#/components/responses/Problem"
+        "4XX":
           $ref: "#/components/responses/Problem"
 
 
@@ -9197,6 +9201,8 @@ paths:
                     items: { $ref: "#/components/schemas/AuditEntry" }
                   next_cursor: { type: [string, "null"] }
         "403": { $ref: "#/components/responses/Problem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /audit:verify:
     post:
@@ -9293,6 +9299,8 @@ paths:
                       gone, `audit.anchor_receipt_mismatch` when the object read back is not the
                       one written. Null otherwise.
         "403": { $ref: "#/components/responses/Problem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /audit/anchoring:
     put:
@@ -9359,6 +9367,8 @@ paths:
         "400": { $ref: "#/components/responses/Problem" }
         "403": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /backup-targets:
     get:
@@ -9376,6 +9386,8 @@ paths:
                 type: array
                 items: { $ref: "#/components/schemas/BackupTarget" }
         "403": { $ref: "#/components/responses/Problem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
     post:
       tags: [backup]
       operationId: createBackupTarget
@@ -9400,6 +9412,8 @@ paths:
               schema: { $ref: "#/components/schemas/BackupTarget" }
         "400": { $ref: "#/components/responses/Problem" }
         "403": { $ref: "#/components/responses/Problem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /backup-targets/{targetId}:
     parameters:
@@ -9473,6 +9487,8 @@ paths:
                 type: array
                 items: { $ref: "#/components/schemas/BackupArchive" }
         "403": { $ref: "#/components/responses/Problem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /backup-schedules:
     get:
@@ -9521,6 +9537,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/BackupSchedule" }
         "400": { $ref: "#/components/responses/Problem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /backup-schedules/{scheduleId}:
     parameters:
@@ -9603,6 +9621,8 @@ paths:
         "403": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /backups:download-workspace:
     post:
@@ -9685,6 +9705,8 @@ paths:
               schema: { $ref: "#/components/schemas/BackupRun" }
         "403": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /backups/{backupId}:verify:
     post:
@@ -9709,6 +9731,8 @@ paths:
         "403": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /restores:
     post:
@@ -9739,6 +9763,8 @@ paths:
         "400": { $ref: "#/components/responses/Problem" }
         "403": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /restores/{restoreId}:
     get:
@@ -9764,6 +9790,8 @@ paths:
               schema: { $ref: "#/components/schemas/RestoreRun" }
         "403": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /jobs/{jobId}:
     parameters:
@@ -9873,6 +9901,8 @@ paths:
         "403": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
         "422": { $ref: "#/components/responses/Problem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /imports/{importId}:
     parameters:
@@ -9894,6 +9924,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ImportRun" }
         "404": { $ref: "#/components/responses/Problem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /trash:
     get:
@@ -9989,6 +10021,8 @@ paths:
                 type: array
                 items: { $ref: "#/components/schemas/LegalHold" }
         "403": { $ref: "#/components/responses/Problem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
     post:
       tags: [retention]
       operationId: placeLegalHold
@@ -10014,6 +10048,8 @@ paths:
         "400": { $ref: "#/components/responses/Problem" }
         "403": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /legal-holds/{holdId}:release:
     post:
@@ -10044,6 +10080,8 @@ paths:
         "403": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /retention-policies:
     get:
@@ -10063,6 +10101,8 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/RetentionPolicy" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
     post:
       tags: [retention]
       operationId: createRetentionPolicy
@@ -10086,6 +10126,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/RetentionPolicy" }
         "400": { $ref: "#/components/responses/Problem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /retention-policies/{policyId}:
     parameters:
@@ -10174,6 +10216,8 @@ paths:
                         id: { type: string, format: uuid }
                         title: { type: string }
                         effective_at: { type: string, format: date-time }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /items/{itemId}:retain:
     post:
@@ -10192,6 +10236,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/WorkItem" }
         "404": { $ref: "#/components/responses/Problem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /sync:pull:
     post:
@@ -10226,6 +10272,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/SyncPullResponse" }
         "409":
+          $ref: "#/components/responses/Problem"
+        "4XX":
           $ref: "#/components/responses/Problem"
 
   /sync:snapshot:
@@ -10294,6 +10342,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/SyncPushResponse" }
         "400": { $ref: "#/components/responses/Problem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /sync/devices:
     get:
@@ -10314,6 +10364,8 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/SyncDevice" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /sync/devices/{deviceId}:
     parameters:
@@ -14208,6 +14260,8 @@ paths:
                   queued:
                     type: integer
                     description: How many dead letters were queued again.
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /admin/dead-letters:
     get:
       tags: [admin]
@@ -16366,6 +16420,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AiSource"
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /ai-budget-state:
     get:
       tags: [ai]
@@ -16687,6 +16743,8 @@ paths:
                     items: { $ref: "#/components/schemas/DataSubjectRequest" }
                   page: { $ref: "#/components/schemas/PageInfo" }
         "403": { $ref: "#/components/responses/Problem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
     post:
       tags: [privacy]
       operationId: createDataSubjectRequest
@@ -20863,6 +20921,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/SearchReindex" }
         "403": { $ref: "#/components/responses/Problem" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /containers/{containerId}/board:switch:
     parameters:
@@ -23238,6 +23298,8 @@ paths:
           description: The token does not open this file
         "409":
           description: Another lock holds the file
+        "411":
+          description: The request names no length
         "413":
           description: Larger than the installation takes
 
