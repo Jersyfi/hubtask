@@ -433,11 +433,12 @@ class Items {
    */
   async rewriteNotes(id: string, notes: string): Promise<WorkItem> {
     const current = await engine.refresh<WorkItem>({ path: `/items/${id}` });
-    const version = current.status === 'ready' ? current.data.version : undefined;
-    const replaced = current.status === 'ready' ? (current.data.notes ?? '') : '';
+    // Unread, the text in place could be neither kept nor written against: nothing is.
+    if (current.status !== 'ready') throw current.status === 'failed' ? current.error : new Error('the entry was not read');
+    const replaced = current.data.notes ?? '';
     if (replaced.trim() !== '' && replaced !== notes) await comments.fileVersion(id, 'notes', 'REPLACED', replaced, crypto.randomUUID());
     return engine.mutate<WorkItem>('PATCH', `/items/${id}`, { notes }, {
-      ...(version !== undefined ? { ifMatch: etagFor(version) } : {}),
+      ifMatch: etagFor(current.data.version),
       invalidates: touchesOf(id),
     });
   }

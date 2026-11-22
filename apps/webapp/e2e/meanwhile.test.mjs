@@ -386,3 +386,19 @@ test('chromium: 1280 px — offline, write mine again whose filing is refused ke
   assert.equal(await strip.count(), 1, 'the refused choice dropped the conflict');
   assert.equal(writes(state).filter((each) => each.method === 'PATCH').length, 0, 'mine was written over theirs unkept');
 });
+
+test('chromium: 1280 px — offline, write mine again while the entry cannot be read files nothing and writes nothing (UC-SYN-02 check 10)', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, context, state } = await openEntry(browser, 1280);
+  t.after(() => context.close());
+
+  const strip = await conflictWhileAway(page, context, state);
+  state.refuseRead = true;
+  const before = writes(state).length;
+  await page.getByRole('button', { name: 'Show both versions' }).click();
+  await page.getByRole('dialog', { name: 'Two versions of the notes' }).getByRole('button', { name: 'Write mine again' }).click();
+  await page.getByText('Too many requests. Please try again in a moment.').first().waitFor({ timeout: 10_000 })
+    .catch(async () => assert.fail(`the failure is not said: ${await page.locator('main').innerText()}`));
+  assert.deepEqual(writes(state).slice(before), [], 'a text was filed or written without the entry’s current version');
+  assert.equal(await strip.count(), 1, 'the conflict was dropped');
+});
