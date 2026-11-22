@@ -26,3 +26,20 @@ export async function trashAndLeave<T>(page: { readonly hub_id: string }, steps:
   else if (typeof restore === 'function') restore();
   return answer;
 }
+
+/**
+ * A trash pressed again while one is pending does nothing: the editor's saves are held by one
+ * flag, and a refused first delete would give them back while an accepted second is still open.
+ */
+export function oneTrashAtATime<T>(run: () => Promise<T>): () => Promise<T | undefined> {
+  let pending: Promise<T> | undefined;
+  return async () => {
+    if (pending) return undefined;
+    pending = run();
+    try {
+      return await pending;
+    } finally {
+      pending = undefined;
+    }
+  };
+}

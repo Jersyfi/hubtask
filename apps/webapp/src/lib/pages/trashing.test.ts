@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { trashAndLeave } from './trashing.ts';
+import { oneTrashAtATime, trashAndLeave } from './trashing.ts';
 
 test('a trashed page leaves for its hub overview, though the delete took the page away', async () => {
   // The screen's page is derived from the read: once the delete invalidates it, it is gone.
@@ -37,4 +37,23 @@ test('a refused delete gives the held saves back, an accepted one does not', asy
     });
     assert.equal(back, restored);
   }
+});
+
+test('a second trash while one is pending is not started, so a refused first cannot free the saves of an accepted second', async () => {
+  const happened: string[] = [];
+  let refuse: (value: undefined) => void = () => {};
+  const trashOnce = oneTrashAtATime(() =>
+    trashAndLeave({ hub_id: 'hub-1' }, {
+      drop: () => { happened.push('hold'); return () => happened.push('give back'); },
+      trash: () => new Promise<undefined>((resolve) => { refuse = resolve; }),
+      leave: () => happened.push('leave'),
+    }));
+  const first = trashOnce();
+  const second = trashOnce();
+  refuse(undefined);
+  await Promise.all([first, second]);
+  assert.deepEqual(happened, ['hold', 'give back'], 'one delete held the saves and gave them back');
+  // Settled, the next press trashes again.
+  void trashOnce();
+  assert.equal(happened.at(-1), 'hold');
 });

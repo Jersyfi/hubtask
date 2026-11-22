@@ -50,7 +50,7 @@
   import PageAccess from '../lib/pages/PageAccess.svelte';
   import PageLabels from '../lib/pages/PageLabels.svelte';
   import PageEditor from '../lib/pages/PageEditor.svelte';
-  import { trashAndLeave } from '../lib/pages/trashing.ts';
+  import { oneTrashAtATime, trashAndLeave } from '../lib/pages/trashing.ts';
   import PageHistory from '../lib/pages/PageHistory.svelte';
   import PageStarts from '../lib/pages/PageStarts.svelte';
   import PageCover from '../lib/pages/PageCover.svelte';
@@ -289,7 +289,7 @@
     await act(() => pages.change(current, { title }));
   }
 
-  async function trash() {
+  const trash = oneTrashAtATime(async () => {
     if (!current) return;
     const page = current;
     await trashAndLeave(page, {
@@ -304,7 +304,7 @@
       },
       leave: onnavigate,
     });
-  }
+  });
 
   async function copy() {
     if (!current) return;
