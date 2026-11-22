@@ -40,8 +40,8 @@ When one session steers them, it runs like this, and builds nothing itself:
 2. **The design-system foundation**, then **the shared server capabilities**.
 3. **Families of screens**, each family built whole. A family is a group of the inventory's
    screens that belong together and are built together.
-4. **A checkpoint after every family.** A checkpoint is the set of checks a family passes before
-   the next one starts:
+4. **A checkpoint after every family.** A checkpoint is the set of checks a family passes to be
+   closed. The first three pass before the next family starts; the fourth runs beside it:
    - `make check`;
    - the family's walks: `make e2e SUITES="<suites>"`;
    - the independent review of the family's diff;
@@ -67,7 +67,7 @@ request's `CI required`.
    `gh run list --workflow ci.yml --branch <branch> --event workflow_dispatch --limit 1`.
 3. Watch it in the background: `gh run watch <id> --exit-status`. Its end arrives as a
    notification; wait for it in no `sleep` or `until` loop.
-4. Build the next family meanwhile.
+4. Build the next family meanwhile. A red run is fixed before that family goes on.
 
 ## The close
 
