@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -47,13 +48,13 @@ func TestAThresholdBelowTheValueProducesAFinding(t *testing.T) {
 		"* The window before: 18.0",
 		"* Window: 2026-11-14 … 2026-11-20, beside 2026-11-07 … 2026-11-13",
 	} {
-		if !strings.Contains(f.Body, part) {
-			t.Errorf("the finding's text lacks %q:\n%s", part, f.Body)
+		if !hasLine(f.Body, part) {
+			t.Errorf("the finding's text lacks the line %q:\n%s", part, f.Body)
 		}
 	}
 	var b bytes.Buffer
 	printBreaches(&b, found)
-	if !strings.Contains(b.String(), f.Title) || !strings.Contains(b.String(), "* Value: 20.5") {
+	if !hasLine(b.String(), "**"+f.Title+"**") || !hasLine(b.String(), "* Value: 20.5") {
 		t.Errorf("the report does not print the finding:\n%s", b.String())
 	}
 
@@ -62,6 +63,11 @@ func TestAThresholdBelowTheValueProducesAFinding(t *testing.T) {
 	if found := breaches(measures, limits, week); len(found) != 0 {
 		t.Errorf("a value at its threshold breaches: %+v", found)
 	}
+}
+
+// hasLine holds a whole line, so "* Value: 20.55" does not pass for "* Value: 20.5".
+func hasLine(text, line string) bool {
+	return slices.Contains(strings.Split(text, "\n"), line)
 }
 
 func TestBreachesByRule(t *testing.T) {
