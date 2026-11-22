@@ -80,7 +80,7 @@ class Client:
         if params:
             url += "?" + urllib.parse.urlencode(params)
         sent: dict[str, str] = dict(self.headers)
-        if answer == "json":
+        if answer in ("json", "revalidated"):
             sent["Accept"] = "application/json, application/problem+json"
         token = self.token() if callable(self.token) else self.token
         if token:
@@ -100,6 +100,8 @@ class Client:
         try:
             response = self.opener.open(request, timeout=self.timeout)
         except urllib.error.HTTPError as refused:
+            if refused.code == 304 and answer == "revalidated":
+                return None  # the copy the caller holds is still current
             raw = refused.read()
             problem: dict[str, Any] = {"status": refused.code, "code": ""}
             try:
@@ -209,6 +211,14 @@ func GeneratePython(doc *Document) (client, types string) {
 				answerType = "dict[str, Any]"
 				if op.Answer.SchemaName != "" {
 					answerType = `"` + op.Answer.SchemaName + `"`
+				}
+				if op.NotModified {
+					answerKind = "revalidated"
+					if op.Answer.SchemaName != "" {
+						answerType = `"` + op.Answer.SchemaName + ` | None"`
+					} else {
+						answerType += " | None"
+					}
 				}
 			} else {
 				answerKind = "raw"

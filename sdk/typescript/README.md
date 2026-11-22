@@ -21,6 +21,10 @@ try {
 }
 ```
 
+A refusal is a `ProblemError`; a `304` is not one. An operation whose contract answers `304`
+(`getCapabilities` with `ifNoneMatch`) resolves to `undefined` there: the copy the caller holds is
+still current, and its type says so.
+
 [`examples/quickstart.mjs`](./examples/quickstart.mjs) lists a hub's collections, creates an
 entry and reads it back; `node sdk/typescript/examples/quickstart.mjs` with `HUBTASK_URL`,
 `HUBTASK_TOKEN` and `HUBTASK_HUB` set (Node 24 strips the types).

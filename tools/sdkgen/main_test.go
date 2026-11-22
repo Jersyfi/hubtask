@@ -212,3 +212,60 @@ func TestTheRealContractGenerates(t *testing.T) {
 		}
 	}
 }
+
+const revalidatedFixture = `
+openapi: 3.1.0
+info: { title: Fixture, version: "1" }
+paths:
+  /manifest:
+    get:
+      operationId: getManifest
+      parameters:
+        - { name: If-None-Match, in: header, schema: { type: string } }
+      responses:
+        "200":
+          description: The manifest
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Manifest" }
+        "304":
+          description: Unchanged; no body.
+components:
+  schemas:
+    Manifest: { type: object, properties: { version: { type: string } } }
+`
+
+// An operation that declares 304 answers it as a result, never as a refusal: the client that
+// revalidated keeps its copy.
+func TestANotModifiedAnswerIsAResultOfTheCallThatDeclaresIt(t *testing.T) {
+	doc, err := Read([]byte(revalidatedFixture))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !doc.Operations[0].NotModified {
+		t.Fatalf("the 304 was not read: %+v", doc.Operations[0])
+	}
+	ts := GenerateTypeScript(doc)
+	for _, want := range []string{
+		`getManifest(options: CallOptions & { readonly ifNoneMatch?: string } = {}): Promise<operations["getManifest"]['responses'][200]['content']["application/json"] | undefined>`,
+		`{ "If-None-Match": options.ifNoneMatch }, undefined, "none", undefined, "revalidated", options.signal)`,
+		`if (response.status === 304 && answer === 'revalidated') return undefined as T;`,
+	} {
+		if !strings.Contains(ts, want) {
+			t.Errorf("missing in the TypeScript client:\n%s", want)
+		}
+	}
+	if strings.Index(ts, "answer === 'revalidated') return undefined") > strings.Index(ts, "if (!response.ok)") {
+		t.Error("the TypeScript client refuses a 304 before it reads it as a result")
+	}
+	client, _ := GeneratePython(doc)
+	for _, want := range []string{
+		`def get_manifest(self, *, if_none_match: str | None = None) -> "Manifest | None":`,
+		`"revalidated")`,
+		`if refused.code == 304 and answer == "revalidated":`,
+	} {
+		if !strings.Contains(client, want) {
+			t.Errorf("missing in the Python client:\n%s", want)
+		}
+	}
+}

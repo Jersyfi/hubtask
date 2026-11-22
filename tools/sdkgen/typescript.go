@@ -57,7 +57,7 @@ export interface CallOptions {
 }
 
 type BodyKind = 'json' | 'raw' | 'none';
-type AnswerKind = 'json' | 'raw' | 'void';
+type AnswerKind = 'json' | 'revalidated' | 'raw' | 'void';
 
 export class HubtaskClient {
   readonly #options: ClientOptions;
@@ -71,6 +71,8 @@ export class HubtaskClient {
    * the query is appended with ` + "`undefined`" + ` values left out, the bearer is added, and a non-2xx
    * answer becomes a ProblemError - a body that is not a problem document (a proxy's HTML) still
    * becomes one, with the status and an empty code, so that a caller has one shape to handle.
+   * A 'revalidated' answer is JSON, or undefined where the server answered 304: the copy the
+   * caller holds is still current.
    */
   protected async call<T>(
     method: string,
@@ -95,7 +97,7 @@ export class HubtaskClient {
     if (qs) url += ` + "`?${qs}`" + `;
 
     const sent = new Headers(this.#options.headers);
-    if (answer === 'json') sent.set('Accept', 'application/json, application/problem+json');
+    if (answer === 'json' || answer === 'revalidated') sent.set('Accept', 'application/json, application/problem+json');
     const token = typeof this.#options.token === 'function' ? await this.#options.token() : this.#options.token;
     if (token) sent.set('Authorization', ` + "`Bearer ${token}`" + `);
     for (const [key, value] of Object.entries(headers)) if (value !== undefined) sent.set(key, value);
@@ -111,6 +113,7 @@ export class HubtaskClient {
 
     const doFetch = this.#options.fetch ?? fetch;
     const response = await doFetch(this.#options.baseUrl + url, { method, headers: sent, body: payload, signal });
+    if (response.status === 304 && answer === 'revalidated') return undefined as T;
     if (!response.ok) {
       let problem: Problem = { status: response.status, code: '' };
       try {
@@ -202,6 +205,10 @@ func GenerateTypeScript(doc *Document) string {
 			if isJSON(op.Answer.ContentType) {
 				answerKind = "json"
 				answerType = fmt.Sprintf("operations[%q]['responses'][%s]['content'][%q]", op.ID, op.Answer.Status, op.Answer.ContentType)
+				if op.NotModified {
+					answerKind = "revalidated"
+					answerType += " | undefined"
+				}
 			} else {
 				answerKind = "raw"
 				answerType = "Response"
