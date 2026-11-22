@@ -182,6 +182,15 @@ test('after a field and its colon, its values with their counts; a comma keeps t
   assert.deepEqual(suggest(catalogue, 'nofield: x'), []);
 });
 
+test('a pasted run of spaces after a colon costs its length, not its square', () => {
+  const pasted = `priority:${' '.repeat(200_000)}\nP\nx`;
+  const start = performance.now();
+  assert.deepEqual(suggest(catalogue, pasted), []);
+  assert.ok(performance.now() - start < 2000, 'the pattern retried every split of the spaces');
+  assert.equal(suggest(catalogue, 'priority:   ').length, 2, 'spaces after the colon still offer the values');
+  assert.equal(suggest(catalogue, 'priority:\n P1')[0].insert, 'priority: P1 ', 'a line break before the value is space');
+});
+
 test('+ Condition offers every field, and inside an open group the part after OR is completed', () => {
   assert.equal(suggest(catalogue, '', { isBrowsing: true }).length, catalogue.fields.length);
   assert.equal(suggest(catalogue, '(').length, catalogue.fields.length, 'a group just opened offers every field');
