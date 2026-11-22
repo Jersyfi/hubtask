@@ -143,12 +143,16 @@ func TestTheDocumentAndTheFileHoldTheSameThresholds(t *testing.T) {
 	if !ok {
 		t.Fatal("ci-cd.md has no §11")
 	}
+	section, _, _ = strings.Cut(section, "\n## ")
 	limits, err := readThresholds()
 	if err != nil {
 		t.Fatal(err)
 	}
 	documented := map[string]string{}
 	for _, m := range sectionRow.FindAllStringSubmatch(section, -1) {
+		if _, twice := documented[m[1]]; twice {
+			t.Errorf("ci-cd.md §11 has two rows for `%s`", m[1])
+		}
 		documented[m[1]] = strings.TrimSpace(m[2])
 	}
 	for _, row := range rows {
