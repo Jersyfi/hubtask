@@ -26,6 +26,7 @@ Anna opens *My notes* and writes in today's note what she wants to raise with he
 2. Nobody else reads, finds or opens the personal space's notes; the workspace's private hub rules hold for it, and where the workspace allows no private hubs the note is refused with the reason.
 3. A writer of a page restricts it to people they name, themselves always among them; then only those people read, list, find, open live and reference the page and the pages under it, a page restricted below is read only by the people both name, and the page leaves every other reader's offline copy.
 4. A page that restricts its own writers out is lifted - never read - by somebody who manages the hub's members, and lifted, the hub decides again.
+5. The personal hub is named in the language of the person's account, or the workspace's default where the account sets none, whatever language the browser asked for.
 
 ## Where it ends
 
