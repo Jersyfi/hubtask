@@ -10,6 +10,9 @@ check is not proven here: it is proven by a test that asserts it
 
 The newest coverage report stays here, because `make gate-docs` holds the catalogue to it.
 
+[`best-practices-answers.md`](./best-practices-answers.md) holds the answers a worker submits for
+the OpenSSF Best Practices badge, each with the file that proves it.
+
 The other files here — walks and run records of tasks before 2026-10-20 — are history: they stay,
 a `checked_by:` that names one keeps working, and none of them is read for current work. The walks
 of milestone UX and of the tasks beside it from 2026-10-20 on are gone; each check they showed is
@@ -132,7 +135,8 @@ one — it keeps the port, the new one dies on `ops: bind`, and the page still a
 binary.
 
 **Scripting a walk.** Playwright lives in `apps/webapp/node_modules`, with the three engines. A
-probe is a temporary file under `apps/webapp/e2e/` that is deleted afterwards.
+probe is a temporary file under `apps/webapp/e2e/` that is deleted afterwards. A walk that stays
+as a test follows the rules in [`apps/webapp/e2e/AGENTS.md`](../../apps/webapp/e2e/AGENTS.md).
 
 - Load each route in a fresh page and read `document.activeElement` before every key press; press
   only what the script named. A keystroke on an unknown focus is a write nobody asked for.

@@ -114,7 +114,8 @@ cases are counted too and held to a bound that only falls (`uncitedBuiltAtMost` 
 change that cited them. The gate also refuses a `partial` or `specified` use case
 without a *Today* section, a use case
 without *Goal*, *How to check* or *Where it ends*, and a `UC-…` cited anywhere in the repository
-that does not exist.
+that does not exist. An engine walk that proves a check follows the rules in
+[`apps/webapp/e2e/AGENTS.md`](../../apps/webapp/e2e/AGENTS.md).
 
 ## How use cases are used
 

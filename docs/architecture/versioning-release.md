@@ -91,6 +91,13 @@ contained, what was known about it (Directive (EU) 2024/2853 on product liabilit
 It names the evidence by hash and address and copies none of it; a GitHub release is never
 deleted, so the record stays with its artefacts.
 
+**The release notes.** Every release has a file `docs/releases/vX.Y.Z.md`, written before the tag
+and merged to `main`: a summary a person can read of the release's major changes, and what an
+upgrade needs. `release.yml` puts it at the top of the release page, above GitHub's generated
+list of pull requests, and stops before it builds anything when the file is missing or empty;
+`make release-tag` refuses the tag for the same reason. A release that fixes a publicly known
+vulnerability names its CVE there. Releases before v0.10.2 have no such file.
+
 The release notes are the changelog; there is no `CHANGELOG.md`. There is no version field in the
 code: the version is burned in through `-ldflags` and reported by `/meta/health`.
 

@@ -13,6 +13,20 @@
     "typecheck": "pnpm --recursive typecheck",
     "test": "pnpm --recursive test",
     "tokens": "pnpm --filter @hubtask/design-system build",
-    "api-client": "pnpm --filter @hubtask/api-client build"
+    "api-client": "pnpm --filter @hubtask/api-client build",
+    "unused": "knip --no-exit-code"
+  },
+  "devDependencies": {
+    "knip": "6.47.0"
+  },
+  "knip": {
+    "workspaces": {
+      "apps/website": {
+        "vite": false
+      },
+      "apps/webapp": {
+        "vite": false
+      }
+    }
   }
 }

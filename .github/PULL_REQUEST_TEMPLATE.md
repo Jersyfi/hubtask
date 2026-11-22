@@ -32,6 +32,18 @@ Closes #
 
 - none false — checked: …
 
+## Review
+
+<!-- The independent review (`.agents/skills/review-change/SKILL.md`) and the outside reviewer
+     (`.agents/skills/finish-pull-request/SKILL.md`). Who reviewed is the model and the date. Under
+     the counts, one line per finding left open, with its reason. Where the outside reviewer did not
+     review: "not run: <why>". A draft the review has not reached says "not yet: <why>" and nothing
+     else; a pull request does not leave draft that way. -->
+
+- **Reviewed by:** model, YYYY-MM-DD
+- **Findings:** found n, fixed n, open n
+- **Outside reviewer:** comments n, fixed n, declined n
+
 ## Does this need an ADR?
 
 <!-- The rule lives in a subject document; an ADR records why. A new decision brings its ADR and

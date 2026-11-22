@@ -1,0 +1,124 @@
+diff --git a/apps/webapp/src/lib/search/kinds.test.ts b/apps/webapp/src/lib/search/kinds.test.ts
+deleted file mode 100644
+index 0b29c7c89..000000000
+--- a/apps/webapp/src/lib/search/kinds.test.ts
++++ /dev/null
+@@ -1,40 +0,0 @@
+-// SPDX-License-Identifier: Apache-2.0
+-// Copyright (c) 2026 Jérôme Bastian Winkel
+-
+-import { test } from 'node:test';
+-import assert from 'node:assert/strict';
+-
+-import { foundWords, kindsOffered, nameMatches, shows } from './kinds.ts';
+-
+-// user-experience.md §5.3: one search for every kind, each kind only where its module is on.
+-test('the kinds offered follow the modules switched on', () => {
+-  assert.deepEqual(kindsOffered([]), ['all', 'entries', 'places']);
+-  assert.deepEqual(kindsOffered(['KNOWLEDGE', 'WHITEBOARD']), ['all', 'entries', 'pages', 'boards', 'places']);
+-  assert.deepEqual(kindsOffered(undefined), ['all', 'entries', 'places']);
+-  // Goals and configuration items were not searched at all: "FortiGate" found nothing.
+-  assert.deepEqual(kindsOffered(['ASSETS']), ['all', 'entries', 'assets', 'places']);
+-  // Portfolios, dashboards, releases and sprints were not searched either.
+-  assert.deepEqual(kindsOffered(['GOALS', 'PLANNING']), ['all', 'entries', 'goals', 'portfolios', 'dashboards', 'releases', 'sprints', 'places']);
+-});
+-
+-test('all shows every kind, a kind only itself', () => {
+-  assert.equal(shows('all', 'pages'), true);
+-  assert.equal(shows('pages', 'pages'), true);
+-  assert.equal(shows('entries', 'pages'), false);
+-});
+-
+-test('a name matches when it holds every word, whatever the case and the accents', () => {
+-  assert.equal(nameMatches('Rétro of the autumn release', 'retro AUTUMN'), true);
+-  assert.equal(nameMatches('Kick-off', 'kick off'), true);
+-  assert.equal(nameMatches('Kick-off', 'retro'), false);
+-  assert.equal(nameMatches('Kick-off', '   '), false);
+-});
+-
+-// What the search says it found counts what it found: entries are named as entries only where
+-// nothing else is among the results; a page or an asset is a result, not an entry.
+-test('the count names entries only where only entries were found', () => {
+-  assert.deepEqual(foundWords(0, 0), { code: 'app.search.none', params: {} });
+-  assert.deepEqual(foundWords(3, 0), { code: 'app.search.found', params: { count: 3 } });
+-  assert.deepEqual(foundWords(0, 1), { code: 'app.search.found_any', params: { count: 1 } });
+-  assert.deepEqual(foundWords(2, 2), { code: 'app.search.found_any', params: { count: 4 } });
+-});
+diff --git a/apps/webapp/src/lib/servicedesk/queues.test.ts b/apps/webapp/src/lib/servicedesk/queues.test.ts
+index 11161de3c..4cfca6333 100644
+--- a/apps/webapp/src/lib/servicedesk/queues.test.ts
++++ b/apps/webapp/src/lib/servicedesk/queues.test.ts
+@@ -5,5 +5,5 @@ import { test } from 'node:test';
+ import assert from 'node:assert/strict';
+ 
+-import { DESK_QUEUES, desksOf, priorityOf, queueQuery, queueTotal } from './queues.ts';
++import { DESK_QUEUES, desksAnswered, groupTone, groupedByStatus, priorityLevel, priorityOf, queueQuery, queueTotal } from './queues.ts';
+ 
+ // UC-SVC-03 checks 1 to 3: a queue is ordered by what breaks first and counted exactly; the four
+@@ -38,15 +38,4 @@ test('a queue is counted across hubs only once every hub has answered', () => {
+ });
+ 
+-// UC-SVC-05: a collection is a desk where it offers a type the portal takes; only those are asked.
+-// A Scrum collection beside an ITIL one stays a Scrum collection, though the ITIL types are the
+-// workspace's and so usable everywhere.
+-test('a hub\'s desks are its collections offering a type open to the portal', () => {
+-  const type = (key: string, channels?: { channel: string }[]) => ({ key, level: 'TASK', system: false, position: 0, archived: false, form: channels ? { channels } : undefined }) as never;
+-  const types = [type('incident', [{ channel: 'PORTAL' }]), type('story')];
+-  const collection = (id: string, offered?: string[]) => ({ id, parent_id: 'hub', structure: offered ? { settings: { entry_types: { TASK: offered } } } : null });
+-  assert.deepEqual(desksOf([collection('help', ['incident']), collection('scrum', ['story']), collection('all')], types), ['help']);
+-  assert.deepEqual(desksOf([collection('help', ['incident'])], [type('story')]), []);
+-});
+-
+ // user-experience.md §7.4: the queue's priority column reads the field the policies name.
+ test('a priority is the first field the policies name that the entry answers, else priority', () => {
+@@ -56,2 +45,35 @@ test('a priority is the first field the policies name that the entry answers, el
+   assert.equal(priorityOf({ custom_fields: null }, ['priority']), undefined);
+ });
++
++test('a priority reads as one of four levels, by its number or its word', () => {
++  assert.equal(priorityLevel('P1'), 1);
++  assert.equal(priorityLevel('P4'), 4);
++  assert.equal(priorityLevel('Highest'), 1);
++  assert.equal(priorityLevel('high'), 2);
++  assert.equal(priorityLevel('Medium'), 3);
++  assert.equal(priorityLevel('low'), 4);
++  assert.equal(priorityLevel('whenever'), 3);
++});
++
++test('requests stand grouped by status, the group of what breaks first on top, each in its order', () => {
++  const rows = [{ id: 'a', status: 'open' }, { id: 'b', status: 'waiting' }, { id: 'c', status: 'open' }, { id: 'd', status: undefined }, { id: 'e', status: 'waiting' }];
++  assert.deepEqual(groupedByStatus(rows, (row) => row.status ?? '').map((row) => row.id), ['a', 'c', 'b', 'e', 'd']);
++  assert.deepEqual(groupedByStatus([], (row: { id: string }) => row.id), []);
++});
++
++test('the desks are the server\'s answer per hub, whatever the entry types read here', () => {
++  const ready = (desks?: string[]) => ({ status: 'ready' as const, at: 0, source: 'server' as const, data: { data: [], ...(desks ? { desks } : {}) } });
++  assert.equal(desksAnswered({ h1: ready(['d1']) }, ['h1', 'h2']), undefined, 'not until every hub answered');
++  assert.deepEqual(desksAnswered({ h1: ready(['d1', 'd2']), h2: ready([]) }, ['h1', 'h2']), { h1: ['d1', 'd2'], h2: [] },
++    'a desk with open requests is a desk ("no desk takes requests", concept §10)');
++  assert.deepEqual(desksAnswered({ h1: { status: 'failed' as const, error: {} as never }, h2: ready() }, ['h1', 'h2']), { h1: [], h2: [] }, 'a refused hub and an older server name none');
++});
++
++// A desk's list grouped by status drew its group heads as bold text beside the queue's badges:
++// both now take one tone per category from here.
++test('a status group is a badge in the tone of its category', () => {
++  assert.equal(groupTone('DONE'), 'success');
++  assert.equal(groupTone('IN_PROGRESS'), 'info');
++  assert.equal(groupTone('TODO'), 'neutral');
++  assert.equal(groupTone(undefined), 'neutral');
++});
+diff --git a/core/domain/model/view/SavedView_test.go b/core/domain/model/view/SavedView_test.go
+index 364f8e76f..853f4b7c7 100644
+--- a/core/domain/model/view/SavedView_test.go
++++ b/core/domain/model/view/SavedView_test.go
+@@ -302,7 +302,7 @@ func TestSharingIsDecidedNotStored(t *testing.T) {
+ }
+ 
+-func TestTheDeclaredLayoutsAreTheFour(t *testing.T) {
+-	if len(Layouts()) != 4 {
+-		t.Fatalf("%d layouts, want the four the milestone declares", len(Layouts()))
++func TestTheDeclaredLayoutsAreTheFive(t *testing.T) {
++	if len(Layouts()) != 5 {
++		t.Fatalf("%d layouts, want the four the milestone declares and the calendar (E-21)", len(Layouts()))
+ 	}
+ 	for _, layout := range Layouts() {

@@ -168,20 +168,55 @@ test('chromium: a mailbox connects through its provider and comes back connected
   const { context, page, failures } = await signedIn(browser, 1280, 900);
   const writes = [];
   let mailboxes = [];
+  // Back from the provider the page reads its mailboxes and completes the connection side by side.
+  // The server may answer the read first, without the new mailbox, and that answer may arrive
+  // last. The walk gives that order every time: the completion is answered once the page's read
+  // has arrived - the one after its read of the settings - and that read is answered after it,
+  // with the list as it was. The page must still show the mailbox.
+  let isBack = false;
+  let settingsAsked = false;
+  let isCompleted = false;
+  let hasPageRead = false;
+  let pageReadArrived;
+  const pageRead = new Promise((resolve) => (pageReadArrived = resolve));
+  let completionAnswered;
+  const afterCompletion = new Promise((resolve) => (completionAnswered = resolve));
+  // The walk holds answers back, so a page that asks in another order ends in a timeout that names
+  // a URL or a row. This says which step of the order above did not happen.
+  const orSay = (waited, what) => waited.catch((error) => {
+    const step = !isBack ? 'the browser did not come back from the provider'
+      : !settingsAsked ? 'back from the provider, the page did not read the mail settings'
+      : !hasPageRead ? 'back from the provider, the page did not read its mailboxes after the settings, so the completion was never answered: the page no longer asks in the order this walk gives'
+      : !isCompleted ? 'the page read its mailboxes, and its completion did not arrive to be answered'
+      : 'the completion and the read held back behind it were both answered';
+    throw new Error(`${what}: ${step}. ${error.message}`, { cause: error });
+  });
   await context.route('https://accounts.provider.test/**', (route) => {
     // The provider: the administrator says yes, and the browser goes back with a code.
     const state = new URL(route.request().url()).searchParams.get('state');
+    isBack = true;
     return route.fulfill({ status: 302, headers: { location: `${served.origin}/administration/mail/oauth?state=${state}&code=c-1` } });
   });
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
     if (request.method() !== 'GET') writes.push({ call: `${request.method()} ${path}`, body: request.postDataJSON?.() ?? null });
-    if (path === '/mail/settings' && request.method() === 'GET') return route.fulfill({ json: SETTINGS });
+    if (path === '/mail/settings' && request.method() === 'GET') {
+      settingsAsked = isBack;
+      return route.fulfill({ json: SETTINGS });
+    }
     if (path === '/mail/receipts') return route.fulfill({ json: { receipts: [] } });
     if (path === '/mail/mailboxes' && request.method() === 'GET') {
+      const read = mailboxes;
+      if (isBack && !isCompleted) {
+        if (settingsAsked) {
+          hasPageRead = true;
+          pageReadArrived();
+        }
+        await afterCompletion;
+      }
       return route.fulfill({ json: {
-        mailboxes, presets: [{ key: 'gmail', protocol: 'IMAP', plus_addresses: true, hint: 'mail.preset_gmail' }],
+        mailboxes: read, presets: [{ key: 'gmail', protocol: 'IMAP', plus_addresses: true, hint: 'mail.preset_gmail' }],
         oauth_providers: [
           { key: 'google', installation: true, hint: 'mail.oauth_google' },
           { key: 'microsoft', installation: false, hint: 'mail.oauth_microsoft' },
@@ -198,8 +233,11 @@ test('chromium: a mailbox connects through its provider and comes back connected
         username: 'familie@gmail.com', folder: 'INBOX', done_folder: 'Hubtask', preset: 'gmail', plus_addresses: true, enabled: true,
         failing: false, checked_at: '2026-10-25T10:00:00Z', created_at: '2026-10-25T10:00:00Z', auth: 'OAUTH', oauth_provider: 'google',
       };
+      await pageRead;
       mailboxes = [connected];
-      return route.fulfill({ status: 201, json: connected });
+      await route.fulfill({ status: 201, json: connected });
+      isCompleted = true;
+      return completionAnswered();
     }
     return stub(route);
   });
@@ -224,10 +262,10 @@ test('chromium: a mailbox connects through its provider and comes back connected
     const completed = page.waitForRequest((request) => request.url().endsWith('/mail/mailboxes:complete'), { timeout: 30_000 });
     await oauth.getByRole('radio', { name: 'Connect with Google' }).check();
     await dialog.getByRole('button', { name: 'Continue to the provider' }).click();
-    await completed;
-    await page.waitForURL(`${served.origin}/administration/mail/mailboxes`, { timeout: 15_000 });
+    await orSay(completed, 'no completion left the page');
+    await orSay(page.waitForURL(`${served.origin}/administration/mail/mailboxes`, { timeout: 15_000 }), 'the page did not go on to its mailboxes');
     const row = rowOf(page, 'familie@gmail.com');
-    await row.getByText('signed in with Google', { exact: false }).waitFor({ timeout: 10_000 });
+    await orSay(row.getByText('signed in with Google', { exact: false }).waitFor({ timeout: 10_000 }), 'the connected mailbox is not on the page');
     assert.deepEqual(writes.find((write) => write.call === 'POST /mail/mailboxes:authorize')?.body, { provider: 'google' });
     assert.deepEqual(writes.find((write) => write.call === 'POST /mail/mailboxes:complete')?.body, { state: 's-1', code: 'c-1' });
     assert.deepEqual(failures, []);
