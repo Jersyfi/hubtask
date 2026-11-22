@@ -208,17 +208,18 @@
    * leaves the bar without the line; the save asks again and reports it.
    */
   const PREVIEW_PAUSE_MS = 400;
-  let reach = $state<{ change: StructureChange; preview: StructurePreview } | undefined>();
+  let reach = $state<{ change: StructureChange; preview: StructurePreview; version: number } | undefined>();
   $effect(() => {
     const asked = change;
     const id = container.id;
+    const version = container.version;
     reach = undefined;
     if (!asked) return;
     let isCurrent = true;
     const timer = setTimeout(() => {
       containers.previewStructure(id, asked).then(
         (preview) => {
-          if (isCurrent) reach = { change: asked, preview };
+          if (isCurrent) reach = { change: asked, preview, version };
         },
         () => {},
       );
@@ -523,7 +524,7 @@
   }
 
   /** A change that would stop showing something, waiting for the person's choice (UC-WRK-24 check 2). */
-  let narrowing = $state<{ change: StructureChange; preview: StructurePreview } | undefined>();
+  let narrowing = $state<{ change: StructureChange; preview: StructurePreview; version: number } | undefined>();
 
   /**
    * Saves a change that offers as much or more at once (check 1); one that would stop showing
@@ -536,13 +537,17 @@
     if (isFieldMissing || isViewMissing) return;
     isSaving = true;
     failure = undefined;
+    // Written as previewed, against the version previewed: a change that arrived meanwhile is
+    // the server's to refuse, never written over unseen.
+    const wanted = change;
+    const version = container.version;
     try {
-      const preview = await containers.previewStructure(container.id, change);
+      const preview = await containers.previewStructure(container.id, wanted);
       if (preview.narrows) {
-        narrowing = { change, preview };
+        narrowing = { change: wanted, preview, version };
         return;
       }
-      await write(change);
+      await write(wanted, version);
     } catch (error) {
       failure = renderProblem(error as never, messages);
     } finally {
@@ -555,7 +560,7 @@
     isSaving = true;
     failure = undefined;
     try {
-      await write({ ...narrowing.change, narrowing: choice });
+      await write({ ...narrowing.change, narrowing: choice }, narrowing.version);
       narrowing = undefined;
     } catch (error) {
       narrowing = undefined;
@@ -565,9 +570,9 @@
     }
   }
 
-  async function write(change: StructureChange) {
+  async function write(change: StructureChange, version: number) {
     const before = structure;
-    const answered = await containers.setStructure(container.id, change, container.version);
+    const answered = await containers.setStructure(container.id, change, version);
     if (answered.structure) draft = afterSave(answered.structure, before, structure);
     const kept = answered.kept_by_lock ?? [];
     announcer.say(t('app.structure.saved_announced'));
