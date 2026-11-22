@@ -10,9 +10,14 @@ who receives each)
 Two writes changed what other signed-in devices show and told none of them. `SetModule` stored a
 switch and an audit entry: a product switched off stayed in every other device's navigation until
 a reload, and its screens then failed against the module gate. A whiteboard's comments wrote audit
-entries only: a comment appeared on another open client after a reload. The stream withholds every
-entity the walk does not name, because a client cannot place a record of a kind it never holds, so
-neither could be added to the stream alone.
+entries only: a comment appeared on another open client after a reload.
+
+A record alone would not have been enough for either. The workspace's switch is filed under no
+container, and the stream sends such a record only when its kind is one the walk names - nothing
+else says who may read it. A board's comment is filed under its board's hub, where READ on the hub
+decides whatever the kind, so the stream would have sent it; but a device that starts from
+nothing, or walks again after an epoch, holds only what the walk hands it, and would hold a board
+without the comments written before.
 
 ## Decision
 
@@ -42,4 +47,8 @@ neither could be added to the stream alone.
 The web app's `pathsFor` names both entities, and a test holds its list to the walk's kinds, so a
 kind added to the walk cannot be dropped by the client unnoticed. A workspace's switch records
 each hub it wrote a value into ([ADR-0109](./ADR-0109-a-product-switched-on-at-the-workspace-is-offered-to-hubs.md))
-and no other hub's: a client re-reads the places' modules on any `setting` record.
+and no other hub's - also not a hub that stores a value and whose state turned with the
+workspace's. A hub's record in a device's copy is therefore the hub's state when it was written or
+walked, not its state now, and no client derives a hub's modules from it: the web app re-reads the
+workspace's switches, the manifest and every place's modules on any `setting` record and answers
+no module read from the copy.

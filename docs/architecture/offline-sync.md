@@ -196,8 +196,13 @@ place. `SetModule` records the place it wrote - with a workspace's switch also e
 a value into, the hubs chosen and the hubs given their state as their own - and nothing else
 writes a record: what the
 installation or a plan decides for a workspace reaches a device on its next read of the manifest.
-A hub's record states what the hub resolved to when it was written or walked, so a client re-reads
-every place's modules on any `setting` record rather than deriving a hub's from a held one. The
+A workspace's switch records no hub it wrote nothing into, also where the hub's state turned with
+it: a hub that stores on is off under a workspace switched off and on again when the workspace
+is, and neither turn records the hub. A hub's record in a device's copy is therefore what the hub
+resolved to when it was written or walked, not what it resolves to now, and a client never derives
+a hub's modules from it: on any `setting` record it re-reads every place's modules. The web app
+does, with the workspace's switches and the manifest, and answers no module read from the copy
+(`apps/webapp/src/lib/data/replica.ts` maps none). The
 switch of a module that narrows the replica still advances the epoch (§8): the record tells the
 screens, the epoch moves the copy. A
 mid-walk page cursor names the kind and key it resumes after; the pull continues it, the stream

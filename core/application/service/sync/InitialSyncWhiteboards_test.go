@@ -75,9 +75,10 @@ func TestTheWalkCarriesTheCommentsOfTheBoardsTheReaderReads(t *testing.T) {
 	}
 }
 
-// UC-CNV-09 check 6, the open client: a comment's record in the log reaches whoever reads the
-// board's hub, and nobody else.
-func TestACommentRecordReachesTheReadersOfTheBoardsHub(t *testing.T) {
+// UC-CNV-09 check 6, the open client: a comment's record is filed under its board's hub, and READ
+// there decides who the stream sends it to, as for any record filed under a hub. That the comment
+// is a kind of the walk is not asked here; the walk above proves it.
+func TestTheStreamSendsACommentRecordByReadOnItsBoardsHub(t *testing.T) {
 	mine, theirs := entry(1, hub), entry(2, otherHub)
 	mine.Entity, theirs.Entity = entityWhiteboardComment, entityWhiteboardComment
 	pull, f := pulling(t, mine, theirs)
