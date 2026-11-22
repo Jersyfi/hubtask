@@ -26,7 +26,7 @@
   // resolve is named by its kind.
 
   import LazyView from '../lib/frame/LazyView.svelte';
-  import { untrack, type Snippet } from 'svelte';
+  import { tick, untrack, type Snippet } from 'svelte';
 
   import {
     ActivityFeed,
@@ -1310,6 +1310,7 @@
     meanwhileField = undefined;
     isAsking = false;
     // The other field may still hold a change of the reader's own: written now, or asked about.
+    await tick();
     await commitInline();
   }
 
@@ -1322,9 +1323,14 @@
     // The other field changed by both as well: that one is asked about next, not written unseen.
     const [other] = conflicts;
     if (other) {
+      // A question of its own: closed and opened again, so it is announced anew and its focus
+      // starts on the safe answer again.
       inlineBase = base;
-      meanwhileField = other;
       overwriteFailure = undefined;
+      isAsking = false;
+      await tick();
+      meanwhileField = other;
+      isAsking = true;
       return;
     }
     isOverwriting = true;
