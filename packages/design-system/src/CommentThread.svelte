@@ -20,8 +20,17 @@
   // switches one off with a reason only for something the reader could wait out (§4).
   //
   // Oldest first, because a conversation read from the bottom is a conversation read backwards.
+  //
+  // **A note the system filed is not a post.** A kept version of a text is filed in the name of
+  // the person whose choice kept it, and drawn with their avatar it reads as words they wrote -
+  // the other person's text under the reader's own name. So it is drawn as the thread's quiet rows
+  // are: an icon for the avatar, its mark word for the author, its heading naming whose version it
+  // holds, and the text set off on the history's rail, as plain text exactly as it was filed.
+  //
+  // **An addressed comment is marked and takes the focus** (`markedId`): a link to it lands where
+  // the reader can see it and a keyboard or screen-reader user is moved to it, not left at the top.
 
-  import type { Snippet } from 'svelte';
+  import { tick, untrack, type Snippet } from 'svelte';
 
   import Avatar from './Avatar.svelte';
   import Icon from './Icon.svelte';
@@ -61,6 +70,14 @@
     readonly replies?: readonly Omit<ThreadComment, 'replies'>[];
     /** Present: an internal note, drawn yellow with a lock and this word (*Internal*), never as a reply (ET-7). */
     readonly internalLabel?: string;
+    /**
+     * Present: a note the system filed on somebody's behalf - a kept version of a text. `label` is
+     * its mark word (*Kept version*), `heading` the resolved sentence that names whose version it
+     * holds. Drawn without the author's avatar and name; the body as plain text, exactly as filed.
+     */
+    readonly system?: { readonly label: string; readonly heading: string };
+    /** False: it may be removed but never rewritten - a record of what was filed stays as filed. Absent means it may. */
+    readonly isEditable?: boolean;
   }
 
   /**
@@ -106,6 +123,8 @@
     events?: readonly ThreadEvent[];
     /** The caller's reading of a body - formatted text from the pages' editor (E-3); plain text without it. */
     body?: Snippet<[string]>;
+    /** The comment an address names: marked, scrolled to and focused once it is drawn. */
+    markedId?: string;
   }
 
   const {
@@ -127,7 +146,27 @@
     onDelete,
     onReply,
     events = [],
+    markedId,
   }: Props = $props();
+
+  let section = $state<HTMLElement | undefined>(undefined);
+  const isDrawn = (id: string): boolean =>
+    comments.some((comment) => comment.id === id || (comment.replies ?? []).some((reply) => reply.id === id));
+
+  // Once per address and once it is drawn: a thread that grows later does not pull the reader back.
+  let revealed: string | undefined;
+  $effect(() => {
+    const id = markedId;
+    if (!id || id === revealed || !isDrawn(id)) return;
+    revealed = id;
+    untrack(async () => {
+      await tick();
+      const target = section?.querySelector<HTMLElement>(`[data-comment-id="${CSS.escape(id)}"]`);
+      if (!target) return;
+      target.scrollIntoView({ block: 'center' });
+      target.focus({ preventScroll: true });
+    });
+  });
 
   type Row = { kind: 'comment'; comment: ThreadComment } | { kind: 'event'; event: ThreadEvent };
 
@@ -147,7 +186,7 @@
   });
 </script>
 
-<section class="thread" aria-label={label}>
+<section class="thread" aria-label={label} bind:this={section}>
   {#if rows.length === 0}
     <p class="empty">{emptyLabel}</p>
   {:else}
@@ -182,22 +221,43 @@
 </section>
 
 {#snippet row(comment: Omit<ThreadComment, 'replies'>, canReply: boolean)}
-  <article class="comment" data-internal={comment.internalLabel ? '' : undefined}>
-    <Avatar name={comment.authorName} src={comment.authorSrc} size="sm" />
+  {@const isMarked = markedId === comment.id}
+  <article
+    class="comment"
+    id={`comment-${comment.id}`}
+    data-comment-id={comment.id}
+    data-internal={comment.internalLabel ? '' : undefined}
+    data-system={comment.system ? '' : undefined}
+    data-marked={isMarked ? '' : undefined}
+    tabindex="-1"
+    aria-labelledby={`comment-${comment.id}-meta`}
+  >
+    {#if comment.system}
+      <span class="system-icon"><Icon name="rotate-ccw-clock" size="sm" /></span>
+    {:else}
+      <Avatar name={comment.authorName} src={comment.authorSrc} size="sm" />
+    {/if}
     <div class="body">
-      <p class="meta">
-        <span class="author">{comment.authorName}</span>
+      <p class="meta" id={`comment-${comment.id}-meta`}>
+        {#if comment.system}
+          <span class="system-mark">{comment.system.label}</span>
+        {:else}
+          <span class="author">{comment.authorName}</span>
+        {/if}
         <!-- The order is the content, so the instant is machine-readable rather than only drawn -
              the same decision ActivityFeed made about a step. -->
         <time datetime={comment.at}>{comment.when}</time>
         {#if comment.internalLabel}<span class="internal"><Icon name="lock" size="sm" />{comment.internalLabel}</span>{/if}
         {#if comment.editedLabel && !comment.isRemoved}<span class="edited">{comment.editedLabel}</span>{/if}
       </p>
+      {#if comment.system}<p class="heading">{comment.system.heading}</p>{/if}
 
       {#if comment.isRemoved}
         <!-- Rule 3 again: the sentence says it was removed. A greyed-out row alone would leave a
              reader guessing, and the guess "it failed to load" is the wrong one. -->
         <p class="removed">{removedLabel}</p>
+      {:else if comment.system}
+        <blockquote class="text kept">{comment.body}</blockquote>
       {:else}
         {#if body && comment.body !== undefined}<div class="text">{@render body(comment.body)}</div>{:else}<p class="text">{comment.body}</p>{/if}
       {/if}
@@ -213,8 +273,8 @@
             <Menu
               label={moreLabel}
               items={[
-                { id: 'edit', label: editLabel, icon: 'pencil', disabledReason: comment.editDisabledReason },
-                { id: 'delete', label: deleteLabel, icon: 'trash', isDestructive: true, disabledReason: comment.deleteDisabledReason },
+                ...(comment.isEditable === false ? [] : [{ id: 'edit', label: editLabel, icon: 'pencil' as const, disabledReason: comment.editDisabledReason }]),
+                { id: 'delete', label: deleteLabel, icon: 'trash' as const, isDestructive: true, disabledReason: comment.deleteDisabledReason },
               ]}
               onselect={(id) => (id === 'edit' ? onEdit?.(comment.id) : onDelete?.(comment.id))}
             >
@@ -259,6 +319,37 @@
     border-radius: var(--r-md);
     border-inline-start: var(--bw-thick) solid var(--status-warning-accent);
     background: var(--status-warning-surface);
+  }
+
+  /* An addressed comment: the selection surface, so the eye finds where the link landed. */
+  .comment[data-marked] {
+    padding: var(--sp-100);
+    border-radius: var(--r-md);
+    background: var(--accent-primary-subtle);
+  }
+
+  .comment:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+
+  /* A system note in the quiet rows' voice: an icon where an avatar stands, its mark for the author. */
+  .system-icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: var(--sp-300);
+    height: var(--sp-300);
+    color: var(--text-subtle);
+  }
+
+  .system-mark { color: var(--text-secondary); font-weight: var(--fw-medium); }
+
+  .heading { margin: 0; color: var(--text-subtle); font-size: var(--fs-075); overflow-wrap: anywhere; }
+
+  /* The kept text on the history's rail, whitespace and all: it is shown as filed, not formatted. */
+  .kept {
+    padding-inline-start: var(--sp-150);
+    border-inline-start: var(--bw-thick) solid var(--border-subtle);
+    white-space: pre-wrap;
   }
 
   .internal { display: inline-flex; align-items: center; gap: var(--sp-025); color: var(--text-primary); font-weight: var(--fw-medium); }
