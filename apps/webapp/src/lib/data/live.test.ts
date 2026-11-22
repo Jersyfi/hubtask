@@ -64,7 +64,9 @@ test('a page or a board makes its hub\'s tree and the trash stale, its own docum
 test('the workspace vocabulary makes its own lists stale', () => {
   assert.deepEqual(pathsFor(record({ entity: 'entry_type' })), ['/entry-types']);
   assert.deepEqual(pathsFor(record({ entity: 'link_type' })), ['/link-types']);
-  assert.deepEqual(pathsFor(record({ entity: 'workflow' })), ['/workflows']);
+  // An open entry's step choices are read from its own steps, not from the workflow list.
+  assert.deepEqual(pathsFor(record({ entity: 'workflow' })), ['/workflows', '/items/*/steps']);
+  assert.ok(pathsFor(record({ entity: 'workflow' })).some((name) => matchesPath(name, '/items/i-1/steps')));
 });
 
 test('every entity the server records and this client draws makes something stale', () => {

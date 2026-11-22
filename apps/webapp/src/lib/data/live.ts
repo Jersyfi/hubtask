@@ -139,7 +139,7 @@ export function pathsFor(record: ChangeRecord): readonly string[] {
       return ['/link-types'];
 
     case 'workflow':
-      return ['/workflows'];
+      return ['/workflows', '/items/*/steps'];
 
     default:
       // A newer server's entity. Nothing here draws it, so nothing here is stale — and a client
