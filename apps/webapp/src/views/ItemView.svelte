@@ -1536,6 +1536,7 @@
         menu={{ label: t('app.workspace.actions', { name: item.title }), items: entryMenu, onselect: chooseFromMenu, opener: 'entry-menu' }}
         isCompact={isInPane}
         isDone={item.completion?.is_completed === true}
+        hasStepOnPhone={isWorkflowPaused}
       >
         {#snippet status()}
           {#key item.id}<EntryStatus {item} bind:runs={hasWorkflow} bind:next={statusNext} bind:second={statusSecond} offersSecond={isDeskEntry} oncomplete={() => void toggleCompleted()} disabledReason={isChangeable ? frozenReason : (roleReason ?? frozenReason)} reasonSaidAt={readOnlyReason ? readOnlyNoticeId : undefined} bind:isPaused={isWorkflowPaused} pausedSaidAt={pausedNoticeId} {onnavigate} />{/key}

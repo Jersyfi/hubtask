@@ -460,8 +460,9 @@ test('chromium: a workflow paused with Workflows off says so, and Done asks the 
 });
 
 // The approved design's paused head: the notice above the head says it once, the paused state stays
-// a lozenge of its own height, and Done stands beside it on one line.
-for (const width of [1280]) {
+// a lozenge of its own height, and Done stands beside it on one line - on a phone too, since the
+// paused state opens no sheet that could carry the step (WB-8).
+for (const width of [1280, 390]) {
   test(`chromium ${width}: a paused workflow's head - the notice above it, the paused state and Done on one line`, { timeout: 60_000 }, async () => {
     const extra = (read, method) => {
       if (method === 'GET' && read === `/containers/${ENTRY.collection_id}`) return { ...COLLECTION, state_mode: 'WORKFLOW', state_modes: { task: 'WORKFLOW' } };
@@ -483,6 +484,31 @@ for (const width of [1280]) {
       assert.ok(Math.abs((s.y + s.height / 2) - (d.y + d.height / 2)) < 4, 'Done is not on the paused state\'s line');
       assert.equal(await head.locator('[data-steps] .reason').count(), 0, 'the reason is said a second time beside the state');
       assert.equal(await state.getAttribute('aria-describedby'), await notice.getAttribute('id'), 'the state does not refer to the notice');
+    } finally {
+      await close();
+    }
+  });
+}
+
+// The phone's steps live in the status's sheet (WB-8, design-system.md §4 ObjectHead): on every
+// level the sheet carries the step the desk's button takes.
+for (const [level, step] of [['NONE', 'Done'], ['COLUMNS', 'Shipped'], ['WORKFLOW', 'Start work']]) {
+  test(`chromium 390: at ${level} the status's sheet carries the step`, { timeout: 60_000 }, async () => {
+    const extra = (read, method) => {
+      if (level === 'WORKFLOW') return undefined;
+      if (method === 'GET' && read === `/containers/${ENTRY.collection_id}`) return { ...COLLECTION, state_mode: level, state_modes: { task: level } };
+      if (method === 'GET' && read === `/containers/${ENTRY.collection_id}/buckets`) return BOARD.map((each, n) => ({ id: each.id, collection_id: ENTRY.collection_id, name: each.name, order_key: `a${n}`, wip_limit: null, is_done_bucket: each.completes, color_token: null, version: 1, statuses: [] }));
+      return undefined;
+    };
+    const { page, close } = await open(390, { runs: level === 'WORKFLOW', extra });
+    try {
+      const head = page.locator('[data-tour="entry"]');
+      const state = head.locator('[data-steps]').getByRole('button');
+      await state.waitFor({ timeout: 10_000 });
+      await state.click();
+      const sheet = page.getByRole('dialog');
+      await sheet.waitFor({ timeout: 5_000 });
+      assert.ok(await sheet.getByRole('button', { name: new RegExp(step) }).first().isVisible(), `the sheet holds no ${step}`);
     } finally {
       await close();
     }

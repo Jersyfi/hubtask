@@ -561,7 +561,8 @@ and every behaviour a test can hold lives in a module beside them: `lozenge.ts`,
   *Reopen* with its arrow back once done; either step with its reason where it cannot be taken now), a
   divider, the person (an empty one said), the due date, **one** deadline chip (what is breached
   and the next deadline, ET-6), quiet facts and the end tools. On a phone the steps live in the
-  status's sheet and the person is the avatar alone (WB-8).
+  status's sheet - where the status opens none now, as under a paused workflow, its step stays in
+  the bar (`hasStepOnPhone`) - and the person is the avatar alone (WB-8).
 * **`Property`** and **`PropertyRail`** — the rail of ET-1, `layout.rail` wide: sections products
   register (`RailSection`: a title, a product's tile, a count, folded or empty), the form's groups
   in the form's order. A head is a twist (`aria-expanded`); an empty section is one line with "+"

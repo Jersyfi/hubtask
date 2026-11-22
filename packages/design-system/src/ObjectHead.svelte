@@ -74,6 +74,8 @@
     isDone?: boolean;
     /** An object without a status sheet (goal, release, agent, CI): its next step and ⋯ stay on a phone. */
     hasActsOnPhone?: boolean;
+    /** The status opens no sheet now (a paused workflow): its step stays in the bar on a phone. */
+    hasStepOnPhone?: boolean;
   }
 
   const {
@@ -97,6 +99,7 @@
     menu,
     isCompact = false,
     hasActsOnPhone = false,
+    hasStepOnPhone = false,
     isDone = false,
   }: Props = $props();
 
@@ -165,7 +168,7 @@
   {/if}
 {/snippet}
 
-<header class="object-head" data-compact={isCompact ? '' : undefined} data-phone-acts={hasActsOnPhone ? '' : undefined}>
+<header class="object-head" data-compact={isCompact ? '' : undefined} data-phone-acts={hasActsOnPhone ? '' : undefined} data-phone-step={hasStepOnPhone ? '' : undefined}>
   <!-- A compact head without a trail spends no row on its tools: they end the title's line. -->
   {#if trail || ((tools || menu) && !isCompact)}
     <div class="top">
@@ -354,7 +357,8 @@
   .facts { display: inline-flex; align-items: center; gap: var(--sp-150); color: var(--text-secondary); font-size: var(--fs-075); }
   .end { display: inline-flex; align-items: center; gap: var(--sp-100); margin-inline-start: auto; }
 
-  /* A phone: the bar carries the way back and the tools; the steps are in the status's sheet (WB-8). */
+  /* A phone: the bar carries the way back and the tools; the steps are in the status's sheet (WB-8),
+     unless the status opens none now - then its step stays beside it. */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (width < 600px) {
     .meta { flex-basis: 100%; }
@@ -366,7 +370,7 @@
     .person-name { display: none; }
     .title { font-size: var(--fs-450); }
     .object-head[data-phone-acts] .top { display: flex; }
-    .object-head[data-phone-acts] .step { display: inline-flex; }
+    .object-head:is([data-phone-acts], [data-phone-step]) .step { display: inline-flex; }
   }
 
   @media (prefers-reduced-motion: reduce) {
