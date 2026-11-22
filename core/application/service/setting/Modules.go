@@ -524,7 +524,8 @@ func refuseUnmet(layers []domain.Layer, key domain.Key, to Switch) error {
 }
 
 // switchOnNeeded switches on at the place a module another one needs, where it is not on already,
-// with its own audit entry, and in each chosen hub; it answers the hubs it wrote a kept state into.
+// and in each chosen hub, with its own audit entry for either; it answers the hubs it wrote a kept
+// state into.
 func (m Modules) switchOnNeeded(
 	ctx context.Context, actor appshared.ActorContext, where place, layers []domain.Layer, needed module.Key,
 	chosen []shared.ID, now time.Time,
@@ -532,7 +533,15 @@ func (m Modules) switchOnNeeded(
 	definition := needed.Definition()
 	before := domain.Resolve(definition, layers...)
 	if on, _ := before.Effective.(bool); on {
-		return nil, m.switchOnChosen(ctx, actor, chosen, needed, before, now)
+		if len(chosen) == 0 {
+			return nil, nil
+		}
+		if err := m.switchOnChosen(ctx, actor, chosen, needed, before, now); err != nil {
+			return nil, err
+		}
+		// The place had it on, the chosen hubs gain it: the trail names it with them (check 8).
+		cmd := SetModuleCommand{Module: needed, Switch: SwitchOn}
+		return nil, m.recordAudit(ctx, actor, where, cmd, before, before, reach{chosen: chosen}, now)
 	}
 	entry := domain.Entry{Value: true, Hold: domain.HoldSet, By: actor.AccountID}
 	if err := domain.Check(definition, where.at.Level, domain.Resolve(definition, layers[:len(layers)-1]...), entry); err != nil {

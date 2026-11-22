@@ -337,3 +337,32 @@ func TestAWorkspaceSwitchRecordsEachHubItWrote(t *testing.T) {
 		t.Errorf("the hub's record says %v under a workspace that has the module off", row)
 	}
 }
+
+// UC-INS-21 check 8: a module brought along is named in the trail with the hubs it was switched
+// on in, also where the workspace had it on already and only the chosen hubs gain it.
+func TestTheTrailNamesAModuleBroughtAlongIntoAChosenHub(t *testing.T) {
+	ctx := context.Background()
+	set, _, _, sink := workspaceWith()
+	if _, err := set.Execute(ctx, actor(), workspaceSwitch(module.Workflows, settingservice.SwitchOn)); err != nil {
+		t.Fatal(err)
+	}
+	sink.entries = nil
+	if _, err := set.Execute(ctx, actor(), workspaceSwitch(module.ServiceDesk, settingservice.SwitchOn, office)); err != nil {
+		t.Fatal(err)
+	}
+	named := map[module.Key][]string{}
+	for _, entry := range sink.entries {
+		chosen, _ := entry.Changes["hub_ids"].(map[string]any)
+		ids, _ := chosen["to"].([]string)
+		for _, key := range []module.Key{module.Workflows, module.ServiceDesk} {
+			if _, names := entry.Changes[string(key.SettingKey())]; names {
+				named[key] = ids
+			}
+		}
+	}
+	for _, key := range []module.Key{module.Workflows, module.ServiceDesk} {
+		if !slices.Equal(named[key], []string{office.String()}) {
+			t.Errorf("the trail names %v as the hubs %s was switched on in, want the chosen hub", named[key], key)
+		}
+	}
+}
