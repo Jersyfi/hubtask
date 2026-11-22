@@ -117,6 +117,46 @@ back, or a release whose notes name one - the older binary refuses to start
 set `HUBTASK_VERSION` back, then `./restore.sh --upgrade-dump <file>` (backup-restore.md §8.6).
 Writes made on the newer release since are lost with it.
 
+#### On Coolify (best effort)
+
+`deploy/coolify/compose.yaml` is the reference arranged for Coolify: create a *Docker Compose*
+resource from it, give `app` its domain on port 8080, and set `HUBTASK_VERSION` (a release tag),
+`HUBTASK_BASE_URL` (that domain, with `https://`) and `HUBTASK_TRUSTED_PROXIES` (the network the
+platform's proxy reaches the container from, as a CIDR). Every other variable is the reference's,
+with its default, and is set in the platform's interface as it would be in `.env`. The database
+password, the application role's password and the secret key are the platform's generated
+`SERVICE_PASSWORD_64_*` values, which its documentation describes as random passwords of 64
+characters without symbols - what a DSN carries unescaped. That is the platform's statement, not
+something the repository can check.
+
+It differs from the reference only where the file marks it (`[C1]`-`[C9]` in its header): no
+published ports; generated secrets; `upgrade-dump` and `migrate` taken out of the platform's health
+check (`exclude_from_hc`), since a one-shot that has exited is not unhealthy; the database service
+named `postgres`; no `ops` service and no bind mount; `HUBTASK_TRUSTED_PROXIES` required; required
+variables written `${NAME:?}`; no project name; the volumes named as on the installation it was
+walked on. Plain Compose refuses `exclude_from_hc`, so the file is for the platform only.
+
+What it does not give, said plainly:
+
+* **No gate starts it.** `test/architecture` holds it to the reference - the same variables with the
+  same values, the same database image and digest, every DSN and `PGHOST` naming its own file's
+  database service, each DSN carrying its role's password - and `make gate-compose` starts the
+  reference only. It was walked by hand by the owner on one release. Through the platform's proxy
+  the event stream of `/api/v1/stream` was seen unbuffered; the WebSocket upgrade of
+  `/api/v1/realtime/` was not checked. Without it pages and boards open read-only (above).
+* **No `backup.sh` or `restore.sh`.** The system backup is the platform's scheduled backup of the
+  `postgres` service plus a backup target configured in the application
+  ([backup-restore.md](./backup-restore.md)). **Media in local storage - the `hubtask-media`
+  volume - is covered by neither**; an installation that keeps it there backs the volume up by
+  other means or stores media in object storage (§6.1).
+* **An upgrade dump is restored by hand**: the dumps lie in the `hubtask-upgrade-dumps` volume, and
+  `pg_restore` of one runs in a container of the database's image with that volume mounted
+  (backup-restore.md §8.6); `restore.sh --upgrade-dump` is not available.
+* **The operations port is not published**: `/readyz` and the metrics are reached only inside the
+  service network.
+* **Multi mode needs a host per workspace**: each workspace's host as a domain of `app` with
+  `HUBTASK_WORKSPACE_HOSTS=assigned`, or a wildcard record and certificate (§6.1).
+
 ### 2.2 Kubernetes
 
 Four deployments from **one** image, distinguished by `HUBTASK_ROLES`:

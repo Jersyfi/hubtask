@@ -47,8 +47,9 @@ hubtask/
 ├── db/                        # migrations/ (goose, forward only), queries/ (sqlc input),
 │                              # schema.sql (the reference schema, regenerated from the
 │                              # migrations and diffed against a migrated database)
-├── deploy/                    # docker/, observability/ (alerts, dashboards, runbooks),
-│                              # integration/, production/
+├── deploy/                    # docker/, coolify/ (the reference arranged for one platform,
+│                              # deployment.md §2.1), observability/ (alerts, dashboards,
+│                              # runbooks), integration/, production/
 ├── k8s/                       # the Helm chart
 ├── apps/                      # first-party clients (ADR-0027) — no Go code, ever
 │   ├── webapp/                # the product UI; embedded (§7)
