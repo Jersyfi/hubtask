@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-11, P-12]
 state: built
 tasks: [N-05, N-06, N-07, F6-06]
-checked_by: [core/application/service/sync/Patch_test.go, core/application/service/sync/Set_test.go, core/application/service/sync/Move_test.go, test/sync/sync_test.go, packages/sync-engine/test/hlc.test.ts, packages/sync-engine/test/ordering.test.ts, core/application/service/work/FileDivergingVersion_test.go, presentation/rest/Door_test.go, apps/webapp/src/lib/data/edits.test.ts, apps/webapp/e2e/meanwhile.test.mjs]
+checked_by: [core/application/service/sync/Patch_test.go, core/application/service/sync/Set_test.go, core/application/service/sync/Move_test.go, test/sync/sync_test.go, packages/sync-engine/test/hlc.test.ts, packages/sync-engine/test/ordering.test.ts, core/application/service/work/FileDivergingVersion_test.go, core/domain/model/work/Comment_test.go, core/domain/model/work/Item_test.go, test/integration/push_test.go, presentation/rest/Door_test.go, apps/webapp/src/lib/data/edits.test.ts, apps/webapp/e2e/meanwhile.test.mjs]
 ---
 
 # Edit on two devices without losing either change
