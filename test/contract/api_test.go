@@ -205,6 +205,9 @@ func TestTheManifestsRevalidationIsTheSpecifiedOne(t *testing.T) {
 	}
 	first := read("")
 	tag := first.Header().Get("ETag")
+	if first.Code != http.StatusOK || tag == "" {
+		t.Fatalf("the first read answered %d with ETag %q", first.Code, tag)
+	}
 	again := read(tag)
 	if again.Code != http.StatusNotModified || again.Body.Len() != 0 || again.Header().Get("ETag") != tag {
 		t.Fatalf("revalidating with %q answered %d, %d bytes, ETag %q", tag, again.Code, again.Body.Len(), again.Header().Get("ETag"))
