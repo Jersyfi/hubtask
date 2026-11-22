@@ -51,9 +51,10 @@ foot loads more.
 6. At 1280×900 the list's tools stand above it in words - the query's pieces, *View* (filter,
    fields, grouping, order and the saved views in one panel), the density, *Select entries* - not
    as bare marks.
-7. At 390×844 a row swiped to the right is completed (at L1 and L2 carried to the next column or
-   along the first step), swiped to the left opens its menu; the menu offers the same act, and a
-   line under the list says so.
+7. At 390×844 a row swiped to the right takes the row mark's step - it is completed, on a board
+   into its done column, and under a workflow it takes the next step towards done (owner's decision
+   of 2026-11-22) -, swiped to the left opens its menu; the menu offers the same act, and a line
+   under the list says so.
 8. A list longer than one page ends in a control that loads more at its foot; there are no page
    numbers.
 9. A handler opens a queue: its table shows key, request, type, requester, priority, the SLA as a
