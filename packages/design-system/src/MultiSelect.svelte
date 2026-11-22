@@ -380,7 +380,7 @@
       data-readonly={isReadOnly ? '' : undefined}
       aria-haspopup="listbox"
       aria-expanded={isOpen}
-      aria-controls={isOpen ? listId : undefined}
+      aria-controls={isOpen && flat.length > 0 ? listId : undefined}
       aria-labelledby={`${nameId} ${valueId}`}
       aria-describedby={describedBy}
       onclick={() => (isOpen ? void done() : void open())}
@@ -439,34 +439,40 @@
             {/if}
           </div>
         {/if}
-        {#if flat.length === 0}
-          <p class="empty">{noMatchLabel}</p>
-        {:else}
-          <div
-            class="list"
-            role="listbox"
-            id={listId}
-            aria-multiselectable="true"
-            aria-labelledby={nameId}
-            tabindex="-1"
-            bind:this={list}
-          >
-            {#each shown as section, at (section.label ?? `#${at}`)}
-              {#if section.label !== undefined}
-                <div class="section" role="group" aria-labelledby={`${uid}-heading-${at}`}>
-                  <span class="heading" id={`${uid}-heading-${at}`} role="presentation">{section.label}</span>
+        <div class="body">
+          {#if isFilterable}
+            <!-- Stands while the list is open, so that the sentence is heard when a filter empties it. -->
+            <div role="status">{#if flat.length === 0}<p class="empty">{noMatchLabel}</p>{/if}</div>
+          {/if}
+          {#if flat.length > 0}
+            <div
+              class="list"
+              role="listbox"
+              id={listId}
+              aria-multiselectable="true"
+              aria-labelledby={nameId}
+              tabindex="-1"
+              bind:this={list}
+            >
+              {#each shown as section, at (section.label ?? `#${at}`)}
+                {#if section.label !== undefined}
+                  <div class="section" role="group" aria-labelledby={`${uid}-heading-${at}`}>
+                    <span class="heading" id={`${uid}-heading-${at}`} role="presentation">{section.label}</span>
+                    {#each section.options as option, position (option.value)}{@render row(option, (starts[at] ?? 0) + position)}{/each}
+                  </div>
+                {:else}
                   {#each section.options as option, position (option.value)}{@render row(option, (starts[at] ?? 0) + position)}{/each}
-                </div>
-              {:else}
-                {#each section.options as option, position (option.value)}{@render row(option, (starts[at] ?? 0) + position)}{/each}
-              {/if}
-            {/each}
-          </div>
-        {/if}
+                {/if}
+              {/each}
+            </div>
+          {/if}
+        </div>
         {#if isFilterable && !isReadOnly}
           <div class="foot" bind:this={footBox}>
-            <Button tone="subtle" size="sm" onclick={chooseAll}>{allLabel}</Button>
-            <Button tone="subtle" size="sm" onclick={chooseNone}>{noneLabel}</Button>
+            {#if flat.length > 0}
+              <Button tone="subtle" size="sm" onclick={chooseAll}>{allLabel}</Button>
+              <Button tone="subtle" size="sm" onclick={chooseNone}>{noneLabel}</Button>
+            {/if}
             {#if countLabel}<span class="count" dir="auto">{countLabel(chosenCount, all.length)}</span>{/if}
           </div>
         {/if}
@@ -595,6 +601,9 @@
     color: var(--text-secondary);
     font-size: var(--fs-075);
   }
+
+  /* The status and the list, with no gap for a status that says nothing. */
+  .body { display: flex; flex-direction: column; min-inline-size: 0; }
 
   .list { display: flex; flex-direction: column; gap: var(--sp-025); outline: none; }
 

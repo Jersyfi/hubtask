@@ -282,6 +282,14 @@ for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
       await filter.fill('zzz');
       await page.getByText('No field matches this filter.').waitFor();
       assert.equal(await list(page).count(), 0, 'an empty listbox is left standing');
+      // Nothing left to act on: the field controls no absent list, All and None are gone, and the
+      // sentence is said where a reader hears it arrive.
+      const controls = await field(page).getAttribute('aria-controls');
+      assert.ok(controls === null || (await page.locator(`[id="${controls}"]`).count()) === 1, `the field controls ${controls}, which is not in the page`);
+      for (const name of ['All', 'None']) assert.equal(await page.getByRole('button', { name, exact: true }).count(), 0, `${name} stays with nothing to act on`);
+      assert.match(await page.getByRole('status').filter({ hasText: 'No field matches' }).textContent(), /No field matches this filter\./, 'the sentence is not in a live region');
+      await filter.fill('');
+      assert.equal(await page.getByRole('button', { name: 'All', exact: true }).count(), 1, 'All does not come back with the options');
       await page.keyboard.press('Escape');
       await page.setViewportSize({ width: 1280, height: 860 });
 
