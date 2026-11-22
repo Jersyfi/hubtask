@@ -80,7 +80,9 @@ type operation struct {
 // response is one answer an operation declares: a schema per media type, or a $ref to one declared
 // once under components.responses.
 type response struct {
-	Ref     string `yaml:"$ref"`
+	Ref string `yaml:"$ref"`
+	// Headers are the response headers the answer declares, by name.
+	Headers map[string]yaml.Node `yaml:"headers"`
 	Content map[string]struct {
 		Schema *schema `yaml:"schema"`
 	} `yaml:"content"`

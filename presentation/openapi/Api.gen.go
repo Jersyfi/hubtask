@@ -31399,6 +31399,12 @@ type RevokeMembershipParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// GetCapabilitiesParams defines parameters for GetCapabilities.
+type GetCapabilitiesParams struct {
+	// IfNoneMatch The `ETag` of the manifest the client holds. Where it is still this caller's answer, the server answers `304` without a body.
+	IfNoneMatch *string `json:"If-None-Match,omitempty"`
+}
+
 // RegisterOauthClientParams defines parameters for RegisterOauthClient.
 type RegisterOauthClientParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -35864,7 +35870,7 @@ type ServerInterface interface {
 	RevokeMembership(w http.ResponseWriter, r *http.Request, membershipId MembershipId, params RevokeMembershipParams)
 	// GetCapabilities Self-description of the installation
 	// (GET /meta/capabilities)
-	GetCapabilities(w http.ResponseWriter, r *http.Request)
+	GetCapabilities(w http.ResponseWriter, r *http.Request, params GetCapabilitiesParams)
 	// ReadConfigSchema The configuration document's JSON Schema
 	// (GET /meta/config-schema)
 	ReadConfigSchema(w http.ResponseWriter, r *http.Request)
@@ -57353,8 +57359,35 @@ func (siw *ServerInterfaceWrapper) RevokeMembership(w http.ResponseWriter, r *ht
 // GetCapabilities operation middleware
 func (siw *ServerInterfaceWrapper) GetCapabilities(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetCapabilitiesParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-None-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-None-Match")]; found {
+		var IfNoneMatch string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-None-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-None-Match", valueList[0], &IfNoneMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-None-Match", Err: err})
+			return
+		}
+
+		params.IfNoneMatch = &IfNoneMatch
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetCapabilities(w, r)
+		siw.Handler.GetCapabilities(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {

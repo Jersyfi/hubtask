@@ -4,10 +4,14 @@
 package rest
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	usecase "github.com/Jersyfi/hubtask/core/application/service/meta"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -38,7 +42,7 @@ type MetaDoor struct {
 // system-defined profiles alone. A caller that did present a credential sees its tenant's
 // overrides where it has any - the same endpoint, a different answer, decided by the scope the
 // use case opens rather than by a branch here.
-func (c *MetaDoor) GetCapabilities(w http.ResponseWriter, r *http.Request) {
+func (c *MetaDoor) GetCapabilities(w http.ResponseWriter, r *http.Request, params openapi.GetCapabilitiesParams) {
 	requestID := correlation.RequestIDFrom(r.Context())
 
 	if c.Capabilities == nil {
@@ -55,7 +59,45 @@ func (c *MetaDoor) GetCapabilities(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, r, http.StatusOK, capabilityManifest(capabilities))
+	writeRevalidated(w, r, capabilityManifest(capabilities), params.IfNoneMatch)
+}
+
+// writeRevalidated answers the manifest with a strong tag over its encoded bytes, and 304 without a
+// body where the client already holds that tag. Still no-store: the answer is the caller's, and a
+// copy in the browser's cache would outlive a sign-out (UC-SYN-01/8). The client keeps its copy
+// itself and asks with its tag; the server builds the whole answer either way.
+func writeRevalidated(w http.ResponseWriter, r *http.Request, body any, ifNoneMatch *string) {
+	var encoded bytes.Buffer
+	if err := json.NewEncoder(&encoded).Encode(body); err != nil {
+		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
+		return
+	}
+	sum := sha256.Sum256(encoded.Bytes())
+	tag := `"` + base64.RawURLEncoding.EncodeToString(sum[:]) + `"`
+
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("ETag", tag)
+	if ifNoneMatch != nil && noneMatchHolds(*ifNoneMatch, tag) {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write(encoded.Bytes()); err != nil {
+		slog.WarnContext(r.Context(), "writing the response body failed",
+			slog.String("error", err.Error()))
+	}
+}
+
+// noneMatchHolds is If-None-Match's weak comparison (RFC 9110 §13.1.2): any listed tag, or `*`.
+func noneMatchHolds(header, tag string) bool {
+	for _, candidate := range strings.Split(header, ",") {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "*" || strings.TrimPrefix(candidate, "W/") == tag {
+			return true
+		}
+	}
+	return false
 }
 
 // capabilityItemType is the anonymous struct the generator produced for one entry of item_types.

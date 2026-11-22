@@ -9081,14 +9081,39 @@ paths:
         Item types, capability profiles, field types, enum values, limits, supported locales,
         layout hints, automation triggers and actions, and event types.
         Clients configure themselves from this instead of hard-coding values.
+
+        The answer is the caller's: a signed-in caller reads their workspace's manifest, an
+        anonymous one the installation's. It is never stored (`Cache-Control: no-store`), and a
+        client that holds a copy asks again with that copy's `ETag` in `If-None-Match`: where the
+        manifest is unchanged the answer is `304` without a body. That saves the bytes on the
+        wire, not the building of the answer.
       security: []
+      parameters:
+        - name: If-None-Match
+          in: header
+          required: false
+          description: >
+            The `ETag` of the manifest the client holds. Where it is still this caller's answer,
+            the server answers `304` without a body.
+          schema: { type: string }
       responses:
         "200":
           description: The manifest
+          headers:
+            ETag:
+              description: >
+                A strong tag over the whole answer. Two callers share one only where their
+                answers are equal.
+              schema: { type: string }
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Capabilities"
+        "304":
+          description: The manifest the client holds is still this caller's answer; no body.
+          headers:
+            ETag:
+              schema: { type: string }
 
   /meta/health:
     get:

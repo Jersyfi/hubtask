@@ -1471,9 +1471,9 @@ class Client:
         """A data feed's rows"""
         return self._call("GET", "/odata/{token}/Entries", {"token": token}, query, {}, None, "none", None, "json")
 
-    def get_capabilities(self) -> "Capabilities":
+    def get_capabilities(self, *, if_none_match: str | None = None) -> "Capabilities":
         """Self-description of the installation"""
-        return self._call("GET", "/meta/capabilities", {}, None, {}, None, "none", None, "json")
+        return self._call("GET", "/meta/capabilities", {}, None, {"If-None-Match": if_none_match}, None, "none", None, "json")
 
     def get_health_report(self) -> "HealthReport":
         """Deep self-diagnosis of the installation"""

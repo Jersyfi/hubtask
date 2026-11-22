@@ -1836,8 +1836,8 @@ export class HubtaskClient {
 
   /** Self-description of the installation
    * Public: sent without a bearer where the client holds none. */
-  getCapabilities(options: CallOptions = {}): Promise<operations["getCapabilities"]['responses'][200]['content']["application/json"]> {
-    return this.call("GET", "/meta/capabilities", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  getCapabilities(options: CallOptions & { readonly ifNoneMatch?: string } = {}): Promise<operations["getCapabilities"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/meta/capabilities", {  }, undefined, { "If-None-Match": options.ifNoneMatch }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** Deep self-diagnosis of the installation */

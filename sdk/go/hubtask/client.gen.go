@@ -31405,6 +31405,12 @@ type RevokeMembershipParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// GetCapabilitiesParams defines parameters for GetCapabilities.
+type GetCapabilitiesParams struct {
+	// IfNoneMatch The `ETag` of the manifest the client holds. Where it is still this caller's answer, the server answers `304` without a body.
+	IfNoneMatch *string `json:"If-None-Match,omitempty"`
+}
+
 // RegisterOauthClientParams defines parameters for RegisterOauthClient.
 type RegisterOauthClientParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -42166,8 +42172,14 @@ type ClientInterface interface {
 	// layout hints, automation triggers and actions, and event types.
 	// Clients configure themselves from this instead of hard-coding values.
 	//
+	// The answer is the caller's: a signed-in caller reads their workspace's manifest, an
+	// anonymous one the installation's. It is never stored (`Cache-Control: no-store`), and a
+	// client that holds a copy asks again with that copy's `ETag` in `If-None-Match`: where the
+	// manifest is unchanged the answer is `304` without a body. That saves the bytes on the
+	// wire, not the building of the answer.
+	//
 	// Corresponds with GET /meta/capabilities (the `GetCapabilities` operationId).
-	GetCapabilities(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetCapabilities(ctx context.Context, params *GetCapabilitiesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadConfigSchema The configuration document's JSON Schema
 	//
@@ -62985,9 +62997,15 @@ func (c *Client) RevokeMembership(ctx context.Context, membershipId MembershipId
 // layout hints, automation triggers and actions, and event types.
 // Clients configure themselves from this instead of hard-coding values.
 //
+// The answer is the caller's: a signed-in caller reads their workspace's manifest, an
+// anonymous one the installation's. It is never stored (`Cache-Control: no-store`), and a
+// client that holds a copy asks again with that copy's `ETag` in `If-None-Match`: where the
+// manifest is unchanged the answer is `304` without a body. That saves the bytes on the
+// wire, not the building of the answer.
+//
 // Corresponds with GET /meta/capabilities (the `GetCapabilities` operationId).
-func (c *Client) GetCapabilities(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetCapabilitiesRequest(c.Server)
+func (c *Client) GetCapabilities(ctx context.Context, params *GetCapabilitiesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetCapabilitiesRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -99945,7 +99963,7 @@ func NewRevokeMembershipRequest(server string, membershipId MembershipId, params
 }
 
 // NewGetCapabilitiesRequest constructs an http.Request for the GetCapabilities method
-func NewGetCapabilitiesRequest(server string) (*http.Request, error) {
+func NewGetCapabilitiesRequest(server string, params *GetCapabilitiesParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -99966,6 +99984,21 @@ func NewGetCapabilitiesRequest(server string) (*http.Request, error) {
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfNoneMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-None-Match", *params.IfNoneMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-None-Match", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -122556,10 +122589,16 @@ type ClientWithResponsesInterface interface {
 	// layout hints, automation triggers and actions, and event types.
 	// Clients configure themselves from this instead of hard-coding values.
 	//
+	// The answer is the caller's: a signed-in caller reads their workspace's manifest, an
+	// anonymous one the installation's. It is never stored (`Cache-Control: no-store`), and a
+	// client that holds a copy asks again with that copy's `ETag` in `If-None-Match`: where the
+	// manifest is unchanged the answer is `304` without a body. That saves the bytes on the
+	// wire, not the building of the answer.
+	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /meta/capabilities (the `GetCapabilities` operationId).
-	GetCapabilitiesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetCapabilitiesResult, error)
+	GetCapabilitiesWithResponse(ctx context.Context, params *GetCapabilitiesParams, reqEditors ...RequestEditorFn) (*GetCapabilitiesResult, error)
 
 	// ReadConfigSchemaWithResponse The configuration document's JSON Schema
 	//
@@ -156148,11 +156187,25 @@ func (r RevokeMembershipResult) ContentType() string {
 	return ""
 }
 
+// GetCapabilitiesResult200Headers the declared response headers of an HTTP 200 response for GetCapabilities
+type GetCapabilitiesResult200Headers struct {
+	ETag *string
+}
+
+// GetCapabilitiesResult304Headers the declared response headers of an HTTP 304 response for GetCapabilities
+type GetCapabilitiesResult304Headers struct {
+	ETag *string
+}
+
 type GetCapabilitiesResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
 	JSON200 *Capabilities
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *GetCapabilitiesResult200Headers
+	// Headers304 the parsed response headers for an HTTP 304 response
+	Headers304 *GetCapabilitiesResult304Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -184737,11 +184790,17 @@ func (c *ClientWithResponses) RevokeMembershipWithResponse(ctx context.Context, 
 // layout hints, automation triggers and actions, and event types.
 // Clients configure themselves from this instead of hard-coding values.
 //
+// The answer is the caller's: a signed-in caller reads their workspace's manifest, an
+// anonymous one the installation's. It is never stored (`Cache-Control: no-store`), and a
+// client that holds a copy asks again with that copy's `ETag` in `If-None-Match`: where the
+// manifest is unchanged the answer is `304` without a body. That saves the bytes on the
+// wire, not the building of the answer.
+//
 // Returns a wrapper object for the known response body format(s).
 //
 // Corresponds with GET /meta/capabilities (the `GetCapabilities` operationId).
-func (c *ClientWithResponses) GetCapabilitiesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetCapabilitiesResult, error) {
-	rsp, err := c.GetCapabilities(ctx, reqEditors...)
+func (c *ClientWithResponses) GetCapabilitiesWithResponse(ctx context.Context, params *GetCapabilitiesParams, reqEditors ...RequestEditorFn) (*GetCapabilitiesResult, error) {
+	rsp, err := c.GetCapabilities(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -212509,6 +212568,32 @@ func ParseGetCapabilitiesResult(rsp *http.Response) (*GetCapabilitiesResult, err
 		}
 		response.JSON200 = &dest
 
+	case rsp.StatusCode == 304:
+		break // No content-type
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers GetCapabilitiesResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
+	case rsp.StatusCode == 304:
+		var headers GetCapabilitiesResult304Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers304 = &headers
 	}
 
 	return response, nil

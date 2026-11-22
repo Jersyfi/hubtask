@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"testing"
 
 	usecase "github.com/Jersyfi/hubtask/core/application/service/meta"
@@ -21,6 +22,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
+	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/i18n"
 )
 
@@ -644,5 +646,104 @@ func TestTheManifestPublishesWhetherAPrivateHubOfOnesOwnIsOffered(t *testing.T) 
 				t.Errorf("private_hub_offered %s, want %s", got, test.want)
 			}
 		})
+	}
+}
+
+// readCapabilities asks once more, as a client holding a copy does: with the tag it holds.
+func readCapabilities(t *testing.T, reader CapabilityReader, ifNoneMatch string) *httptest.ResponseRecorder {
+	t.Helper()
+	controller := NewRestController()
+	controller.Meta = &MetaDoor{Capabilities: reader}
+
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, APIBasePath+"/meta/capabilities", nil)
+	if ifNoneMatch != "" {
+		r.Header.Set("If-None-Match", ifNoneMatch)
+	}
+	response := httptest.NewRecorder()
+	controller.Routes().ServeHTTP(response, r)
+	return response
+}
+
+// The manifest is revalidated, never stored: a strong tag over the whole answer, a 304 without a
+// body where the client holds it, and no-store on both, since a stored copy of a caller's answer
+// would outlive a sign-out (UC-SYN-01/8).
+func TestTheManifestIsRevalidatedAndNeverStored(t *testing.T) {
+	reader := &capabilities{result: manifest()}
+	first := readCapabilities(t, reader, "")
+	tag := first.Header().Get("ETag")
+	if first.Code != http.StatusOK || !strings.HasPrefix(tag, `"`) || !strings.HasSuffix(tag, `"`) || len(tag) < 3 {
+		t.Fatalf("status %d, ETag %q", first.Code, tag)
+	}
+	if got := first.Header().Get("Cache-Control"); got != "no-store" {
+		t.Errorf("200 Cache-Control %q, want no-store", got)
+	}
+
+	// Two reads by one caller give one tag: nothing in the answer is ordered by chance.
+	second := readCapabilities(t, reader, "")
+	if again := second.Header().Get("ETag"); again != tag || second.Body.String() != first.Body.String() {
+		t.Errorf("a second read tagged %q, the first %q", again, tag)
+	}
+
+	for _, held := range []string{tag, "W/" + tag, `"other", ` + tag, "*"} {
+		unchanged := readCapabilities(t, reader, held)
+		if unchanged.Code != http.StatusNotModified {
+			t.Fatalf("If-None-Match %s answered %d, want 304", held, unchanged.Code)
+		}
+		if unchanged.Body.Len() != 0 {
+			t.Errorf("a 304 carried a body of %d bytes", unchanged.Body.Len())
+		}
+		if got := unchanged.Header().Get("Cache-Control"); got != "no-store" {
+			t.Errorf("304 Cache-Control %q, want no-store", got)
+		}
+		if got := unchanged.Header().Get("ETag"); got != tag {
+			t.Errorf("304 ETag %q, want %q", got, tag)
+		}
+	}
+
+	if stale := readCapabilities(t, reader, `"not-this-one"`); stale.Code != http.StatusOK || stale.Body.Len() == 0 {
+		t.Errorf("a tag the caller's answer does not carry answered %d with %d bytes", stale.Code, stale.Body.Len())
+	}
+}
+
+// The tag covers the caller's whole answer: a caller whose answer differs - another set of
+// permissions here - gets another tag, and the first caller's tag answers that caller in full.
+func TestACallerWithAnotherAnswerGetsAnotherTag(t *testing.T) {
+	member := manifest()
+	member.WorkspacePermissions = []service.Permission{service.PermissionRead}
+	administrator := manifest()
+	administrator.WorkspacePermissions = []service.Permission{service.PermissionRead, service.PermissionStructure}
+
+	memberTag := readCapabilities(t, &capabilities{result: member}, "").Header().Get("ETag")
+	administratorRead := readCapabilities(t, &capabilities{result: administrator}, memberTag)
+	if administratorRead.Code != http.StatusOK {
+		t.Fatalf("the member's tag answered the administrator %d, want 200", administratorRead.Code)
+	}
+	if got := administratorRead.Header().Get("ETag"); got == memberTag {
+		t.Errorf("two answers share the tag %q", got)
+	}
+}
+
+// A stale bearer on this public route is still refused, whatever tag it brings: the revalidation
+// is answered behind the authentication, never in front of it.
+func TestAStaleBearerIsRefusedWhateverTagItHolds(t *testing.T) {
+	reader := &capabilities{result: manifest()}
+	tag := readCapabilities(t, reader, "").Header().Get("ETag")
+
+	controller := NewRestController()
+	controller.Meta = &MetaDoor{Capabilities: reader}
+	routes := controller.Routes()
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, APIBasePath+"/meta/capabilities", nil)
+	r.Header.Set("Authorization", "Bearer "+credential)
+	r.Header.Set("If-None-Match", tag)
+	response := httptest.NewRecorder()
+	Authenticated{
+		Routes:        routes,
+		Authenticator: &authenticator{err: shared.ErrUnauthenticated.WithDetail("access.token_revoked")},
+		Locale:        env.LocaleConfig{DefaultLocale: "en", DefaultTimeZone: "UTC"},
+		Next:          routes,
+	}.ServeHTTP(response, r)
+
+	if response.Code != http.StatusUnauthorized {
+		t.Errorf("a stale bearer holding the tag answered %d, want 401", response.Code)
 	}
 }

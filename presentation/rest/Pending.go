@@ -1248,7 +1248,9 @@ func (pending) DuplicateWorkItem(w http.ResponseWriter, r *http.Request, _ opena
 	notAvailable(w, r)
 }
 
-func (pending) GetCapabilities(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) GetCapabilities(w http.ResponseWriter, r *http.Request, _ openapi.GetCapabilitiesParams) {
+	notAvailable(w, r)
+}
 
 func (pending) GetHealthReport(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
