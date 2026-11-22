@@ -37,7 +37,10 @@ reaches into a private hub the person is not a member of.
 Any person may create a private hub **for themselves** where the workspace allows private hubs, and
 becomes its owner-member; they may add other members to it. A person who may already create hubs may
 also mark an existing hub they own private. Without this, a family member without an administrator's
-role — the one who needs privacy most — could not have one.
+role — the one who needs privacy most — could not have one. A private hub made from a template asks
+the right to create hubs as any hub from a template does: a template also shapes the workspace
+(owner's decision of 2026-11-22, [UC-ID-16](../usecases/identity/UC-ID-16-keep-a-hub-private.md)
+check 9).
 
 ### 3. What administrators see
 

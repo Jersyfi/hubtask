@@ -927,6 +927,7 @@ built the path, and resolves every role in the product (`test/architecture`,
 | Act | Who | Answer otherwise |
 |---|---|---|
 | Create a private hub (`private: true`) | a person (`USER`) holding any role anywhere in the workspace, with `containers:write`; no `STRUCTURE`. The creator is granted `OWNER` on it in the same transaction, audited as `membership.granted` | `access.not_permitted` 403 for a service account or somebody holding nothing; `containers.private_only_hubs` 422 on a collection |
+| Create a private hub from a template (`POST /containers:from-template`, `private: true`) | a person holding `STRUCTURE` on the workspace, as for a shared hub from a template - holding only the right above does not suffice; then as above. All asked before the transaction ([configuration.md](./configuration.md) §6) | `access.not_permitted` 403; `containers.private_hubs_off` 403 |
 | Make an existing hub private | `STRUCTURE` on the workspace **and** `OWNER` held on the hub itself | `access.not_permitted` 403; not found for a hub the actor cannot see |
 | Share it again | `OWNER` held on the hub itself | the same |
 | Anything in a private hub the actor holds nothing in | nobody | `containers.not_found` / `items.not_found` 404, as for a hub that is not there (T-04) |
