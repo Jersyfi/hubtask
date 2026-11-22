@@ -15,6 +15,7 @@ import (
 	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	work "github.com/Jersyfi/hubtask/core/domain/model/work"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
@@ -46,8 +47,9 @@ func TestTheOwnersRedemptionNamesTheSeedInTheOwnersLanguage(t *testing.T) {
 	provisioning := adminservice.ProvisionTenant{
 		Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(pageCursors()),
 		Accounts: postgres.NewAccountRepository(), Redemption: signIn,
-		Grants:     postgres.NewMembershipGrantRepository(pageCursors()),
-		Containers: containers, Buckets: buckets, Labels: labels,
+		Grants: postgres.NewMembershipGrantRepository(pageCursors()),
+		// Opened on the board, so the example collection has columns to rename.
+		Containers: containers, Buckets: buckets, Labels: labels, Structure: boardFirst{},
 		Events: events, Changes: changes, Audit: postgres.NewAuditSink(ids), Renderer: renderer,
 		Domains: textadapter.Domains{}, Text: text.Composing{},
 		UnitOfWork: uow, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
@@ -143,4 +145,13 @@ func TestTheOwnersRedemptionNamesTheSeedInTheOwnersLanguage(t *testing.T) {
 	if version := countIn(ctx, t, `SELECT version FROM container WHERE id = $1`, mine.DefaultHubID.String()); version != 2 {
 		t.Errorf("the hub is at version %d, want 2", version)
 	}
+}
+
+// boardFirst answers a structure that opens every collection on its board, as *Flow* does.
+type boardFirst struct{}
+
+func (boardFirst) InForce(context.Context, work.Container) (work.EffectiveStructure, error) {
+	return work.EffectiveStructure{Values: work.StructureValues{Views: &work.Views{
+		Offered: []work.ViewLayout{work.ViewKanban}, Default: work.ViewKanban,
+	}}}, nil
 }

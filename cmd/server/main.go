@@ -1944,7 +1944,7 @@ func run() error {
 		Tenants: postgres.NewAdminTenantRepository(), Plans: postgres.NewPlanRepository(),
 		Journal:  postgres.NewInstanceJournal(cursors),
 		Accounts: accounts, Redemption: signInStore, Grants: grants,
-		Containers: containers, Buckets: buckets, Labels: labels,
+		Containers: containers, Buckets: buckets, Labels: labels, Structure: structures,
 		Events: outbox, Changes: changes, Audit: auditSink, Renderer: renderer,
 		Domains: domains, Text: forms,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
