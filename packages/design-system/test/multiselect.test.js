@@ -179,7 +179,10 @@ test('an option is named by its label alone; its hint and its reason describe it
 });
 
 test('the inline ticks are the design system’s Checkbox, each its own stop', () => {
-  assert.match(source, /import Checkbox from '\.\/Checkbox\.svelte'/);
-  assert.match(markup, /<Checkbox/);
+  const ticks = fs.readFileSync(path.join(sourceDir, '_Ticks.svelte'), 'utf8');
+  assert.match(ticks, /import Checkbox from '\.\/Checkbox\.svelte'/);
+  assert.match(ticks, /<Checkbox/);
+  assert.match(source, /import Ticks from '\.\/_Ticks\.svelte'/);
+  assert.match(markup, /<Ticks /);
   assert.match(markup, /role="group"/);
 });

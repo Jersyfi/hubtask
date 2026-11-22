@@ -22,11 +22,11 @@
   import { tick } from 'svelte';
 
   import Button from './Button.svelte';
-  import Checkbox from './Checkbox.svelte';
   import Icon from './Icon.svelte';
   import Popover from './Popover.svelte';
   import Reason from './_Reason.svelte';
   import SearchField from './SearchField.svelte';
+  import Ticks from './_Ticks.svelte';
   import type { ControlSize, Disableable } from './control.ts';
   import { rovingIndex, typeAheadIndex } from './focus.ts';
   import {
@@ -439,19 +439,7 @@
 {/if}
 
 {#snippet ticks(list: readonly ChoiceOption[])}
-  <div class="ticks">
-    {#each list as option (option.value)}
-      <Checkbox
-        label={option.label}
-        hint={option.hint}
-        density={size}
-        disabledReason={option.disabledReason ?? disabledReason}
-        aria-invalid={error ? 'true' : undefined}
-        aria-errormessage={errorId}
-        bind:checked={() => selected.includes(option.value), () => emit(toggled(selected, option.value, all))}
-      />
-    {/each}
-  </div>
+  <Ticks options={list} {selected} onChange={emit} {disabledReason} {errorId} {size} />
 {/snippet}
 
 <style>
@@ -485,11 +473,6 @@
   }
 
   .required { margin-inline-start: var(--sp-025); color: var(--text-danger); }
-
-  /* The two arrangements the ticks had before this component: `md` is CheckboxGroup's, `sm` the
-     structure panel's denser rows. */
-  .ticks { display: flex; flex-wrap: wrap; gap: var(--sp-100) var(--sp-200); }
-  .inline[data-size='sm'] .ticks { gap: var(--sp-050) var(--sp-200); }
 
   .inline .section { display: flex; flex-direction: column; gap: var(--sp-050); }
 
