@@ -20,6 +20,7 @@ import {
   renameLevel,
   resetSetting,
   setValue,
+  startAnswered,
   startDraft,
   toggleLevel,
   typesTopDown,
@@ -179,10 +180,22 @@ test('a draft the reader changed is kept when the structure changes elsewhere', 
 
 test('a just-saved draft is not rolled back while the structure in force is still the one before the save', () => {
   const answered = { ...project, settings: { ...project.settings, celebration: 'SUBTLE' } } as unknown as EffectiveStructure;
-  const saved = startDraft(answered);
+  const saved = startAnswered(answered);
   // The panel's own reassignment, the container not refreshed yet: no upstream transition.
   assert.equal(followStructure(saved, project, undefined, project), saved);
   // The refresh arrives: the draft follows it.
   const refreshed = { ...answered } as EffectiveStructure;
   assert.equal(followStructure(saved, refreshed, undefined, project).from, refreshed);
+});
+
+test('an edit undone after a change elsewhere follows the structure in force', () => {
+  const changed = { ...project, settings: { ...project.settings, completion: 'MANUAL' } } as unknown as EffectiveStructure;
+  const edited = setValue(startDraft(project), 'celebration', 'SUBTLE');
+  // The change elsewhere arrives; the edit is kept, and the panel records what it saw.
+  const kept = followStructure(edited, changed, undefined, project);
+  assert.equal(kept, edited);
+  // The reader takes the edit back; the panel's own reassignment runs with the same structure seen.
+  const undone = setValue(kept, 'celebration', 'ALL');
+  const followed = followStructure(undone, changed, undefined, changed);
+  assert.equal(changeOf(followed, changed, undefined), undefined, "the change made elsewhere is not sent as the reader's");
 });

@@ -36,6 +36,8 @@ export interface Draft {
   readonly reset: readonly SettingName[];
   /** The structure in force when the draft was started; what the reader's own change is measured against. */
   readonly from?: EffectiveStructure;
+  /** Started from a save's answer the structure in force has not caught up with yet. */
+  readonly answered?: true;
 }
 
 /** The source of a value the container sets itself: a collection's own, or a hub's. */
@@ -57,16 +59,23 @@ export function startDraft(structure: EffectiveStructure): Draft {
   return { preset: undefined, values: cloneSettings(structure.settings), reset: [], from: structure };
 }
 
+/** The draft a save's answer starts, before the container's refresh brings it into force. */
+export function startAnswered(structure: EffectiveStructure): Draft {
+  return { ...startDraft(structure), answered: true };
+}
+
 /**
  * The draft once the structure in force changed while the panel is open - another tab, another
  * device, a template applied. A draft the reader has not changed starts again from it, so a change
  * made elsewhere is never counted as theirs; one they changed is kept, and the save's `If-Match`
- * refuses it if it is stale. `seen` is the structure in force at the last call: unchanged, the
- * draft was only reassigned - a save's answer before the container's refresh - and stays.
+ * refuses it if it is stale. `seen` is the structure in force at the last call: a save's answer
+ * stays while it is unchanged, since the container has not refreshed yet.
  */
 export function followStructure(draft: Draft, structure: EffectiveStructure, chosen: Preset | undefined, seen?: EffectiveStructure): Draft {
-  if (draft.from === undefined || draft.from === structure || seen === structure) return draft;
-  return changeOf(draft, draft.from, chosen) === undefined ? startDraft(structure) : draft;
+  if (draft.from === undefined || draft.from === structure) return draft;
+  if (draft.answered && seen === structure) return draft;
+  if (changeOf(draft, draft.from, chosen) === undefined) return startDraft(structure);
+  return draft.answered ? { ...draft, answered: undefined } : draft;
 }
 
 /**

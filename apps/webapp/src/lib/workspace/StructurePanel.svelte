@@ -63,6 +63,7 @@
     chooseFieldsOf,
     setValue,
     startDraft,
+    startAnswered,
     followStructure,
     toggleLevel,
     typesTopDown,
@@ -539,7 +540,7 @@
 
   async function write(change: StructureChange) {
     const answered = await containers.setStructure(container.id, change, container.version);
-    if (answered.structure) draft = startDraft(answered.structure);
+    if (answered.structure) draft = startAnswered(answered.structure);
     const kept = answered.kept_by_lock ?? [];
     announcer.say(t('app.structure.saved_announced'));
     if (kept.length > 0) toast.show({ text: t('app.structure.kept_by_lock', { count: String(kept.length) }) });
