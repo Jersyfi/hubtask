@@ -47,7 +47,8 @@
     titleLabel: string;
     /** *Edit title*: given with `onrename`, the title is edited in place. */
     editTitleLabel?: string;
-    onrename?: (title: string) => void;
+    /** With the new title, the one the field opened with: what the person began from. */
+    onrename?: (title: string, opened: string) => void;
     /** The `StatusButton`, or a `StateLozenge` where the state is not the reader's to change. */
     status?: Snippet;
     /** The next step, the head's one primary act. */
@@ -101,6 +102,7 @@
 
   let isEditing = $state(false);
   let draft = $state('');
+  let opened = '';
   let field = $state<HTMLInputElement | null>(null);
   let editButton = $state<HTMLElement | null>(null);
 
@@ -109,6 +111,7 @@
   function startEditing() {
     if (!canEdit) return;
     draft = title;
+    opened = title;
     isEditing = true;
   }
 
@@ -116,7 +119,7 @@
     if (!isEditing) return;
     isEditing = false;
     const next = draft.trim();
-    if (isSaved && next !== '' && next !== title) onrename?.(next);
+    if (isSaved && next !== '' && next !== title) onrename?.(next, opened);
     queueMicrotask(() => editButton?.querySelector('button')?.focus());
   }
 
