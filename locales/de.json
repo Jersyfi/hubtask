@@ -2162,7 +2162,7 @@
   "config.egress_private_networks_allowed": "Ausgehende Aufrufe in private Netze sind erlaubt. Ein Webhook-Ziel kann Dienste in deinem Netz erreichen.",
   "config.smtp_without_tls": "SMTP zu {host} ist ohne TLS eingerichtet. Zugangsdaten gehen unverschlüsselt über die Leitung.",
   "config.restore_drill_record_unreadable": "Der Nachweis der Wiederherstellungsprobe {path} ist nicht lesbar. Es ist keine Probe verzeichnet, darum meldet sich der Alarm über eine veraltete Probe nie.",
-  "config.storage_cors_missing": "Der Bucket {bucket} lehnt das Hochladen aus dem Browser von {origin} ab (geprüft {checked_at}): Dateien anhängen schlägt im Browser fehl. Setze seine CORS-Regel mit: hubtask storage cors apply",
+  "config.storage_cors_missing": "Der Bucket {bucket} lehnt das Hochladen aus dem Browser von {origin} ab (geprüft {checked_at}; jeder Serverprozess fragt alle {minutes} Minuten erneut): Dateien anhängen schlägt im Browser fehl. Setze seine CORS-Regel mit: hubtask storage cors apply",
   "admin.tenant_not_found": "Diesen Workspace gibt es nicht.",
   "admin.operator_required": "Dieses Konto ist kein Betreiber dieser Installation.",
   "admin.operator_incomplete": "Nenne das Konto, das Betreiber werden soll.",

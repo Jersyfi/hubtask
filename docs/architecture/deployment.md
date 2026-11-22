@@ -342,7 +342,9 @@ With `HUBTASK_STORAGE_KIND=s3` the browser uploads straight to the bucket, so th
 CORS rule. Hubtask checks it: every process asks the bucket what a browser asks - an unsigned
 `OPTIONS` with the interface's `Origin`, `PUT` and `content-type` - at start and then every
 15 minutes, and while the bucket refuses, `/meta/health` warns `config.storage_cors_missing`
-with the bucket, the refused origin and when it was checked. A bucket that does not answer is not
+with the bucket, the refused origin, when it was checked and how often it is asked again. Each
+process holds its own answer, so behind several replicas one may warn a little longer than
+another. A bucket that does not answer is not
 a missing rule; the storage probe reports it. The origins asked are `HUBTASK_BASE_URL`'s, and in
 multi mode with `HUBTASK_WORKSPACE_HOSTS=subdomain` also one workspace's, `https://hubtask-cors-check.<base host>`.
 With `assigned` hosts only the base origin is asked: each assigned host is an origin of its own

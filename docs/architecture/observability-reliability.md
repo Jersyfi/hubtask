@@ -157,7 +157,7 @@ installation is missing, each a code with a severity, never free text (`Warnings
 `infrastructure/environment/EnvConfig.go`).
 
 With object storage the report also warns `config.storage_cors_missing` (bucket, origin,
-`checked_at`) while the bucket refuses the browser's upload from the interface's origin: asked in
+`checked_at`, and `minutes`, the interval of the next check) while the bucket refuses the browser's upload from the interface's origin: asked in
 the background at start and every 15 minutes, served from the last answer, never dialled by the
 report itself ([deployment.md](./deployment.md) §6.1).
 

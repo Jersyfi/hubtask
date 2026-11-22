@@ -5,6 +5,7 @@ package storage
 
 import (
 	"context"
+	"strconv"
 	"sync"
 	"time"
 
@@ -109,6 +110,7 @@ func (w *CORSWatch) Warnings(context.Context) []health.Warning {
 				"bucket":     w.bucket,
 				"origin":     origin,
 				"checked_at": answer.checkedAt.UTC().Format(time.RFC3339),
+				"minutes":    strconv.Itoa(int(CORSCheckEvery / time.Minute)),
 			},
 		})
 	}

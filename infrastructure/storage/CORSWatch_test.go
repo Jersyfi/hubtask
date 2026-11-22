@@ -28,8 +28,9 @@ func (b *countingBucket) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // UC-INS-17 check 6: a bucket that refuses the browser's upload is named in the health report with
-// the origin and when it was checked - the Clock's time - and once the rule is set the warning
-// is gone with the next check, which runs every CORSCheckEvery. Reading the report never dials.
+// the origin, when it was checked - the Clock's time - and how often it is asked again; once the
+// rule is set the warning is gone with the next check, which runs every CORSCheckEvery. Reading
+// the report never dials.
 func TestTheBucketCORSWarningIsServedFromTheLastCheck(t *testing.T) {
 	if CORSCheckEvery != 15*time.Minute {
 		t.Fatalf("CORSCheckEvery = %v; deployment.md §6.1 and the apply command name 15 minutes", CORSCheckEvery)
@@ -53,7 +54,8 @@ func TestTheBucketCORSWarningIsServedFromTheLastCheck(t *testing.T) {
 		if len(got) != 1 || got[0].Code != CORSMissingCode || got[0].Severity != "warn" ||
 			got[0].Params["bucket"] != "hubtask-media" ||
 			got[0].Params["origin"] != "https://tasks.example.org" ||
-			got[0].Params["checked_at"] != "2026-11-22T09:30:00Z" {
+			got[0].Params["checked_at"] != "2026-11-22T09:30:00Z" ||
+			got[0].Params["minutes"] != "15" {
 			t.Fatalf("warnings = %+v", got)
 		}
 	}
