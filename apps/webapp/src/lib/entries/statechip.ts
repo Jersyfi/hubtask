@@ -121,18 +121,20 @@ function towardsDone(workflow: WorkflowShape, from: string) {
 }
 
 /**
- * The mark of one entry: at L0, L1 and while a workflow is paused it completes or reopens; at L2 it
- * takes the next step towards done, and out of a done status the first step out. Undefined where no
- * step leads on - the mark is drawn, not pressable.
+ * The mark of one entry: at L0 and L1 it completes or reopens; at L2 it takes the next step towards
+ * done, and out of a done status the first step out. While a workflow is paused (`'paused'`) it
+ * completes, and a completed entry has no step back. Undefined where no step leads on - the mark is
+ * drawn, not pressable.
  */
 export function markOf(
   level: StateMode | undefined,
   entry: Entry,
-  workflow: WorkflowShape | undefined,
+  workflow: WorkflowShape | 'paused' | undefined,
   stepName: Names['stepName'],
 ): Mark | undefined {
   const isCompleted = entry.completion?.is_completed ?? false;
-  if (level !== 'WORKFLOW' || !workflow) return { kind: isCompleted ? 'reopen' : 'complete' };
+  if (level === 'WORKFLOW' && workflow === 'paused') return isCompleted ? undefined : { kind: 'complete' };
+  if (level !== 'WORKFLOW' || !workflow || workflow === 'paused') return { kind: isCompleted ? 'reopen' : 'complete' };
   const from = entry.status ?? workflow.initial ?? '';
   const category = (key: string) => workflow.statuses.find((status) => status.key === key)?.category;
   const step = category(from) === 'DONE' ? stepsOut(workflow, from)[0] : towardsDone(workflow, from);

@@ -175,6 +175,35 @@ test('chromium: L2 with Workflows off - the chip says the workflow is paused, th
   assert.equal(written.filter((each) => each.path.endsWith(':step') || each.path.endsWith(':drop')).length, 0, 'a module door was asked');
 });
 
+// The approved design: under a paused workflow a completed entry has no step back - its mark on the
+// row and on the card is drawn, not pressable (its edge broken), with the reason, and sends nothing.
+test('chromium: L2 with Workflows off - a completed entry\'s mark on the row and the card has no step back', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, written, context } = await at(browser, 'WORKFLOW', { workflowsOn: false });
+  t.after(() => context.close());
+  const done = ITEMS[4];
+  for (const view of ['List', 'Board']) {
+    if (view === 'Board') {
+      // The done column stands folded; the person opens it to see the completed card.
+      await chooseView(page, 'Board');
+      await page.locator(`[data-column-zone="${BUCKETS[2].id}"]`).getByRole('button', { expanded: false }).first().click();
+    }
+    const place = view === 'List' ? page.locator(`[data-row="${done.id}"]`) : page.locator(`[data-card="${done.id}"]`);
+    const mark = place.getByRole('checkbox', { name: `Mark ${done.title} as not done` });
+    await mark.waitFor({ timeout: 15_000 });
+    assert.equal(await mark.getAttribute('aria-checked'), 'true', `${view}: the mark is not ticked`);
+    assert.equal(await mark.getAttribute('aria-disabled'), 'true', `${view}: the mark reopens under a paused workflow`);
+    const reason = await mark.evaluate((node) => (node.getAttribute('aria-describedby') ?? '').split(' ').map((id) => document.getElementById(id)?.textContent ?? '').join(' '));
+    assert.match(reason, /No step leads back while the workflow is paused/, `${view}: the mark does not say why`);
+    assert.equal(await mark.evaluate((node) => getComputedStyle(node).borderTopStyle), 'dashed', `${view}: the edge is not broken`);
+    await mark.click({ force: true });
+  }
+  // Back to the list, which the person sees drawn: a reopen the presses sent has left by then.
+  await chooseView(page, 'List');
+  await page.locator(`[data-row="${done.id}"]`).waitFor({ timeout: 15_000 });
+  assert.equal(written.filter((each) => each.path.endsWith(':reopen')).length, 0, 'a press reopened the entry');
+});
+
 // A thumb's target (user-experience.md §7): on a phone the status chip, drawn small, takes a press
 // across layout.target (44 px) each way.
 test('chromium: L2 - at 375 px the status chip of a row takes a 44 px press', async (t) => {

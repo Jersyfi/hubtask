@@ -459,6 +459,28 @@ test('chromium: a workflow paused with Workflows off says so, and Done asks the 
   }
 });
 
+// The approved design: completed under a paused workflow, the head offers no step back and says so,
+// as the row's and the card's mark do.
+test('chromium: completed under a paused workflow, the head offers no step and says none leads back', { timeout: 60_000 }, async () => {
+  const written = [];
+  const extra = (read, method) => {
+    if (method === 'GET' && read === `/containers/${ENTRY.collection_id}`) return { ...COLLECTION, state_mode: 'WORKFLOW', state_modes: { task: 'WORKFLOW' } };
+    if (method === 'GET' && read === `/items/${ENTRY.id}`) return { ...ENTRY, status: 'resolved', completion: { is_completed: true, completed_at: '2026-11-20T09:00:00Z', completed_by: ACCOUNT.id } };
+    if (method === 'POST') written.push(read);
+    return undefined;
+  };
+  const { page, close } = await open(1280, { runs: false, extra });
+  try {
+    const head = page.locator('[data-tour="entry"]');
+    await page.locator('[data-steps]').waitFor({ timeout: 10_000 });
+    assert.equal((await head.locator('[data-no-step-back]').textContent())?.trim(), 'No step leads back while the workflow is paused.');
+    assert.equal(await head.getByRole('button', { name: /^(Reopen|Done)$/ }).count(), 0, 'the head offers a step under a paused workflow');
+    assert.deepEqual(written.filter((each) => each.endsWith(':reopen') || each.endsWith(':complete')), []);
+  } finally {
+    await close();
+  }
+});
+
 test('chromium: jump marks with counts, the conversation opens on All (UC-WRK-44/2, /3)', { timeout: 60_000 }, async () => {
   const { page, close } = await open(1280, { runs: false });
   try {

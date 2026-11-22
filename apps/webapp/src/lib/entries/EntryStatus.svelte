@@ -284,8 +284,8 @@
       : undefined;
     if (other) second = { label: other.label, disabledReason: reason, onclick: () => choose(other) };
   });
-  /** Done under a workflow with no step out: said beside the state instead of a button. */
-  const isStuckInDone = $derived(Boolean(model && !model.byDefault && model.current.category === 'done' && !primary && disabledReason === undefined));
+  /** Done under a workflow with no step out, or paused: said beside the state instead of a button. */
+  const isStuckInDone = $derived(Boolean(model && (!model.byDefault || model.paused) && model.current.category === 'done' && !primary && disabledReason === undefined));
 
   const allowedNow = $derived(new Map((answer?.steps ?? []).filter((step) => step.allowed !== false).map((step) => [step.key, asksLine(step)])));
   const blockedNow = $derived(new Map((answer?.blocked ?? []).map((step) => [step.key, blockedReason(step)])));
@@ -313,7 +313,7 @@
       grabLabel={t('app.workflows.close')}
     />
   </span>
-  {#if isStuckInDone}<span class="no-way-back" data-no-step-back>{t('app.entries.no_step_back', { status: model.current.label })}</span>{/if}
+  {#if isStuckInDone}<span class="no-way-back" data-no-step-back>{model.paused ? t('app.entries.no_step_back_paused') : t('app.entries.no_step_back', { status: model.current.label })}</span>{/if}
   {#if refusal && !asking}
     <div class="refusal" role="alert">
       <p>{refusal.message}</p>

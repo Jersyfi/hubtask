@@ -75,11 +75,14 @@ test('the mark takes the next step towards done at L2 (UC-WRK-45 check 7, E5)', 
   assert.equal(markOf('WORKFLOW', { status: 'lost', completion: { is_completed: true } }, workflow, names.stepName), undefined, 'no step leads on');
 });
 
-test('a workflow paused with its module off: the chip says so and offers nothing; the mark completes', () => {
+// The approved design: a paused workflow's mark completes an open entry; a completed one has no step
+// back and is drawn, not pressable.
+test('a workflow paused with its module off: the chip says so and offers nothing; the mark completes, and has no step back', () => {
   const paused = { label: 'Workflow paused', reason: 'off here' };
   const chip = chipOf('WORKFLOW', { status: 'doing' }, columns, undefined, { ...names, paused });
   assert.equal(chip?.label, 'Workflow paused');
   assert.equal(chip?.pausedReason, 'off here');
   assert.deepEqual(chip?.choices, []);
-  assert.deepEqual(markOf('WORKFLOW', { status: 'doing' }, undefined, names.stepName), { kind: 'complete' });
+  assert.deepEqual(markOf('WORKFLOW', { status: 'doing' }, 'paused', names.stepName), { kind: 'complete' });
+  assert.equal(markOf('WORKFLOW', { status: 'sent', completion: { is_completed: true } }, 'paused', names.stepName), undefined, 'a paused done entry reopens');
 });

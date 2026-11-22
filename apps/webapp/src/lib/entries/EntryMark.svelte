@@ -24,10 +24,12 @@
     disabledReason?: string;
     /** Where the entry stands, for the reason a mark that leads nowhere gives. */
     stateLabel: string;
+    /** The entry's workflow is paused: a completed entry has no step back, and says so. */
+    isPaused?: boolean;
     onfailure?: (message: string) => void;
   }
 
-  const { item, mark, disabledReason, stateLabel, onfailure }: Props = $props();
+  const { item, mark, disabledReason, stateLabel, isPaused = false, onfailure }: Props = $props();
 
   const isCompleted = $derived(item.completion?.is_completed ?? false);
   const isStep = $derived(mark?.kind === 'step');
@@ -35,7 +37,7 @@
 
   const reason = $derived(
     disabledReason ??
-      (!mark ? t('app.entries.no_step_on', { status: stateLabel }) : isStep && live.state === 'offline' ? t('app.entries.steps_offline') : undefined),
+      (!mark ? (isPaused ? t('app.entries.no_step_back_paused') : t('app.entries.no_step_on', { status: stateLabel })) : isStep && live.state === 'offline' ? t('app.entries.steps_offline') : undefined),
   );
 
   async function press() {

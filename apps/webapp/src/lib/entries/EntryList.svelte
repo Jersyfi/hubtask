@@ -296,7 +296,7 @@
   /** What one press on a row's mark does (E5): completes, reopens, or takes the next step. */
   function markFor(entry: WorkItem): Mark | undefined {
     const { mode, shape } = levelFor(entry);
-    return markOf(entry.type === 'TASK' ? mode : undefined, entry, isWorkflowPaused ? undefined : shape, stepNameIn(shape));
+    return markOf(entry.type === 'TASK' ? mode : undefined, entry, isWorkflowPaused ? 'paused' : shape, stepNameIn(shape));
   }
   let isAllRowsShown = $state(false);
   /** Where `rowLimit` cuts the rows: before the first top-level row past the limit. */
@@ -1957,7 +1957,7 @@
         </span>
       {/snippet}
       {#snippet markCell()}
-        <EntryMark item={row.item} mark={markFor(row.item)} stateLabel={rowChipOf(row)?.label ?? ''} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} />
+        <EntryMark item={row.item} mark={markFor(row.item)} stateLabel={rowChipOf(row)?.label ?? ''} isPaused={rowChipOf(row)?.pausedReason !== undefined} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} />
       {/snippet}
       {#snippet chipCell()}
         {@const rowChip = rowChipOf(row)}
