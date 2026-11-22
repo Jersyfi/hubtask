@@ -102,8 +102,8 @@ moment it was minted (against the window, §7) and the workspace's synchronisati
 A **null cursor is the initial synchronisation**: the current state, one kind at a time
 (containers, buckets, labels, entries, set elements, comments, reminders, recurrence rules,
 templates, entry types, link types, workflows, custom roles, links, the reader's own role grants,
-pages, configuration items, their relations, the CMDB's catalogue, entry schedules, goal periods,
-goals, check-ins, dashboards, sprints, entries' open sprints and estimates, releases and entries' releases, custom field definitions, the reader's own time records, running timer, weeks and capacities, the kinds of work, the time policy, the absences, the cost rates and the budgets, portfolios, the agents' models, agents, held acts, evaluation cases and runs, and the workflow scheme), paged by identifier, each row
+pages, whiteboards and their comments, configuration items, their relations, the CMDB's catalogue, entry schedules, goal periods,
+goals, check-ins, dashboards, sprints, entries' open sprints and estimates, releases and entries' releases, custom field definitions, the reader's own time records, running timer, weeks and capacities, the kinds of work, the time policy, the absences, the cost rates and the budgets, portfolios, the agents' models, agents, held acts, evaluation cases and runs, the workflow scheme, and the module switches), paged by identifier, each row
 judged by the same permission as a delta record, with the log position taken *before* the first
 page so a change landing mid-walk is the first delta's. Entry types, link types and workflows are
 the workspace's vocabulary and reach every member; a custom role reaches whoever may read at the
@@ -178,6 +178,26 @@ decide: who may is asked online, and a decision needs the server; the reader's o
 entry's goals and approvals from the copy. An entry's commits, branches and pull requests
 (`code_link`, UC-INT-13) and its files in a store (`file_link`, UC-INT-14) are filed under its
 collection too and read from the copy while the server is away; a forge's hooks are read online. A
+board's comment (`whiteboard_comment`, UC-CNV-09) is filed under its board's hub and walked after
+the boards, so READ there decides who holds it; writing, rewriting, resolving, reopening and taking
+one back record it as `ListWhiteboardComments` answers it - a comment taken back as an upsert that
+keeps its place and carries no words. The sweeps write no record of a comment: a board trashed,
+purged by retention or erased takes its comments with it on the device as on the server, so a
+client drops a board's comments when it drops the board, and a walk leaves out those of a board in
+the trash. A resolved thread a workspace's retention rule removes from a board that stays
+([data-retention.md](./data-retention.md) §3, `WHITEBOARD_HISTORY`) therefore stays in a device's
+copy until its next walk; a client that shows a board's threads reads them from the server while
+it can. The module switches (`setting`, UC-INS-21) are one record per place, by the
+place's identifier: the workspace's under no container, reaching every member and no requester, as
+the capabilities' `modules_on` does; a hub's filed under the hub, reaching whoever may read it, as
+`ListContainerModules` answers. A record carries each module and whether it is on there - keys and
+booleans, never which level decided or locked it, which `ListModules` answers whoever may shape the
+place. `SetModule` records the place it wrote, and nothing else writes a record: what the
+installation or a plan decides for a workspace reaches a device on its next read of the manifest.
+A hub's record states what the hub resolved to when it was written or walked, so a client re-reads
+every place's modules on any `setting` record rather than deriving a hub's from a held one. The
+switch of a module that narrows the replica still advances the epoch (§8): the record tells the
+screens, the epoch moves the copy. A
 mid-walk page cursor names the kind and key it resumes after; the pull continues it, the stream
 refuses it.
 

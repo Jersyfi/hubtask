@@ -154,3 +154,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0105](./ADR-0105-one-object-shape-and-product-colours.md) | One object shape, and product colours that identify | accepted | Design system, clients |
 | [0106](./ADR-0106-an-independent-review-and-the-owner-on-the-loop.md) | An independent review, a design brief, and the owner on the loop | accepted | Process, documentation, contributors |
 | [0107](./ADR-0107-the-application-does-not-state-its-maturity-stage.md) | The application does not state its maturity stage | accepted | Release, clients |
+| [0108](./ADR-0108-a-module-switch-and-a-board-comment-are-change-records.md) | A module switch and a board comment are change records | accepted | Synchronisation, clients |

@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-19]
 state: verified
 tasks: []
-checked_by: [core/domain/model/whiteboard/Comment_test.go, core/application/service/whiteboard/Comments_test.go, core/application/service/notification/RecordWhiteboardMention_test.go, test/integration/whiteboard_repository_test.go, apps/webapp/src/lib/data/whiteboards.test.ts, apps/webapp/e2e/whiteboardwork.test.mjs]
+checked_by: [core/domain/model/whiteboard/Comment_test.go, core/application/service/whiteboard/Comments_test.go, core/application/service/notification/RecordWhiteboardMention_test.go, test/integration/whiteboard_repository_test.go, apps/webapp/src/lib/data/whiteboards.test.ts, apps/webapp/e2e/whiteboardwork.test.mjs, core/application/service/sync/InitialSyncWhiteboards_test.go, apps/webapp/src/lib/data/live.test.ts, apps/webapp/e2e/livechanges.test.mjs]
 ---
 
 # Discuss a whiteboard where it is drawn
@@ -27,9 +27,10 @@ After the retro, Emil pins a comment to the sticky note "Deploys take too long" 
 3. Whoever may draw on the board resolves or reopens a thread; only a comment's author rewrites it or takes it back, and a comment taken back keeps its place in the thread without its words. Somebody who may only read the board writes no comment.
 4. Another workspace neither finds nor changes a board's comments, and the comments travel with the board in the workspace's archive and a person's copy of their data.
 5. The whiteboards' home lists the open threads in which someone else names the reader, each with the object it is pinned to, and opens its board at the thread.
+6. A comment written, resolved or taken back appears on every other open client that may read the board without a reload, and is in a device's copy after its next synchronisation.
 
 ## Where it ends
 
-* Comments are read when the board is opened and after each change made here; another person's new comment shows on the next reading, not live.
+* A comment is not part of the live drawing: it reaches another client once it is written, never while it is typed, and who is writing one is not shown.
 * At most 1,000 comments of a board are listed, and a comment names at most 20 people.
 * A mention names a person of the workspace; a group or a role is not named.
