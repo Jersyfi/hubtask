@@ -442,26 +442,24 @@ When two versions of an entry's notes collide, one loses but does not disappear:
 
 In the push this applies to the notes only; titles and structured fields merge unambiguously.
 
-Online, the web app compares each of the title and the notes three ways — as the person began,
-as they hold it, as the entry holds it now — and sends only what the person changed; when somebody
-else changed the same field to something else meanwhile, it writes nothing and lets the person
-choose. Whichever version loses is filed through `POST /items/{itemId}/comments:file-version`, the
-same write as the push's comment with a heading of its own: `sync.set_aside_version` (field, time)
-for the person's own text, given up, `sync.replaced_version` for the text the person replaced.
-*Write mine again* after a push's conflict files the replaced text the same way. The replaced text
-must be the entry's value of the field when it is filed, read in the filing's transaction, else it
-is refused (`comments.version_not_in_place`) — so a client files it before writing over it. The
-person's own text cannot be checked against anything and is filed as sent.
+Online, nothing is filed. The web app compares each of the title and the notes three ways — as
+the person began, as they hold it, as the entry holds it now — and sends only what the person
+changed, so a field somebody else changed meanwhile is never sent back. Where both changed the
+same field to different texts, it writes nothing and asks first: an alert dialog says who changed
+it and when, shows both versions, and the person takes the other's text — their own is dropped —
+or overwrites it with their own, one write against the version in place. What a
+field said before is read in the entry's history, which keeps both sides of a title and of the
+notes only that they changed ([domain-model.md](./domain-model.md) §3.5).
 
-A kept version — any of the three headings — is bounded as the field it holds, not as a comment:
-a title at its 500 characters, notes by no bound of their own (the column is unbounded text; only
-the request body limit caps them), so notes longer than a comment's 20 000 characters are kept
-whole. A comment somebody writes keeps its bound.
+The kept version of the push is bounded as the field it holds, not as a comment: notes by no
+bound of their own (the column is unbounded text; only the request body limit caps them), so
+notes longer than a comment's 20 000 characters are kept whole. A comment somebody writes keeps
+its bound.
 
 A client renders a kept version's heading from its code and parameters, never as a post by the
 person it was filed for, and shows its text as filed. The web app addresses one comment as
-`/items/{id}?comment={commentId}`: the notice after a choice and the conflict's
-`preserved_comment_id` lead there, and the conversation opens on it.
+`/items/{id}?comment={commentId}`: the conflict's `preserved_comment_id` leads there, and the
+conversation opens on it.
 
 ---
 
