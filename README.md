@@ -32,6 +32,7 @@ The vision behind this, the people it is for and the settings it must work in ar
 
 [![CI](https://github.com/Jersyfi/hubtask/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Jersyfi/hubtask/actions/workflows/ci.yml?query=branch%3Amain)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Jersyfi/hubtask/badge)](https://scorecard.dev/viewer/?uri=github.com/Jersyfi/hubtask)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/17000/badge)](https://www.bestpractices.dev/projects/17000)
 
 * The proof state counts the use cases by state and the checks cited by a test or a document that
   proves them. `make proof-state` prints it, and the

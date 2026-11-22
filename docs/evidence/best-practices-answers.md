@@ -4,35 +4,24 @@ The answers a worker enters on <https://www.bestpractices.dev> for the passing l
 ([ci-cd.md](../architecture/ci-cd.md) §12), and for OSPS Baseline level 1 below them. The criteria
 are the 67 of the questionnaire's passing level, read on 2026-11-21 from the badge project's own
 criteria file (`criteria/criteria.yml` in `coreinfrastructure/best-practices-badge`). Today:
-64 Met, 0 Unmet, 3 N/A; one is marked **Verify at submission**, because the fact
-behind it could not be read from the repository or from GitHub. The facts that could were read on
-2026-11-21 or 2026-11-22 and each row says which.
+64 Met, 0 Unmet, 3 N/A. The facts were read on 2026-11-21 or 2026-11-22 and each row says which;
+two rest on the owner's word and say so.
 
 This file stays while the badge is shown. The weekly flow report reads the badge's level from the
 badge site and opens a `finding` when it is below `passing` ([ci-cd.md](../architecture/ci-cd.md)
 §11); these answers are then read again against the repository.
 The links point at `main`, so they resolve once the change that adds a file has merged.
 
-## The steps at the close
+## Where the answers stand
 
-1. Read each row marked **Verify at submission** and correct the answer here. Read the dated
-   facts again where the submission is later than 2026-11-22.
-2. The release page of v0.10.2 carries its written summary; later releases get theirs from
-   `release.yml`.
-3. Close each remaining *Unmet* row, or leave it and say so: the badge is granted only when every
-   MUST is Met or N/A.
-4. Open <https://www.bestpractices.dev/en/projects/new> in the browser and bring the page to the
-   "Log in with GitHub" consent. **The consent is the owner's one act**: it lets the badge site
-   read the owner's GitHub identity, and a worker stops there.
-5. After the consent: register `https://github.com/Jersyfi/hubtask`, enter the answers below with
-   their justification and URL, and submit.
-6. Add the badge to the README's "Quality and security" section, with the project id the site
-   assigned in place of `<id>`:
-   `[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/<id>/badge)](https://www.bestpractices.dev/projects/<id>)`
-   Set the same id as `project` of `best_practices_badge` in `tools/flowstats/thresholds.json`:
-   from then on the weekly flow report reads the badge's level.
-7. OSPS Baseline level 1: enter the answers of the last section. Its two *Unmet* rows name one
-   file of the Android build.
+The project is registered on the badge site as
+[project 17000](https://www.bestpractices.dev/projects/17000), and the answers below are entered
+there. The README's "Quality and security" section shows the badge, and `best_practices_badge` in
+`tools/flowstats/thresholds.json` carries the same id, so the weekly flow report reads the level.
+
+When an answer here changes, a worker changes it on the site too: the site's sign-in is the
+owner's GitHub account, and the sign-in is the owner's one act. The answers of OSPS Baseline
+level 1 are not entered: its two *Unmet* rows name one file of the Android build.
 
 ## The answers
 
@@ -79,7 +68,7 @@ The links point at `main`, so they resolve once the change that adds a file has 
 | `report_archive` | Met | GitHub issues are public and searchable. | <https://github.com/Jersyfi/hubtask/issues?q=is%3Aissue> |
 | `vulnerability_report_process` | Met | SECURITY.md. | <https://github.com/Jersyfi/hubtask/blob/main/SECURITY.md> |
 | `vulnerability_report_private` | Met | A private GitHub security advisory, or `security@hubtask.eu`. | <https://github.com/Jersyfi/hubtask/blob/main/SECURITY.md> |
-| `vulnerability_report_response` | N/A | **Verify at submission.** No private vulnerability report exists on GitHub (read 2026-11-21: no advisory in any state). The mailbox `security@hubtask.eu` was not read; the owner says whether a report arrived there in the last six months. | <https://github.com/Jersyfi/hubtask/blob/main/SECURITY.md> |
+| `vulnerability_report_response` | N/A | No vulnerability report was received in the last six months: no private report exists on GitHub (no advisory in any state, read 2026-11-21), and none reached `security@hubtask.eu` (the owner, 2026-11-22). | <https://github.com/Jersyfi/hubtask/blob/main/SECURITY.md> |
 
 ### Quality
 
@@ -116,8 +105,8 @@ The links point at `main`, so they resolve once the change that adds a file has 
 | `crypto_random` | Met | Keys and tokens come from the `RandomSource` port, backed by `crypto/rand` (rule 4). | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/security.md> |
 | `delivery_mitm` | Met | The image from ghcr.io and the release files from GitHub, both over HTTPS, signed. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/security.md> |
 | `delivery_unsigned` | Met | `SHA256SUMS` is served over HTTPS, and the image and the release record are signed. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/security.md> |
-| `vulnerabilities_fixed_60_days` | Met | Read 2026-11-21: three Dependabot alerts are open, all of medium severity, on `pnpm-lock.yaml`: `qs` (advisory published 2026-10-27), `glob` and `minimatch` (both 2026-10-30). None is older than 60 days; the first would be on 2026-12-26. The change that adds this file lifts all three to their patched versions, so the alerts close when it merges. No code scanning alert and no secret scanning alert is open. | <https://github.com/Jersyfi/hubtask/security/dependabot> |
-| `vulnerabilities_critical_fixed` | Met | A SHOULD. No critical vulnerability is reported: the three open Dependabot alerts are medium, no code scanning or secret scanning alert is open, and no advisory exists (read 2026-11-21). SECURITY.md: critical first. | <https://github.com/Jersyfi/hubtask/blob/main/SECURITY.md> |
+| `vulnerabilities_fixed_60_days` | Met | Read 2026-11-22: no Dependabot alert, no code scanning alert of the static analysis and no secret scanning alert is open. The advisory database lists six notices for the shell's lock file; each says a crate is unmaintained or has an unsound interface and carries no severity, and `apps/webapp/src-tauri/osv-scanner.toml` names each with its reason. | <https://github.com/Jersyfi/hubtask/blob/main/apps/webapp/src-tauri/osv-scanner.toml> |
+| `vulnerabilities_critical_fixed` | Met | A SHOULD. No critical vulnerability is reported: no Dependabot alert, no code scanning alert of the static analysis and no secret scanning alert is open, and no advisory exists (read 2026-11-22). SECURITY.md: critical first. | <https://github.com/Jersyfi/hubtask/blob/main/SECURITY.md> |
 | `no_leaked_credentials` | Met | Secret scanning as a push rule and gitleaks over the history (SG-7). | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/security.md> |
 
 ### Analysis
@@ -126,7 +115,7 @@ The links point at `main`, so they resolve once the change that adds a file has 
 |---|---|---|---|
 | `static_analysis` | Met | `gosec` in `golangci-lint` on every pull request; CodeQL for Go, JavaScript and TypeScript, and the workflows. | <https://github.com/Jersyfi/hubtask/blob/main/.github/workflows/codeql.yml> |
 | `static_analysis_common_vulnerabilities` | Met | `gosec` and CodeQL's `security-extended` queries. | <https://github.com/Jersyfi/hubtask/blob/main/.github/workflows/codeql.yml> |
-| `static_analysis_fixed` | Met | No code scanning alert is open on `main` (read 2026-11-21; the newest CodeQL analysis of `main` is of that day). Six alerts are dismissed; their reasons were not read here. A red CodeQL is a finding to fix (ci-cd.md §2). | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/ci-cd.md> |
+| `static_analysis_fixed` | Met | The static analysis reads Go, JavaScript and TypeScript, and the workflows. Its first JavaScript run on 2026-11-22 opened 24 alerts: 17 were fixed in code the same day and 7 dismissed with their reason as false positives or test-only patterns. No alert of it is open on `main` (read 2026-11-22). A red CodeQL is a finding to fix (ci-cd.md §2). | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/ci-cd.md> |
 | `static_analysis_often` | Met | On every ready pull request and every push to `main`. | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/ci-cd.md> |
 | `dynamic_analysis` | Met | Fuzzing of the parsers that take untrusted input, nightly (SG-8). | <https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/security.md> |
 | `dynamic_analysis_unsafe` | N/A | Go, TypeScript and Rust: no memory-unsafe language. | <https://github.com/Jersyfi/hubtask/blob/main/go.mod> |
