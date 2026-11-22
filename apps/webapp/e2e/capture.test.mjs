@@ -402,7 +402,10 @@ test('chromium: by keyboard alone, and said to a screen reader (check 6)', async
   // Focus on something real before Q, to see it come back.
   await page.getByRole('banner').getByRole('button', { name: 'Create' }).focus();
   await page.keyboard.press('Tab');
-  const before = await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 80));
+  // The element itself, not its markup: the one after Create is the connection mark, whose state
+  // changes once the stream opens, which is no part of where focus returns to.
+  const before = await page.evaluateHandle(() => document.activeElement);
+  assert.equal(await before.evaluate((element) => element === document.body), false, 'nothing real had focus before Q');
   await pressQ(page);
   await fieldOf(page).waitFor();
   await page.keyboard.type('Order tiles !Materials tomorrow');
@@ -429,8 +432,7 @@ test('chromium: by keyboard alone, and said to a screen reader (check 6)', async
   await fieldOf(page).waitFor();
   await page.keyboard.press('Escape');
   await dialogOf(page).waitFor({ state: 'hidden' });
-  const after = await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 80));
-  assert.equal(after, before);
+  assert.equal(await before.evaluate((element) => element === document.activeElement), true, 'focus did not return to where it was');
   assert.deepEqual(failures, []);
 });
 
