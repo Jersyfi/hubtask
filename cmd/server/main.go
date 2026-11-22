@@ -2016,8 +2016,9 @@ func run() error {
 		TemplatePages: postgres.TemplatePageRepository{}, GoalSets: postgres.GoalSetRepository{}, Drafts: postgres.ConfigDraftRepository{},
 		Settings:   postgres.SettingRepository{},
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
-		// A Hubtask template's names in the applying person's language (user-experience.md §4).
-		Words: renderer,
+		// A Hubtask template's names in the applying account's language, else the workspace's
+		// (user-experience.md §4, i18n-l10n.md §2).
+		Words: renderer, Workspaces: postgres.NewWorkspaceSettingsRepository(),
 	}
 	// The first start keeps the configuration as it left it as a version (configuration.md §5).
 	starterKept := starter

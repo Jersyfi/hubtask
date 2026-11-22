@@ -88,9 +88,16 @@ type Desk struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
-	// Words renders a Hubtask template's names in the applying person's language (user-experience.md
-	// §4). Nil keeps them as shipped.
-	Words i18n.Renderer
+	// Words renders a Hubtask template's names in the applying account's language, else in the
+	// workspace's default Workspaces reads (user-experience.md §4, i18n-l10n.md §2). Nil keeps them
+	// as shipped.
+	Words      i18n.Renderer
+	Workspaces WorkspaceReader
+}
+
+// WorkspaceReader reads the workspace the transaction is bound to, for the language it declared.
+type WorkspaceReader interface {
+	Find(ctx context.Context) (identity.Workspace, error)
 }
 
 // current is the document in force with the rows behind it, so that a change names the block by
