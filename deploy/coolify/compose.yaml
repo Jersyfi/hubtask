@@ -16,6 +16,9 @@
 #   [C8] no top-level name: the platform names the project itself.
 #   [C9] the volumes carry the names of the walked installation, so one moved onto this file keeps
 #        its data.
+#   [C10] no instance file from a checkout: the platform has none to bind ./instance.json from. Its
+#         documentation (Docker Compose, "Storage") offers a bind mount whose content: it writes
+#         into the resource's directory, sketched under app's volumes; not walked here.
 #
 # test/architecture/platformcompose*_test.go hold this file to the reference, key for key and line
 # for line, with these marks as the only differences. No gate starts it.
@@ -159,6 +162,13 @@ services:
       - hubtask-media:/var/lib/hubtask/media                        # [C9]
       - hubtask-backups:/var/lib/hubtask/backups                    # [C9]
       - hubtask-restore-drill:/var/lib/hubtask/restore-drill        # [C9]
+      # [C10] With HUBTASK_INSTANCE_FILE=/etc/hubtask/instance.json:
+      # - type: bind
+      #   source: ./instance.json
+      #   target: /etc/hubtask/instance.json
+      #   read_only: true
+      #   content: |
+      #     { the instance file }
     # [C1] no ports.
     depends_on:
       postgres:

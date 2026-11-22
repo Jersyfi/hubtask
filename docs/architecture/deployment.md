@@ -129,12 +129,12 @@ password, the application role's password and the secret key are the platform's 
 characters without symbols - what a DSN carries unescaped. That is the platform's statement, not
 something the repository can check.
 
-It differs from the reference only where the file marks it (`[C1]`-`[C9]` in its header): no
+It differs from the reference only where the file marks it (`[C1]`-`[C10]` in its header): no
 published ports; generated secrets; `upgrade-dump` and `migrate` taken out of the platform's health
 check (`exclude_from_hc`), since a one-shot that has exited is not unhealthy; the database service
 named `postgres`; no `ops` service and no bind mount; `HUBTASK_TRUSTED_PROXIES` required; required
 variables written `${NAME:?}`; no project name; the volumes named as on the installation it was
-walked on. Plain Compose refuses `exclude_from_hc`, so the file is for the platform only.
+walked on; no instance file bound from a checkout. Plain Compose refuses `exclude_from_hc`, so the file is for the platform only.
 
 What it does not give, said plainly:
 
@@ -154,6 +154,10 @@ What it does not give, said plainly:
 * **An upgrade dump is restored by hand**: the dumps lie in the `hubtask-upgrade-dumps` volume, and
   `pg_restore` of one runs in a container of the database's image with that volume mounted
   (backup-restore.md §8.6); `restore.sh --upgrade-dump` is not available.
+* **No instance file from a checkout.** The reference binds `./instance.json` beside it; the
+  platform has no checkout. Its documentation offers a bind mount whose `content:` the platform
+  writes into the resource's directory - sketched, commented, under `app`'s volumes - which was not
+  walked, and `instance check` before a restart has no `docker compose run` here.
 * **The operations port is not published**: `/readyz` and the metrics are reached only inside the
   service network.
 * **Multi mode needs a host per workspace**: each workspace's host as a domain of `app` with
