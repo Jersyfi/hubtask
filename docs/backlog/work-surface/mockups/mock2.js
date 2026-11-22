@@ -93,15 +93,11 @@
   S.pwrite = () => {
     const body = pageBody({ taskHover: true }).replace('Es gibt keinen direkten Zugriff auf Datenbanken.', '<span class="sel">Es gibt keinen direkten Zugriff auf Datenbanken.</span>')
       .replace('<p>Die App', `<div style="position:relative;margin-inline-start:180px">${note(1, `<div class="float" style="position:relative;inline-size:fit-content;margin-block:0 var(--sp-050)"><span class="b">Absatz ${ic('chevd', 's')}</span><i class="sep"></i><span class="b">${ic('bold')}</span><span class="b">${ic('italic')}</span><span class="b">${ic('strike')}</span><span class="b">${ic('code')}</span><span class="b">${ic('link')}</span><i class="sep"></i><span class="b on">${ic('comment')}Kommentar</span></div>`)}</div><p>Die App`)
-      .replace('<h2>Entscheidungen</h2>', `<h2>Entscheidungen</h2>`)
-      .replace('<li>Bestellungen werden', `<li>Bestellungen werden`)
       .replace('<h2>Glossar</h2>', `<div style="position:relative;margin-block:var(--sp-300)">${note(3, `<div class="handle" style="inset-block-start:2px"><span>${ic('plus')}</span><span class="on">${ic('dots')}</span></div>`, 'position:absolute;inset-inline-start:0;inset-block-start:0')}<p style="margin:0;color:var(--text-subtle)">/ein<span class="caret" style="background:var(--text-primary)"></span></p>
         ${note(2, `<div class="menu" style="position:relative;margin-block-start:var(--sp-100)"><h4>Hubtask</h4>
           ${[['embed', 'Ansicht einbetten', 'Eine gespeicherte Ansicht, live', ''], ['board', 'Whiteboard einbetten', 'Ein Board oder ein Rahmen, live', ''], ['checksq', 'Eintrag erwähnen', 'Mit Status, wie du ihn sehen darfst', '@']].map(([i, n, s, k], x) => `<div class="mi ${x === 0 ? 'on' : ''}"><span class="g">${ic(i)}</span><span>${n}<small>${s}</small></span><span class="kbd">${k || ''}</span></div>`).join('')}
           <h4>Blöcke</h4>${[['info', 'Hinweis', 'Info, Warnung, Erfolg, Fehler'], ['toggle', 'Aufklappbereich', 'Mit einer Zusammenfassung'], ['image', 'Bild oder Datei', 'Hochladen oder hineinziehen']].map(([i, n, s]) => `<div class="mi"><span class="g">${ic(i)}</span><span>${n}<small>${s}</small></span><span></span></div>`).join('')}
-          <span class="cap subtle" style="padding:var(--sp-050) var(--sp-100)">↑↓ wählen · ↵ einfügen · Esc schließen</span></div>`)}</div><h2>Glossar</h2>`)
-      .replace('Webhook-Wiederholungen dokumentieren</span>', 'Webhook-Wiederholungen dokumentieren</span>')
-      .replace('<p>Die App', `<p>Die App`);
+          <span class="cap subtle" style="padding:var(--sp-050) var(--sp-100)">↑↓ wählen · ↵ einfügen · Esc schließen</span></div>`)}</div><h2>Glossar</h2>`);
     const withCaret = body.replace('ausschließlich mit der', 'ausschließlich<span class="caret"><b>Amelia</b></span> mit der');
     const d = deskFull(sidePage('Architektur'), `<div style="padding:var(--sp-300) var(--sp-400) var(--sp-800)">
       <div class="pg-top" style="margin:0">${trail}<span class="row cap sub" style="gap:6px;margin-inline-start:var(--sp-200)">${ic('check', 's')}Gespeichert · Amelia schreibt mit</span><span class="acts">${pageActs()}</span></div>
