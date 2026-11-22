@@ -60,8 +60,30 @@ func storedFlags(ctx context.Context, t *testing.T, tenant shared.ID, hubs ...sh
 	return flags
 }
 
-func pinHubs(ctx context.Context, t *testing.T, tenant shared.ID, pin settingrepo.HubPin) []shared.ID {
+// hubsWithout reads, as the tenant, the hubs that store nothing under the pinned key.
+func hubsWithout(ctx context.Context, t *testing.T, tenant shared.ID) []shared.ID {
 	t.Helper()
+	var hubs []shared.ID
+	if err := read(ctx, t, tenant, func(ctx context.Context) error {
+		var err error
+		hubs, err = postgres.SettingRepository{}.HubsWithout(ctx, pinnedKey)
+		return err
+	}); err != nil {
+		t.Fatalf("reading the hubs that store nothing: %v", err)
+	}
+	return hubs
+}
+
+// pinHubs pins the hubs named, as the tenant, and answers the hubs written and each hub's row id.
+func pinHubs(
+	ctx context.Context, t *testing.T, tenant shared.ID, pin settingrepo.HubPin, hubs ...shared.ID,
+) ([]shared.ID, map[shared.ID]shared.ID) {
+	t.Helper()
+	rows := map[shared.ID]shared.ID{}
+	for _, hub := range hubs {
+		rows[hub] = freshID(t)
+		pin.Hubs = append(pin.Hubs, settingrepo.PinnedHub{RowID: rows[hub], HubID: hub})
+	}
 	var written []shared.ID
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
 		var err error
@@ -70,14 +92,14 @@ func pinHubs(ctx context.Context, t *testing.T, tenant shared.ID, pin settingrep
 	}); err != nil {
 		t.Fatalf("pinning the hubs: %v", err)
 	}
-	return written
+	return written, rows
 }
 
-// PinHubs against a real database (UC-INS-21 check 13), with its cross-tenant negative test (gate
-// SG-3): every hub of A that stores nothing under the key gets the flag - an archived and a
-// trashed hub too - a hub that stores a value keeps it, a hub storing on under a key named in
-// OnWhere gets on, and B's hubs, with a row under the same key or without, are neither written
-// nor answered.
+// HubsWithout and PinHubs against a real database (UC-INS-21 check 13), with their cross-tenant
+// negative test (gate SG-3): every hub of A that stores nothing under the key is read - an archived
+// and a trashed hub too - and gets the flag under the row id handed in; a hub that stores a value
+// keeps it, a hub storing on under a key named in OnWhere gets on, and B's hubs, with a row under
+// the same key or without, are neither read nor - named to the write all the same - written.
 func TestPinHubsWritesOnlyTheCallersHubsThatStoreNothing(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -108,11 +130,34 @@ func TestPinHubsWritesOnlyTheCallersHubsThatStoreNothing(t *testing.T) {
 	storeFlag(ctx, t, tenantA, needing, needingKey, true)
 	storeFlag(ctx, t, tenantB, foreignDecided, pinnedKey, true)
 
+	without := hubsWithout(ctx, t, tenantA)
+	for _, hub := range []shared.ID{plain, archived, trashed, needing} {
+		if !slices.Contains(without, hub) {
+			t.Errorf("the hub %s is not read as storing nothing", hub)
+		}
+	}
+	for _, hub := range []shared.ID{decided, foreign, foreignDecided} {
+		if slices.Contains(without, hub) {
+			t.Errorf("the hub %s is read as one of A's that stores nothing", hub)
+		}
+	}
+
+	// B's hubs and the hub that decided are named to the write as well: the statement, not the
+	// caller's list, keeps the write to A's hubs that store nothing.
 	pin := settingrepo.HubPin{Key: pinnedKey, On: false, OnWhere: []domain.Key{needingKey}}
-	written := pinHubs(ctx, t, tenantA, pin)
+	named := append(slices.Clone(without), decided, foreign, foreignDecided)
+	written, rows := pinHubs(ctx, t, tenantA, pin, named...)
 	for _, hub := range []shared.ID{plain, archived, trashed, needing} {
 		if !slices.Contains(written, hub) {
 			t.Errorf("the hub %s was not written", hub)
+		}
+		var stored string
+		if err := admin.QueryRow(ctx, `SELECT id::text FROM setting_value WHERE scope_id = $1 AND key = $2`,
+			hub.String(), string(pinnedKey)).Scan(&stored); err != nil {
+			t.Fatalf("reading the row of the hub %s: %v", hub, err)
+		}
+		if stored != rows[hub].String() {
+			t.Errorf("the hub %s is stored under the row id %s, want the id handed in, %s", hub, stored, rows[hub])
 		}
 	}
 	for _, hub := range []shared.ID{decided, foreign, foreignDecided} {
@@ -130,7 +175,13 @@ func TestPinHubsWritesOnlyTheCallersHubsThatStoreNothing(t *testing.T) {
 	}
 
 	// A second pin finds a value everywhere and writes nothing over it.
-	again := pinHubs(ctx, t, tenantA, settingrepo.HubPin{Key: pinnedKey, On: true})
+	left := hubsWithout(ctx, t, tenantA)
+	for hub := range want {
+		if slices.Contains(left, hub) {
+			t.Errorf("after the pin the hub %s still reads as storing nothing", hub)
+		}
+	}
+	again, _ := pinHubs(ctx, t, tenantA, settingrepo.HubPin{Key: pinnedKey, On: true}, named...)
 	for hub := range want {
 		if slices.Contains(again, hub) {
 			t.Errorf("the hub %s was written a second time", hub)

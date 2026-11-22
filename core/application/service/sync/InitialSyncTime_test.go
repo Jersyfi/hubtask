@@ -134,6 +134,8 @@ func (planLock) Remove(context.Context, settingrepo.Place, settingmodel.Key) (bo
 	return false, nil
 }
 
+func (planLock) HubsWithout(context.Context, settingmodel.Key) ([]shared.ID, error) { return nil, nil }
+
 func (planLock) PinHubs(context.Context, settingrepo.HubPin, time.Time) ([]shared.ID, error) {
 	return nil, nil
 }

@@ -369,7 +369,14 @@ func (m Modules) keepHubs(
 	if where.at.Level != domain.LevelWorkspace || was == is {
 		return nil, nil
 	}
-	pin := settingrepo.HubPin{Key: key.SettingKey(), On: was}
+	hubs, err := m.Settings.HubsWithout(ctx, key.SettingKey())
+	if err != nil || len(hubs) == 0 {
+		return nil, err
+	}
+	pin := settingrepo.HubPin{Key: key.SettingKey(), On: was, Hubs: make([]settingrepo.PinnedHub, 0, len(hubs))}
+	for _, hub := range hubs {
+		pin.Hubs = append(pin.Hubs, settingrepo.PinnedHub{RowID: m.IDs.NewID(), HubID: hub})
+	}
 	if !was {
 		// A hub that stores on for a module needing this one keeps this one on with it, or that
 		// module would come back without what it needs.

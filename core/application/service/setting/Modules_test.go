@@ -6,6 +6,7 @@ package setting_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -33,6 +34,7 @@ type memorySettings struct {
 	instance, plan domain.Layer
 	rows           map[settingrepo.Place]map[domain.Key]domain.Entry
 	hubs           []shared.ID
+	pinned         []settingrepo.PinnedHub
 }
 
 func newMemory() *memorySettings {
@@ -71,13 +73,24 @@ func (m *memorySettings) Remove(_ context.Context, place settingrepo.Place, key 
 	return held, nil
 }
 
-// PinHubs writes as the adapter's statement does, over the hubs the store was told exist; a hub
-// it was not told of stands for one made afterwards.
+// HubsWithout answers, of the hubs the store was told exist, those storing nothing under the key;
+// a hub it was not told of stands for one made afterwards.
+func (m *memorySettings) HubsWithout(_ context.Context, key domain.Key) ([]shared.ID, error) {
+	var without []shared.ID
+	for _, each := range m.hubs {
+		if _, held := m.rows[settingrepo.Place{Level: domain.LevelHub, ScopeID: each}][key]; !held {
+			without = append(without, each)
+		}
+	}
+	return without, nil
+}
+
+// PinHubs writes as the adapter's statement does, and keeps the row ids it was handed.
 func (m *memorySettings) PinHubs(ctx context.Context, pin settingrepo.HubPin, at time.Time) ([]shared.ID, error) {
 	var written []shared.ID
-	for _, each := range m.hubs {
-		place := settingrepo.Place{Level: domain.LevelHub, ScopeID: each}
-		if _, held := m.rows[place][pin.Key]; held {
+	for _, each := range pin.Hubs {
+		place := settingrepo.Place{Level: domain.LevelHub, ScopeID: each.HubID}
+		if _, held := m.rows[place][pin.Key]; held || !slices.Contains(m.hubs, each.HubID) {
 			continue
 		}
 		on := pin.On
@@ -86,10 +99,11 @@ func (m *memorySettings) PinHubs(ctx context.Context, pin settingrepo.HubPin, at
 				on = true
 			}
 		}
-		if err := m.Put(ctx, "", place, pin.Key, domain.Entry{Value: on, Hold: domain.HoldSet}, at); err != nil {
+		if err := m.Put(ctx, each.RowID, place, pin.Key, domain.Entry{Value: on, Hold: domain.HoldSet}, at); err != nil {
 			return nil, err
 		}
-		written = append(written, each)
+		m.pinned = append(m.pinned, each)
+		written = append(written, each.HubID)
 	}
 	return written, nil
 }

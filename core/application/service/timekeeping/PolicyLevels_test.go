@@ -29,6 +29,8 @@ func (above) Put(context.Context, shared.ID, settingrepo.Place, setting.Key, set
 }
 func (above) Remove(context.Context, settingrepo.Place, setting.Key) (bool, error) { return false, nil }
 
+func (above) HubsWithout(context.Context, setting.Key) ([]shared.ID, error) { return nil, nil }
+
 func (above) PinHubs(context.Context, settingrepo.HubPin, time.Time) ([]shared.ID, error) {
 	return nil, nil
 }

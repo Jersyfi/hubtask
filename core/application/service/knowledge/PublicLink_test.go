@@ -71,6 +71,8 @@ func (s *settingsStore) Remove(context.Context, settingrepo.Place, setting.Key) 
 	return false, nil
 }
 
+func (*settingsStore) HubsWithout(context.Context, setting.Key) ([]shared.ID, error) { return nil, nil }
+
 func (*settingsStore) PinHubs(context.Context, settingrepo.HubPin, time.Time) ([]shared.ID, error) {
 	return nil, nil
 }

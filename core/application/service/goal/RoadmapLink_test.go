@@ -69,6 +69,8 @@ func (s *switches) Remove(context.Context, settingrepo.Place, setting.Key) (bool
 	return false, nil
 }
 
+func (*switches) HubsWithout(context.Context, setting.Key) ([]shared.ID, error) { return nil, nil }
+
 func (*switches) PinHubs(context.Context, settingrepo.HubPin, time.Time) ([]shared.ID, error) {
 	return nil, nil
 }

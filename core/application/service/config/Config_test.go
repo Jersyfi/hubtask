@@ -543,6 +543,8 @@ func (s *settings) Put(_ context.Context, _ shared.ID, _ settingrepo.Place, key 
 func (s *settings) Remove(context.Context, settingrepo.Place, setting.Key) (bool, error) {
 	return false, nil
 }
+func (s *settings) HubsWithout(context.Context, setting.Key) ([]shared.ID, error) { return nil, nil }
+
 func (s *settings) PinHubs(context.Context, settingrepo.HubPin, time.Time) ([]shared.ID, error) {
 	return nil, nil
 }

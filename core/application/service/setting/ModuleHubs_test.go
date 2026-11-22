@@ -263,6 +263,15 @@ func TestTheTrailCountsTheHubsAndNamesTheChosen(t *testing.T) {
 	if _, err := set.Execute(ctx, actor(), workspaceSwitch(module.Planning, settingservice.SwitchOn, clients)); err != nil {
 		t.Fatal(err)
 	}
+	// Every row written for a hub carries an id of the generator's (arc42 §2.3), none the store's.
+	if len(store.pinned) != 3 {
+		t.Fatalf("the switch handed the store %d hubs to write, want every hub storing nothing", len(store.pinned))
+	}
+	for _, row := range store.pinned {
+		if row.RowID != (ids{}).NewID() {
+			t.Errorf("the hub %s is written under the row id %q, not one of the generator's", row.HubID, row.RowID)
+		}
+	}
 	if len(sink.entries) != 1 {
 		t.Fatalf("the switch wrote %d trail entries, want 1", len(sink.entries))
 	}
