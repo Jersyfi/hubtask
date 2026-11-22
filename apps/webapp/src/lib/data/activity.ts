@@ -166,3 +166,15 @@ export function actorCodes(entry: ActivityEntry, selfAccountId: string | undefin
 export function sentenceCode(code: string, isReader: boolean, has: (code: string) => boolean): string {
   return isReader && has(`${code}_you`) ? `${code}_you` : code;
 }
+
+/**
+ * Who changed a field last and when, from a page of the history (newest first): the first step
+ * whose change set names the field. Read for the warning about a text changed meanwhile
+ * (UC-SYN-02 check 10); undefined where the page holds no such step, which a caller answers with
+ * "somebody" and the entry's own stamp. A step by anything but a person names no account.
+ */
+export function lastChangeOf(steps: readonly ActivityEntry[], field: string): { readonly actorId?: string; readonly at: string } | undefined {
+  const step = steps.find((each) => Object.hasOwn((each.change_set ?? {}) as object, field));
+  if (!step) return undefined;
+  return { actorId: step.actor?.type === 'USER' ? (step.actor.id ?? undefined) : undefined, at: step.occurred_at };
+}

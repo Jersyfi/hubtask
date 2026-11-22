@@ -16,6 +16,7 @@ import {
   mediaNamedBy,
   namesInstant,
   namesMedia,
+  lastChangeOf,
   namesPeople,
   sentenceCode,
 } from './activity.ts';
@@ -187,4 +188,20 @@ test("the reader's own step is said in their own grammar, where the catalogue ha
   const steps = Object.keys(SOURCE).filter((code) => /^activity\.ci_[a-z_]+$/u.test(code) && !code.endsWith('_you'));
   assert.ok(steps.length >= 11);
   assert.deepEqual(steps.filter((code) => !has(`${code}_you`)), []);
+});
+
+// UC-SYN-02 check 10: the warning about a text changed meanwhile names who changed it last and when.
+test('the last change of a field is the newest step whose change set names it', () => {
+  const page = [
+    step({ id: 's3', actor: { type: 'USER', id: 'me' }, occurred_at: '2026-11-22T10:03:00Z', change_set: { due_at: { to: '2026-12-01T00:00:00Z' } } }),
+    step({ id: 's2', actor: { type: 'USER', id: 'mara' }, occurred_at: '2026-11-22T10:02:00Z', change_set: { notes: { changed: true } } }),
+    step({ id: 's1', actor: { type: 'USER', id: 'ben' }, occurred_at: '2026-11-22T10:01:00Z', change_set: { notes: { changed: true }, title: { from: 'a', to: 'b' } } }),
+    step({ id: 's0', actor: { type: 'AUTOMATION', id: 'rule-1' }, occurred_at: '2026-11-22T10:00:00Z', change_set: { amount: { to: '2' } } }),
+  ];
+  assert.deepEqual(lastChangeOf(page, 'notes'), { actorId: 'mara', at: '2026-11-22T10:02:00Z' });
+  assert.deepEqual(lastChangeOf(page, 'title'), { actorId: 'ben', at: '2026-11-22T10:01:00Z' });
+  // Not a person: no account to name.
+  assert.deepEqual(lastChangeOf(page, 'amount'), { actorId: undefined, at: '2026-11-22T10:00:00Z' });
+  assert.equal(lastChangeOf(page, 'bucket_id'), undefined);
+  assert.equal(lastChangeOf([], 'notes'), undefined);
 });
