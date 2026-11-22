@@ -1194,8 +1194,8 @@
     if (last?.actorId && last.actorId === actor.account?.id) return { isReader: true, at };
     return { name: (last?.actorId ? accounts.nameOf(last.actorId) : undefined) ?? t('app.sync.meanwhile.somebody'), at };
   });
-  /** The head's title: the reader's own while their change of it is not saved, the entry's otherwise. */
-  const titleShown = $derived(item && isInlineDirty && inlineBase && inlineTitle !== inlineBase.title ? inlineTitle : (item?.title ?? ''));
+  /** The reader's own title while their change of it is not saved: the title field opens with it. */
+  const unsavedTitle = $derived(item && isInlineDirty && inlineBase && inlineTitle !== inlineBase.title ? inlineTitle : undefined);
   // An unanswered warning holds a text that is not saved: leaving the entry would drop it unseen.
   $effect(() => leaveGuard.hold(() => (meanwhileField ? 1 : 0)));
 
@@ -1537,7 +1537,8 @@
         objectKey={{ label: ticketKey ?? typeName(item.type), icon: isDeskEntry ? 'inbox' : 'square-check', product: isDeskEntry ? 'desk' : undefined, color: isDeskEntry ? undefined : 'brand' }}
         type={{ label: itemType?.name ?? typeName(item.type) }}
         meta={headMeta}
-        title={titleShown}
+        title={item.title}
+        {unsavedTitle}
         titleLabel={t('app.entries.new_title')}
         editTitleLabel={isWritable ? t('app.entry.edit_title') : undefined}
         onrename={isWritable ? rename : undefined}

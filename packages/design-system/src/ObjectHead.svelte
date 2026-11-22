@@ -49,6 +49,8 @@
     editTitleLabel?: string;
     /** With the new title, the one the field opened with: what the person began from. */
     onrename?: (title: string, opened: string) => void;
+    /** A title the person typed and did not save yet: the field opens with it, over `title`. */
+    unsavedTitle?: string;
     /** The `StatusButton`, or a `StateLozenge` where the state is not the reader's to change. */
     status?: Snippet;
     /** The next step, the head's one primary act; with a reason, drawn and not pressable now. */
@@ -88,6 +90,7 @@
     titleLabel,
     editTitleLabel,
     onrename,
+    unsavedTitle,
     status,
     next,
     secondary,
@@ -122,7 +125,7 @@
 
   function startEditing() {
     if (!canEdit) return;
-    draft = title;
+    draft = unsavedTitle ?? title;
     opened = title;
     isEditing = true;
   }
