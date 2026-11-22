@@ -111,6 +111,12 @@ async function focusedOn(page, name) {
 }
 
 const switchedOff = (written) => written.filter((each) => each.method === 'PUT' && each.path === '/tenant/modules/WORKFLOWS');
+/** The screen after the write: the Workflows switch stands off. */
+const drawnOff = (page) => page.waitForFunction(
+  () => document.querySelector('[data-module="WORKFLOWS"] [role="switch"]')?.getAttribute('aria-checked') === 'false'
+    || document.querySelector('[data-module="WORKFLOWS"] [role="switch"]')?.checked === false,
+  undefined, { timeout: 5_000 },
+).catch(() => assert.fail('the switch is not drawn off after the switch-off'));
 
 test('chromium: switching Workflows off lists what it strands and waits for a choice; pausing writes the switch alone', async (t) => {
   const browser = await sharedChromium(t);
@@ -150,6 +156,7 @@ test('chromium: switching Workflows off lists what it strands and waits for a ch
   await answered;
   assert.equal(switchedOff(written).length, 1);
   assert.equal(written.filter((each) => each.path === '/workflow-scheme').length, 0, 'pausing converted a place');
+  await drawnOff(page);
   assert.deepEqual(errors(), []);
 });
 
@@ -192,6 +199,7 @@ test('chromium: converting to columns shows where the entries go, removes each s
   assert.deepEqual(order, ['/workflow-scheme', '/tenant/modules/WORKFLOWS'], 'the places are converted before the switch');
   const removal = written.find((each) => each.path === '/workflow-scheme');
   assert.deepEqual(removal?.body, { container_id: COLLECTION.id, confirm: true }, 'the removal names a workflow');
+  await drawnOff(page);
   assert.deepEqual(errors(), []);
 });
 
@@ -287,4 +295,5 @@ test('chromium: where no workflow runs, switching Workflows off asks as briefly 
   await dialog.getByRole('button', { name: 'Switch off', exact: true }).click();
   await answered;
   assert.equal(switchedOff(written).length, 1);
+  await drawnOff(page);
 });
