@@ -286,20 +286,23 @@
    */
   let carriedSteps = $state<Pick<EntrySteps, 'status' | 'steps' | 'blocked'> | undefined>(undefined);
   let carriedFrom = $state<string | undefined>(undefined);
+  /** The carried card's own level: the one `moveTo` writes by, so the refusals follow the same rule. */
+  let carriedLevel = $state<StateMode | undefined>(undefined);
   let stopCarried: (() => void) | undefined;
   function carry(card: WorkItem | undefined, from: string) {
     stopCarried?.();
     stopCarried = undefined;
     carriedSteps = undefined;
     carriedFrom = card ? from : undefined;
-    if (card && isWorkflow && !isWorkflowPaused) {
+    carriedLevel = card ? levelOfCard(card) : undefined;
+    if (card && carriedLevel === 'WORKFLOW' && isWorkflow && !isWorkflowPaused) {
       stopCarried = workflows.steps(card.id, (state) => {
         if (state.status === 'ready') carriedSteps = state.data;
       });
     }
   }
   const refusals = $derived(
-    carriedFrom === undefined || !isBucketBoard ? new Map<string, string>() : columnRefusals(level, columns, unmapped, carriedSteps, carriedFrom),
+    carriedFrom === undefined || !isBucketBoard ? new Map<string, string>() : columnRefusals(carriedLevel, columns, unmapped, carriedSteps, carriedFrom),
   );
   $effect(() => () => stopCarried?.());
 
