@@ -256,7 +256,9 @@ These bind every client that writes rules; the web client's editor is
 `automation.action_fields` — per kind, the use case's declared fields (`usecase.Field`, with
 `format` such as `date-time`, and `rule`, false for plumbing a rule never sets, such as a
 client-minted `id` or `expected_version`), derived from the descriptor as the MCP tool schema is. A
-newly served use case is one more block without a client release.
+newly served use case is one more block without a client release. The summaries and the fields are
+filled for a signed-in caller only; an anonymous caller writes no rule and reads both as `{}`, so a
+client re-reads the manifest as the signed-in actor before its editor opens.
 
 * An action's form is rendered from its declared fields: `rule: false` hidden, `date-time` a
   date-and-time control, anything unmarked text; what the run supplies (§2.2) is one line.

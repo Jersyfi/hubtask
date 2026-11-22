@@ -70828,7 +70828,7 @@
               },
               "action_fields": {
                 "type": "object",
-                "description": "For every kind in `actions`, the parameters its use case declares - the same fields the MCP tool schema for that use case is derived from, and derived here from the same declaration rather than written a second time. A rule editor builds an action's form from this rather than from a schema compiled into it: a client with its own would be wrong on the installation whose use case grew a field. Always present, and a kind with no parameters maps to an empty array. What a rule may leave out is not said here: a rule supplies some parameters and the run supplies the rest, so `required` describes the call, not the rule.\n",
+                "description": "For every kind in `actions`, the parameters its use case declares - the same fields the MCP tool schema for that use case is derived from, and derived here from the same declaration rather than written a second time. A rule editor builds an action's form from this rather than from a schema compiled into it: a client with its own would be wrong on the installation whose use case grew a field. Always present, filled for a signed-in caller and empty for an anonymous one, who writes no rule; a kind with no parameters maps to an empty array. What a rule may leave out is not said here: a rule supplies some parameters and the run supplies the rest, so `required` describes the call, not the rule.\n",
                 "additionalProperties": {
                   "type": "array",
                   "items": {
@@ -70838,7 +70838,7 @@
               },
               "action_summaries": {
                 "type": "object",
-                "description": "For every kind in `actions`, the one sentence its use case declares - the same sentence the MCP tool for it carries, derived from the same declaration. A rule editor's catalogue says it under the kind's name, so that every kind the installation serves is readable without a copy of the sentences compiled into a client. Protocol documentation in English, as every description in this document is; a client that lacks it shows the name alone. Always present.\n",
+                "description": "For every kind in `actions`, the one sentence its use case declares - the same sentence the MCP tool for it carries, derived from the same declaration. A rule editor's catalogue says it under the kind's name, so that every kind the installation serves is readable without a copy of the sentences compiled into a client. Protocol documentation in English, as every description in this document is; a client that lacks it shows the name alone. Always present, filled for a signed-in caller and empty for an anonymous one.\n",
                 "additionalProperties": {
                   "type": "string"
                 }

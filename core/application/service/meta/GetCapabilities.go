@@ -481,6 +481,14 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		notIncluded = append(entitlement.LeftOut{}, leftOut...)
 		actions = g.offeredActions(leftOut)
 	}
+	// What each action declares, only to somebody signed in: an anonymous caller writes no rule,
+	// and the declarations are most of the manifest's bytes. Empty, never absent, so a client
+	// reads one shape.
+	actionFields := map[string][]usecase.Field{}
+	actionSummaries := map[string]string{}
+	if actor.IsAuthenticated() {
+		actionFields, actionSummaries = g.ActionFields, g.ActionSummaries
+	}
 	var modulesOn module.Set
 	if actor.IsAuthenticated() && !actor.TenantID.IsZero() {
 		modulesOn = module.Set{}
@@ -549,8 +557,8 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		EventTypes:                event.Types(),
 		AutomationTriggers:        automation.TriggerKinds(),
 		AutomationActions:         actions,
-		AutomationActionFields:    g.ActionFields,
-		AutomationActionSummaries: g.ActionSummaries,
+		AutomationActionFields:    actionFields,
+		AutomationActionSummaries: actionSummaries,
 		RetentionDataKinds:        lifecycle.Catalogue(),
 		TextLanguages:             languages,
 		SupportedLocales:          supportedLocales,
