@@ -187,8 +187,13 @@ test('a page put in the trash from its menu leaves for the space and is not aske
     await page.keyboard.type('Words still waiting to be saved');
     const head = page.locator('[data-page-head]');
     await head.getByRole('button', { name: 'More for this page' }).click({ timeout: 15_000 });
+    // The space's address lasts a moment: a space opens on its home page and replaces its own
+    // address, so the walk waits where the reader lands and finds the space among the addresses passed.
+    const passed = [];
+    page.on('framenavigated', (frame) => frame === page.mainFrame() && passed.push(new URL(frame.url()).pathname));
     await page.getByRole('menuitem', { name: 'Put in the trash' }).click();
-    await page.waitForURL(`**/hubs/${HUB.id}/pages`, { timeout: 10_000 });
+    await page.waitForURL(`**/pages/${HOME.id}`, { timeout: 10_000 });
+    assert.ok(passed.includes(`/hubs/${HUB.id}/pages`), `the page left for the space, not by ${passed.join(' → ')}`);
     await page.getByText('1 page went into the trash.').first().waitFor({ timeout: 10_000 });
     const deleted = asked.findIndex((each) => each.method === 'DELETE');
     assert.ok(deleted >= 0, 'the delete left the browser');
