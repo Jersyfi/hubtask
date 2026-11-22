@@ -21,7 +21,7 @@ export const empty: Story = {
 export const some: Story = {
   name: 'Some chosen, as chips',
   about:
-    'The chips are a summary of what is chosen, not buttons: one stop in the tab order. Opened, focus lands on the first chosen option; Space toggles and the list stays open; a letter moves to the next option starting with it; Ctrl+A ticks all; Escape closes and puts focus back on the field.',
+    'The chips are a summary of what is chosen, not buttons: one stop in the tab order. Opened, focus lands on the first chosen option; Space toggles and the list stays open; a letter moves to the next option starting with it; Ctrl+A ticks all; Escape closes and puts focus back on the field; Tab walks *All* and *None* and, leaving them, closes the list and goes on.',
   args: { mode: 'some' },
 };
 

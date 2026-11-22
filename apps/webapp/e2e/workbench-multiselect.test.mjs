@@ -266,6 +266,17 @@ for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
       await list(page).waitFor();
       assert.equal(await list(page).getByRole('group').count(), 4, 'the four groups are not named groups');
       await walkClear(page, 'Grouped at 1280×720');
+      // Tab walks the open list's own controls, and leaving them closes the list (APG combobox:
+      // Tab closes the popup and moves on); focus goes on, not back to the field.
+      await page.keyboard.press('Tab');
+      assert.equal(await page.evaluate(() => document.activeElement?.textContent?.trim()), 'All', 'Tab from the list does not reach All');
+      await page.keyboard.press('Tab');
+      await page.keyboard.press('Tab');
+      await list(page).waitFor({ state: 'detached', timeout: 5_000 }).catch(() => undefined);
+      assert.equal(await field(page).getAttribute('aria-expanded'), 'false', 'the list stays open behind the focus');
+      assert.equal((await focused(page)).isField, false, 'Tab out of the list put focus back on the field');
+      await field(page).click();
+      await list(page).waitFor();
       const filter = page.getByRole('searchbox', { name: 'Filter the fields' });
       // The button that empties the filter has a name of its own, not the filter's.
       await filter.fill('da');
@@ -337,6 +348,10 @@ for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
       assert.ok(height >= target - 0.5, `a row is ${height} high, below a thumb's ${target}`);
       await option(page, 'Reminders').click();
       assert.equal(await option(page, 'Reminders').getAttribute('aria-selected'), 'true');
+      // Tab stays in the sheet, which is modal: onto its Done, and the sheet stays open.
+      for (let step = 0; step < 6 && (await page.evaluate(() => document.activeElement?.textContent?.trim())) !== 'Done'; step += 1) await page.keyboard.press('Tab');
+      assert.equal(await page.evaluate(() => document.activeElement?.textContent?.trim()), 'Done', 'Tab does not reach Done');
+      assert.equal(await sheet.isVisible(), true, 'Tab onto Done closed the sheet');
       await sheet.getByRole('button', { name: 'Done' }).click();
       await sheet.waitFor({ state: 'hidden' });
       assert.equal((await focused(page)).isField, true, 'Done did not put focus back on the field');

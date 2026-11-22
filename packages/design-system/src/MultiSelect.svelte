@@ -281,6 +281,15 @@
     focusActive();
   }
 
+  function onPanelFocusout(event: FocusEvent): void {
+    const to = event.relatedTarget;
+    // Nowhere (a press beside it) is the popover's to dismiss; the field toggles it itself; the
+    // sheet's own *Done* and close are still inside the surface.
+    const surface = (event.currentTarget as HTMLElement).closest('dialog, [role="dialog"]');
+    if (!(to instanceof Node) || to === button || surface?.contains(to)) return;
+    isOpen = false;
+  }
+
   function onFilterKeydown(event: KeyboardEvent): void {
     if (event.key !== 'ArrowDown' || flat.length === 0) return;
     event.preventDefault();
@@ -417,7 +426,9 @@
     {@render messages()}
 
     <Popover {label} bind:isOpen at={button ?? undefined} sheetActions={sheetDone}>
-      <div class="panel">
+      <!-- Not a trap: Tab walks the list's own controls, and focus leaving them closes it, as
+           Tab closes a combobox's popup (APG), and goes on. The sheet is modal and keeps it. -->
+      <div class="panel" onfocusout={onPanelFocusout}>
         {#if isReadOnly || isFilterable}
           <!-- The read-only reason stands in the stuck head with the filter: under the head's cover
                it would be cut through as the list scrolls. -->
