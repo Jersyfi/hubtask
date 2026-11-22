@@ -19,7 +19,7 @@ ARG PREVIOUS_IMAGE=scratch
 # the release image is built by the Node that CI verified. Moving it past 24 also costs a line:
 # Node stopped shipping corepack in v25, so `corepack enable` becomes `npm install -g corepack`
 # first. Dependabot is told to leave this major alone (.github/dependabot.yml).
-FROM node:24-alpine AS ui
+FROM node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS ui
 WORKDIR /ui
 ENV CI=true
 RUN corepack enable
@@ -52,7 +52,7 @@ RUN pnpm --filter @hubtask/api-client build \
  && pnpm --filter @hubtask/design-system build \
  && pnpm --filter @hubtask/webapp build
 
-FROM golang:1.27-alpine AS build
+FROM golang:1.27-alpine@sha256:70bd7ddea8b6cbe5d6943cde279d6b67feb10cc924fb9100d1d8757c1575b280 AS build
 WORKDIR /src
 ENV CGO_ENABLED=0
 # Dependencies first - their own layer, so that code changes do not discard the cache.
@@ -86,18 +86,18 @@ RUN mkdir -p /out/state/media /out/state/backups
 # The previous release's assets, where its image has them (from the release after the one that
 # first wrote /app/ui/assets); an empty directory otherwise.
 FROM ${PREVIOUS_IMAGE} AS previous
-FROM alpine:3.24 AS previous-assets
+FROM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS previous-assets
 RUN --mount=type=bind,from=previous,target=/previous \
     mkdir -p /out/assets && \
     if [ -d /previous/app/ui/assets ]; then cp -R /previous/app/ui/assets/. /out/assets/; fi
 
 # Time zone data and root certificates from a package image, not hand-assembled.
-FROM alpine:3.24 AS certs
+FROM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS certs
 RUN apk add --no-cache ca-certificates tzdata
 
 # Debian 13: distroless' Debian 12 image ships tzdata and ca-certificates the LTS advisories have
 # moved past (DLA-4792-1, DLA-4845-1, DLA-4854-1), and the image scan reads its package records.
-FROM gcr.io/distroless/static-debian13:nonroot
+FROM gcr.io/distroless/static-debian13:nonroot@sha256:aafe993665bf6200db38a02c11a9351e782a84b6a45e7f33b6695638c88e3931
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=certs /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=build /out/hubtask /usr/local/bin/hubtask
