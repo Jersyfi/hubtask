@@ -102,9 +102,7 @@ func (r FigureReader) Count(
 	if len(requests) == 0 {
 		return figures
 	}
-	// Its own transactions, never the caller's: the count runs under a deadline and may go on
-	// after the read (persistence.Detaching).
-	return r.countRequests(persistence.Detached(ctx, uow), actor, uow, requests, structures, r.window(actor))
+	return r.countRequests(ctx, actor, uow, requests, structures, r.window(actor))
 }
 
 // window is the reader's day and week now.
@@ -125,6 +123,9 @@ func (r FigureReader) countRequests(
 	requests []domain.FigureRequest, structures map[shared.ID]domain.EffectiveStructure, window domain.FigureWindow,
 ) map[shared.ID]domain.CollectionFigure {
 	figures := map[shared.ID]domain.CollectionFigure{}
+	// Its own transactions, never the caller's: the count runs under a deadline and may go on
+	// after the read (persistence.Detaching). Detached here, so that no caller can leave it out.
+	ctx = persistence.Detached(ctx, uow)
 	bounded, cancel := context.WithTimeout(ctx, figureDeadline)
 	defer cancel()
 	var offered []domain.FigureRequest

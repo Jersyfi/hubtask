@@ -4,6 +4,7 @@
 package main
 
 import (
+	_ "embed"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,35 +22,10 @@ func rootForTest(t *testing.T) string {
 }
 
 // filled is a description as a person fills the current template: every section, n/a where it
-// does not apply.
-const filled = `## What and why
-
-Moves the privacy gates into the pull request check, because four tables reached main
-uncatalogued.
-
-Closes #246
-
-## Use cases
-
-- UC-PRV-08: check 5 — met — the data job runs PG-7
-
-## Premises
-
-- The task said the gate ran on drafts; it never did - corrected in ci-cd.md §3.4.
-
-## Does this need an ADR?
-
-- [x] No — this implements a decision that is already recorded. Which one: ADR-0015.
-- [ ] Yes, and it is in this pull request or already merged: ADR-….
-- [ ] It deviates from an existing ADR
-
-## Impact
-
-- **Breaking change:** no
-- **Security:** none
-- **Data protection:** none
-- **Operations:** the data job takes a few seconds longer
-`
+// does not apply. A file, because gate-selftest hands it to the gate as well.
+//
+//go:embed testdata/filled.md
+var filled string
 
 func TestAFilledDescriptionPasses(t *testing.T) {
 	root := rootForTest(t)
@@ -76,12 +52,12 @@ func TestTheUnfilledTemplateIsRefused(t *testing.T) {
 	}
 	required, _ := templateHeadings(root)
 	known, _ := knownUseCases(root)
-	problems := check(string(raw), required, known)
+	problems := append(check(string(raw), required, known), reviewProblems(string(raw), false)...)
 	if len(problems) == 0 {
 		t.Fatal("the unfilled template passed")
 	}
 	joined := strings.Join(problems, "\n")
-	for _, want := range []string{"no issue is closed", "answers ticked", "placeholder"} {
+	for _, want := range []string{"no issue is closed", "answers ticked", "placeholder", "who reviewed and when", "found, fixed and left open"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("the unfilled template was not refused for %q:\n%s", want, joined)
 		}
@@ -106,6 +82,11 @@ func TestEachRuleRefusesItsOwnMistake(t *testing.T) {
 			j := strings.Index(s, "## Impact")
 			return s[:i] + s[j:]
 		}, `"Does this need an ADR?" from the template is missing`},
+		{"the review dropped", func(s string) string {
+			i := strings.Index(s, "## Review")
+			j := strings.Index(s, "## Does this need an ADR?")
+			return s[:i] + s[j:]
+		}, `"Review" from the template is missing`},
 		{"the issue in backticks", func(s string) string {
 			return strings.Replace(s, "Closes #246", "`Closes #246`", 1)
 		}, "no issue is closed"},

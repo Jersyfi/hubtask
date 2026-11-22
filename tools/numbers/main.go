@@ -15,7 +15,7 @@
 //     the first one's file, because each looks only after its own push; so at least one of them is
 //     always told. The same file in both is one migration carried by a stacked branch, not two.
 //
-// Usage: numbers [-base origin/main] [-pr <n>] [-open=false]
+// Usage: numbers [-base origin/main] [-pr <n>]
 package main
 
 import (
@@ -159,13 +159,12 @@ func main() {
 func run() int {
 	base := flag.String("base", "origin/main", "what the branch is compared with, to find the files it adds")
 	self := flag.Int("pr", 0, "this branch's pull request, left out of the comparison (default: asked of gh; none is fine)")
-	open := flag.Bool("open", true, "compare with the other open pull requests (false on main, where only the tree is held)")
 	flag.Parse()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*callTimeout)
 	defer cancel()
 
-	problems, report, err := check(ctx, *base, *self, *open)
+	problems, report, err := check(ctx, *base, *self)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "numbers: %v\n", err)
 		return 1
@@ -182,7 +181,7 @@ func run() int {
 	return 0
 }
 
-func check(ctx context.Context, base string, self int, open bool) ([]string, []string, error) {
+func check(ctx context.Context, base string, self int) ([]string, []string, error) {
 	var tree []string
 	for _, k := range kinds {
 		entries, err := os.ReadDir(k.dir)
@@ -195,9 +194,6 @@ func check(ctx context.Context, base string, self int, open bool) ([]string, []s
 	}
 	problems := treeProblems(tree)
 	report := []string{fmt.Sprintf("numbers: %d numbered files in the tree", len(tree))}
-	if !open {
-		return problems, report, nil
-	}
 
 	added, err := addedSince(ctx, base)
 	if err != nil {

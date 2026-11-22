@@ -4,6 +4,22 @@ Thanks for your interest. Hubtask's architecture is documented in full, and that
 work from. The rules for changing anything — for a person and for an AI coding agent of any make —
 are in [`AGENTS.md`](AGENTS.md). This file is the human way in.
 
+## Quick start
+
+With Go, Docker, Node.js, `git`, `python3`, `curl` and `openssl` installed ("Working from a new
+machine" below):
+
+```bash
+make tools && make dev   # a database, the server, a demo workspace with content, the web app
+make check               # the checks of what you changed, in about a minute
+make dev-down            # stops the server and the web app, removes the database and .dev/
+```
+
+`make dev` prints the address to open and the demo people's password, drawn at that start. It uses
+its own database, ports and `.dev/` directory, so it runs beside anything else on your machine.
+`make dev-down` leaves what the build made outside `.dev/`: `node_modules`, the packages' build
+output and `.tools/`.
+
 ## Ways to contribute
 
 - **Report a bug** with the bug form. It becomes a `finding`; the next milestone takes it in.
@@ -16,6 +32,30 @@ are in [`AGENTS.md`](AGENTS.md). This file is the human way in.
 - **Work closely on a part of Hubtask** with your own tools: you take a milestone of your own, follow
   `AGENTS.md`, and put questions for the owner as `decision` issues.
 
+## What to expect
+
+**What is welcome.** A bug fix, a translation, documentation and a test are welcome without asking
+first. A feature starts as an issue, and so does anything the owner decides
+([`AGENTS.md`](AGENTS.md), "What you do not decide yourself").
+
+**What happens to your pull request.** An AI coding agent that works for the maintainer — a
+worker — reads it first and runs a review. The maintainer merges. No time is promised: Hubtask has one maintainer.
+
+**Work done with an AI tool** is welcome on the same terms as any other work. You answer for it,
+and it passes the same gates.
+
+**The description.** `make gate-pr` holds a description to the template. When it refuses yours, a
+maintainer completes it; the template does not stop a contribution.
+
+## Governance
+
+- Hubtask has one maintainer, the owner.
+- A decision is an issue labelled `decision`, visible to everyone.
+- A pull request merges on the owner's word.
+- [`.github/CODEOWNERS`](.github/CODEOWNERS) names who answers for each part of the repository.
+- When a second maintainer joins, the parts are shared along those lines, and this section says
+  how decisions and merges are taken from then on.
+
 ## Working from a new machine
 
 Any machine works, with any coding tool; nothing depends on one in particular or on notes kept
@@ -24,6 +64,7 @@ outside this repository.
 - Go (the version in `go.mod`), Docker with Compose (running — the container gates and
   `make db-up` need it), `git`, and the GitHub CLI `gh`.
 - Node.js (the version in `.nvmrc`) only for `apps/` and `packages/`.
+- `python3`, `curl` and `openssl` for `make dev` and the scripts that seed a workspace.
 - `gh auth login` once, as the GitHub account you work with; `gh` opens draft pull requests and
   reads issues, and `make gate-numbers` asks it for the open pull requests.
 
@@ -49,8 +90,9 @@ maintainers', handed over by the owner on request and never written into this re
 
 ## Signing in locally
 
-`make db-up && make migrate` gives you a database and a schema, but no workspace and nobody to be.
-Four things, once:
+`make dev` does all of this for a demo workspace of its own. By hand, against the development
+database: `make db-up && make migrate` gives you a database and a schema, but no workspace and
+nobody to be. Four things, once:
 
 **1. The application role needs its login.** `make migrate` creates the role without a password;
 the migrator binary grants it:
@@ -107,9 +149,15 @@ at the integration environment with `--api`.
 
 - Start it as a draft (`gh pr create --draft`), its description copied from
   `.github/PULL_REQUEST_TEMPLATE.md`, its title a Conventional Commit;
-  `make gate-pr BODY=<file> TITLE="<title>"` checks both.
+  `make gate-pr BODY=<file> TITLE="<title>"` checks both; with `DRAFT=1` its *Review*
+  may still say `not yet: <why>`.
 - Small commits, one concern each, with a Conventional Commit title in English.
-- `make check` before `gh pr ready`: a draft runs no CI; CI runs once when it is ready
+- Before `gh pr ready`, a fresh agent that has not seen the build reviews the change
+  (`.agents/skills/review-change/SKILL.md`), each finding is fixed or answered, and the description
+  reports it under *Review*. For a pull request from a fork, the maintainer's worker runs this
+  review.
+- `make check`, on the last fix too, and a push before `gh pr ready`: a draft runs no CI; CI runs
+  once when it is ready
   ([ci-cd.md](docs/architecture/ci-cd.md)). Most jobs skip themselves when their part of the tree
   did not change — that is normal. `CI required` is the one required check.
 

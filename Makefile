@@ -41,6 +41,10 @@ GO_LICENSES_VERSION   := v1.6.0
 # through the module proxy with the checksum database vouching for it; a development tool that never
 # ships in the product.
 OASDIFF_VERSION       := v1.33.0
+# deadcode lists the functions no binary reaches (`make deadcode`, ci-cd.md §11). The Go team's
+# own tool, installed like the others; it feeds a report and never a gate. v0.53.0 does not load
+# the standard library of Go 1.27.4 ("requires go1.26 or later"), so the pin is the release before.
+DEADCODE_VERSION      := v0.52.0
 # promtool cannot be installed with `go install`: the Prometheus module carries replace
 # directives, which the tool refuses. So it comes as the project's own release archive, pinned by
 # version *and* by checksum - a download without one is a supply chain decision made by whoever
@@ -97,8 +101,8 @@ endef
 TOOLS_PINS  := golangci-lint@$(GOLANGCI_LINT_VERSION) oapi-codegen@$(OAPI_CODEGEN_VERSION) \
 	sqlc@$(SQLC_VERSION) goose@$(GOOSE_VERSION) govulncheck@$(GOVULNCHECK_VERSION) \
 	actionlint@$(ACTIONLINT_VERSION) helm@$(HELM_VERSION) go-licenses@$(GO_LICENSES_VERSION) \
-	promtool@$(PROMTOOL_VERSION) oasdiff@$(OASDIFF_VERSION)
-# What the stamp records: the pins, and the Go that compiled them. Nine of the ten are built
+	promtool@$(PROMTOOL_VERSION) oasdiff@$(OASDIFF_VERSION) deadcode@$(DEADCODE_VERSION)
+# What the stamp records: the pins, and the Go that compiled them. Ten of the eleven are built
 # from source, so a moved toolchain is as much a reason to install again as a moved pin - and a
 # directory restored from a cache says nothing about which Go built it.
 TOOLS_IDENTITY := $(shell $(GO) env GOVERSION) $(TOOLS_PINS)
@@ -119,6 +123,7 @@ tools:
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/google/go-licenses@$(GO_LICENSES_VERSION)
 	@$(MAKE) --no-print-directory tools-promtool
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/oasdiff/oasdiff@$(OASDIFF_VERSION)
+	@$(MAKE) --no-print-directory tools-deadcode
 	@printf '%s\n' "$(TOOLS_IDENTITY)" > $(TOOLS_STAMP)
 	@echo "tools: $(TOOLS_DIR) holds the pinned set"
 
@@ -160,6 +165,13 @@ tools-ensure:
 tools-licenses:
 	@mkdir -p $(TOOLS_DIR)
 	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install github.com/google/go-licenses@$(GO_LICENSES_VERSION)
+
+## tools-deadcode: deadcode on its own, for the weekly flow report
+# The report's job needs this one tool and none of the others (as tools-helm, tools-licenses).
+.PHONY: tools-deadcode
+tools-deadcode:
+	@mkdir -p $(TOOLS_DIR)
+	GOBIN=$(PWD)/$(TOOLS_DIR) $(GO) install golang.org/x/tools/cmd/deadcode@$(DEADCODE_VERSION)
 
 ## tools-node: Install pnpm into .tools (only needed to work on apps/ or packages/)
 # Deliberately not a dependency of `make tools`. A backend-only contributor never needs a
@@ -379,6 +391,18 @@ build:
 run:
 	$(GO) run ./cmd/server
 
+## dev: From a checkout to a signed-in demo workspace: database, server, content, web app (make dev-down removes it)
+# Its own Compose project, volume, ports and .dev/ directory, beside `make db-up` and a server on
+# the usual ports (scripts/dev.sh). The demo people's password is drawn at start and printed once.
+.PHONY: dev
+dev:
+	@scripts/dev.sh up
+
+## dev-down: Stop what `make dev` started, remove its database and .dev/ (node_modules, builds and .tools stay)
+.PHONY: dev-down
+dev-down:
+	@scripts/dev.sh down
+
 # ---------------------------------------------------------------------- Gates
 
 ## check: The changed packages' checks, in minutes and without a lock - while working (ADR-0089)
@@ -456,12 +480,20 @@ gate-unit:
 # statements` - with a leading tab that awk drops - so `$$2` named the package in the first case
 # and printed `coverage:` in the second. That is the case the threshold exists for, and it was the
 # one whose message did not say which package had failed it.
+#
+# In CI the figures also go to the job's summary (GITHUB_STEP_SUMMARY): the layer's lowest package
+# and every package's percentage. Reported there and nowhere else - no badge, no service. A
+# summary that cannot be written is said and left out: the gate is the threshold, not the report.
 .PHONY: coverage-check
 coverage-check:
 	@pkgs="$$($(GO) list $(PKG) 2>/dev/null)"; \
 	if [ -z "$$pkgs" ]; then echo "coverage $(PKG): no packages yet - skipped"; exit 0; fi; \
 	out="$$($(GO) test -covermode=atomic -cover $$pkgs 2>&1)" || { echo "$$out"; exit 1; }; \
-	echo "$$out" | awk -v min="$(MIN)" ' \
+	summary="$${GITHUB_STEP_SUMMARY:-}"; \
+	if [ -n "$$summary" ] && ! { : >> "$$summary"; } 2>/dev/null; then \
+		echo "coverage $(PKG): the job summary cannot be written - the figures are printed here only"; summary=""; \
+	fi; \
+	echo "$$out" | awk -v min="$(MIN)" -v layer="$(PKG)" -v summary="$$summary" ' \
 		{ pkg = ($$1 == "ok" || $$1 == "?" || $$1 == "FAIL") ? $$2 : $$1 } \
 		/\[no test files\]/ { printf("  %s: no test file at all\n", pkg); failed=1; next } \
 		/coverage:/ { \
@@ -469,9 +501,16 @@ coverage-check:
 			if (value ~ /statements/ || value ~ /\[/) next; \
 			gsub(/%/, "", value); \
 			if (value + 0 < min + 0) { printf("  %s: %s%% below the %s%% threshold\n", pkg, value, min); failed=1 } \
-			else printf("  %s: %s%%\n", pkg, value) \
+			else printf("  %s: %s%%\n", pkg, value); \
+			n++; if (n == 1 || value + 0 < lowest + 0) { lowest = value; lowestpkg = pkg } \
+			rows = rows sprintf("| `%s` | %s %% |\n", pkg, value) \
 		} \
-		END { if (failed) { print "coverage $(PKG): below the threshold"; exit 1 } }'
+		END { \
+			if (summary != "" && n > 0) { \
+				printf("### Coverage of `%s`\n\n%d packages, each held to %s %%. The lowest: `%s` at %s %%.\n\n", layer, n, min, lowestpkg, lowest) >> summary; \
+				printf("<details><summary>Every package</summary>\n\n| Package | Statements covered |\n|---|---|\n%s\n</details>\n\n", rows) >> summary \
+			} \
+			if (failed) { print "coverage $(PKG): below the threshold"; exit 1 } }'
 
 ## gate-sdk: The generated Python SDK parses
 # `make generate` writes it and `gate-quick` catches a drift, so what the contract produces is
@@ -554,13 +593,13 @@ gate-api-compat:
 gate-privacy:
 	$(call go_test,,./test/privacy/...,)
 
-## gate-pr: The pull request description against the template (BODY=<file>, or stdin); TITLE=<title> checks the title; BASE=<ref> also reads the branch's history
+## gate-pr: The pull request description against the template (BODY=<file>, or stdin); TITLE=<title> checks the title; BASE=<ref> also reads the branch's history; DRAFT=1 lets Review say "not yet"
 # The title is read by the shell from the environment rather than pasted into the recipe, where its
 # quotes would be the shell's. Given on make's command line, a `$` in it is make's and is written
 # `$$`; given in the environment (TITLE="…" make gate-pr), it is taken as it is.
 .PHONY: gate-pr
 gate-pr:
-	$(GO) run ./tools/checkpr $(if $(BODY),-body $(BODY),) $(if $(TITLE),-title "$$TITLE",) -base $(if $(BASE),$(BASE),origin/main) $(if $(HEAD_REF),-head $(HEAD_REF),) $(if $(OPENED),-opened $(OPENED),)
+	$(GO) run ./tools/checkpr $(if $(BODY),-body $(BODY),) $(if $(TITLE),-title "$$TITLE",) -base $(if $(BASE),$(BASE),origin/main) $(if $(HEAD_REF),-head $(HEAD_REF),) $(if $(OPENED),-opened $(OPENED),) $(if $(DRAFT),-draft,)
 
 ## gate-privacy-full: PG-2 and PG-7 against a real PostgreSQL (every pull request, and the nightly on arm64)
 .PHONY: gate-privacy-full
@@ -881,7 +920,24 @@ gate-cli:
 	$(call go_test,,./cmd/hubctl/...,)
 	./bin/hubctl$(GOEXE) --version
 
-## e2e: Build the web app and walk it in Chromium; SUITES="timewalk explain" walks those alone
+# Where recorded walks write their answers (apps/webapp/e2e/record.mjs): each `make e2e RECORD=1`
+# into a directory of its own, named by when it started, so that no run is judged with what an
+# earlier one left. WALK_RECORD names one run's directory instead, as CI does.
+WALK_RECORD_DIR ?= $(PWD)/apps/webapp/.walk-record
+
+## gate-walks: The answers the recorded walks gave, against openapi.yaml (after `make e2e RECORD=1`)
+# The newest run under WALK_RECORD_DIR, or the one WALK_RECORD names. Only suites with a record
+# are judged, so it holds for one suite and for one of CI's shards alike. -count=1: the records
+# are not the test's input as Go's cache sees it. -v: the counts are the test's log.
+.PHONY: gate-walks
+gate-walks:
+	@run="$(WALK_RECORD)"; \
+	if [ -z "$$run" ]; then run="$$(ls -1d "$(WALK_RECORD_DIR)"/*/ 2>/dev/null | sort | tail -n 1)"; fi; \
+	if [ -z "$$run" ] || [ ! -d "$$run" ]; then echo "no recorded walks in $(WALK_RECORD_DIR) - run 'make e2e RECORD=1'"; exit 1; fi; \
+	echo "the recorded walks in $$run"; \
+	WALK_RECORD="$$run" $(GO) test -tags=contract -count=1 -v -run '^TestTheWalksAnswerWithinTheContract$$' ./test/contract/
+
+## e2e: Build the web app and walk it in Chromium; SUITES="timewalk explain" walks those alone; RECORD=1 also holds their answers to the contract
 # As ci.yml's engines job does: the packages the web app builds on, the web app, the workbench
 # that workbench-layout measures, then every suite in Chromium (ENGINES=firefox,webkit for the
 # others). A named suite runs alone, one test at a time, as a worker walks the one it touched.
@@ -890,7 +946,8 @@ e2e:
 	@test -n "$(PNPM)" || { echo "pnpm is missing - run 'make tools-node'"; exit 1; }
 	$(PNPM) --filter "@hubtask/webapp^..." build
 	$(PNPM) --filter @hubtask/webapp build
-	@if [ -n "$(SUITES)" ]; then \
+	@if [ -n "$(RECORD)" ]; then export WALK_RECORD="$(WALK_RECORD_DIR)/$$(date -u +%Y%m%dT%H%M%SZ)"; fi; \
+	if [ -n "$(SUITES)" ]; then \
 		for suite in $(SUITES); do \
 			(cd apps/webapp && ENGINES=$${ENGINES:-chromium} node --test --test-concurrency=1 e2e/$$suite.test.mjs) || exit 1; \
 		done; \
@@ -898,6 +955,7 @@ e2e:
 		$(PNPM) --filter @hubtask/design-system workbench:build && \
 		ENGINES=$${ENGINES:-chromium} $(PNPM) --filter @hubtask/webapp test:engines; \
 	fi
+	@if [ -n "$(RECORD)" ]; then $(MAKE) --no-print-directory gate-walks WALK_RECORD=; fi
 
 ## gate-e2e: The hubctl end-to-end session against the reference Compose stack
 # The other half of gate-compose. That one asks whether the stack starts; this one asks whether a
@@ -973,18 +1031,44 @@ locales:
 gate-docs:
 	$(GO) run ./tools/checkdocs
 
+## proof-state: Print the use cases by state, the checks a checked_by file cites, and the bounds that only fall
+# A printed table, never a committed page (ci-cd.md §3.5, §12): the `docs` job writes it to the
+# summary of main's run, and the weekly flow report carries it.
+.PHONY: proof-state
+proof-state:
+	@$(GO) run ./tools/checkdocs -proof-state
+
 ## gate-numbers: One file per migration and ADR number, none another open pull request adds (needs gh)
 # Not in `make verify`: it asks GitHub for the open pull requests, and the local gates run offline.
-# CI runs it. BASE is where the branch left main; OPEN=0 holds only the tree (main).
+# CI runs it. BASE is where the branch left main.
 .PHONY: gate-numbers
 gate-numbers:
-	$(GO) run ./tools/numbers $(if $(BASE),-base $(BASE),) $(if $(PR),-pr $(PR),) $(if $(filter 0,$(OPEN)),-open=false,)
+	$(GO) run ./tools/numbers $(if $(BASE),-base $(BASE),) $(if $(PR),-pr $(PR),)
 
-## flowstats: How work flowed over a window - pull requests, CI, sessions (SINCE=, UNTIL=; needs gh)
-# Not a gate: a report, so that a review compares two windows by the same code (ADR-0089).
+## deadcode: List the Go functions no binary reaches (a report, not a gate)
+# For the default build configuration, without the tests: a function only a test calls is listed.
+# The flow report prints the count (ci-cd.md §11). What is listed is removed in a pull request of
+# its own (.agents/skills/tidy/SKILL.md), never in passing.
+.PHONY: deadcode
+deadcode:
+	$(call require_tool,deadcode)
+	@$(TOOLS_DIR)/deadcode ./...
+
+## unused: List the files, exports and dependencies nothing in the TypeScript workspace uses (a report, not a gate)
+# Knip, a development dependency of the workspace root, pinned in package.json and the lockfile.
+# Its `knip` key in package.json switches its Vite plugin off for the two clients: it cannot load their configuration
+# outside a SvelteKit build. The flow report prints the count where the workspace is installed.
+.PHONY: unused
+unused:
+	@test -n "$(PNPM)" || { echo "pnpm is missing - run 'make tools-node'"; exit 1; }
+	@$(PNPM) exec knip --no-exit-code
+
+## flowstats: The flow report of a window beside the one before it (SINCE=, UNTIL=; needs gh)
+# Not a gate: a report (ci-cd.md §11). The weekly job passes FLOWSTATS_ARGS to leave the
+# transcripts out, to name the outside reviewer and to file the report and its findings (-file-as).
 .PHONY: flowstats
 flowstats:
-	$(GO) run ./tools/flowstats -since $(SINCE) -until $(UNTIL)
+	@$(GO) run ./tools/flowstats -since $(SINCE) -until $(UNTIL) $(FLOWSTATS_ARGS)
 
 ## gate-main-green: main's newest run is green, or this pull request is its fix (needs gh; PR=<n>)
 # The last step of `CI required` (ADR-0083), which runs the script directly; this target is the
@@ -1088,6 +1172,8 @@ capacity:
 release-tag:
 	@test -n "$(VERSION_TO_TAG)" || { echo "Usage: make release-tag VERSION_TO_TAG=1.2.3"; exit 1; }
 	@git diff --quiet || { echo "Working tree is not clean"; exit 1; }
+	@# The release page opens with this file (versioning-release.md §3); release.yml refuses a tag without it.
+	@test -s "docs/releases/v$(VERSION_TO_TAG).md" || { echo "docs/releases/v$(VERSION_TO_TAG).md is missing or empty: write the release's summary first"; exit 1; }
 	@$(MAKE) verify
 	@# A scheduled contract step falls due by the releases that shipped its expand half
 	@# (versioning-release.md §4); a pre-release does not count.

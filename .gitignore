@@ -25,6 +25,8 @@ node_modules/
 # (ADR-0028), and core/domain/model/shared/LabelTokens.go, which is generated into the core and
 # is not under any of these paths at all (ADR-0029).
 apps/*/dist/
+# What `make e2e RECORD=1` writes: the walks' answers, read by `make gate-walks`.
+apps/webapp/.walk-record/
 packages/*/dist/
 sdk/typescript/dist/
 .svelte-kit/
@@ -40,6 +42,8 @@ sdk/typescript/dist/
 
 # Tools
 /.tools/
+# What `make dev` makes and `make dev-down` removes: binaries, logs, media, generated secrets.
+/.dev/
 # The coverage profiles gate-unit writes; a wider pattern also matched Coverage.go on macOS.
 coverage.out
 coverage.*.out
@@ -61,11 +65,14 @@ coverage.html
 /presentation/webui/dist/*
 !/presentation/webui/dist/index.html
 
-# Local Claude Code tooling (launch configurations, settings, worktrees); not project content. One
-# exception: settings.json carries the hook that holds a Claude Code session to the draft rule of
-# AGENTS.md (ADR-0079); other agents keep that rule by themselves.
+# Local Claude Code tooling (launch configurations, settings, worktrees); not project content.
+# Three exceptions: settings.json carries the hook that holds a Claude Code session to the draft
+# rule of AGENTS.md (ADR-0079); skills/ holds one link per skill of .agents/skills/, where that
+# tool looks for them, and agents/ the reviewer's wrapper (ADR-0106).
 /.claude/*
 !/.claude/settings.json
+!/.claude/skills/
+!/.claude/agents/
 
 # Python bytecode from running the SDK example or its test
 __pycache__/

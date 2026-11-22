@@ -4,6 +4,20 @@ An ADR records **why and when** a decision was taken. The rule itself lives in a
 (`docs/architecture/`, `docs/design/`), and each ADR names it in its `**Rule lives in:**` line —
 read that section for what holds today ([ADR-0081](./ADR-0081-how-work-is-organised.md)).
 
+## When a decision gets an ADR
+
+A decision gets an ADR when one of three holds
+([ADR-0106](./ADR-0106-an-independent-review-and-the-owner-on-the-loop.md)):
+
+1. A later worker who sees only the rule would be tempted to undo it.
+2. It is hard to reverse: the data model, a protocol, the contract, the licence, a dependency.
+3. It is on the owner's list ([AGENTS.md](../../AGENTS.md), "What you do not decide yourself").
+
+Anything else is process tuning — a threshold, a wording, the order of steps. It is recorded where
+the rule lives, with its date, and gets no ADR.
+
+## How an ADR is kept
+
 - One file per decision, short: context, decision, consequences, and the `Rule lives in` line in
   its header, under the status. `make gate-docs` refuses an ADR without that line and a link in it
   that does not resolve; that the named section still holds the rule is checked by reading.
@@ -111,7 +125,7 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0076](./ADR-0076-withdrawing-an-offered-provider.md) | Withdrawing an offered sign-in provider: a count, a notice, and a way back in | accepted | Identity, multi-tenancy |
 | [0077](./ADR-0077-nobody-is-locked-out.md) | Nobody is locked out: amendments to the withdrawal of an offered provider | accepted | Identity, multi-tenancy |
 | [0078](./ADR-0078-the-ways-back-in.md) | The ways back in: a second proof for a provider, a fallback for every cause, and an operator's lever | accepted | Identity, multi-tenancy |
-| [0079](./ADR-0079-a-draft-is-checked-locally.md) | A draft is checked locally; CI runs when a pull request is ready | accepted | CI, process, tooling |
+| [0079](./ADR-0079-a-draft-is-checked-locally.md) | A draft is checked locally; CI runs when a pull request is ready | accepted (superseded in part by 0106) | CI, process, tooling |
 | [0080](./ADR-0080-hubtask-is-apache-2-0.md) | Hubtask is Apache-2.0 | accepted | Legal, product, process |
 | [0081](./ADR-0081-how-work-is-organised.md) | How work on Hubtask is organised | accepted | Process |
 | [0082](./ADR-0082-integration-in-production-shape.md) | The integration environment runs its database in production's shape | accepted | Operations |
@@ -121,8 +135,8 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0086](./ADR-0086-plans-a-level-for-providers.md) | Plans, a level for providers | accepted | Tenancy, administration |
 | [0087](./ADR-0087-levels-and-a-livelier-product.md) | Levels, and a livelier product | accepted | Work, design |
 | [0088](./ADR-0088-a-long-press-opens-the-entry-menu.md) | A long press opens the entry menu | accepted | Design |
-| [0089](./ADR-0089-check-once-where-it-is-cheap.md) | Check once, where it is cheap; the worker checks its own premises | accepted | Process |
-| [0090](./ADR-0090-concept-mode-findings-fixed-where-found-proof-by-tests.md) | Concept mode, findings fixed where found, proof by tests | accepted | Process |
+| [0089](./ADR-0089-check-once-where-it-is-cheap.md) | Check once, where it is cheap; the worker checks its own premises | accepted (superseded in part by 0106) | Process |
+| [0090](./ADR-0090-concept-mode-findings-fixed-where-found-proof-by-tests.md) | Concept mode, findings fixed where found, proof by tests | accepted (superseded in part by 0106) | Process |
 | [0091](./ADR-0091-hubtask-as-one-system.md) | Hubtask as one system | accepted | Design |
 | [0092](./ADR-0092-mail-addresses-for-every-place.md) | Mail addresses for every place, on the operator's receiving domain | superseded | Jumble, security |
 | [0093](./ADR-0093-voice-assistants-through-a-skill-of-our-own.md) | Voice assistants through a skill of our own | accepted | Work, identity |
@@ -138,4 +152,5 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0103](./ADR-0103-a-board-keeps-one-source-of-done.md) | A board maps its columns to statuses and keeps one source of done | accepted | Domain, application, clients |
 | [0104](./ADR-0104-wopi-host-and-file-viewer.md) | A WOPI host for a document server, and one file viewer | accepted | Security, application, adapters, web client |
 | [0105](./ADR-0105-one-object-shape-and-product-colours.md) | One object shape, and product colours that identify | accepted | Design system, clients |
+| [0106](./ADR-0106-an-independent-review-and-the-owner-on-the-loop.md) | An independent review, a design brief, and the owner on the loop | accepted | Process, documentation, contributors |
 | [0107](./ADR-0107-the-application-does-not-state-its-maturity-stage.md) | The application does not state its maturity stage | accepted | Release, clients |

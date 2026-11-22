@@ -28,6 +28,23 @@ The vision behind this, the people it is for and the settings it must work in ar
 
 ---
 
+## Quality and security
+
+[![CI](https://github.com/Jersyfi/hubtask/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Jersyfi/hubtask/actions/workflows/ci.yml?query=branch%3Amain)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Jersyfi/hubtask/badge)](https://scorecard.dev/viewer/?uri=github.com/Jersyfi/hubtask)
+
+* The proof state counts the use cases by state and the checks cited by a test or a document that
+  proves them. `make proof-state` prints it, and the
+  [weekly flow report](https://github.com/Jersyfi/hubtask/issues?q=is%3Aissue+in%3Atitle+%22Flow+report%22+author%3Aapp%2Fgithub-actions)
+  carries it. No figure in it rises without a file that cites a check.
+* The Scorecard figure cannot reach the top: three of its checks need a second person, and Hubtask
+  has one maintainer. The badge links to the result of each check.
+* A release's image is signed and carries its build provenance and a bill of materials
+  ([security.md §11](./docs/architecture/security.md#11-supply-chain-and-build)). To verify one:
+  `gh attestation verify oci://ghcr.io/jersyfi/hubtask:<version> --repo Jersyfi/hubtask --signer-workflow Jersyfi/hubtask/.github/workflows/release.yml --source-ref refs/tags/<version>`
+
+---
+
 ## Documentation
 
 The architecture is fully documented. [`docs/README.md`](./docs/README.md) says where each kind of

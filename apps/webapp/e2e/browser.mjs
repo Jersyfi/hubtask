@@ -10,6 +10,8 @@ import { test } from 'node:test';
 
 import { chromium } from 'playwright';
 
+import './record.mjs';
+
 let launched;
 
 test.after(async () => {

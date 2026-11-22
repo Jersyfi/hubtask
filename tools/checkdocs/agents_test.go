@@ -5,6 +5,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -138,5 +140,63 @@ func TestADRRuleLine(t *testing.T) {
 	}
 	if hasRuleLine("# ADR-0001\n\n**Status:** accepted\n\n## Context\n") {
 		t.Error("an ADR without the line passed")
+	}
+}
+
+func TestSkillList(t *testing.T) {
+	skills := []string{"design-brief", "tidy"}
+	for _, c := range []struct {
+		name, doc string
+		want      []string
+	}{
+		{name: "every skill named",
+			doc: "`.agents/skills/tidy/SKILL.md`, `.agents/skills/design-brief/SKILL.md`, `.agents/skills/<name>/SKILL.md`"},
+		{name: "one left out", doc: "`.agents/skills/tidy/SKILL.md`",
+			want: []string{"does not name .agents/skills/design-brief/SKILL.md"}},
+		{name: "one that is gone, named twice",
+			doc:  "`.agents/skills/tidy/SKILL.md` `.agents/skills/design-brief/SKILL.md` `.agents/skills/gone/SKILL.md` `.agents/skills/gone/SKILL.md`",
+			want: []string{"names .agents/skills/gone/SKILL.md"}},
+		{name: "named by name only", doc: "`tidy` and `design-brief`",
+			want: []string{"does not name .agents/skills/design-brief/SKILL.md", "does not name .agents/skills/tidy/SKILL.md"}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			got := skillListProblems(c.doc, skills)
+			if len(got) != len(c.want) {
+				t.Fatalf("want %d problems, got %q", len(c.want), got)
+			}
+			for i, want := range c.want {
+				if !strings.Contains(got[i], want) {
+					t.Errorf("want a problem containing %q, got %q", want, got[i])
+				}
+			}
+		})
+	}
+}
+
+// The check reads the folders: a skill added without its line in AGENTS.md is found, and a tree
+// without skills is a problem rather than a pass.
+func TestSkillListReadsTheFolders(t *testing.T) {
+	root := t.TempDir()
+	if got := checkSkillList(root); len(got) != 1 || !strings.Contains(got[0], "not readable") {
+		t.Fatalf("a tree without .agents/skills: got %q", got)
+	}
+	for _, name := range []string{"tidy", "design-brief"} {
+		if err := os.MkdirAll(filepath.Join(root, ".agents", "skills", name), 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("- `.agents/skills/tidy/SKILL.md`\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got := checkSkillList(root)
+	if len(got) != 1 || !strings.Contains(got[0], "does not name .agents/skills/design-brief/SKILL.md") {
+		t.Fatalf("want the one skill left out, got %q", got)
+	}
+}
+
+// This repository's own list, so that the test fails where the gate would.
+func TestThisRepositoryListsEverySkill(t *testing.T) {
+	for _, problem := range checkSkillList("../..") {
+		t.Error(problem)
 	}
 }

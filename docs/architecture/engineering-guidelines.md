@@ -13,7 +13,7 @@ complements [arc42.md](./arc42.md) chapters 10 and 11.
 | **Application** | Use cases, permissions, idempotency, events | Fakes of the ports beside the tests | `make gate-unit` (coverage ≥ 75 % per package) | < 30 s |
 | **Infrastructure** | Repositories, RLS, queue, outbox, migrations | Testcontainers with a real PostgreSQL — a mock of RLS would only test the mock | `make gate-integration` | < 5 min |
 | **Contract** | REST, events and MCP tools against their schemas | `test/contract` | `make gate-contract` | < 1 min |
-| **End-to-end** | The core paths over HTTP against the whole process | `scripts/hubctl-e2e.sh` on the Compose stack; Playwright for the web app ([ADR-0048](../adr/ADR-0048-browser-job-driver.md)) | `make gate-e2e`, `make gate-compose` | < 5 min |
+| **End-to-end** | The core paths over HTTP against the whole process | `scripts/hubctl-e2e.sh` on the Compose stack; Playwright for the web app ([ADR-0048](../adr/ADR-0048-browser-job-driver.md)), by the rules in [`apps/webapp/e2e/AGENTS.md`](../../apps/webapp/e2e/AGENTS.md) | `make gate-e2e`, `make gate-compose` | < 5 min |
 | **Load** | Query DSL at scale, automation storm, overload | `test/load` against the real binary, two tiers ([observability-reliability.md](./observability-reliability.md) §13.2) | `make gate-load` | Nightly / before a release |
 | **Architecture** | Layers, use case parity, the `go` ban, authorisation, message codes | `depguard`, `test/architecture` ([project-structure.md](./project-structure.md) §2) | `make gate-architecture` | < 10 s |
 
@@ -53,7 +53,7 @@ injected ([arc42.md](./arc42.md) §8.13).
 ## 3. Definition of Done
 
 What a finished change holds. Nobody ticks these off in a description (ADR-0089): the gates hold
-what they can, and the author reviews the change against the rest.
+what they can, and the author and then an independent review hold the rest (§3.19).
 
 ### 3.1 Tests green, the local check passed
 The relevant levels of §1 and the coverage thresholds hold; `make check` is green for the pushed
@@ -138,9 +138,36 @@ No colour, spacing, radius or duration value outside
 ([project-structure.md](./project-structure.md) §2.1).
 
 ### 3.19 Reviewed against what no gate checks
-The author reviews against every [AGENTS.md](../../AGENTS.md) rule marked `[partial]`, `[unchecked]`
-or `[owner]` and names the findings here: fixed in a commit of the same pull request, or a `finding`
-issue when the fix is clearly bigger than a step ([AGENTS.md](../../AGENTS.md), "Working rules").
+The author reviews the change against every [AGENTS.md](../../AGENTS.md) rule marked `[partial]`,
+`[unchecked]` or `[owner]` and fixes what that finds. The independent review is added to this
+check and does not replace it.
+
+Then, before the pull request leaves draft, and at each checkpoint of a concept, a fresh agent that
+has not seen the author's conversation reviews the change
+([ADR-0106](../adr/ADR-0106-an-independent-review-and-the-owner-on-the-loop.md)). It reads the
+change against its use cases, against every [AGENTS.md](../../AGENTS.md) rule marked `[partial]`,
+`[unchecked]` or `[owner]`, the test levels of §1, the design brief, the mockups, the text the
+change makes false and what it left behind; `.agents/skills/review-change/SKILL.md` holds the steps
+and the form of the report. The author fixes each finding in a commit of the same pull request or
+answers it with a reason — a `finding` issue when the fix is clearly bigger than a step
+([AGENTS.md](../../AGENTS.md), "Working rules") — and the description reports the review in its
+*Review* section. The review comments and decides nothing ([ci-cd.md](./ci-cd.md) §5).
+
+After the independent review, an outside reviewer's app may comment on the pull request where it
+is installed. The author fixes what is right and answers the rest, and the *Review* section
+reports it in one row. Its check is never a required check ([ci-cd.md](./ci-cd.md) §5).
+
+### 3.20 Nothing left behind
+A change removes what it makes unused — a function whose last caller it removed, a flag, a
+translation key, a stub answer, the test of behaviour it removed — in the same pull request, in its
+own commit. What a tool reports as unused across the repository is removed in a pull request of its
+own, apart from every change in behaviour. Nothing is removed because a model judges it
+unnecessary.
+
+A test is deleted or weakened only when the behaviour it asserts was removed or changed on purpose,
+or when another test asserts the same thing; the description names each such test and which reason
+applies. A test that a use case cites in `checked_by` leaves only together with the change to that
+use case.
 
 ---
 

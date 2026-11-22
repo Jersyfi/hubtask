@@ -72,16 +72,18 @@ func TestEveryCommitOnMainGetsItsOwnRun(t *testing.T) {
 	}
 
 	const (
-		group  = "ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}"
-		cancel = "${{ github.event_name == 'pull_request' }}"
+		group  = "ci-${{ github.event_name == 'push' && github.sha || github.ref }}"
+		cancel = "${{ github.event_name != 'push' }}"
 	)
 	if ci.Concurrency.Group != group {
 		t.Errorf("ci.yml: the concurrency group is %q; it must be\n  %s\nso that every commit on main "+
 			"has a group of its own - one group for all of main cancels a pending run when a third "+
-			"arrives, and the commit that turned main red is then never known (ADR-0083)", ci.Concurrency.Group, group)
+			"arrives, and the commit that turned main red is then never known (ADR-0083). A manual run "+
+			"has its ref's group, never a commit's: started on main, it would otherwise share the "+
+			"group of that commit's own run", ci.Concurrency.Group, group)
 	}
 	if ci.Concurrency.CancelInProgress != cancel {
 		t.Errorf("ci.yml: cancel-in-progress is %q; it must be\n  %s\nso that only a pull request's "+
-			"older run is cancelled, never a run on main (ADR-0083)", ci.Concurrency.CancelInProgress, cancel)
+			"or a manual run's older run is cancelled, never a push's run on main (ADR-0083)", ci.Concurrency.CancelInProgress, cancel)
 	}
 }
