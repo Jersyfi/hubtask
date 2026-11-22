@@ -56,7 +56,7 @@ export const readOnly: Story = {
 export const invalid: Story = {
   name: 'Needs at least one',
   about:
-    'Saved with nothing chosen (design-system.md §4, case 3): a button takes no `aria-invalid`, so the field’s root is marked `data-invalid` and the button is described by the sentence under it - as an upload’s button is. Choose one and press *Save* again: the sentence goes.',
+    'Saved with nothing chosen (design-system.md §4, case 3): a button takes no `aria-invalid`, so the field’s root is marked `data-invalid` and the button is described by the sentence under it - as an upload’s button is. Choose one and press *Save* again: the sentence goes. It needs an answer (`isRequired`): the asterisk is drawn, and a reader hears *(required)* in the field’s name (`requiredLabel`) and the open list is `aria-required`.',
   args: { mode: 'invalid' },
 };
 
@@ -84,7 +84,7 @@ export const german: Story = {
 export const inline: Story = {
   name: 'A few, as visible ticks',
   about:
-    'Four options, so `auto` draws ticks - each its own stop, as in `CheckboxGroup`, at its spacing (`size="md"`). Untick both: the group is marked and says once what is missing.',
+    'Four options, so `auto` draws ticks - each its own stop, as in `CheckboxGroup`, at its spacing (`size="md"`). Untick both: the group is marked and says once what is missing. The group’s name says *(required)*.',
   args: { mode: 'inline' },
 };
 

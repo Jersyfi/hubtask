@@ -304,11 +304,21 @@ for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
       await page.keyboard.press('Escape');
       await page.setViewportSize({ width: 1280, height: 860 });
 
+      // --- a question that needs an answer: a reader hears it, not only a drawn asterisk -------
+      await story(page, server.origin, 'invalid');
+      await page.getByRole('button', { name: /What a task carries \(required\)/ }).waitFor({ timeout: 5_000 }).catch(() => undefined);
+      assert.equal(await page.getByRole('button', { name: /What a task carries \(required\)/ }).count(), 1, 'the field needing an answer is not named required');
+      await field(page).click();
+      await list(page).waitFor();
+      assert.equal(await list(page).getAttribute('aria-required'), 'true', 'the list needing an answer is not aria-required');
+      await page.keyboard.press('Escape');
+
       // --- the visible ticks: each one its own stop -------------------------------------------
       await story(page, server.origin, 'inline');
       const boxes = page.locator('.host').getByRole('checkbox');
       assert.equal(await boxes.count(), 4);
       assert.equal(await page.locator('.host [aria-haspopup="listbox"]').count(), 0, 'four options drew a field');
+      assert.equal(await page.locator('.host').getByRole('group', { name: 'Views offered (required)' }).count(), 1, 'the ticks needing an answer are not named required');
       await boxes.first().focus();
       for (let index = 1; index < 4; index += 1) {
         await page.keyboard.press('Tab');

@@ -64,6 +64,11 @@
     /** What is wrong now - nothing chosen where at least one is needed. Names the fix. */
     error?: string;
     isRequired?: boolean;
+    /**
+     * What a reader hears for the drawn asterisk - "(required)" - after the label. Neither a button
+     * nor a group takes `aria-required`, so the name says it; the open list is `aria-required` too.
+     */
+    requiredLabel?: string;
     /** What the closed field says with nothing chosen. */
     emptyLabel: string;
     /** A sentence instead of the chips - "All 15" - or `undefined` to show the chips. */
@@ -97,6 +102,7 @@
     hint,
     error,
     isRequired = false,
+    requiredLabel,
     disabledReason,
     emptyLabel,
     summary,
@@ -300,7 +306,7 @@
 {#snippet name()}
   {#if labelledBy === undefined}
     <span class="label" class:is-hidden={isLabelHidden} id={nameId}>
-      {label}{#if isRequired}<span class="required" aria-hidden="true">*</span>{/if}
+      {label}{#if isRequired}<span class="required" aria-hidden="true">*</span>{#if requiredLabel}<span class="said">{` ${requiredLabel}`}</span>{/if}{/if}
     </span>
   {/if}
 {/snippet}
@@ -461,6 +467,7 @@
               role="listbox"
               id={listId}
               aria-multiselectable="true"
+            aria-required={isRequired ? 'true' : undefined}
               aria-labelledby={nameId}
               tabindex="-1"
               bind:this={list}

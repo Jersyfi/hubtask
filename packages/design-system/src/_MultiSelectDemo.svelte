@@ -207,6 +207,8 @@
     {selected}
     onChange={(next) => (selected = next)}
     error={extra.error}
+    isRequired={mode === 'invalid'}
+    requiredLabel="(required)"
     disabledReason={extra.disabledReason}
     summary={extra.summary}
     emptyLabel={texts.empty}
@@ -262,6 +264,8 @@
       {selected}
       onChange={(next) => (selected = next)}
       error={selected.length === 0 ? 'Offer at least one view.' : undefined}
+      isRequired
+      requiredLabel="(required)"
       emptyLabel="No view"
       filterLabel="Filter the views"
       clearLabel="Clear the filter"
