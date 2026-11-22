@@ -268,6 +268,25 @@ func TestJobStats(t *testing.T) {
 	}
 }
 
+// A pull request's run takes its job names from the pull request's own workflow file, so a name
+// is a stranger's text like a test's title.
+func TestJobNamesArePrintedInert(t *testing.T) {
+	var b bytes.Buffer
+	printJobs(&b, []job{
+		{name: "unit | [see](https://example.com) @owner", failed: true, minutes: 4},
+		{name: "Unit and domain tests", minutes: 2},
+	}, 0, "")
+	for _, want := range []string{
+		"| `unit \\| [see](https://example.com) @owner` | 1 | 1 |\n",
+		"| `unit \\| [see](https://example.com) @owner` | 4.0 | 1 |\n",
+		"| `Unit and domain tests` | 2.0 | 1 |\n",
+	} {
+		if !strings.Contains(b.String(), want) {
+			t.Errorf("the tables lack %q:\n%s", want, b.String())
+		}
+	}
+}
+
 func TestPackagesOf(t *testing.T) {
 	got := packagesOf([]string{
 		"core/application/items/create.go",

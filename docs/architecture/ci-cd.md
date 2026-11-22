@@ -572,8 +572,9 @@ Beside the table the report prints the merged pull requests by kind, the CI runs
 jobs by failures and by median minutes, and the tests merged pull requests deleted or skipped,
 each with the line of its description that names it. That line is the reason the author gave,
 which is what the owner reads the table for; it, the test's name and its path are text a
-stranger may have written, so each is printed as a code span of at most 120 characters, where a
-mention, a link, an image or HTML does nothing. The table ends after thirty rows and says how
+stranger may have written, and so is a job's name, which a pull request's run takes from the
+pull request's own workflow file. Each is printed as a code span of at most 120 characters,
+where a mention, a link, an image or HTML does nothing. The table ends after thirty rows and says how
 many more there are.
 
 How each measure is read:

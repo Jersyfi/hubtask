@@ -366,13 +366,13 @@ func printJobs(b *bytes.Buffer, jobs []job, unread int, why string) {
 	fmt.Fprintf(b, "| by failures | failed | attempts |\n|---|---|---|\n")
 	for _, s := range stats[:min(worst, len(stats))] {
 		if s.failed > 0 {
-			fmt.Fprintf(b, "| %s | %d | %d |\n", s.name, s.failed, s.attempts)
+			fmt.Fprintf(b, "| %s | %d | %d |\n", inert(s.name, reasonLength), s.failed, s.attempts)
 		}
 	}
 	sort.SliceStable(stats, func(i, j int) bool { return stats[i].median > stats[j].median })
 	fmt.Fprintf(b, "\n| by median minutes | median | attempts |\n|---|---|---|\n")
 	for _, s := range stats[:min(worst, len(stats))] {
-		fmt.Fprintf(b, "| %s | %.1f | %d |\n", s.name, s.median, s.attempts)
+		fmt.Fprintf(b, "| %s | %.1f | %d |\n", inert(s.name, reasonLength), s.median, s.attempts)
 	}
 	fmt.Fprintln(b)
 }
@@ -579,7 +579,7 @@ func lostTests(prs []pullRequest) (lost []lostTest, unread int) {
 }
 
 const (
-	// reasonLength is how much of a description's line the table prints.
+	// reasonLength is how much of a stranger's text a table's cell prints.
 	reasonLength = 120
 	// lostRows bounds the table, so one large pull request does not push the weekly comment over
 	// the length GitHub takes.
@@ -597,7 +597,7 @@ func reasonFor(body string, l losttests.Test) string {
 }
 
 // inert prints text a stranger may have written - a test's title, a path, a line of a
-// description - as a code span, cut to limit runes. Inside one, a mention notifies nobody and a
+// description, a job's name - as a code span, cut to limit runes. Inside one, a mention notifies nobody and a
 // link, an image or HTML stays text; the backtick that would end the span becomes a quote.
 func inert(text string, limit int) string {
 	text = strings.ReplaceAll(strings.Join(strings.Fields(text), " "), "`", "'")
