@@ -72,6 +72,7 @@
     namesInstant,
     namesMedia,
     namesPeople,
+    lastChangeOf,
   } from '../lib/data/activity.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { changeRefusalCode, declaresType, holds, mayDo, offerIn, roleOrder } from '../lib/data/capability.svelte.ts';
@@ -90,8 +91,8 @@
   import type { EntryFormState, PortalRequestDetail } from '@hubtask/sync-engine';
   import { formatDecimal } from '../lib/i18n/number.ts';
   import { formatDuration } from '../lib/i18n/duration.ts';
-  import { comments, commentsPath } from '../lib/data/comments.svelte.ts';
-  import { addressedComment, commentAddress } from '../lib/data/comments.ts';
+  import { commentsPath } from '../lib/data/comments.svelte.ts';
+  import { addressedComment } from '../lib/data/comments.ts';
   import { engine } from '../lib/data/engine.ts';
   import { entryEditOf, inlineWriteOf, type EntryDraft, type EntryEdit, type TextField } from '../lib/data/edits.ts';
   import { items } from '../lib/data/items.svelte.ts';
@@ -131,6 +132,7 @@
   import DuePanel from '../lib/entries/DuePanel.svelte';
   import LanguagePicker from '../lib/entries/LanguagePicker.svelte';
   import ConflictStrip from '../lib/entries/ConflictStrip.svelte';
+  import MeanwhileDialog from '../lib/entries/MeanwhileDialog.svelte';
   import { leaveGuard } from '../lib/frame/leave.svelte.ts';
   import AiAsk from '../lib/entries/AiAsk.svelte';
   import AiPlace from '../lib/entries/AiPlace.svelte';
@@ -159,7 +161,7 @@
   import { entryParts } from '../lib/frame/parts.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { languageName } from '../lib/i18n/locale.ts';
-  import { renderProblem } from '../lib/problem.ts';
+  import { renderProblem, type RenderedProblem } from '../lib/problem.ts';
   import { actionsOfHead } from '../lib/palette/actions.ts';
   import { commands } from '../lib/palette/commands.svelte.ts';
 
@@ -1173,33 +1175,28 @@
    * Changed meanwhile (UC-SYN-02 check 10): what each text was when the reader began - the notes
    * as the editor showed them when it took the focus, the title as its field opened - so that a
    * leave decides each field three ways (`inlineWriteOf`). A text the reader did not change is not
-   * sent back over somebody else's; one both changed waits for the reader's choice, and the
-   * version that loses is kept as a comment on the entry.
+   * sent back over somebody else's; one both changed is not written until the reader answers the
+   * warning: keep the saved version, or overwrite it with theirs.
    */
   let inlineBase: EntryDraft | undefined;
   let notesAtFocus: string | undefined;
+  /** The field the warning asks about; it stays asked until answered, also while the dialog is closed. */
   let meanwhileField = $state<TextField | undefined>(undefined);
-  let meanwhileFailure = $state<string | undefined>(undefined);
-  /**
-   * The text of theirs already filed: a refused write of mine, chosen again, does not file it
-   * twice - and files theirs again where it changed since.
-   */
-  let theirsFiled: string | undefined;
-  let keptAs = $state<'MINE' | 'REPLACED' | undefined>(undefined);
-  /** The comment the last choice filed, which *Show the comment* leads to. */
-  let keptComment: string | undefined;
-  let isChoosing = false;
-  const meanwhile = $derived(
-    item && meanwhileField
-      ? {
-          field: meanwhileField,
-          mine: meanwhileField === 'title' ? inlineTitle : inlineNotes,
-          theirs: meanwhileField === 'title' ? item.title : (item.notes ?? ''),
-          failure: meanwhileFailure,
-        }
-      : undefined,
-  );
-  // An open choice is an unsaved change: leaving the entry would drop the reader's text unseen.
+  let isAsking = $state(false);
+  let isOverwriting = $state(false);
+  let overwriteFailure = $state<RenderedProblem | undefined>(undefined);
+  /** Who last changed the field and when, from the entry's history; the entry's own stamp without it. */
+  const meanwhileBy = $derived.by(() => {
+    if (!item || !meanwhileField) return undefined;
+    const last = history.state.status === 'ready' ? lastChangeOf(history.state.data.data ?? [], meanwhileField) : undefined;
+    const stamp = last?.at ?? item.updated_at;
+    const at = stamp ? formatDateTime(stamp, messages.locale) : undefined;
+    if (last?.actorId && last.actorId === actor.account?.id) return { isReader: true, at };
+    return { name: (last?.actorId ? accounts.nameOf(last.actorId) : undefined) ?? t('app.sync.meanwhile.somebody'), at };
+  });
+  /** The head's title: the reader's own while their change of it is not saved, the entry's otherwise. */
+  const titleShown = $derived(item && isInlineDirty && inlineBase && inlineTitle !== inlineBase.title ? inlineTitle : (item?.title ?? ''));
+  // An unanswered warning holds a text that is not saved: leaving the entry would drop it unseen.
   $effect(() => leaveGuard.hold(() => (meanwhileField ? 1 : 0)));
 
   function heldNow(): EntryDraft | undefined {
@@ -1227,15 +1224,8 @@
     inlineBase = undefined;
     notesAtFocus = undefined;
     meanwhileField = undefined;
-    meanwhileFailure = undefined;
-    theirsFiled = undefined;
-  }
-
-  function stopFor(field: TextField) {
-    meanwhileField = field;
-    meanwhileFailure = undefined;
-    keptAs = undefined;
-    announcer.say(field === 'title' ? t('app.sync.meanwhile.title_title') : t('app.sync.meanwhile.title_notes'));
+    isAsking = false;
+    overwriteFailure = undefined;
   }
 
   /** Writes what the decision sends; a refusal is drawn and answered false. */
@@ -1255,7 +1245,7 @@
   }
 
   async function commitInline() {
-    if (!item || !isInlineDirty || meanwhileField) return;
+    if (!item || !isInlineDirty || isAsking) return;
     if (inlineTitle.trim() === '') {
       writeFailure = renderProblem({ status: 422, code: 'items.title_empty', detailCode: 'items.title_empty', fieldErrors: [] } as never, messages);
       isTitleFailure = true;
@@ -1266,7 +1256,10 @@
     const { edit, conflicts } = inlineWriteOf(base, mineOf(base), now);
     const [conflict] = conflicts;
     if (conflict) {
-      stopFor(conflict);
+      // Nothing is written: the warning asks, and asks again on the next save until answered.
+      meanwhileField = conflict;
+      overwriteFailure = undefined;
+      isAsking = true;
       return;
     }
     settleInline();
@@ -1274,79 +1267,52 @@
     await sendInline(item.id, edit, item.version);
   }
 
-  /** *Keep theirs*: the reader's own text is kept as a comment, then the entry's text is shown. */
-  async function keepTheirs() {
+  /** The field taken as it stands now: what the reader began from, so their own text of it is gone. */
+  function rebased(field: TextField, theirs: string): EntryDraft {
+    return { ...(inlineBase ?? (heldNow() as EntryDraft)), [field]: theirs };
+  }
+
+  /** *Keep the saved version*: the reader's text of the field is dropped and nothing is written for it. */
+  async function keepSaved() {
     const field = meanwhileField;
-    if (!item || !field || isChoosing) return;
-    const mine = field === 'title' ? inlineTitle : inlineNotes;
+    if (!item || !field || isOverwriting) return;
     const theirs = field === 'title' ? item.title : (item.notes ?? '');
-    isChoosing = true;
-    try {
-      keptComment = mine.trim() !== '' ? (await comments.fileVersion(item.id, field, 'MINE', mine, crypto.randomUUID())).id : undefined;
-    } catch (error) {
-      meanwhileFailure = t('app.sync.meanwhile.mine_not_kept', { reason: renderProblem(error as never, messages).message });
-      announcer.say(meanwhileFailure);
-      return;
-    } finally {
-      isChoosing = false;
-    }
-    // What the reader typed while their version was being filed is a change of its own over theirs.
-    const isRetyped = (field === 'title' ? inlineTitle : inlineNotes) !== mine;
-    if (!isRetyped && field === 'title') inlineTitle = theirs;
-    else if (!isRetyped) inlineNotes = theirs;
-    inlineBase = { ...(inlineBase ?? (heldNow() as EntryDraft)), [field]: theirs };
+    if (field === 'title') inlineTitle = theirs;
+    else inlineNotes = theirs;
+    inlineBase = rebased(field, theirs);
     meanwhileField = undefined;
-    meanwhileFailure = undefined;
-    theirsFiled = undefined;
-    keptAs = mine.trim() !== '' ? 'MINE' : undefined;
-    // Anything else the reader changed is written now, or the next text changed meanwhile asks.
+    isAsking = false;
+    // The other field may still hold a change of the reader's own: written now, or asked about.
     await commitInline();
   }
 
-  /** *Write mine*: the text in place is kept as a comment, then the reader's is written over it. */
-  async function writeMine() {
+  /** *Overwrite with mine*: one write of the reader's text against the version in place. */
+  async function overwrite() {
     const field = meanwhileField;
-    if (!item || !field || isChoosing) return;
-    const theirs = field === 'title' ? item.title : (item.notes ?? '');
-    isChoosing = true;
-    try {
-      if (theirsFiled !== theirs && theirs.trim() !== '') keptComment = (await comments.fileVersion(item.id, field, 'REPLACED', theirs, crypto.randomUUID())).id;
-      theirsFiled = theirs;
-    } catch (error) {
-      meanwhileFailure = t('app.sync.meanwhile.theirs_not_kept', { reason: renderProblem(error as never, messages).message });
-      announcer.say(meanwhileFailure);
-      isChoosing = false;
-      return;
-    }
-    // Mine is now the reader's one change of the field: what it replaces is the base.
-    const base = { ...(inlineBase ?? (heldNow() as EntryDraft)), [field]: theirs };
-    inlineBase = base;
+    if (!item || !field || isOverwriting) return;
+    const base = rebased(field, field === 'title' ? item.title : (item.notes ?? ''));
     const { edit, conflicts } = inlineWriteOf(base, mineOf(base), heldNow() as EntryDraft);
-    const [conflict] = conflicts;
-    if (conflict) {
-      isChoosing = false;
-      stopFor(conflict);
+    // The other field changed by both as well: that one is asked about next, not written unseen.
+    const [other] = conflicts;
+    if (other) {
+      inlineBase = base;
+      meanwhileField = other;
+      overwriteFailure = undefined;
       return;
     }
-    const isWritten = await sendInline(item.id, edit, item.version);
-    isChoosing = false;
-    if (!isWritten) {
-      meanwhileFailure = t('app.sync.meanwhile.not_written', { reason: writeFailure?.message ?? '' });
-      writeFailure = undefined;
-      announcer.say(meanwhileFailure);
+    isOverwriting = true;
+    overwriteFailure = undefined;
+    try {
+      await items.update(item.id, edit, item.version);
+    } catch (error) {
+      overwriteFailure = renderProblem(error as never, messages);
+      announcer.say(t('app.sync.meanwhile.not_written'));
       return;
+    } finally {
+      isOverwriting = false;
     }
-    const filed = theirsFiled === theirs && theirs.trim() !== '';
     settleInline();
-    keptAs = filed ? 'REPLACED' : undefined;
-  }
-
-  function showKeptComment() {
-    keptAs = undefined;
-    if (!item || !keptComment) return;
-    // At its address on the entry's page, so a reload keeps it; in the pane, in place.
-    if (!isInPane && onnavigate) onnavigate(commentAddress(item.id, keptComment));
-    else openOnComment(keptComment);
+    announcer.say(t('app.entries.saved_announced'));
   }
 
   /** The comment an address names: the conversation opens, on a tab that shows it, and the thread finds it. */
@@ -1477,8 +1443,10 @@
 
   function rename(title: string, opened: string) {
     const now = heldNow();
-    // The title the field opened with is what the reader began from, whatever arrived since.
-    if (now) inlineBase = { ...(isInlineDirty && inlineBase ? inlineBase : now), title: opened };
+    // The title the field opened with is what the reader began from, whatever arrived since -
+    // unless the reader had already changed it unsaved: then where they began the first time.
+    const began = isInlineDirty && inlineBase ? inlineBase : now;
+    if (now && began) inlineBase = { ...began, title: began !== now && inlineTitle !== began.title ? began.title : opened };
     inlineTitle = title;
     isInlineDirty = true;
     void commitInline();
@@ -1499,7 +1467,20 @@
   <DetailPage {isInPane} details={railSections.length > 0 ? rail : undefined}>
   {#snippet top()}
     <ReplicaMark state={entry.state} />
-    <ConflictStrip itemId={item.id} {meanwhile} kept={keptAs} onkeep={() => void keepTheirs()} onwrite={() => void writeMine()} onshowcomment={showKeptComment} onclosekept={() => (keptAs = undefined)} />
+    <ConflictStrip itemId={item.id} />
+    {#if meanwhileField && meanwhileBy}
+      <MeanwhileDialog
+        bind:isOpen={isAsking}
+        field={meanwhileField}
+        theirs={meanwhileField === 'title' ? item.title : (item.notes ?? '')}
+        mine={meanwhileField === 'title' ? inlineTitle : inlineNotes}
+        by={meanwhileBy}
+        failure={overwriteFailure}
+        {isOverwriting}
+        onkeep={() => void keepSaved()}
+        onoverwrite={() => void overwrite()}
+      />
+    {/if}
 
     <!-- One object, one shape (WB-1, §6.9): the head spans the full width - key with its product's
          tile, type, the title edited in place, and the action bar: status with its steps, the next
@@ -1527,7 +1508,7 @@
         objectKey={{ label: ticketKey ?? typeName(item.type), icon: isDeskEntry ? 'inbox' : 'square-check', product: isDeskEntry ? 'desk' : undefined, color: isDeskEntry ? undefined : 'brand' }}
         type={{ label: itemType?.name ?? typeName(item.type) }}
         meta={headMeta}
-        title={item.title}
+        title={titleShown}
         titleLabel={t('app.entries.new_title')}
         editTitleLabel={isWritable ? t('app.entry.edit_title') : undefined}
         onrename={isWritable ? rename : undefined}

@@ -32,7 +32,6 @@ import type {
   WorkItem,
 } from '@hubtask/sync-engine';
 
-import { comments } from './comments.svelte.ts';
 import { engine } from './engine.ts';
 import { etagFor } from './etag.ts';
 import { ENTRY_LISTS, TOUCHES_ANY_ENTRY, TOUCHES_ANY_STATUS, touchesOf } from './touches.ts';
@@ -425,20 +424,16 @@ class Items {
   }
 
   /**
-   * "Write mine again" after a conflict on the notes (offline-sync.md §5): the text in place is
-   * kept as a comment first, so that neither version is lost; then an ordinary PATCH of the one
-   * field from the entry's current version - read first, so the write states the version the
-   * server holds now and not the one that lost - and nothing else. A refused filing writes
-   * nothing. Never a merge of the two texts, and never an automatic retry: the person chose this.
+   * "Write mine again" after a conflict on the notes (offline-sync.md §5): an ordinary
+   * PATCH of the one field from the entry's current version - read first, so the write states
+   * the version the server holds now and not the one that lost - and nothing else. Never a merge
+   * of the two texts, and never an automatic retry: the person chose this.
    */
   async rewriteNotes(id: string, notes: string): Promise<WorkItem> {
     const current = await engine.refresh<WorkItem>({ path: `/items/${id}` });
-    // Unread, the text in place could be neither kept nor written against: nothing is.
-    if (current.status !== 'ready') throw current.status === 'failed' ? current.error : new Error('the entry was not read');
-    const replaced = current.data.notes ?? '';
-    if (replaced.trim() !== '' && replaced !== notes) await comments.fileVersion(id, 'notes', 'REPLACED', replaced, crypto.randomUUID());
+    const version = current.status === 'ready' ? current.data.version : undefined;
     return engine.mutate<WorkItem>('PATCH', `/items/${id}`, { notes }, {
-      ifMatch: etagFor(current.data.version),
+      ...(version !== undefined ? { ifMatch: etagFor(version) } : {}),
       invalidates: touchesOf(id),
     });
   }

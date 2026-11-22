@@ -45,16 +45,6 @@ class Comments {
   }
 
   /**
-   * Keeps a version of the entry's title or notes that is about to be lost because somebody else
-   * changed it meanwhile (UC-SYN-02 check 10): `MINE` is the person's own text, given up;
-   * `REPLACED` the text in place they are about to replace. The server files it as a system
-   * comment in the person's name.
-   */
-  async fileVersion(itemId: string, field: 'title' | 'notes', side: 'MINE' | 'REPLACED', body: string, idempotencyKey: string): Promise<Comment> {
-    return engine.mutate<Comment>('POST', `${commentsPath(itemId)}:file-version`, { field, side, body }, { idempotencyKey, invalidates: touches(itemId) });
-  }
-
-  /**
    * Rewrites the text. `If-Match` carries the version the reader had, so an edit against a comment
    * that moved underneath them is refused as `version_conflict` rather than overwriting quietly
    * (ADR-0025) — the body is last-writer-wins and the displaced text is not kept anywhere.
