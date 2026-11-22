@@ -287,6 +287,15 @@ export class Replica {
     }
     await this.#storage.delete(collection, record.entity_id);
     if (collection === 'items') await this.#deleteUnderItems(new Set([record.entity_id]));
+    if (collection === 'whiteboards') await this.#deleteBoardComments(record.entity_id);
+  }
+
+  /** A board's comments leave the device with the board (ADR-0108); the server records none. */
+  async #deleteBoardComments(boardId: string): Promise<void> {
+    const name = collectionOf('whiteboard_comment');
+    for (const held of await this.#storage.all<StoredRecord<Document>>(name)) {
+      if (held.document?.whiteboard_id === boardId) await this.#storage.delete(name, held.id);
+    }
   }
 
   /**
