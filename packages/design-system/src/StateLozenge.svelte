@@ -24,9 +24,11 @@
     emphasis?: 'subtle' | 'bold';
     /** `sm` in a row or a chip line; `md` stands on its own - in an object's head, the status button's shape. */
     size?: 'sm' | 'md';
+    /** Whether it is the face of a control that opens the choices: a chevron after the word, inside its edge. */
+    hasChevron?: boolean;
   }
 
-  const { label, vocabulary, state, tone, icon, emphasis = 'subtle', size = 'sm' }: Props = $props();
+  const { label, vocabulary, state, tone, icon, emphasis = 'subtle', size = 'sm', hasChevron = false }: Props = $props();
 
   const look = $derived(vocabulary && state !== undefined ? lozengeLook(vocabulary, state) : undefined);
   const drawnTone = $derived<LozengeTone>(tone ?? look?.tone ?? 'neutral');
@@ -36,6 +38,7 @@
 <span class="lozenge" data-tone={drawnTone} data-emphasis={emphasis} data-size={size}>
   {#if mark}<Icon name={mark} size="sm" />{/if}
   <span class="word">{label}</span>
+  {#if hasChevron}<span class="chevron" aria-hidden="true"><Icon name="chevron-down" size="sm" /></span>{/if}
 </span>
 
 <style>
@@ -67,6 +70,8 @@
   }
 
   .word { overflow: hidden; text-overflow: ellipsis; }
+
+  .chevron { display: inline-flex; flex: none; }
 
   /* The status button's shape and height (`StatusButton`), read only: a head's status that is not changed there. */
   .lozenge[data-size='md'] {

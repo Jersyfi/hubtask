@@ -41,6 +41,14 @@ test('an unknown state still has a look, so its word still stands', () => {
   assert.deepEqual(lozengeLook('category', 'archived-by-a-newer-server'), { tone: 'neutral' });
 });
 
+test('a lozenge that opens the choices carries its chevron inside its edge, unannounced', () => {
+  const lozenge = source('StateLozenge.svelte');
+  const markup = lozenge.slice(lozenge.indexOf('</script>'), lozenge.indexOf('<style>'));
+  const inside = markup.slice(markup.indexOf('<span class="lozenge"'), markup.lastIndexOf('</span>'));
+  assert.match(inside, /\{#if hasChevron\}<span class="chevron" aria-hidden="true"><Icon name="chevron-down" size="sm" \/><\/span>\{\/if\}/);
+  assert.ok(inside.indexOf('class="word"') < inside.indexOf('class="chevron"'), 'the chevron follows the word');
+});
+
 // --- StatusButton ---------------------------------------------------------------------------
 
 const todo = { id: 'ready', label: 'Ready', category: 'todo' };

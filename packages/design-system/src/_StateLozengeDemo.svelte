@@ -36,6 +36,7 @@
     <p><StateLozenge label="Incident" icon="triangle-alert" /> <StateLozenge label="Story" icon="square-check" /> <StateLozenge label="Mine" tone="brand" icon="user" /></p>
     <p><StateLozenge vocabulary="sla" state="breached" label="Breached 40 min" emphasis="bold" /> <StateLozenge vocabulary="health" state="down" label="Down" emphasis="bold" /></p>
     <p><StateLozenge vocabulary="goal" state="atRisk" label="At risk" size="md" /> <StateLozenge vocabulary="category" state="progress" label="In progress" size="md" /></p>
+    <p><StateLozenge vocabulary="category" state="progress" label="In progress" hasChevron /> <StateLozenge vocabulary="category" state="done" label="Done" hasChevron /></p>
   </div>
 {:else}
   <div class="narrow">

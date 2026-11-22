@@ -17,8 +17,8 @@ export const vocabularies: Story = {
 };
 
 export const emphasis: Story = {
-  name: 'Types, bold and the larger size',
-  about: 'An entry type with its own mark; the brand tint for the reader’s own work; `bold` for the one state that must be seen first; `md` where the lozenge stands alone.',
+  name: 'Types, bold, the larger size and the chevron',
+  about: 'An entry type with its own mark; the brand tint for the reader’s own work; `bold` for the one state that must be seen first; `md` where the lozenge stands alone; `hasChevron` where it is the face of a control that opens the choices (a list row’s or a card’s state chip).',
   args: { mode: 'emphasis' },
 };
 

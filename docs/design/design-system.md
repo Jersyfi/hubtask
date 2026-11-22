@@ -534,7 +534,9 @@ and every behaviour a test can hold lives in a module beside them: `lozenge.ts`,
   are decided once in `lozenge.ts` (`LOZENGE_VOCABULARIES`); the word is the caller's. A neutral
   state carries no glyph, every other one does (UX-7). `bold` for the one state a screen must show
   first, `md` where it stands alone, and a `brand` tone for the reader's own work (*Mine*), which
-  is no status. `Badge` stays the system's vocabulary about itself.
+  is no status. `hasChevron` draws a chevron after the word, inside its edge, where the lozenge is
+  the face of a control that opens the choices (a row's or a card's state chip). `Badge` stays the
+  system's vocabulary about itself.
 * **`StatusButton`** — the status as a lozenge button in its category's tone. Pressed (or ↓), it
   opens "from *X* on" (E-23): every allowed step with its target lozenge and what it asks, the
   steps the reader may not take as rows with their reason (focusable, `aria-disabled`, never
