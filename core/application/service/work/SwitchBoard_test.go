@@ -75,6 +75,27 @@ func (h *switchHarness) eventsOf(kind event.Type) int {
 	return n
 }
 
+// The two columns of a switched board follow the same rule as a new collection's (UC-WRK-05
+// check 11, UC-WRK-31 check 6): the switching account's language, else the workspace's default -
+// never the request's.
+func TestASwitchedBoardsColumnsFollowTheAccountElseTheWorkspace(t *testing.T) {
+	for _, tc := range []struct{ accountLocale, want string }{
+		{"", "de:seed.bucket.open"},
+		{"fr", "fr:seed.bucket.open"},
+	} {
+		h := newSwitchHarness()
+		switching := actor()
+		switching.Locale, switching.AccountLocale = "en", tc.accountLocale
+		if _, err := h.switcher.Execute(t.Context(), switching, collectionID, domain.StateModeColumns, false); err != nil {
+			t.Fatal(err)
+		}
+		board, err := h.buckets.List(t.Context(), collectionID)
+		if err != nil || len(board) != 2 || board[0].Name != tc.want {
+			t.Errorf("account %q: board %+v (%v), want the open column named %q", tc.accountLocale, board, err, tc.want)
+		}
+	}
+}
+
 // *Als Board anzeigen*: an open and a done column named in the workspace's language, the
 // completed entries into the done one and the open ones into the other, each column announced and
 // recorded, the switch audited with its counts.

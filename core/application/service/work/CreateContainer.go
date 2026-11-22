@@ -141,8 +141,9 @@ type CreateContainer struct {
 	// without it creates containers with no layer of their own and answers no structure.
 	Structure StructureResolver
 	// Buckets, Workspaces and Renderer give a new collection the columns its board starts with
-	// (domain.StartingColumns), named in the workspace's language: the names are content once
-	// created, so the backend renders them where they are created, as provisioning does. A build
+	// (domain.StartingColumns), named in the creating account's language, else the workspace's
+	// (ActorContext.NamingLocale): the names are content once created, so the backend renders them
+	// where they are created, as provisioning does. A build
 	// without them creates collections with no column.
 	Buckets    BucketInserter
 	Workspaces WorkspaceReader
@@ -320,7 +321,7 @@ func (h CreateContainer) startColumns(
 		}
 		name := column.Name
 		if name == "" {
-			name = h.Renderer.Render(workspace.DefaultLocale, column.NameCode, nil)
+			name = h.Renderer.Render(actor.NamingLocale(workspace.DefaultLocale), column.NameCode, nil)
 		}
 		bucket, err := domain.NewBucket(domain.NewBucketInput{
 			ID: h.IDs.NewID(), TenantID: collection.TenantID, CollectionID: collection.ID,

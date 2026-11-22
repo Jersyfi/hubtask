@@ -38,8 +38,8 @@ var errDryRun = errors.New("board switch: dry run")
 type SwitchBoard struct {
 	Columns  BucketWriter
 	Workflow WorkflowGate
-	// Workspaces and Renderer name the two columns in the workspace's language, as a new
-	// collection's starting columns are named.
+	// Workspaces and Renderer name the two columns in the switching account's language, else the
+	// workspace's, as a new collection's starting columns are named.
 	Workspaces WorkspaceReader
 	Renderer   i18n.Renderer
 }
@@ -133,6 +133,7 @@ func (h SwitchBoard) toBoard(ctx context.Context, actor appshared.ActorContext, 
 		}
 		locale = workspace.DefaultLocale
 	}
+	locale = actor.NamingLocale(locale)
 	name := func(code string) string {
 		if h.Renderer == nil {
 			return code
