@@ -55,8 +55,10 @@ column at a time.
     do, the person picks one in a picker and nothing changes until they do; where none does, the
     drop is refused and the card shows why (owner's decision of 2026-11-12).
 11. An entry's state is changed by one control, the same on the list row, the card, the entry head
-    and the phone sheet: the checkbox without columns, the column chip on a board without a
-    workflow, the status chip where a workflow runs. A person who may change the collection's shape
+    and the phone sheet: one round mark in the same place on every level - one press completes, an
+    arrow where the next step of a workflow does not complete the entry -, alone without columns,
+    followed by the column chip on a board without a workflow and by the status chip where a
+    workflow runs (owner's decision of 2026-11-22). A person who may change the collection's shape
     shows a list as a board and a board without a workflow as a list again from the collection's
     ⋯ menu, after a preview: a board starts with an open and a done column, completed cards in the
     done one; back to a list the columns go and every entry keeps its completion. Neither is
