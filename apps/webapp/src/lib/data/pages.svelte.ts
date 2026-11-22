@@ -114,9 +114,14 @@ class Pages {
     });
   }
 
+  /**
+   * Invalidates what lists the page, not the page: `/pages/{id}` is a prefix of its labels,
+   * comments and backlinks, and the screen still showing it would read them all again and find
+   * them gone. Its own reads stay cached until a restore invalidates them.
+   */
   trash(page: Page): Promise<PageTrashed> {
     return engine.mutate<PageTrashed>('DELETE', pagePath(page.id), undefined, {
-      invalidates: touched(page.hub_id, page.id),
+      invalidates: [pagesPath(page.hub_id), '/trash'],
     });
   }
 
