@@ -40,6 +40,8 @@
      * §7), named with its label and closed by the application's `setCloseLabel`.
      */
     isAnchored?: boolean;
+    /** The buttons at the sheet's foot where it is drawn as one - a list's *Done*. */
+    sheetActions?: Snippet;
   }
 
   let {
@@ -50,6 +52,7 @@
     children,
     isAnchored = false,
     at,
+    sheetActions,
   }: Props = $props();
 
   // Svelte's own id, not a random one: unique per instance and the same on every render, so a
@@ -109,7 +112,7 @@
   </span>
 {/if}
 {#if sheetName !== undefined}
-  <Sheet bind:isOpen title={label} closeLabel={sheetName} layer="popover" onClose={() => (sheetName = undefined)}>
+  <Sheet bind:isOpen title={label} closeLabel={sheetName} layer="popover" actions={sheetActions} onClose={() => (sheetName = undefined)}>
     {@render children()}
   </Sheet>
 {:else if isOpen}
