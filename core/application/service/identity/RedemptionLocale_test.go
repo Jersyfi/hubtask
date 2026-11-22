@@ -14,7 +14,7 @@ import (
 
 // seedLocaliserFake records the language a redemption asked the seed to be named in, and answers
 // it as admin.LocaliseSeed does: "" for a language no catalogue serves, or where the redeemer has
-// no seed of their own.
+// no seed of their own - a member or a guest, who joins a workspace whose seed is somebody else's.
 type seedLocaliserFake struct {
 	served  map[string]bool
 	unowned bool
@@ -34,11 +34,19 @@ func (s *seedLocaliserFake) LocaliseSeed(
 	return locale, nil
 }
 
-// UC-ID-07/8 and UC-ID-07/9, i18n-l10n.md §2: the owner's seed is named in the account's own language, else in the
-// one the invitation card was read in, which then becomes the account's - in the redemption's
-// transaction. A language the account already has is kept; an empty or unserved one, and a
-// redemption with no seed of its own, store nothing and leave the workspace's language.
-func TestARedemptionNamesTheSeedInTheOwnersLanguageAndKeepsIt(t *testing.T) {
+func (s *seedLocaliserFake) Serves(locale string) string {
+	if !s.served[locale] {
+		return ""
+	}
+	return locale
+}
+
+// UC-ID-07/8, UC-ID-07/9 and UC-ID-07/10, i18n-l10n.md §2: the owner's seed is named in the
+// account's own language, else in the one the invitation card was read in. That one becomes the
+// account's for every invited person without one - owner, member or guest - in the redemption's
+// transaction. A language the account already has is kept; an empty, malformed or unserved one
+// stores nothing and leaves the workspace's language.
+func TestARedemptionKeepsTheCardsLanguageForEveryInvitedPerson(t *testing.T) {
 	served := map[string]bool{"en": true, "de": true, "de-AT": true}
 	for _, tc := range []struct {
 		name          string
@@ -61,8 +69,18 @@ func TestARedemptionNamesTheSeedInTheOwnersLanguageAndKeepsIt(t *testing.T) {
 			wantStored: "", wantUnchanged: true},
 		{name: "a language without a catalogue invents nothing",
 			sent: "ja", wantNamedIn: "ja", wantStored: "", wantUnchanged: true},
-		{name: "a redemption with no seed of its own stores nothing",
-			sent: "de", unowned: true, wantNamedIn: "de", wantStored: "", wantUnchanged: true},
+		{name: "a malformed language stores nothing",
+			sent: "de_DE!", wantNamedIn: "de_DE!", wantStored: "", wantUnchanged: true},
+		{name: "a member, with no seed of their own, keeps the card's",
+			sent: "de", unowned: true, wantNamedIn: "de", wantStored: "de", wantRecorded: true},
+		{name: "a guest keeps the card's, region included",
+			sent: "de-AT", unowned: true, wantNamedIn: "de-AT", wantStored: "de-AT", wantRecorded: true},
+		{name: "a member with a language of their own keeps it",
+			own: "en", sent: "de", unowned: true, wantNamedIn: "en", wantStored: "en", wantUnchanged: true},
+		{name: "a member on a card no catalogue serves gets none",
+			sent: "ja", unowned: true, wantNamedIn: "ja", wantStored: "", wantUnchanged: true},
+		{name: "a member who sent none gets none",
+			unowned: true, wantStored: "", wantUnchanged: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			fixture := newStepFixture(now)

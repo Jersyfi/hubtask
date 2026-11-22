@@ -29,7 +29,8 @@ import (
 // redeems the invitation in English finds its default hub, example collection, columns and labels
 // in English - with the events and change entries a rename owes - except what somebody already
 // renamed, and keeps English as the account's language; an owner who already had a language keeps
-// it and finds the seed in it; and another workspace's seed and owner are untouched (gate SG-3).
+// it and finds the seed in it; a member invited into another workspace keeps the card's language
+// and renames nothing; and that workspace's seed and owner are untouched (gate SG-3).
 func TestTheOwnersRedemptionNamesTheSeedInTheOwnersLanguage(t *testing.T) {
 	ctx := context.Background()
 	writer, signIn, uow := realWriter(ctx, t)
@@ -99,8 +100,32 @@ func TestTheOwnersRedemptionNamesTheSeedInTheOwnersLanguage(t *testing.T) {
 		}
 	}
 
-	// UC-ID-07/8 and UC-ID-07/9: the language the seed was named in is the owner's from now on; an owner who had
-	// one keeps it, and nobody else's account is touched.
+	// A member invited into their workspace, whose seed is its owner's, reads the card in English.
+	member := ids.NewID()
+	if _, err := admin.Exec(ctx, `INSERT INTO account (id, tenant_id, kind, email, display_name, status)
+		VALUES ($1, $2, 'USER', $3, 'Invited Member', 'INVITED')`, member.String(),
+		theirs.Tenant.ID.String(), "member-"+member.String()[24:]+"@seedlocale.example"); err != nil {
+		t.Fatalf("inviting the member: %v", err)
+	}
+	if _, err := admin.Exec(ctx, `INSERT INTO membership (id, tenant_id, account_id, scope_type, role)
+		VALUES ($1, $2, $3, 'TENANT', 'MEMBER')`, ids.NewID().String(), theirs.Tenant.ID.String(),
+		member.String()); err != nil {
+		t.Fatalf("placing the member: %v", err)
+	}
+	memberToken, err := identityservice.MintRedemptionToken{
+		Accounts: signIn, UnitOfWork: uow, Clock: clockadapter.System{}, Entropy: clockadapter.CryptoRandom{},
+	}.MintRedemptionToken(ctx, theirs.Tenant.ID, member)
+	if err != nil || memberToken.IsEmpty() {
+		t.Fatalf("minting the member's token (empty: %v): %v", memberToken.IsEmpty(), err)
+	}
+	if _, err := redeem.Execute(ctx, identityservice.RedeemInvitationCommand{
+		Token: memberToken, Password: secret.New("seven blue lanterns above the harbour"), Locale: "en",
+	}); err != nil {
+		t.Fatalf("redeeming the member's invitation: %v", err)
+	}
+
+	// UC-ID-07/8, UC-ID-07/9 and UC-ID-07/10: the card's language is the owner's and the member's
+	// from now on; an owner who had one keeps it, and nobody else's account is touched.
 	language := func(account shared.ID) string {
 		t.Helper()
 		var locale *string
@@ -121,15 +146,18 @@ func TestTheOwnersRedemptionNamesTheSeedInTheOwnersLanguage(t *testing.T) {
 		{"my owner", mine.OwnerAccountID, "en"},
 		{"the owner who had spoken", spoken.OwnerAccountID, "de"},
 		{"their owner", theirs.OwnerAccountID, ""},
+		{"their member", member, "en"},
 	} {
 		if got := language(tc.account); got != tc.want {
 			t.Errorf("%s's language is %q, want %q", tc.whose, got, tc.want)
 		}
 	}
-	if kept := countIn(ctx, t, `SELECT count(*) FROM audit_log
-		WHERE tenant_id = $1 AND action = 'auth.invitation_redeemed' AND changes ? 'locale'`,
-		mine.Tenant.ID.String()); kept != 1 {
-		t.Errorf("%d redemption entries name the language kept, want 1", kept)
+	for _, tenant := range []shared.ID{mine.Tenant.ID, theirs.Tenant.ID} {
+		if kept := countIn(ctx, t, `SELECT count(*) FROM audit_log
+			WHERE tenant_id = $1 AND action = 'auth.invitation_redeemed' AND changes ? 'locale'`,
+			tenant.String()); kept != 1 {
+			t.Errorf("%d redemption entries name the language kept in %s, want 1", kept, tenant)
+		}
 	}
 
 	names := func(query string, id shared.ID) []string {

@@ -67,8 +67,8 @@ type LocaliseSeed struct {
 func (l LocaliseSeed) LocaliseSeed(
 	ctx context.Context, owner domain.Account, locale string, now time.Time,
 ) (string, error) {
-	tag, ok := shared.LanguageTag(locale)
-	if !ok || tag == "" || !l.served(tag) {
+	tag := l.Serves(locale)
+	if tag == "" {
 		return "", nil
 	}
 	tenant, err := l.Tenants.Find(ctx)
@@ -121,6 +121,16 @@ func (l LocaliseSeed) LocaliseSeed(
 		return "", nil
 	}
 	return tag, nil
+}
+
+// Serves implements identity.SeedLocaliser: the tag as sent where a catalogue renders it, "" for
+// an empty, malformed or unserved one. The redemption keeps only such a language as an account's.
+func (l LocaliseSeed) Serves(locale string) string {
+	tag, ok := shared.LanguageTag(locale)
+	if !ok || tag == "" || !l.served(tag) {
+		return ""
+	}
+	return tag
 }
 
 // served tells whether a catalogue renders the tag, matched down its subtags as the renderer

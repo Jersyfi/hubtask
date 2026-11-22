@@ -58,3 +58,17 @@ func TestALanguageIsServedByItsOwnCatalogueOrItsBase(t *testing.T) {
 		}
 	}
 }
+
+// UC-ID-07/10: the language a redemption may keep as an account's is the tag as sent where a
+// catalogue serves it; an empty, malformed or unserved one is none.
+func TestTheLanguageKeptIsOnlyOneACatalogueServes(t *testing.T) {
+	seed := LocaliseSeed{Locales: catalogues{"en", "de", "pt-BR"}}
+	for _, tc := range []struct{ locale, want string }{
+		{"de", "de"}, {"de-AT", "de-AT"}, {" en ", "en"}, {"pt-BR", "pt-BR"},
+		{"", ""}, {"ja", ""}, {"pt", ""}, {"de_DE!", ""},
+	} {
+		if got := seed.Serves(tc.locale); got != tc.want {
+			t.Errorf("%q serves %q, want %q", tc.locale, got, tc.want)
+		}
+	}
+}
