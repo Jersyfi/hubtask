@@ -77,6 +77,13 @@ async function at(browser, level, { width = 1280, view = 'List', drop, workflows
       return route.fulfill({ json: { dry_run: request.postDataJSON()?.dry_run ?? false, workflow: 'board_kitchen', entries: 4, statuses: BUCKETS.map((bucket, n) => ({ key: `s${n + 1}`, name: bucket.name, category: n === 0 ? 'TODO' : bucket.is_done_bucket ? 'DONE' : 'IN_PROGRESS', bucket_id: bucket.id, count: n + 1 })) } });
     }
     if (request.method() === 'POST' && path.endsWith(':drop') && drop) return route.fulfill({ json: drop(request.postDataJSON(), entries) });
+    const stepped = request.method() === 'POST' && path.match(/^\/items\/([^/:]+):step$/);
+    if (stepped) {
+      // The entry as it now stands (`WorkItem`): the list's embedded `labels` are not part of it.
+      const { labels: _, ...item } = entries.find((each) => each.id === stepped[1]);
+      const to = WORKFLOW.published.steps.find((each) => each.key === request.postDataJSON()?.step)?.to ?? item.status;
+      return route.fulfill({ json: { ...item, status: to, version: item.version + 1 } });
+    }
     // The entries as they stand at this level: their column and, under the workflow, their status.
     const byId = new Map(entries.map((each) => [each.id, each]));
     const placed = (value) => Array.isArray(value)
