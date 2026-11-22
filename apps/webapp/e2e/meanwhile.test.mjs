@@ -211,6 +211,7 @@ for (const width of [1280, 390]) {
     assert.deepEqual(answers, ['Close', 'Keep the saved version', 'Overwrite with mine']);
     assert.equal(await dialog.getByRole('button', { name: 'Close', exact: true }).count(), 1, 'the close control is not named Close');
     await dialog.getByText('The version you do not choose is not kept.').waitFor({ timeout: 5_000 });
+    assert.match(await dialog.innerText(), /yours\. The version you do not choose is not kept\./, 'the two sentences run together');
     await dialog.getByText('Closing this leaves your text unsaved; the next save asks again.').waitFor({ timeout: 5_000 });
 
     await dialog.getByRole('button', { name: 'Keep the saved version' }).click();

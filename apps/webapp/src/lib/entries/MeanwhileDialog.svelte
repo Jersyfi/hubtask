@@ -54,7 +54,7 @@
     <Button tone="secondary" onclick={onkeep} disabledReason={isOverwriting ? t('app.sync.meanwhile.overwriting') : undefined}>{t('app.sync.meanwhile.keep')}</Button>
   {/snippet}
   <p class="said" data-meanwhile={field}>
-    {said} {t('app.sync.meanwhile.consequence')}{#if field === 'notes'} {t('app.sync.meanwhile.not_kept')}{/if}
+    {said} {t('app.sync.meanwhile.consequence')}{field === 'notes' ? ` ${t('app.sync.meanwhile.not_kept')}` : ''}
   </p>
   <p class="said">{t('app.sync.meanwhile.close_hint')}</p>
   {#if failure}
