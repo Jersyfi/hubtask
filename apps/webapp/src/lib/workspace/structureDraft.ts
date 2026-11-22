@@ -76,10 +76,10 @@ export function afterSave(answer: EffectiveStructure, before: EffectiveStructure
 /**
  * The draft once the structure in force changed while the panel is open - another tab, another
  * device, a template applied. A draft the reader has not changed starts again from it, so a change
- * made elsewhere is never counted as theirs. One they changed is kept as it is: the save sends the
- * refreshed version, so its `If-Match` passes and a setting changed elsewhere is saved back as
- * theirs - there is no conflict hint yet. `seen` is the structure in force at the last call: a save's answer
- * stays while it is unchanged, since the container has not refreshed yet.
+ * made elsewhere is never counted as theirs. One they changed is kept as it is and is then
+ * `isBehind` (UC-WRK-23 check 10): the save sends the refreshed version, so its `If-Match` passes,
+ * and only `rebase` makes it safe to save. `seen` is the structure in force at the last call: a
+ * save's answer stays while it is unchanged, since the container has not refreshed yet.
  */
 export function followStructure(draft: Draft, structure: EffectiveStructure, chosen: Preset | undefined, seen?: EffectiveStructure): Draft {
   if (draft.from === undefined || draft.from === structure) return draft;
@@ -158,6 +158,74 @@ export function changeOf(draft: Draft, structure: EffectiveStructure, chosen: Pr
 export function countOf(change: StructureChange | undefined): number {
   if (!change) return 0;
   return (change.preset || change.preset_id ? 1 : 0) + Object.keys(change.settings ?? {}).length + (change.reset?.length ?? 0);
+}
+
+// -------------------------------------------------------------------------------------------------
+// Changed meanwhile (UC-WRK-23 check 10)
+// -------------------------------------------------------------------------------------------------
+
+/** A setting's locks - the whole setting's and its parts' (`fields.TASK.DUE_DATE`) - comparably. */
+function locksOf(structure: EffectiveStructure, setting: SettingName): string {
+  return JSON.stringify(
+    Object.entries(structure.locks ?? {})
+      .filter(([key]) => key === setting || key.startsWith(`${setting}.`))
+      .map(([key, lock]) => [key, lock.origin, lock.locked_by])
+      .sort(([a], [b]) => (String(a) < String(b) ? -1 : 1)),
+  );
+}
+
+/** The settings whose value or lock differs between two structures in force. */
+export function changedElsewhere(from: EffectiveStructure, structure: EffectiveStructure): SettingName[] {
+  const before = from.settings as Record<string, unknown>;
+  const now = structure.settings as Record<string, unknown>;
+  return SETTINGS.filter((setting) => !same(before[setting], now[setting], setting) || locksOf(from, setting) !== locksOf(structure, setting));
+}
+
+/** The reader's own change: measured against the structure the draft started from. */
+export function ownChangeOf(draft: Draft, structure: EffectiveStructure, chosen: Preset | undefined): StructureChange | undefined {
+  return changeOf(draft, draft.from ?? structure, chosen);
+}
+
+/**
+ * Whether the reader changed the draft and the settings were changed elsewhere since it started.
+ * A save's answer the container has not caught up with is not that: it is this reader's own.
+ */
+export function isBehind(draft: Draft, structure: EffectiveStructure, chosen: Preset | undefined): boolean {
+  if (draft.from === undefined || draft.from === structure || draft.answered) return false;
+  return changedElsewhere(draft.from, structure).length > 0 && ownChangeOf(draft, structure, chosen) !== undefined;
+}
+
+/** The change a save may send: none while the draft is behind, so nothing the reader did not change is written. */
+export function toSave(draft: Draft, structure: EffectiveStructure, chosen: Preset | undefined): StructureChange | undefined {
+  return isBehind(draft, structure, chosen) ? undefined : changeOf(draft, structure, chosen);
+}
+
+/**
+ * The reader's own change laid over the structure in force: the preset they chose, the settings
+ * they changed and the resets they chose, and nothing else. A setting changed on both sides keeps
+ * the reader's value; one locked meanwhile keeps the lock's, as the server would; a reset of a
+ * value no longer set here has nothing left to reset.
+ */
+export function rebase(draft: Draft, structure: EffectiveStructure, containerType: string, chosen: Preset | undefined): Draft {
+  const own = ownChangeOf(draft, structure, chosen);
+  let next = draft.preset && chosen ? choosePreset(startDraft(structure), structure, chosen) : { ...startDraft(structure), preset: draft.preset };
+  for (const [setting, value] of Object.entries(own?.settings ?? {})) {
+    if (lockOf(structure, setting) !== undefined) continue;
+    next = setValue(next, setting as SettingName, value as never);
+  }
+  for (const setting of (own?.reset ?? []) as SettingName[]) {
+    if (isOwn(structure, setting, containerType)) next = resetSetting(next, structure, setting);
+  }
+  return next;
+}
+
+/** The settings changed elsewhere that applying the reader's change would replace - the ones both sides changed. */
+export function bothChanged(draft: Draft, structure: EffectiveStructure, containerType: string, chosen: Preset | undefined): SettingName[] {
+  if (draft.from === undefined) return [];
+  const rebased = rebase(draft, structure, containerType, chosen);
+  const values = rebased.values as Record<string, unknown>;
+  const now = structure.settings as Record<string, unknown>;
+  return changedElsewhere(draft.from, structure).filter((setting) => rebased.reset.includes(setting) || !same(values[setting], now[setting], setting));
 }
 
 // -------------------------------------------------------------------------------------------------

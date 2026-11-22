@@ -10,19 +10,25 @@ import type { Capabilities, EffectiveStructure, Preset } from '@hubtask/sync-eng
 
 import {
   afterSave,
+  bothChanged,
   changeOf,
+  changedElsewhere,
   chooseEntryTypesOf,
   chooseFieldsOf,
   choosePreset,
   countOf,
   followStructure,
+  isBehind,
   isOwn,
   levelRefusal,
+  ownChangeOf,
+  rebase,
   renameLevel,
   resetSetting,
   setValue,
   startAnswered,
   startDraft,
+  toSave,
   toggleLevel,
   typesTopDown,
 } from './structureDraft.ts';
@@ -208,4 +214,87 @@ test('a save answered after a newer structure came into force does not offer the
   const after = afterSave(answer, project, newer);
   const followed = followStructure(after, newer, undefined, newer);
   assert.equal(changeOf(followed, newer, undefined), undefined, 'the newer setting is not overwritten by the older answer');
+});
+
+// UC-WRK-23 check 10: settings changed elsewhere while the reader has unsaved changes.
+const elsewhere = (settings: Record<string, unknown>, locks: unknown = project.locks) =>
+  ({ ...project, settings: { ...project.settings, ...settings }, locks }) as unknown as EffectiveStructure;
+
+test('a changed draft is behind once the settings change elsewhere; an untouched one restarts instead (UC-WRK-23 check 10)', () => {
+  const changed = elsewhere({ completion: 'MANUAL' });
+  const edited = followStructure(setValue(startDraft(project), 'celebration', 'SUBTLE'), changed, undefined, project);
+  assert.equal(isBehind(edited, changed, undefined), true);
+  assert.equal(isBehind(edited, project, undefined), false, 'nothing changed elsewhere');
+  const untouched = followStructure(startDraft(project), changed, undefined, project);
+  assert.equal(untouched.from, changed, 'an untouched draft starts again from the structure in force');
+  assert.equal(isBehind(untouched, changed, undefined), false);
+  // A refresh that changed no setting is not a change elsewhere.
+  assert.equal(isBehind(edited, { ...project } as EffectiveStructure, undefined), false);
+  // A save's answer the container has not caught up with is the reader's own.
+  const answered = setValue(startAnswered(changed), 'celebration', 'SUBTLE');
+  assert.equal(isBehind(answered, project, undefined), false);
+});
+
+test("behind, only the reader's own change is counted, and nothing is offered to save (UC-WRK-23 check 10)", () => {
+  const changed = elsewhere({ completion: 'MANUAL', capture: ['DATE'] });
+  const edited = setValue(startDraft(project), 'celebration', 'SUBTLE');
+  assert.equal(countOf(changeOf(edited, changed, undefined)), 3, 'measured against the structure in force it counts the foreign changes');
+  assert.deepEqual(ownChangeOf(edited, changed, undefined), { settings: { celebration: 'SUBTLE' } });
+  assert.equal(countOf(ownChangeOf(edited, changed, undefined)), 1);
+  assert.equal(toSave(edited, changed, undefined), undefined, 'a save would write the foreign settings back');
+  assert.deepEqual(toSave(edited, project, undefined), { settings: { celebration: 'SUBTLE' } });
+  assert.deepEqual(changedElsewhere(project, changed), ['completion', 'capture']);
+});
+
+test("the re-base keeps the change made elsewhere and the reader's own (UC-WRK-23 check 10)", () => {
+  const changed = elsewhere({ completion: 'MANUAL' });
+  const edited = setValue(startDraft(project), 'celebration', 'SUBTLE');
+  const rebased = rebase(edited, changed, 'COLLECTION', undefined);
+  assert.equal(rebased.from, changed);
+  assert.equal(rebased.values.completion, 'MANUAL', 'the foreign change is kept');
+  assert.equal(rebased.values.celebration, 'SUBTLE', 'the own change is kept');
+  assert.equal(isBehind(rebased, changed, undefined), false);
+  assert.deepEqual(toSave(rebased, changed, undefined), { settings: { celebration: 'SUBTLE' } }, 'only the own setting is sent');
+  assert.deepEqual(bothChanged(edited, changed, 'COLLECTION', undefined), []);
+});
+
+test("a setting both sides changed keeps the reader's value and is named (UC-WRK-23 check 10)", () => {
+  const changed = elsewhere({ capture: ['DATE'], completion: 'MANUAL' });
+  const edited = setValue(startDraft(project), 'capture', ['DATE', 'PERSON', 'LABEL', 'LINES']);
+  assert.deepEqual(bothChanged(edited, changed, 'COLLECTION', undefined), ['capture']);
+  const rebased = rebase(edited, changed, 'COLLECTION', undefined);
+  assert.deepEqual(toSave(rebased, changed, undefined), { settings: { capture: ['DATE', 'PERSON', 'LABEL', 'LINES'] } });
+  // Both made the same change: nothing is replaced, nothing is left to send for it.
+  const alike = setValue(startDraft(project), 'completion', 'MANUAL');
+  assert.deepEqual(bothChanged(alike, changed, 'COLLECTION', undefined), []);
+  assert.equal(toSave(rebase(alike, changed, 'COLLECTION', undefined), changed, undefined), undefined);
+});
+
+test('a chosen preset and a reset survive the re-base (UC-WRK-23 check 10)', () => {
+  const changed = elsewhere({ celebration: 'SUBTLE' });
+  const chosen = choosePreset(startDraft(project), project, list);
+  const rebased = rebase(chosen, changed, 'COLLECTION', list);
+  assert.deepEqual(toSave(rebased, changed, list), { preset: 'LIST' });
+  assert.deepEqual(rebased.values.views, changed.settings.views, 'the lock keeps its value');
+  // The preset replaces a foreign change too: it is named, so the reader knows.
+  const foreignCapture = elsewhere({ capture: ['DATE'] });
+  assert.deepEqual(bothChanged(chosen, foreignCapture, 'COLLECTION', list), ['capture']);
+
+  const reset = resetSetting(startDraft(project), project, 'completion');
+  const later = rebase(reset, changed, 'COLLECTION', undefined);
+  assert.deepEqual(toSave(later, changed, undefined), { reset: ['completion'] });
+  assert.equal(later.values.celebration, 'SUBTLE');
+});
+
+test('a setting locked meanwhile keeps the lock\'s value through the re-base and is not sent (UC-WRK-23 check 10)', () => {
+  const lock = { origin: 'WORKSPACE', locked_by: '01a0e2e0-0000-7000-8000-000000000011' };
+  const locked = elsewhere({}, { ...project.locks, completion: lock });
+  const edited = setValue(startDraft(project), 'completion', 'MANUAL');
+  assert.equal(isBehind(edited, locked, undefined), true, 'a new lock is a change elsewhere');
+  const rebased = rebase(edited, locked, 'COLLECTION', undefined);
+  assert.equal(rebased.values.completion, 'ROLLUP');
+  assert.equal(toSave(rebased, locked, undefined), undefined);
+  // A reset of a value locked meanwhile has nothing left to reset.
+  const reset = resetSetting(startDraft(project), project, 'completion');
+  assert.equal(toSave(rebase(reset, locked, 'COLLECTION', undefined), locked, undefined), undefined);
 });
