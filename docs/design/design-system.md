@@ -1560,6 +1560,16 @@ opening the same dialog. In the toolbar is the one *Views* menu: the saved views
 on screen, renaming, sharing or deleting a view, exporting the list as it is filtered, and the
 calendar subscriptions; the page menu carries none of them.
 
+**A workspace's own logo** (UC-INS-22). Its group under the name, *Logo and header*, draws the
+header twice, each bar inside its own `data-theme` so a light and a dark surface stand side by side
+whatever the reader's theme; then the choice as `Radio` - *Logo only* unavailable with its reason
+until a logo or the symbol exists -; then one row per picture: an `UploadField` target while there
+is none, otherwise the picture on its surface beside *Replace* (`UploadField` `button`) and
+*Remove*. A file the browser names as another type or past the limit is refused at its row before it
+leaves, the server's refusal is said there too, and the focus moves to that row's upload. A line under
+the picture says whether it reads on its surface - a heuristic on the picture's opaque pixels; it
+warns and never blocks.
+
 **Presets** (UC-WRK-30). Wherever a preset is offered — *Create collection*, *Create hub*, the
 *Templates and presets* section's picker, a hub's *Edit* — each is marked with where it comes from: Hubtask's,
 the installation's, the workspace's, yours. *Save as preset* sits under the panel's picker and saves what is in force, so it is

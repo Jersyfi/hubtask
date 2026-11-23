@@ -33,6 +33,10 @@
   // a test of the connection before the choice is saved. A server inside a private network is
   // refused by the installation's outbound guard; the test says so with its reason.
   //
+  // **Logo and header** (UC-INS-22, decision G5): a group under the name, not a page of its own. A
+  // picture is set by choosing it; what the header shows travels with the section's save bar, as
+  // the name does, and is a second write beside the name's.
+  //
   // The address is not here: it has a screen of its own, *Address*, with who may change it.
 
   import { tick, untrack } from 'svelte';
@@ -47,6 +51,10 @@
   import { presetChoice, presetName, presets, presetValue } from '../lib/data/presets.svelte.ts';
   import { isModuleOn } from '../lib/frame/moduleroute.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
+  import { branding } from '../lib/data/branding.svelte.ts';
+  import { signInPolicy } from '../lib/data/signinpolicy.svelte.ts';
+  import { mayShowLogoAlone, pictureOf, PICTURES } from '../lib/workspace/branding.ts';
+  import WorkspaceBranding from '../lib/workspace/WorkspaceBranding.svelte';
   import { WEEK_STARTS, localesOf } from '../lib/data/preferences.ts';
   import { chooseSeveral } from '../lib/forms/chooseSeveral.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -69,7 +77,7 @@
   import { pagePart } from '../lib/settings/asFile.ts';
   import { viewAsFileAction } from '../lib/settings/viewasfile.svelte.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
-  import type { DocumentServer } from '@hubtask/sync-engine';
+  import type { DocumentServer, WorkspaceBranding as Branding, WorkspaceHeader } from '@hubtask/sync-engine';
   import { resourceWhen } from '../lib/data/resource.svelte.ts';
   import { DOCUMENT_SERVER_KINDS, choiceOf, isTestable, movedFrom, type DocumentServerKind } from '../lib/files/documentServer.ts';
   import { documentServerPath, documentServers } from '../lib/files/documentServer.svelte.ts';
@@ -103,6 +111,7 @@
 
   $effect(() => untrack(() => workspace.open()));
   $effect(() => untrack(() => presets.open()));
+  $effect(() => untrack(() => signInPolicy.open()));
 
   const reading = $derived(workspace.state);
   const current = $derived(workspace.workspace);
@@ -170,7 +179,24 @@
     return Object.fromEntries(Object.entries(movement()).filter(([key]) => keys.includes(key)));
   }
 
-  const changedCount = $derived(Object.keys(moved(shown)).length);
+  // What the header shows: the form's choice while it differs from what is stored.
+  let chosenHeader = $state<WorkspaceHeader | undefined>(undefined);
+  let headerFailure = $state<string | undefined>(undefined);
+  let isPictureGoing = $state(false);
+  const storedBranding = $derived(current?.branding);
+  const savedHeader = $derived<WorkspaceHeader>(storedBranding?.header ?? 'PRODUCT');
+  const isHeaderMoved = $derived(chosenHeader !== undefined && chosenHeader !== savedHeader && storedBranding?.allowed === true);
+  const storedPictures = (held: Branding) =>
+    Object.fromEntries(PICTURES.flatMap((picture) => (pictureOf(held, picture) ? [[picture, pictureOf(held, picture)]] : [])));
+  // The last picture removed takes "the logo alone" with it: the choice follows what is stored.
+  $effect(() => {
+    const held = storedBranding;
+    untrack(() => {
+      if (held && chosenHeader === 'LOGO' && !mayShowLogoAlone(storedPictures(held))) chosenHeader = undefined;
+    });
+  });
+
+  const changedCount = $derived(Object.keys(moved(shown)).length + (shown === 'name' && isHeaderMoved ? 1 : 0));
   const isChanged = (key: string): boolean => key in movement();
 
   /** One section's values back as the workspace holds them; another section's stay. */
@@ -179,7 +205,11 @@
     if (!held) return;
     failure = undefined;
     missing = {};
-    if (shown === 'name') displayName = held.display_name;
+    if (shown === 'name') {
+      displayName = held.display_name;
+      chosenHeader = undefined;
+      headerFailure = undefined;
+    }
     if (shown === 'language') {
       locale = held.default_locale;
       zone = held.default_time_zone;
@@ -190,9 +220,10 @@
   async function save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const body = moved(shown);
+    const header = shown === 'name' && isHeaderMoved ? chosenHeader : undefined;
     // A save with nothing in it would be a request that writes nothing and a version bump that
     // means nothing to whoever reads the trail.
-    if (Object.keys(body).length === 0) return;
+    if (Object.keys(body).length === 0 && header === undefined) return;
     if (shown === 'name') {
       missing = check([{ kind: 'field', key: 'name', code: 'app.workspace.name_needed', isFilled: displayName.trim() !== '' }]);
       if (!isComplete(missing)) {
@@ -203,11 +234,23 @@
 
     isWorking = true;
     failure = undefined;
+    headerFailure = undefined;
     try {
-      await workspace.change(body);
-      toast.show({ text: t('app.workspace.saved'), tone: 'success' });
+      if (Object.keys(body).length > 0) await workspace.change(body);
     } catch (cause) {
       failure = problemOf(cause);
+      isWorking = false;
+      return;
+    }
+    try {
+      if (header) {
+        await branding.setHeader(header);
+        chosenHeader = undefined;
+      }
+      toast.show({ text: t('app.workspace.saved'), tone: 'success' });
+    } catch (cause) {
+      // Said at the choice it concerns; the name, if it moved, is saved already.
+      headerFailure = problemOf(cause).message;
     } finally {
       isWorking = false;
     }
@@ -330,7 +373,7 @@
   }
 
   /** Every section's unsaved values: what the leave guard holds, as a move between sections keeps them. */
-  const unsaved = $derived(Object.keys(movement()).length + hubsChanged + filesChanged);
+  const unsaved = $derived(Object.keys(movement()).length + (isHeaderMoved ? 1 : 0) + (isPictureGoing ? 1 : 0) + hubsChanged + filesChanged);
   $effect(() => leaveGuard.hold(() => unsaved));
 
   /** A section's state in the list, from what is read: never a guess before the read answers. */
@@ -444,7 +487,7 @@
       <WorkspaceGate permission="STRUCTURE">
         <form bind:this={form} onsubmit={save} use:enterSubmits>
           {#if shown === 'name'}
-            <SettingsSection title={t('app.workspace.section_name')} save={saveBar}>
+            <SettingsSection title={t('app.workspace.section_name')} description={t('app.workspace.section_name_lead')} save={saveBar}>
               <SettingRow label={t('app.workspace.name')} help={t('app.workspace.name_hint')} fieldWidth="md" isRequired isChanged={isChanged('display_name')}>
                 {#snippet control(nameId)}
                   <Input
@@ -457,6 +500,24 @@
                   />
                 {/snippet}
               </SettingRow>
+              {#if storedBranding}
+                <!-- Only who may rename the workspace changes how it looks; nobody else is shown it. -->
+                <WriteOnly>
+                  <WorkspaceBranding
+                    branding={storedBranding}
+                    name={displayName.trim() || current.display_name}
+                    header={chosenHeader ?? savedHeader}
+                    isHeaderChanged={isHeaderMoved}
+                    headerError={headerFailure}
+                    onheader={(next) => {
+                      chosenHeader = next === savedHeader ? undefined : next;
+                      headerFailure = undefined;
+                    }}
+                    allowedBy={signInPolicy.policy?.own_branding}
+                    bind:isUploading={isPictureGoing}
+                  />
+                </WriteOnly>
+              {/if}
             </SettingsSection>
           {:else}
             <SettingsSection title={t('app.workspace.section_language')} description={t('app.workspace.section_language_lead')} status={statusOf('language').status} save={saveBar}>
