@@ -32,8 +32,9 @@ func shownPicture(ctx context.Context, t *testing.T, subject person, usage strin
 // fullyErase runs the whole erasure against PostgreSQL, and checks it discarded the subject's
 // upload nothing points at, so a spared picture is spared by the rule and not by an erasure that
 // discarded nothing.
-func fullyErase(ctx context.Context, t *testing.T, subject person) {
+func fullyErase(t *testing.T, subject person) {
 	t.Helper()
+	ctx := context.Background()
 	erased, err := eraserFor(t).Erase(ctx, subjectActor(subject),
 		erasureRequest(ctx, t, subject, domain.ModeFullDelete))
 	if err != nil {
@@ -62,7 +63,7 @@ func TestAnErasureLeavesTheWorkspaceItsPictures(t *testing.T) {
 		t.Fatalf("showing the logo: %v", err)
 	}
 
-	fullyErase(ctx, t, subject)
+	fullyErase(t, subject)
 
 	if rows := countIn(ctx, t, `SELECT count(*) FROM media_object WHERE id = $1 AND created_by = $2`,
 		logo.String(), subject.account.String()); rows != 1 {
@@ -86,7 +87,7 @@ func TestAnErasureLeavesADeskItsLogo(t *testing.T) {
 		t.Fatalf("showing the desk's logo: %v", err)
 	}
 
-	fullyErase(ctx, t, subject)
+	fullyErase(t, subject)
 
 	if rows := countIn(ctx, t, `SELECT count(*) FROM media_object WHERE id = $1`, logo.String()); rows != 1 {
 		t.Error("the erasure discarded the desk's logo")
