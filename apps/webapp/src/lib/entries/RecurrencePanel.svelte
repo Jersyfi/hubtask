@@ -32,6 +32,7 @@
   import type { WorkItem } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
+  import { mayReadWorkspace } from '../data/capability.svelte.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { series } from '../data/reminders.svelte.ts';
@@ -113,8 +114,12 @@
     SU: t('app.recurrence.weekday_SU'),
   });
 
-  // The workspace's day and the installation's default are the week start's link above the account.
-  $effect(() => untrack(() => workspace.open()));
+  // The workspace's day and the installation's default are the week start's link above the account,
+  // read where the reader may read the workspace; elsewhere the account's and the locale's decide.
+  $effect(() => {
+    if (mayReadWorkspace() !== true) return;
+    return untrack(() => workspace.open());
+  });
   const weekStart = $derived(weekStartKeyOf(actor.weekStart, messages.locale, manifest.supportedLocales, workspace.weekStartAbove));
 
   async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {

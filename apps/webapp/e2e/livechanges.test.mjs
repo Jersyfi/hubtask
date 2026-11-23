@@ -238,6 +238,9 @@ test("chromium: a guest of one hub sees the workspace's name, and the choice sav
   // The guest's client read the look again on the workspace's record, and never the set-up.
   await bar.getByRole('link', { name: 'Hubtask', exact: true }).waitFor({ timeout: 15_000 });
   assert.deepEqual(shared.state.log.map((each) => [each.entity, each.container_id]), [['setting', null]]);
+  // Nor does their hub's own page ask for it.
+  await guest.page.goto(`${served.origin}/hubs/${HUB.id}`);
+  await guest.page.getByRole('heading', { name: HUB.name, level: 1 }).waitFor({ timeout: 15_000 });
   assert.deepEqual(guest.asked, [], "the guest's client asked for the workspace's set-up");
   assert.deepEqual([...admin.failures, ...guest.failures], []);
 });
