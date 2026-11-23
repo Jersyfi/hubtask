@@ -232,11 +232,21 @@
   const isRested = $derived(chosenTemplate !== undefined && restedKey === chosenTemplate.key);
   let planWaiters: (() => void)[] = [];
   $effect(() => {
-    if (isPlanning || !isRested) return;
+    if (isPlanning) return;
     const waiting = planWaiters;
     planWaiters = [];
     for (const resume of waiting) resume();
   });
+
+  /**
+   * Rests the choice at once, so its plan is asked now, and resolves once no plan is being read. A
+   * template the workspace took asks none: nothing is waited for, whenever the press came.
+   */
+  async function planRead(key: string): Promise<void> {
+    restedKey = key;
+    await tick();
+    while (isPlanning) await new Promise<void>((resume) => planWaiters.push(resume));
+  }
 
   const unsaved = $derived(
     !isMade && ((name.trim() !== '' && name !== filled) || description.trim() !== '' || symbol !== undefined || colour !== undefined || isPrivate || start !== opened),
@@ -265,9 +275,7 @@
       const template = chosenTemplate;
       if (template && !isRested) {
         // Pressed before the choice rested: its plan is asked now and read before the hub is made.
-        restedKey = template.key;
-        await tick();
-        await new Promise<void>((resume) => planWaiters.push(resume));
+        await planRead(template.key);
       }
       if (template && (mustAcknowledge && !acknowledged)) return;
       const request = hubRequest({

@@ -60,12 +60,16 @@ const planned = (key) => ({
  * A signed-in tab whose reader holds `permissions` on the workspace and is offered a hub of their
  * own as `offered` says; `allowed` is the workspace's *Private hubs allowed* as `/tenant` answers
  * it. Records what is made and every plan asked; `taken` refuses a name as the server does.
+ * `catalogue` and `planOf` replace the catalogue and the plan answered; `planHeld` is awaited
+ * before a plan is answered, so a walk decides when the plan arrives.
  */
-async function as(browser, { permissions = PERMISSIONS.OWNER, offered = true, allowed = true, width = 1280, height = 800, locale = 'en', taken, hasTouch } = {}) {
+async function as(browser, { permissions = PERMISSIONS.OWNER, offered = true, allowed = true, width = 1280, height = 800, locale = 'en', taken, hasTouch, catalogue = CATALOGUE, planOf = planned, planHeld } = {}) {
   const { page, failures, context } = await signedIn(browser, width, height, { hasTouch });
   const made = [];
   const plans = [];
   const hubs = [];
+  /** The plans answered and the hubs asked for, in the order the stub saw them. */
+  const events = [];
   await context.unroute('**/api/v1/**');
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -77,15 +81,19 @@ async function as(browser, { permissions = PERMISSIONS.OWNER, offered = true, al
       return route.fulfill({ json: { ...MANIFEST, workspace_permissions: permissions, private_hub_offered: offered } });
     }
     if (path === '/tenant' && method === 'GET') return route.fulfill({ json: { ...WORKSPACE, private_hubs_offered: allowed } });
-    if (path === '/config/templates' && method === 'GET') return route.fulfill({ json: { data: CATALOGUE } });
+    if (path === '/config/templates' && method === 'GET') return route.fulfill({ json: { data: catalogue } });
     const plan = /^\/config\/templates\/([a-z_]+):plan$/.exec(path);
     if (plan && method === 'POST') {
       plans.push(plan[1]);
-      return route.fulfill({ json: planned(plan[1]) });
+      // A plan the walk answers when it says so: what a slow server does, without a timer.
+      if (planHeld) await planHeld(plan[1]);
+      events.push(`plan:${plan[1]}`);
+      return route.fulfill({ json: planOf(plan[1]) });
     }
     if ((path === '/containers' || path === '/containers:from-template') && method === 'POST') {
       const body = request.postDataJSON();
       made.push({ path, body });
+      events.push(`made:${path}`);
       if (taken && body.name === taken) {
         return route.fulfill({ status: 409, contentType: 'application/problem+json',
           body: JSON.stringify({ status: 409, code: 'errors.conflict', detail_code: 'containers.name_taken', params: { name: body.name } }) });
@@ -101,7 +109,7 @@ async function as(browser, { permissions = PERMISSIONS.OWNER, offered = true, al
     }
     return stub(route);
   });
-  return { page, failures, context, made, plans };
+  return { page, failures, context, made, plans, events };
 }
 
 /** What the sidebar's *Hubs* section offers to create, once the tree is drawn. */
@@ -267,6 +275,35 @@ test('chromium: the whole path by keyboard - arrows choose, five presses ask one
   assert.equal(made.length, 1);
   assert.equal(made[0].body.name, 'Ops');
   assert.deepEqual(failures, []);
+});
+
+// A template the workspace took asks no plan: the press sends at once, however soon it comes after
+// the choice - by Enter in the name and by the primary, chosen on the page and from the address.
+test('chromium: a template the workspace already took, pressed at once after it is chosen, makes the hub', async (t) => {
+  const browser = await sharedChromium(t);
+  const catalogue = CATALOGUE.map((each) => (each.key === 'bug_tracking' ? { ...each, taken_version: 1 } : each));
+  for (const way of ['enter', 'primary', 'address']) {
+    const { page, failures, context, made, plans } = await as(browser, { catalogue });
+    try {
+      await page.goto(`${served.origin}/hubs/new${way === 'address' ? '?template=bug_tracking' : ''}`);
+      const tile = main(page).getByRole('radio', { name: /^Bug tracking/u });
+      await tile.waitFor({ timeout: 10_000 });
+      if (way === 'address') await page.waitForFunction(() => document.querySelector('#main input[type="text"]')?.value === 'Bug tracking', null, { timeout: 5_000 });
+      else await tile.check();
+      if (way === 'primary') await primary(page).click();
+      else {
+        await nameField(page).focus();
+        await page.keyboard.press('Enter');
+      }
+      await page.waitForURL((url) => !url.pathname.endsWith('/hubs/new'), { timeout: 10_000 });
+      assert.deepEqual(made.map((each) => each.path), ['/containers:from-template'], `${way}: ${JSON.stringify(made)}`);
+      assert.equal(made[0].body.template, 'bug_tracking');
+      assert.deepEqual(plans, [], `${way}: a plan was asked for a template the workspace took`);
+      assert.deepEqual(failures, []);
+    } finally {
+      await context.close();
+    }
+  }
 });
 
 test('chromium: a missing name and a taken name land on the name field, which takes the focus', async (t) => {
