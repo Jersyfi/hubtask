@@ -184,6 +184,9 @@ const accepted = (state) => state.sent
 /** Every write the stub refused was refused as stale, nothing else. */
 const refusedOnlyAsStale = (state) => state.sent.filter((each) => each.status >= 400).every((each) => each.status === 409);
 
+/** The comments filed on the entry: online a conflict is asked about, and no version is filed. */
+const filed = (state) => state.sent.filter((each) => each.method === 'POST' && each.path.startsWith(`/items/${ENTRY.id}/comments`));
+
 /** Types into the description, lets Mara change it to `theirs`, and leaves the field as a person tabs on. */
 async function typeWhileChanged(page, changeElsewhere, mine = MINE, theirs = THEIRS) {
   const notes = page.getByRole('textbox', { name: 'Notes' });
@@ -334,6 +337,7 @@ for (const width of [1280, 390]) {
     await warningAbout(page, 'title', 'Order the tiles, bathroom first', 'Order the tiles, kitchen only');
     assert.deepEqual(accepted(state), [], 'the rename wrote over the other title');
     assert.ok(refusedOnlyAsStale(state), 'a write was refused for another reason');
+    assert.deepEqual(filed(state), [], 'a version was filed as a comment online');
     await page.waitForFunction(() => document.activeElement?.textContent?.trim() === 'Keep the saved version', null, { timeout: 5_000 })
       .catch(async () => assert.fail(`the focus starts on ${await focused(page)}`));
     await page.keyboard.press('Tab');
@@ -342,6 +346,7 @@ for (const width of [1280, 390]) {
 
     await page.getByRole('heading', { level: 1 }).getByText('Order the tiles, kitchen only').waitFor({ timeout: 10_000 });
     assert.deepEqual(accepted(state), [{ method: 'PATCH', path: `/items/${ENTRY.id}`, body: { title: 'Order the tiles, kitchen only' }, ifMatch: `"${ENTRY.version + 1}"` }]);
+    assert.deepEqual(filed(state), [], 'the overwrite filed a version as a comment');
     assert.deepEqual(failures, []);
   });
 
@@ -388,6 +393,7 @@ for (const width of [1280, 390]) {
     await warningAbout(page, 'title', 'Order the tiles, bathroom first', 'Order the tiles, kitchen only');
     assert.deepEqual(accepted(state), [], 'a title was written unasked');
     assert.ok(refusedOnlyAsStale(state), 'a write was refused for another reason');
+    assert.deepEqual(filed(state), [], 'a version was filed as a comment online');
     assert.deepEqual(failures, []);
   });
 
@@ -417,6 +423,7 @@ for (const width of [1280, 390]) {
     await page.getByRole('alertdialog').waitFor({ state: 'hidden', timeout: 10_000 });
     assert.deepEqual(accepted(state).map(({ body }) => body), [{ title: 'Order the tiles, kitchen only' }]);
     assert.ok(refusedOnlyAsStale(state), 'a write was refused for another reason');
+    assert.deepEqual(filed(state), [], 'a version was filed as a comment online');
     assert.deepEqual(failures, []);
   });
 
@@ -568,6 +575,7 @@ for (const width of [1280, 390]) {
     assert.equal(await page.getByRole('alertdialog').count(), 0, 'the saved title was asked about');
     assert.deepEqual(accepted(state), [], 'something was written');
     assert.ok(refusedOnlyAsStale(state), 'a write was refused for another reason');
+    assert.deepEqual(filed(state), [], 'a version was filed as a comment online');
     assert.deepEqual(failures, []);
   });
 }
@@ -585,6 +593,7 @@ test('chromium: 1280 px — a title renamed elsewhere that the stream has not br
   await warningAbout(page, 'title', 'Order the tiles, bathroom first', 'Order the tiles, kitchen only');
   assert.deepEqual(state.sent.filter((each) => each.method === 'PATCH').map(({ body, status }) => ({ body, status })),
     [{ body: { title: 'Order the tiles, kitchen only' }, status: 409 }], 'the rename was not one write refused as stale');
+  assert.deepEqual(filed(state), [], 'a version was filed as a comment online');
   assert.equal(state.entry.title, 'Order the tiles, bathroom first');
   assert.deepEqual(failures, []);
 });
