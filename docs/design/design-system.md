@@ -1494,7 +1494,8 @@ what counts, capture, success) and *Rules* (the automation behaviours, above a c
 held by one draft and one save bar. What each level carries is a `MultiSelect` field in four groups
 (*Status and time*, *People*, *Content*, *Extensions*; a capability they do not name is an
 extension) whose closed field says "All 15 fields" or "All except Amount" with at most two off and
-the chips otherwise; the levels, the views offered, capture and the automation behaviours are its
+the chips otherwise - an Activity's five as well, so that the rows of one table share one look;
+the levels, the views offered, capture and the automation behaviours are its
 inline ticks, the views required. Each setting has its `SourceChip`, a reset where the value is
 set here, and a lock drawn as the chip's lock with the controls still readable and unavailable,
 their reason naming who set it (§4, cases 2 and 6). When the settings change elsewhere while the
