@@ -78,6 +78,7 @@ export type {
   AccountSummary,
   PrivateHubSummary,
   PrivateHubAccess,
+  EmergencyNotice,
   ViewAs,
   ModuleList,
   ModulesOn,
