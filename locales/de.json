@@ -4836,6 +4836,7 @@
   "app.templates.needs_modules_title": "Diese Vorlage braucht einen Teil von Hubtask, der hier ausgeschaltet ist",
   "app.templates.needs_modules_body": "Eingeschaltet zeigt er allen im Arbeitsbereich seine Ansichten; sonst ändert sich nichts, bis du die Vorlage anwendest.",
   "app.templates.needs_modules_body_hub": "Einschalten schaltet ihn in diesem Hub ein; kein anderer Hub ändert sich, und sonst nichts, bis du die Vorlage anwendest.",
+  "app.templates.needs_modules_body_hub_workspace": "Einschalten schaltet ihn auch für den ganzen Arbeitsbereich ein: Er zeigt allen im Arbeitsbereich seine Ansichten, und Hubs, die ab jetzt entstehen, haben ihn. Von den bestehenden Hubs bekommt ihn nur dieser; sonst ändert sich nichts, bis du die Vorlage anwendest.",
   "app.templates.needs_modules_ask": "Bitte eine Administratorin oder einen Administrator dieses Arbeitsbereichs, ihn einzuschalten, und nutze dann die Vorlage.",
   "app.templates.switch_on_and_use": "{modules} einschalten und diese Vorlage nutzen",
   "app.templates.refused_item": "{section}: {reason}",

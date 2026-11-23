@@ -215,6 +215,14 @@
     .format(needed.map((key) => t(`app.modules.name_${key.toLowerCase()}`))));
   const switches = $derived(needed.map((key) => ({ key, ...switchOnFor(key, hubId, manifest.value?.modules_on) })));
   const maySwitch = $derived(holdsHere('STRUCTURE') === true || (switches.length > 0 && switches.every((each) => each.hubId !== undefined)));
+  // Where the workspace has a product off, the press switches it on at the workspace as well
+  // (ADR-0109): the banner says so rather than "in this hub" alone.
+  const isWorkspaceSwitched = $derived(switches.some((each) => each.hubId === undefined));
+  const switchWords = $derived(
+    !maySwitch ? 'app.templates.needs_modules_ask'
+      : !hubId ? 'app.templates.needs_modules_body'
+        : isWorkspaceSwitched ? 'app.templates.needs_modules_body_hub_workspace' : 'app.templates.needs_modules_body_hub',
+  );
 
   async function switchOnAndUse() {
     busy = 'modules';
@@ -347,7 +355,7 @@
             {#if needed.length > 0}
               <Banner tone="info" title={t('app.templates.needs_modules_title')}>
                 <p class="quiet" data-template-needs-modules>{t('app.templates.needs_module', { module: neededNames })}
-                  {maySwitch ? t(hubId ? 'app.templates.needs_modules_body_hub' : 'app.templates.needs_modules_body') : t('app.templates.needs_modules_ask')}</p>
+                  {t(switchWords)}</p>
               </Banner>
             {:else if plan.refusals.length > 0}
               <FailureNote problem={t('app.templates.refused')}>

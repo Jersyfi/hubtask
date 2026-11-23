@@ -215,12 +215,18 @@ function hubTemplate({ workspaceOn, hubOff, workspaceTook }) {
   return { on, answer, hubHas };
 }
 
-async function openForHub(browser, t, state) {
+/** Opens the template's dialog on a hub's settings, in `locale`. */
+async function openForHub(browser, t, state, { locale = 'en' } = {}) {
   const shared = hubTemplate(state);
-  const walk = await productWalk(browser, { modules: shared.on, answer: shared.answer });
+  const answer = (method, path, query, body) => {
+    if (path === '/accounts/me' && method === 'GET') return { json: { ...ACCOUNT, locale } };
+    return shared.answer(method, path, query, body);
+  };
+  const walk = await productWalk(browser, { modules: shared.on, answer });
   t.after(walk.close);
+  const name = locale === 'de' ? 'Klassisches Projekt' : 'Classic project';
   await walk.page.goto(`${served.origin}/hubs/${HUB.id}/settings/template?template=${PROJECT.key}`);
-  const dialog = walk.page.getByRole('dialog', { name: 'Classic project' });
+  const dialog = walk.page.getByRole('dialog', { name });
   await dialog.waitFor({ timeout: 15_000 });
   return { ...walk, dialog, hubHas: shared.hubHas, switches: () => walk.written.filter((each) => each.method === 'PUT').map((each) => ({ path: each.path, body: each.body })) };
 }
@@ -248,16 +254,23 @@ test('chromium: a template taken for a hub names that hub in the workspace part\
   assert.deepEqual(errors(), []);
 });
 
-for (const [workspaceOn, expected, words] of [
-  [true, { hub_id: HUB.id }, 'on at the workspace and off in the hub: the hub\'s own switch'],
-  [false, { hub_ids: [HUB.id] }, 'off at the workspace: the workspace\'s switch naming the hub'],
+const SAID = {
+  hub: 'Switching it on turns it on in this hub; no other hub changes, and nothing else does until you apply the template.',
+  hubWorkspace: 'Switching it on turns it on for the whole workspace as well: it shows its screens to everyone in the workspace, and hubs made from now on have it. Of the hubs that exist, only this one gets it; nothing else changes until you apply the template.',
+};
+
+for (const [workspaceOn, expected, words, said] of [
+  [true, { hub_id: HUB.id }, 'on at the workspace and off in the hub: the hub\'s own switch', SAID.hub],
+  [false, { hub_ids: [HUB.id] }, 'off at the workspace: the workspace\'s switch naming the hub', SAID.hubWorkspace],
 ]) {
   test(`chromium: a hub's template that needs a product the hub lacks switches it on in that hub - ${words} (UC-INS-21 check 13)`, async (t) => {
     const browser = await sharedChromium(t);
     const { dialog, hubHas, switches, errors } = await openForHub(browser, t, { workspaceOn, hubOff: workspaceOn, workspaceTook: true });
     const garden = hubHas(GARDEN.id);
 
-    await dialog.locator('[data-template-needs-modules]').waitFor({ timeout: 10_000 });
+    const banner = dialog.locator('[data-template-needs-modules]');
+    await banner.waitFor({ timeout: 10_000 });
+    assert.equal((await banner.textContent()).replace(/\s+/gu, ' ').trim(), `Needs Plans, which is switched off here. ${said}`, 'the banner does not say what the press does');
     await dialog.getByRole('button', { name: 'Switch on Plans and use this template' }).click();
     await dialog.getByText('Adds the workflow “scrum”').waitFor({ timeout: 10_000 });
     assert.deepEqual(switches(), [{ path: '/tenant/modules/PLANNING', body: { switch: 'ON', ...expected } }]);
@@ -265,6 +278,21 @@ for (const [workspaceOn, expected, words] of [
     assert.equal(hubHas(GARDEN.id), garden, 'a hub nobody chose changed');
     await dialog.getByRole('button', { name: 'Take template' }).click();
     await dialog.waitFor({ state: 'hidden', timeout: 10_000 });
+    assert.deepEqual(errors(), []);
+  });
+}
+
+// The banner in German, for both cases: the hub's own switch, and the workspace's naming the hub.
+for (const [workspaceOn, said] of [
+  [true, 'Braucht Pläne, das hier ausgeschaltet ist. Einschalten schaltet ihn in diesem Hub ein; kein anderer Hub ändert sich, und sonst nichts, bis du die Vorlage anwendest.'],
+  [false, 'Braucht Pläne, das hier ausgeschaltet ist. Einschalten schaltet ihn auch für den ganzen Arbeitsbereich ein: Er zeigt allen im Arbeitsbereich seine Ansichten, und Hubs, die ab jetzt entstehen, haben ihn. Von den bestehenden Hubs bekommt ihn nur dieser; sonst ändert sich nichts, bis du die Vorlage anwendest.'],
+]) {
+  test(`chromium: in German, the hub's banner says what switching on does - ${workspaceOn ? 'in this hub only' : 'at the workspace as well'}`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { dialog, errors } = await openForHub(browser, t, { workspaceOn, hubOff: workspaceOn, workspaceTook: true }, { locale: 'de' });
+    const banner = dialog.locator('[data-template-needs-modules]');
+    await banner.waitFor({ timeout: 10_000 });
+    assert.equal((await banner.textContent()).replace(/\s+/gu, ' ').trim(), said);
     assert.deepEqual(errors(), []);
   });
 }
