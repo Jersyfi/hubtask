@@ -220,7 +220,7 @@
     </SettingRow>
     <SettingRow label={t('app.settings.look')} help={t('app.settings.look_hint')} fieldWidth="full" isChanged={changed.look}>
       {#snippet control()}
-        <LookFields type={container.type} bind:symbol={values.symbol} bind:colour={values.colour} />
+        <LookFields bind:symbol={values.symbol} bind:colour={values.colour} />
       {/snippet}
     </SettingRow>
     {#if presetOptions.length > 0}

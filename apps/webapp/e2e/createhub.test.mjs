@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Which hub a reader is offered to create (UC-WRK-01 check 6, UC-WRK-22 check 4, UC-ID-16 check 1),
-// walked per reader against the manifest the server answers:
+// *Create hub* is a page of its own (ADR-0111): UC-WRK-01 checks 9 and 10, UC-ID-16 check 9, and
+// which hub a reader is offered (UC-WRK-01 check 6, UC-ID-16 check 1), walked per reader against
+// the manifest the server answers:
 //
-// * whoever may shape the workspace (`STRUCTURE`) is offered *Create hub*, and *Private* in its
-//   dialog only where the workspace allows private hubs;
-// * anybody else is offered *Create private hub* where the manifest says creating one would
-//   succeed (`private_hub_offered`) - a dialog that makes a private hub and nothing else - and no
-//   hub at all where it would not.
+// * at 1280 × 800 the name, *Private*, colour, symbol and description stand beside the starts, all
+//   on the screen (check 9); *Empty hub* is chosen when the page opens and stays offered whatever is
+//   searched, the chosen start is marked and the summary says what it sets up (check 10);
+// * a template chosen with *Private* on is sent private in its one request (UC-ID-16 check 9);
+// * whoever may shape the workspace gets *Private* only where the workspace allows private hubs;
+//   anybody else gets a private hub of their own and no template, and nobody else the page at all.
 //
-// In the overview's head and in the navigation. Chromium only.
+// The whole path by keyboard, a missing and a taken name, the page in German, the details as two
+// columns at 768, and leaving with something typed. Chromium only.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -19,7 +22,7 @@ import { join, dirname } from 'node:path';
 
 import { sharedChromium } from './browser.mjs';
 
-import { HUB, MANIFEST, PERMISSIONS, WORKSPACE, chooseNew, newRows, signedIn, stub } from './fixture.mjs';
+import { ACCOUNT, DEFAULT_STRUCTURE, HUB, MANIFEST, PAGE, PERMISSIONS, WORKSPACE, newRows, signedIn, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -27,104 +30,408 @@ const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
 test.after(() => served.close());
 
+const NEW_HUB = '01a0e2e0-0000-7000-8000-0000000018c1';
+const template = (key, modules, hub = {}) => ({
+  key, version: 1, name: key, origin: 'HUBTASK', provenance: `${key}@1`, created_at: '2026-09-01T00:00:00Z',
+  update_available: false, taken_version: null, hub_document: hub,
+  document: { modules: Object.fromEntries(['workflows', ...modules].map((name) => [name, { switch: 'ON' }])) },
+});
+const named = (count, word) => Object.fromEntries(Array.from({ length: count }, (_, at) => [`${word}${at}`, { name: `${word} ${at + 1}` }]));
+const CATALOGUE = [
+  template('household', [], { types: named(1, 'chore') }),
+  template('kanban_team', [], { types: named(1, 'card'), workflows: named(1, 'flow'), samples: named(3, 'sample') }),
+  template('scrum_team', ['planning', 'knowledge'], { types: named(2, 'story'), workflows: named(2, 'flow'), roles: named(1, 'role') }),
+  template('bug_tracking', [], { types: named(1, 'bug') }),
+  template('classic_project', ['planning'], { types: named(4, 'item') }),
+  template('itil_service_desk', ['service_desk'], { types: named(4, 'ticket') }),
+  template('internal_it', ['service_desk'], { types: named(1, 'request') }),
+  template('approvals', ['service_desk'], { types: named(3, 'approval') }),
+];
+const planned = (key) => ({
+  template: key, upgrade: [], document: {}, mode: 'MERGE', base_hash: 'b1', plan_hash: 'p1', refusals: [], operations: [],
+  flags: { hides_data: false, changes_permissions: false }, counts: { added: 1, changed: 0, removed: 0 },
+  changes: [{ path: `workflows.${key}`, section: 'workflows', key, op: 'ADD', fields: [] }],
+});
+
 /**
  * A signed-in tab whose reader holds `permissions` on the workspace and is offered a hub of their
- * own as `offered` says; `allowed` is the workspace's *Private hubs allowed* as `/tenant` answers it.
- * Records what a create sends.
+ * own as `offered` says; `allowed` is the workspace's *Private hubs allowed* as `/tenant` answers
+ * it. Records what is made and every plan asked; `taken` refuses a name as the server does.
  */
-async function as(browser, { permissions, offered, allowed = true }) {
-  const { page, failures, context } = await signedIn(browser, 1280, 900);
-  const sent = [];
+async function as(browser, { permissions = PERMISSIONS.OWNER, offered = true, allowed = true, width = 1280, height = 800, locale = 'en', taken } = {}) {
+  const { page, failures, context } = await signedIn(browser, width, height);
+  const made = [];
+  const plans = [];
+  const hubs = [];
   await context.unroute('**/api/v1/**');
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
-    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    const url = new URL(request.url());
+    const path = url.pathname.replace(/^.*\/api\/v1/, '');
+    const method = request.method();
+    if (path === '/accounts/me' && method === 'GET') return route.fulfill({ json: { ...ACCOUNT, locale } });
     if (path === '/meta/capabilities') {
       return route.fulfill({ json: { ...MANIFEST, workspace_permissions: permissions, private_hub_offered: offered } });
     }
-    if (path === '/tenant' && request.method() === 'GET') {
-      return route.fulfill({ json: { ...WORKSPACE, private_hubs_offered: allowed } });
+    if (path === '/tenant' && method === 'GET') return route.fulfill({ json: { ...WORKSPACE, private_hubs_offered: allowed } });
+    if (path === '/config/templates' && method === 'GET') return route.fulfill({ json: { data: CATALOGUE } });
+    const plan = /^\/config\/templates\/([a-z_]+):plan$/.exec(path);
+    if (plan && method === 'POST') {
+      plans.push(plan[1]);
+      return route.fulfill({ json: planned(plan[1]) });
     }
-    if (path === '/containers' && request.method() === 'POST') {
+    if ((path === '/containers' || path === '/containers:from-template') && method === 'POST') {
       const body = request.postDataJSON();
-      sent.push(body);
-      return route.fulfill({ status: 201, json: { ...HUB, id: '01a0e2e0-0000-7000-8000-0000000018c1', name: body.name, private: body.private === true } });
+      made.push({ path, body });
+      if (taken && body.name === taken) {
+        return route.fulfill({ status: 409, contentType: 'application/problem+json',
+          body: JSON.stringify({ status: 409, code: 'errors.conflict', detail_code: 'containers.name_taken', params: { name: body.name } }) });
+      }
+      const hub = { id: NEW_HUB, type: body.type ?? 'HUB', parent_id: body.parent_id ?? null, order_key: 'a1', version: 1, structure: DEFAULT_STRUCTURE,
+        name: body.name, description: body.description ?? null, icon: body.icon ?? null, color_token: body.color_token ?? null, private: body.private === true };
+      hubs.push(hub);
+      return route.fulfill({ status: 201, json: hub });
+    }
+    if (path === `/containers/${NEW_HUB}` && method === 'GET' && hubs[0]) return route.fulfill({ json: hubs[0] });
+    if (path === '/memberships' && url.searchParams.get('scope_type') === 'HUB') {
+      return route.fulfill({ json: { ...PAGE, data: hubs.map((hub) => ({ id: 'm-new', scope_type: 'HUB', scope_id: hub.id, account_id: ACCOUNT.id, role: 'OWNER' })), grantable_roles: [] } });
     }
     return stub(route);
   });
-  return { page, failures, context, sent };
+  return { page, failures, context, made, plans };
 }
 
 /** What the sidebar's *Hubs* section offers to create, once the tree is drawn. */
 async function offered(page) {
   await page.getByRole('tree').first().waitFor({ timeout: 10_000 });
-  await page.waitForTimeout(600);
-  const rows = await newRows(page);
-  if (rows.length > 0) await page.keyboard.press('Escape');
-  return rows;
+  return newRows(page);
 }
 
-test('chromium: a member is offered a private hub of their own and no shared hub, and the dialog makes it private', async (t) => {
+const main = (page) => page.locator('#main');
+const nameField = (page, label = 'Hub name') => main(page).getByRole('textbox', { name: label });
+const primary = (page, label = 'Create hub') => main(page).getByRole('button', { name: label, exact: true });
+
+/** Opens the page from the navigation's *Create hub*, as a person does. */
+async function openFromNavigation(page, row = 'Create hub') {
+  await page.goto(`${served.origin}/`);
+  await offered(page);
+  await page.locator('aside.sidenav').getByRole('button', { name: row, exact: true }).first().click();
+  await page.waitForURL('**/hubs/new', { timeout: 10_000 });
+  await nameField(page).waitFor({ timeout: 10_000 });
+}
+
+// UC-WRK-01 check 9 at its width and height; the focus starts in the name.
+test('chromium: 1280 × 800 - Create hub opens a page with the details beside the starts, all on the screen', async (t) => {
   const browser = await sharedChromium(t);
-  const { page, failures, context, sent } = await as(browser, { permissions: PERMISSIONS.MEMBER, offered: true });
+  const { page, failures, context } = await as(browser);
   t.after(() => context.close());
 
-  await page.goto(`${served.origin}/`);
-  // The ＋ on the sidebar's *Hubs*, alone: *Today* carries no head action of its own (§E9), and a
-  // member is offered no shared hub the server refuses.
-  assert.deepEqual(await offered(page), ['Create private hub']);
+  await openFromNavigation(page);
+  assert.equal(await main(page).getByRole('heading', { level: 1, name: 'Create hub' }).count(), 1);
+  await page.waitForFunction(() => document.activeElement?.getAttribute('type') === 'text' || document.activeElement?.tagName === 'INPUT', null, { timeout: 5_000 });
+  assert.equal(await page.evaluate(() => document.activeElement?.closest('[data-create-hub]') !== null && document.activeElement?.id !== ''), true, 'the focus is not in the name');
 
-  await chooseNew(page, 'Create private hub');
-  const dialog = page.locator('dialog[open]');
-  await dialog.waitFor({ timeout: 10_000 });
-  assert.equal(await dialog.getByRole('heading', { name: 'Create private hub' }).count(), 1, 'the dialog does not say what it makes');
-  assert.equal(await dialog.getByRole('switch', { name: 'Private' }).count(), 0, 'a switch offers a shared hub');
-  assert.equal(await dialog.getByText('Only the people you give a role in it can open it.', { exact: false }).count(), 1, 'the dialog does not say the hub is private');
-  await dialog.getByRole('textbox', { name: 'Hub name' }).fill('Diary');
-  await dialog.getByRole('button', { name: 'Create private hub' }).click();
-  await dialog.waitFor({ state: 'hidden', timeout: 10_000 });
-  assert.equal(sent.length, 1);
-  assert.equal(sent[0].private, true, `the body was ${JSON.stringify(sent[0])}`);
+  const sw = main(page).getByRole('switch', { name: 'Private' });
+  await sw.waitFor({ timeout: 10_000 });
+  const boxes = {
+    name: await nameField(page).boundingBox(),
+    private: await sw.boundingBox(),
+    colour: await main(page).getByRole('radio', { name: 'No colour' }).boundingBox(),
+    symbol: await main(page).getByRole('radio', { name: 'Default symbol' }).boundingBox(),
+    description: await main(page).getByRole('textbox', { name: 'Description' }).boundingBox(),
+    empty: await main(page).getByRole('radio', { name: /^Empty hub/u }).boundingBox(),
+  };
+  for (const [part, box] of Object.entries(boxes)) {
+    assert.ok(box && box.y >= 0 && box.y + box.height <= 800, `${part} is not on the screen: ${JSON.stringify(box)}`);
+  }
+  // Beside, not under: the starts begin right of the details.
+  assert.ok(boxes.empty.x > boxes.description.x + boxes.description.width, 'the starts are not beside the details');
+  // Each column scrolls on its own; the page itself does not.
+  assert.equal(await page.evaluate(() => document.scrollingElement.scrollHeight <= window.innerHeight), true, 'the page scrolls as a whole');
   assert.deepEqual(failures, []);
 });
 
-test('chromium: where private hubs are not offered, a viewer is offered no hub at all', async (t) => {
+// UC-WRK-01 check 10.
+test('chromium: Empty hub is chosen at opening and stays offered whatever is searched; a template is ticked and said', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, context, made } = await as(browser);
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/hubs/new`);
+  const empty = main(page).getByRole('radio', { name: /^Empty hub/u });
+  await main(page).getByRole('radio', { name: /^Kanban team/u }).waitFor({ timeout: 10_000 });
+  assert.equal(await empty.isChecked(), true, 'Empty hub is not chosen when the page opens');
+  const summary = main(page).locator('[data-hub-summary]');
+  assert.match(await summary.innerText(), /Empty hub[\s\S]*No template\. The hub starts with the preset the workspace chose/u);
+
+  // A search without a match: no template drawn, the sentence and the reset, Empty hub still there.
+  const search = main(page).getByRole('searchbox', { name: 'Search templates' });
+  await search.fill('zebra');
+  await main(page).getByText('No template matches “zebra”.').waitFor({ timeout: 5_000 });
+  assert.equal(await main(page).getByRole('radio', { name: /^Kanban team/u }).count(), 0, 'a template is drawn that the search does not find');
+  assert.equal(await empty.isChecked(), true, 'the search took Empty hub away');
+  assert.equal(await main(page).getByRole('status').filter({ hasText: 'No template found – “Empty hub” always stays available.' }).count(), 1);
+  await main(page).getByRole('button', { name: 'Reset search' }).click();
+  assert.equal(await search.inputValue(), '');
+
+  // A family narrows the starts; a template chosen and then filtered away stays chosen.
+  const kanban = main(page).getByRole('radio', { name: /^Kanban team/u });
+  await kanban.check();
+  const tile = kanban.locator('xpath=ancestor::label[1]');
+  // Under the pointer, as a press leaves it; read once the state's transition has ended: the
+  // tick filled in the edge's own colour.
+  const handle = await tile.elementHandle();
+  await page.waitForFunction((element) => getComputedStyle(element.querySelector('.tick')).backgroundColor === getComputedStyle(element).borderTopColor, handle, { timeout: 5_000 });
+  const look = await tile.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const tick = getComputedStyle(element.querySelector('.tick'));
+    return { edge: style.borderTopColor, shadow: style.boxShadow, tick: tick.backgroundColor };
+  });
+  assert.notEqual(look.shadow, 'none', 'the chosen edge is not doubled');
+  assert.equal(look.tick, look.edge, 'the tick is not filled in the edge\'s colour');
+  assert.equal(await nameField(page).inputValue(), 'Kanban team', 'the template does not name the hub');
+  assert.match(await summary.innerText(), /Template[\s\S]*Kanban team[\s\S]*This sets up[\s\S]*Collection\s*a first one, named like the hub[\s\S]*Entry types\s*1/u);
+  await main(page).getByRole('radiogroup', { name: 'Families' }).getByRole('radio', { name: /^Service/u }).check();
+  assert.equal(await kanban.count(), 0, 'the family did not narrow the starts');
+  assert.equal(await main(page).getByRole('radio', { name: /^ITIL service desk/u }).count(), 1);
+  assert.match(await summary.innerText(), /Kanban team/u, 'the choice went with the filter');
+  assert.equal(made.length, 0, 'something was made before the press');
+  assert.deepEqual(failures, []);
+});
+
+// UC-ID-16 check 9: the request that left carries the template and `private`, and the screen
+// lands in the hub, private.
+test('chromium: a template with Private on is made private in one request, and the page lands in the hub', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, context, made } = await as(browser);
+  t.after(() => context.close());
+
+  await openFromNavigation(page);
+  await main(page).getByRole('radio', { name: /^Kanban team/u }).check();
+  await main(page).getByRole('switch', { name: 'Private' }).check();
+  assert.equal(await main(page).getByRole('heading', { level: 1, name: 'Create private hub' }).count(), 1, 'the title does not say private');
+  await nameField(page).fill('Diary');
+  await primary(page).click();
+  await page.waitForURL(`**/hubs/${NEW_HUB}`, { timeout: 10_000 });
+  assert.deepEqual(made.map((each) => each.path), ['/containers:from-template']);
+  assert.equal(made[0].body.private, true, `the body was ${JSON.stringify(made[0].body)}`);
+  assert.equal(made[0].body.template, 'kanban_team');
+  assert.equal(made[0].body.name, 'Diary');
+  assert.equal(made[0].body.samples, true);
+  // Back goes where the person was before the page, not to the page again.
+  await page.goBack();
+  await page.waitForURL(`${served.origin}/`, { timeout: 10_000 });
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: the whole path by keyboard - arrows choose, five presses ask one plan, Enter in the name creates', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, context, made, plans } = await as(browser);
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/hubs/new`);
+  await main(page).getByRole('radio', { name: /^Kanban team/u }).waitFor({ timeout: 10_000 });
+  await page.waitForFunction(() => document.activeElement?.tagName === 'INPUT', null, { timeout: 5_000 });
+  const focused = () => page.evaluate(() => {
+    const element = document.activeElement;
+    return `${element?.getAttribute('role') ?? element?.getAttribute('type') ?? element?.tagName}:${element?.getAttribute('aria-label') ?? element?.closest('label')?.innerText?.split('\n')[0] ?? ''}`;
+  });
+  const order = [];
+  for (let step = 0; step < 6; step++) {
+    await page.keyboard.press('Tab');
+    order.push(await focused());
+  }
+  // Name, then *Private*, colour, symbol, description, then the search: the draft's markup order.
+  assert.deepEqual(order.slice(0, 4), ['switch:', 'radio:No colour', 'radio:Default symbol', 'TEXTAREA:'], `the order was ${order.join(' → ')}`);
+  assert.equal(order[4], 'search:', `the order was ${order.join(' → ')}`);
+  assert.match(order[5], /^radio:All/u, `the families do not follow the search: ${order.join(' → ')}`);
+  await page.keyboard.press('Tab');
+  assert.match(await focused(), /^radio:Empty hub/u, 'the tiles are not entered at the chosen one');
+
+  // Five arrow presses: each chooses, one plan is asked once the choice has rested.
+  for (let step = 0; step < 5; step++) await page.keyboard.press('ArrowDown');
+  const fifth = await page.evaluate(() => document.activeElement?.closest('label')?.querySelector('.title')?.textContent);
+  await main(page).locator('[data-hub-summary]').getByText(fifth, { exact: true }).waitFor({ timeout: 5_000 });
+  await main(page).locator('[data-plan-changes]').waitFor({ timeout: 5_000 });
+  assert.ok(plans.length <= 1, `five presses asked ${plans.length} plans: ${plans.join(', ')}`);
+  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('type')), 'radio', 'the arrows left the tiles');
+
+  await nameField(page).focus();
+  await page.keyboard.press('ControlOrMeta+A');
+  await page.keyboard.type('Ops');
+  await page.keyboard.press('Enter');
+  await page.waitForURL(`**/hubs/${NEW_HUB}**`, { timeout: 10_000 });
+  assert.equal(made.length, 1);
+  assert.equal(made[0].body.name, 'Ops');
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: a missing name and a taken name land on the name field, which takes the focus', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, context, made } = await as(browser, { taken: 'House' });
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/hubs/new`);
+  await main(page).getByRole('radio', { name: /^Kanban team/u }).waitFor({ timeout: 10_000 });
+  await main(page).getByRole('textbox', { name: 'Description' }).focus();
+  await primary(page).click();
+  const field = nameField(page);
+  await main(page).getByText('Give it a name first.').waitFor({ timeout: 5_000 });
+  assert.equal(await field.getAttribute('aria-invalid'), 'true');
+  assert.equal(await field.evaluate((element) => element === document.activeElement), true, 'the focus did not move to the name');
+  const described = await field.evaluate((element) => (element.getAttribute('aria-describedby') ?? '').split(' ').map((id) => document.getElementById(id)?.textContent ?? '').join(' '));
+  assert.match(described, /Give it a name first\./u, 'the error does not describe the field');
+  assert.equal(made.length, 0);
+
+  await field.fill('House');
+  await main(page).getByRole('textbox', { name: 'Description' }).focus();
+  await primary(page).click();
+  await main(page).locator('[data-create-hub] .name-error').waitFor({ timeout: 5_000 });
+  assert.equal(await field.getAttribute('aria-invalid'), 'true');
+  assert.equal(await field.evaluate((element) => element === document.activeElement), true, 'a taken name did not take the focus');
+  assert.equal(made.length, 1);
+  assert.match(page.url(), /\/hubs\/new$/u, 'a refused name left the page');
+  assert.deepEqual(failures, []);
+});
+
+// UC-WRK-01 check 6, UC-ID-16 check 1, owner's answer Q4: a private hub of one's own, no switch, no template.
+test('chromium: a member is offered a private hub of their own, without the switch and without templates', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, context, made } = await as(browser, { permissions: PERMISSIONS.MEMBER, offered: true });
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/`);
+  assert.deepEqual(await offered(page), ['Create private hub']);
+  await page.locator('aside.sidenav').getByRole('button', { name: 'Create private hub', exact: true }).first().click();
+  await page.waitForURL('**/hubs/new', { timeout: 10_000 });
+  await main(page).getByRole('heading', { level: 1, name: 'Create private hub' }).waitFor({ timeout: 10_000 });
+  await main(page).getByRole('radio', { name: /^Empty hub/u }).waitFor();
+  assert.equal(await main(page).getByRole('switch').count(), 0, 'a switch offers a shared hub');
+  assert.equal(await main(page).getByRole('searchbox').count(), 0, 'the catalogue is searched');
+  assert.equal(await main(page).getByRole('radio', { name: /^Kanban team/u }).count(), 0, 'a template is offered the server refuses');
+  assert.equal(await main(page).getByText('Templates set up the workspace as well, so they need the right to shape it.', { exact: false }).count(), 1, 'the page does not say why there is no template');
+  await nameField(page).fill('Diary');
+  await primary(page).click();
+  await page.waitForURL(`**/hubs/${NEW_HUB}`, { timeout: 10_000 });
+  assert.deepEqual(made.map((each) => each.path), ['/containers']);
+  assert.equal(made[0].body.private, true, `the body was ${JSON.stringify(made[0].body)}`);
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: where private hubs are not offered, a viewer is offered no hub, and the address shows nothing', async (t) => {
   const browser = await sharedChromium(t);
   const { page, failures, context } = await as(browser, { permissions: PERMISSIONS.VIEWER, offered: false, allowed: false });
   t.after(() => context.close());
 
   await page.goto(`${served.origin}/`);
   assert.deepEqual(await offered(page), [], 'a hub offered to somebody the server refuses one');
+  // Typed, the address answers as any address the reader may not use: no form.
+  await page.goto(`${served.origin}/hubs/new`);
+  await main(page).getByRole('heading', { level: 1, name: 'There is nothing at this address.' }).waitFor({ timeout: 10_000 });
+  assert.equal(await main(page).getByRole('textbox', { name: 'Hub name' }).count(), 0, 'the form is drawn for somebody who may make no hub');
+  assert.equal(await main(page).getByRole('link', { name: 'Back to the start' }).count(), 1);
   assert.deepEqual(failures, []);
 });
 
-test('chromium: whoever shapes the workspace where private hubs are switched off is offered a shared hub only', async (t) => {
+test('chromium: whoever shapes the workspace where private hubs are switched off makes a shared hub, no switch', async (t) => {
   const browser = await sharedChromium(t);
-  const { page, failures, context, sent } = await as(browser, { permissions: PERMISSIONS.ADMIN, offered: false, allowed: false });
+  const { page, failures, context, made } = await as(browser, { permissions: PERMISSIONS.ADMIN, offered: false, allowed: false });
   t.after(() => context.close());
 
-  await page.goto(`${served.origin}/`);
-  assert.deepEqual(await offered(page), ['Create hub'], 'not a shared hub alone for whoever may shape the workspace');
+  await openFromNavigation(page);
+  await main(page).getByRole('radio', { name: /^Kanban team/u }).waitFor({ timeout: 10_000 });
+  assert.equal(await main(page).getByRole('switch', { name: 'Private' }).count(), 0, '*Private* offered where private hubs are off');
+  await nameField(page).fill('Garden');
+  await main(page).getByRole('radio', { name: /^Project Every level/u }).check();
+  await primary(page).click();
+  await page.waitForURL(`**/hubs/${NEW_HUB}`, { timeout: 10_000 });
+  assert.equal(made[0].path, '/containers');
+  assert.equal(made[0].body.private, undefined, `the body was ${JSON.stringify(made[0].body)}`);
+  assert.equal(made[0].body.preset, 'PROJECT');
+  assert.deepEqual(failures, []);
+});
 
-  await chooseNew(page, 'Create hub');
-  const dialog = page.locator('dialog[open]');
-  await dialog.waitFor({ timeout: 10_000 });
-  await dialog.getByRole('textbox', { name: 'Hub name' }).fill('Garden');
-  // The workspace's answer arrives with the dialog; give it the moment to draw a switch it should not.
-  await page.waitForTimeout(400);
-  assert.equal(await dialog.getByRole('switch', { name: 'Private' }).count(), 0, '*Private* offered where private hubs are off');
-  await dialog.getByRole('button', { name: 'Create hub' }).click();
-  await dialog.waitFor({ state: 'hidden', timeout: 10_000 });
-  assert.equal(sent.length, 1);
-  assert.equal(sent[0].private, undefined, `the body was ${JSON.stringify(sent[0])}`);
+test('chromium: a template the address names but the reader cannot read leaves Empty hub chosen', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, context } = await as(browser);
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/hubs/new?template=no_such_template`);
+  await main(page).getByRole('radio', { name: /^Kanban team/u }).waitFor({ timeout: 10_000 });
+  assert.equal(await main(page).getByRole('radio', { name: /^Empty hub/u }).isChecked(), true);
+  assert.equal(await nameField(page).inputValue(), '', 'a name is filled in for nothing');
+  await page.goto(`${served.origin}/hubs/new?template=scrum_team`);
+  await main(page).getByRole('radio', { name: /^Scrum team/u, checked: true }).waitFor({ timeout: 10_000 });
+  assert.equal(await nameField(page).inputValue(), 'Scrum team');
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: Cancel returns where the person came from, and leaving with something typed asks first', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, context, made } = await as(browser);
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/hubs/${HUB.id}`);
+  await page.locator('aside.sidenav').getByRole('tree').first().waitFor({ timeout: 10_000 });
+  await page.goto(`${served.origin}/`);
+  await openFromNavigation(page);
+  await main(page).getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.waitForURL(`${served.origin}/`, { timeout: 10_000 });
+
+  await page.locator('aside.sidenav').getByRole('button', { name: 'Create hub', exact: true }).first().click();
+  await page.waitForURL('**/hubs/new', { timeout: 10_000 });
+  await nameField(page).fill('Half typed');
+  await main(page).getByRole('button', { name: 'Cancel', exact: true }).click();
+  const leave = page.getByRole('dialog');
+  await leave.waitFor({ timeout: 5_000 });
+  assert.match(page.url(), /\/hubs\/new$/u, 'the page left without asking');
+  assert.equal(await leave.getByRole('heading', { name: 'Leave without saving?' }).count(), 1);
+  await leave.getByRole('button', { name: 'Stay', exact: true }).click();
+  assert.equal(await nameField(page).inputValue(), 'Half typed');
+  assert.equal(made.length, 0);
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: the page in German', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, context } = await as(browser, { locale: 'de' });
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/hubs/new`);
+  await page.waitForFunction(() => document.documentElement.lang === 'de', null, { timeout: 15_000 });
+  await main(page).getByRole('heading', { level: 1, name: 'Hub anlegen' }).waitFor({ timeout: 10_000 });
+  await main(page).getByRole('heading', { level: 2, name: 'Womit der Hub beginnt' }).waitFor();
+  await main(page).getByRole('radio', { name: /^Leerer Hub/u, checked: true }).waitFor();
+  assert.equal(await main(page).getByRole('textbox', { name: 'Name des Hubs' }).count(), 1);
+  assert.equal(await main(page).getByRole('switch', { name: 'Privat' }).count(), 1);
+  assert.equal(await main(page).getByRole('searchbox', { name: 'Vorlagen durchsuchen' }).count(), 1);
+  assert.match(await main(page).locator('[data-hub-summary]').innerText(), /Sammlungen legst du danach an\./u);
+  assert.equal(await main(page).getByText(/^\d+ Vorlagen in \d+ Familien$/u).count(), 1, 'the count is not German');
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: 768 px - the details are a block of two columns above the starts', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, context } = await as(browser, { width: 768, height: 1024 });
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/hubs/new`);
+  await main(page).getByRole('radio', { name: /^Kanban team/u }).waitFor({ timeout: 10_000 });
+  const name = await nameField(page).boundingBox();
+  const colour = await main(page).getByRole('radio', { name: 'No colour' }).boundingBox();
+  const description = await main(page).getByRole('textbox', { name: 'Description' }).boundingBox();
+  const empty = await main(page).getByRole('radio', { name: /^Empty hub/u }).boundingBox();
+  assert.ok(colour.x > name.x + name.width, 'the look does not stand beside the name');
+  assert.ok(Math.abs(colour.y - name.y) < 24, 'the look does not start on the name\'s line');
+  assert.ok(empty.y > description.y + description.height, 'the starts are not under the details');
   assert.deepEqual(failures, []);
 });
 
 // The navigation concept's grammar (§5): ＋ on a section head creates at its top level - on the hub
-// level's *Collections*, a collection in that hub.
+// level's *Collections*, a collection in that hub. A collection keeps its dialog.
 test('chromium: inside a hub, ＋ on Collections makes a collection in that hub, with its preset (ux-inventory.md §E1)', async (t) => {
   const browser = await sharedChromium(t);
-  const { page, failures, context, sent } = await as(browser, { permissions: PERMISSIONS.ADMIN, offered: false, allowed: false });
+  const { page, failures, context, made } = await as(browser, { permissions: PERMISSIONS.ADMIN, offered: false, allowed: false });
   t.after(() => context.close());
 
   await page.goto(`${served.origin}/hubs/${HUB.id}`);
@@ -135,62 +442,12 @@ test('chromium: inside a hub, ＋ on Collections makes a collection in that hub,
   const dialog = page.locator('dialog[open]');
   await dialog.waitFor({ timeout: 10_000 });
   assert.equal(await dialog.getByRole('heading', { name: `New collection in ${HUB.name}` }).count(), 1, 'the dialog does not make a collection');
-  // The kinds as cards (the navigation concept's *New collection*).
   await dialog.locator('[data-collection-kind]').first().waitFor({ timeout: 10_000 });
-  assert.ok((await dialog.locator('[data-collection-kind]').count()) > 0, 'the dialog offers no preset');
   await dialog.getByRole('textbox').first().fill('Groceries');
   await dialog.getByRole('button', { name: 'Create', exact: true }).click();
   await dialog.waitFor({ state: 'hidden', timeout: 10_000 });
-  assert.equal(sent.length, 1);
-  assert.equal(sent[0].type, 'COLLECTION', `the body was ${JSON.stringify(sent[0])}`);
-  assert.equal(sent[0].parent_id, HUB.id, `the body was ${JSON.stringify(sent[0])}`);
-  assert.deepEqual(failures, []);
-});
-
-// §5.2 and UX-4: *Create hub* asks the name, then shows the template gallery - a family filter above
-// cards side by side - and folds the description, colour and symbol below it, so the templates are
-// in view when the dialog opens.
-test('chromium: the hub dialog shows the gallery under the name, filtered by family, the look folded', async (t) => {
-  const browser = await sharedChromium(t);
-  const { page, failures, context } = await as(browser, { permissions: PERMISSIONS.ADMIN, offered: false, allowed: false });
-  t.after(() => context.close());
-  const template = (key) => ({
-    key, version: 1, name: key, origin: 'HUBTASK', provenance: `${key}@1`, created_at: '2026-09-01T00:00:00Z',
-    update_available: false, taken_version: null, hub_document: { collections: {} }, document: { modules: { workflows: { switch: 'ON' } } },
-  });
-  const keys = ['kanban_team', 'scrum_team', 'bug_tracking', 'classic_project', 'hybrid_project', 'itil_service_desk', 'internal_it', 'approvals'];
-  await context.route('**/api/v1/config/templates*', (route) => route.fulfill({ json: { data: keys.map(template) } }));
-
-  await page.goto(`${served.origin}/`);
-  await offered(page);
-  await chooseNew(page, 'Create hub');
-  const dialog = page.locator('dialog[open]');
-  const gallery = dialog.locator('[data-hub-gallery]');
-  await gallery.locator('[data-hub-template="kanban_team"]').waitFor({ timeout: 10_000 });
-  // The gallery comes right after the name; the look waits folded behind one press.
-  const order = await dialog.evaluate((element) => {
-    const name = element.querySelector('input');
-    const cards = element.querySelector('[data-hub-gallery]');
-    const symbol = element.querySelector('[data-look-fields]');
-    return {
-      galleryAfterName: Boolean(name && cards && name.compareDocumentPosition(cards) & Node.DOCUMENT_POSITION_FOLLOWING),
-      lookShown: Boolean(symbol && symbol.getClientRects().length > 0),
-    };
-  });
-  assert.ok(order.galleryAfterName, 'the gallery is not under the name');
-  assert.equal(order.lookShown, false, 'the colours and symbols are not folded');
-  const first = await gallery.locator('[data-hub-template="kanban_team"]').boundingBox();
-  assert.ok(first && first.y < 900, 'the first template is below the fold');
-  const second = await gallery.locator('[data-hub-template="scrum_team"]').boundingBox();
-  assert.ok(second && Math.abs(second.y - first.y) < 2, 'the templates stand in one column');
-  // The family filter narrows the gallery to one family.
-  const filter = gallery.getByRole('group', { name: 'Families' });
-  await filter.getByRole('button', { name: 'Service', exact: true }).click();
-  assert.equal(await gallery.locator('[data-hub-template="kanban_team"]').count(), 0, 'the filter left another family');
-  assert.equal(await gallery.locator('[data-hub-template="itil_service_desk"]').count(), 1);
-  await filter.getByRole('button', { name: 'All', exact: true }).click();
-  assert.equal(await gallery.locator('[data-hub-template="kanban_team"]').count(), 1);
-  await dialog.getByRole('button', { name: /Description, colour and symbol/u }).click();
-  await dialog.locator('[data-look-fields]').waitFor({ timeout: 5_000 });
+  assert.equal(made.length, 1);
+  assert.equal(made[0].body.type, 'COLLECTION', `the body was ${JSON.stringify(made[0].body)}`);
+  assert.equal(made[0].body.parent_id, HUB.id, `the body was ${JSON.stringify(made[0].body)}`);
   assert.deepEqual(failures, []);
 });

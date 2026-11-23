@@ -21,13 +21,13 @@ const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
 test.after(() => served.close());
 
-/** Opens the create-hub dialog from the overview's head. */
+/** Opens the page *Create hub* (ADR-0111) from the navigation. */
 async function openCreate(page) {
   await page.goto(`${served.origin}/`);
   await chooseNew(page, 'Create hub');
-  const dialog = page.locator('dialog[open]');
-  await dialog.waitFor({ timeout: 10_000 });
-  return dialog;
+  const form = page.locator('#main [data-create-hub]');
+  await form.waitFor({ timeout: 10_000 });
+  return form;
 }
 
 test('chromium: *Private* is offered where the workspace has more than one person, and sent', async (t) => {
@@ -46,8 +46,8 @@ test('chromium: *Private* is offered where the workspace has more than one perso
   await toggle.waitFor({ timeout: 10_000 });
   await dialog.getByRole('textbox', { name: 'Hub name' }).fill('Diary');
   await toggle.check();
-  await dialog.getByRole('button', { name: 'Create hub' }).click();
-  await dialog.waitFor({ state: 'hidden', timeout: 10_000 });
+  await page.locator('#main').getByRole('button', { name: 'Create hub', exact: true }).click();
+  await dialog.waitFor({ state: 'detached', timeout: 10_000 });
   assert.equal(created?.private, true, `the body was ${JSON.stringify(created)}`);
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed().filter((each) => !each.includes('/containers/01a0e2e0-0000-7000-8000-0000000005c1')), []);
@@ -61,10 +61,9 @@ test('chromium: a workspace of one is not offered *Private*', async (t) => {
 
   const dialog = await openCreate(page);
   await dialog.getByRole('textbox', { name: 'Hub name' }).waitFor({ timeout: 10_000 });
-  // The read has answered when the dialog has: give it the moment the workspace takes to arrive.
+  // The read has answered when the page has: give it the moment the workspace takes to arrive.
   await page.waitForTimeout(500);
   assert.equal(await dialog.getByRole('switch', { name: 'Private' }).count(), 0);
-  await page.keyboard.press('Escape');
   await page.goto(`${served.origin}/hubs/${HUB.id}`);
   await page.getByRole('heading', { name: HUB.name, level: 1 }).waitFor({ timeout: 15_000 });
   await page.getByRole('button', { name: `Actions for ${HUB.name}` }).click();

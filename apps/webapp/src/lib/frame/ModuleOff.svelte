@@ -9,6 +9,7 @@
   import type { ConfigTemplate, ModuleState } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../data/capability.svelte.ts';
+  import { createHubPath } from '../workspace/createHub.ts';
   import { config } from '../data/config.svelte.ts';
   import { modules } from '../data/modules.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -71,9 +72,6 @@
   });
   const templateName = (template: ConfigTemplate): string =>
     template.origin === 'HUBTASK' ? t(`app.structure.preset.${template.key.toUpperCase()}`) : template.name;
-  /** The template the new hub takes; the dialog is open while one is chosen. */
-  let startingFrom = $state<string | undefined>(undefined);
-  let isCreatingHub = $state(false);
   // The main way is the product's own template (tryTemplateOf), first among the cards.
   const ordered = $derived.by(() => {
     const main = tryTemplateOf(catalogue, module);
@@ -84,7 +82,8 @@
     label: templateName(template),
     description: template.origin === 'HUBTASK' && messages.has(`app.templates.summary.${template.key.toUpperCase()}`) ? t(`app.templates.summary.${template.key.toUpperCase()}`) : undefined,
     icon: row?.icon,
-    onclick: () => { startingFrom = template.key; isCreatingHub = true; },
+    // *Create hub* is a page of its own (ADR-0111), the template chosen on it.
+    onclick: () => onnavigate?.(createHubPath({ template: template.key })),
   })) : []);
   const emptyTitle = $derived(module === 'SERVICE_DESK' ? t('app.desk_home.no_desk') : t('app.product_home.none', { product: name }));
 
@@ -169,13 +168,6 @@
   {/if}
   {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
 </Stack>
-
-<!-- Loaded when a template is chosen: this page is part of the first screen, the dialog is not. -->
-{#if startingFrom !== undefined}
-  {#await import('../workspace/CreateContainerDialog.svelte') then { default: CreateContainerDialog }}
-    <CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" template={startingFrom} oncreated={(_id, landing) => { startingFrom = undefined; onnavigate?.(landing ?? row?.path ?? '/'); }} />
-  {/await}
-{/if}
 
 <TemplateDialog template={starts.opened} {onnavigate} onClose={() => (starts.opened = undefined)} />
 

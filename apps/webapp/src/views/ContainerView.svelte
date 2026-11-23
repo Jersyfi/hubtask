@@ -1785,7 +1785,6 @@
 {#if container?.type === 'HUB'}
   <CreateContainerDialog
     bind:isOpen={isCreatingCollection}
-    type="COLLECTION"
     parentId={container.id}
     oncreated={(collectionId, landing) => onnavigate(landing ?? `/collections/${collectionId}`)}
   />

@@ -312,7 +312,7 @@
 {/if}
 
 {#if isCreatingCollection && collectionHub}
-  <CreateContainerDialog bind:isOpen={isCreatingCollection} type="COLLECTION" parentId={collectionHub} oncreated={(id, landing) => onnavigate(landing ?? `/collections/${id}`)} />
+  <CreateContainerDialog bind:isOpen={isCreatingCollection} parentId={collectionHub} oncreated={(id, landing) => onnavigate(landing ?? `/collections/${id}`)} />
 {/if}
 
 <style>

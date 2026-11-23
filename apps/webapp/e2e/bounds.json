@@ -14,7 +14,6 @@
     "confirmremoval.test.mjs": 1,
     "container.test.mjs": 2,
     "create.test.mjs": 1,
-    "createhub.test.mjs": 2,
     "deeplink.test.mjs": 1,
     "devwarnings.test.mjs": 1,
     "engines.test.mjs": 5,

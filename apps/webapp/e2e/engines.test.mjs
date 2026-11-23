@@ -10,7 +10,7 @@
 //
 // The API is stubbed at the network edge, once, with the three answers the frame needs to draw a
 // signed-in workspace - an account, one hub, and a manifest saying the account may shape the
-// workspace (so *Create hub* is drawn) - and nothing else: the stream is refused, every
+// workspace (so *Create hub* is drawn, a control to open help from) - and nothing else: the stream is refused, every
 // other call answers an empty page. That is the least a workspace can be, and it is enough for a
 // dialog, a focus ring and a hidden label; deeper screens have walks of their own.
 //
@@ -122,7 +122,7 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     await page.goto(`${served.origin}/`);
     // *Today*, drawn: the page the app opens on, past the session and the manifest.
     await page.locator('main [data-card]').first().waitFor({ state: 'visible', timeout: 15_000 });
-    // The navigation's way to make a hub, ＋ on *Hubs* (the navigation concept §5.2): the dialog this walk opens below.
+    // The navigation's way to make a hub, ＋ on *Hubs* (the navigation concept §5.2): the control the walk opens help from below.
     const createHub = page.locator('aside.sidenav').getByRole('button', { name: 'Create hub', exact: true }).first();
     await createHub.waitFor({ state: 'visible', timeout: 15_000 });
     assert.deepEqual(failures, [], `${name}: the bundle threw while booting`);
@@ -175,8 +175,10 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     // Opened from the keyboard, because that is the case focus return is for: WebKit, like
     // Safari, does not focus a button a pointer clicks, so a pointer's dialog has no opener to
     // return to and the engine leaves focus on the body - as Safari does.
+    // *Create hub* is a page (ADR-0111); help is the dialog any page opens by its key, `?`, from
+    // the control that has the focus.
     await createHub.focus();
-    await page.keyboard.press('Enter');
+    await page.keyboard.press('?');
     const dialog = page.locator('dialog[open]');
     await dialog.waitFor({ state: 'visible', timeout: 5_000 });
     assert.equal(await dialog.getAttribute('aria-labelledby') !== null, true, `${name}: the dialog has no name`);

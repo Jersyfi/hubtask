@@ -133,10 +133,10 @@ test('chromium: switching a product on asks in which existing hubs, and each hub
   await page.goto(`${served.origin}/`);
   await page.getByRole('tree').first().waitFor({ timeout: 10_000 });
   await chooseNew(page, 'Create hub');
-  const create = page.locator('dialog[open]');
+  const create = page.locator('#main [data-create-hub]');
   await create.getByRole('textbox', { name: 'Hub name' }).fill('Workshop');
-  await create.getByRole('button', { name: 'Create hub' }).click();
-  await create.waitFor({ state: 'hidden', timeout: 10_000 });
+  await page.locator('#main').getByRole('button', { name: 'Create hub', exact: true }).click();
+  await create.waitFor({ state: 'detached', timeout: 10_000 });
   const workshop = hubs.find((each) => each.name === 'Workshop');
   assert.ok(workshop, 'the hub was not made');
   row = await hubSwitch(page, workshop);

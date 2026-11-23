@@ -50,6 +50,7 @@
   import FailureState from './FailureState.svelte';
   import ReplicaMark from './ReplicaMark.svelte';
   import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
+  import { createHubPath } from '../workspace/createHub.ts';
   import { DEFAULT_TILE, chosenSymbol, markOf } from '../workspace/look.ts';
   import { placeActions } from '../workspace/placeActions.ts';
 
@@ -824,8 +825,9 @@
     if (intent && 'placement' in intent) void placeHub(id, intent.placement);
   };
 
-  let isCreatingHub = $state(false);
   const creation = $derived(hubCreationHere());
+  /** *Create hub* is a page of its own (ADR-0111). */
+  const createHub = () => onnavigate(createHubPath());
   const createHubLabel = $derived(creation === 'shared' ? t('app.workspace.create_hub') : creation === 'private' ? t('app.workspace.create_private_hub') : undefined);
 
   /** A star as a row: its name from what is already read, or from its own read. */
@@ -1384,7 +1386,7 @@
         <NavItem label={t('app.nav.more_count', { count: orderedHubs.length - HUBS_SHOWN })} icon="ellipsis" size="touch" isDrillDown onnavigate={() => (isAllHubsShown = true)} />
       {/if}
       {#if orderedHubs.length === 0 && createHubLabel}
-        <NavItem label={createHubLabel} icon="plus" tone="link" size="touch" onnavigate={() => (isCreatingHub = true)} />
+        <NavItem label={createHubLabel} icon="plus" tone="link" size="touch" onnavigate={createHub} />
       {/if}
     </NavGroup>
     </div>
@@ -1834,7 +1836,7 @@
         label={t('app.nav.hubs')}
         collapseLabel={t('app.nav.fold', { name: t('app.nav.hubs') })}
         bind:isOpen={sections.hubs.isOpen}
-        add={createHubLabel ? { label: createHubLabel, onselect: () => (isCreatingHub = true) } : undefined}
+        add={createHubLabel ? { label: createHubLabel, onselect: createHub } : undefined}
         menu={hubsMenu}
         tree={hubNodes}
         treeLabel={t('app.nav.hubs')}
@@ -1854,7 +1856,7 @@
       >
         {#if hubNodes.length === 0}
           {#if createHubLabel}
-            <NavItem label={createHubLabel} icon="plus" tone="link" onnavigate={() => (isCreatingHub = true)} />
+            <NavItem label={createHubLabel} icon="plus" tone="link" onnavigate={createHub} />
           {:else}
             <li class="quiet">{t('app.workspace.no_hubs')}</li>
           {/if}
@@ -1890,12 +1892,6 @@
   />
 {/if}
 
-<CreateContainerDialog
-  bind:isOpen={isCreatingHub}
-  type="HUB"
-  isPrivateOnly={creation === 'private'}
-  oncreated={(id, landing) => onnavigate(landing ?? `/hubs/${id}`)}
-/>
 {#if movingContent}
   <PlacePicker title={t('app.nav.move_row_to', { name: movingContentName })} places={pickerRows} bind:isOpen={() => movingContent !== undefined, (open) => { if (!open) movingContent = undefined; }} onpick={pickContent} />
 {/if}
@@ -1914,7 +1910,7 @@
   </Dialog>
 {/if}
 {#if collectionHubId}
-  <CreateContainerDialog bind:isOpen={isCreatingCollection} type="COLLECTION" parentId={collectionHubId} oncreated={(id, landing) => onnavigate(landing ?? `/collections/${id}`)} />
+  <CreateContainerDialog bind:isOpen={isCreatingCollection} parentId={collectionHubId} oncreated={(id, landing) => onnavigate(landing ?? `/collections/${id}`)} />
 {/if}
 
 <style>

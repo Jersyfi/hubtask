@@ -40,7 +40,7 @@
   import { settingsOf, startsOf, switchedOn } from '../product/switchedon.ts';
   import { holds, holdsHere, hubCreationHere, roleOrder } from '../data/capability.svelte.ts';
   import { config } from '../data/config.svelte.ts';
-  import CreateContainerDialog from './CreateContainerDialog.svelte';
+  import { createHubPath } from './createHub.ts';
 
   interface Props {
     /** The hub to switch for; absent is the workspace. */
@@ -303,13 +303,6 @@
   });
   const templateName = (template: ConfigTemplate): string =>
     template.origin === 'HUBTASK' ? t(`app.structure.preset.${template.key.toUpperCase()}`) : template.name;
-  /** The template a new hub is made from, chosen on the card at the workspace. */
-  let startingFrom = $state<string | undefined>(undefined);
-  let isCreatingHub = $state(false);
-  function created(id: string, landing?: string): void {
-    startingFrom = undefined;
-    onnavigate?.(landing ?? `/hubs/${id}`);
-  }
 
   async function send(state: ModuleState, to: 'ON' | 'OFF' | 'INHERIT', inHubs: readonly string[] = []) {
     refusal = undefined;
@@ -465,7 +458,7 @@
                       <a class="act" href={start.href} data-start-template={start.template.key}>{templateName(start.template)}</a>
                     {:else}
                       <Button tone="secondary" size="sm" data-start-template={start.template.key}
-                        onclick={() => { startingFrom = start.template.key; isCreatingHub = true; }}>{templateName(start.template)}</Button>
+                        onclick={() => onnavigate?.(createHubPath({ template: start.template.key }))}>{templateName(start.template)}</Button>
                     {/if}
                   {/each}
                 </Inline>
@@ -483,9 +476,6 @@
   {/if}
 </div>
 
-{#if isCreatingHub}
-  <CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" template={startingFrom} oncreated={created} />
-{/if}
 
 {#if confirming}
   <Dialog

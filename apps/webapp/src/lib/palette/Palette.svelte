@@ -906,15 +906,13 @@
   </Dialog>
 {/if}
 
-<!-- The one create dialog, as the tree's *New* opens it, for a row that creates a hub or a
-     collection. Outside both drawings: the palette has closed by the time it opens. -->
+<!-- The create dialog, as the tree's *New* opens it, for a row that creates a collection. Outside
+     both drawings: the palette has closed by the time it opens. A hub is a page of its own. -->
 {#if creating}
   <CreateContainerDialog
     bind:isOpen={isCreating}
-    type={creating.type}
     parentId={creating.parentId}
-    isPrivateOnly={creating.isPrivateOnly}
-    oncreated={(id, landing) => onnavigate(creating?.type === 'HUB' ? `/hubs/${id}` : (landing ?? `/collections/${id}`))}
+    oncreated={(id, landing) => onnavigate(landing ?? `/collections/${id}`)}
   />
 {/if}
 

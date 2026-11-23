@@ -251,6 +251,8 @@ export const ROUTES: readonly Route[] = [
   // The address the board's cards and the search results link to. An entry is
   // a thing with its own history, so it is a screen rather than a row somewhere.
   { name: 'item', pattern: '/items/:id' },
+  // *Create hub* is a page (ADR-0111), before `hub` so that `new` is never read as a hub's id.
+  { name: 'hub-new', pattern: '/hubs/new' },
   { name: 'hub', pattern: '/hubs/:id' },
   // A hub's space and one of its pages (M3). A page's own address names only the page: it is linked
   // from a mention, a search hit or a backlink, which know the page and not its hub.

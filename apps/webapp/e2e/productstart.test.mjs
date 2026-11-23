@@ -96,26 +96,29 @@ test('chromium: an empty product home offers its templates, and one makes the hu
   assert.equal(await page.getByRole('button', { name: 'Kanban team', exact: true }).count(), 0, 'a template that does not switch Pages on is offered');
 
   await start.click();
-  const dialog = page.getByRole('dialog');
-  // The dialog's gallery (§5.2) holds the template pressed as the one chosen, among the families.
-  await dialog.locator('[data-hub-template="scrum_team"] button[aria-pressed="true"]').waitFor({ timeout: 10_000 });
-  assert.equal(await dialog.locator('[data-family="teams"] [data-hub-template]').count(), 2, 'the teams family does not hold both team templates');
-  assert.equal(await dialog.locator('[data-family="simple"]').count(), 1, 'the presets are not the Simple family');
+  // *Create hub* is a page of its own (ADR-0111): the template pressed is chosen on it, among the
+  // families, and the product it was opened from goes along.
+  await page.waitForURL('**/hubs/new?template=scrum_team&product=KNOWLEDGE', { timeout: 10_000 });
+  const dialog = page.locator('#main [data-create-hub]');
+  const scrum = dialog.getByRole('radio', { name: /^Scrum team/u });
+  await dialog.getByRole('radio', { name: /^Scrum team/u, checked: true }).waitFor({ timeout: 10_000 });
+  assert.equal(await dialog.getByRole('group', { name: 'Teams' }).getByRole('radio').count(), 2, 'the teams family does not hold both team templates');
+  assert.equal(await dialog.getByRole('group', { name: 'Simple' }).count(), 1, 'the presets are not the Simple family');
   // §8.11: the chosen template names the hub until the reader types a name; another choice
   // renames it, a typed name stays.
-  const hubName = dialog.getByLabel('Hub name');
+  const hubName = dialog.getByRole('textbox', { name: 'Hub name' });
   assert.equal(await hubName.inputValue(), 'Scrum team');
-  await dialog.locator('[data-hub-template="kanban_team"] button').click();
+  await dialog.getByRole('radio', { name: /^Kanban team/u }).check();
   assert.equal(await hubName.inputValue(), 'Kanban team');
   await hubName.fill('Delivery');
-  await dialog.locator('[data-hub-template="scrum_team"] button').click();
+  await scrum.check();
   assert.equal(await hubName.inputValue(), 'Delivery');
   // §5.2: what the template sets up is said before the press - the workspace part, which the
   // workspace has not taken - and nothing is made yet.
   await dialog.getByText('Adds the workflow “scrum”').waitFor({ timeout: 10_000 });
   assert.ok(planFor.length > 0 && planFor.every((hub) => hub === ''), 'the plan before the press was not the workspace part\'s');
   assert.equal(made.length, 0, 'a hub was made before the press');
-  await dialog.getByRole('button', { name: 'Create hub', exact: true }).click();
+  await page.locator('#main').getByRole('button', { name: 'Create hub', exact: true }).click();
   // One request makes the hub with the template's parts, and the app opens its main product.
   await page.waitForURL(`**/hubs/${NEW_HUB}/plan`, { timeout: 10_000 });
   assert.deepEqual(made.map((each) => each.path), ['/containers:from-template'], 'the hub was not made with its template in one request');
@@ -528,10 +531,10 @@ test('chromium: a template the workspace has not taken names its administrators 
   assert.deepEqual(failures, []);
 });
 
-// §3.3: *Try it* in More in Hubtask takes the product's template through the hub dialog - not to
+// §3.3: *Try it* in More in Hubtask takes the product's template through *Create hub* - not to
 // the product's switched-off page - and a product no template starts still goes to its home,
 // whose switch then says what the product still needs (§2.8).
-test('chromium: Try it opens the hub dialog on the product\'s template', async (t) => {
+test('chromium: Try it opens Create hub on the product\'s template', async (t) => {
   const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
@@ -560,11 +563,12 @@ test('chromium: Try it opens the hub dialog on the product\'s template', async (
   const more = page.getByRole('region', { name: 'More in Hubtask' });
   await more.waitFor({ timeout: 15_000 });
   await more.getByRole('listitem').filter({ hasText: 'Service desk' }).getByRole('button', { name: 'Try it' }).click();
-  const dialog = page.getByRole('dialog');
-  await dialog.locator('[data-hub-template="itil_service_desk"] button[aria-pressed="true"]').waitFor({ timeout: 10_000 });
-  assert.equal(new URL(page.url()).pathname, '/', 'Try it left Today instead of opening the dialog');
-  await page.keyboard.press('Escape');
-  await dialog.waitFor({ state: 'detached', timeout: 5_000 });
+  // The page *Create hub* (ADR-0111) with the product's template chosen; Cancel comes back.
+  await page.waitForURL('**/hubs/new?template=itil_service_desk', { timeout: 10_000 });
+  await page.locator('#main').getByRole('radio', { name: /^ITIL service desk/u, checked: true }).waitFor({ timeout: 10_000 });
+  await page.locator('#main').getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.waitForFunction(() => location.pathname === '/', null, { timeout: 5_000 });
+  await more.waitFor({ timeout: 10_000 });
 
   // No template switches Time on here: Try it goes to its home and its switch.
   await more.getByRole('listitem').filter({ has: page.locator('.offer-name', { hasText: /^Time$/ }) }).getByRole('button', { name: 'Try it' }).click();

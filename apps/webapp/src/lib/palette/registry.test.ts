@@ -33,7 +33,7 @@ test('a member, whose role shapes nothing, is offered no collection and only a p
   assert.deepEqual(ids(member), ['frame:capture', 'frame:create-hub']);
   const hub = frameActionOffers(member, t).find((offer) => offer.id === 'frame:create-hub');
   assert.equal(hub?.label, 'app.workspace.create_private_hub');
-  assert.deepEqual(hub?.target, { kind: 'create', type: 'HUB', isPrivateOnly: true });
+  assert.deepEqual(hub?.target, { kind: 'route', path: '/hubs/new' });
 });
 
 // UC-SVC-14 check 1 (PO-1): the search finds *Anfragen & Hilfe* where some department takes the

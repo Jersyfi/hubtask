@@ -298,6 +298,8 @@ class Containers {
       icon?: string | null;
       color_token?: string | null;
       template: string;
+      /** Made private from its first row (UC-ID-16 check 9). */
+      private?: boolean;
       answers?: Record<string, string>;
       samples?: boolean;
       acknowledge?: boolean;

@@ -239,6 +239,16 @@ test('the addresses this application publishes resolve to their screens', () => 
   assert.equal(resolve(ROUTES, '/administration/legal').name, 'legal');
 });
 
+// ADR-0111: *Create hub* has its own address, and `new` is never taken for a hub's id.
+test('the create-hub page resolves before a hub, its template in the query', () => {
+  assert.equal(resolve(ROUTES, '/hubs/new').name, 'hub-new');
+  assert.deepEqual(resolve(ROUTES, '/hubs/new?template=kanban_team').query, { template: 'kanban_team' });
+  assert.equal(resolve(ROUTES, '/hubs/new/').name, 'hub-new');
+  assert.equal(resolve(ROUTES, '/hubs/h1').name, 'hub');
+  assert.equal(resolve(ROUTES, '/hubs/h1').params['id'], 'h1');
+  assert.equal(movedTo('hub-new'), undefined, 'the page is no tab that moved');
+});
+
 test('an address whose screen became a tab replaces itself with that tab, and no other moves', () => {
   // A bookmark or a link in a mail keeps working (ux-inventory §E9); every other address stays.
   assert.equal(movedTo(resolve(ROUTES, '/administration/identity-provider').name), '/administration/sign-in/ways');

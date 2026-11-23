@@ -69,7 +69,8 @@ export function frameActionOffers(doing: Doing, t: Translate): readonly Offer[] 
       id: 'frame:create-hub',
       label: t(isPrivateOnly ? 'app.workspace.create_private_hub' : 'app.workspace.create_hub'),
       keywords: making,
-      target: { kind: 'create', type: 'HUB', isPrivateOnly },
+      // A page of its own (ADR-0111), which reads for itself which hub the reader may make.
+      target: { kind: 'route', path: '/hubs/new' },
     });
   }
   if (doing.mayAsk) {

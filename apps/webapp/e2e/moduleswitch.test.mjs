@@ -83,7 +83,7 @@ test('chromium: a module switched on is drawn on without a reload', async (t) =>
 });
 
 // §2.8: the card's *Start with…* is the templates that need the module, one press each - at the
-// workspace the press opens *Create hub* with that template chosen.
+// workspace the press opens the page *Create hub* with that template chosen.
 test('chromium: a module switched on starts with the templates that need it', async (t) => {
   const browser = await sharedChromium(t);
   const walk = await productWalk(browser, { modules: [], answer: modulesBackend(['SERVICE_DESK']) });
@@ -99,8 +99,9 @@ test('chromium: a module switched on starts with the templates that need it', as
   await start.getByRole('button', { name: 'ITIL service desk', exact: true }).waitFor({ timeout: 5_000 });
   assert.equal(await start.locator('[data-start-template]').count(), 1, 'a template that does not need the desk is offered');
   await start.getByRole('button', { name: 'ITIL service desk', exact: true }).click();
-  const dialog = page.getByRole('dialog');
-  await dialog.locator('[data-hub-template="itil_service_desk"] [aria-pressed="true"]').waitFor({ timeout: 5_000 });
+  // *Create hub* is a page of its own (ADR-0111), the template chosen on it.
+  await page.waitForURL('**/hubs/new?template=itil_service_desk', { timeout: 5_000 });
+  await page.locator('#main').getByRole('radio', { name: /^ITIL service desk/u, checked: true }).waitFor({ timeout: 5_000 });
   assert.deepEqual(walk.errors(), []);
 });
 
@@ -159,9 +160,12 @@ test('chromium: a switched-off desk starts from a template, with start empty bes
   await page.getByRole('button', { name: 'Start empty' }).waitFor();
   await page.getByRole('heading', { name: 'Or start with a template' }).waitFor();
   assert.equal(await page.getByRole('button', { name: 'ITIL service desk', exact: true }).count(), 1, 'the template is not a card');
+  // The main way opens the page *Create hub* (ADR-0111) on the template; Cancel comes back.
   await main.click();
-  await page.getByRole('dialog').waitFor({ timeout: 5_000 });
-  await page.keyboard.press('Escape');
+  await page.waitForURL('**/hubs/new?template=itil_service_desk', { timeout: 5_000 });
+  await page.locator('#main').getByRole('radio', { name: /^ITIL service desk/u, checked: true }).waitFor({ timeout: 5_000 });
+  await page.locator('#main').getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.waitForURL('**/desk', { timeout: 5_000 });
   await page.getByRole('button', { name: 'Start empty' }).click();
   await page.waitForTimeout(300);
   assert.ok(walk.written.some((each) => each.method === 'PUT' && each.path === '/tenant/modules/SERVICE_DESK'), 'start empty did not switch the desk on');
