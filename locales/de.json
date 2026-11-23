@@ -4882,7 +4882,6 @@
   "app.presets.default_none": "Keine Voreinstellung: die Einstellungen des Arbeitsbereichs",
   "app.presets.default_saved": "Vorgabe gespeichert.",
   "app.presets.locks_title": "Sperren",
-  "app.presets.locks_label": "Für jeden Hub und jede Sammlung gesperrt",
   "app.presets.locks_hint": "Eine gesperrte Einstellung behält überall den Wert des Arbeitsbereichs; niemand kann sie an einem Hub oder einer Sammlung ändern.",
   "app.presets.locked_above": "Gesperrt von {origin}.",
   "app.presets.locks_saved": "Sperren gespeichert.",

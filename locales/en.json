@@ -5692,7 +5692,6 @@
   "app.presets.default_none": "No preset: the workspace's settings",
   "app.presets.default_saved": "Default preset saved.",
   "app.presets.locks_title": "Locks",
-  "app.presets.locks_label": "Locked for every hub and collection",
   "app.presets.locks_hint": "A locked setting keeps the workspace's value everywhere; nobody can change it on a hub or collection.",
   "app.presets.locked_above": "Locked by {origin}.",
   "app.presets.locks_saved": "Locks saved.",

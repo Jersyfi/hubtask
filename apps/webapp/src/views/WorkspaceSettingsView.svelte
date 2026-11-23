@@ -576,7 +576,7 @@
             <SettingRow label={t('app.presets.locks_title')} help={t('app.presets.locks_hint')} fieldWidth="lg" isChanged={areLocksMoved}>
               {#snippet control(nameId)}
                 <MultiSelect
-                  label={t('app.presets.locks_label')}
+                  label={t('app.presets.locks_title')}
                   aria-labelledby={nameId}
                   options={lockOptions}
                   selected={chosenLocks ?? lockedSettings}

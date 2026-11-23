@@ -319,3 +319,20 @@ test('chromium: 1280×720 - the locks open beside their field, inside the screen
   await page.getByRole('listbox').waitFor({ timeout: 5_000 });
   assert.deepEqual(await openBeside(page), { coversField: false, insideViewport: true, endFocusesVisibleOption: true, behindScrolled: 0 });
 });
+
+// The locks are named alike wherever the reader meets them: the field by its row, the list's
+// popover at 1280 and its sheet at 390 by the same words.
+for (const width of [1280, 390]) {
+  test(`chromium: ${width} px - the locks' list is called what their field is called`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { context, page } = await as(browser, 'OWNER', { width });
+    t.after(() => context.close());
+    await page.goto(`${served.origin}/administration/workspace/new-hubs`);
+    const locks = page.locator('[data-presets-locks]').getByRole('button', { name: /^Locks/u });
+    await locks.waitFor({ timeout: 15_000 });
+    await locks.scrollIntoViewIfNeeded();
+    await locks.click();
+    await page.getByRole('listbox').waitFor({ timeout: 5_000 });
+    assert.equal(await page.getByRole('dialog', { name: 'Locks', exact: true }).count(), 1, 'the list is called otherwise than its field');
+  });
+}
