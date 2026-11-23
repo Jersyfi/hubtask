@@ -574,6 +574,8 @@ test('chromium: Try it opens Create hub on the product\'s template', async (t) =
   await more.getByRole('listitem').filter({ has: page.locator('.offer-name', { hasText: /^Time$/ }) }).getByRole('button', { name: 'Try it' }).click();
   await page.waitForFunction(() => location.pathname === '/time', null, { timeout: 5_000 });
   await page.getByRole('button', { name: 'Switch Time on' }).click();
+  // Where a hub exists the switch asks in which of them (UC-INS-21 check 13): none chosen here.
+  await page.getByRole('dialog', { name: 'Switch Time on' }).getByRole('button', { name: 'Switch on', exact: true }).click();
   // The page gives way to the product; the message keeps what it still needs.
   await page.getByRole('link', { name: 'Set up time: the time policy and kinds of work' }).waitFor({ timeout: 10_000 });
   assert.deepEqual(failures, []);

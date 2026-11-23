@@ -2,7 +2,8 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // The page of a module switched off in the workspace: what it is, that its data is kept, and -
-  // for who may shape the workspace - the switch at once; for anybody else whom to ask. Drawn in
+  // for who may shape the workspace - the switch, which asks in which existing hubs as
+  // *Administration → Products* does (UC-INS-21 check 13); for anybody else whom to ask. Drawn in
   // place of the page, so no read is refused and no form is offered that the server would refuse.
   import { untrack } from 'svelte';
   import { Button, EmptyState, Icon, PageHeader, ProductBand, Stack } from '@hubtask/design-system/components';
@@ -22,6 +23,7 @@
   import { WorkspaceStarts } from '../product/workspaceStarts.svelte.ts';
   import { timeWays } from '../time/ways.ts';
   import TemplateDialog from '../settings/TemplateDialog.svelte';
+  import ModuleOnQuestion from '../workspace/ModuleOnQuestion.svelte';
   import { page } from './page.svelte.ts';
   import { toast } from './toasts.svelte.ts';
   import { viewport } from './viewport.svelte.ts';
@@ -87,15 +89,26 @@
   })) : []);
   const emptyTitle = $derived(module === 'SERVICE_DESK' ? t('app.desk_home.no_desk') : t('app.product_home.none', { product: name }));
 
+  let question = $state<ReturnType<typeof ModuleOnQuestion> | undefined>(undefined);
+
+  /**
+   * Every way on this page switches the product on here - the switch, the side way, time's two
+   * ways, *start empty* - after the question where hubs are offered, at once where none is.
+   */
   async function switchOn(then?: string) {
+    if (!question) return;
     isSwitching = true;
     refusal = undefined;
+    const inHubs = await question.ask({ module: module as ModuleState['module'], on: false }, () => (isSwitching = false));
+    if (inHubs === undefined) return;
+    isSwitching = true;
     try {
-      await modules.switch(module as ModuleState['module'], 'ON');
+      await modules.switch(module as ModuleState['module'], 'ON', undefined, inHubs);
       // The page gives way to the product's home; what it still needs travels with the message
       // (user-experience.md §2.8), as the card under the switch says it.
       const setup = switchedOn(module).setup;
-      toast.show({ text: t('app.modules.switched_on', { module: name }), tone: 'success', ...(setup ? { link: { label: t(setup.code), href: setup.href } } : {}) });
+      const said = inHubs.length > 0 ? 'app.modules.switched_on_hubs' : 'app.modules.switched_on';
+      toast.show({ text: t(said, { module: name, count: inHubs.length }), tone: 'success', ...(setup ? { link: { label: t(setup.code), href: setup.href } } : {}) });
       if (then) onnavigate?.(then);
     } catch (error) {
       refusal = renderProblem(error as never, messages).message;
@@ -170,6 +183,7 @@
 </Stack>
 
 <TemplateDialog template={starts.opened} {onnavigate} onClose={() => (starts.opened = undefined)} />
+<ModuleOnQuestion bind:this={question} isActive={mayShape} />
 
 <style>
   .refusal { margin: 0; color: var(--text-danger); }

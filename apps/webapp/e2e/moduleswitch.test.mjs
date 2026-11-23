@@ -4,7 +4,8 @@
 // A module switched on is drawn on at once, without a reload (UC-INS-21), with a card that says
 // where it is now and what it still needs (user-experience.md §2.8), and a module's page
 // reached while it is off says so in place of its forms - no read refused, no form that fails -
-// with the switch at hand. Chromium only.
+// with the switch at hand, which asks in which existing hubs as *Modules* does (UC-INS-21 check
+// 13). The server's half of the hubs named: config/ModuleSwitch_test.go. Chromium only.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -13,8 +14,10 @@ import { join, dirname } from 'node:path';
 
 import { sharedChromium } from './browser.mjs';
 
+import { HUB, PAGE } from './fixture.mjs';
 import { serve } from './serve.mjs';
 import { productWalk } from './productwalk.mjs';
+import { chipsOf, focused, valueOf } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -48,6 +51,11 @@ function modulesBackend(off) {
  */
 async function switchOn(page, row) {
   await row.getByRole('switch').click();
+  await answerNone(page);
+}
+
+/** The switch-on's question answered with no hub chosen: the product is on for hubs made from now on. */
+async function answerNone(page) {
   await page.getByRole('dialog').getByRole('button', { name: 'Switch on', exact: true }).click();
 }
 
@@ -120,6 +128,7 @@ test('chromium: the service desk page with the module off says so, reads nothing
   assert.deepEqual(asked.filter((path) => /business-calendars|sla-policies|reply-templates|requester-organisations/.test(path)), [], 'the desk was read while off');
 
   await page.getByRole('button', { name: 'Switch Service desk on' }).click();
+  await answerNone(page);
   await page.waitForTimeout(300);
   assert.ok(walk.written.some((each) => each.method === 'PUT' && each.path === '/tenant/modules/SERVICE_DESK'), 'the switch was not sent');
   assert.deepEqual(walk.errors(), []);
@@ -139,6 +148,7 @@ test('chromium: a product\'s home with its module off is drawn as its empty stat
   assert.equal(await page.locator('.empty[data-kind="unused"] > .tile').count(), 1, 'the product\'s tile');
   await page.locator('[data-module-off-note]').getByText('Nothing kept for it is lost while it is off.').waitFor();
   await page.getByRole('button', { name: /^Switch .+ on$/u }).click();
+  await answerNone(page);
   await page.waitForTimeout(300);
   assert.ok(walk.written.some((each) => each.method === 'PUT' && each.path === '/tenant/modules/PLANNING'), 'the switch was not sent');
   assert.deepEqual(walk.errors(), []);
@@ -167,6 +177,7 @@ test('chromium: a switched-off desk starts from a template, with start empty bes
   await page.locator('#main').getByRole('button', { name: 'Cancel', exact: true }).click();
   await page.waitForURL('**/desk', { timeout: 5_000 });
   await page.getByRole('button', { name: 'Start empty' }).click();
+  await answerNone(page);
   await page.waitForTimeout(300);
   assert.ok(walk.written.some((each) => each.method === 'PUT' && each.path === '/tenant/modules/SERVICE_DESK'), 'start empty did not switch the desk on');
   assert.deepEqual(walk.errors(), []);
@@ -199,5 +210,125 @@ test('chromium: switching Posts on draws Pages on with it and leads to the posts
   await page.locator('[data-switched-on="POSTS"]').getByRole('link', { name: 'Find it in Posts' }).waitFor({ timeout: 5_000 });
   assert.equal(await page.locator('[data-switched-on="POSTS"]').getByRole('link', { name: 'Find it in Posts' }).getAttribute('href'), '/posts');
   assert.equal(await page.locator('[data-module="KNOWLEDGE"]').getByRole('switch').isChecked(), true, 'Pages stayed off under Posts');
+  assert.deepEqual(walk.errors(), []);
+});
+
+const GARDEN = { ...HUB, id: '01a0e2e0-0000-7000-8000-00000014b0b1', name: 'Garden', order_key: 'a1' };
+
+/** Plans off at the workspace among these hubs; the switch is kept as the server keeps it. */
+function plansOff(hubs) {
+  const on = [];
+  const answer = (method, path, query) => {
+    if (path === '/containers' && method === 'GET') return { json: { ...PAGE, data: query.get('type') === 'HUB' ? hubs : [] } };
+    if (path === '/config/templates' && method === 'GET') return { json: { data: [] } };
+    if (path === '/tenant/modules/PLANNING' && method === 'PUT') {
+      on.push('PLANNING');
+      return { json: { modules: [{ module: 'PLANNING', on: true, source: 'WORKSPACE' }] } };
+    }
+    return undefined;
+  };
+  return { on, answer };
+}
+
+const sentSwitches = (walk) => walk.written.filter((each) => each.method === 'PUT' && each.path === '/tenant/modules/PLANNING').map((each) => each.body);
+const optionNames = (list) => list.getByRole('option').evaluateAll((options) => options.map((option) => document.getElementById(option.getAttribute('aria-labelledby'))?.textContent?.trim()));
+
+// UC-INS-21 check 13 on a product's own page: the switch asks the question of *Modules*, the hubs
+// a list from data and so the field (design-system.md §4), none chosen; the hub chosen goes with
+// the switch, and the page gives way to the product.
+for (const [width, height] of [[1280, 900], [390, 844]]) {
+  test(`chromium: ${width} px - a product's page while it is off asks in which existing hubs and switches on in the one chosen (UC-INS-21 check 13)`, async (t) => {
+    const browser = await sharedChromium(t);
+    const shared = plansOff([HUB, GARDEN]);
+    const walk = await productWalk(browser, { modules: shared.on, answer: shared.answer, width, height, isMobile: width < 600 });
+    t.after(walk.close);
+    const { page } = walk;
+
+    await page.goto(`${served.origin}/plans`);
+    const control = page.getByRole('button', { name: 'Switch Plans on' });
+    await control.waitFor({ timeout: 10_000 });
+    await control.click();
+    const dialog = page.getByRole('dialog', { name: 'Switch Plans on' });
+    await dialog.waitFor({ timeout: 5_000 });
+    const field = dialog.getByRole('button', { name: /^Switch on in which existing hubs\?/u });
+    await field.waitFor({ timeout: 5_000 });
+    assert.equal(await valueOf(field), 'Nothing chosen', 'a hub is chosen before the person chose');
+    assert.deepEqual(sentSwitches(walk), [], 'the switch was sent before its question was answered');
+
+    await field.click();
+    const list = page.getByRole('listbox');
+    await list.waitFor({ timeout: 5_000 });
+    assert.deepEqual(await optionNames(list), ['House', 'Garden']);
+    await list.getByRole('option', { name: 'Garden', exact: true }).click();
+    if (width < 600) await page.getByRole('button', { name: 'Done', exact: true }).click();
+    else await page.keyboard.press('Escape');
+    await list.waitFor({ state: 'detached', timeout: 5_000 });
+    assert.deepEqual(await chipsOf(field), ['Garden']);
+    await dialog.getByRole('button', { name: 'Switch on', exact: true }).click();
+
+    await page.getByText('Plans is on, and on in 1 hub.').first().waitFor({ timeout: 5_000 });
+    assert.deepEqual(sentSwitches(walk), [{ switch: 'ON', hub_ids: [GARDEN.id] }]);
+    await control.waitFor({ state: 'detached', timeout: 10_000 });
+    assert.deepEqual(walk.errors(), []);
+  });
+}
+
+// The keyboard's path through the same question: focus starts on the list, Escape cancels,
+// switches nothing and gives the focus back; Enter on the primary switches.
+test('chromium: the product page\'s question by the keyboard - Escape switches nothing, Enter on Switch on sends the hub ticked', async (t) => {
+  const browser = await sharedChromium(t);
+  const shared = plansOff([HUB, GARDEN]);
+  const walk = await productWalk(browser, { modules: shared.on, answer: shared.answer });
+  t.after(walk.close);
+  const { page } = walk;
+  const onTheField = () => page.waitForFunction(() => document.activeElement?.getAttribute('aria-haspopup') === 'listbox', null, { timeout: 5_000 });
+
+  await page.goto(`${served.origin}/plans`);
+  const control = page.getByRole('button', { name: 'Switch Plans on' });
+  await control.waitFor({ timeout: 10_000 });
+  await control.focus();
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: 'Switch Plans on' });
+  await dialog.waitFor({ timeout: 5_000 });
+  await onTheField();
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
+  assert.deepEqual(sentSwitches(walk), [], 'Escape switched the product on');
+  assert.equal(await focused(page), 'button "Switch Plans on"', 'the focus did not return to the switch');
+
+  await page.keyboard.press('Enter');
+  await dialog.waitFor({ timeout: 5_000 });
+  await onTheField();
+  await page.keyboard.press('Enter');
+  await page.getByRole('listbox').waitFor({ timeout: 5_000 });
+  await page.waitForFunction(() => document.activeElement?.getAttribute('role') === 'option', null, { timeout: 5_000 });
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Escape');
+  await page.getByRole('listbox').waitFor({ state: 'detached', timeout: 5_000 });
+  await onTheField();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  assert.equal(await focused(page), 'button "Switch on"');
+  await page.keyboard.press('Enter');
+  await page.getByText('Plans is on, and on in 1 hub.').first().waitFor({ timeout: 5_000 });
+  assert.deepEqual(sentSwitches(walk), [{ switch: 'ON', hub_ids: [HUB.id] }]);
+  assert.deepEqual(walk.errors(), []);
+});
+
+test('chromium: a product\'s page while it is off switches on at once where no hub is offered (UC-INS-21 checks 2, 13)', async (t) => {
+  const browser = await sharedChromium(t);
+  const shared = plansOff([]);
+  const walk = await productWalk(browser, { modules: shared.on, answer: shared.answer });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/plans`);
+  const control = page.getByRole('button', { name: 'Switch Plans on' });
+  await control.waitFor({ timeout: 10_000 });
+  await control.click();
+  await page.getByText('Plans is on.', { exact: true }).first().waitFor({ timeout: 5_000 });
+  assert.equal(await page.getByRole('dialog').count(), 0, 'a question without a hub to choose');
+  assert.deepEqual(sentSwitches(walk), [{ switch: 'ON' }]);
+  await control.waitFor({ state: 'detached', timeout: 10_000 });
   assert.deepEqual(walk.errors(), []);
 });
