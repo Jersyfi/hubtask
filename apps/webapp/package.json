@@ -33,18 +33,18 @@
     "@hubtask/query": "workspace:*",
     "@hubtask/sync-engine": "workspace:*",
     "@hubtask/whiteboard": "workspace:*",
-    "@tauri-apps/api": "2.12.4",
+    "@tauri-apps/api": "2.12.5",
     "emojibase-data": "18.0.0",
     "pdfjs-dist": "4.10.38"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
-    "@tauri-apps/cli": "2.12.4",
+    "@tauri-apps/cli": "2.12.6",
     "@types/node": "^24.19.2",
-    "playwright": "1.64.1",
-    "svelte": "^5.57.3",
+    "playwright": "1.65.1",
+    "svelte": "^5.59.0",
     "svelte-check": "^4.7.8",
     "typescript": "^6.0.3",
-    "vite": "^8.3.5"
+    "vite": "^8.3.8"
   }
 }
