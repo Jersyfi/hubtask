@@ -15,6 +15,7 @@
   import type { EmergencyNotice } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
+  import { mayReadWorkspace } from '../data/capability.svelte.ts';
   import { emergencyNotices } from '../data/emergencynotices.svelte.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { onboarding } from '../onboarding/onboarding.svelte.ts';
@@ -74,9 +75,12 @@
 
   function moment() {
     const read = workspace.state.status;
+    // The workspace's answer is waited for where it is read; a reader who may not read it - a
+    // member of private hubs only, among them - is never asked for it, and no starter opens for them.
+    const isAnswered = read === 'ready' || read === 'failed' || mayReadWorkspace() === false;
     return {
       waiting: emergencyNotices.waiting.length,
-      isSettled: actor.account !== undefined && (read === 'ready' || read === 'failed'),
+      isSettled: actor.account !== undefined && isAnswered,
       isLayerOpen: layers.size > 0 || document.querySelector('dialog[open]') !== null,
       isTyping: typedIn !== null && typedIn === document.activeElement,
       isTourOpen: tour.isOpen || productTour.isOpen,

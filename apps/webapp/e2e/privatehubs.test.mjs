@@ -650,6 +650,26 @@ test('chromium: 390 px - on a phone the notice is the centred card; the mark ope
   assert.deepEqual(failures, []);
 });
 
+// A member whose roles are all on hubs may not read the workspace's set-up and is not made to ask
+// for it; the notice does not wait for an answer that is never asked for.
+test('chromium: 1280 px - a member of the private hub alone, who may not read the workspace, is told too (UC-ID-16 check 11)', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, context } = await signedIn(browser, 1280, 860);
+  t.after(() => context.close());
+  const asked = [];
+  await context.route('**/api/v1/tenant', (route) => {
+    asked.push(route.request().method());
+    return route.fulfill({ status: 403, contentType: 'application/problem+json', body: JSON.stringify({ status: 403, code: 'access.forbidden' }) });
+  });
+  await context.route('**/api/v1/meta/capabilities', (route) => route.fulfill({ json: { ...MANIFEST, workspace_permissions: [] } }));
+  await notices(context, [told(HUB, 10 * MINUTE)]);
+
+  await page.goto(`${served.origin}/`);
+  await noticeDialog(page).waitFor({ timeout: 10_000 });
+  assert.deepEqual(asked, [], 'the workspace was asked for');
+  assert.deepEqual(failures, []);
+});
+
 // The scene *mark-unack*: while a notice is unconfirmed the bar's shield stands on the warning
 // surface, its panel open and the pointer on it too - never on the neutral surface of a plain button.
 for (const colorScheme of ['light', 'dark']) {
