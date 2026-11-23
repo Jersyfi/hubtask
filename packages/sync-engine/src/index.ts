@@ -449,6 +449,7 @@ export type {
   WorkspaceBranding,
   WorkspaceHeader,
   WorkspacePicture,
+  SignInPictures,
   Cover,
   CoverInput,
   CustomFieldDefinition,

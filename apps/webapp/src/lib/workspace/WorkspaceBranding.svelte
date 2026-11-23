@@ -27,7 +27,7 @@
   import { formatBytes } from '../i18n/bytes.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import BrandingPicture, { type PictureLine } from './BrandingPicture.svelte';
-  import { contrastOf, drawingFor, HEADERS, mayShowLogoAlone, pictureOf, PICTURES, type Surface } from './branding.ts';
+  import { contrastOf, HEADERS, mayShowLogoAlone, pictureOf, PICTURES, type PictureSource, type Surface } from './branding.ts';
   import HeaderPreview from './HeaderPreview.svelte';
   import ValueSource from './ValueSource.svelte';
 
@@ -66,9 +66,10 @@
     const look = staged[picture] ?? store.look(stored[picture]);
     return look ? [[picture, look]] : [];
   })) as Partial<Record<WorkspacePicture, PictureLook>>);
-  const urls = $derived(Object.fromEntries(Object.entries(looks).map(([picture, look]) => [picture, look.url])));
   /** What exists or is going: the preview's pictures and what the choice may offer. */
   const present = $derived({ ...stored, ...Object.fromEntries(Object.keys(staged).map((picture) => [picture, 'staged'])) } as Partial<Record<WorkspacePicture, string>>);
+  /** Each present picture's local address, `null` until its bytes are in. */
+  const sources = $derived(Object.fromEntries(PICTURES.flatMap((picture) => (present[picture] ? [[picture, looks[picture]?.url ?? null]] : []))) as Partial<Record<WorkspacePicture, PictureSource>>);
   const shown = $derived(header === 'LOGO' && !mayShowLogoAlone(present) ? 'PRODUCT' : header);
 
   const limit = $derived(pictureLimitOf(manifest.value));
@@ -144,7 +145,7 @@
       <p class="preview-head" id={previewId}>{t('app.branding.preview')}</p>
       <div class="pair" role="group" aria-labelledby={previewId}>
         {#each ['light', 'dark'] as const as surface (surface)}
-          <HeaderPreview {surface} drawing={drawingFor(shown, present, surface)} {urls} {name} caption={t(`app.branding.preview_${surface}`)} />
+          <HeaderPreview {surface} header={shown} pictures={sources} {name} caption={t(`app.branding.preview_${surface}`)} />
         {/each}
       </div>
     </div>

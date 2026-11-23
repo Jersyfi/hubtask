@@ -7,7 +7,7 @@
  * and whether a picture reads on a surface. Pure, so each rule has a test without a browser.
  */
 
-import type { WorkspaceBranding, WorkspaceHeader, WorkspacePicture } from '@hubtask/sync-engine';
+import type { SignInPictures, WorkspaceBranding, WorkspaceHeader, WorkspacePicture } from '@hubtask/sync-engine';
 
 /** The three pictures, in the order the setting draws their rows. */
 export const PICTURES: readonly WorkspacePicture[] = ['LOGO_LIGHT', 'LOGO_DARK', 'SYMBOL'];
@@ -64,6 +64,81 @@ export function drawingFor(header: WorkspaceHeader, pictures: Partial<Record<Wor
     if (pictures.SYMBOL) return { kind: 'symbol', picture: 'SYMBOL' };
   }
   return { kind: 'product' };
+}
+
+/** What a workspace shows wherever it is named: the choice, and the pictures stored, by identifier. */
+export interface ShownLook {
+  readonly header: WorkspaceHeader;
+  readonly ids: Partial<Record<WorkspacePicture, string>>;
+}
+
+const PRODUCT_LOOK: ShownLook = { header: 'PRODUCT', ids: {} };
+
+/**
+ * What a member sees, from the workspace's answer: nothing of the workspace's own where it is not
+ * allowed now, whatever is stored (ADR-0112).
+ */
+export function shownLookOf(branding: WorkspaceBranding | undefined): ShownLook {
+  if (!branding?.allowed) return PRODUCT_LOOK;
+  const ids: Partial<Record<WorkspacePicture, string>> = {};
+  for (const picture of PICTURES) {
+    const id = pictureOf(branding, picture);
+    if (id) ids[picture] = id;
+  }
+  return { header: branding.header, ids };
+}
+
+/**
+ * What the sign-in card shows, from the rules at this address: they carry the choice and its
+ * pictures only at the workspace's own address, and nothing there means the product's name.
+ */
+export function cardLookOf(header: WorkspaceHeader | undefined, pictures: SignInPictures | undefined): ShownLook {
+  if (!header) return PRODUCT_LOOK;
+  const ids: Partial<Record<WorkspacePicture, string>> = {};
+  if (pictures?.logo_light_media_id) ids.LOGO_LIGHT = pictures.logo_light_media_id;
+  if (pictures?.logo_dark_media_id) ids.LOGO_DARK = pictures.logo_dark_media_id;
+  if (pictures?.symbol_media_id) ids.SYMBOL = pictures.symbol_media_id;
+  return { header, ids };
+}
+
+/** A picture as a mark holds it: the address to draw it from, or `null` while that is being asked for. */
+export type PictureSource = string | null;
+
+export type PictureSources = Partial<Record<WorkspacePicture, PictureSource>>;
+
+/**
+ * The card's pictures, each at the public read under its identifier, at the API this page talks
+ * to - the same origin the rules were read at, so the read answers for this address alone.
+ */
+export function cardSourcesOf(ids: ShownLook['ids'], apiBase: string): PictureSources {
+  const sources: PictureSources = {};
+  for (const picture of PICTURES) {
+    const id = ids[picture];
+    if (id) sources[picture] = `${apiBase}/auth/workspace-pictures/${encodeURIComponent(id)}`;
+  }
+  return sources;
+}
+
+/**
+ * What a mark draws on each surface (G8), over the pictures it may still draw. One whose address
+ * is being asked for counts, so its box is kept rather than another mark drawn and swapped; one
+ * that failed to load, or was refused, does not, so the rule falls back past it.
+ */
+export function markDrawings(
+  header: WorkspaceHeader,
+  pictures: Partial<Record<WorkspacePicture, PictureSource>>,
+  failed: ReadonlySet<WorkspacePicture>,
+): Record<Surface, Drawing> {
+  const usable: Partial<Record<WorkspacePicture, string>> = {};
+  for (const picture of PICTURES) {
+    if (pictures[picture] !== undefined && !failed.has(picture)) usable[picture] = picture;
+  }
+  return { light: drawingFor(header, usable, 'light'), dark: drawingFor(header, usable, 'dark') };
+}
+
+/** Whether two drawings draw the same, so a mark alike on both surfaces is drawn once. */
+export function isSameDrawing(one: Drawing, other: Drawing): boolean {
+  return JSON.stringify(one) === JSON.stringify(other);
 }
 
 /** First and last word's first letter: what stands where a workspace has no symbol. */

@@ -546,6 +546,8 @@ export type WorkspaceStructureChange = components['schemas']['WorkspaceStructure
 export type WorkspaceBranding = components['schemas']['WorkspaceBranding'];
 export type WorkspaceHeader = components['schemas']['WorkspaceHeader'];
 export type WorkspacePicture = components['schemas']['WorkspacePicture'];
+/** The pictures the sign-in card draws at a workspace's own address. */
+export type SignInPictures = components['schemas']['SignInPictures'];
 /**
  * What counts in a collection, counted by the server on the collection's read for the reader
  * (domain-model.md §2): numbers and dates, which the client phrases. Never in a change record, so a
