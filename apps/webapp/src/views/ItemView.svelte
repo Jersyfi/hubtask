@@ -1299,9 +1299,15 @@
       return;
     }
     if (answer !== 'written') return;
-    // Typed while the save was on its way: still the reader's change, over what was just written.
-    if (inlineTitle === sent.title && inlineNotes === sent.notes) settleInline();
-    else inlineBase = { ...base, ...('title' in edit ? { title: sent.title } : {}), ...('notes' in edit ? { notes: sent.notes } : {}) };
+    // Typed while the save was on its way: still the reader's change, over what was just written,
+    // saved next - against the entry as that write left it, read first.
+    if (inlineTitle === sent.title && inlineNotes === sent.notes) {
+      settleInline();
+      return;
+    }
+    inlineBase = { ...base, ...('title' in edit ? { title: sent.title } : {}), ...('notes' in edit ? { notes: sent.notes } : {}) };
+    await engine.refresh<WorkItem>({ path: itemPath(item.id) });
+    await commitInline();
   }
 
   /** The field taken as it stands now: what the reader began from, so their own text of it is gone. */
