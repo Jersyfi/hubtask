@@ -1217,7 +1217,11 @@
     if (!isInlineDirty) notesAtFocus = item?.notes ?? '';
   }
 
+  /** Counts the reader's edits in place, so a save can tell whether one came while it was on its way. */
+  let edits = 0;
+
   function typeNotes(markdown: string) {
+    edits += 1;
     const now = heldNow();
     if (!isInlineDirty && now) inlineBase = { ...now, notes: notesAtFocus ?? now.notes };
     inlineNotes = markdown;
@@ -1289,6 +1293,7 @@
     }
     // The reader's text stays until it is written: a refused save must not take it off the screen.
     const sent = mineOf(base);
+    const editsAtSend = edits;
     isSaving = true;
     const answer = await sendInline(item.id, edit, item.version, isRetry);
     isSaving = false;
@@ -1299,13 +1304,13 @@
       return;
     }
     if (answer !== 'written') return;
-    // Typed while the save was on its way: still the reader's change, over what was just written,
-    // saved next - against the entry as that write left it, read first.
-    if (inlineTitle === sent.title && inlineNotes === sent.notes) {
+    // An edit made while the save was on its way - of either field, also back to the text sent - is
+    // still the reader's change, saved next against the entry as that write left it, read first.
+    if (edits === editsAtSend) {
       settleInline();
       return;
     }
-    inlineBase = { ...base, ...('title' in edit ? { title: sent.title } : {}), ...('notes' in edit ? { notes: sent.notes } : {}) };
+    inlineBase = { ...(inlineBase ?? base), ...('title' in edit ? { title: sent.title } : {}), ...('notes' in edit ? { notes: sent.notes } : {}) };
     await engine.refresh<WorkItem>({ path: itemPath(item.id) });
     await commitInline();
   }
@@ -1493,6 +1498,7 @@
   ];
 
   function rename(title: string, opened: string) {
+    edits += 1;
     const now = heldNow();
     // The title the field opened with is what the reader began from, whatever arrived since -
     // unless the reader had already changed it unsaved: then where they began the first time.

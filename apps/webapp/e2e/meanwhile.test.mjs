@@ -589,6 +589,33 @@ test('chromium: 1280 px — a title renamed elsewhere that the stream has not br
   assert.deepEqual(failures, []);
 });
 
+test('chromium: 1280 px — a title edited while a notes save is on its way, after a title from elsewhere, is saved after it (UC-SYN-02 check 10)', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, context, failures, state, changeElsewhere } = await openEntry(browser, 1280);
+  t.after(() => context.close());
+
+  const notes = page.getByRole('textbox', { name: 'Notes' });
+  await notes.fill('Measure the wall twice.');
+  await changeElsewhere({ title: 'Order the tiles, renamed elsewhere' });
+  const heading = page.getByRole('heading', { level: 1 });
+  await heading.getByText('Order the tiles, renamed elsewhere').waitFor({ timeout: 10_000 });
+  let release;
+  state.patchHeld = new Promise((resolve) => (release = resolve));
+  const notesSent = page.waitForRequest((request) => request.method() === 'PATCH', { timeout: 10_000 });
+  await page.locator('[data-tour="entry"]').getByRole('button', { name: 'Edit title' }).click();
+  await notesSent;
+  // The reader takes the title back to what it was, while the notes are on their way.
+  const field = page.getByRole('textbox', { name: 'Title', exact: true });
+  await field.fill(ENTRY.title);
+  const titleSaved = page.waitForResponse((response) => response.request().method() === 'PATCH' && response.request().postDataJSON()?.title === ENTRY.title, { timeout: 10_000 });
+  await field.press('Enter');
+  release();
+  await titleSaved.catch(() => assert.fail(`the title edit was dropped: ${JSON.stringify(accepted(state))}`));
+  assert.deepEqual(accepted(state).map(({ body }) => body), [{ notes: 'Measure the wall twice.' }, { title: ENTRY.title }]);
+  await heading.getByText(ENTRY.title).waitFor({ timeout: 10_000 });
+  assert.deepEqual(failures, []);
+});
+
 /**
  * The kept version at its address: marked, holding the focus, headed as a kept version that names
  * whose version it is - never drawn as a post by its author - and the text exactly as filed.
