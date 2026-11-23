@@ -276,6 +276,18 @@ export const MIRRORED = [
   'panel-right', // and this one at the end, which is the start in Arabic
 ];
 
+/**
+ * Names this product keeps although Lucide renamed the glyph: stored entry types and shipped
+ * configurations name icons, so a rename upstream must not reach them. Ours -> Lucide's.
+ */
+const LUCIDE_NAME = {
+  'circle-alert': 'circle-exclamation-point',
+  'triangle-alert': 'triangle-exclamation-point',
+  'fold-vertical': 'arrows-to-axis-dashed-horizontal',
+  music: 'eighth-notes',
+  bold: 'letter-b',
+};
+
 const SOURCE = path.join(packageRoot, 'node_modules', 'lucide-static', 'icon-nodes.json');
 const DESTINATION = path.join(packageRoot, 'src', 'icons', 'base.ts');
 
@@ -322,7 +334,7 @@ export function render() {
   for (const [group, names] of Object.entries(DECLARED)) {
     lines.push(`\n  // ${group}`);
     for (const name of [...names].sort()) {
-      const icon = nodes[name];
+      const icon = nodes[LUCIDE_NAME[name] ?? name];
       // Loudly, not silently: a name Lucide dropped in an upgrade has to stop the build, or the
       // glyph quietly disappears from a control that had one yesterday.
       if (!icon) throw new Error(`lucide has no icon called "${name}" - check the name in build/icons.js`);

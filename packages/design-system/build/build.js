@@ -29,23 +29,27 @@ StyleDictionary.registerFormat({ name: 'hubtask/css', format: cssFormat });
 StyleDictionary.registerFormat({ name: 'hubtask/ts', format: tsFormat });
 StyleDictionary.registerFormat({ name: 'hubtask/go', format: goFormat });
 
+// The css group less time/seconds: durations stay in milliseconds, as the motion module and the
+// stylesheets read them. style-dictionary 5.8 widened time/seconds to `duration` tokens.
+const TRANSFORMS = StyleDictionary.hooks.transformGroups.css.filter((name) => name !== 'time/seconds');
+
 const dictionary = new StyleDictionary({
   source: [path.join(packageRoot, 'tokens', 'tokens.json')],
   usesDtcg: true,
   log: { verbosity: 'default', warnings: 'warn' },
   platforms: {
     css: {
-      transformGroup: 'css',
+      transforms: TRANSFORMS,
       buildPath: `${path.join(packageRoot, 'dist')}${path.sep}`,
       files: [{ destination: 'tokens.css', format: 'hubtask/css' }],
     },
     ts: {
-      transformGroup: 'css', // the same string values; a TS consumer wants what CSS wants
+      transforms: TRANSFORMS, // the same string values; a TS consumer wants what CSS wants
       buildPath: `${path.join(packageRoot, 'dist')}${path.sep}`,
       files: [{ destination: 'tokens.ts', format: 'hubtask/ts' }],
     },
     go: {
-      transformGroup: 'css',
+      transforms: TRANSFORMS,
       buildPath: `${path.join(repositoryRoot, GO_DESTINATION)}${path.sep}`,
       files: [{ destination: 'LabelTokens.go', format: 'hubtask/go' }],
     },
