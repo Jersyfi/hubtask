@@ -381,6 +381,10 @@ test('chromium: L1 - a carried card whose type runs a workflow dims the column n
   await refused.filter({ hasText: 'No step of the workflow leads into this column.' }).waitFor({ timeout: 5_000 })
     .catch(() => assert.fail('the column no step reaches is not dimmed'));
   await page.mouse.up();
+  // The drop is answered on screen before anything is counted: a write leaves after the release,
+  // and a count taken at once passes while one is still on its way.
+  await page.getByRole('alert').filter({ hasText: 'No step of the workflow leads into this column.' }).waitFor({ timeout: 5_000 })
+    .catch(() => assert.fail('the drop onto the dimmed column does not say why it was refused'));
   assert.equal(written.filter((each) => each.path.endsWith(':drop') || each.method === 'PATCH').length, 0, `a refused column was written: ${JSON.stringify(written)}`);
 });
 
