@@ -184,7 +184,7 @@
         {/snippet}
       </SettingRow>
     </div>
-    {#if offline}<p class="offline" data-branding-offline>{offline}</p>{/if}
+    {#if offline}<p class="offline" data-branding-offline data-offline-line>{offline}</p>{/if}
     {#each PICTURES as picture (picture)}
       <div class="row" data-branding-picture={picture}>
         <SettingRow

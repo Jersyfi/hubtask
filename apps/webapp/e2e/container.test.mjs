@@ -599,6 +599,30 @@ test('chromium: 1280 × 800 — Create collection refused for another reason tha
   assert.deepEqual(failures, []);
 });
 
+// A collection is made by the server and never queued: offline the dialog says so where its
+// refusals go, in the one shape this branch's screens say it, and *Create* sends nothing.
+test('chromium: 1280 × 800 — Create collection offline: the dialog says that creating needs a connection, and Create sends nothing', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, dialog, sent, close } = await openCreateCollection(browser, 1280, 800, COLLECTION);
+  t.after(close);
+
+  await page.context().setOffline(true);
+  const line = dialog.locator('[data-offline-line]');
+  await line.waitFor({ timeout: 10_000 });
+  assert.equal((await line.textContent()).trim(), 'Creating a collection needs a connection.');
+  await dialog.getByRole('textbox', { name: 'Name' }).fill('Garden');
+  const create = dialog.getByRole('button', { name: 'Create', exact: true }).first();
+  assert.equal(await create.getAttribute('aria-disabled'), 'true');
+  const reason = await create.evaluate((button) => document.getElementById(button.getAttribute('aria-describedby') ?? '')?.textContent?.trim());
+  assert.equal(reason, 'Creating a collection needs a connection.');
+  await dialog.getByRole('textbox', { name: 'Name' }).press('Enter');
+  assert.deepEqual(sent, []);
+  assert.equal(await dialog.isVisible(), true);
+  await page.context().setOffline(false);
+  await line.waitFor({ state: 'detached', timeout: 10_000 });
+  assert.deepEqual(failures, []);
+});
+
 // The look folded to one row still shows what is chosen: the place's mark at the row's end, its
 // colour and symbol said in words, so the pair is seen without opening it again (UC-WRK-33).
 test('chromium: 1280 px — Create collection: the closed look row shows the colour and symbol chosen', async (t) => {

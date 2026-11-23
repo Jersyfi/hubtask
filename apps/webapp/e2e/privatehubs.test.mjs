@@ -437,6 +437,31 @@ test('chromium: 1280 px - a refused confirmation keeps the dialog open and says 
   assert.deepEqual(failures, []);
 });
 
+// What needs a connection is said in one shape on this branch's screens: a quiet line where the act
+// is, and the act unavailable with the same sentence.
+test('chromium: 1280 px - offline the notice is read, says that acknowledging needs a connection, and sends nothing (UC-ID-16 check 11)', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, context } = await signedIn(browser, 1280, 860);
+  t.after(() => context.close());
+  const { sent } = await notices(context, [told(HUB, 2 * 60 * MINUTE)]);
+
+  await page.goto(`${served.origin}/`);
+  const dialog = noticeDialog(page);
+  await dialog.waitFor({ timeout: 10_000 });
+  await context.setOffline(true);
+  const line = dialog.locator('[data-offline-line]');
+  await line.waitFor({ timeout: 10_000 });
+  assert.ok((await line.textContent()).startsWith('Acknowledging needs a connection.'));
+  const acknowledge = dialog.getByRole('button', { name: 'Acknowledged' });
+  assert.equal(await acknowledge.getAttribute('aria-disabled'), 'true');
+  const reason = await acknowledge.evaluate((button) => document.getElementById(button.getAttribute('aria-describedby') ?? '')?.textContent?.trim());
+  assert.equal(reason, await line.textContent(), 'the button and the line say it differently');
+  assert.deepEqual(sent, []);
+  await context.setOffline(false);
+  await line.waitFor({ state: 'detached', timeout: 10_000 });
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: 1280 px - three notices are one dialog; All acknowledged confirms each; the mark lists them with their hubs, and each hub row carries the shield (UC-ID-16 check 11)', async (t) => {
   const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 860);

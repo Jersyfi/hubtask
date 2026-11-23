@@ -21,6 +21,7 @@
   import { ChoiceCards, Dialog, Disclosure, Icon, Stack, Textarea, VisuallyHidden, type ChoiceCard } from '@hubtask/design-system/components';
 
   import { containers } from '../data/containers.svelte.ts';
+  import { live } from '../data/live.svelte.ts';
   import { presetMark, presetName, presetOrigin, presets, presetValue } from '../data/presets.svelte.ts';
   import { entryTypes } from '../data/entrytypes.svelte.ts';
   import { portalTypesOf } from '../portal/portal.ts';
@@ -116,8 +117,12 @@
   let failureNote = $state<HTMLElement | null>(null);
   const focusFailure = () => void tick().then(() => failureNote?.focus());
 
+  // A collection is made by the server, never queued: offline the dialog says so where its refusals
+  // go, and *Create* is unavailable with the same sentence.
+  const offline = $derived(live.state === 'offline' ? t('app.workspace.create_collection_offline') : undefined);
+
   async function create() {
-    if (isSaving) return;
+    if (isSaving || offline) return;
     if (name.trim() === '') {
       isNameMissing = true;
       focusName();
@@ -166,6 +171,7 @@
     isBusy: isSaving,
     busyLabel: t('app.workspace.creating'),
     onclick: create,
+    disabledReason: offline,
   }}
 >
   <Stack gap="200">
@@ -193,13 +199,16 @@
     <Textarea label={t('app.workspace.description')} bind:value={description} rows={2} />
     <!-- Everything that is not about the name is a sentence above the buttons rather than a field
          error, because there is no field for it to land on. -->
-    {#if failure && !isNameFailure}
+    {#if offline}
+      <p class="offline" data-offline-line>{offline}</p>
+    {:else if failure && !isNameFailure}
       <p class="failure" role="alert" tabindex="-1" bind:this={failureNote}>{failure.message}</p>
     {/if}
   </Stack>
 </Dialog>
 
 <style>
+  .offline { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; scroll-margin-block: var(--sp-200); }
   .failure:focus { outline: none; }
   .name-field { display: grid; gap: var(--sp-050); }

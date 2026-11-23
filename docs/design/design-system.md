@@ -1403,6 +1403,12 @@ the reason. **At most one action per state**: *Try again* while not connected, *
 refusal (with *Dismiss* beside it), *Resolve* for a conflict. **Connected means the stream was
 accepted**, not that a record arrived.
 
+**An act that needs the server, offline**, is said in one shape: the act's control is unavailable
+with the reason "*The act* needs a connection.", and where the act is a form or a group - a create
+page or dialog, the emergency notice, *Logo and app bar* - the same sentence stands once as a quiet
+line where the form's refusals go. Never a warning callout: being offline is a state the product
+is built for.
+
 **The notice mark** (`apps/webapp/src/lib/frame/NoticeMark.svelte`) is drawn signed in or not,
 whenever there is something wrong to say, and while the reader has an emergency notice of the last
 thirty days:

@@ -14,7 +14,7 @@
   // The reason is the opener's own text (user content, rule 10): drawn here and nowhere else - not
   // in the announcement, a log or an address.
 
-  import { Badge, Button, Callout, Dialog, ProductTile } from '@hubtask/design-system/components';
+  import { Badge, Button, Dialog, ProductTile } from '@hubtask/design-system/components';
   import type { EmergencyNotice, TransportError } from '@hubtask/sync-engine';
 
   import { announcer } from '../announce.svelte.ts';
@@ -125,13 +125,13 @@
     onclick: () => void acknowledge(),
     isBusy: isSending,
     busyLabel: t('app.workspace.saving'),
-    disabledReason: isOffline ? t('app.emergency_notice.offline_body') : undefined,
+    disabledReason: isOffline ? t('app.emergency_notice.offline') : undefined,
   }}
 >
   <div class="notice" data-emergency-notice="entry">
-    {#if isOffline}
-      <Callout tone="warning" title={t('app.emergency_notice.offline_title')}>{t('app.emergency_notice.offline_body')}</Callout>
-    {/if}
+    <!-- What needs a connection is said in one shape wherever this branch's screens need one: a
+         quiet line where the act is, the act unavailable with the same sentence. -->
+    {#if isOffline}<p class="offline" data-offline-line>{t('app.emergency_notice.offline')}</p>{/if}
     {#if !isMany}
       {@const notice = notices[0]!}
       {@const [before, name, after] = around('app.emergency_notice.intro_one', nameOf(notice.opened_by))}
@@ -216,6 +216,8 @@
   .reason { margin: 0; padding: var(--sp-150); border-radius: var(--r-md); background: var(--bg-recess); overflow-wrap: anywhere; }
 
   .footnote { margin: 0; color: var(--text-subtle); font-size: var(--fs-075); }
+
+  .offline { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
 
   .refusal { margin: 0; color: var(--text-danger); }
 

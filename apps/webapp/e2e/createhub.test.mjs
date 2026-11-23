@@ -445,6 +445,32 @@ for (const [width, height] of [[1280, 800], [390, 844]]) {
   });
 }
 
+// A hub is made by the server and never queued: offline the page says so where its refusals go, in
+// the one shape this branch's screens say it, and *Create hub* sends nothing.
+test('chromium: 1280 × 800 - offline the page says that creating a hub needs a connection, and Create hub sends nothing', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, context, made, plans } = await as(browser);
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/hubs/new`);
+  await main(page).getByRole('radio', { name: /^Kanban team/u }).waitFor({ timeout: 10_000 });
+  await context.setOffline(true);
+  const line = main(page).locator('[data-offline-line]');
+  await line.waitFor({ timeout: 10_000 });
+  assert.equal((await line.textContent()).trim(), 'Creating a hub needs a connection.');
+  await main(page).getByRole('radio', { name: /^Kanban team/u }).check();
+  await nameField(page).fill('House');
+  assert.equal(await primary(page).getAttribute('aria-disabled'), 'true');
+  const reason = await primary(page).evaluate((button) => document.getElementById(button.getAttribute('aria-describedby') ?? '')?.textContent?.trim());
+  assert.equal(reason, 'Creating a hub needs a connection.');
+  await nameField(page).press('Enter');
+  assert.deepEqual(made, []);
+  assert.deepEqual(plans, [], 'a plan is asked offline');
+  await context.setOffline(false);
+  await line.waitFor({ state: 'detached', timeout: 10_000 });
+  assert.deepEqual(failures, []);
+});
+
 // UC-WRK-01 check 6, UC-ID-16 check 1, owner's answer Q4: a private hub of one's own, no switch, no template.
 test('chromium: a member is offered a private hub of their own, without the switch and without templates', async (t) => {
   const browser = await sharedChromium(t);

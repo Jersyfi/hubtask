@@ -36,6 +36,7 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { presetMark, presetName, presetOrigin, presets, presetValue } from '../lib/data/presets.svelte.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
+  import { live } from '../lib/data/live.svelte.ts';
   import { leaveGuard } from '../lib/frame/leave.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -269,8 +270,12 @@
   let detailsPane = $state<HTMLElement | null>(null);
   const focusAcknowledge = () => detailsPane?.querySelector<HTMLInputElement>('[data-acknowledge]')?.focus();
 
+  // A hub is made by the server, never queued, and a template's plan is the server's to read: offline
+  // the page says so where its refusals go, and *Create hub* is unavailable with the same sentence.
+  const offline = $derived(live.state === 'offline' ? t('app.workspace.create_hub_offline') : undefined);
+
   async function create(): Promise<void> {
-    if (isSaving) return;
+    if (isSaving || offline) return;
     if (name.trim() === '') {
       isNameMissing = true;
       focusName();
@@ -327,9 +332,9 @@
   }
 
   const primaryReason = $derived(
-    chosenTemplate && isRested && isPlanning ? t('app.starter.plan_reading')
+    offline ?? (chosenTemplate && isRested && isPlanning ? t('app.starter.plan_reading')
       : chosenTemplate && isRested && mustAcknowledge && !acknowledged ? t('app.changes.acknowledge_first')
-        : undefined,
+        : undefined),
   );
   const nameError = $derived(isNameMissing ? t('app.workspace.name_required') : isNameFailure ? failure?.message : undefined);
   const parts = $derived(chosenTemplate ? createsOf(chosenTemplate).filter((each) => each.part !== 'samples') : []);
@@ -409,7 +414,9 @@
 >
   <div class="panes" data-create-hub>
     <section class="details" aria-label={t('app.workspace.hub_details')} data-private={isPrivateHub ? '' : undefined} bind:this={detailsPane}>
-      {#if failure && !isNameFailure}
+      {#if offline}
+        <p class="offline" data-offline-line>{offline}</p>
+      {:else if failure && !isNameFailure}
         <p class="failure" role="alert" tabindex="-1" bind:this={failureNote}>{failure.message}</p>
       {:else if planFailure}
         <p class="failure" role="alert">{planFailure}</p>
@@ -476,7 +483,7 @@
         </div>
         <p class="summary-line">{start === EMPTY_HUB ? t('app.workspace.hub_empty_long') : chosenStart?.summary}</p>
         {#if chosenTemplate}
-          <TemplateTakeFields template={chosenTemplate} plansWorkspace={chosenTemplate.taken_version == null && isRested} samplesOffered={carriesSamples(chosenTemplate)}
+          <TemplateTakeFields template={chosenTemplate} plansWorkspace={chosenTemplate.taken_version == null && isRested && !offline} samplesOffered={carriesSamples(chosenTemplate)}
             bind:answers bind:withSamples bind:acknowledged bind:isPlanning bind:mustAcknowledge bind:failure={planFailure} {creates} />
         {/if}
       </div>
@@ -520,6 +527,7 @@
   }
 
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); scroll-margin-block: var(--sp-200); }
+  .offline { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .failure:focus { outline: none; }
 
   /* The mark stands beside the field, its foot on the field's foot; the label above both. */
@@ -656,7 +664,7 @@
       border-block-end: var(--bw-hairline) solid var(--border-subtle);
     }
 
-    .failure { grid-column: 1 / -1; }
+    .failure, .offline { grid-column: 1 / -1; }
     .a-name { grid-area: name; }
     .a-priv { grid-area: priv; }
     .a-look { grid-area: look; }
