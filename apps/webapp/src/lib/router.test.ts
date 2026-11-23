@@ -154,7 +154,19 @@ function sessionHistory(start: string) {
     window: { location, addEventListener: events.addEventListener.bind(events), removeEventListener: events.removeEventListener.bind(events) },
     document: { addEventListener: () => {}, removeEventListener: () => {} },
   });
-  return { history, at: () => at, path: () => entries[at]?.path };
+  /** Resolves once `count` more `popstate`s have reached the router, which listens first. */
+  const popped = (count: number) =>
+    new Promise<void>((done) => {
+      let left = count;
+      const onPop = () => {
+        left -= 1;
+        if (left > 0) return;
+        events.removeEventListener('popstate', onPop);
+        done();
+      };
+      events.addEventListener('popstate', onPop);
+    });
+  return { history, at: () => at, path: () => entries[at]?.path, popped };
 }
 const settle = () => new Promise((done) => setTimeout(done, 5));
 /**
@@ -197,7 +209,8 @@ test('a held step is closed by back, and the screen under it stays where it was'
   stop();
 });
 
-test('a step closed another way takes its entry out, so the next back leaves the screen', async () => {
+// The bound only ends a run whose hops never come; the test waits on them, not on it.
+test('a step closed another way takes its entry out, so the next back leaves the screen', { timeout: 2000 }, async () => {
   const session = sessionHistory('/hubs');
   const router = new Router(routes, '/hubs', {});
   const stop = router.start();
@@ -212,12 +225,16 @@ test('a step closed another way takes its entry out, so the next back leaves the
   assert.equal(closed, 0, 'its own release called back into the step');
   assert.deepEqual(seen, ['/containers/new-hub'], 'the release moved the screen');
 
+  // Forward onto the closed step and the router's own back off it: two hops, and no screen applied
+  // to wait for, so the wait is on the second `popstate`.
+  const backedOut = session.popped(2);
   session.history.forward();
-  await settle();
+  await backedOut;
   assert.deepEqual(seen, ['/containers/new-hub'], 'forward into a closed step moved the screen');
 
+  const landed = applied(router);
   session.history.back();
-  await settle();
+  await landed;
   assert.deepEqual(seen, ['/containers/new-hub', '/hubs'], 'back did not leave the screen');
   stop();
 });
