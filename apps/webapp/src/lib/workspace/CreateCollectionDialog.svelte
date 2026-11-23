@@ -88,11 +88,13 @@
     ...presets.all.map((each) => ({
       value: presetValue(each),
       label: presetName(each),
-      summary: each.key ? t('app.structure.preset_marked', { origin: presetOrigin(each), about: t(`app.structure.preset_about.${each.key}`) }) : presetOrigin(each),
+      // The origin on a line of its own, so the sentence keeps both of its lines and is never cut.
+      description: presetOrigin(each),
+      summary: each.key ? t(`app.structure.preset_about.${each.key}`) : undefined,
       icon: presetMark(each),
     })),
     ...(project
-      ? [{ value: SCRUM, label: t('app.workspace.kind_scrum'), summary: t('app.structure.preset_marked', { origin: presetOrigin(project), about: t('app.workspace.kind_about.SCRUM') }), icon: 'repeat' as const }]
+      ? [{ value: SCRUM, label: t('app.workspace.kind_scrum'), description: presetOrigin(project), summary: t('app.workspace.kind_about.SCRUM'), icon: 'repeat' as const }]
       : []),
     deskTypes.length > 0
       ? { value: DESK, label: t('app.workspace.kind_desk'), summary: t('app.workspace.kind_desk_about'), icon: 'inbox' }

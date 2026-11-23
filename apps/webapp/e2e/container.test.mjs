@@ -16,7 +16,7 @@ import { sharedChromium } from './browser.mjs';
 
 import { pressArea } from './press.mjs';
 import { serve } from './serve.mjs';
-import { BUCKETS, COLLECTION, HUB, ITEMS, LABELS, MANIFEST, PAGE, signedIn, openSettings, viewBar, chooseView, newInHead, openNewCollection, kindChoice } from './fixture.mjs';
+import { ACCOUNT, BUCKETS, COLLECTION, HUB, ITEMS, LABELS, MANIFEST, PAGE, signedIn, openSettings, viewBar, chooseView, newInHead, openNewCollection, kindChoice } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -432,10 +432,14 @@ test('chromium: 375 px — while picking, a press on a row\'s label chip lands o
 // UC-WRK-01 check 12: *Create collection* offers its kinds as one choice, *Like its hub* chosen
 // when the dialog opens, the chosen kind marked by its edge and a tick - the hub page's tile.
 
-/** Opens the hub, answers the collection's creation with `made` - or `refusal`, a problem - and opens the dialog. */
-async function openCreateCollection(browser, width, height, made, refusal) {
+/**
+ * Opens the hub, answers the collection's creation with `made` - or `refusal`, a problem - and
+ * opens the dialog, in `locale`.
+ */
+async function openCreateCollection(browser, width, height, made, refusal, { locale = 'en' } = {}) {
   const { page, failures, context } = await signedIn(browser, width, height, width < 600 ? { hasTouch: true } : {});
   const sent = [];
+  if (locale !== 'en') await page.route('**/api/v1/accounts/me', (route) => (route.request().method() === 'GET' ? route.fulfill({ json: { ...ACCOUNT, locale } }) : route.fallback()));
   await page.route('**/api/v1/containers', (route, request) => {
     if (request.method() !== 'POST') return route.fallback();
     sent.push(request.postDataJSON());
@@ -444,11 +448,15 @@ async function openCreateCollection(browser, width, height, made, refusal) {
   });
   await page.goto(`${served.origin}/hubs/${HUB.id}`);
   await page.getByRole('heading', { name: HUB.name, level: 1 }).waitFor({ timeout: 15_000 });
-  await openNewCollection(page);
+  if (locale === 'de') {
+    await page.locator('header.head').getByRole('button', { name: 'Neu', exact: true }).filter({ visible: true }).first().click({ timeout: 15_000 });
+    await page.locator('[data-kind="collection"]').first().click({ timeout: 10_000 });
+  } else {
+    await openNewCollection(page);
+  }
   const dialog = page.locator('dialog[open]');
-  await kindChoice(dialog, 'Like its hub').waitFor({ timeout: 10_000 });
   // The kinds are data: wait for the presets the installation answers.
-  await kindChoice(dialog, 'Scrum').waitFor({ timeout: 10_000 });
+  await dialog.getByRole('radio', { name: /^Scrum/u }).waitFor({ timeout: 10_000 });
   return { page, failures, dialog, sent, close: () => context.close() };
 }
 
@@ -632,3 +640,34 @@ test('chromium: 1280 × 800 — Create collection: the body scrolls, the title a
   assert.equal(await dialog.getByRole('textbox', { name: 'Description' }).isVisible(), true);
   assert.deepEqual(failures, []);
 });
+
+// A tile's sentence is never cut: the origin of a preset stands on a line of its own, and every
+// sentence ends with its full stop, in English and in German.
+for (const locale of ['en', 'de']) {
+  test(`chromium: 1280 × 800 — Create collection in ${locale}: each kind's sentence whole, the origin on its own line`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { failures, dialog, close } = await openCreateCollection(browser, 1280, 800, COLLECTION, undefined, { locale });
+    t.after(close);
+
+    const tiles = await dialog.locator('label.card').evaluateAll((cards) => cards.map((card) => {
+      const summary = card.querySelector('.summary');
+      return {
+        title: card.querySelector('.title')?.textContent,
+        line: card.querySelector('.line')?.textContent ?? null,
+        summary: summary?.textContent ?? null,
+        cut: summary ? summary.scrollHeight > summary.clientHeight + 1 : false,
+      };
+    }));
+    const origin = locale === 'de' ? 'Hubtask' : "Hubtask's";
+    for (const tile of tiles) {
+      assert.equal(tile.cut, false, `${tile.title}'s sentence is cut: ${tile.summary}`);
+      if (tile.summary) assert.match(tile.summary, /\.$/u, `${tile.title}'s sentence has no full stop: ${tile.summary}`);
+      if (tile.summary) assert.ok(!tile.summary.includes(origin), `${tile.title}'s sentence carries its origin: ${tile.summary}`);
+    }
+    for (const title of locale === 'de' ? ['Liste', 'Aufgaben', 'Projekt', 'Ablauf', 'Scrum'] : ['List', 'Tasks', 'Project', 'Flow', 'Scrum']) {
+      const tile = tiles.find((each) => each.title === title);
+      assert.equal(tile?.line, origin, `${title} does not say its origin on a line of its own: ${JSON.stringify(tile)}`);
+    }
+    assert.deepEqual(failures, []);
+  });
+}
