@@ -6,19 +6,23 @@
   // the order, a label, how recently a page changed and the reader's own pages as chips, and the
   // count (UC-DOC-01 check 9).
   // The tree itself is the sidebar's *Contents*. A whiteboard is made here under a page or at the
-  // top (UC-CNV-10 check 6), as ＋ in *Contents* asks; a page is made on the pages' own screen.
+  // top (UC-CNV-10 check 6), as ＋ in *Contents* asks; *New page* opens the pages' own way in.
+  // Each create stands only where its product is on at this hub.
   import { untrack } from 'svelte';
   import {
     Banner, Button, DataTable, Disclosure, EmptyState, FilterBar, ListPage, Radio, Skeleton, Switch, UploadField,
-    type DataColumn, type Filter, type PageHead,
+    type DataColumn, type Filter, type PageAction, type PageHead,
   } from '@hubtask/design-system/components';
   import type { PageHitList, PageLabelCounts, PageList, WhiteboardList } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { holds, roleOrder } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { contentsAsk } from '../lib/data/contentsask.ts';
   import { engine } from '../lib/data/engine.ts';
+  import { modules } from '../lib/data/modules.svelte.ts';
+  import { modulesHere } from '../lib/data/modules.ts';
   import { CHANGED_WITHIN, changedFrom, pages, pagesPath, spaceLabelsPath, type ChangedWithin } from '../lib/data/pages.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { boardsPath, placeCarried, readNative, whiteboards } from '../lib/data/whiteboards.svelte.ts';
@@ -53,6 +57,16 @@
     const at = hubId;
     return untrack(() => people.open({ hubId: at }));
   });
+  // The hub's own modules (ADR-0109); before they answer nothing is offered.
+  let hubModules = $state<readonly string[] | undefined>(undefined);
+  $effect(() => {
+    const at = hubId;
+    hubModules = undefined;
+    return untrack(() => modules.here(at, (next) => {
+      if (next.status === 'ready') hubModules = next.data.modules_on;
+    }));
+  });
+  const isOn = (module: string) => hubModules !== undefined && (modulesHere(manifest.value?.modules_on, hubModules) as readonly string[]).includes(module);
   const mayWrite = $derived(holds(people.roleOf({ hubId }, actor.account?.id, roleOrder()) ?? undefined, 'WRITE_ITEMS').status === 'permitted');
 
   let pageList = $state<PageList['data'] | undefined>(undefined);
@@ -226,9 +240,8 @@
     if (native) titleDraft = native.title || titleDraft;
   }
 
-  const contentsHead = $derived<PageHead>({
-    title: t('app.nav.all_contents'),
-    primary: mayWrite
+  const newBoard = $derived<PageAction | undefined>(
+    mayWrite && isOn('WHITEBOARD')
       ? {
           label: t('app.whiteboards.new'),
           icon: 'plus',
@@ -236,6 +249,14 @@
           menu: { label: t('app.split_more', { action: t('app.whiteboards.new') }), items: [{ id: 'import', label: t('app.whiteboards.import_menu'), icon: 'cloud-upload' as const }], onselect: () => { isImportOpen = true; start = 'BLANK'; titleDraft = ''; isMaking = true; } },
         }
       : undefined,
+  );
+  const newPage = $derived<PageAction | undefined>(
+    mayWrite && isOn('KNOWLEDGE') ? { label: t('app.pages.new'), icon: 'plus', onclick: () => onnavigate(`/hubs/${hubId}/pages?new=1`) } : undefined,
+  );
+  const contentsHead = $derived<PageHead>({
+    title: t('app.nav.all_contents'),
+    primary: newBoard ?? newPage,
+    secondary: newBoard && newPage ? [newPage] : [],
     breadcrumb: hub
       ? {
           trail: [{ id: hubId, label: hub.name, href: `/hubs/${hubId}` }, { id: 'contents', label: t('app.nav.all_contents') }],

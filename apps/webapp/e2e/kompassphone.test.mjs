@@ -171,6 +171,20 @@ test('UC-INS-21 check 11: on a phone a module off at a hub takes its tool and it
   assert.deepEqual(failures, []);
 });
 
+test('on a phone All contents offers a new page beside a new whiteboard where both are on', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, written, close } = await phone(browser, `/hubs/${PD.id}/contents`);
+  t.after(close);
+  // The head folds: the primary at the thumb, the other create in the bar's ⋯.
+  await page.getByRole('button', { name: 'New whiteboard', exact: true }).waitFor({ timeout: 10_000 });
+  await bar(page).getByRole('button', { name: 'New page', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'New page' }).click();
+  await at(page, `/pages/${id(5000)}`);
+  assert.equal(written.pages.length, 1, 'New page made no page');
+  assert.equal(written.pages[0].hub_id, PD.id);
+  assert.deepEqual(failures, []);
+});
+
 test('no sideways scroll at 390 pixels on the main screens', async (t) => {
   const browser = await sharedChromium(t);
   const { page, failures, close } = await phone(browser, '/');

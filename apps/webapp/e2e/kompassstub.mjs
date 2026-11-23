@@ -218,6 +218,15 @@ export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, ad
     const queue = view && QUEUES.find((each) => each.view_id === view[1]);
     if (queue) return route.fulfill({ json: { id: queue.view_id, key: queue.key, name: queue.name, scope_type: 'HUB', scope_id: IT.id, queue: true, version: 1 } });
     if (/\/api\/v1\/hubs\/[^/]+\/queues$/.test(path)) return route.fulfill({ json: { data: [] } });
+    // A page is made in its hub (`createPage`), before the hubs' lists answer the same address.
+    const making = /\/api\/v1\/hubs\/([^/]+)\/pages$/.exec(path);
+    if (making && request.method() === 'POST') {
+      const body = request.postDataJSON() ?? {};
+      const made = { id: id(5000 + written.pages.length), hub_id: making[1], parent_id: body.parent_id ?? null, title: body.title ?? '', order_key: 'z', template: false, version: 1 };
+      written.pages.push(made);
+      PD_PAGES.push(made);
+      return route.fulfill({ status: 201, json: pageRead(made) });
+    }
     if (path.endsWith(`/api/v1/hubs/${IT.id}/pages`) && !url.searchParams.has('templates')) return route.fulfill({ json: { data: [KB, VPN, RUNBOOKS, TEMPLATE], ...PAGE } });
     if (path.endsWith(`/api/v1/hubs/${IT.id}/whiteboards`)) return route.fulfill({ json: { data: [MAP], ...PAGE } });
     if (path.endsWith(`/api/v1/hubs/${PD.id}/pages`) && !url.searchParams.has('templates')) return route.fulfill({ json: { data: PD_PAGES, ...PAGE } });
@@ -276,13 +285,6 @@ export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, ad
     const board = /\/api\/v1\/whiteboards\/([^/:]+)$/.exec(path);
     const drawn = board && BOARDS().find((each) => each.id === board[1]);
     if (drawn && request.method() === 'GET') return route.fulfill({ json: boardRead(drawn, owner) });
-    if (path.endsWith('/api/v1/pages') && request.method() === 'POST') {
-      const body = request.postDataJSON() ?? {};
-      const made = { id: id(5000 + written.pages.length), hub_id: body.hub_id, parent_id: body.parent_id ?? null, title: body.title ?? '', order_key: 'z', template: false, version: 1 };
-      written.pages.push(made);
-      PD_PAGES.push(made);
-      return route.fulfill({ status: 201, json: pageRead(made) });
-    }
     // An opened page's own lists, a release, a plan's workload and the other hubs' inventory health,
     // in the contract's shapes rather than a list's.
     if (/\/api\/v1\/pages\/[^/]+\/labels$/.test(path)) return route.fulfill({ json: { labels: [] } });

@@ -191,6 +191,34 @@ test('UC-DOC-01 check 6, UC-CNV-10 check 6: a page has its trail and no tree of 
   assert.deepEqual(failures, []);
 });
 
+test('All contents offers a new page where pages are on and a new whiteboard where whiteboards are on', async (t) => {
+  const browser = await sharedChromium(t);
+  const offered = async (hubModules, shown) => {
+    const { page, failures, written, close } = await walk(browser, `/hubs/${PD.id}/contents`, { width: 1280, hubModules });
+    t.after(close);
+    await main(page).getByRole('heading', { name: 'All contents' }).waitFor({ timeout: 10_000 });
+    const head = main(page).locator('header.head');
+    // Nothing is offered before the hub's modules answer; then the one asked for stands.
+    await head.getByRole('button', { name: shown, exact: true }).waitFor({ timeout: 10_000 });
+    return { page, failures, written, head, names: await texts(head.getByRole('button', { name: /^New / })) };
+  };
+  // Both on: *New page* beside *New whiteboard*, and it makes a page in this hub.
+  const both = await offered(ON, 'New page');
+  assert.deepEqual(both.names, ['New page', 'New whiteboard']);
+  if (SHOTS) await both.page.screenshot({ path: `${SHOTS}/live-contents.png` });
+  await both.head.getByRole('button', { name: 'New page' }).click();
+  // The pages' own way in: the page is made at once and opened.
+  await at(both.page, `/pages/${id(5000)}`);
+  assert.equal(both.written.pages.length, 1, 'New page made no page');
+  assert.equal(both.written.pages[0].hub_id, PD.id);
+  assert.deepEqual(both.failures, []);
+  // Each product alone: only its own create.
+  const pagesOnly = await offered({ [PD.id]: ON[PD.id].filter((each) => each !== 'WHITEBOARD') }, 'New page');
+  assert.deepEqual(pagesOnly.names, ['New page']);
+  const boardsOnly = await offered({ [PD.id]: ON[PD.id].filter((each) => each !== 'KNOWLEDGE') }, 'New whiteboard');
+  assert.deepEqual(boardsOnly.names, ['New whiteboard']);
+});
+
 test('UC-SVC-03 check 11: the queue\'s Filter narrows it, and Save as queue keeps the narrowing as a queue of the hub', async (t) => {
   const browser = await sharedChromium(t);
   const asked = [];
