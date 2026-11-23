@@ -32,7 +32,6 @@
   import { isOutsider, isOutsiderRoute, portalStart } from './lib/portal/portal.ts';
   import { lastPortal } from './lib/portal/lastportal.svelte.ts';
   import { manifest } from './lib/data/capabilities.svelte.ts';
-  import ModuleOff from './lib/frame/ModuleOff.svelte';
   import { PRODUCT_HOMES, isProductHome, offModuleOf } from './lib/frame/moduleroute.ts';
   import { holdsHere, hubCreationHere, reachesAdministrationArea } from './lib/data/capability.svelte.ts';
   import { live } from './lib/data/live.svelte.ts';
@@ -68,6 +67,7 @@
     ...workViews,
     AgentsView: () => import('./views/AgentsView.svelte'),
     CreateHubView: () => import('./views/CreateHubView.svelte'),
+    ModuleOff: () => import('./lib/frame/ModuleOff.svelte'),
     AgentsSettingsView: () => import('./views/AgentsSettingsView.svelte'),
     CmdbView: () => import('./views/CmdbView.svelte'),
     ServiceDeskView: () => import('./views/ServiceDeskView.svelte'),
@@ -494,7 +494,7 @@
   {:else if reach === false}
     {@render nothingHere()}
   {:else if offModule}
-    <ModuleOff module={offModule} isProduct={route.name !== null && isProductHome(route.name)} onnavigate={(path) => router.navigate(path)} />
+    <LazyView load={views.ModuleOff} props={{ module: offModule, isProduct: route.name !== null && isProductHome(route.name), onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'home'}
     <LazyView load={views.TodayView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'installation'}
