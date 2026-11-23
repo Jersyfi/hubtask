@@ -204,12 +204,42 @@
     if (!node) return;
     node.focus({ preventScroll: true });
     keepClear(node);
-    // Again once the frame is drawn: in the frames after it opens, a layout forced by the scroll
-    // can still size the surface by its first position, not the fallback anchor.ts ends on, and an
-    // option scrolled clear of that size stands outside the one drawn.
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      if (document.activeElement === node) keepClear(node);
-    }));
+    holdClear(node);
+  }
+
+  /** Frames on end a focused option has to stand clear before it is left to the reader. */
+  const SETTLED_FRAMES = 3;
+  /** And the most frames it is held: a surface that never settles is not chased for ever. */
+  const HOLD_FRAMES = 60;
+
+  /**
+   * Keeps the focused option clear frame by frame until it has stood clear for a few frames on end.
+   * While anchor positioning settles the surface on its shrunk fallback (anchor.ts), the engine
+   * also lays it out at its other positions, where nothing overflows, and the list's scroll is
+   * lost; a busy page goes on doing so for frames after a key moved the focus, and an option
+   * scrolled clear once stood below the list again.
+   */
+  function holdClear(node: HTMLElement, settled = 0, frames = 0): void {
+    requestAnimationFrame(() => {
+      if (document.activeElement !== node || frames >= HOLD_FRAMES) return;
+      if (isClear(node)) {
+        if (settled + 1 < SETTLED_FRAMES) holdClear(node, settled + 1, frames + 1);
+        return;
+      }
+      keepClear(node);
+      holdClear(node, 0, frames + 1);
+    });
+  }
+
+  /** Whether the option stands wholly inside the list, clear of the stuck head and foot. */
+  function isClear(node: HTMLElement): boolean {
+    const scroller = scrollerOf(node);
+    if (!scroller) return true;
+    const box = node.getBoundingClientRect();
+    const frame = scroller.getBoundingClientRect();
+    const top = Math.max(frame.top, headBox?.getBoundingClientRect().bottom ?? frame.top);
+    const bottom = Math.min(frame.bottom, footBox?.getBoundingClientRect().top ?? frame.bottom);
+    return box.top >= top && box.bottom <= bottom;
   }
 
   /** The surface that scrolls the list: the popover's, or the sheet's body. */
