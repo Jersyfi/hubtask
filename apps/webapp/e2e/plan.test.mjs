@@ -327,7 +327,8 @@ test('chromium: 1280 px — the Gantt and the light timeline are one tab, and th
   const panel = page.locator('[data-plan-view-panel]');
   // The six outline columns are ticks (design-system.md §4: on a phone the panel is a sheet, and a
   // field would open a second sheet over it), one group named by the section's heading; Slip says
-  // it needs a baseline, and Space ticks from the keyboard.
+  // it needs a baseline, and Space ticks from the keyboard. A column ticked after the last one
+  // still takes its own place: Slack, ticked after Slip, is saved and drawn before it.
   const columns = panel.getByRole('group', { name: 'Columns on the left' });
   assert.equal(await panel.getByRole('button', { name: /^Columns on the left/u }).count(), 0, 'the columns open a list of their own');
   const ticked = async () => {
@@ -342,6 +343,9 @@ test('chromium: 1280 px — the Gantt and the light timeline are one tab, and th
   await page.keyboard.press('Space');
   assert.equal(await slip.isChecked(), true);
   assert.deepEqual(await ticked(), ['Start', 'End', 'Working days', 'Assignee', 'Slip (days)']);
+  await columns.getByRole('checkbox', { name: 'Slack', exact: true }).focus();
+  await page.keyboard.press('Space');
+  assert.deepEqual(await ticked(), ['Start', 'End', 'Working days', 'Assignee', 'Slack', 'Slip (days)']);
   await panel.getByLabel('Name').fill('Light');
   await panel.locator('[data-plan-view-save]').click();
   await page.waitForTimeout(300);
@@ -349,7 +353,12 @@ test('chromium: 1280 px — the Gantt and the light timeline are one tab, and th
   assert.equal(saved?.body?.layout, 'TIMELINE');
   assert.equal(saved?.body?.name, 'Light');
   assert.equal(saved?.body?.grouping?.plan?.presentation, 'timeline', `saved ${JSON.stringify(saved?.body)}`);
-  assert.deepEqual(saved?.body?.visible_fields, ['start', 'finish', 'duration', 'assignee', 'slip'], `saved ${JSON.stringify(saved?.body)}`);
+  assert.deepEqual(saved?.body?.visible_fields, ['start', 'finish', 'duration', 'assignee', 'float', 'slip'], `saved ${JSON.stringify(saved?.body)}`);
+  // Drawn as saved: the Gantt's outline columns in the same order (Slip only beside a baseline).
+  await page.locator('[data-plan-presentation="gantt"]').click();
+  await page.locator('.timeline [data-row] [data-column="float"]').first().waitFor({ timeout: 5_000 });
+  const drawn = await page.locator('.timeline [data-row]').first().evaluate((row) => [...row.querySelectorAll('[data-column]')].map((cell) => cell.dataset.column));
+  assert.deepEqual(drawn.filter((each) => each !== 'slip'), ['start', 'finish', 'duration', 'assignee', 'float'], `drawn ${JSON.stringify(drawn)}`);
 
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
