@@ -555,7 +555,11 @@ Every product home and every hub tool has one anatomy (mockup: `shell.html`, *Pr
   and the starts as one radio group of tiles (`ChoiceCards`, a tick in the corner), *Empty hub*
   first, pinned, chosen when the page opens and never filtered away. From `expanded` each column
   scrolls on its own and the head with *Create hub* stays; from `medium` the details are a block of
-  two columns above the starts, whose tools stick. Every door to it - the navigation, the palette,
+  two columns above the starts, whose tools stick. Below `medium` the details are the page and
+*Create hub* stands across the foot, at the thumb; the starts are a second step, opened only from
+the summary's *Choose a template*, a layer over the page that keeps its address - a tile chosen
+there is chosen at once, and *Done*, ‹, Escape and back close it. Most hubs are made empty, so
+nobody pays a press for the gallery. Every door to it - the navigation, the palette,
   the empty start view, a product's home, a product's page while it is off, *Administration →
   Products* - navigates there, carrying a template chosen before (`?template=`) and the product it
   was opened from (`?product=`, where a hub made without a template lands); *Cancel* goes back. A

@@ -21,6 +21,8 @@ chosen, *Private* was shown and ignored (#1871).
   *Empty hub* first, pinned, chosen when the page opens and never filtered away; a search and a
   family filter narrow the rest.
 * Every door to it navigates there, carrying a template chosen before, and *Cancel* goes back.
+* On a phone the details are the page and the starts its optional second step - a full-screen
+  layer over it, not a route, that back closes - so a hub made empty costs no press more.
 * A collection keeps its dialog: a name, its kind and its look are *Dialog M*.
 
 ## Alternatives not taken
@@ -34,5 +36,7 @@ chosen, *Private* was shown and ignored (#1871).
 ## Consequences
 
 §5.2's one create anatomy has a stated exception. The page is wider than a dialog and needs the
-frame's filled region from `expanded` (`CreatePage`'s `isFilled`). The phone's own layout, with the
-starts as an optional second step, follows as its own step.
+frame's filled region from `expanded` (`CreatePage`'s `isFilled`), and below `medium` the phone's
+whole screen, where the frame draws neither of its bars (`page.takeScreen`). The phone's second
+step is a `Dialog` that is a step (`isStep`), held in the session history so the system's back
+closes it (`Router.hold`).

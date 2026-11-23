@@ -343,7 +343,9 @@ Drawer · SearchField · ReadOnlyNotice · SaveBar · Disclosure
 needed later on the same page ([`user-experience.md`](../architecture/user-experience.md) UX-4):
 *Advanced* in a settings block, *Details for support* under a refusal; a button with
 `aria-expanded`, a quiet line of what is inside, the content arriving in the `reveal` role and
-absent while closed.
+absent while closed. `tone="row"` folds a field of a form on a phone to one bordered row the
+column's width, as tall as `layout.target`, the chevron at its end (*Colour and symbol* on *Create
+hub*).
 
 **`SideNav` is one component with two drawings; a second tree is never built.** A row is mark ·
 label · twist: the mark at one inline position for every level, the indent on the label, the twist
@@ -1099,7 +1101,10 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
   at most one raised focal card. `LogPage` — what happened: a `ListPage` with the time range first
   and rows grouped by day. `CreatePage` — creating something larger than a dialog, at the
   content's full width; `isFilled` takes the region a filled page gets, the head edge to edge over
-  a hairline and two panes beneath it that scroll on their own (*Create hub*, ADR-0111). `WorkPage` and `DetailPage` — the work surfaces and one object read and
+  a hairline and two panes beneath it that scroll on their own (*Create hub*, ADR-0111); below
+`medium` it is the phone's whole screen - ✕ and the title in one bar, the primary across the width
+in a bar at the foot, above the safe area and the on-screen keyboard - and the frame draws neither
+of its own bars beside it (`page.takeScreen`). `WorkPage` and `DetailPage` — the work surfaces and one object read and
   edited in place, as built. `StandalonePage` — outside the frame (`card`, `public`). Every kind
   works at the five widths with the same functions; only what is visible at once changes
   (PS-18). The content has two levels of containment at most, the canvas and one region (§6).
@@ -1446,7 +1451,11 @@ at `layout.pane.width` - mark and name, *Private* as a bordered box with its swi
 colour and symbol open (`LookFields`: round swatches, square symbols, "none" dashed), description,
 the start's summary - beside the starts: a heading, a search, the families as pills that are one
 radio group with their counts, the count as a status, and the tiles as `ChoiceCards`, *Empty hub*
-first. A collection keeps *Dialog M*.
+first. Below `medium` the details are the page, *Colour and symbol* a `Disclosure` row, and the
+summary's *Choose a template* (*Change* once one is chosen) opens the starts as a second step: a
+`Dialog` L with `isStep` - ‹, the title, *Done* -, the search across the width, the families one
+row that scrolls sideways, one tile per row; its address is the page's, and back closes it. A
+collection keeps *Dialog M*.
 
 **A container screen.** `PageHeader` with one primary action:
 
@@ -1640,7 +1649,8 @@ beside a short form. *Create page* — more, or steps, or a table, or anything a
 and come back to. *Record page* — an existing object with lists of its own, opened by its row,
 whose head's *Edit* is a Dialog M of its own fields. A dialog holds no table, no tabs, no second
 dialog except *Discard changes?* and at most one `Disclosure`; M and L are full screen below
-`medium`, with ✕ at the start and the primary in its bar. A dialog is for doing, a page for
+`medium`, with ✕ at the start and the primary in its bar; one that is a step of the page under it
+(`isStep`: a choice made there is the page's at once) has *‹* named in words instead of ✕. A dialog is for doing, a page for
 having. A row carries one quiet verb and a ⋯ menu, destructive acts only there, in a Dialog S or
 a `DangerZone` (PS-6); a long list continues at its foot and says what is shown — *Showing 50 of
 1 240* where the endpoint counts (`page.total`, `api-guidelines.md` §4), *Show more* by the
