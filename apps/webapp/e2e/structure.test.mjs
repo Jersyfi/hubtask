@@ -367,17 +367,16 @@ test('chromium: the owner - creating a collection offers the presets, and the on
   await page.getByRole('heading', { name: SHAPE_HUB.name, level: 1 }).waitFor({ timeout: 15_000 });
   await openNewCollection(page);
   const dialog = page.locator('dialog[open]');
-  // The kinds as cards, one chosen (the navigation concept's *New collection*).
+  // The kinds as tiles of one choice (UC-WRK-01 check 12).
   await kindChoice(dialog, 'List').waitFor({ timeout: 5_000 });
   for (const name of ['List', 'Tasks', 'Project', 'Flow', 'Scrum']) {
     assert.equal(await kindChoice(dialog, name).count(), 1, `${name} is not offered`);
   }
-  // None pressed is the hub's own structure, and the dialog says so.
-  assert.equal(await dialog.locator('[data-collection-kinds] [aria-pressed="true"]').count(), 0, 'a kind is chosen before the reader chose one');
-  await dialog.locator('[data-follows-hub]').waitFor();
+  // The hub's own structure is the first tile, chosen at opening.
+  assert.equal(await kindChoice(dialog, 'Like its hub').isChecked(), true, 'the hub\'s own structure is not chosen at opening');
   await dialog.getByRole('textbox', { name: 'Name' }).fill('Pantry');
-  await kindChoice(dialog, 'List').click();
-  assert.equal(await kindChoice(dialog, 'List').getAttribute('aria-pressed'), 'true');
+  await kindChoice(dialog, 'List').check();
+  assert.equal(await kindChoice(dialog, 'List').isChecked(), true);
   await dialog.getByRole('button', { name: 'Create', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('dialog[open]') === null, null, { timeout: 5_000 }).catch(() => {});
   assert.equal(written[0]?.preset, 'LIST');

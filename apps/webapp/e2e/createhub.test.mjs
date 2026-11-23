@@ -609,7 +609,7 @@ test('chromium: inside a hub, ＋ on Collections makes a collection in that hub,
   const dialog = page.locator('dialog[open]');
   await dialog.waitFor({ timeout: 10_000 });
   assert.equal(await dialog.getByRole('heading', { name: `New collection in ${HUB.name}` }).count(), 1, 'the dialog does not make a collection');
-  await dialog.locator('[data-collection-kind]').first().waitFor({ timeout: 10_000 });
+  await dialog.getByRole('radio', { name: /^Like its hub/u }).waitFor({ timeout: 10_000 });
   await dialog.getByRole('textbox').first().fill('Groceries');
   await dialog.getByRole('button', { name: 'Create', exact: true }).click();
   await dialog.waitFor({ state: 'hidden', timeout: 10_000 });

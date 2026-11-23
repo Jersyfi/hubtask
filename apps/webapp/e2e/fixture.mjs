@@ -1565,5 +1565,9 @@ export async function openNewCollection(page) {
 /** A kind in *Create*, which the hub's *New* opens preset to the hub (§6.12, C-1). */
 export const createKind = (page, kind) => page.getByRole('group', { name: 'Create' }).locator(`[data-kind="${kind}"]`).first();
 
-/** A kind's toggle card in the new-collection dialog (the navigation concept's *New collection*), by its name. */
-export const kindChoice = (dialog, name) => dialog.locator('[data-collection-kinds]').getByRole('button', { name, exact: true });
+/**
+ * A kind's tile in the new-collection dialog, by its name: one radio of the group *How much
+ * structure*. The tile's words are its name, so the name is matched at its start.
+ */
+export const kindChoice = (dialog, name) => dialog.getByRole('radiogroup', { name: 'How much structure' })
+  .getByRole('radio', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}(\\s|$)`, 'u') });

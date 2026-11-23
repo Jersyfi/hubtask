@@ -9,24 +9,25 @@
   // different name, and a sentence somewhere else on the screen is one they would have to carry
   // back to the field.
   //
-  // A colour and a symbol are chosen here as on the edit dialog, from the same fields (UC-WRK-33):
+  // The kinds are the hub page's tiles (`ChoiceCards` with the tick, UC-WRK-01 check 12): one
+  // radio group, *Like its hub* first and chosen at opening - no preset, so the collection follows
+  // its hub now and later (UC-WRK-23 check 1) -, then every preset the installation answers,
+  // *Scrum* where *Project* is offered, and *Desk*. A choice changes by choosing another.
+  //
+  // A colour and a symbol are chosen here as on the hub's page, from the same fields (UC-WRK-33):
   // a place is told apart from the moment it exists. Neither is required - a place nobody chose for
   // keeps its type's mark.
-  //
-  // *How much structure* (UC-WRK-23 check 1): one of the presets, or nothing chosen - the collection
-  // then follows its hub, now and later. Offered where the installation answers presets; without
-  // them the server decides as before.
 
-  import { Dialog, Disclosure, Icon, Stack, Textarea } from '@hubtask/design-system/components';
+  import { ChoiceCards, Dialog, Disclosure, Icon, Stack, Textarea, type ChoiceCard } from '@hubtask/design-system/components';
 
   import { containers } from '../data/containers.svelte.ts';
-  import { presetChoice, presetName, presetOrigin, presets, presetValue } from '../data/presets.svelte.ts';
+  import { presetMark, presetName, presetOrigin, presets, presetValue } from '../data/presets.svelte.ts';
   import { entryTypes } from '../data/entrytypes.svelte.ts';
   import { portalTypesOf } from '../portal/portal.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
-  import { focusFirst } from '../forms/missing.ts';
   import LookFields from './LookFields.svelte';
-  import { lookBody, type PlaceSymbol } from './look.ts';
+  import { DESK, LIKE_HUB, SCRUM, collectionRequest } from './createCollection.ts';
+  import type { PlaceSymbol } from './look.ts';
   import { renderProblem } from '../problem.ts';
 
   import type { LabelToken } from '@hubtask/design-system';
@@ -45,24 +46,26 @@
 
   let name = $state('');
   let description = $state('');
-  /** The preset chosen, or empty for the hub's. */
-  let preset = $state('');
+  let kind = $state(LIKE_HUB);
   let symbol = $state<PlaceSymbol | undefined>(undefined);
   let colour = $state<LabelToken | undefined>(undefined);
   let isSaving = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let isNameFailure = $state(false);
+  /** *Create* was pressed without a name: the field says so (design-system.md §4, case 3). */
+  let isNameMissing = $state(false);
 
   // Reopening starts a new answer rather than resuming the last refused one.
   $effect(() => {
     if (isOpen) return;
     name = '';
     description = '';
-    preset = '';
+    kind = LIKE_HUB;
     symbol = undefined;
     colour = undefined;
     failure = undefined;
     isNameFailure = false;
+    isNameMissing = false;
   });
 
   $effect(() => {
@@ -70,82 +73,70 @@
     return untrack(() => presets.open());
   });
 
-  // *Desk* (the navigation concept §5.1): a collection that offers the hub's portal types by name,
-  // which is what makes it a desk; it starts from *Tasks*. Without a portal type in the hub the card
-  // says so instead of offering a desk nobody could ask through.
-  const DESK = 'desk';
+  // *Desk* (the navigation concept §5.1): a collection that offers the hub's portal types by name.
+  // Without a portal type in the hub its tile is refused and says why.
   $effect(() => {
     if (!isOpen) return;
     return untrack(() => entryTypes.open());
   });
   const deskTypes = $derived(!parentId ? [] : portalTypesOf(entryTypes.all, parentId));
 
-  // The kinds of a new collection as the navigation concept's *New collection* draws them: small
-  // toggle cards, each a mark, a name and a few words. None pressed is the hub's own structure
-  // (UC-WRK-23 check 1); pressing the chosen one again returns to that. *Scrum* is the *Project*
-  // preset opened on its sprint view, where the first sprint starts (§5.1) - offered where the
-  // installation answers *Project*.
-  const SCRUM = 'scrum';
-  const KIND_MARKS: Readonly<Record<string, 'square-check' | 'columns-3'>> = { LIST: 'square-check', TASKS: 'square-check', PROJECT: 'columns-3', FLOW: 'columns-3' };
-  const kinds = $derived([
+  const project = $derived(presets.all.find((each) => each.key === 'PROJECT'));
+  const kinds = $derived<ChoiceCard[]>([
+    { value: LIKE_HUB, label: t('app.workspace.kind_like_hub'), summary: t('app.workspace.kind_like_hub_about'), icon: 'hub' },
     ...presets.all.map((each) => ({
       value: presetValue(each),
       label: presetName(each),
-      icon: (each.key ? KIND_MARKS[each.key] : undefined) ?? ('square-check' as const),
-      hint: each.key ? t('app.structure.preset_marked', { origin: presetOrigin(each), about: t(`app.workspace.kind_about.${each.key}`) }) : presetOrigin(each),
+      summary: each.key ? t('app.structure.preset_marked', { origin: presetOrigin(each), about: t(`app.structure.preset_about.${each.key}`) }) : presetOrigin(each),
+      icon: presetMark(each),
     })),
-    ...(presets.all.some((each) => each.key === 'PROJECT')
-      ? [{ value: SCRUM, label: t('app.workspace.kind_scrum'), icon: 'repeat' as const, hint: t('app.structure.preset_marked', { origin: presetOrigin(presets.all.find((each) => each.key === 'PROJECT')!), about: t('app.workspace.kind_about.SCRUM') }) }]
+    ...(project
+      ? [{ value: SCRUM, label: t('app.workspace.kind_scrum'), summary: t('app.structure.preset_marked', { origin: presetOrigin(project), about: t('app.workspace.kind_about.SCRUM') }), icon: 'repeat' as const }]
       : []),
+    deskTypes.length > 0
+      ? { value: DESK, label: t('app.workspace.kind_desk'), summary: t('app.workspace.kind_desk_about'), icon: 'inbox' }
+      : { value: DESK, label: t('app.workspace.kind_desk'), icon: 'inbox', disabledReason: t('app.workspace.kind_desk_needs') },
   ]);
 
   const hubName = $derived(!parentId ? undefined : containers.find(parentId)?.name);
   const title = $derived(hubName ? t('app.workspace.new_collection_in', { hub: hubName }) : t('app.workspace.create_collection'));
 
-  /** *Create* was pressed without a name: the field says so (design-system.md §4, case 3). */
-  let isNameMissing = $state(false);
-  let body = $state<HTMLElement | null>(null);
+  let nameInput = $state<HTMLInputElement | null>(null);
   const uid = $props.id();
   const nameErrorId = `${uid}-name-error`;
-  const kindsId = `${uid}-kind`;
   const nameError = $derived(isNameMissing ? t('app.workspace.name_required') : isNameFailure ? failure?.message : undefined);
+
+  // As on the hub's page: a missing or taken name marks the field and takes the focus there.
+  const focusName = () => queueMicrotask(() => nameInput?.focus());
 
   async function create() {
     if (isSaving) return;
     if (name.trim() === '') {
       isNameMissing = true;
-      queueMicrotask(() => focusFirst(body));
+      focusName();
       return;
     }
     isSaving = true;
     failure = undefined;
     isNameFailure = false;
     try {
+      const request = collectionRequest({ parentId, name, description, symbol, colour, kind });
       // The `Idempotency-Key` is the caller's, as it is at every other write in this application:
       // pressing Create twice is one intent, not two collections.
-      const created = await containers.create(
-        {
-          type: 'COLLECTION',
-          parent_id: parentId,
-          name: name.trim(),
-          description: description.trim() === '' ? null : description.trim(),
-          ...lookBody(symbol, colour),
-          ...(preset === DESK ? { preset: 'TASKS' as const } : preset === SCRUM ? { preset: 'PROJECT' as const } : presetChoice(preset)),
-        },
-        crypto.randomUUID(),
-      );
-      if (preset === DESK && deskTypes.length > 0) {
+      const created = await containers.create(request.body, crypto.randomUUID());
+      if (request.isDesk && deskTypes.length > 0) {
         await containers.setStructure(created.id, { settings: { entry_types: { TASK: deskTypes } } }, created.version);
       }
       // It appears because the write invalidated the level and the engine re-read it. Nothing is
       // inserted into the sidebar or the list by hand.
       isOpen = false;
-      oncreated?.(created.id, preset === SCRUM ? `/collections/${created.id}/sprint` : undefined);
+      oncreated?.(created.id, request.landing(created.id));
     } catch (error) {
       const problem = error as TransportError;
       failure = renderProblem(problem, messages);
       isNameFailure =
         problem.detailCode === 'containers.name_taken' || failure.fields.has('/name');
+      if (isNameFailure) focusName();
     } finally {
       isSaving = false;
     }
@@ -164,42 +155,28 @@
     onclick: create,
   }}
 >
-  <div bind:this={body}>
-  <Stack gap="150">
+  <Stack gap="200">
     <!-- The name's label inside its box, as the concept's *New collection* draws it. -->
     <div class="name-field">
       <label class="name" data-invalid={nameError ? '' : undefined}>
         <span class="name-label">{t('app.workspace.name_inline')}</span>
-        <input type="text" bind:value={name} oninput={() => (isNameMissing = false)}
+        <input type="text" bind:this={nameInput} bind:value={name} autocomplete="off"
+          oninput={() => { isNameMissing = false; isNameFailure = false; }}
+          onkeydown={(event) => {
+            if (event.key === 'Enter' && !event.isComposing) {
+              event.preventDefault();
+              void create();
+            }
+          }}
           aria-invalid={nameError ? 'true' : undefined} aria-describedby={nameError ? nameErrorId : undefined} />
       </label>
-      {#if nameError}<p class="name-error" id={nameErrorId}>{nameError}</p>{/if}
+      {#if nameError}<p class="name-error" id={nameErrorId}><Icon name="circle-x" size="sm" /><span>{nameError}</span></p>{/if}
     </div>
-    {#if kinds.length > 0}
-      <div class="kinds" role="group" aria-label={t('app.structure.preset_at_creation')} data-collection-kinds>
-        {#each kinds as kind (kind.value)}
-          {@const isChosen = preset === kind.value}
-          <button type="button" class="kind" aria-pressed={isChosen} aria-labelledby="{kindsId}-{kind.value}" aria-describedby="{kindsId}-{kind.value}-about"
-            data-collection-kind={kind.value} onclick={() => (preset = isChosen ? '' : kind.value)}>
-            <span class="kind-name" id="{kindsId}-{kind.value}"><Icon name={kind.icon} size="sm" />{kind.label}</span>
-            <span class="kind-about" id="{kindsId}-{kind.value}-about">{kind.hint}</span>
-          </button>
-        {/each}
-        <button type="button" class="kind" aria-pressed={preset === DESK} aria-labelledby="{kindsId}-desk" aria-describedby="{kindsId}-desk-about"
-          aria-disabled={deskTypes.length > 0 ? undefined : 'true'} data-collection-kind={DESK}
-          onclick={() => { if (deskTypes.length > 0) preset = preset === DESK ? '' : DESK; }}>
-          <span class="kind-name" id="{kindsId}-desk"><Icon name="inbox" size="sm" />{t('app.workspace.kind_desk')}</span>
-          <span class="kind-about" id="{kindsId}-desk-about">{deskTypes.length > 0 ? t('app.workspace.kind_desk_about') : t('app.workspace.kind_desk_needs')}</span>
-        </button>
-      </div>
-      {#if preset === ''}<p class="follows" data-follows-hub>{t('app.workspace.kind_follows_hub')}</p>{/if}
-    {/if}
-    <!-- What only dresses the place waits folded below the choice of what it starts from (UX-4). -->
-    <Disclosure label={t('app.workspace.look_fold')} tone="quiet">
-      <Stack gap="150">
-        <Textarea label={t('app.workspace.description')} bind:value={description} />
-        <div data-look-fields><LookFields bind:symbol bind:colour /></div>
-      </Stack>
+    <ChoiceCards label={t('app.structure.preset_at_creation')} options={kinds} mark="tick" layout="grid" bind:value={kind} />
+    <LookFields bind:symbol bind:colour />
+    <!-- Folded, the one fold *Dialog M* allows: seven tiles and the look already fill it. -->
+    <Disclosure label={t('app.workspace.description')} tone="quiet">
+      <Textarea label={t('app.workspace.description')} bind:value={description} rows={2} />
     </Disclosure>
     <!-- Everything that is not about the name is a sentence above the buttons rather than a field
          error, because there is no field for it to land on. -->
@@ -207,8 +184,6 @@
       <p class="failure" role="alert">{failure.message}</p>
     {/if}
   </Stack>
-  </div>
-
 </Dialog>
 
 <style>
@@ -240,31 +215,6 @@
     font-weight: var(--fw-semibold);
     outline: none;
   }
-  .name-error { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
-  /* Three columns of small toggle cards: a mark and a name, a few words under it. */
-  .kinds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-100); }
-  .kind {
-    display: grid;
-    align-content: start;
-    gap: var(--sp-025);
-    padding: var(--sp-100) calc(var(--sp-100) + var(--sp-025));
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    color: var(--text-secondary);
-    font: inherit;
-    font-size: var(--fs-075);
-    text-align: start;
-    cursor: pointer;
-  }
-  .kind:hover { border-color: var(--border-strong); }
-  .kind:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
-  .kind[aria-pressed='true'] { border-color: var(--accent-primary); box-shadow: 0 0 0 var(--bw-ring) var(--accent-primary-subtle); }
-  .kind[aria-disabled='true'] { color: var(--text-subtle); cursor: not-allowed; }
-  .kind[aria-disabled='true'] .kind-name { color: var(--text-subtle); }
-  .kind[aria-disabled='true']:hover { border-color: var(--border-subtle); }
-  .kind-name { display: flex; align-items: center; gap: var(--sp-050); color: var(--text-primary); font-size: var(--fs-090); font-weight: var(--fw-semibold); }
-  .follows { margin: 0; color: var(--text-subtle); font-size: var(--fs-075); }
-  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
-  @media (width < 600px) { .kinds { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  /* The hub page's line under its name: the mark and the words. */
+  .name-error { display: flex; align-items: center; gap: var(--sp-050); margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
 </style>
