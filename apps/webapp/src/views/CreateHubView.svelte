@@ -362,8 +362,12 @@
           </label>
         {/each}
       </div>
-      <p class="count" hidden={isFiltered}>{t('app.workspace.hub_count_all', { count: starts.length, families: counts.length })}</p>
-      <p class="count" role="status" hidden={!isFiltered}>{isFiltered ? t('app.workspace.hub_count_found', { count: shown.count }) : ''}</p>
+      <!-- The status region is always there, empty until a filter: a region that appears already
+           filled is often not announced. -->
+      <div class="count">
+        <p hidden={isFiltered}>{t('app.workspace.hub_count_all', { count: starts.length, families: counts.length })}</p>
+        <p role="status">{isFiltered ? t('app.workspace.hub_count_found', { count: shown.count }) : ''}</p>
+      </div>
     {:else if isPrivateOnly}
       <p class="count">{t('app.workspace.hub_templates_need_structure')}</p>
     {/if}
@@ -620,7 +624,8 @@
   .family:has(input:focus-visible) { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 
   .count { margin: 0; color: var(--text-subtle); font-size: var(--fs-075); }
-  .count[hidden] { display: none; }
+  .count p { margin: 0; }
+  .count p[hidden] { display: none; }
 
   .scroll { overflow: auto; padding: 0 var(--sp-300) var(--sp-300); }
   .scroll :global([role='radiogroup'] > .group) { margin-block-start: var(--sp-200); }

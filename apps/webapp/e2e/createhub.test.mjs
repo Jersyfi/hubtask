@@ -349,6 +349,27 @@ test('chromium: Enter in the name while the plan is read waits for it, then asks
   assert.deepEqual(failures, []);
 });
 
+// The status region exists empty from the start and is filled by a filter, so a screen reader
+// hears the count as a change of a region it knows.
+test('chromium: the family count is a status region that exists empty and is filled on a filter', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, context } = await as(browser);
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/hubs/new`);
+  await main(page).getByRole('radio', { name: /^Kanban team/u }).waitFor({ timeout: 10_000 });
+  const region = main(page).getByRole('status');
+  assert.equal(await region.count(), 1, 'there is no status region before a filter');
+  const before = await region.evaluate((element) => ({ text: element.textContent, display: getComputedStyle(element).display, hidden: element.hidden }));
+  assert.equal(before.text, '', `the region is ${JSON.stringify(before)}`);
+  assert.notEqual(before.display, 'none', 'the region is not drawn, so it is not in the tree');
+  assert.equal(before.hidden, false);
+  const handle = await region.elementHandle();
+  await main(page).getByRole('searchbox', { name: 'Search templates' }).fill('kanban');
+  await page.waitForFunction((element) => element.isConnected && element.textContent.startsWith('1 template found'), handle, { timeout: 5_000 });
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: a missing name and a taken name land on the name field, which takes the focus', async (t) => {
   const browser = await sharedChromium(t);
   const { page, failures, context, made } = await as(browser, { taken: 'House' });
