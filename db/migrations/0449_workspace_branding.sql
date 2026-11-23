@@ -6,9 +6,9 @@
 -- and its media after it, so a key from that row to a picture could not be restored, and a reference
 -- inside `tenant.settings` would have no key and no count in the media reconciliation, which would
 -- remove the picture. Here each row names its picture by (tenant, media) and goes with it
--- (`ON DELETE CASCADE`): a replace-restore empties `media_object` before writing it back, and an
--- erasure removes the uploader's objects - both leave the workspace without that picture rather
--- than failing.
+-- (`ON DELETE CASCADE`): a replace-restore empties `media_object` before writing it back and leaves
+-- the workspace without that picture rather than failing. An erasure of the uploader spares a
+-- picture a row here names, as it spares an attachment.
 --
 -- Expand only and safe for a rolling update (rule 12): a new table a process of the previous release
 -- neither reads nor writes, and a usage check that only widens - an older process never stages the
