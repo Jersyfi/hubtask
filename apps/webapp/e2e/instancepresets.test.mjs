@@ -157,8 +157,9 @@ test('chromium: an operator creates, renames, starts again, makes default, locks
   await page.waitForTimeout(300);
   assert.deepEqual(written.filter((write) => write.path === `/admin/presets/${PRACTICE.id}`).at(-1)?.body, { is_default: false });
   // And Craft made the default again, for the withdrawal below.
+  const madeDefault = page.waitForRequest((request) => request.method() === 'PATCH' && request.url().endsWith(`/admin/presets/${CRAFT.id}`));
   await defaultSelect.selectOption(CRAFT.id);
-  await page.waitForTimeout(300);
+  await madeDefault;
   assert.deepEqual(written.filter((write) => write.path === `/admin/presets/${CRAFT.id}`).at(-1)?.body, { is_default: true });
 
   await page.keyboard.press('Escape');
