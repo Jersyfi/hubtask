@@ -110,6 +110,11 @@ test('a tile measures by its border, so its minimum height is the draft’s in a
   assert.match(card.slice(0, card.indexOf('}')), /box-sizing: border-box/);
 });
 
+test('the tick measures by its edge too, so its ring is the draft’s in any application', () => {
+  const tick = style.slice(style.indexOf('  .tick {'));
+  assert.match(tick.slice(0, tick.indexOf('}')), /box-sizing: border-box/);
+});
+
 test('a chosen tile under the pointer keeps its brand edge: the hover darkens only an unchosen one', () => {
   assert.match(style, /\.choices\[data-mark='tick'\] \.card:not\(:has\(\.native:checked\)\):hover \{ border-color: var\(--border-strong\); \}/);
   assert.doesNotMatch(style, /\.choices\[data-mark='tick'\] \.card:hover \{/);

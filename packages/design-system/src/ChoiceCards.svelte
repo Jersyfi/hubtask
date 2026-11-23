@@ -315,6 +315,7 @@
 
   /* An empty ring until chosen, then filled with the tick: a shape, not a hue. */
   .tick {
+    box-sizing: border-box;
     pointer-events: none;
     display: inline-flex;
     align-items: center;
