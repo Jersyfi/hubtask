@@ -80,7 +80,7 @@
   }
 
   async function trashBoard(board: Whiteboard) {
-    const done = await act(() => whiteboards.trash(board), t('app.whiteboards.trashed', { title: board.title }));
+    const done = await act(() => whiteboards.trash(board, { leaving: true }),t('app.whiteboards.trashed', { title: board.title }));
     if (done) onnavigate(boardsOf(board.hub_id));
   }
 

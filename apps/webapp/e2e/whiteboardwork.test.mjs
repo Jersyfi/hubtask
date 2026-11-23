@@ -346,6 +346,42 @@ test('chromium: the home draws the boards opened on this device first, else the 
   assert.deepEqual(failures, []);
 });
 
+// A board put in the trash from its own menu leaves for the hub's All contents, narrowed to the
+// boards, and is not read again: a read after the delete would find it gone and say so.
+for (const width of [1280, 390]) {
+  test(`chromium ${width} px: a board put in the trash from its menu leaves for All contents, never "not found"`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { page, context, failures } = await open(browser, { width, height: width < 768 ? 844 : 860 });
+    t.after(() => context.close());
+    const asked = [];
+    let isGone = false;
+    await context.route(`**/api/v1/whiteboards/${BOARD_ID}**`, (route) => {
+      const request = route.request();
+      if (isGone) asked.push(`${request.method()} ${new URL(request.url()).pathname.replace('/api/v1', '')}`);
+      if (request.method() === 'DELETE') {
+        isGone = true;
+        return route.fulfill({ json: board(ELEMENTS, { trashed_at: new Date().toISOString() }) });
+      }
+      if (isGone && request.method() === 'GET' && new URL(request.url()).pathname.endsWith(BOARD_ID)) {
+        return route.fulfill({ status: 404, contentType: 'application/problem+json', body: JSON.stringify({ type: 'about:blank', title: 'not found', status: 404, code: 'not_found', detail_code: 'whiteboards.not_found' }) });
+      }
+      return route.fallback();
+    });
+    const passed = [];
+    page.on('framenavigated', (frame) => frame === page.mainFrame() && passed.push(new URL(frame.url()).pathname));
+    await page.getByRole('application').locator('g.object').first().waitFor({ timeout: 20_000 });
+    await page.getByRole('button', { name: 'More on this board' }).click();
+    await page.getByRole('menuitem', { name: 'Put in the trash' }).click();
+    await page.getByText('“Retro” is in the trash.').first().waitFor({ timeout: 10_000 });
+    await page.waitForURL(`**/hubs/${HUB.id}/contents?kind=whiteboards`, { timeout: 10_000 });
+    await page.getByRole('heading', { name: 'All contents' }).first().waitFor({ timeout: 10_000 });
+    assert.equal(await page.getByText('The whiteboard was not found.').count(), 0, 'the board that went was shown as not found');
+    assert.ok(!passed.slice(1).includes(`/whiteboards/${BOARD_ID}`), `the board was opened again: ${passed.join(' → ')}`);
+    assert.deepEqual(asked.filter((each) => each.startsWith('GET')), [], 'the trashed board was asked for after its delete');
+    assert.deepEqual(failures, []);
+  });
+}
+
 test('chromium: a picture or file from the insert menu opens the platform\'s chooser, no file control drawn on the board', async (t) => {
   const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser);
