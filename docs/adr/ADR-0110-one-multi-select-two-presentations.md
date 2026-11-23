@@ -43,7 +43,10 @@ but nothing for a list whose length the data decides.
 ## Consequences
 
 Every hand-made tick row and checkbox loop moves to `MultiSelect` or stays `CheckboxGroup`, screen
-by screen. The people an entry is assigned to keep `AssigneeControl`, and its labels
+by screen, with two named exceptions: a token's verbs per area are boxes that can be half ticked,
+which neither draws; and a form's fields hidden on one way in (`EntryFormEditor`) stay boxes, each
+a sentence ("Hide Notes") whose tick adds that field's preset input below them - a closed field
+would put the choice behind a summary while the inputs it opened stand open beneath. The people an entry is assigned to keep `AssigneeControl`, and its labels
 `LabelPicker`; members or readers chosen from a list of people are `MultiSelect` (a page's readers
 need a lock on one person, which `AssigneeControl` has not). What a screen reader
 announces for a locked, selected option (`aria-disabled` with `aria-selected`) is not tested with

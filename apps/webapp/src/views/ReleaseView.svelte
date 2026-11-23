@@ -18,7 +18,7 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Button, Checkbox, Dialog, Icon, IconButton, Input, ObjectHead, ProgressBar, Select, Skeleton, Stack, StateLozenge, StatusButton, Textarea,
+    Button, Checkbox, Dialog, Icon, IconButton, Input, MultiSelect, ObjectHead, ProgressBar, Select, Skeleton, Stack, StateLozenge, StatusButton, Textarea,
     DataTable, WorkPage, lozengeLook, type DataColumn,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -37,6 +37,7 @@
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { formatDay, formatPlainDay } from '../lib/i18n/datetime.ts';
+  import { FROM_DATA, chooseSeveral } from '../lib/forms/chooseSeveral.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { todayIn } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -396,17 +397,11 @@
       {#if candidates.length === 0}
         <ProductEmpty kind="settled" title={t('app.releases.all_in')} />
       {:else}
-        <!-- A list to tick, not a table: a dialog holds one choice, and a table's sticky head
-             would stand over its first row. -->
-        <ul class="picks" aria-label={t('app.releases.candidates')} data-release-candidates>
-          {#each candidates as entry (entry.id)}
-            <li>
-              <Checkbox label={entry.title} checked={selected.includes(entry.id)}
-                onchange={(event: Event) => { const on = (event.currentTarget as HTMLInputElement).checked; selected = on ? [...selected, entry.id] : selected.filter((id) => id !== entry.id); }} />
-              <span class="quiet">{collectionName(entry.collection_id)}</span>
-            </li>
-          {/each}
-        </ul>
+        <!-- The entries come from data: one field with its own filter (design-system.md §4), each
+             entry's collection its line. -->
+        <MultiSelect label={t('app.releases.candidates')} presentation={FROM_DATA}
+          options={candidates.map((entry) => ({ value: entry.id, label: entry.title, hint: collectionName(entry.collection_id) }))}
+          {selected} onChange={(next) => (selected = [...next])} {...chooseSeveral()} />
       {/if}
       {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
     </Stack>
@@ -489,8 +484,6 @@
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .quiet code { padding-inline: var(--sp-050); border-radius: var(--r-sm); background: var(--bg-recess); color: var(--text-primary); font-family: var(--font-mono); overflow-wrap: anywhere; }
   .key { color: var(--text-secondary); font-family: var(--font-mono); font-size: var(--fs-090); }
-  .picks { display: flex; flex-direction: column; gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
-  .picks li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-150); }
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (width < 600px) {
     .layout { grid-template-columns: minmax(0, 1fr); }

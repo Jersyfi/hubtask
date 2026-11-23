@@ -309,3 +309,23 @@ test('chromium: a service account\'s token takes its scopes from one field insid
   assert.equal(mints.at(-1).body.account_id, SERVICE.id);
   assert.deepEqual(mints.at(-1).body.scopes, ['items:read', 'comments:write']);
 });
+
+// The configuration's parts a token may apply are the design system's ticks (design-system.md §4:
+// a fixed catalogue goes by its full size), one group named by its row; the part ticked is minted,
+// and the page then shows the token once.
+test('chromium: the parts of the configuration a token may apply are ticks, and the part ticked is minted', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, mints, close } = await open(browser, { operator: false, scopes: ['account:read', 'config:apply:structure', 'config:apply:fields'] });
+  t.after(close);
+  await page.goto(`${served.origin}/profile/tokens/new`);
+  await page.getByLabel(/^What it is for/).fill('Apply the structure');
+  await page.getByLabel(/^Expires/).fill(new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10));
+  await page.getByRole('button', { name: /^The configuration/u }).click();
+  const parts = page.getByRole('group', { name: 'Parts it may apply' });
+  await parts.waitFor({ timeout: 5_000 });
+  assert.equal(await parts.getByRole('checkbox').count(), 2, 'the parts are not two ticks');
+  await parts.getByRole('checkbox').first().check();
+  await page.getByRole('button', { name: 'Create the token' }).click();
+  await page.getByText('Your new token').first().waitFor({ timeout: 15_000 });
+  assert.deepEqual(mints.at(-1).body.scopes, ['config:apply:structure']);
+});
