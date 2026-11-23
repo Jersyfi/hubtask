@@ -1834,10 +1834,6 @@ func run() error {
 	backupRestorer.StepUp = stepUpVerifier
 	accessTokenWriter.StepUp = stepUpVerifier
 	workspaceWriter.StepUp = stepUpVerifier
-	// The workspace's own name and logo (ADR-0112), under the workspace's permission and rule.
-	workspaceBrander := identity.WorkspaceBrander{
-		Writer: workspaceWriter, Branding: postgres.WorkspaceBrandingRepository{}, Objects: mediaObjects,
-	}
 	identityProviderWriter.StepUp = stepUpVerifier
 
 	// The SCIM door a directory provisions through (UC-ID-28), and the LDAP synchronisation that
@@ -2021,6 +2017,13 @@ func run() error {
 		Hold:   postgres.NewConfigRepository(),
 		// A switch reaches the other devices as a change record (offline-sync.md §3.1).
 		Changes: changes, HLC: hybrid,
+	}
+	// A change of the workspace's name or look reaches the other devices as the same record
+	// (ADR-0112).
+	workspaceWriter.Announce = modules
+	// The workspace's own name and logo (ADR-0112), under the workspace's permission and rule.
+	workspaceBrander := identity.WorkspaceBrander{
+		Writer: workspaceWriter, Branding: postgres.WorkspaceBrandingRepository{}, Objects: mediaObjects,
 	}
 	// The configuration document (F-6): read and written through the registry it is part of, so
 	// every block it changes goes through the use case every other door reaches.

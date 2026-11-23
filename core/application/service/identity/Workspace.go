@@ -5,6 +5,7 @@ package identity
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -80,6 +81,32 @@ type WorkspaceWriter struct {
 	Starter StarterReader
 	// Address answers the main address and who may change it. Unwired, it is not answered.
 	Address WorkspaceAddressReader
+	// Announce tells every member's other devices that the workspace's name or look changed, in the
+	// change's own transaction (offline-sync.md §3.1). Nil tells nobody.
+	Announce WorkspaceAnnouncer
+}
+
+// WorkspaceAnnouncer writes the workspace's `setting` change record as it stands - its content
+// and its receivers unchanged (ADR-0108) - so that a device receiving it reads the workspace again
+// (ADR-0112). Declared here and answered by the settings context, which owns the record.
+type WorkspaceAnnouncer interface {
+	AnnounceWorkspace(ctx context.Context, actor appshared.ActorContext) error
+}
+
+// announce writes the record where one is wired.
+func (w WorkspaceWriter) announce(ctx context.Context, actor appshared.ActorContext) error {
+	if w.Announce == nil {
+		return nil
+	}
+	return w.Announce.AnnounceWorkspace(ctx, actor)
+}
+
+// showsDifferently reports whether a change moved what another device draws of the workspace: its
+// name, or whether it may show its own name and logo.
+func showsDifferently(moved []domain.FieldChange) bool {
+	return slices.ContainsFunc(moved, func(change domain.FieldChange) bool {
+		return change.Field == "display_name" || change.Field == string(domain.SwitchOwnBranding)
+	})
 }
 
 // StarterReader answers whether the first start's question is offered to the reader. Declared here
@@ -328,7 +355,13 @@ func (h UpdateWorkspace) Execute(
 		changed.UpdatedAt = now
 		changed.Version = expected + 1
 		answer = changed
-		return w.record(ctx, actor, moved, now)
+		if err := w.record(ctx, actor, moved, now); err != nil {
+			return err
+		}
+		if showsDifferently(moved) {
+			return w.announce(ctx, actor)
+		}
+		return nil
 	})
 	if err != nil {
 		return domain.Workspace{}, err

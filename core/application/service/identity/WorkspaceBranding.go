@@ -117,11 +117,12 @@ func brandingOutput(branding domain.Branding, allowed bool) usecase.Output {
 	}
 }
 
-// record writes one trail entry naming the fields that moved: identifiers and the choice only.
+// record writes one trail entry naming the fields that moved - identifiers and the choice only - and
+// tells the other devices that the workspace's look changed (ADR-0112).
 func (b WorkspaceBrander) record(
 	ctx context.Context, actor appshared.ActorContext, action audit.Action, now time.Time, changes ...audit.Change,
 ) error {
-	return b.Writer.Audit.Append(ctx, audit.Entry{
+	if err := b.Writer.Audit.Append(ctx, audit.Entry{
 		TenantID:   actor.TenantID,
 		OccurredAt: now,
 		Action:     action,
@@ -134,7 +135,10 @@ func (b WorkspaceBrander) record(
 		TargetID:   actor.TenantID,
 		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
 		Changes:    audit.Changes(changes...),
-	})
+	}); err != nil {
+		return err
+	}
+	return b.Writer.announce(ctx, actor)
 }
 
 // headerChange is the trail's line for a moved choice, nil where it did not move.
