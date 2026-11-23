@@ -115,6 +115,8 @@ for (const width of [1280, 390]) {
     const { page, failures, context } = await signedIn(browser, width, 900);
     t.after(() => context.close());
     let sent;
+    // The subscriptions as the server holds them after the write, not before (e2e/AGENTS.md).
+    const stored = [];
     await context.unroute('**/api/v1/**');
     await context.route('**/api/v1/**', async (route) => {
       const request = route.request();
@@ -122,9 +124,11 @@ for (const width of [1280, 390]) {
       if (url.pathname.endsWith('/meta/capabilities')) return route.fulfill({ json: { ...MANIFEST, event_types: EVENTS } });
       if (url.pathname.endsWith('/integrations/webhooks') && request.method() === 'POST') {
         sent = request.postDataJSON();
-        return route.fulfill({ status: 201, json: { ...SUBSCRIPTION, ...sent, id: '01a0e2e0-0000-7000-8000-000000001803', secret: 'whsec_e2e' } });
+        const made = { ...SUBSCRIPTION, ...sent, id: '01a0e2e0-0000-7000-8000-000000001803' };
+        stored.push(made);
+        return route.fulfill({ status: 201, json: { ...made, secret: 'whsec_e2e' } });
       }
-      if (url.pathname.endsWith('/integrations/webhooks')) return route.fulfill({ json: [] });
+      if (url.pathname.endsWith('/integrations/webhooks')) return route.fulfill({ json: stored });
       return stub(route);
     });
 
@@ -157,6 +161,9 @@ for (const width of [1280, 390]) {
     await dialog.getByRole('button', { name: 'Subscribe', exact: true }).last().click();
     await posted;
     assert.deepEqual(sent.event_types, [EVENTS[3], EVENTS[6]]);
+    // The screen after the write: the page read again lists the subscription with its address.
+    await page.reload();
+    await page.getByRole('main').getByText('https://example.org/hooks/each').first().waitFor({ timeout: 10_000 });
     assert.deepEqual(failures, []);
   });
 }

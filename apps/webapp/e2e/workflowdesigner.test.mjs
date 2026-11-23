@@ -77,6 +77,7 @@ for (const locale of ['en', 'de']) {
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     t.after(() => context.close());
     forgetUnstubbed();
+    let stored = FROM_TEMPLATE;
     await context.route('**/api/v1/**', async (route) => {
       const request = route.request();
       const url = new URL(request.url());
@@ -88,10 +89,12 @@ for (const locale of ['en', 'de']) {
         return route.fulfill({ json: { ...PAGE, data: rows, grantable_roles: [] } });
       }
       if (path === '/groups') return route.fulfill({ json: { ...PAGE, data: GROUPS } });
+      // The workflow as the server holds it after the write, not the one before (e2e/AGENTS.md).
       if (path === `/workflows/${FROM_TEMPLATE.key}` && request.method() === 'PATCH') {
-        return route.fulfill({ json: { ...FROM_TEMPLATE, draft: request.postDataJSON().shape, version: 2 } });
+        stored = { ...stored, draft: request.postDataJSON().shape, version: stored.version + 1 };
+        return route.fulfill({ json: stored });
       }
-      if (path === '/workflows') return route.fulfill({ json: { data: [SHIPPED, FROM_TEMPLATE], scheme: [] } });
+      if (path === '/workflows') return route.fulfill({ json: { data: [SHIPPED, stored], scheme: [] } });
       return stub(route);
     });
     await context.addInitScript(() => {
@@ -144,6 +147,16 @@ for (const locale of ['en', 'de']) {
     const step = (await sent).postDataJSON().shape.steps.find((each) => each.key === 'start');
     assert.deepEqual(step?.from, ['new', 'resolved']);
     assert.deepEqual(step?.who, { roles: ['OWNER', 'MEMBER'], groups: [GROUPS[1].id] });
+
+    // The screen after the write: the page read again opens the step with what was saved.
+    await page.reload();
+    await page.getByText('In progress').first().waitFor({ timeout: 15_000 });
+    await page.locator('button.press').filter({ hasText: 'In progress' }).last().click();
+    await dialog.locator('[data-step-dialog="start"]').waitFor({ timeout: 5_000 });
+    const whoAgain = dialog.getByRole('button', { name: new RegExp(`^${words.who}`, 'u') });
+    await whoAgain.locator('.chips:not(.measure) .chip').nth(2).waitFor({ timeout: 5_000 });
+    assert.deepEqual(await chipsOf(whoAgain), [words.owner, words.member, 'Night shift'], 'the saved draft does not carry who may take the step');
+    assert.equal(await dialog.getByRole('group', { name: words.from, exact: true }).getByRole('checkbox', { name: 'Resolved' }).isChecked(), true, 'the saved draft does not carry where it leaves from');
   });
 }
 

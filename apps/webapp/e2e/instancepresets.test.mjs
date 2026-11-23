@@ -48,6 +48,9 @@ async function openDefaults(browser, { manifest = MULTI, isEnforced = false, wid
   const context = await browser.newContext({ viewport: { width, height: 900 } });
   const written = [];
   const read = [];
+  // The presets as the server holds them after each write, so that a read after a write answers
+  // what was written (e2e/AGENTS.md, "No write asserted once"); one default at a time.
+  const stored = new Map([[CRAFT.id, CRAFT], [PRACTICE.id, PRACTICE]]);
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
@@ -59,14 +62,17 @@ async function openDefaults(browser, { manifest = MULTI, isEnforced = false, wid
     }
     if (path === '/meta/capabilities') return route.fulfill({ json: manifest });
     if (path === '/admin/settings' && method === 'GET') return route.fulfill({ json: level(isEnforced), headers: { ETag: '"1"' } });
-    if (path === '/admin/presets' && method === 'GET') return route.fulfill({ json: { data: [CRAFT, PRACTICE] } });
+    if (path === '/admin/presets' && method === 'GET') return route.fulfill({ json: { data: [...stored.values()] } });
     if (path === '/admin/presets' && method === 'POST') {
       const body = request.postDataJSON();
       return route.fulfill({ status: 201, json: { id: '01a0e2e0-0000-7000-8000-0000000028a9', name: body.name, version: 1, settings: PRESET_SETTINGS.LIST, is_default: false, locks: [] } });
     }
     if (path.startsWith('/admin/presets/') && method === 'PATCH') {
-      const target = path.endsWith(CRAFT.id) ? CRAFT : PRACTICE;
-      return route.fulfill({ json: { ...target, ...request.postDataJSON(), version: target.version + 1 } });
+      const target = stored.get(path.endsWith(CRAFT.id) ? CRAFT.id : PRACTICE.id);
+      const next = { ...target, ...request.postDataJSON(), version: target.version + 1 };
+      if (next.is_default) for (const [id, other] of stored) if (id !== next.id) stored.set(id, { ...other, is_default: false });
+      stored.set(next.id, next);
+      return route.fulfill({ json: next });
     }
     if (path.startsWith('/admin/presets/') && method === 'DELETE') return route.fulfill({ status: 204, body: '' });
     return stub(route);
@@ -136,15 +142,24 @@ test('chromium: an operator creates, renames, starts again, makes default, locks
   const locked = written.filter((write) => write.method === 'PATCH' && write.path === `/admin/presets/${CRAFT.id}`).at(-1);
   assert.deepEqual(locked?.body, { locks: ['views', 'celebration', 'fields.TASK.DUE_DATE'] });
   assert.equal(locked?.ifMatch, '"3"');
+  // The screen after the write: the presets read again draw the lock added.
+  await locks.locator('.chips:not(.measure) .chip').nth(1).waitFor({ timeout: 5_000 });
+  assert.deepEqual(await chipsOf(locks), ['Views', 'Success'], 'the lock written is not drawn after the read');
 
   // Check 3: another preset made the default; none made the default.
   const defaultSelect = defaults.getByLabel('New workspaces start from');
   await defaultSelect.selectOption(PRACTICE.id);
   await page.waitForTimeout(300);
   assert.deepEqual(written.filter((write) => write.path === `/admin/presets/${PRACTICE.id}`).at(-1)?.body, { is_default: true });
+  // The default is withdrawn from the preset that holds it now - Practice, once the read after the
+  // last write says so.
   await defaultSelect.selectOption('');
   await page.waitForTimeout(300);
-  assert.deepEqual(written.filter((write) => write.path === `/admin/presets/${CRAFT.id}`).at(-1)?.body, { is_default: false });
+  assert.deepEqual(written.filter((write) => write.path === `/admin/presets/${PRACTICE.id}`).at(-1)?.body, { is_default: false });
+  // And Craft made the default again, for the withdrawal below.
+  await defaultSelect.selectOption(CRAFT.id);
+  await page.waitForTimeout(300);
+  assert.deepEqual(written.filter((write) => write.path === `/admin/presets/${CRAFT.id}`).at(-1)?.body, { is_default: true });
 
   await page.keyboard.press('Escape');
   await defaults.waitFor({ state: 'hidden' });
@@ -163,7 +178,9 @@ test('chromium: an operator creates, renames, starts again, makes default, locks
   await page.waitForTimeout(300);
   const withdrawn = written.find((write) => write.method === 'DELETE' && write.path === `/admin/presets/${PRACTICE.id}`);
   assert.ok(withdrawn, 'the withdrawal was not sent');
-  assert.equal(withdrawn.ifMatch, '"1"');
+  // On the version read last: each write of Practice above raised it by one from 1.
+  const practiceWrites = written.filter((write) => write.method === 'PATCH' && write.path === `/admin/presets/${PRACTICE.id}`).length;
+  assert.equal(withdrawn.ifMatch, `"${PRACTICE.version + practiceWrites}"`);
   assert.deepEqual(failures, []);
 });
 
