@@ -210,6 +210,20 @@ test('chromium: Empty hub is chosen at opening and stays offered whatever is sea
   assert.deepEqual(failures, []);
 });
 
+// The samples tick says how many sample entries the template brings, as the draft draws it.
+test('chromium: the samples tick counts the sample entries the template brings', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, context } = await as(browser);
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/hubs/new`);
+  await main(page).getByRole('radio', { name: /^Kanban team/u }).check();
+  const tick = main(page).locator('[data-hub-summary]').getByRole('checkbox', { name: 'Add sample entries to try it (3)', exact: true });
+  await tick.waitFor({ timeout: 5_000 });
+  assert.equal(await tick.isChecked(), true);
+  assert.deepEqual(failures, []);
+});
+
 // UC-ID-16 check 9: the request that left carries the template and `private`, and the screen
 // lands in the hub, private.
 test('chromium: a template with Private on is made private in one request, and the page lands in the hub', async (t) => {

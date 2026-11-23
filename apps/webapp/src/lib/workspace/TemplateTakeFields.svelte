@@ -19,6 +19,7 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import TemplateCreates from '../settings/TemplateCreates.svelte';
+  import { createsOf } from './hubGallery.ts';
 
   interface Props {
     template: ConfigTemplate;
@@ -80,6 +81,7 @@
     mustAcknowledge = plan?.flags ? needsAcknowledge(plan.flags) : false;
   });
 
+  const sampleCount = $derived(createsOf(template).find((each) => each.part === 'samples')?.names.length ?? 0);
   const asksGroup = $derived(template.questions?.some((question) => question.kind === 'GROUP') ?? false);
   $effect(() => {
     if (!asksGroup) return;
@@ -151,7 +153,9 @@
 {/snippet}
 {#snippet samplesPart()}
 {#if samplesOffered}
-  <Checkbox label={t('app.templates.samples')} hint={t('app.templates.samples_hint')} checked={withSamples} data-template-samples
+  <!-- In a summary the tick says how many sample entries come, as the summary counts every part. -->
+  <Checkbox label={creates ? t('app.templates.samples_count', { count: sampleCount }) : t('app.templates.samples')}
+    hint={creates ? undefined : t('app.templates.samples_hint')} checked={withSamples} data-template-samples
     onchange={(event: Event) => (withSamples = (event.currentTarget as HTMLInputElement).checked)} />
 {/if}
 {/snippet}

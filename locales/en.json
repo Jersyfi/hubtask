@@ -5602,6 +5602,7 @@
   "app.templates.upgrade_about": "What the template changed since version {from}, against what this workspace changed itself. Tick what to take into version {to}.",
   "app.templates.upgrade_none": "The template changed nothing this workspace does not already have.",
   "app.templates.samples": "Add sample entries to try it",
+  "app.templates.samples_count": "Add sample entries to try it ({count})",
   "app.templates.samples_hint": "A few marked entries in the hub's first collection; one click removes them all.",
   "app.templates.samples_here": "{count, plural, one {# sample entry} other {# sample entries}} to try things on",
   "app.templates.samples_here_about": "They were added to try the way of working on. Removing them moves them into the trash; nothing else is touched.",

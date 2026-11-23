@@ -4792,6 +4792,7 @@
   "app.templates.upgrade_about": "Was die Vorlage seit Version {from} geändert hat, gegenüber dem, was dieser Arbeitsbereich selbst geändert hat. Hake an, was in Version {to} übernommen wird.",
   "app.templates.upgrade_none": "Die Vorlage hat nichts geändert, was dieser Arbeitsbereich nicht schon hat.",
   "app.templates.samples": "Beispieleinträge zum Ausprobieren hinzufügen",
+  "app.templates.samples_count": "Beispieleinträge zum Ausprobieren hinzufügen ({count})",
   "app.templates.samples_hint": "Ein paar markierte Einträge in der ersten Sammlung des Hubs; ein Klick entfernt sie alle.",
   "app.templates.samples_here": "{count, plural, one {# Beispieleintrag} other {# Beispieleinträge}} zum Ausprobieren",
   "app.templates.samples_here_about": "Sie wurden zum Ausprobieren der Arbeitsweise hinzugefügt. Entfernen verschiebt sie in den Papierkorb; sonst wird nichts angefasst.",
