@@ -39,6 +39,10 @@
   import { platform } from './lib/platform/index.ts';
   import { session } from './lib/session.svelte.ts';
   import { precacheByReach } from './lib/frame/precache.ts';
+  import { page } from './lib/frame/page.svelte.ts';
+  import { tab } from './lib/frame/tab.svelte.ts';
+  import { tabTitleOf } from './lib/frame/tabtitle.ts';
+  import { signInRules } from './lib/data/signinrules.svelte.ts';
   import { loadFrame, partLoaders, ruleViews, workViews } from './lib/frame/parts.ts';
   import { onceEach } from './lib/frame/once.ts';
   import { connectorReturnOf } from './lib/data/connectorreturn.ts';
@@ -387,6 +391,14 @@
   });
   const precache = precacheByReach(views, partLoaders());
   $effect(() => precache({ signedIn: session.isSignedIn, administration: reachesAdministrationArea() }));
+
+  // The tab's title, written here and nowhere else (UC-INS-22 check 9): the page's title and the
+  // workspace - the frame's while signed in, the sign-in rules' at a workspace's own address before
+  // that, none at the installation's own address.
+  $effect(() => {
+    const named = session.isSignedIn ? tab.workspace : deviceList.isHome ? undefined : signInRules.workspaceName;
+    document.title = tabTitleOf(page.title, named);
+  });
   $effect(() => {
     const accountId = liveAccountId;
     if (!accountId) return;

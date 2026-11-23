@@ -13,6 +13,7 @@
   import { roadmapRows } from '../lib/data/roadmap.ts';
   import { outsiderRows, roadmapTokenOf, sharedRoadmapPath } from '../lib/data/roadmaplink.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
   import { goalTone } from '../lib/goals/tone.ts';
   import { formatPlainDay } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -24,9 +25,8 @@
   const gone = $derived(token === '' || road?.state.status === 'failed');
   const rows = $derived(roadmap ? outsiderRows(roadmapRows(roadmap, t('app.roadmap.unseen_hub'))) : []);
 
-  $effect(() => {
-    document.title = roadmap ? t('app.roadmap.title_of', { portfolio: roadmap.name }) : t('app.roadmap.title');
-  });
+  // The tab's title is written in one place (`App.svelte`); the page tells it what it is called.
+  $effect(() => page.entitle(roadmap ? t('app.roadmap.title_of', { portfolio: roadmap.name }) : t('app.roadmap.title')));
 
   const dayLabel = (day: string | null | undefined) => formatPlainDay(day, messages.locale);
   const columns = $derived<DataColumn[]>([
