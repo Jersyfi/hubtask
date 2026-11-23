@@ -148,3 +148,25 @@ describe('the administration and the installation explain without breaking', { c
     }
   }
 });
+
+// Nothing is wider than the screen from the first frame on: a page's head folds before it is
+// drawn, not a frame after, when its primary would stand past the edge of a phone.
+test('chromium: 375 px — an installation page is never wider than the screen, not in its first frames', async (t) => {
+  const browser = await sharedChromium(t);
+  const { context, page, failures } = await as(browser, 375, PERMISSIONS.OWNER);
+  t.after(() => context.close());
+  await context.addInitScript(() => {
+    window.wider = [];
+    const frame = () => {
+      const width = document.documentElement.scrollWidth;
+      if (width > innerWidth + 1) window.wider.push(width);
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  });
+  await page.goto(`${served.origin}/instance/operators`);
+  await page.getByRole('button', { name: 'Add an operator' }).waitFor({ timeout: 15_000 });
+  await page.locator('header.head[data-folded]').waitFor({ state: 'attached', timeout: 15_000 });
+  assert.deepEqual(await page.evaluate(() => window.wider), [], 'a frame was wider than the screen');
+  assert.deepEqual(failures, []);
+});

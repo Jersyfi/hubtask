@@ -201,6 +201,9 @@
     const element = head;
     if (!element || typeof ResizeObserver === 'undefined') return;
     const medium = Number.parseFloat(getComputedStyle(element).getPropertyValue('--bp-medium'));
+    // Decided before the first frame is drawn: left to the observer, a phone drew the head unfolded,
+    // its primary past the screen's edge, for as many frames as a busy page took to deliver it.
+    if (Number.isFinite(medium)) isFolded = element.getBoundingClientRect().width < medium;
     // Folding changes the head's height, so it is answered in the next frame: changed within the
     // observer's own delivery, the observation is left undelivered, which WebKit throws.
     let frame = 0;
