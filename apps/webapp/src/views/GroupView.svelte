@@ -17,13 +17,12 @@
 
   import {
     Button,
-    CheckboxGroup,
     DataTable,
     Dialog,
     EmptyState,
+    MultiSelect,
     RecordPage,
     RoleBadge,
-    SearchField,
     Spinner,
     Stack,
     type DataColumn,
@@ -40,7 +39,6 @@
   import { roleLabel } from '../lib/people/rolewords.ts';
   import { DiscardGuard } from '../lib/page/discard.svelte.ts';
   import DiscardDialog from '../lib/page/DiscardDialog.svelte';
-  import { matchesSearch } from '../lib/page/list.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
@@ -49,6 +47,7 @@
   import { roles } from '../lib/data/roles.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
+  import { chooseSeveral } from '../lib/forms/chooseSeveral.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -123,9 +122,8 @@
     }
   }
 
-  // Add people: one list to pick from, with search - a Dialog L.
+  // Add people: one field to pick from, whose list filters itself - a Dialog L.
   let isAdding = $state(false);
-  let query = $state('');
   let picked = $state<readonly string[]>([]);
   let pickMissing = $state(false);
   const candidates = $derived(
@@ -134,13 +132,10 @@
       .filter((accountId) => !members.includes(accountId))
       .map((accountId) => ({ value: accountId, label: nameFor(accountId) })),
   );
-  // The candidates are the people this workspace already holds; the search narrows those.
-  const offered = $derived(candidates.filter((option) => picked.includes(option.value) || matchesSearch(query, [option.label])));
   const addGuard = new DiscardGuard(() => picked.length > 0, () => closeAdding());
 
   function closeAdding(): void {
     isAdding = false;
-    query = '';
     picked = [];
     pickMissing = false;
   }
@@ -272,21 +267,22 @@
     bind:isOpen={isAdding}
     dismissLabel={t('app.groups.cancel')}
     onDismiss={addGuard.dismiss}
-    onClose={() => { query = ''; picked = []; pickMissing = false; }}
+    onClose={() => { picked = []; pickMissing = false; }}
     primary={{ label: t('app.groups.add_picked', { count: String(picked.length) }), isBusy: isWriting, busyLabel: t('app.groups.working'), onclick: () => void addPicked() }}
   >
     <Stack gap="150">
       {#if failure}<FailureNote problem={failure} />{/if}
-      <SearchField label={t('app.groups.search_people')} clearLabel={t('app.page.clear_search')} bind:value={query} />
       {#if candidates.length === 0}
         <p class="quiet">{t('app.groups.nobody_to_add')}</p>
       {:else}
-        <CheckboxGroup
+        <!-- The people this workspace already holds; the field's own filter narrows them. -->
+        <MultiSelect
           label={t('app.groups.add_member')}
-          options={offered}
+          options={candidates}
           selected={picked}
           onChange={(next) => { picked = next; pickMissing = false; }}
           error={pickMissing ? t('app.groups.pick_first') : undefined}
+          {...chooseSeveral()}
         />
       {/if}
     </Stack>

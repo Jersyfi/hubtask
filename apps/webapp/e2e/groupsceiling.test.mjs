@@ -15,6 +15,7 @@ import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, OTHER, PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { chipsOf, focused, pick, valueOf } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const ADMIN_GRANTS = ['ADMIN', 'MEMBER', 'CONTRIBUTOR', 'VIEWER', 'GUEST', 'AUDITOR'];
@@ -121,3 +122,87 @@ test('a group above the reader keeps its name editable and nothing else, and say
   assert.equal((await memberMenu(page, OTHER.display_name)).includes('Take out'), false, 'a group above the reader offers Take out');
   assert.deepEqual(failures, [], 'the screen failed while drawing');
 });
+
+// Adding people to a group (design-system.md §4): the workspace's people are one field named by its
+// question, whose own filter narrows them - no second search beside it. Opened by the keyboard,
+// narrowed by typing, a name ticked, Escape closes the list and leaves the dialog open with focus
+// on the field, and the add writes the members with the people chosen. At 1280 in English and at
+// 390, where the list is a sheet over the dialog, in German.
+const NAMES = ['Ada Kern', 'Ben Ott', 'Clara Ruiz', 'Dana Wolf', 'Emil Haas', 'Frida Lang', 'Greta Sommer', 'Hugo Brandt'];
+const PEOPLE = NAMES.map((name, at) => ({ ...OTHER, id: `01a0e2e0-0000-7000-8000-0000000001${String(at).padStart(2, '0')}`, display_name: name }));
+for (const [width, locale] of [[1280, 'en'], [390, 'de']]) {
+  test(`chromium: the people to add to a group are one field with its own filter, at ${width} (${locale})`, async (t) => {
+    const browser = await sharedChromium(t);
+    const context = await browser.newContext({ viewport: { width, height: 900 } });
+    t.after(() => context.close());
+    const patches = [];
+    let members = [OTHER.id];
+    await context.route('**/api/v1/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      const path = url.pathname.replace(/^.*\/api\/v1/u, '');
+      if (path === '/accounts/me') return route.fulfill({ json: { ...ACCOUNT, locale } });
+      if (path === '/memberships' && url.searchParams.get('scope_type') === 'TENANT') {
+        return route.fulfill({ json: { ...PAGE, data: [
+          { id: 'm-owner', scope_type: 'TENANT', account_id: OTHER.id, role: 'OWNER' },
+          { id: 'm-me', scope_type: 'TENANT', account_id: ACCOUNT.id, role: 'ADMIN' },
+          ...PEOPLE.map((person) => ({ id: `m-${person.id}`, scope_type: 'TENANT', account_id: person.id, role: 'MEMBER' })),
+        ], grantable_roles: ADMIN_GRANTS } });
+      }
+      const person = PEOPLE.find((each) => path === `/accounts/${each.id}`);
+      if (person) return route.fulfill({ json: person });
+      if (path === `/accounts/${OTHER.id}`) return route.fulfill({ json: OTHER });
+      if (path === '/groups') return route.fulfill({ json: { ...PAGE, data: [HELPERS] } });
+      if (path === `/groups/${HELPERS.id}` && request.method() === 'PATCH') {
+        patches.push(request.postDataJSON());
+        members = request.postDataJSON().members;
+        return route.fulfill({ json: { ...HELPERS, members, members_changeable: true, version: 2 } });
+      }
+      if (path === `/groups/${HELPERS.id}`) return route.fulfill({ json: { ...HELPERS, members, members_changeable: true } });
+      return stub(route);
+    });
+    await context.addInitScript(() => {
+      sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+      sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+    });
+    const page = await context.newPage();
+    const words = locale === 'de'
+      ? { add: 'Personen hinzufügen', title: 'Personen zu Helpers hinzufügen', field: 'Jemanden hinzufügen', empty: 'Nichts gewählt', go: '2 Personen hinzufügen', filter: 'Liste filtern', done: 'Fertig' }
+      : { add: 'Add people', title: 'Add people to Helpers', field: 'Add somebody', empty: 'Nothing chosen', go: 'Add 2 people', filter: 'Filter the list', done: 'Done' };
+    await page.goto(`${served.origin}/administration/groups/${HELPERS.id}`);
+    if (locale === 'de') await page.waitForFunction(() => document.documentElement.lang === 'de', null, { timeout: 15_000 });
+    await page.getByRole('button', { name: words.add }).first().click({ timeout: 15_000 });
+    const dialog = page.getByRole('dialog', { name: words.title });
+    await dialog.waitFor({ timeout: 5_000 });
+
+    const field = dialog.getByRole('button', { name: new RegExp(`^${words.field}`, 'u') });
+    await field.waitFor({ timeout: 5_000 }).catch(() => {});
+    assert.equal(await field.count(), 1, 'the people to add are not one field');
+    assert.equal(await field.getAttribute('aria-haspopup'), 'listbox');
+    assert.equal(await dialog.getByRole('searchbox').count(), 0, 'a second search stands beside the field');
+    assert.equal(await valueOf(field), words.empty);
+
+    await field.focus();
+    await page.keyboard.press('Enter');
+    const list = page.getByRole('listbox', { name: words.field });
+    await list.waitFor({ timeout: 5_000 });
+    assert.equal(await list.getByRole('option').count(), NAMES.length + 1, 'everybody not yet a member is offered');
+    await page.getByRole('searchbox', { name: words.filter }).fill('wolf');
+    await list.getByRole('option').first().waitFor({ timeout: 5_000 });
+    assert.deepEqual(await list.getByRole('option').allTextContents().then((all) => all.map((each) => each.trim())), ['Dana Wolf']);
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await focused(page), 'option "Dana Wolf"', 'ArrowDown from the filter did not reach the option');
+    await page.keyboard.press('Space');
+    await page.keyboard.press('Escape');
+    await list.waitFor({ state: 'detached', timeout: 5_000 });
+    assert.equal(await dialog.isVisible(), true, 'Escape closed the dialog, not only the list');
+    assert.match(await focused(page), new RegExp(`^button "${words.field} `, 'u'), 'closing the list left focus elsewhere');
+    assert.deepEqual(await pick(page, field, ['Ada Kern']), ['Ada Kern', 'Dana Wolf']);
+    assert.deepEqual(await chipsOf(field), ['Ada Kern', 'Dana Wolf']);
+
+    await dialog.getByRole('button', { name: words.go }).click();
+    await dialog.waitFor({ state: 'detached', timeout: 5_000 });
+    assert.deepEqual(patches, [{ members: [OTHER.id, PEOPLE[3].id, PEOPLE[0].id] }], 'the members are not the group’s and then those chosen, in the order chosen');
+    await page.getByRole('main').getByRole('link', { name: 'Dana Wolf', exact: true }).waitFor({ timeout: 5_000 });
+  });
+}
