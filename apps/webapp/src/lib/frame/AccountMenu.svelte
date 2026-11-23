@@ -22,6 +22,8 @@
 
   import { t } from '../i18n/i18n.svelte.ts';
   import type { Destination } from '../navigation.ts';
+  import type { PictureSource } from '../workspace/branding.ts';
+  import WorkspaceSymbol from '../workspace/WorkspaceSymbol.svelte';
 
   interface Props {
     destinations: readonly Destination[];
@@ -44,6 +46,8 @@
      */
     workspaces?: readonly { readonly host: string; readonly name: string; readonly isHere: boolean }[];
     onworkspace?: (host: string) => void;
+    /** The current workspace's symbol, drawn on its row in the check's place; absent where it has none. */
+    hereSymbol?: PictureSource;
     onchoose: (id: string) => void;
     /** The sheet's trigger drawn as this mark instead of the avatar (the portal's phone bar, scene `portalext`). */
     sheetIcon?: IconName;
@@ -51,7 +55,10 @@
     extra?: Snippet<[close: () => void]>;
   }
 
-  let { destinations, name, email, picture, isSheet, isSheetOpen = $bindable(false), elsewhere, workspaces = [], onworkspace, onchoose, sheetIcon, extra }: Props = $props();
+  let { destinations, name, email, picture, isSheet, isSheetOpen = $bindable(false), elsewhere, workspaces = [], onworkspace, hereSymbol, onchoose, sheetIcon, extra }: Props = $props();
+
+  /** A symbol that failed to load: the check again, never a broken image. */
+  let failedSymbol = $state<PictureSource | undefined>(undefined);
 
   /**
    * The list in three bands: the places that are the reader's own, the ways through, and signing
@@ -109,8 +116,16 @@
       <h3 class="group-label">{t('app.nav.workspace_group')}</h3>
       <ul class="rows" data-workspaces>
         {#each workspaces as each (each.host)}
-          <NavItem label={each.name} icon={each.isHere ? 'check' : 'hub'} isCurrent={each.isHere} size="touch"
-            onnavigate={() => { isSheetOpen = false; if (!each.isHere) onworkspace?.(each.host); }} />
+          {#if each.isHere && hereSymbol !== undefined && hereSymbol !== failedSymbol}
+            <!-- The current workspace's own symbol in the check's place; the surface and
+                 `aria-current` say it is the current one (UC-INS-22 check 6). -->
+            <NavItem label={each.name} isCurrent size="touch" onnavigate={() => (isSheetOpen = false)}>
+              {#snippet mark()}<WorkspaceSymbol name={each.name} source={hereSymbol} size="nav" onfail={() => (failedSymbol = hereSymbol)} />{/snippet}
+            </NavItem>
+          {:else}
+            <NavItem label={each.name} icon={each.isHere ? 'check' : 'hub'} isCurrent={each.isHere} size="touch"
+              onnavigate={() => { isSheetOpen = false; if (!each.isHere) onworkspace?.(each.host); }} />
+          {/if}
         {/each}
         {#if items.some((item) => item.id === 'add-workspace')}
           <NavItem label={t('app.app_workspaces.add')} icon="plus" size="touch" onnavigate={() => choose('add-workspace')} />

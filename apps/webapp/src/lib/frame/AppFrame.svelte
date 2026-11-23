@@ -103,6 +103,9 @@
   import { aiAnsweringOf, aiColumnFigure } from '../data/aianswering.ts';
   import type { CalendarPushList } from '@hubtask/sync-engine';
   import { workspace } from '../data/workspace.svelte.ts';
+  import { workspaceLook } from '../data/workspacelook.svelte.ts';
+  import WorkspaceMark from '../workspace/WorkspaceMark.svelte';
+  import { tab } from './tab.svelte.ts';
   import { aiObjection } from '../data/aiobjection.svelte.ts';
   import { addressNotices } from '../data/addressnotices.svelte.ts';
   import type { Resolution } from '../router.ts';
@@ -295,6 +298,15 @@
   // Whoever holds READ nowhere gets the portal's frame alone (PO-2, E-13): no sidebar, Today,
   // search over Hubtask or *Erstellen*. Decided by what the server answers on the account.
   const isOutside = $derived(session.isSignedIn && isOutsider(actor.hasNoAccess, actor.portals));
+  // The workspace, for its name and look in the header, the switcher and the tab (UC-INS-22
+  // checks 5, 6 and 9). The portal's frame draws neither, so an outsider is not asked to read it.
+  $effect(() => {
+    if (!session.isSignedIn || isOutside) return;
+    return untrack(() => workspace.open());
+  });
+  $effect(() => tab.name(isOutside ? undefined : workspaceLook.name));
+  const shownLook = $derived(workspaceLook.shown);
+  const shownPictures = $derived(workspaceLook.sourcesOf(shownLook.ids));
   // The global shortcuts, while somebody is signed in: `⌘K`/`Ctrl K` and `/` open the palette from
   // every framed page (UC-WRK-27 check 1). Which press is which is `lib/shortcuts.ts`'s.
   $effect(() => {
@@ -817,7 +829,7 @@
     <PhoneBar label={t('app.nav.bar')} title={page.title} back={phoneBack} onback={back} star={phoneStar} menu={page.menu}>
       {#snippet account()}
         <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet bind:isSheetOpen={isAccountOpen} {elsewhere}
-          workspaces={phoneWorkspaces} onworkspace={(host) => deviceList.open(host)} onchoose={chooseAccount} />
+          workspaces={phoneWorkspaces} hereSymbol={shownPictures.SYMBOL} onworkspace={(host) => deviceList.open(host)} onchoose={chooseAccount} />
       {/snippet}
       {#snippet marks()}
         <NoticeMark onnavigate={go} />
@@ -837,8 +849,15 @@
         : { kind: 'rail', label: isRail ? t('app.nav.expand') : t('app.nav.collapse'), isExpanded: !isRail, onToggle: toggleRail }}
   >
     {#snippet brand()}
-      <!-- A name rather than a message: the product is called Hubtask in every language. -->
-      <a class="home" href="/"><Logo size="md" wordmark="Hubtask" /></a>
+      <!-- One link, one name: the product's or the workspace's, as the workspace chose (G8). -->
+      <a class="home" href="/">
+        {#if session.isSignedIn && !isOutside}
+          <WorkspaceMark name={workspaceLook.name} header={shownLook.header} pictures={shownPictures} isKnown={workspaceLook.isRead} />
+        {:else}
+          <!-- A name rather than a message: the product is called Hubtask in every language. -->
+          <Logo size="md" wordmark="Hubtask" />
+        {/if}
+      </a>
     {/snippet}
     {#snippet menu()}
       <!-- The page's own menu, at the end of the compact bar (ADR-0061 decision 1's table). The
@@ -1156,8 +1175,11 @@
 
   .seek-word { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-inline-size: 0; }
 
+  /* The mark's box decides the link's: the focus ring fits it, and a long name is cut inside it. */
   .home {
     display: inline-flex;
+    align-items: center;
+    min-inline-size: 0;
     color: var(--text-primary);
     text-decoration: none;
   }

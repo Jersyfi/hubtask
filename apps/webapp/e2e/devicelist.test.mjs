@@ -19,7 +19,7 @@ import { join, dirname } from 'node:path';
 
 import { sharedChromium } from './browser.mjs';
 
-import { MANIFEST, signedIn, stub } from './fixture.mjs';
+import { ACCOUNT, MANIFEST, WORKSPACE, signedIn, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -31,6 +31,9 @@ const PORT = new URL(served.origin).port;
 const INSTALLATION = `http://localhost:${PORT}`;
 const at = (host) => `http://${host}:${PORT}`;
 const NAMES = { 'acme.localhost': 'Acme Ltd', 'north.localhost': 'Northwind Studio', 'meier.localhost': 'Meier family' };
+/** A workspace's square symbol, one pixel of PNG. */
+const SYMBOL_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+const NORTH_SYMBOL = '01a0e2e0-0000-7000-8000-00000000b0a1';
 
 /** An entry as the installation signs it; `forged` carries a tag the stub does not recognise. */
 function entryFor(host, { forged = false } = {}) {
@@ -62,7 +65,7 @@ const SIGNED_IN = {
  * A browser of the installation. `main` holds the hosts that are a workspace's main address now;
  * `asked` records the entry reads and the checks.
  */
-async function device(browser, { main = ['acme.localhost', 'north.localhost'], manifest = MULTI, width = 1280 } = {}) {
+async function device(browser, { main = ['acme.localhost', 'north.localhost'], manifest = MULTI, width = 1280, symbols = {} } = {}) {
   const context = await browser.newContext({ viewport: { width, height: 900 } });
   const asked = { entries: [], checks: [] };
   await context.route('**/api/v1/**', (route) => {
@@ -70,6 +73,18 @@ async function device(browser, { main = ['acme.localhost', 'north.localhost'], m
     const url = new URL(request.url());
     const path = url.pathname.replace(/^.*\/api\/v1/, '');
     if (path === '/meta/capabilities') return route.fulfill({ json: manifest });
+    // A workspace with a symbol of its own (UC-INS-22 check 6): its answer, its record, its bytes.
+    const symbol = symbols[url.hostname];
+    if (symbol && path === '/tenant' && request.method() === 'GET') {
+      return route.fulfill({ json: { ...WORKSPACE, display_name: NAMES[url.hostname], branding: { header: 'PRODUCT', logo_light_media_id: null, logo_dark_media_id: null, symbol_media_id: symbol, allowed: true } } });
+    }
+    if (symbol && path === `/media/${symbol}`) {
+      return route.fulfill({ json: {
+        id: symbol, usage: 'WORKSPACE_LOGO', content_type: 'image/png', size: SYMBOL_PNG.length, ref_count: 1, status: 'READY', created_by: ACCOUNT.id, created_at: '2026-11-23T10:00:00Z',
+        download: { url: `${at(url.hostname)}/api/v1/media/${symbol}:content`, method: 'GET', expires_at: '2099-01-01T00:00:00Z' },
+      } });
+    }
+    if (symbol && path === `/media/${symbol}:content`) return route.fulfill({ status: 200, contentType: 'image/png', body: SYMBOL_PNG });
     if (path === '/auth/sign-in-rules') return route.fulfill({ json: RULES(url.hostname) });
     if (path === '/auth/sessions' && request.method() === 'POST') return route.fulfill({ status: 201, json: SIGNED_IN });
     if (path === '/tenant/device-list-entry') {
@@ -164,6 +179,36 @@ test('chromium: on a phone the account sheet lists the workspaces, and one tappe
   assert.equal(await sheet.getByRole('button', { name: 'Switch workspace' }).count(), 0, 'the switch is a row besides the list');
   await listed.getByText('Acme Ltd').click();
   await north.page.waitForURL((url) => url.host === `acme.localhost:${PORT}`, { timeout: 10_000 });
+});
+
+// UC-INS-22 check 6: the current workspace's row shows its own symbol - in *Switch workspace* and in
+// the phone's sheet, in the check's place there; the others keep their letters, since the device's
+// list holds only each workspace's address and name (O4).
+test('chromium: the current workspace\'s row shows its symbol, the others their letters (UC-INS-22 check 6)', async (t) => {
+  const browser = await sharedChromium(t);
+  const wide = await device(browser, { symbols: { 'north.localhost': NORTH_SYMBOL } });
+  t.after(() => wide.context.close());
+  await signInAt(wide.context, 'acme.localhost');
+  const north = await signInAt(wide.context, 'north.localhost');
+  const dialog = await openSwitch(north.page);
+  const here = dialog.getByRole('listitem').filter({ hasText: 'Northwind Studio' });
+  await here.locator('img').waitFor({ timeout: 10_000 });
+  await north.page.waitForFunction(() => [...document.querySelectorAll('dialog[open] li img')].every((each) => each.naturalWidth > 0));
+  assert.match((await here.locator('img').getAttribute('src')) ?? '', new RegExp(`/media/${NORTH_SYMBOL}:content`));
+  const other = dialog.getByRole('listitem').filter({ hasText: 'Acme Ltd' });
+  assert.equal(await other.locator('img').count(), 0, 'another workspace drew a picture');
+  assert.match(await other.innerText(), /^AL\b/);
+
+  const phone = await device(browser, { width: 390, symbols: { 'north.localhost': NORTH_SYMBOL } });
+  t.after(() => phone.context.close());
+  await signInAt(phone.context, 'acme.localhost');
+  const small = await signInAt(phone.context, 'north.localhost');
+  await small.page.locator('[data-phone-bar] button.account').click();
+  const listed = small.page.getByRole('dialog', { name: 'You' }).locator('[data-workspaces]');
+  const current = listed.locator('[aria-current="page"]');
+  await current.locator('img').waitFor({ timeout: 10_000 });
+  assert.equal((await current.innerText()).trim(), 'Northwind Studio');
+  assert.equal(await listed.locator('img').count(), 1, 'another row drew a picture');
 });
 
 test('chromium: forgetting takes the workspace off the menu at once and off the installation\'s address (checks 3, 4)', async (t) => {

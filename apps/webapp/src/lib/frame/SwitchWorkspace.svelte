@@ -11,6 +11,7 @@
   import { Dialog, Drawer, Stack } from '@hubtask/design-system/components';
 
   import { deviceList } from '../data/devicelist.svelte.ts';
+  import { workspaceLook } from '../data/workspacelook.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
   import WorkspaceList from './WorkspaceList.svelte';
 
@@ -34,6 +35,7 @@
       <WorkspaceList
         rows={deviceList.rows}
         here={location.hostname}
+        hereSymbol={workspaceLook.sourcesOf(workspaceLook.shown.ids).SYMBOL}
         onopen={(host) => deviceList.open(host)}
         onforget={(host) => void deviceList.forget(host)}
       />
