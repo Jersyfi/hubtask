@@ -290,6 +290,12 @@ export class Router {
     };
     window.addEventListener('popstate', onPopState);
     document.addEventListener('click', onClick);
+    // A load - a reload - on a held step's entry: no step is open, so the entry holds nothing, and
+    // the first back would stay on the same address. Stepping back off it drops it.
+    if ((history.state as { isHeld?: unknown } | null)?.isHeld === true) {
+      this.#ownBacks += 1;
+      history.back();
+    }
     return () => {
       window.removeEventListener('popstate', onPopState);
       document.removeEventListener('click', onClick);

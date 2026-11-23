@@ -698,6 +698,27 @@ test('chromium: 390 × 844 - Tab walks the details in the draft\'s order, from �
   assert.deepEqual(failures, []);
 });
 
+// The step is no route: a reload drops it, and with it the entry that held it, so the first back
+// after the reload leaves the page as it would have without the step.
+test('chromium: 390 × 844 - a reload with the step open drops its entry; the first back leaves the page', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, context } = await as(browser, { width: 390, height: 844, hasTouch: true });
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/`);
+  await page.goto(`${served.origin}/hubs/new`);
+  await main(page).getByRole('button', { name: 'Choose a template', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Choose a template' }).waitFor({ timeout: 5_000 });
+  assert.equal(await page.evaluate(() => history.state?.isHeld), true, 'the step holds no entry');
+  await page.reload();
+  await nameField(page).waitFor({ timeout: 10_000 });
+  await page.waitForFunction(() => history.state?.isHeld !== true, null, { timeout: 5_000 });
+  assert.equal(await page.getByRole('dialog', { name: 'Choose a template' }).count(), 0, 'the step came back after the reload');
+  await page.goBack();
+  await page.waitForURL(`${served.origin}/`, { timeout: 10_000 });
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: the phone in German', async (t) => {
   const browser = await sharedChromium(t);
   const { page, failures, context } = await as(browser, { width: 390, height: 844, locale: 'de' });

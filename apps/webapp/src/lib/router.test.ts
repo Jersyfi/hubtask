@@ -206,3 +206,25 @@ test('a step closed another way takes its entry out, so the next back leaves the
   assert.deepEqual(seen, ['/containers/new-hub', '/hubs'], 'back did not leave the screen');
   stop();
 });
+
+test('a reload on a held step drops its entry, so the first back leaves the screen', async () => {
+  const session = sessionHistory('/hubs');
+  const before = new Router(routes, '/hubs', {});
+  const stopBefore = before.start();
+  before.navigate('/containers/new-hub');
+  before.hold(() => {});
+  stopBefore();
+
+  // The reload: a new router on the same history, standing on the held entry; no step is open.
+  const router = new Router(routes, '/containers/new-hub', {});
+  const stop = router.start();
+  await settle();
+  assert.equal((session.history.state as { isHeld?: boolean } | null)?.isHeld, undefined, 'the held entry outlived the reload');
+  const seen: string[] = [];
+  router.subscribe((resolution) => seen.push(resolution.path));
+
+  session.history.back();
+  await settle();
+  assert.deepEqual(seen, ['/containers/new-hub', '/hubs'], 'the first back after the reload did not leave the screen');
+  stop();
+});
