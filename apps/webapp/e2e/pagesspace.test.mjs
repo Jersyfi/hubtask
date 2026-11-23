@@ -464,7 +464,7 @@ for (const [width, locale] of [[1280, 'en'], [390, 'de']]) {
         if (reader) return route.fulfill({ json: { ...ACCOUNT, ...reader } });
         if (path === `/pages/${HOME.id}:restrict`) {
           written.push({ method: 'POST', path, body: route.request().postDataJSON() });
-          return route.fulfill({ json: { ...HOME, restricted: true, ancestors: [], writable: true, shared: false } });
+          return route.fulfill({ json: { ...HOME, restricted: true } });
         }
         return route.fallback();
       });
@@ -565,7 +565,7 @@ test('the readers go by name, two of one name told apart by their address, at 12
       if (reader) return route.fulfill({ json: { id: reader.id, kind: 'USER', display_name: reader.display_name, status: 'ACTIVE' } });
       if (path === `/pages/${HOME.id}:restrict`) {
         written.push({ method: 'POST', path, body: request.postDataJSON() });
-        return route.fulfill({ json: { ...HOME, restricted: true, ancestors: [], writable: true, shared: false } });
+        return route.fulfill({ json: { ...HOME, restricted: true } });
       }
       return route.fallback();
     });
