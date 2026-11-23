@@ -1108,17 +1108,17 @@ test('chromium: the fields an update waits for are one field, chosen by the keyb
   await page.keyboard.press('Enter');
   const list = page.getByRole('listbox', { name: 'Only when one of these changed' });
   await list.waitFor({ timeout: 5_000 });
-  assert.equal(await focused(page), 'option "title"', 'Enter did not land on the first option');
+  assert.equal(await focused(page), 'option "Title"', 'Enter did not land on the first option');
   await page.keyboard.press('Space');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
-  assert.equal(await focused(page), 'option "due at"');
+  assert.equal(await focused(page), 'option "Due date"', 'a changed field is named by its wire name');
   await page.keyboard.press('Space');
-  assert.equal(await list.getByRole('option', { name: 'due at' }).getAttribute('aria-selected'), 'true');
+  assert.equal(await list.getByRole('option', { name: 'Due date' }).getAttribute('aria-selected'), 'true');
   await page.keyboard.press('Escape');
   await list.waitFor({ state: 'detached', timeout: 5_000 });
   assert.match(await focused(page), /^button "Only when one of these changed /u, 'closing the list left focus elsewhere');
-  assert.deepEqual(await chipsOf(field), ['title', 'due at']);
+  assert.deepEqual(await chipsOf(field), ['Title', 'Due date']);
 
   const sent = page.waitForRequest((request) => request.method() === 'PATCH' && request.url().endsWith(`/automation/rules/${RULE.id}`));
   await page.getByRole('button', { name: 'Save the rule' }).click();

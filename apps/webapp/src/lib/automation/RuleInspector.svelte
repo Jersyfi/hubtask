@@ -12,6 +12,7 @@
   import type { QueryKey } from '@hubtask/query';
   import QueryStrip from '../entries/QueryStrip.svelte';
   import { chooseSeveral } from '../forms/chooseSeveral.ts';
+  import { CHANGED_FIELDS } from './changedFields.ts';
   import FrequencyPicker from '../forms/FrequencyPicker.svelte';
   import ZonePicker from '../forms/ZonePicker.svelte';
 
@@ -95,7 +96,6 @@
 
   const words = { t, has: (code: string) => messages.has(code) };
 
-  const CHANGED_FIELDS = ['title', 'notes', 'due_at', 'start_at', 'assignee_id', 'bucket_id', 'parent_id', 'completed'];
 
   const composerChoices = $derived({
     types: itemTypes,
@@ -270,7 +270,7 @@
         <MultiSelect
           label={t('app.flow.changed_fields')}
           hint={t('app.flow.changed_fields_hint')}
-          options={CHANGED_FIELDS.map((field) => ({ value: field, label: field.replace(/_/g, ' ') }))}
+          options={Object.entries(CHANGED_FIELDS).map(([field, code]) => ({ value: field, label: t(code) }))}
           selected={draft.trigger.changed_fields ?? []}
           onChange={(changed_fields) => onupdate((current) => ({ ...current, trigger: { ...current.trigger, changed_fields: [...changed_fields] } }))}
           {...chooseSeveral()}
