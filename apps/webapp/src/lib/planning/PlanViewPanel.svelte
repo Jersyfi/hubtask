@@ -6,9 +6,10 @@
   // view as in every collection - the collections' pane: beside the plan from `expanded`, a drawer
   // below it, a sheet on a phone. Tolerance and baselines stay under ⋯ › plan settings.
   // It holds no plan of its own: `setup` is the caller's.
-  import { Button, Checkbox, Drawer, Input, QueryLine, Select, Sheet, Switch, lineText, type QueryToken } from '@hubtask/design-system/components';
+  import { Button, Drawer, Input, MultiSelect, QueryLine, Select, Sheet, Switch, lineText, type QueryToken } from '@hubtask/design-system/components';
   import { createCatalogue, type QueryKey } from '@hubtask/query';
 
+  import { chooseSeveral } from '../forms/chooseSeveral.ts';
   import { t } from '../i18n/i18n.svelte.ts';
   import { viewport } from '../frame/viewport.svelte.ts';
   import { language, wording } from '../entries/viewLanguage.ts';
@@ -78,10 +79,6 @@
     }
     isNameMissing = false;
     onsave(name.trim(), scope, sharing);
-  }
-  function toggleColumn(id: string, isOn: boolean) {
-    const next = isOn ? [...setup.columns, id] : setup.columns.filter((each) => each !== id);
-    setup = { ...setup, columns: PLAN_COLUMNS.filter((each) => next.includes(each)) };
   }
   const reset = () => (setup = { ...base });
   const isGantt = $derived(setup.presentation === 'gantt');
@@ -167,14 +164,14 @@
     <section aria-labelledby="planview-columns">
       <h3 id="planview-columns">{t('app.planview.columns')}</h3>
       {#if !isGantt}<p class="quiet">{t('app.planview.columns_gantt')}</p>{/if}
-      <ul class="fields">
-        {#each PLAN_COLUMNS as column (column)}
-          <li>
-            <Checkbox label={t(`app.planview.col_${column}`)} checked={setup.columns.includes(column)} onchange={(event: Event) => toggleColumn(column, (event.currentTarget as HTMLInputElement).checked)} />
-            {#if column === 'slip'}<span class="quiet">{t('app.planview.with_baseline')}</span>{/if}
-          </li>
-        {/each}
-      </ul>
+      <MultiSelect
+        label={t('app.planview.columns')}
+        aria-labelledby="planview-columns"
+        options={PLAN_COLUMNS.map((column) => ({ value: column, label: t(`app.planview.col_${column}`), hint: column === 'slip' ? t('app.planview.with_baseline') : undefined }))}
+        selected={setup.columns}
+        onChange={(next) => (setup = { ...setup, columns: PLAN_COLUMNS.filter((each) => next.includes(each)) })}
+        {...chooseSeveral()}
+      />
     </section>
 
     {/if}
@@ -225,8 +222,6 @@
   .segments { display: inline-flex; align-self: flex-start; padding: var(--sp-025); border-radius: var(--r-md); overflow: hidden; background: var(--bg-recess); }
   .segments button { min-block-size: var(--layout-target); padding-inline: var(--sp-200); font-size: var(--fs-075); color: var(--text-secondary); background: transparent; border: none; border-radius: var(--r-sm); cursor: pointer; }
   .segments button[aria-pressed='true'] { color: var(--text-primary); background: var(--bg-surface); font-weight: var(--fw-semibold); }
-  .fields { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-050); }
-  .fields li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); }
   .save[data-changed] { background: var(--accent-primary-subtle); border-radius: var(--r-md); padding: var(--sp-200); border: none; }
   .dot { inline-size: var(--sp-100); block-size: var(--sp-100); border-radius: var(--r-full); background: var(--accent-primary); }
   .acts { display: flex; flex-wrap: wrap; gap: var(--sp-100); }

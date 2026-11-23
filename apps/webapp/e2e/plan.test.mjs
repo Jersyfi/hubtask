@@ -15,6 +15,7 @@ import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { COLLECTION, MANIFEST, ITEMS, signedIn, stub } from './fixture.mjs';
+import { chipsOf, describedBy, focused } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -324,6 +325,25 @@ test('chromium: 1280 px — the Gantt and the light timeline are one tab, and th
   assert.equal((await page.locator('[data-plan-view-open]').first().textContent()).trim(), 'View · 1');
   await page.locator('[data-plan-view-open]').first().click();
   const panel = page.locator('[data-plan-view-panel]');
+  // The six outline columns are one field (design-system.md §4): named by the section's heading, it
+  // says what is shown, opens its list from the keyboard, a tick adds a column where it belongs,
+  // and Escape closes the list onto the field.
+  const columns = panel.getByRole('button', { name: /^Columns on the left/u });
+  assert.equal(await columns.getAttribute('aria-haspopup'), 'listbox', 'the columns are not one field');
+  assert.deepEqual(await chipsOf(columns), ['Start', 'End', 'Working days', 'Assignee']);
+  await columns.focus();
+  await page.keyboard.press('Enter');
+  const list = page.getByRole('listbox', { name: 'Columns on the left' });
+  await list.waitFor({ timeout: 5_000 });
+  const slip = list.getByRole('option', { name: 'Slip (days)', exact: true });
+  assert.equal(await describedBy(slip), 'with a baseline');
+  await slip.click();
+  assert.equal(await slip.getAttribute('aria-selected'), 'true');
+  await page.keyboard.press('Escape');
+  await list.waitFor({ state: 'detached', timeout: 5_000 });
+  assert.match(await focused(page), /^button "Columns on the left /u, 'closing the list left focus elsewhere');
+  assert.equal(await panel.count(), 1, 'Escape on the list closed the panel');
+  assert.deepEqual(await chipsOf(columns), ['Start', 'End', 'Working days', 'Assignee', 'Slip (days)']);
   await panel.getByLabel('Name').fill('Light');
   await panel.locator('[data-plan-view-save]').click();
   await page.waitForTimeout(300);
@@ -331,6 +351,7 @@ test('chromium: 1280 px — the Gantt and the light timeline are one tab, and th
   assert.equal(saved?.body?.layout, 'TIMELINE');
   assert.equal(saved?.body?.name, 'Light');
   assert.equal(saved?.body?.grouping?.plan?.presentation, 'timeline', `saved ${JSON.stringify(saved?.body)}`);
+  assert.deepEqual(saved?.body?.visible_fields, ['start', 'finish', 'duration', 'assignee', 'slip'], `saved ${JSON.stringify(saved?.body)}`);
 
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
