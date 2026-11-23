@@ -7281,11 +7281,12 @@ func (e MediaObjectStatus) Valid() bool {
 
 // Defines values for MediaObjectUsage.
 const (
-	MediaObjectUsageATTACHMENT MediaObjectUsage = "ATTACHMENT"
-	MediaObjectUsageAVATAR     MediaObjectUsage = "AVATAR"
-	MediaObjectUsageCOVER      MediaObjectUsage = "COVER"
-	MediaObjectUsageDESKLOGO   MediaObjectUsage = "DESK_LOGO"
-	MediaObjectUsageIMPORT     MediaObjectUsage = "IMPORT"
+	MediaObjectUsageATTACHMENT    MediaObjectUsage = "ATTACHMENT"
+	MediaObjectUsageAVATAR        MediaObjectUsage = "AVATAR"
+	MediaObjectUsageCOVER         MediaObjectUsage = "COVER"
+	MediaObjectUsageDESKLOGO      MediaObjectUsage = "DESK_LOGO"
+	MediaObjectUsageIMPORT        MediaObjectUsage = "IMPORT"
+	MediaObjectUsageWORKSPACELOGO MediaObjectUsage = "WORKSPACE_LOGO"
 )
 
 // Valid indicates whether the value is a known member of the MediaObjectUsage enum.
@@ -7300,6 +7301,8 @@ func (e MediaObjectUsage) Valid() bool {
 	case MediaObjectUsageDESKLOGO:
 		return true
 	case MediaObjectUsageIMPORT:
+		return true
+	case MediaObjectUsageWORKSPACELOGO:
 		return true
 	default:
 		return false
@@ -7326,11 +7329,12 @@ func (e MediaTransferMethod) Valid() bool {
 
 // Defines values for MediaUploadRequestUsage.
 const (
-	MediaUploadRequestUsageATTACHMENT MediaUploadRequestUsage = "ATTACHMENT"
-	MediaUploadRequestUsageAVATAR     MediaUploadRequestUsage = "AVATAR"
-	MediaUploadRequestUsageCOVER      MediaUploadRequestUsage = "COVER"
-	MediaUploadRequestUsageDESKLOGO   MediaUploadRequestUsage = "DESK_LOGO"
-	MediaUploadRequestUsageIMPORT     MediaUploadRequestUsage = "IMPORT"
+	MediaUploadRequestUsageATTACHMENT    MediaUploadRequestUsage = "ATTACHMENT"
+	MediaUploadRequestUsageAVATAR        MediaUploadRequestUsage = "AVATAR"
+	MediaUploadRequestUsageCOVER         MediaUploadRequestUsage = "COVER"
+	MediaUploadRequestUsageDESKLOGO      MediaUploadRequestUsage = "DESK_LOGO"
+	MediaUploadRequestUsageIMPORT        MediaUploadRequestUsage = "IMPORT"
+	MediaUploadRequestUsageWORKSPACELOGO MediaUploadRequestUsage = "WORKSPACE_LOGO"
 )
 
 // Valid indicates whether the value is a known member of the MediaUploadRequestUsage enum.
@@ -7345,6 +7349,8 @@ func (e MediaUploadRequestUsage) Valid() bool {
 	case MediaUploadRequestUsageDESKLOGO:
 		return true
 	case MediaUploadRequestUsageIMPORT:
+		return true
+	case MediaUploadRequestUsageWORKSPACELOGO:
 		return true
 	default:
 		return false
@@ -11899,6 +11905,27 @@ func (e WorkspaceStatus) Valid() bool {
 	}
 }
 
+// Defines values for WorkspaceHeader.
+const (
+	LOGO          WorkspaceHeader = "LOGO"
+	PRODUCT       WorkspaceHeader = "PRODUCT"
+	WORKSPACENAME WorkspaceHeader = "WORKSPACE_NAME"
+)
+
+// Valid indicates whether the value is a known member of the WorkspaceHeader enum.
+func (e WorkspaceHeader) Valid() bool {
+	switch e {
+	case LOGO:
+		return true
+	case PRODUCT:
+		return true
+	case WORKSPACENAME:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for WorkspaceHostState.
 const (
 	WorkspaceHostStateACTIVE   WorkspaceHostState = "ACTIVE"
@@ -11917,6 +11944,27 @@ func (e WorkspaceHostState) Valid() bool {
 	case WorkspaceHostStatePENDING:
 		return true
 	case WorkspaceHostStateVERIFIED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkspacePicture.
+const (
+	LOGODARK  WorkspacePicture = "LOGO_DARK"
+	LOGOLIGHT WorkspacePicture = "LOGO_LIGHT"
+	SYMBOL    WorkspacePicture = "SYMBOL"
+)
+
+// Valid indicates whether the value is a known member of the WorkspacePicture enum.
+func (e WorkspacePicture) Valid() bool {
+	switch e {
+	case LOGODARK:
+		return true
+	case LOGOLIGHT:
+		return true
+	case SYMBOL:
 		return true
 	default:
 		return false
@@ -20081,7 +20129,7 @@ type InstanceSettings struct {
 	// ReservedShortNames The operator's own short names no new workspace may take, beside the product's list - each also reserves its plural, and case does not count. Stored trimmed, in lower case, each once; an entry no short name could be is refused (`admin.reserved_short_name_invalid`). A workspace that already carries a name added here keeps it. Provisioning refuses a reserved name at the field with `admin.slug_reserved`.
 	ReservedShortNames *[]string `json:"reserved_short_names,omitempty"`
 
-	// SignIn The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, the two session bounds, `managed_accounts` and `private_hubs`. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.
+	// SignIn The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, the two session bounds, `managed_accounts`, `private_hubs` and `own_branding`. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.
 	SignIn *map[string]InstanceSetting `json:"sign_in,omitempty"`
 
 	// Source Where the values in force came from - the database, or the path of the file enforcing them.
@@ -21591,11 +21639,11 @@ type MediaUploadRequest struct {
 	// Size The exact size in bytes. Bounded by the installation's upload limit.
 	Size int64 `json:"size"`
 
-	// Usage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends. `AVATAR` stages a picture for `PUT /accounts/me/avatar`, at most 5 MB, and `DESK_LOGO` one for `PUT /containers/{containerId}/desk-logo`, at most 5 MB as well.
+	// Usage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends. `AVATAR` stages a picture for `PUT /accounts/me/avatar`, at most 5 MB, `DESK_LOGO` one for `PUT /containers/{containerId}/desk-logo`, and `WORKSPACE_LOGO` one for `PUT /tenant/branding/{picture}`, each at most 5 MB as well.
 	Usage MediaUploadRequestUsage `json:"usage"`
 }
 
-// MediaUploadRequestUsage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends. `AVATAR` stages a picture for `PUT /accounts/me/avatar`, at most 5 MB, and `DESK_LOGO` one for `PUT /containers/{containerId}/desk-logo`, at most 5 MB as well.
+// MediaUploadRequestUsage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends. `AVATAR` stages a picture for `PUT /accounts/me/avatar`, at most 5 MB, `DESK_LOGO` one for `PUT /containers/{containerId}/desk-logo`, and `WORKSPACE_LOGO` one for `PUT /tenant/branding/{picture}`, each at most 5 MB as well.
 type MediaUploadRequestUsage string
 
 // Membership defines model for Membership.
@@ -25992,6 +26040,9 @@ type SignInPolicy struct {
 	// MfaRequiredFor `NONE`, `ADMINS` or `EVERYONE`: whose sign-in with a password asks for a second factor, or sets one up first. A sign-in through a provider never does - the provider is trusted as a whole; a factor the account already holds is asked only when a provider is connected to it. What `require_admin_totp` grew into.
 	MfaRequiredFor SignInPolicyText `json:"mfa_required_for"`
 
+	// OwnBranding Whether the workspace may show its own name and logo in place of the product's name. On by default; off is the stricter value. Off refuses every change to the header's choice and the pictures, and a client shows the product's name; what is stored stays.
+	OwnBranding *SignInPolicyFlag `json:"own_branding,omitempty"`
+
 	// Password The thirteen switches about the password itself, each at its three levels.
 	Password PasswordPolicySettings `json:"password"`
 
@@ -26039,6 +26090,7 @@ type SignInPolicyChange struct {
 	MinLowercase *int    `json:"min_lowercase,omitempty"`
 	MinSymbols   *int    `json:"min_symbols,omitempty"`
 	MinUppercase *int    `json:"min_uppercase,omitempty"`
+	OwnBranding  *bool   `json:"own_branding,omitempty"`
 	PrivacyUrl   *string `json:"privacy_url,omitempty"`
 	PrivateHubs  *bool   `json:"private_hubs,omitempty"`
 
@@ -28775,7 +28827,10 @@ type Workspace struct {
 
 	// AuditAnchorTargetId The workspace's backup target the audit chain's end is anchored to once a day, or null where anchoring is off. Read here, because a screen that sets a value it cannot read back is guessing; written through `PUT /audit/anchoring` and nowhere else, which is where the write is audited with the target before and after. A body naming it on the `PATCH` is refused as an unknown field.
 	AuditAnchorTargetId *openapi_types.UUID `json:"audit_anchor_target_id,omitempty"`
-	CreatedAt           time.Time           `json:"created_at"`
+
+	// Branding What the header and the sign-in card show, and the workspace's own pictures. Written through `PUT /tenant/branding` and `PUT /tenant/branding/{picture}`, never by the `PATCH`.
+	Branding  *WorkspaceBranding `json:"branding,omitempty"`
+	CreatedAt time.Time          `json:"created_at"`
 
 	// DefaultLocale The locale a member without one of their own falls back to - the third link of the chain request, account, tenant, installation.
 	DefaultLocale string `json:"default_locale"`
@@ -28903,6 +28958,33 @@ type WorkspaceArchiveDownload struct {
 	Passphrase *string `json:"passphrase,omitempty"`
 }
 
+// WorkspaceBranding The workspace's own name and logo as stored. `allowed` is `sign_in_policy.own_branding` in force; where it is false a client shows the product's name, whatever is stored.
+type WorkspaceBranding struct {
+	// Allowed Whether the workspace may show its own name and logo now.
+	Allowed bool `json:"allowed"`
+
+	// Header What the header and the sign-in card show: the product's name, the workspace's name, or the workspace's own logo alone.
+	Header WorkspaceHeader `json:"header"`
+
+	// LogoDarkMediaId The logo drawn on the dark theme, or null.
+	LogoDarkMediaId *openapi_types.UUID `json:"logo_dark_media_id"`
+
+	// LogoLightMediaId The logo drawn on the light theme, or null.
+	LogoLightMediaId *openapi_types.UUID `json:"logo_light_media_id"`
+
+	// SymbolMediaId The square symbol, or null.
+	SymbolMediaId *openapi_types.UUID `json:"symbol_media_id"`
+}
+
+// WorkspaceHeader What the header and the sign-in card show: the product's name, the workspace's name, or the workspace's own logo alone.
+type WorkspaceHeader string
+
+// WorkspaceHeaderInput defines model for WorkspaceHeaderInput.
+type WorkspaceHeaderInput struct {
+	// Header What the header and the sign-in card show: the product's name, the workspace's name, or the workspace's own logo alone.
+	Header WorkspaceHeader `json:"header"`
+}
+
 // WorkspaceHost One host a workspace answers at. The canonical one is derived from the slug under the installation's own domain and is verified by construction - the installation already answers at it - so it carries no verification mark to publish.
 type WorkspaceHost struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -28942,6 +29024,15 @@ type WorkspacePasswordOpening struct {
 
 	// Until When the opening ends on its own.
 	Until time.Time `json:"until"`
+}
+
+// WorkspacePicture One of the workspace's three pictures: the logo drawn on the light theme, the one drawn on the dark theme, and the square symbol drawn where a logo does not fit.
+type WorkspacePicture string
+
+// WorkspacePictureInput defines model for WorkspacePictureInput.
+type WorkspacePictureInput struct {
+	// MediaId A confirmed media object the caller staged with usage `WORKSPACE_LOGO`.
+	MediaId openapi_types.UUID `json:"media_id"`
 }
 
 // WorkspaceQuestion One question to the workspace.
@@ -33478,6 +33569,12 @@ type AiGenerateTemplateJSONRequestBody = TemplateGeneration
 // UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody defines body for UpdateWorkspace for application/merge-patch+json ContentType.
 type UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody = WorkspaceUpdate
 
+// SetWorkspaceHeaderJSONRequestBody defines body for SetWorkspaceHeader for application/json ContentType.
+type SetWorkspaceHeaderJSONRequestBody = WorkspaceHeaderInput
+
+// SetWorkspacePictureJSONRequestBody defines body for SetWorkspacePicture for application/json ContentType.
+type SetWorkspacePictureJSONRequestBody = WorkspacePictureInput
+
 // SetModuleJSONRequestBody defines body for SetModule for application/json ContentType.
 type SetModuleJSONRequestBody = ModuleSwitch
 
@@ -36473,6 +36570,15 @@ type ServerInterface interface {
 	// CountAccountsWithoutProvider How many people here no provider switched on here signs in
 	// (GET /tenant/accounts-without-provider)
 	CountAccountsWithoutProvider(w http.ResponseWriter, r *http.Request)
+	// SetWorkspaceHeader Choose what the header shows
+	// (PUT /tenant/branding)
+	SetWorkspaceHeader(w http.ResponseWriter, r *http.Request)
+	// RemoveWorkspacePicture Take a logo or the symbol away
+	// (DELETE /tenant/branding/{picture})
+	RemoveWorkspacePicture(w http.ResponseWriter, r *http.Request, picture WorkspacePicture)
+	// SetWorkspacePicture Give the workspace a logo or a symbol
+	// (PUT /tenant/branding/{picture})
+	SetWorkspacePicture(w http.ResponseWriter, r *http.Request, picture WorkspacePicture)
 	// IssueDeviceListEntry This workspace's entry for the device's list of workspaces
 	// (GET /tenant/device-list-entry)
 	IssueDeviceListEntry(w http.ResponseWriter, r *http.Request)
@@ -63796,6 +63902,72 @@ func (siw *ServerInterfaceWrapper) CountAccountsWithoutProvider(w http.ResponseW
 	handler.ServeHTTP(w, r)
 }
 
+// SetWorkspaceHeader operation middleware
+func (siw *ServerInterfaceWrapper) SetWorkspaceHeader(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetWorkspaceHeader(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveWorkspacePicture operation middleware
+func (siw *ServerInterfaceWrapper) RemoveWorkspacePicture(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "picture" -------------
+	var picture WorkspacePicture
+
+	err = runtime.BindStyledParameterWithOptions("simple", "picture", r.PathValue("picture"), &picture, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "picture", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveWorkspacePicture(w, r, picture)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetWorkspacePicture operation middleware
+func (siw *ServerInterfaceWrapper) SetWorkspacePicture(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "picture" -------------
+	var picture WorkspacePicture
+
+	err = runtime.BindStyledParameterWithOptions("simple", "picture", r.PathValue("picture"), &picture, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "picture", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetWorkspacePicture(w, r, picture)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // IssueDeviceListEntry operation middleware
 func (siw *ServerInterfaceWrapper) IssueDeviceListEntry(w http.ResponseWriter, r *http.Request) {
 
@@ -67338,6 +67510,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/address-notices", wrapper.ListAddressNotices)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/address-notices:acknowledge", wrapper.AcknowledgeAddressNotices)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/device-list-entry", wrapper.IssueDeviceListEntry)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/tenant/branding", wrapper.SetWorkspaceHeader)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/tenant/branding/{picture}", wrapper.RemoveWorkspacePicture)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/tenant/branding/{picture}", wrapper.SetWorkspacePicture)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/tenant/own-domain", wrapper.RemoveOwnDomain)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/tenant/own-domain", wrapper.SetUpOwnDomain)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/own-domain:make-main", wrapper.MakeOwnDomainMain)

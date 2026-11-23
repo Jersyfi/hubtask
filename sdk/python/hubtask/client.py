@@ -2253,6 +2253,18 @@ class Client:
         """This workspace's entry for the device's list of workspaces"""
         return self._call("GET", "/tenant/device-list-entry", {}, None, {}, None, "none", None, "json")
 
+    def set_workspace_header(self, body: "WorkspaceHeaderInput") -> "WorkspaceBranding":
+        """Choose what the header shows"""
+        return self._call("PUT", "/tenant/branding", {}, None, {}, body, "json", "application/json", "json")
+
+    def set_workspace_picture(self, picture: str, body: "WorkspacePictureInput") -> "WorkspaceBranding":
+        """Give the workspace a logo or a symbol"""
+        return self._call("PUT", "/tenant/branding/{picture}", {"picture": picture}, None, {}, body, "json", "application/json", "json")
+
+    def remove_workspace_picture(self, picture: str) -> "WorkspaceBranding":
+        """Take a logo or the symbol away"""
+        return self._call("DELETE", "/tenant/branding/{picture}", {"picture": picture}, None, {}, None, "none", None, "json")
+
     def set_up_own_domain(self, body: "OwnDomainSetUp") -> "OwnDomain":
         """The workspace's owner sets up an own domain"""
         return self._call("PUT", "/tenant/own-domain", {}, None, {}, body, "json", "application/json", "json")

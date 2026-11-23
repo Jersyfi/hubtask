@@ -642,6 +642,7 @@ var restDoors = map[string]restDoor{
 	"removeSampleEntries":               {UseCase: "RemoveSampleEntries", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeSoftwareAlias":               {UseCase: "RemoveSoftwareAlias", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeSprintEntries":               {UseCase: "RemoveSprintEntries", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"removeWorkspacePicture":            {UseCase: "RemoveWorkspacePicture", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeWorkspaceSamples":            {UseCase: "RemoveWorkspaceSamples", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"renameContainer":                   {UseCase: "RenameContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil)},
 	"renameOwnPasskey":                  {UseCase: "RenameOwnPasskey", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -747,6 +748,8 @@ var restDoors = map[string]restDoor{
 	"setTimePolicy":                     {UseCase: "SetTimePolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"expected_version"}},
 	"setUpInstallation":                 {UseCase: "SetUpInstallation", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil), Request: []string{"user_agent", "remote_addr"}},
 	"setWorkflowScheme":                 {UseCase: "SetWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setWorkspaceHeader":                {UseCase: "SetWorkspaceHeader", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setWorkspacePicture":               {UseCase: "SetWorkspacePicture", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setWorkspaceStructure":             {UseCase: "SetWorkspaceStructure", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), NullTo: map[string]string{"default_preset": "clear_default_preset", "default_preset_id": "clear_default_preset"}},
 	"setWorkspaceTolerance":             {UseCase: "SetWorkspaceTolerance", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"time_tolerance_days"}},
 	"shareFileStoreItem":                {UseCase: "ShareFileStoreItem", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -4971,6 +4974,12 @@ func (c *RestController) RemoveSprintEntries(w http.ResponseWriter, r *http.Requ
 	c.door(w, r, restDoors["removeSprintEntries"], usecase.Input{"sprint_id": sprintId.String()}, nil, &body, &answer)
 }
 
+// RemoveWorkspacePicture answers DELETE /tenant/branding/{picture} by the generated mapping.
+func (c *RestController) RemoveWorkspacePicture(w http.ResponseWriter, r *http.Request, picture openapi.WorkspacePicture) {
+	var answer openapi.WorkspaceBranding
+	c.door(w, r, restDoors["removeWorkspacePicture"], usecase.Input{"picture": string(picture)}, nil, nil, &answer)
+}
+
 // RemoveWorkspaceSamples answers POST /tenant/samples:remove by the generated mapping.
 func (c *RestController) RemoveWorkspaceSamples(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["removeWorkspaceSamples"], usecase.Input{}, nil, nil, nil)
@@ -5641,6 +5650,20 @@ func (c *RestController) SetWorkflowScheme(w http.ResponseWriter, r *http.Reques
 	var body openapi.SetWorkflowSchemeJSONRequestBody
 	var answer openapi.WorkflowSchemeResult
 	c.door(w, r, restDoors["setWorkflowScheme"], usecase.Input{}, nil, &body, &answer)
+}
+
+// SetWorkspaceHeader answers PUT /tenant/branding by the generated mapping.
+func (c *RestController) SetWorkspaceHeader(w http.ResponseWriter, r *http.Request) {
+	var body openapi.SetWorkspaceHeaderJSONRequestBody
+	var answer openapi.WorkspaceBranding
+	c.door(w, r, restDoors["setWorkspaceHeader"], usecase.Input{}, nil, &body, &answer)
+}
+
+// SetWorkspacePicture answers PUT /tenant/branding/{picture} by the generated mapping.
+func (c *RestController) SetWorkspacePicture(w http.ResponseWriter, r *http.Request, picture openapi.WorkspacePicture) {
+	var body openapi.SetWorkspacePictureJSONRequestBody
+	var answer openapi.WorkspaceBranding
+	c.door(w, r, restDoors["setWorkspacePicture"], usecase.Input{"picture": string(picture)}, nil, &body, &answer)
 }
 
 // SetWorkspaceStructure answers PATCH /tenant/structure by the generated mapping.

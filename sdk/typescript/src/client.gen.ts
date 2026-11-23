@@ -2840,6 +2840,21 @@ export class HubtaskClient {
     return this.call("GET", "/tenant/device-list-entry", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Choose what the header shows */
+  setWorkspaceHeader(body: NonNullable<operations["setWorkspaceHeader"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setWorkspaceHeader"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/tenant/branding", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Give the workspace a logo or a symbol */
+  setWorkspacePicture(picture: string, body: NonNullable<operations["setWorkspacePicture"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setWorkspacePicture"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/tenant/branding/{picture}", { "picture": picture }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Take a logo or the symbol away */
+  removeWorkspacePicture(picture: string, options: CallOptions = {}): Promise<operations["removeWorkspacePicture"]['responses'][200]['content']["application/json"]> {
+    return this.call("DELETE", "/tenant/branding/{picture}", { "picture": picture }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** The workspace's owner sets up an own domain */
   setUpOwnDomain(body: NonNullable<operations["setUpOwnDomain"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setUpOwnDomain"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/tenant/own-domain", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);

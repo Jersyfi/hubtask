@@ -7287,11 +7287,12 @@ func (e MediaObjectStatus) Valid() bool {
 
 // Defines values for MediaObjectUsage.
 const (
-	MediaObjectUsageATTACHMENT MediaObjectUsage = "ATTACHMENT"
-	MediaObjectUsageAVATAR     MediaObjectUsage = "AVATAR"
-	MediaObjectUsageCOVER      MediaObjectUsage = "COVER"
-	MediaObjectUsageDESKLOGO   MediaObjectUsage = "DESK_LOGO"
-	MediaObjectUsageIMPORT     MediaObjectUsage = "IMPORT"
+	MediaObjectUsageATTACHMENT    MediaObjectUsage = "ATTACHMENT"
+	MediaObjectUsageAVATAR        MediaObjectUsage = "AVATAR"
+	MediaObjectUsageCOVER         MediaObjectUsage = "COVER"
+	MediaObjectUsageDESKLOGO      MediaObjectUsage = "DESK_LOGO"
+	MediaObjectUsageIMPORT        MediaObjectUsage = "IMPORT"
+	MediaObjectUsageWORKSPACELOGO MediaObjectUsage = "WORKSPACE_LOGO"
 )
 
 // Valid indicates whether the value is a known member of the MediaObjectUsage enum.
@@ -7306,6 +7307,8 @@ func (e MediaObjectUsage) Valid() bool {
 	case MediaObjectUsageDESKLOGO:
 		return true
 	case MediaObjectUsageIMPORT:
+		return true
+	case MediaObjectUsageWORKSPACELOGO:
 		return true
 	default:
 		return false
@@ -7332,11 +7335,12 @@ func (e MediaTransferMethod) Valid() bool {
 
 // Defines values for MediaUploadRequestUsage.
 const (
-	MediaUploadRequestUsageATTACHMENT MediaUploadRequestUsage = "ATTACHMENT"
-	MediaUploadRequestUsageAVATAR     MediaUploadRequestUsage = "AVATAR"
-	MediaUploadRequestUsageCOVER      MediaUploadRequestUsage = "COVER"
-	MediaUploadRequestUsageDESKLOGO   MediaUploadRequestUsage = "DESK_LOGO"
-	MediaUploadRequestUsageIMPORT     MediaUploadRequestUsage = "IMPORT"
+	MediaUploadRequestUsageATTACHMENT    MediaUploadRequestUsage = "ATTACHMENT"
+	MediaUploadRequestUsageAVATAR        MediaUploadRequestUsage = "AVATAR"
+	MediaUploadRequestUsageCOVER         MediaUploadRequestUsage = "COVER"
+	MediaUploadRequestUsageDESKLOGO      MediaUploadRequestUsage = "DESK_LOGO"
+	MediaUploadRequestUsageIMPORT        MediaUploadRequestUsage = "IMPORT"
+	MediaUploadRequestUsageWORKSPACELOGO MediaUploadRequestUsage = "WORKSPACE_LOGO"
 )
 
 // Valid indicates whether the value is a known member of the MediaUploadRequestUsage enum.
@@ -7351,6 +7355,8 @@ func (e MediaUploadRequestUsage) Valid() bool {
 	case MediaUploadRequestUsageDESKLOGO:
 		return true
 	case MediaUploadRequestUsageIMPORT:
+		return true
+	case MediaUploadRequestUsageWORKSPACELOGO:
 		return true
 	default:
 		return false
@@ -11905,6 +11911,27 @@ func (e WorkspaceStatus) Valid() bool {
 	}
 }
 
+// Defines values for WorkspaceHeader.
+const (
+	LOGO          WorkspaceHeader = "LOGO"
+	PRODUCT       WorkspaceHeader = "PRODUCT"
+	WORKSPACENAME WorkspaceHeader = "WORKSPACE_NAME"
+)
+
+// Valid indicates whether the value is a known member of the WorkspaceHeader enum.
+func (e WorkspaceHeader) Valid() bool {
+	switch e {
+	case LOGO:
+		return true
+	case PRODUCT:
+		return true
+	case WORKSPACENAME:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for WorkspaceHostState.
 const (
 	WorkspaceHostStateACTIVE   WorkspaceHostState = "ACTIVE"
@@ -11923,6 +11950,27 @@ func (e WorkspaceHostState) Valid() bool {
 	case WorkspaceHostStatePENDING:
 		return true
 	case WorkspaceHostStateVERIFIED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkspacePicture.
+const (
+	LOGODARK  WorkspacePicture = "LOGO_DARK"
+	LOGOLIGHT WorkspacePicture = "LOGO_LIGHT"
+	SYMBOL    WorkspacePicture = "SYMBOL"
+)
+
+// Valid indicates whether the value is a known member of the WorkspacePicture enum.
+func (e WorkspacePicture) Valid() bool {
+	switch e {
+	case LOGODARK:
+		return true
+	case LOGOLIGHT:
+		return true
+	case SYMBOL:
 		return true
 	default:
 		return false
@@ -20087,7 +20135,7 @@ type InstanceSettings struct {
 	// ReservedShortNames The operator's own short names no new workspace may take, beside the product's list - each also reserves its plural, and case does not count. Stored trimmed, in lower case, each once; an entry no short name could be is refused (`admin.reserved_short_name_invalid`). A workspace that already carries a name added here keeps it. Provisioning refuses a reserved name at the field with `admin.slug_reserved`.
 	ReservedShortNames *[]string `json:"reserved_short_names,omitempty"`
 
-	// SignIn The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, the two session bounds, `managed_accounts` and `private_hubs`. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.
+	// SignIn The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, the two session bounds, `managed_accounts`, `private_hubs` and `own_branding`. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.
 	SignIn *map[string]InstanceSetting `json:"sign_in,omitempty"`
 
 	// Source Where the values in force came from - the database, or the path of the file enforcing them.
@@ -21597,11 +21645,11 @@ type MediaUploadRequest struct {
 	// Size The exact size in bytes. Bounded by the installation's upload limit.
 	Size int64 `json:"size"`
 
-	// Usage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends. `AVATAR` stages a picture for `PUT /accounts/me/avatar`, at most 5 MB, and `DESK_LOGO` one for `PUT /containers/{containerId}/desk-logo`, at most 5 MB as well.
+	// Usage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends. `AVATAR` stages a picture for `PUT /accounts/me/avatar`, at most 5 MB, `DESK_LOGO` one for `PUT /containers/{containerId}/desk-logo`, and `WORKSPACE_LOGO` one for `PUT /tenant/branding/{picture}`, each at most 5 MB as well.
 	Usage MediaUploadRequestUsage `json:"usage"`
 }
 
-// MediaUploadRequestUsage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends. `AVATAR` stages a picture for `PUT /accounts/me/avatar`, at most 5 MB, and `DESK_LOGO` one for `PUT /containers/{containerId}/desk-logo`, at most 5 MB as well.
+// MediaUploadRequestUsage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends. `AVATAR` stages a picture for `PUT /accounts/me/avatar`, at most 5 MB, `DESK_LOGO` one for `PUT /containers/{containerId}/desk-logo`, and `WORKSPACE_LOGO` one for `PUT /tenant/branding/{picture}`, each at most 5 MB as well.
 type MediaUploadRequestUsage string
 
 // Membership defines model for Membership.
@@ -25998,6 +26046,9 @@ type SignInPolicy struct {
 	// MfaRequiredFor `NONE`, `ADMINS` or `EVERYONE`: whose sign-in with a password asks for a second factor, or sets one up first. A sign-in through a provider never does - the provider is trusted as a whole; a factor the account already holds is asked only when a provider is connected to it. What `require_admin_totp` grew into.
 	MfaRequiredFor SignInPolicyText `json:"mfa_required_for"`
 
+	// OwnBranding Whether the workspace may show its own name and logo in place of the product's name. On by default; off is the stricter value. Off refuses every change to the header's choice and the pictures, and a client shows the product's name; what is stored stays.
+	OwnBranding *SignInPolicyFlag `json:"own_branding,omitempty"`
+
 	// Password The thirteen switches about the password itself, each at its three levels.
 	Password PasswordPolicySettings `json:"password"`
 
@@ -26045,6 +26096,7 @@ type SignInPolicyChange struct {
 	MinLowercase *int    `json:"min_lowercase,omitempty"`
 	MinSymbols   *int    `json:"min_symbols,omitempty"`
 	MinUppercase *int    `json:"min_uppercase,omitempty"`
+	OwnBranding  *bool   `json:"own_branding,omitempty"`
 	PrivacyUrl   *string `json:"privacy_url,omitempty"`
 	PrivateHubs  *bool   `json:"private_hubs,omitempty"`
 
@@ -28781,7 +28833,10 @@ type Workspace struct {
 
 	// AuditAnchorTargetId The workspace's backup target the audit chain's end is anchored to once a day, or null where anchoring is off. Read here, because a screen that sets a value it cannot read back is guessing; written through `PUT /audit/anchoring` and nowhere else, which is where the write is audited with the target before and after. A body naming it on the `PATCH` is refused as an unknown field.
 	AuditAnchorTargetId *openapi_types.UUID `json:"audit_anchor_target_id,omitempty"`
-	CreatedAt           time.Time           `json:"created_at"`
+
+	// Branding What the header and the sign-in card show, and the workspace's own pictures. Written through `PUT /tenant/branding` and `PUT /tenant/branding/{picture}`, never by the `PATCH`.
+	Branding  *WorkspaceBranding `json:"branding,omitempty"`
+	CreatedAt time.Time          `json:"created_at"`
 
 	// DefaultLocale The locale a member without one of their own falls back to - the third link of the chain request, account, tenant, installation.
 	DefaultLocale string `json:"default_locale"`
@@ -28909,6 +28964,33 @@ type WorkspaceArchiveDownload struct {
 	Passphrase *string `json:"passphrase,omitempty"`
 }
 
+// WorkspaceBranding The workspace's own name and logo as stored. `allowed` is `sign_in_policy.own_branding` in force; where it is false a client shows the product's name, whatever is stored.
+type WorkspaceBranding struct {
+	// Allowed Whether the workspace may show its own name and logo now.
+	Allowed bool `json:"allowed"`
+
+	// Header What the header and the sign-in card show: the product's name, the workspace's name, or the workspace's own logo alone.
+	Header WorkspaceHeader `json:"header"`
+
+	// LogoDarkMediaId The logo drawn on the dark theme, or null.
+	LogoDarkMediaId *openapi_types.UUID `json:"logo_dark_media_id"`
+
+	// LogoLightMediaId The logo drawn on the light theme, or null.
+	LogoLightMediaId *openapi_types.UUID `json:"logo_light_media_id"`
+
+	// SymbolMediaId The square symbol, or null.
+	SymbolMediaId *openapi_types.UUID `json:"symbol_media_id"`
+}
+
+// WorkspaceHeader What the header and the sign-in card show: the product's name, the workspace's name, or the workspace's own logo alone.
+type WorkspaceHeader string
+
+// WorkspaceHeaderInput defines model for WorkspaceHeaderInput.
+type WorkspaceHeaderInput struct {
+	// Header What the header and the sign-in card show: the product's name, the workspace's name, or the workspace's own logo alone.
+	Header WorkspaceHeader `json:"header"`
+}
+
 // WorkspaceHost One host a workspace answers at. The canonical one is derived from the slug under the installation's own domain and is verified by construction - the installation already answers at it - so it carries no verification mark to publish.
 type WorkspaceHost struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -28948,6 +29030,15 @@ type WorkspacePasswordOpening struct {
 
 	// Until When the opening ends on its own.
 	Until time.Time `json:"until"`
+}
+
+// WorkspacePicture One of the workspace's three pictures: the logo drawn on the light theme, the one drawn on the dark theme, and the square symbol drawn where a logo does not fit.
+type WorkspacePicture string
+
+// WorkspacePictureInput defines model for WorkspacePictureInput.
+type WorkspacePictureInput struct {
+	// MediaId A confirmed media object the caller staged with usage `WORKSPACE_LOGO`.
+	MediaId openapi_types.UUID `json:"media_id"`
 }
 
 // WorkspaceQuestion One question to the workspace.
@@ -33483,6 +33574,12 @@ type AiGenerateTemplateJSONRequestBody = TemplateGeneration
 
 // UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody defines body for UpdateWorkspace for application/merge-patch+json ContentType.
 type UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody = WorkspaceUpdate
+
+// SetWorkspaceHeaderJSONRequestBody defines body for SetWorkspaceHeader for application/json ContentType.
+type SetWorkspaceHeaderJSONRequestBody = WorkspaceHeaderInput
+
+// SetWorkspacePictureJSONRequestBody defines body for SetWorkspacePicture for application/json ContentType.
+type SetWorkspacePictureJSONRequestBody = WorkspacePictureInput
 
 // SetModuleJSONRequestBody defines body for SetModule for application/json ContentType.
 type SetModuleJSONRequestBody = ModuleSwitch
@@ -44985,6 +45082,94 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
 	CountAccountsWithoutProvider(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetWorkspaceHeaderWithBody Choose what the header shows
+	//
+	// Chooses what the workspace's header and sign-in card show: the product's name (`PRODUCT`,
+	// the default), the workspace's name (`WORKSPACE_NAME`) or its own logo alone (`LOGO`).
+	// Needs the right that changes the workspace's name (STRUCTURE at the workspace). In the
+	// workspace's trail as `workspace.header_changed`.
+	//
+	// Refused with `workspace.logo_alone_needs_a_picture` for `LOGO` while the workspace has
+	// no picture, and with `workspace.branding_off` where the installation, the plan or the
+	// workspace does not let it show its own name and logo (`sign_in_policy.own_branding`),
+	// the level as the parameter `origin`.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /tenant/branding (the `SetWorkspaceHeader` operationId).
+	SetWorkspaceHeaderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetWorkspaceHeader Choose what the header shows
+	//
+	// Chooses what the workspace's header and sign-in card show: the product's name (`PRODUCT`,
+	// the default), the workspace's name (`WORKSPACE_NAME`) or its own logo alone (`LOGO`).
+	// Needs the right that changes the workspace's name (STRUCTURE at the workspace). In the
+	// workspace's trail as `workspace.header_changed`.
+	//
+	// Refused with `workspace.logo_alone_needs_a_picture` for `LOGO` while the workspace has
+	// no picture, and with `workspace.branding_off` where the installation, the plan or the
+	// workspace does not let it show its own name and logo (`sign_in_policy.own_branding`),
+	// the level as the parameter `origin`.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /tenant/branding (the `SetWorkspaceHeader` operationId).
+	SetWorkspaceHeader(ctx context.Context, body SetWorkspaceHeaderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveWorkspacePicture Take a logo or the symbol away
+	//
+	// Takes one of the workspace's pictures away. Idempotent - a picture that is not there
+	// answers as it stands. Removing the last picture while the header shows the logo alone
+	// returns the header to the product's name in the same write. The picture itself is
+	// removed once nothing points at it. Needs STRUCTURE at the workspace; in the trail as
+	// `workspace.picture_removed`. Refused with `workspace.branding_off` where the workspace
+	// may not show its own name and logo, the level as `origin`.
+	//
+	// Corresponds with DELETE /tenant/branding/{picture} (the `RemoveWorkspacePicture` operationId).
+	RemoveWorkspacePicture(ctx context.Context, picture WorkspacePicture, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetWorkspacePictureWithBody Give the workspace a logo or a symbol
+	//
+	// Makes an uploaded picture the workspace's logo for the light theme (`LOGO_LIGHT`), its
+	// logo for the dark theme (`LOGO_DARK`) or its square symbol (`SYMBOL`). The picture is
+	// staged and confirmed like any other upload (`POST /media` with usage `WORKSPACE_LOGO`,
+	// the bytes, then `POST /media/{mediaId}:confirm`), and every member may read it. Needs the
+	// right that changes the workspace's name (STRUCTURE at the workspace). In the workspace's
+	// trail as `workspace.picture_set`, naming the media object and nothing in it.
+	//
+	// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch`
+	// for one staged for something else, `media.workspace_logo_not_an_image` for bytes that
+	// are not a PNG, JPEG, GIF or WebP image - an SVG among them -, `media.not_found` for an
+	// object somebody else uploaded, and `workspace.branding_off` where the workspace may not
+	// show its own name and logo, the level as `origin`. A picture already set is replaced;
+	// the one it replaces is removed once nothing points at it.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /tenant/branding/{picture} (the `SetWorkspacePicture` operationId).
+	SetWorkspacePictureWithBody(ctx context.Context, picture WorkspacePicture, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetWorkspacePicture Give the workspace a logo or a symbol
+	//
+	// Makes an uploaded picture the workspace's logo for the light theme (`LOGO_LIGHT`), its
+	// logo for the dark theme (`LOGO_DARK`) or its square symbol (`SYMBOL`). The picture is
+	// staged and confirmed like any other upload (`POST /media` with usage `WORKSPACE_LOGO`,
+	// the bytes, then `POST /media/{mediaId}:confirm`), and every member may read it. Needs the
+	// right that changes the workspace's name (STRUCTURE at the workspace). In the workspace's
+	// trail as `workspace.picture_set`, naming the media object and nothing in it.
+	//
+	// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch`
+	// for one staged for something else, `media.workspace_logo_not_an_image` for bytes that
+	// are not a PNG, JPEG, GIF or WebP image - an SVG among them -, `media.not_found` for an
+	// object somebody else uploaded, and `workspace.branding_off` where the workspace may not
+	// show its own name and logo, the level as `origin`. A picture already set is replaced;
+	// the one it replaces is removed once nothing points at it.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /tenant/branding/{picture} (the `SetWorkspacePicture` operationId).
+	SetWorkspacePicture(ctx context.Context, picture WorkspacePicture, body SetWorkspacePictureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// IssueDeviceListEntry This workspace's entry for the device's list of workspaces
 	//
@@ -68870,6 +69055,144 @@ func (c *Client) UpdateWorkspaceWithApplicationMergePatchPlusJSONBody(ctx contex
 // Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
 func (c *Client) CountAccountsWithoutProvider(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCountAccountsWithoutProviderRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetWorkspaceHeaderWithBody Choose what the header shows
+//
+// Chooses what the workspace's header and sign-in card show: the product's name (`PRODUCT`,
+// the default), the workspace's name (`WORKSPACE_NAME`) or its own logo alone (`LOGO`).
+// Needs the right that changes the workspace's name (STRUCTURE at the workspace). In the
+// workspace's trail as `workspace.header_changed`.
+//
+// Refused with `workspace.logo_alone_needs_a_picture` for `LOGO` while the workspace has
+// no picture, and with `workspace.branding_off` where the installation, the plan or the
+// workspace does not let it show its own name and logo (`sign_in_policy.own_branding`),
+// the level as the parameter `origin`.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /tenant/branding (the `SetWorkspaceHeader` operationId).
+func (c *Client) SetWorkspaceHeaderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetWorkspaceHeaderRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetWorkspaceHeader Choose what the header shows
+//
+// Chooses what the workspace's header and sign-in card show: the product's name (`PRODUCT`,
+// the default), the workspace's name (`WORKSPACE_NAME`) or its own logo alone (`LOGO`).
+// Needs the right that changes the workspace's name (STRUCTURE at the workspace). In the
+// workspace's trail as `workspace.header_changed`.
+//
+// Refused with `workspace.logo_alone_needs_a_picture` for `LOGO` while the workspace has
+// no picture, and with `workspace.branding_off` where the installation, the plan or the
+// workspace does not let it show its own name and logo (`sign_in_policy.own_branding`),
+// the level as the parameter `origin`.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /tenant/branding (the `SetWorkspaceHeader` operationId).
+func (c *Client) SetWorkspaceHeader(ctx context.Context, body SetWorkspaceHeaderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetWorkspaceHeaderRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemoveWorkspacePicture Take a logo or the symbol away
+//
+// Takes one of the workspace's pictures away. Idempotent - a picture that is not there
+// answers as it stands. Removing the last picture while the header shows the logo alone
+// returns the header to the product's name in the same write. The picture itself is
+// removed once nothing points at it. Needs STRUCTURE at the workspace; in the trail as
+// `workspace.picture_removed`. Refused with `workspace.branding_off` where the workspace
+// may not show its own name and logo, the level as `origin`.
+//
+// Corresponds with DELETE /tenant/branding/{picture} (the `RemoveWorkspacePicture` operationId).
+func (c *Client) RemoveWorkspacePicture(ctx context.Context, picture WorkspacePicture, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveWorkspacePictureRequest(c.Server, picture)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetWorkspacePictureWithBody Give the workspace a logo or a symbol
+//
+// Makes an uploaded picture the workspace's logo for the light theme (`LOGO_LIGHT`), its
+// logo for the dark theme (`LOGO_DARK`) or its square symbol (`SYMBOL`). The picture is
+// staged and confirmed like any other upload (`POST /media` with usage `WORKSPACE_LOGO`,
+// the bytes, then `POST /media/{mediaId}:confirm`), and every member may read it. Needs the
+// right that changes the workspace's name (STRUCTURE at the workspace). In the workspace's
+// trail as `workspace.picture_set`, naming the media object and nothing in it.
+//
+// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch`
+// for one staged for something else, `media.workspace_logo_not_an_image` for bytes that
+// are not a PNG, JPEG, GIF or WebP image - an SVG among them -, `media.not_found` for an
+// object somebody else uploaded, and `workspace.branding_off` where the workspace may not
+// show its own name and logo, the level as `origin`. A picture already set is replaced;
+// the one it replaces is removed once nothing points at it.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /tenant/branding/{picture} (the `SetWorkspacePicture` operationId).
+func (c *Client) SetWorkspacePictureWithBody(ctx context.Context, picture WorkspacePicture, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetWorkspacePictureRequestWithBody(c.Server, picture, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetWorkspacePicture Give the workspace a logo or a symbol
+//
+// Makes an uploaded picture the workspace's logo for the light theme (`LOGO_LIGHT`), its
+// logo for the dark theme (`LOGO_DARK`) or its square symbol (`SYMBOL`). The picture is
+// staged and confirmed like any other upload (`POST /media` with usage `WORKSPACE_LOGO`,
+// the bytes, then `POST /media/{mediaId}:confirm`), and every member may read it. Needs the
+// right that changes the workspace's name (STRUCTURE at the workspace). In the workspace's
+// trail as `workspace.picture_set`, naming the media object and nothing in it.
+//
+// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch`
+// for one staged for something else, `media.workspace_logo_not_an_image` for bytes that
+// are not a PNG, JPEG, GIF or WebP image - an SVG among them -, `media.not_found` for an
+// object somebody else uploaded, and `workspace.branding_off` where the workspace may not
+// show its own name and logo, the level as `origin`. A picture already set is replaced;
+// the one it replaces is removed once nothing points at it.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /tenant/branding/{picture} (the `SetWorkspacePicture` operationId).
+func (c *Client) SetWorkspacePicture(ctx context.Context, picture WorkspacePicture, body SetWorkspacePictureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetWorkspacePictureRequest(c.Server, picture, body)
 	if err != nil {
 		return nil, err
 	}
@@ -109431,6 +109754,127 @@ func NewCountAccountsWithoutProviderRequest(server string) (*http.Request, error
 	return req, nil
 }
 
+// NewSetWorkspaceHeaderRequest calls the generic SetWorkspaceHeader builder with application/json body
+func NewSetWorkspaceHeaderRequest(server string, body SetWorkspaceHeaderJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetWorkspaceHeaderRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetWorkspaceHeaderRequestWithBody constructs an http.Request for the SetWorkspaceHeader method, with any body, and a specified content type
+func NewSetWorkspaceHeaderRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/branding")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRemoveWorkspacePictureRequest constructs an http.Request for the RemoveWorkspacePicture method
+func NewRemoveWorkspacePictureRequest(server string, picture WorkspacePicture) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "picture", picture, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/branding/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetWorkspacePictureRequest calls the generic SetWorkspacePicture builder with application/json body
+func NewSetWorkspacePictureRequest(server string, picture WorkspacePicture, body SetWorkspacePictureJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetWorkspacePictureRequestWithBody(server, picture, "application/json", bodyReader)
+}
+
+// NewSetWorkspacePictureRequestWithBody constructs an http.Request for the SetWorkspacePicture method, with any body, and a specified content type
+func NewSetWorkspacePictureRequestWithBody(server string, picture WorkspacePicture, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "picture", picture, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/branding/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewIssueDeviceListEntryRequest constructs an http.Request for the IssueDeviceListEntry method
 func NewIssueDeviceListEntryRequest(server string) (*http.Request, error) {
 	var err error
@@ -125610,6 +126054,96 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
 	CountAccountsWithoutProviderWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*CountAccountsWithoutProviderResult, error)
+
+	// SetWorkspaceHeaderWithBodyWithResponse Choose what the header shows
+	//
+	// Chooses what the workspace's header and sign-in card show: the product's name (`PRODUCT`,
+	// the default), the workspace's name (`WORKSPACE_NAME`) or its own logo alone (`LOGO`).
+	// Needs the right that changes the workspace's name (STRUCTURE at the workspace). In the
+	// workspace's trail as `workspace.header_changed`.
+	//
+	// Refused with `workspace.logo_alone_needs_a_picture` for `LOGO` while the workspace has
+	// no picture, and with `workspace.branding_off` where the installation, the plan or the
+	// workspace does not let it show its own name and logo (`sign_in_policy.own_branding`),
+	// the level as the parameter `origin`.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /tenant/branding (the `SetWorkspaceHeader` operationId).
+	SetWorkspaceHeaderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetWorkspaceHeaderResult, error)
+
+	// SetWorkspaceHeaderWithResponse Choose what the header shows
+	//
+	// Chooses what the workspace's header and sign-in card show: the product's name (`PRODUCT`,
+	// the default), the workspace's name (`WORKSPACE_NAME`) or its own logo alone (`LOGO`).
+	// Needs the right that changes the workspace's name (STRUCTURE at the workspace). In the
+	// workspace's trail as `workspace.header_changed`.
+	//
+	// Refused with `workspace.logo_alone_needs_a_picture` for `LOGO` while the workspace has
+	// no picture, and with `workspace.branding_off` where the installation, the plan or the
+	// workspace does not let it show its own name and logo (`sign_in_policy.own_branding`),
+	// the level as the parameter `origin`.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /tenant/branding (the `SetWorkspaceHeader` operationId).
+	SetWorkspaceHeaderWithResponse(ctx context.Context, body SetWorkspaceHeaderJSONRequestBody, reqEditors ...RequestEditorFn) (*SetWorkspaceHeaderResult, error)
+
+	// RemoveWorkspacePictureWithResponse Take a logo or the symbol away
+	//
+	// Takes one of the workspace's pictures away. Idempotent - a picture that is not there
+	// answers as it stands. Removing the last picture while the header shows the logo alone
+	// returns the header to the product's name in the same write. The picture itself is
+	// removed once nothing points at it. Needs STRUCTURE at the workspace; in the trail as
+	// `workspace.picture_removed`. Refused with `workspace.branding_off` where the workspace
+	// may not show its own name and logo, the level as `origin`.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /tenant/branding/{picture} (the `RemoveWorkspacePicture` operationId).
+	RemoveWorkspacePictureWithResponse(ctx context.Context, picture WorkspacePicture, reqEditors ...RequestEditorFn) (*RemoveWorkspacePictureResult, error)
+
+	// SetWorkspacePictureWithBodyWithResponse Give the workspace a logo or a symbol
+	//
+	// Makes an uploaded picture the workspace's logo for the light theme (`LOGO_LIGHT`), its
+	// logo for the dark theme (`LOGO_DARK`) or its square symbol (`SYMBOL`). The picture is
+	// staged and confirmed like any other upload (`POST /media` with usage `WORKSPACE_LOGO`,
+	// the bytes, then `POST /media/{mediaId}:confirm`), and every member may read it. Needs the
+	// right that changes the workspace's name (STRUCTURE at the workspace). In the workspace's
+	// trail as `workspace.picture_set`, naming the media object and nothing in it.
+	//
+	// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch`
+	// for one staged for something else, `media.workspace_logo_not_an_image` for bytes that
+	// are not a PNG, JPEG, GIF or WebP image - an SVG among them -, `media.not_found` for an
+	// object somebody else uploaded, and `workspace.branding_off` where the workspace may not
+	// show its own name and logo, the level as `origin`. A picture already set is replaced;
+	// the one it replaces is removed once nothing points at it.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /tenant/branding/{picture} (the `SetWorkspacePicture` operationId).
+	SetWorkspacePictureWithBodyWithResponse(ctx context.Context, picture WorkspacePicture, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetWorkspacePictureResult, error)
+
+	// SetWorkspacePictureWithResponse Give the workspace a logo or a symbol
+	//
+	// Makes an uploaded picture the workspace's logo for the light theme (`LOGO_LIGHT`), its
+	// logo for the dark theme (`LOGO_DARK`) or its square symbol (`SYMBOL`). The picture is
+	// staged and confirmed like any other upload (`POST /media` with usage `WORKSPACE_LOGO`,
+	// the bytes, then `POST /media/{mediaId}:confirm`), and every member may read it. Needs the
+	// right that changes the workspace's name (STRUCTURE at the workspace). In the workspace's
+	// trail as `workspace.picture_set`, naming the media object and nothing in it.
+	//
+	// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch`
+	// for one staged for something else, `media.workspace_logo_not_an_image` for bytes that
+	// are not a PNG, JPEG, GIF or WebP image - an SVG among them -, `media.not_found` for an
+	// object somebody else uploaded, and `workspace.branding_off` where the workspace may not
+	// show its own name and logo, the level as `origin`. A picture already set is replaced;
+	// the one it replaces is removed once nothing points at it.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /tenant/branding/{picture} (the `SetWorkspacePicture` operationId).
+	SetWorkspacePictureWithResponse(ctx context.Context, picture WorkspacePicture, body SetWorkspacePictureJSONRequestBody, reqEditors ...RequestEditorFn) (*SetWorkspacePictureResult, error)
 
 	// IssueDeviceListEntryWithResponse This workspace's entry for the device's list of workspaces
 	//
@@ -166551,6 +167085,150 @@ func (r CountAccountsWithoutProviderResult) ContentType() string {
 	return ""
 }
 
+type SetWorkspaceHeaderResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkspaceBranding
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetWorkspaceHeaderResult) GetJSON200() *WorkspaceBranding {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetWorkspaceHeaderResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetWorkspaceHeaderResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetWorkspaceHeaderResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetWorkspaceHeaderResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetWorkspaceHeaderResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemoveWorkspacePictureResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkspaceBranding
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RemoveWorkspacePictureResult) GetJSON200() *WorkspaceBranding {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveWorkspacePictureResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveWorkspacePictureResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveWorkspacePictureResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveWorkspacePictureResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveWorkspacePictureResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetWorkspacePictureResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkspaceBranding
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetWorkspacePictureResult) GetJSON200() *WorkspaceBranding {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetWorkspacePictureResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetWorkspacePictureResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetWorkspacePictureResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetWorkspacePictureResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetWorkspacePictureResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type IssueDeviceListEntryResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -189852,6 +190530,126 @@ func (c *ClientWithResponses) CountAccountsWithoutProviderWithResponse(ctx conte
 		return nil, err
 	}
 	return ParseCountAccountsWithoutProviderResult(rsp)
+}
+
+// SetWorkspaceHeaderWithBodyWithResponse Choose what the header shows
+//
+// Chooses what the workspace's header and sign-in card show: the product's name (`PRODUCT`,
+// the default), the workspace's name (`WORKSPACE_NAME`) or its own logo alone (`LOGO`).
+// Needs the right that changes the workspace's name (STRUCTURE at the workspace). In the
+// workspace's trail as `workspace.header_changed`.
+//
+// Refused with `workspace.logo_alone_needs_a_picture` for `LOGO` while the workspace has
+// no picture, and with `workspace.branding_off` where the installation, the plan or the
+// workspace does not let it show its own name and logo (`sign_in_policy.own_branding`),
+// the level as the parameter `origin`.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /tenant/branding (the `SetWorkspaceHeader` operationId).
+func (c *ClientWithResponses) SetWorkspaceHeaderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetWorkspaceHeaderResult, error) {
+	rsp, err := c.SetWorkspaceHeaderWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetWorkspaceHeaderResult(rsp)
+}
+
+// SetWorkspaceHeaderWithResponse Choose what the header shows
+//
+// Chooses what the workspace's header and sign-in card show: the product's name (`PRODUCT`,
+// the default), the workspace's name (`WORKSPACE_NAME`) or its own logo alone (`LOGO`).
+// Needs the right that changes the workspace's name (STRUCTURE at the workspace). In the
+// workspace's trail as `workspace.header_changed`.
+//
+// Refused with `workspace.logo_alone_needs_a_picture` for `LOGO` while the workspace has
+// no picture, and with `workspace.branding_off` where the installation, the plan or the
+// workspace does not let it show its own name and logo (`sign_in_policy.own_branding`),
+// the level as the parameter `origin`.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /tenant/branding (the `SetWorkspaceHeader` operationId).
+func (c *ClientWithResponses) SetWorkspaceHeaderWithResponse(ctx context.Context, body SetWorkspaceHeaderJSONRequestBody, reqEditors ...RequestEditorFn) (*SetWorkspaceHeaderResult, error) {
+	rsp, err := c.SetWorkspaceHeader(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetWorkspaceHeaderResult(rsp)
+}
+
+// RemoveWorkspacePictureWithResponse Take a logo or the symbol away
+//
+// Takes one of the workspace's pictures away. Idempotent - a picture that is not there
+// answers as it stands. Removing the last picture while the header shows the logo alone
+// returns the header to the product's name in the same write. The picture itself is
+// removed once nothing points at it. Needs STRUCTURE at the workspace; in the trail as
+// `workspace.picture_removed`. Refused with `workspace.branding_off` where the workspace
+// may not show its own name and logo, the level as `origin`.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /tenant/branding/{picture} (the `RemoveWorkspacePicture` operationId).
+func (c *ClientWithResponses) RemoveWorkspacePictureWithResponse(ctx context.Context, picture WorkspacePicture, reqEditors ...RequestEditorFn) (*RemoveWorkspacePictureResult, error) {
+	rsp, err := c.RemoveWorkspacePicture(ctx, picture, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveWorkspacePictureResult(rsp)
+}
+
+// SetWorkspacePictureWithBodyWithResponse Give the workspace a logo or a symbol
+//
+// Makes an uploaded picture the workspace's logo for the light theme (`LOGO_LIGHT`), its
+// logo for the dark theme (`LOGO_DARK`) or its square symbol (`SYMBOL`). The picture is
+// staged and confirmed like any other upload (`POST /media` with usage `WORKSPACE_LOGO`,
+// the bytes, then `POST /media/{mediaId}:confirm`), and every member may read it. Needs the
+// right that changes the workspace's name (STRUCTURE at the workspace). In the workspace's
+// trail as `workspace.picture_set`, naming the media object and nothing in it.
+//
+// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch`
+// for one staged for something else, `media.workspace_logo_not_an_image` for bytes that
+// are not a PNG, JPEG, GIF or WebP image - an SVG among them -, `media.not_found` for an
+// object somebody else uploaded, and `workspace.branding_off` where the workspace may not
+// show its own name and logo, the level as `origin`. A picture already set is replaced;
+// the one it replaces is removed once nothing points at it.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /tenant/branding/{picture} (the `SetWorkspacePicture` operationId).
+func (c *ClientWithResponses) SetWorkspacePictureWithBodyWithResponse(ctx context.Context, picture WorkspacePicture, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetWorkspacePictureResult, error) {
+	rsp, err := c.SetWorkspacePictureWithBody(ctx, picture, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetWorkspacePictureResult(rsp)
+}
+
+// SetWorkspacePictureWithResponse Give the workspace a logo or a symbol
+//
+// Makes an uploaded picture the workspace's logo for the light theme (`LOGO_LIGHT`), its
+// logo for the dark theme (`LOGO_DARK`) or its square symbol (`SYMBOL`). The picture is
+// staged and confirmed like any other upload (`POST /media` with usage `WORKSPACE_LOGO`,
+// the bytes, then `POST /media/{mediaId}:confirm`), and every member may read it. Needs the
+// right that changes the workspace's name (STRUCTURE at the workspace). In the workspace's
+// trail as `workspace.picture_set`, naming the media object and nothing in it.
+//
+// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch`
+// for one staged for something else, `media.workspace_logo_not_an_image` for bytes that
+// are not a PNG, JPEG, GIF or WebP image - an SVG among them -, `media.not_found` for an
+// object somebody else uploaded, and `workspace.branding_off` where the workspace may not
+// show its own name and logo, the level as `origin`. A picture already set is replaced;
+// the one it replaces is removed once nothing points at it.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /tenant/branding/{picture} (the `SetWorkspacePicture` operationId).
+func (c *ClientWithResponses) SetWorkspacePictureWithResponse(ctx context.Context, picture WorkspacePicture, body SetWorkspacePictureJSONRequestBody, reqEditors ...RequestEditorFn) (*SetWorkspacePictureResult, error) {
+	rsp, err := c.SetWorkspacePicture(ctx, picture, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetWorkspacePictureResult(rsp)
 }
 
 // IssueDeviceListEntryWithResponse This workspace's entry for the device's list of workspaces
@@ -219973,6 +220771,105 @@ func ParseCountAccountsWithoutProviderResult(rsp *http.Response) (*CountAccounts
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest AccountsWithoutProvider
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetWorkspaceHeaderResult parses an HTTP response from a SetWorkspaceHeaderWithResponse call
+func ParseSetWorkspaceHeaderResult(rsp *http.Response) (*SetWorkspaceHeaderResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetWorkspaceHeaderResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkspaceBranding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemoveWorkspacePictureResult parses an HTTP response from a RemoveWorkspacePictureWithResponse call
+func ParseRemoveWorkspacePictureResult(rsp *http.Response) (*RemoveWorkspacePictureResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveWorkspacePictureResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkspaceBranding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetWorkspacePictureResult parses an HTTP response from a SetWorkspacePictureWithResponse call
+func ParseSetWorkspacePictureResult(rsp *http.Response) (*SetWorkspacePictureResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetWorkspacePictureResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkspaceBranding
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

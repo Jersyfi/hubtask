@@ -22782,6 +22782,112 @@
         }
       }
     },
+    "/tenant/branding": {
+      "put": {
+        "tags": [
+          "meta"
+        ],
+        "operationId": "setWorkspaceHeader",
+        "x-hubtask-rest": "generated",
+        "summary": "Choose what the header shows",
+        "description": "Chooses what the workspace's header and sign-in card show: the product's name (`PRODUCT`,\nthe default), the workspace's name (`WORKSPACE_NAME`) or its own logo alone (`LOGO`).\nNeeds the right that changes the workspace's name (STRUCTURE at the workspace). In the\nworkspace's trail as `workspace.header_changed`.\n\nRefused with `workspace.logo_alone_needs_a_picture` for `LOGO` while the workspace has\nno picture, and with `workspace.branding_off` where the installation, the plan or the\nworkspace does not let it show its own name and logo (`sign_in_policy.own_branding`),\nthe level as the parameter `origin`.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceHeaderInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The workspace's name and logo as they stand now",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceBranding"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/tenant/branding/{picture}": {
+      "parameters": [
+        {
+          "name": "picture",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "$ref": "#/components/schemas/WorkspacePicture"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "meta"
+        ],
+        "operationId": "setWorkspacePicture",
+        "x-hubtask-rest": "generated",
+        "summary": "Give the workspace a logo or a symbol",
+        "description": "Makes an uploaded picture the workspace's logo for the light theme (`LOGO_LIGHT`), its\nlogo for the dark theme (`LOGO_DARK`) or its square symbol (`SYMBOL`). The picture is\nstaged and confirmed like any other upload (`POST /media` with usage `WORKSPACE_LOGO`,\nthe bytes, then `POST /media/{mediaId}:confirm`), and every member may read it. Needs the\nright that changes the workspace's name (STRUCTURE at the workspace). In the workspace's\ntrail as `workspace.picture_set`, naming the media object and nothing in it.\n\nRefused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch`\nfor one staged for something else, `media.workspace_logo_not_an_image` for bytes that\nare not a PNG, JPEG, GIF or WebP image - an SVG among them -, `media.not_found` for an\nobject somebody else uploaded, and `workspace.branding_off` where the workspace may not\nshow its own name and logo, the level as `origin`. A picture already set is replaced;\nthe one it replaces is removed once nothing points at it.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspacePictureInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The workspace's name and logo as they stand now",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceBranding"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "meta"
+        ],
+        "operationId": "removeWorkspacePicture",
+        "x-hubtask-rest": "generated",
+        "summary": "Take a logo or the symbol away",
+        "description": "Takes one of the workspace's pictures away. Idempotent - a picture that is not there\nanswers as it stands. Removing the last picture while the header shows the logo alone\nreturns the header to the product's name in the same write. The picture itself is\nremoved once nothing points at it. Needs STRUCTURE at the workspace; in the trail as\n`workspace.picture_removed`. Refused with `workspace.branding_off` where the workspace\nmay not show its own name and logo, the level as `origin`.\n",
+        "responses": {
+          "200": {
+            "description": "The workspace's name and logo as they stand now",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceBranding"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/tenant/own-domain": {
       "put": {
         "tags": [
@@ -39235,6 +39341,92 @@
           }
         }
       },
+      "WorkspacePicture": {
+        "type": "string",
+        "enum": [
+          "LOGO_LIGHT",
+          "LOGO_DARK",
+          "SYMBOL"
+        ],
+        "description": "One of the workspace's three pictures: the logo drawn on the light theme, the one drawn on the dark theme, and the square symbol drawn where a logo does not fit.\n"
+      },
+      "WorkspaceHeader": {
+        "type": "string",
+        "enum": [
+          "PRODUCT",
+          "WORKSPACE_NAME",
+          "LOGO"
+        ],
+        "description": "What the header and the sign-in card show: the product's name, the workspace's name, or the workspace's own logo alone.\n"
+      },
+      "WorkspacePictureInput": {
+        "type": "object",
+        "required": [
+          "media_id"
+        ],
+        "properties": {
+          "media_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "A confirmed media object the caller staged with usage `WORKSPACE_LOGO`."
+          }
+        }
+      },
+      "WorkspaceHeaderInput": {
+        "type": "object",
+        "required": [
+          "header"
+        ],
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/WorkspaceHeader"
+          }
+        }
+      },
+      "WorkspaceBranding": {
+        "type": "object",
+        "required": [
+          "header",
+          "logo_light_media_id",
+          "logo_dark_media_id",
+          "symbol_media_id",
+          "allowed"
+        ],
+        "description": "The workspace's own name and logo as stored. `allowed` is `sign_in_policy.own_branding` in force; where it is false a client shows the product's name, whatever is stored.\n",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/WorkspaceHeader"
+          },
+          "logo_light_media_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The logo drawn on the light theme, or null."
+          },
+          "logo_dark_media_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The logo drawn on the dark theme, or null."
+          },
+          "symbol_media_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The square symbol, or null."
+          },
+          "allowed": {
+            "type": "boolean",
+            "description": "Whether the workspace may show its own name and logo now."
+          }
+        }
+      },
       "AvatarInput": {
         "type": "object",
         "required": [
@@ -41507,6 +41699,11 @@
             "readOnly": true,
             "description": "Whether the workspace holds more than one person whose account is not anonymised - where private hubs, and the setting that allows them, mean something.\n"
           },
+          "branding": {
+            "$ref": "#/components/schemas/WorkspaceBranding",
+            "readOnly": true,
+            "description": "What the header and the sign-in card show, and the workspace's own pictures. Written through `PUT /tenant/branding` and `PUT /tenant/branding/{picture}`, never by the `PATCH`.\n"
+          },
           "sign_in_policy": {
             "$ref": "#/components/schemas/SignInPolicy",
             "description": "How people in this workspace prove who they are. Absent on an installation with no instance layer, where there is no level above to resolve against - a screen that drew eighteen rows it could not save would be a screen that lies about what it offers.\n"
@@ -42081,6 +42278,10 @@
             "$ref": "#/components/schemas/SignInPolicyFlag",
             "description": "Whether people here may make private hubs. On by default; off is the stricter value. Off stops new ones only: every private hub already here stays private.\n"
           },
+          "own_branding": {
+            "$ref": "#/components/schemas/SignInPolicyFlag",
+            "description": "Whether the workspace may show its own name and logo in place of the product's name. On by default; off is the stricter value. Off refuses every change to the header's choice and the pictures, and a client shows the product's name; what is stored stays.\n"
+          },
           "rotation_from": {
             "type": [
               "string",
@@ -42368,6 +42569,9 @@
             "type": "boolean"
           },
           "private_hubs": {
+            "type": "boolean"
+          },
+          "own_branding": {
             "type": "boolean"
           },
           "rotation_from": {
@@ -43698,7 +43902,7 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/InstanceSetting"
             },
-            "description": "The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, the two session bounds, `managed_accounts` and `private_hubs`. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.\n"
+            "description": "The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, the two session bounds, `managed_accounts`, `private_hubs` and `own_branding`. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.\n"
           },
           "legal": {
             "type": "object",
@@ -64550,7 +64754,8 @@
               "ATTACHMENT",
               "IMPORT",
               "AVATAR",
-              "DESK_LOGO"
+              "DESK_LOGO",
+              "WORKSPACE_LOGO"
             ]
           },
           "status": {
@@ -64671,9 +64876,10 @@
               "ATTACHMENT",
               "IMPORT",
               "AVATAR",
-              "DESK_LOGO"
+              "DESK_LOGO",
+              "WORKSPACE_LOGO"
             ],
-            "description": "What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends. `AVATAR` stages a picture for `PUT /accounts/me/avatar`, at most 5 MB, and `DESK_LOGO` one for `PUT /containers/{containerId}/desk-logo`, at most 5 MB as well.\n"
+            "description": "What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends. `AVATAR` stages a picture for `PUT /accounts/me/avatar`, at most 5 MB, `DESK_LOGO` one for `PUT /containers/{containerId}/desk-logo`, and `WORKSPACE_LOGO` one for `PUT /tenant/branding/{picture}`, each at most 5 MB as well.\n"
           }
         }
       },

@@ -2379,6 +2379,18 @@ func (pending) RemoveDeskLogo(w http.ResponseWriter, r *http.Request, _ openapi.
 	notAvailable(w, r)
 }
 
+func (pending) SetWorkspaceHeader(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) SetWorkspacePicture(w http.ResponseWriter, r *http.Request, _ openapi.WorkspacePicture) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveWorkspacePicture(w http.ResponseWriter, r *http.Request, _ openapi.WorkspacePicture) {
+	notAvailable(w, r)
+}
+
 func (pending) ListRequestCatalogue(w http.ResponseWriter, r *http.Request, _ openapi.ListRequestCatalogueParams) {
 	notAvailable(w, r)
 }

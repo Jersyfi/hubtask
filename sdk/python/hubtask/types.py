@@ -172,6 +172,24 @@ class DeskLogo(TypedDict, total=False):
     collection_id: Required[str]
     logo_media_id: Required[str | None]
 
+WorkspacePicture = Literal["LOGO_LIGHT", "LOGO_DARK", "SYMBOL"]
+
+WorkspaceHeader = Literal["PRODUCT", "WORKSPACE_NAME", "LOGO"]
+
+class WorkspacePictureInput(TypedDict, total=False):
+    media_id: Required[str]
+
+class WorkspaceHeaderInput(TypedDict, total=False):
+    header: Required["WorkspaceHeader"]
+
+class WorkspaceBranding(TypedDict, total=False):
+    """The workspace's own name and logo as stored. `allowed` is `sign_in_policy.own_branding` in force; where it is false a client shows the product's name, whatever is stored."""
+    header: Required["WorkspaceHeader"]
+    logo_light_media_id: Required[str | None]
+    logo_dark_media_id: Required[str | None]
+    symbol_media_id: Required[str | None]
+    allowed: Required[bool]
+
 class AvatarInput(TypedDict, total=False):
     media_id: Required[str]
 
@@ -663,6 +681,7 @@ class Workspace(TypedDict, total=False):
     version: Required[int]
     private_hubs_offered: bool
     several_people: bool
+    branding: "WorkspaceBranding"
     sign_in_policy: "SignInPolicy"
     structure: "WorkspaceStructure"
     starter_offered: bool
@@ -782,6 +801,7 @@ class SignInPolicy(TypedDict, total=False):
     plan: str | None
     managed_accounts: "SignInPolicyFlag"
     private_hubs: "SignInPolicyFlag"
+    own_branding: "SignInPolicyFlag"
     rotation_from: Required[str | None]
 
 class PasswordPolicySettings(TypedDict, total=False):
@@ -861,6 +881,7 @@ class SignInPolicyChange(TypedDict, total=False):
     terms_version: str
     managed_accounts: bool
     private_hubs: bool
+    own_branding: bool
     rotation_from: Literal["now"]
 
 class IdentityProvider(TypedDict, total=False):
@@ -4857,7 +4878,7 @@ class MediaObject(TypedDict, total=False):
     content_type: Required[str]
     size: Required[int]
     checksum: str | None
-    usage: Required[Literal["COVER", "ATTACHMENT", "IMPORT", "AVATAR", "DESK_LOGO"]]
+    usage: Required[Literal["COVER", "ATTACHMENT", "IMPORT", "AVATAR", "DESK_LOGO", "WORKSPACE_LOGO"]]
     status: Required[Literal["PENDING", "READY", "PENDING_SCAN", "INFECTED", "UNSCANNABLE"]]
     ref_count: Required[int]
     created_by: Required[str]
@@ -4878,7 +4899,7 @@ class MediaUploadRequest(TypedDict, total=False):
     file_name: str | None
     content_type: str | None
     size: Required[int]
-    usage: Required[Literal["COVER", "ATTACHMENT", "IMPORT", "AVATAR", "DESK_LOGO"]]
+    usage: Required[Literal["COVER", "ATTACHMENT", "IMPORT", "AVATAR", "DESK_LOGO", "WORKSPACE_LOGO"]]
 
 class MediaPage(TypedDict, total=False):
     data: Required[list["MediaObject"]]
