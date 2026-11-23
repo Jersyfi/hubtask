@@ -128,6 +128,25 @@ class Page {
     };
   }
 
+  #takesScreen = $state(false);
+
+  /**
+   * Whether the page is a phone's whole screen: a task with its own bar - ✕ and its title - and
+   * its primary in a bar at the foot (a filled `CreatePage`). Below `medium` the frame then draws
+   * neither its bar nor its bottom bar, which would be a second way out and a second foot.
+   */
+  get takesScreen(): boolean {
+    return this.#takesScreen;
+  }
+
+  /** Takes the phone's whole screen for as long as the caller's effect lives. */
+  takeScreen(): () => void {
+    this.#takesScreen = true;
+    return () => {
+      this.#takesScreen = false;
+    };
+  }
+
   /** Takes the content region for as long as the caller's effect lives. */
   fill(): () => void {
     this.#fills = true;

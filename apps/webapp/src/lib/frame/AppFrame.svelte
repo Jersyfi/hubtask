@@ -447,7 +447,8 @@
   // the way back stands only in the bar (the navigation concept §9).
   let carried = $state<PageBack | undefined>(undefined);
   const phoneBack = $derived.by(() => {
-    if (!isPhone) return undefined;
+    // A page that takes the whole screen has no *‹ the level above*: its ✕ is the way out.
+    if (!isPhone || page.takesScreen) return undefined;
     if (carried) return { label: carried.label, path: route.path };
     if (page.ascent) return page.ascent;
     // An entry's way up is its collection, where the screen has named it.
@@ -527,8 +528,8 @@
         : { id: tab.id, label: t(tab.code), icon: tab.icon, href: tab.path, count: tab.id === 'inbox' ? jumble.of('NEW').length || undefined : undefined },
     ),
   );
-  /** Hidden where the screen is the work's own canvas: a whiteboard (§9). */
-  const isBottomBarShown = $derived(route.name !== 'whiteboard' && !page.isWriting);
+  /** Hidden where the screen is the work's own canvas - a whiteboard (§9) - or a page's whole screen. */
+  const isBottomBarShown = $derived(route.name !== 'whiteboard' && !page.isWriting && !page.takesScreen);
   function choosePhoneTab(id: string) {
     if (id === 'capture') return create.summon();
     // Search opens the palette, the bar having no field to type in: its *All results* and *Open
@@ -811,6 +812,8 @@
   {/snippet}
   {#if isOutside}
     <PortalFrameBar {route} {isPhone} onnavigate={go} account={outsiderAccount} />
+  {:else if isPhone && page.takesScreen}
+    <!-- A page that is the phone's whole screen draws its own bar: ✕ and its title (`page.svelte.ts`). -->
   {:else if isPhone}
     <PhoneBar label={t('app.nav.bar')} title={page.title} back={phoneBack} onback={back} star={phoneStar} menu={page.menu}>
       {#snippet account()}
