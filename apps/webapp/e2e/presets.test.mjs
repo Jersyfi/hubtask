@@ -26,7 +26,7 @@ import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, DEFAULT_STRUCTURE, MANIFEST, PAGE, PERMISSIONS, PRESETS, PRESET_SETTINGS, SHAPE_HUB, SHAPES, WORKSPACE, forgetUnstubbed, showStructures, stub, openSettings, openNewCollection, kindChoice } from './fixture.mjs';
 import { serve } from './serve.mjs';
-import { chipsOf, focused } from './several.mjs';
+import { chipsOf, focused, openBeside } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -300,4 +300,22 @@ test("chromium: a member reaches no Presets screen", async (t) => {
   await page.waitForTimeout(1500);
   assert.equal(await page.locator('[data-presets-saved]').count(), 0, 'a member is shown the workspace\'s presets to change');
   assert.ok(!written.some((write) => write.path.startsWith('/presets') || write.path === '/tenant/structure'));
+});
+
+// The locks' list opened where its row stands near the middle of a short screen (anchor.ts, the
+// shrunk fallback): at 1280×720 it covers neither the field nor runs past the viewport, End
+// focuses an option the reader sees, and the page does not scroll.
+test('chromium: 1280×720 - the locks open beside their field, inside the screen', async (t) => {
+  const browser = await sharedChromium(t);
+  const { context, page } = await as(browser, 'OWNER');
+  t.after(() => context.close());
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto(`${served.origin}/administration/workspace/new-hubs`);
+  const locks = page.locator('[data-presets-locks]').getByRole('button', { name: /^Locks/u });
+  await locks.waitFor({ timeout: 15_000 });
+  await locks.scrollIntoViewIfNeeded();
+  await locks.focus();
+  await page.keyboard.press('Enter');
+  await page.getByRole('listbox').waitFor({ timeout: 5_000 });
+  assert.deepEqual(await openBeside(page), { coversField: false, insideViewport: true, endFocusesVisibleOption: true, behindScrolled: 0 });
 });

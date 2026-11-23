@@ -15,7 +15,7 @@ import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, OTHER, PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
-import { chipsOf, focused, pick, valueOf } from './several.mjs';
+import { chipsOf, focused, openBeside, pick, valueOf } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const ADMIN_GRANTS = ['ADMIN', 'MEMBER', 'CONTRIBUTOR', 'VIEWER', 'GUEST', 'AUDITOR'];
@@ -206,3 +206,48 @@ for (const [width, locale] of [[1280, 'en'], [390, 'de']]) {
     await page.getByRole('main').getByRole('link', { name: 'Dana Wolf', exact: true }).waitFor({ timeout: 5_000 });
   });
 }
+
+// A long list opened from a field near the middle of a short screen (anchor.ts, the shrunk
+// fallback): it takes the side with more room and is no taller than it, so it covers neither the
+// field nor runs past the viewport, End focuses an option the reader sees, and the page behind
+// the modal dialog does not scroll.
+test('chromium: 1280×720 - the list of thirty people stands beside its field, inside the screen', async (t) => {
+  const browser = await sharedChromium(t);
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  t.after(() => context.close());
+  const many = Array.from({ length: 30 }, (_, at) => ({ ...OTHER, id: `01a0e2e0-0000-7000-8000-0000000002${String(at).padStart(2, '0')}`, display_name: `Person ${at}` }));
+  await context.route('**/api/v1/**', async (route) => {
+    const url = new URL(route.request().url());
+    const path = url.pathname.replace(/^.*\/api\/v1/u, '');
+    if (path === '/memberships' && url.searchParams.get('scope_type') === 'TENANT') {
+      return route.fulfill({ json: { ...PAGE, data: [
+        { id: 'm-owner', scope_type: 'TENANT', account_id: OTHER.id, role: 'OWNER' },
+        { id: 'm-me', scope_type: 'TENANT', account_id: ACCOUNT.id, role: 'ADMIN' },
+        ...many.map((person) => ({ id: `m-${person.id}`, scope_type: 'TENANT', account_id: person.id, role: 'MEMBER' })),
+      ], grantable_roles: ADMIN_GRANTS } });
+    }
+    const person = many.find((each) => path === `/accounts/${each.id}`);
+    if (person) return route.fulfill({ json: person });
+    if (path === `/accounts/${OTHER.id}`) return route.fulfill({ json: OTHER });
+    if (path === '/groups') return route.fulfill({ json: { ...PAGE, data: [HELPERS] } });
+    if (path === `/groups/${HELPERS.id}`) return route.fulfill({ json: { ...HELPERS, members: [OTHER.id], members_changeable: true } });
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/groups/${HELPERS.id}`);
+  await page.getByRole('button', { name: 'Add people' }).first().click({ timeout: 15_000 });
+  const dialog = page.getByRole('dialog', { name: 'Add people to Helpers' });
+  await dialog.waitFor({ timeout: 5_000 });
+  const field = dialog.getByRole('button', { name: /^Add somebody/u });
+  await field.focus();
+  await page.keyboard.press('Enter');
+  const list = page.getByRole('listbox', { name: 'Add somebody' });
+  await list.waitFor({ timeout: 5_000 });
+  await list.getByRole('option', { name: 'Person 29', exact: true }).waitFor({ state: 'attached', timeout: 5_000 });
+  assert.deepEqual(await openBeside(page), { coversField: false, insideViewport: true, endFocusesVisibleOption: true, behindScrolled: 0 });
+});
+

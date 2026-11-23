@@ -28,6 +28,51 @@ export const chipsOf = (field) => field.locator('.chips:not(.measure) .chip').al
 export const valueOf = async (field) => (await field.locator('.value').textContent()).replace(/\s+/gu, ' ').trim();
 
 /**
+ * Where the one open list stands against its field: the list never covers the field and never
+ * leaves the viewport (`anchor.ts`, the shrunk fallback). Then End, and the option it focuses must
+ * lie inside the list's scroll box and the viewport, clear of its stuck foot, while nothing behind
+ * it scrolled. Answers the four for the walk to assert.
+ */
+export async function openBeside(page) {
+  const read = () => page.evaluate(() => {
+    const list = document.querySelector('[role="listbox"]');
+    const surface = list?.closest('.surface');
+    const field = document.querySelector('button[aria-haspopup="listbox"][aria-expanded="true"]');
+    if (!surface || !field) return undefined;
+    const s = surface.getBoundingClientRect();
+    const f = field.getBoundingClientRect();
+    const foot = surface.querySelector('.foot')?.getBoundingClientRect();
+    const scrolled = [...document.querySelectorAll('*')].filter((node) => node !== surface && !surface.contains(node) && node.scrollTop > 0).length + window.scrollY;
+    const covers = !(s.right <= f.left || s.left >= f.right || s.bottom <= f.top || s.top >= f.bottom);
+    return { covers, inside: s.top >= 0 && s.left >= 0 && s.bottom <= innerHeight && s.right <= innerWidth, surface: [s.top, s.bottom], foot: foot ? foot.top : s.bottom, scrolled };
+  });
+  // The list opens with focus on its first chosen option, or its first: End is pressed from there.
+  await page.waitForFunction(() => document.activeElement?.getAttribute('role') === 'option', null, { timeout: 5_000 });
+  const before = await read();
+  await page.keyboard.press('End');
+  // The list scrolls the option clear of its stuck foot once it has focus: the walk waits, up to a
+  // limit, for the last option focused and wholly seen inside the list, the viewport and above
+  // the foot - what the reader would then see.
+  const seen = await page.waitForFunction(() => {
+    const node = document.activeElement;
+    const surface = node?.closest('.surface');
+    if (!surface || node.getAttribute('role') !== 'option') return false;
+    const options = surface.querySelectorAll('[role="option"]');
+    const box = node.getBoundingClientRect();
+    const frame = surface.getBoundingClientRect();
+    const foot = surface.querySelector('.foot')?.getBoundingClientRect().top ?? frame.bottom;
+    return node === options[options.length - 1] && box.top >= Math.max(0, frame.top) && box.bottom <= Math.min(foot, innerHeight);
+  }, null, { timeout: 2_000 }).then(() => true, () => false);
+  const later = await read();
+  return {
+    coversField: before?.covers,
+    insideViewport: before?.inside,
+    endFocusesVisibleOption: seen,
+    behindScrolled: (later?.scrolled ?? 0) - (before?.scrolled ?? 0),
+  };
+}
+
+/**
  * Presses each named option of a closed field as a person does: a press opens the list, each
  * option is pressed by its name, and Escape closes the list onto the field. Answers the names of
  * the options selected when it closed.

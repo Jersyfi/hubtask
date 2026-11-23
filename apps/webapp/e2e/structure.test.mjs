@@ -33,6 +33,7 @@ import { sharedChromium } from './browser.mjs';
 import { ACCOUNT, OTHER, OWNER_GRANTS, PAGE, SHAPE_HUB, SHAPE_ITEMS, SHAPES, forgetUnstubbed, showStructures, stub, openSettings, viewLink, openNewCollection, kindChoice } from './fixture.mjs';
 import { serve } from './serve.mjs';
 import { reveal } from './reveal.mjs';
+import { openBeside } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -793,5 +794,22 @@ test('chromium: 390 px - in German the field says "Alle 15 Felder" and its group
   await sheet.getByRole('button', { name: 'Fertig', exact: true }).click();
   await sheet.waitFor({ state: 'detached', timeout: 5_000 });
   assert.match(await focused(page), /^button "Was Aufgabe trägt /u);
+  assert.deepEqual(failures, []);
+});
+
+// The list of what a level carries, opened where the field stands near the middle of the screen
+// (anchor.ts, the shrunk fallback): at the reviewer's height of 990 it covers neither the field nor
+// runs past the viewport, End focuses an option the reader sees, and the page does not scroll.
+test('chromium: 1280×990 - what a level carries opens beside its field, inside the screen', async (t) => {
+  const browser = await sharedChromium(t);
+  const { context, page, failures } = await as(browser, 'ADMIN', 1280);
+  t.after(() => context.close());
+  await page.setViewportSize({ width: 1280, height: 990 });
+  await openSectionAt(page, SHAPES.list, 'types');
+  const field = page.locator('[data-setting="fields"]').getByRole('button', { name: /^What .* carries/u }).first();
+  await field.focus();
+  await page.keyboard.press('ArrowDown');
+  await page.getByRole('listbox').waitFor({ timeout: 5_000 });
+  assert.deepEqual(await openBeside(page), { coversField: false, insideViewport: true, endFocusesVisibleOption: true, behindScrolled: 0 });
   assert.deepEqual(failures, []);
 });

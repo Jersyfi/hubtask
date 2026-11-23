@@ -60,6 +60,10 @@ export function positionArea({ side, align: alignment }: Placement): string {
  *   other option takes the larger one. `position-try-order: most-block-size` would choose too,
  *   but it sorts the overlay's own position with the rest and would open every short menu upwards
  *   whenever there is more room above.
+ * - `--hbt-fit-slack`: the minimum is a content box, and an overlay's padding and border come on
+ *   top of it. Where they are wider than the slack, both sides of a trigger near the middle are
+ *   refused and the engine keeps the first position - below, pushed back up over the trigger. An
+ *   overlay with a wide frame (`Popover`) declares a slack that holds it.
  */
 const FIT = '--hbt-fit';
 const FIT_RULE = `@position-try ${FIT} {
@@ -67,7 +71,7 @@ const FIT_RULE = `@position-try ${FIT} {
   justify-self: anchor-center;
   max-block-size: -webkit-fill-available;
   max-block-size: stretch;
-  min-block-size: calc((100dvh - anchor-size(block)) / 2 - var(--sp-200));
+  min-block-size: calc((100dvh - anchor-size(block)) / 2 - var(--hbt-fit-slack, var(--sp-200)));
 }`;
 
 /**

@@ -204,6 +204,12 @@
     if (!node) return;
     node.focus({ preventScroll: true });
     keepClear(node);
+    // Again once the frame is drawn: in the frames after it opens, a layout forced by the scroll
+    // can still size the surface by its first position, not the fallback anchor.ts ends on, and an
+    // option scrolled clear of that size stands outside the one drawn.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (document.activeElement === node) keepClear(node);
+    }));
   }
 
   /** The surface that scrolls the list: the popover's, or the sheet's body. */

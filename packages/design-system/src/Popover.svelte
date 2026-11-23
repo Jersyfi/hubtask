@@ -146,6 +146,10 @@
     margin: var(--sp-050);
     padding: var(--sp-200);
     border: var(--bw-hairline) solid var(--border-subtle);
+    /* anchor.ts's slack for its shrunk fallback, grown by what comes on top of the content box it
+       sizes - padding and border on both sides. Without it a list near the middle of the screen
+       fits on neither side. */
+    --hbt-fit-slack: calc(var(--sp-200) * 3 + var(--bw-hairline) * 2);
     border-radius: var(--r-lg);
     background: var(--bg-raised);
     /* Rule 1: a temporary overlay is raised off the page it covers. */
