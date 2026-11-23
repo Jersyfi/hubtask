@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { values } from '@hubtask/design-system';
 
 import {
-  cardLookOf, cardSourcesOf, contrastOf, drawingFor, initialsOf, isSameDrawing, markDrawings, mayAskAgain, mayShowLogoAlone, memberLookOf, pictureFailureOf, pictureOf, refusalOf,
+  cardLookOf, cardSourcesOf, contrastOf, drawingFor, initialsOf, isSameDrawing, luminanceOfHex, markDrawings, mayAskAgain, mayShowLogoAlone, memberLookOf, pictureFailureOf, pictureOf, refusalOf,
 } from './branding.ts';
 
 const LIGHT = values.light.bg.surface;
@@ -26,6 +26,15 @@ test('a dark mark on the dark surface is hard to read; a light one reads', () =>
   assert.equal(contrastOf(white, DARK), 'reads');
   assert.equal(contrastOf(navy, LIGHT), 'reads');
   assert.equal(contrastOf(white, LIGHT), 'hard');
+});
+
+// WCAG 1.4.11 asks 3:1 of a graphic against what it stands on; the line still only warns.
+test('a uniform grey logo below 3:1 against the light surface is hard to read', () => {
+  assert.equal(luminanceOfHex(LIGHT), 1, 'the greys are measured against white');
+  // 2.38, 2.17 and 1.98 against white: each below the 3:1 a graphic needs.
+  for (const grey of [0xa8, 0xb0, 0xb8]) assert.equal(contrastOf(paint([grey, grey, grey, 255]), LIGHT), 'hard', grey.toString(16));
+  // 3.03 and 4.54: at or above it.
+  for (const grey of [0x94, 0x76]) assert.equal(contrastOf(paint([grey, grey, grey, 255]), LIGHT), 'reads', grey.toString(16));
 });
 
 test('a transparent picture is judged on what it paints', () => {

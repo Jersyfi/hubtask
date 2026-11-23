@@ -147,8 +147,11 @@ export function initialsOf(name: string): string {
 /** Whether a picture reads on a surface. */
 export type Verdict = 'reads' | 'hard';
 
-/** Below this ratio between a picture's average and the surface, the picture is called hard to read. */
-const HARD_BELOW = 2;
+/**
+ * Below this ratio between a picture's average and the surface, the picture is called hard to read:
+ * WCAG 1.4.11's 3:1 for a graphic. A warning only - nothing reads the verdict to refuse a save.
+ */
+const HARD_BELOW = 3;
 const CHANNEL = 255;
 
 function linear(channel: number): number {
