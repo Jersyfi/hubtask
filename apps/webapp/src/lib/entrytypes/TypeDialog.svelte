@@ -8,7 +8,7 @@
   //
   // A type's description and its texts per language are what a portal reads (UC-SVC-05 check 7):
   // one row per language of the installation the workspace writes, the default text for the rest.
-  import { Button, CheckboxGroup, Dialog, Disclosure, Icon, IconButton, Inline, Input, LabelChip, Select, Stack, Switch, Textarea } from '@hubtask/design-system/components';
+  import { Button, Dialog, Disclosure, Icon, IconButton, Inline, Input, LabelChip, MultiSelect, Select, Stack, Switch, Textarea } from '@hubtask/design-system/components';
   import { labelTokens } from '@hubtask/design-system';
   import type { EntryType } from '@hubtask/sync-engine';
 
@@ -18,6 +18,7 @@
   import { type TranslationRow, languagesLeft, sameTranslations, translationRowsOf, translationsOf } from '../data/entrytypes.ts';
   import FailureNote from '../frame/FailureNote.svelte';
   import { toast } from '../frame/toasts.svelte.ts';
+  import { chooseSeveral } from '../forms/chooseSeveral.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { DiscardGuard } from '../page/discard.svelte.ts';
   import DiscardDialog from '../page/DiscardDialog.svelte';
@@ -179,12 +180,13 @@
         <Switch label={t('app.entry_types.behaviour_workflow')} bind:checked={draft.workflow} />
         <Switch label={t('app.entry_types.behaviour_estimable')} bind:checked={draft.estimable} />
         {#if childOptions.length > 0}
-          <CheckboxGroup
+          <MultiSelect
             label={t('app.entry_types.allowed_children')}
             hint={t('app.entry_types.allowed_children_hint')}
             options={childOptions}
             selected={draft.allowed}
             onChange={(next) => { if (draft) draft.allowed = [...next]; }}
+            {...chooseSeveral()}
           />
         {/if}
       </section>

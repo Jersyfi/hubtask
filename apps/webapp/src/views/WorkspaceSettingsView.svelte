@@ -37,7 +37,7 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Button, CheckboxGroup, Input, SaveBar, Select, SettingRow, SettingsLayout, SettingsSection, Spinner } from '@hubtask/design-system/components';
+  import { Button, Input, MultiSelect, SaveBar, Select, SettingRow, SettingsLayout, SettingsSection, Spinner } from '@hubtask/design-system/components';
   import type { SectionLink } from '@hubtask/design-system/components';
   import ZonePicker from '../lib/forms/ZonePicker.svelte';
   import { TransportError } from '@hubtask/sync-engine';
@@ -48,6 +48,7 @@
   import { isModuleOn } from '../lib/frame/moduleroute.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
   import { WEEK_STARTS, localesOf } from '../lib/data/preferences.ts';
+  import { chooseSeveral } from '../lib/forms/chooseSeveral.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { languageName } from '../lib/i18n/locale.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -573,12 +574,14 @@
           </div>
           <div class="row" data-presets-locks>
             <SettingRow label={t('app.presets.locks_title')} help={t('app.presets.locks_hint')} fieldWidth="lg" isChanged={areLocksMoved}>
-              {#snippet control()}
-                <CheckboxGroup
+              {#snippet control(nameId)}
+                <MultiSelect
                   label={t('app.presets.locks_label')}
+                  aria-labelledby={nameId}
                   options={lockOptions}
                   selected={chosenLocks ?? lockedSettings}
                   onChange={(selected) => (chosenLocks = selected)}
+                  {...chooseSeveral()}
                 />
                 {#if fieldLocks.length > 0}
                   <p class="quiet" data-field-locks>{t('app.presets.field_locks', { count: String(fieldLocks.length) })}</p>

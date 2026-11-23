@@ -22,10 +22,10 @@
   import {
     Button,
     Checkbox,
-    CheckboxGroup,
     DataTable,
     Dialog,
     Input,
+    MultiSelect,
     Select,
     Stack,
     Textarea,
@@ -39,6 +39,7 @@
   import { keyFrom } from '../data/entrytypes.ts';
   import { cascadingOptionFault, fieldName, isCalculated, isValidCurrency, isHubs, isValidKey, isWorkspaceWide, takesCurrency, takesOptions } from '../data/customfields.ts';
   import { announcer } from '../announce.svelte.ts';
+  import { chooseSeveral } from '../forms/chooseSeveral.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import { check, focusFirst, isComplete, without, type Missing } from '../forms/missing.ts';
@@ -397,7 +398,7 @@
           </fieldset>
         {:else}
           <!-- Nothing said in advance when none is ticked: *Define* says it if it is pressed so. -->
-          <CheckboxGroup
+          <MultiSelect
             label={t('app.fields.applies_to')}
             hint={t('app.fields.applies_to_hint')}
             options={carriers.map((type) => ({ value: type, label: offer.level(type).label }))}
@@ -407,6 +408,7 @@
               chosen = [...next];
               missing = without(missing, 'types');
             }}
+            {...chooseSeveral()}
           />
         {/if}
 

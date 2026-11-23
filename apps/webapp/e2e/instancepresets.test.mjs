@@ -20,6 +20,7 @@ import { chooseInRow, rowMenu } from './rowmenu.mjs';
 
 import { MANIFEST, PRESET_SETTINGS, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { chipsOf, focused, pick } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -123,9 +124,14 @@ test('chromium: an operator creates, renames, starts again, makes default, locks
   // *Default and locks…*.
   await page.getByRole('main').getByRole('button', { name: 'Default and locks…' }).click();
   const defaults = page.getByRole('dialog', { name: 'Default and locks…' });
-  const locks = defaults.locator('[data-installation-preset-locks]');
-  assert.equal(await locks.getByRole('checkbox', { name: 'Views' }).isChecked(), true, "the default's lock is not drawn");
-  await locks.getByRole('checkbox', { name: 'Success' }).check();
+  // The nine settings are one field named by its question (design-system.md §4).
+  const locks = defaults.locator('[data-installation-preset-locks]').getByRole('button', { name: /^Locked in every workspace to/u });
+  assert.equal(await locks.getAttribute('aria-haspopup'), 'listbox', 'the locks are not one field');
+  assert.deepEqual(await chipsOf(locks), ['Views'], "the default's lock is not drawn");
+  // Each press writes at once; what the list holds follows the answer.
+  await pick(page, locks, ['Success']);
+  assert.equal(await defaults.isVisible(), true, 'Escape closed the dialog, not only the list');
+  assert.match(await focused(page), /^button "Locked in every workspace to /u, 'closing the list left focus elsewhere');
   await page.waitForTimeout(300);
   const locked = written.filter((write) => write.method === 'PATCH' && write.path === `/admin/presets/${CRAFT.id}`).at(-1);
   assert.deepEqual(locked?.body, { locks: ['views', 'celebration', 'fields.TASK.DUE_DATE'] });

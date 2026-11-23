@@ -26,6 +26,7 @@ import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, DEFAULT_STRUCTURE, MANIFEST, PAGE, PERMISSIONS, PRESETS, PRESET_SETTINGS, SHAPE_HUB, SHAPES, WORKSPACE, forgetUnstubbed, showStructures, stub, openSettings, openNewCollection, kindChoice } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { chipsOf, focused } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -254,9 +255,18 @@ test("chromium: Templates' Presets - rename, withdraw, the default kept; New hub
   assert.deepEqual(defaults, [{ default_preset_id: SHOP.id }, { default_preset: 'FLOW' }]);
 
   // Check 4: a lock, the whole set sent with the field's lock kept; the installation's is not the workspace's.
-  const locks = page.locator('[data-presets-locks]');
-  assert.equal(await locks.getByRole('checkbox', { name: 'Success' }).getAttribute('aria-disabled') === 'true' || await locks.getByRole('checkbox', { name: 'Success' }).isDisabled(), true, "the installation's lock can be lifted");
-  await locks.getByRole('checkbox', { name: 'Views' }).check();
+  // The nine settings are one field named by its row (design-system.md §4).
+  const locks = page.locator('[data-presets-locks]').getByRole('button', { name: /^Locks/u });
+  assert.equal(await locks.getAttribute('aria-haspopup'), 'listbox', 'the locks are not one field named by its row');
+  await locks.click();
+  const lockList = page.getByRole('listbox', { name: 'Locks' });
+  await lockList.waitFor({ timeout: 5_000 });
+  assert.equal(await lockList.getByRole('option', { name: 'Success', exact: true }).getAttribute('aria-disabled'), 'true', "the installation's lock can be lifted");
+  await lockList.getByRole('option', { name: 'Views', exact: true }).click();
+  await page.keyboard.press('Escape');
+  await lockList.waitFor({ state: 'detached', timeout: 5_000 });
+  assert.match(await focused(page), /^button "Locks /u, 'closing the list left focus elsewhere');
+  assert.ok((await chipsOf(locks)).includes('Views'), 'the field does not name the lock chosen');
   await save.click();
   await page.waitForTimeout(300);
   const locked = written.filter((write) => write.path === '/tenant/structure').at(-1);
