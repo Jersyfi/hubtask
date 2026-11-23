@@ -286,7 +286,7 @@
 
   .hub { font-weight: var(--fw-medium); }
 
-  a.hub { color: var(--text-brand); }
+  a.hub { color: var(--text-brand); text-decoration: underline; }
 
   .confirmed { display: inline-flex; align-items: center; gap: var(--sp-050); color: var(--text-subtle); font-size: var(--fs-075); white-space: nowrap; }
 

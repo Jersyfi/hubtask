@@ -242,7 +242,7 @@
 
   .foot { display: flex; justify-content: space-between; gap: var(--sp-150); font-size: var(--fs-090); }
 
-  .foot a { color: var(--text-brand); }
+  .foot a { color: var(--text-brand); text-decoration: underline; }
 
   .more { padding: 0; border: 0; background: none; color: var(--text-brand); font: inherit; text-decoration: underline; cursor: pointer; }
 </style>
