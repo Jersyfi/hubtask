@@ -345,7 +345,7 @@ needed later on the same page ([`user-experience.md`](../architecture/user-exper
 `aria-expanded`, a quiet line of what is inside, the content arriving in the `reveal` role and
 absent while closed. `tone="row"` folds a field of a form on a phone to one bordered row the
 column's width, as tall as `layout.target`, the chevron at its end (*Colour and symbol* on *Create
-hub*).
+hub*, and in the *Create collection* dialog at every width).
 
 **`SideNav` is one component with two drawings; a second tree is never built.** A row is mark ·
 label · twist: the mark at one inline position for every level, the indent on the label, the twist
@@ -1478,7 +1478,9 @@ summary's *Choose a template* (*Change* once one is chosen) opens the starts as 
 `Dialog` L with `isStep` - ‹, the title, *Done* -, the search across the width, the families one
 row that scrolls sideways, one tile per row; its address is the page's, and back closes it. A
 collection keeps *Dialog M*: its name, its kinds as the same tiles - *Like its hub* first and
-chosen, then the presets, *Scrum*, *Desk* -, colour and symbol open, the description folded.
+chosen, then the presets, *Scrum*, *Desk* -, *Colour and symbol* one closed `Disclosure` row at
+every width, as on a phone's create-hub page, and the description open under it - the dialog's
+one `Disclosure` is the look.
 
 **A container screen.** `PageHeader` with one primary action:
 

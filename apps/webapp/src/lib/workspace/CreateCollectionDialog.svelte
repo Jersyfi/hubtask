@@ -173,11 +173,10 @@
       {#if nameError}<p class="name-error" id={nameErrorId}><Icon name="circle-x" size="sm" /><span>{nameError}</span></p>{/if}
     </div>
     <ChoiceCards label={t('app.structure.preset_at_creation')} options={kinds} mark="tick" layout="grid" bind:value={kind} />
-    <LookFields bind:symbol bind:colour />
-    <!-- Folded, the one fold *Dialog M* allows: seven tiles and the look already fill it. -->
-    <Disclosure label={t('app.workspace.description')} tone="quiet">
-      <Textarea label={t('app.workspace.description')} bind:value={description} rows={2} />
-    </Disclosure>
+    <!-- The look folded to one row, as on a phone's create-hub page: the one fold *Dialog M* allows. -->
+    <Disclosure label={t('app.workspace.hub_look')} tone="row"><LookFields bind:symbol bind:colour /></Disclosure>
+    <!-- Open, because a dialog holds at most one `Disclosure` (design-system.md §11.8). -->
+    <Textarea label={t('app.workspace.description')} bind:value={description} rows={2} />
     <!-- Everything that is not about the name is a sentence above the buttons rather than a field
          error, because there is no field for it to land on. -->
     {#if failure && !isNameFailure}

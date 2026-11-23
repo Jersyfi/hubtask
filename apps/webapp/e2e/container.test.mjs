@@ -505,7 +505,15 @@ test('chromium: 1280 px — Create collection: Like its hub chosen at opening, a
   assert.equal(other.shadow, 'none', 'a kind not chosen is drawn as chosen');
   assert.notEqual(other.tick, chosen.tick, 'a kind not chosen is ticked');
 
-  // The look stands open; choosing a colour keeps the focus in the dialog.
+  // The look is one closed row (decision #1865): Tab leaves the kinds for it, Enter opens it, and
+  // choosing a colour keeps the focus in the dialog.
+  const lookRow = dialog.getByRole('button', { name: 'Colour and symbol' });
+  assert.equal(await lookRow.getAttribute('aria-expanded'), 'false', 'the look stands open at opening');
+  assert.equal(await dialog.getByRole('radio', { name: 'Teal' }).count(), 0, 'a colour is drawn while the look is closed');
+  await page.keyboard.press('Tab');
+  assert.equal(await lookRow.evaluate((element) => element === document.activeElement), true, 'Tab does not move from the kinds to the look');
+  await page.keyboard.press('Enter');
+  assert.equal(await lookRow.getAttribute('aria-expanded'), 'true', 'Enter does not open the look');
   await dialog.getByRole('radio', { name: 'Teal' }).check();
   assert.notEqual(await page.evaluate(() => document.activeElement?.tagName), 'BODY', 'the focus fell to the page');
 
@@ -535,6 +543,14 @@ test('chromium: 390 px — Create collection is the whole screen, one tile per r
   assert.equal(await kindChoice(dialog, 'Desk').isDisabled(), true);
   assert.equal(await page.evaluate(() => document.scrollingElement.scrollWidth), 390, 'the page scrolls sideways');
 
+  // The look is the same closed row as on the create-hub page (decision #1865); a press opens it.
+  const lookRow = dialog.getByRole('button', { name: 'Colour and symbol' });
+  assert.equal(await lookRow.getAttribute('aria-expanded'), 'false', 'the look stands open at opening');
+  const row = await pressArea(lookRow);
+  assert.ok(row.height >= 44, `the look row is ${row.height} px tall`);
+  await lookRow.click();
+  await dialog.getByRole('radio', { name: 'Violet' }).check();
+
   // A kind chosen by a press; Create without a name marks the name and puts the focus there.
   await kindChoice(dialog, 'Flow').check();
   await dialog.getByRole('button', { name: 'Create', exact: true }).first().click();
@@ -547,5 +563,6 @@ test('chromium: 390 px — Create collection is the whole screen, one tile per r
   assert.equal(sent.length, 1);
   assert.equal(sent[0].preset, 'FLOW');
   assert.equal(sent[0].name, 'Garden');
+  assert.equal(sent[0].color_token, 'violet', 'the chosen colour is not sent');
   assert.deepEqual(failures, []);
 });
