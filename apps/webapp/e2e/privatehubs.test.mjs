@@ -545,6 +545,24 @@ test('chromium: 1280 px - the notice waits while the person types, and comes onc
   assert.deepEqual(failures, []);
 });
 
+test('chromium: 1280 px - a newcomer whose tour would start is told first, and the tour starts once the notice is closed (UC-ID-16 check 11)', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, context } = await signedIn(browser, 1280, 860);
+  t.after(() => context.close());
+  await notices(context, [told(HUB, 2 * 60 * MINUTE)]);
+  await context.route('**/api/v1/accounts/me', (route) => (route.request().method() === 'GET' ? route.fulfill({ json: { ...ACCOUNT, onboarding_completed_at: null } }) : route.fallback()));
+
+  await page.goto(`${served.origin}/`);
+  const dialog = noticeDialog(page);
+  await dialog.waitFor({ timeout: 10_000 });
+  assert.equal(await page.locator('.spotlight').count(), 0, 'no tour under the notice');
+  // One Escape closes the notice: no other layer stands above it.
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'hidden' });
+  await page.locator('.spotlight').waitFor({ state: 'attached', timeout: 15_000 });
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: 1280 px - a member who has left the hub still reads the notice, as a private hub without a way there (UC-ID-16 check 11)', async (t) => {
   const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 860);

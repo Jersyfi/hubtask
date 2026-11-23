@@ -38,8 +38,8 @@
   $effect(() => {
     const account = actor.account;
     // The starter first (user-experience.md §3.1): the tour then walks what it made.
-    // Nor over the emergency notice, which waits for the tour as the tour waits for it.
-    if (!account || startedFor === account.id || tour.isOpen || !onboarding.tourMayStart || emergencyNotices.isShown) return;
+    // Nor before the emergency notice: one waiting is told first, and the tour starts once it closed.
+    if (!account || startedFor === account.id || tour.isOpen || !onboarding.tourMayStart || emergencyNotices.isShown || emergencyNotices.waiting.length > 0) return;
     // A tab loaded anew in the middle of the tour goes on where it was, whatever the screen.
     const resumesAt = tour.resumesAt();
     if ((resumesAt === undefined && !startsAt(path)) || !tour.shouldStart()) return;
