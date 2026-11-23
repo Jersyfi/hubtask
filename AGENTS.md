@@ -290,4 +290,7 @@ pushed.
 Small, self-contained changes — one pull request per use case or clearly bounded building block,
 or per concept in concept mode.
 Errors are typed values, wrapped with `%w`. No speculative abstraction: the generalisation is
-already in the domain model.
+already in the domain model. No defence against a problem nobody has shown: a race, an edge case
+or a failure is built against once a reproduction, a failing run, a measurement or a caller shows
+it. The fifteen rules above, tenant isolation, authorisation, a person's data and input from
+outside the process are excepted.

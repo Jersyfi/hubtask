@@ -531,6 +531,14 @@ This is what the owner reads instead of the diff: the *Use cases* table, the *Pr
 §5.1 stand as written. For a contribution from a fork, the owner's worker runs the same review
 locally on the fetched branch, since CI cannot give a fork's run a model.
 
+**Relevant in practice.** A model reviewer reports what is wrong in theory as readily as what a
+person meets, and a builder answers both with code. In this concept's close, reviewers raised
+cases that occur nowhere in the repository, and a builder took a walk that failed now and then
+for a timing fault of the walk, when the product was wrong. So a finding names how it is met in
+practice or is marked theoretical (`review-change`), and nothing is built against a problem
+nobody has shown (`AGENTS.md`, "Style"). It is the catching tests' question of §4 — was this
+change intended — turned on the review: does this occur.
+
 Limits, stated plainly: a reviewer is a model and misses things; it reads the diff, not the whole
 product; its section proves that a review ran, not that it was good. The flow report (§5.6) is
 what shows whether it works — fixes that follow features within a week should fall.
