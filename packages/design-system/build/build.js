@@ -30,7 +30,7 @@ StyleDictionary.registerFormat({ name: 'hubtask/ts', format: tsFormat });
 StyleDictionary.registerFormat({ name: 'hubtask/go', format: goFormat });
 
 // The css group less time/seconds: durations stay in milliseconds, as the motion module and the
-// stylesheets read them. style-dictionary 5.8 put time/seconds into the group.
+// stylesheets read them. style-dictionary 5.8 widened time/seconds to `duration` tokens.
 const TRANSFORMS = StyleDictionary.hooks.transformGroups.css.filter((name) => name !== 'time/seconds');
 
 const dictionary = new StyleDictionary({
