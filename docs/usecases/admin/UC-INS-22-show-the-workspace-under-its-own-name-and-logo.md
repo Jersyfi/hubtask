@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-06, P-07, P-08, P-09, P-12]
 state: partial
 tasks: []
-checked_by: [core/domain/model/identity/Branding_test.go, core/domain/model/identity/OwnBrandingSwitch_test.go, core/domain/model/media/Object_test.go, core/application/service/identity/WorkspaceBranding_test.go, core/application/service/media/ReadMedia_test.go, test/integration/workspace_branding_test.go, test/contract/workspace_branding_test.go, core/application/service/identity/SignInPictures_test.go, core/application/service/identity/WorkspaceAnnounce_test.go, core/application/service/setting/ModuleRecords_test.go, presentation/rest/WorkspacePictureController_test.go, presentation/rest/SignInRulesController_test.go, test/integration/workspace_look_record_test.go]
+checked_by: [core/domain/model/identity/Branding_test.go, core/domain/model/identity/OwnBrandingSwitch_test.go, core/domain/model/media/Object_test.go, core/application/service/identity/WorkspaceBranding_test.go, core/application/service/media/ReadMedia_test.go, test/integration/workspace_branding_test.go, test/contract/workspace_branding_test.go, core/application/service/identity/SignInPictures_test.go, core/application/service/identity/WorkspaceAnnounce_test.go, core/application/service/setting/ModuleRecords_test.go, presentation/rest/WorkspacePictureController_test.go, presentation/rest/SignInRulesController_test.go, test/integration/workspace_look_record_test.go, test/integration/erasure_shown_pictures_test.go]
 ---
 
 # Show the workspace under its own name and logo

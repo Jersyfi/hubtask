@@ -47,7 +47,8 @@ func fullyErase(ctx context.Context, t *testing.T, subject person) {
 	}
 }
 
-// An erasure removes the uploads nothing else points at (data-catalog.md); a workspace's logo is the
+// UC-INS-22 check 1, the workspace keeps each picture: an erasure removes the uploads nothing else
+// points at (data-catalog.md); a workspace's logo is the
 // workspace's, as an attachment is, so the erasure of the person who uploaded it leaves the picture
 // and the workspace's row naming it. The uploader's identifier stays on the object, pointing at
 // nobody, as on a spared attachment; the pseudonym answers who it was.
@@ -73,7 +74,7 @@ func TestAnErasureLeavesTheWorkspaceItsPictures(t *testing.T) {
 	}
 }
 
-// The same for a desk's logo: the collection's portal shows it to every requester, so it is the
+// UC-SVC-05 check 9, the same for a desk's logo: the collection's portal shows it to every requester, so it is the
 // workspace's, and the erasure of its uploader leaves it and the collection's reference to it.
 func TestAnErasureLeavesADeskItsLogo(t *testing.T) {
 	ctx := context.Background()
