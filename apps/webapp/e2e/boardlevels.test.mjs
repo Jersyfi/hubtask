@@ -44,13 +44,13 @@ const WORKFLOW = {
 };
 
 /** The fixture's collection at a level, with every write recorded and `:drop` answered by `drop`. */
-async function at(browser, level, { width = 1280, view = 'List', drop, workflowsOn = level === 'WORKFLOW', answer, types = {} } = {}) {
+async function at(browser, level, { width = 1280, view = 'List', drop, workflowsOn = level === 'WORKFLOW', answer, types = {}, columnless = [] } = {}) {
   const written = [];
   const tab = await signedIn(browser, width, 900);
   const columns = level === 'WORKFLOW'
     ? [{ ...BUCKETS[0], statuses: ['open'] }, { ...BUCKETS[1], statuses: ['doing', 'review'] }, { ...BUCKETS[2], statuses: ['done'] }]
     : BUCKETS.map((bucket) => ({ ...bucket, statuses: [] }));
-  const entries = ITEMS.map((item, n) => ({ ...item, bucket_id: n === 3 && level === 'WORKFLOW' ? null : BUCKETS[n % 2].id, ...(level === 'WORKFLOW' ? { status: n === 3 ? 'parked' : 'open' } : {}), ...(types[item.id] ? { entry_type: types[item.id], status: 'open' } : {}) }));
+  const entries = ITEMS.map((item, n) => ({ ...item, bucket_id: (n === 3 && level === 'WORKFLOW') || columnless.includes(item.id) ? null : BUCKETS[n % 2].id, ...(level === 'WORKFLOW' ? { status: n === 3 ? 'parked' : 'open' } : {}), ...(types[item.id] ? { entry_type: types[item.id], status: 'open' } : {}) }));
   await tab.context.unroute('**/api/v1/**');
   await tab.context.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -387,6 +387,39 @@ test('chromium: L1 - a carried card whose type runs a workflow dims the column n
     .catch(() => assert.fail('the drop onto the dimmed column does not say why it was refused'));
   assert.equal(written.filter((each) => each.path.endsWith(':drop') || each.method === 'PATCH').length, 0, `a refused column was written: ${JSON.stringify(written)}`);
 });
+
+// The other columns a carried card may not enter: *Ohne Spalte* on a board whose tasks keep
+// columns, and a column that shows no status under a workflow. Each dims while carried, and a drop
+// there says why and writes nothing.
+for (const { level, reason, into, columns, columnless } of [
+  { level: 'COLUMNS', reason: 'Choose a column.', into: 'none', columnless: [ITEMS[3].id] },
+  { level: 'WORKFLOW', reason: 'This column shows no status yet.', into: BUCKETS[1].id, columns: [{ ...BUCKETS[0], statuses: ['open'] }, { ...BUCKETS[1], statuses: [] }, { ...BUCKETS[2], statuses: ['done'] }] },
+]) {
+  test(`chromium: ${level === 'COLUMNS' ? 'L1' : 'L2'} - a card dropped where it may not stand says so and writes nothing: ${reason}`, async (t) => {
+    const browser = await sharedChromium(t);
+    const answer = (request, path) => (columns && request.method() === 'GET' && path === `/containers/${COLLECTION.id}/buckets` ? { json: columns } : undefined);
+    const { page, written, context } = await at(browser, level, { view: 'Board', answer, columnless });
+    t.after(() => context.close());
+    const card = page.locator(`[data-card="${ITEMS[0].id}"]`);
+    await card.waitFor({ timeout: 15_000 });
+    const from = await card.boundingBox();
+    const start = { x: from.x + from.width / 2, y: from.y + from.height / 2 };
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(start.x + 20, start.y);
+    const zone = page.locator(`[data-column-zone="${into}"]`);
+    // A folded column opens once a card is carried, so the target is measured after the lift.
+    const refused = zone.locator('[data-refused]').filter({ hasText: reason });
+    await refused.waitFor({ timeout: 5_000 }).catch(() => assert.fail('the column the card may not enter is not dimmed'));
+    await zone.scrollIntoViewIfNeeded();
+    const to = await zone.boundingBox();
+    for (let step = 1; step <= 12; step += 1) await page.mouse.move(start.x + 20 + ((to.x + to.width / 2 - start.x - 20) * step) / 12, start.y);
+    await page.mouse.up();
+    await page.getByRole('alert').filter({ hasText: reason }).waitFor({ timeout: 5_000 })
+      .catch(() => assert.fail('the drop onto the dimmed column does not say why it was refused'));
+    assert.equal(written.filter((each) => each.path.endsWith(':drop') || each.method === 'PATCH').length, 0, `a refused column was written: ${JSON.stringify(written)}`);
+  });
+}
 
 // UC-FLW-03 check 8: a drop several steps reach offers them and writes nothing until one is chosen.
 test('chromium: L2 - a drop several steps reach asks which, and sends the one chosen', async (t) => {
