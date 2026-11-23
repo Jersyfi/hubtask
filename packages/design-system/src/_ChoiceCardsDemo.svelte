@@ -3,7 +3,7 @@
 <script lang="ts">
   import ChoiceCards, { type ChoiceCard, type ChoiceCardGroup } from './ChoiceCards.svelte';
 
-  type Mode = 'question' | 'marked' | 'gated' | 'tiles' | 'blank' | 'refused' | 'german';
+  type Mode = 'question' | 'marked' | 'gated' | 'tiles' | 'blank' | 'refused' | 'german' | 'headed';
   const { mode = 'question' }: { mode?: Mode } = $props();
 
   let choice = $state('');
@@ -89,6 +89,14 @@
   <ChoiceCards label="Start from" options={starts} bind:value={start} />
 {:else if mode === 'german'}
   <ChoiceCards label="Wie soll der Hub beginnen?" options={[{ ...blank, label: 'Leerer Hub', summary: 'Die Vorgabe des Arbeitsbereichs: eine Sammlung, sonst nichts eingerichtet.' }]} groups={german} mark="tick" layout="grid" bind:value={tile} />
+{:else if mode === 'headed'}
+  <!-- The heading stands above a search and a filter, apart from the tiles; it names the group. -->
+  <h2 class="heading">How the hub starts</h2>
+  <ChoiceCards label="How the hub starts" isLabelHidden options={[blank]} groups={families} mark="tick" layout="grid" bind:value={tile} />
 {:else}
   <ChoiceCards label="How should the hub start?" options={[blank]} groups={families} mark="tick" layout="grid" bind:value={tile} />
 {/if}
+
+<style>
+  .heading { margin: 0 0 var(--sp-150); font-size: var(--fs-200); font-weight: var(--fw-semibold); }
+</style>

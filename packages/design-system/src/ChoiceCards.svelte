@@ -49,6 +49,8 @@
   interface Props extends Disableable {
     /** The question the cards answer: the group's legend and accessible name. */
     label: string;
+    /** Read but not drawn, where a heading beside the cards already asks the question. */
+    isLabelHidden?: boolean;
     /** Cards without a heading, drawn before the groups. */
     options?: readonly ChoiceCard[];
     /** Cards under headings, after `options`; a group of none is not drawn. */
@@ -65,6 +67,7 @@
   const instanceId = $props.id();
   let {
     label,
+    isLabelHidden = false,
     options = [],
     groups = [],
     disabledReason,
@@ -127,7 +130,7 @@
   </div>
 {/snippet}
 
-<fieldset class="choices" role="radiogroup" aria-describedby={reasonId} data-mark={mark} data-layout={layout}>
+<fieldset class="choices" role="radiogroup" aria-describedby={reasonId} data-mark={mark} data-layout={layout} data-label-hidden={isLabelHidden ? '' : undefined}>
   <legend class="legend">{label}</legend>
 
   {#if options.length > 0}{@render cards(options)}{/if}
@@ -166,6 +169,20 @@
     text-align: start;
   }
 
+  /* Announced but not drawn - never `display: none`, which would take the group's name away. */
+  .choices[data-label-hidden] > .legend {
+    position: absolute;
+    inline-size: var(--sp-025);
+    block-size: var(--sp-025);
+    margin: calc(var(--sp-025) * -1);
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* With its legend out of the flow, the first family's heading opens the group. */
+  .choices[data-label-hidden] > .group:first-of-type { margin-block-start: 0; }
+
   .group {
     min-inline-size: 0;
     margin: var(--sp-100) 0 0;
@@ -197,8 +214,11 @@
     gap: var(--sp-150);
   }
 
-  /* The whole card is the label: a press anywhere on it chooses. */
+  /* The whole card is the label: a press anywhere on it chooses. Its measures are its outer ones,
+     wherever it is drawn: an application that does not size every box by its border too would
+     otherwise grow a tile by its padding and edge. */
   .card {
+    box-sizing: border-box;
     position: relative;
     display: grid;
     grid-template-columns: var(--sp-250) minmax(0, 1fr);
@@ -279,7 +299,8 @@
 
   .choices[data-mark='tick'] .card[data-icon] { grid-template-columns: auto minmax(0, 1fr); }
 
-  .choices[data-mark='tick'] .card:hover { border-color: var(--border-strong); }
+  /* Under the pointer an unchosen tile darkens its edge; a chosen one keeps its brand edge. */
+  .choices[data-mark='tick'] .card:not(:has(.native:checked)):hover { border-color: var(--border-strong); }
   .choices[data-mark='tick'] .card:has(.native:disabled):hover { border-color: var(--border-subtle); }
 
   /* Chosen, the edge doubles inward: a heavier line, not only another hue (SC 1.4.1). */

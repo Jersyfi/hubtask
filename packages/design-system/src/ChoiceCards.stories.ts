@@ -55,3 +55,10 @@ export const german: Story = {
   about: 'A name that wraps onto a second line and a summary cut after two: the tiles of a family grow together, the tick stays in its corner.',
   args: { mode: 'german' },
 };
+
+export const headed: Story = {
+  name: 'Tiles under a heading of their own',
+  about:
+    'Where a heading above a search and a filter already asks the question, `isLabelHidden` keeps the legend as the group’s name for a reader and draws it nowhere; the first family’s heading then opens the tiles.',
+  args: { mode: 'headed' },
+};
