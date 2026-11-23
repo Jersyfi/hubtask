@@ -61,9 +61,10 @@ const planned = (key) => ({
  * own as `offered` says; `allowed` is the workspace's *Private hubs allowed* as `/tenant` answers
  * it. Records what is made and every plan asked; `taken` refuses a name as the server does.
  * `catalogue` and `planOf` replace the catalogue and the plan answered; `planHeld` is awaited
- * before a plan is answered, so a walk decides when the plan arrives.
+ * before a plan is answered, so a walk decides when the plan arrives. `refused` is a problem every
+ * create is answered with.
  */
-async function as(browser, { permissions = PERMISSIONS.OWNER, offered = true, allowed = true, width = 1280, height = 800, locale = 'en', taken, hasTouch, catalogue = CATALOGUE, planOf = planned, planHeld } = {}) {
+async function as(browser, { permissions = PERMISSIONS.OWNER, offered = true, allowed = true, width = 1280, height = 800, locale = 'en', taken, hasTouch, catalogue = CATALOGUE, planOf = planned, planHeld, refused } = {}) {
   const { page, failures, context } = await signedIn(browser, width, height, { hasTouch });
   const made = [];
   const plans = [];
@@ -94,6 +95,7 @@ async function as(browser, { permissions = PERMISSIONS.OWNER, offered = true, al
       const body = request.postDataJSON();
       made.push({ path, body });
       events.push(`made:${path}`);
+      if (refused) return route.fulfill({ status: refused.status, contentType: 'application/problem+json', body: JSON.stringify(refused) });
       if (taken && body.name === taken) {
         return route.fulfill({ status: 409, contentType: 'application/problem+json',
           body: JSON.stringify({ status: 409, code: 'errors.conflict', detail_code: 'containers.name_taken', params: { name: body.name } }) });
@@ -411,6 +413,37 @@ test('chromium: a missing name and a taken name land on the name field, which ta
   assert.match(page.url(), /\/hubs\/new$/u, 'a refused name left the page');
   assert.deepEqual(failures, []);
 });
+
+// A refusal that names no field is the form's, as in *Create collection*: the focus moves to its
+// sentence, which reads it out and scrolls it into view - on a phone the details are the scrolled
+// page and *Create hub* stands in the foot bar, far from the sentence (design-system.md §13).
+for (const [width, height] of [[1280, 800], [390, 844]]) {
+  test(`chromium: ${width} × ${height} - a refusal for another reason than the name is in view and takes the focus`, async (t) => {
+    const browser = await sharedChromium(t);
+    const refused = { status: 403, code: 'errors.forbidden', detail_code: 'access.not_permitted' };
+    const { page, failures, context, made } = await as(browser, { width, height, refused, hasTouch: width < 768 });
+    t.after(() => context.close());
+
+    await page.goto(`${served.origin}/hubs/new`);
+    await nameField(page).waitFor({ timeout: 10_000 });
+    await nameField(page).fill('House');
+    const description = main(page).getByRole('textbox', { name: 'Description' });
+    await description.scrollIntoViewIfNeeded();
+    await description.focus();
+    await primary(page).click();
+    const alert = main(page).getByRole('alert');
+    await alert.waitFor({ timeout: 5_000 });
+    await page.waitForFunction(() => document.activeElement?.getAttribute('role') === 'alert', null, { timeout: 5_000 });
+    const seen = await alert.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      return { top: box.top, bottom: box.bottom, height: window.innerHeight };
+    });
+    assert.ok(seen.top >= 0 && seen.bottom <= seen.height, `the refusal is out of view: ${JSON.stringify(seen)}`);
+    assert.equal(made.length, 1);
+    assert.equal(await nameField(page).getAttribute('aria-invalid'), null, 'the name is marked for a refusal that is not about it');
+    assert.deepEqual(failures, []);
+  });
+}
 
 // UC-WRK-01 check 6, UC-ID-16 check 1, owner's answer Q4: a private hub of one's own, no switch, no template.
 test('chromium: a member is offered a private hub of their own, without the switch and without templates', async (t) => {

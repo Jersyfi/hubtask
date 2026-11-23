@@ -261,6 +261,11 @@
   });
 
   const focusName = () => queueMicrotask(() => nameField?.querySelector<HTMLInputElement>('input')?.focus());
+  // As in *Create collection*: a refusal that names no field is the form's, and the focus moves to
+  // its sentence, which reads it out and scrolls it into view - on a phone it stands far above the
+  // foot bar's *Create hub* (design-system.md §13, G5).
+  let failureNote = $state<HTMLElement | null>(null);
+  const focusFailure = () => void tick().then(() => failureNote?.focus());
   let detailsPane = $state<HTMLElement | null>(null);
   const focusAcknowledge = () => detailsPane?.querySelector<HTMLInputElement>('[data-acknowledge]')?.focus();
 
@@ -315,6 +320,7 @@
       failure = renderProblem(problem, messages);
       isNameFailure = problem.detailCode === 'containers.name_taken' || failure.fields.has('/name');
       if (isNameFailure) focusName();
+      else focusFailure();
     } finally {
       isSaving = false;
     }
@@ -404,7 +410,7 @@
   <div class="panes" data-create-hub>
     <section class="details" aria-label={t('app.workspace.hub_details')} data-private={isPrivateHub ? '' : undefined} bind:this={detailsPane}>
       {#if failure && !isNameFailure}
-        <p class="failure" role="alert">{failure.message}</p>
+        <p class="failure" role="alert" tabindex="-1" bind:this={failureNote}>{failure.message}</p>
       {:else if planFailure}
         <p class="failure" role="alert">{planFailure}</p>
       {/if}
@@ -513,7 +519,8 @@
     border-inline-end: var(--bw-hairline) solid var(--border-subtle);
   }
 
-  .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
+  .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); scroll-margin-block: var(--sp-200); }
+  .failure:focus { outline: none; }
 
   /* The mark stands beside the field, its foot on the field's foot; the label above both. */
   .name-row { display: flex; align-items: flex-end; gap: var(--sp-150); }
