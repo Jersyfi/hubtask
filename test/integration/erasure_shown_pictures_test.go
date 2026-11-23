@@ -72,3 +72,26 @@ func TestAnErasureLeavesTheWorkspaceItsPictures(t *testing.T) {
 		t.Error("the workspace no longer shows its logo after its uploader's erasure")
 	}
 }
+
+// The same for a desk's logo: the collection's portal shows it to every requester, so it is the
+// workspace's, and the erasure of its uploader leaves it and the collection's reference to it.
+func TestAnErasureLeavesADeskItsLogo(t *testing.T) {
+	ctx := context.Background()
+	subject := seedSubject(ctx, t, "dora-"+freshID(t).String()+"@example.org")
+	logo := shownPicture(ctx, t, subject, "DESK_LOGO")
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`UPDATE container SET logo_media_id = $2 WHERE id = $1`,
+		subject.collection.String(), logo.String()); err != nil {
+		t.Fatalf("showing the desk's logo: %v", err)
+	}
+
+	fullyErase(ctx, t, subject)
+
+	if rows := countIn(ctx, t, `SELECT count(*) FROM media_object WHERE id = $1`, logo.String()); rows != 1 {
+		t.Error("the erasure discarded the desk's logo")
+	}
+	if rows := countIn(ctx, t, `SELECT count(*) FROM container WHERE id = $1 AND logo_media_id = $2`,
+		subject.collection.String(), logo.String()); rows != 1 {
+		t.Error("the desk no longer shows its logo after its uploader's erasure")
+	}
+}
