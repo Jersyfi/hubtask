@@ -204,7 +204,7 @@ for (const locale of ['en', 'de']) {
       if (path === '/roles' && request.method() === 'POST') {
         const body = request.postDataJSON();
         created.push(body);
-        return route.fulfill({ status: 201, json: { key: body.key, name: body.name, permissions: body.permissions, version: 1, created_at: '2026-11-23T09:00:00Z', updated_at: '2026-11-23T09:00:00Z' } });
+        return route.fulfill({ status: 201, json: { id: '01a0e2e0-0000-7000-8000-0000000029c2', key: body.key, name: body.name, permissions: body.permissions, version: 1, created_at: '2026-11-23T09:00:00Z', updated_at: '2026-11-23T09:00:00Z' } });
       }
       if (path === '/access/explain') {
         return route.fulfill({ json: { account_id: ACCOUNT.id, scope_type: 'TENANT', roles: ['OWNER'], permissions: PERMISSIONS.OWNER, sources: [] } });
