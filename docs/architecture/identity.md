@@ -978,6 +978,16 @@ refused before the hub is looked up (`access.not_permitted`).
   the app from their own record, whatever the mail did - `GET /accounts/me/emergency-notices`, the
   last 30 days, on the start view (not in every view: a work view keeps its layout) - which is how a managed account without a mailbox is told; the hub
   lists its accesses to whoever reads it (`GET /private-hubs/{hubId}/accesses`).
+* **The member confirms it once** (UC-ID-16 check 10, `AcknowledgeEmergencyNotice`,
+  `POST /accounts/me/emergency-notices/{accessId}:acknowledge`). A person confirms an access they
+  were told of by that record, within the same 30 days; anybody else - the owner who opened it, a
+  member of another hub, a service account - is answered not found
+  (`containers.emergency_access_not_found`), never forbidden. The confirmation is one row per member
+  and access (`private_hub_access_acknowledgement`), gone with the access and with the account, and
+  the trail's entry `container.emergency_notice_acknowledged` names the hub and the access, never
+  the reason. A second confirmation writes neither. The member's notices answer it as
+  `acknowledged_at`; only the member reads it. The hub's list of accesses (`PrivateHubAccess`) does
+  not say who confirmed: the owner who opened the hub learns it from the trail alone.
 * **What it opens, and for whom.** While it runs, the authoriser judges a path through the hub as
   shared for the opener alone, and only while they still hold `OWNER` on the workspace. It counts
   only for a person present: a request through the REST API marks its actor so
