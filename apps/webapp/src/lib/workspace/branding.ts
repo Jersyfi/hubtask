@@ -7,7 +7,7 @@
  * and whether a picture reads on a surface. Pure, so each rule has a test without a browser.
  */
 
-import type { SignInPictures, WorkspaceBranding, WorkspaceHeader, WorkspacePicture } from '@hubtask/sync-engine';
+import type { SignInPictures, WorkspaceBranding, WorkspaceHeader, WorkspaceLook, WorkspacePicture } from '@hubtask/sync-engine';
 
 /** The three pictures, in the order the setting draws their rows. */
 export const PICTURES: readonly WorkspacePicture[] = ['LOGO_LIGHT', 'LOGO_DARK', 'SYMBOL'];
@@ -75,24 +75,19 @@ export interface ShownLook {
 const PRODUCT_LOOK: ShownLook = { header: 'PRODUCT', ids: {} };
 
 /**
- * What a member sees, from the workspace's answer: nothing of the workspace's own where it is not
- * allowed now, whatever is stored (ADR-0112).
+ * What a member sees, from `GET /tenant/look`: the server already answers the product's look where
+ * the workspace may not show its own (ADR-0112), so the choice and the pictures are drawn as they
+ * come; the product's while nothing has come.
  */
-export function shownLookOf(branding: WorkspaceBranding | undefined): ShownLook {
-  if (!branding?.allowed) return PRODUCT_LOOK;
-  const ids: Partial<Record<WorkspacePicture, string>> = {};
-  for (const picture of PICTURES) {
-    const id = pictureOf(branding, picture);
-    if (id) ids[picture] = id;
-  }
-  return { header: branding.header, ids };
+export function memberLookOf(look: WorkspaceLook | undefined): ShownLook {
+  return look ? cardLookOf(look.header, look) : PRODUCT_LOOK;
 }
 
 /**
  * What the sign-in card shows, from the rules at this address: they carry the choice and its
  * pictures only at the workspace's own address, and nothing there means the product's name.
  */
-export function cardLookOf(header: WorkspaceHeader | undefined, pictures: SignInPictures | undefined): ShownLook {
+export function cardLookOf(header: WorkspaceHeader | undefined, pictures: SignInPictures | WorkspaceLook | undefined): ShownLook {
   if (!header) return PRODUCT_LOOK;
   const ids: Partial<Record<WorkspacePicture, string>> = {};
   if (pictures?.logo_light_media_id) ids.LOGO_LIGHT = pictures.logo_light_media_id;

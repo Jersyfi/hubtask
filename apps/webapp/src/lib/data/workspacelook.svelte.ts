@@ -13,32 +13,49 @@
  * another origin without a CORS rule refuses, and the header has no pixels to judge. A picture
  * whose record cannot be read - refused, gone, offline with nothing cached - is left out, so the
  * mark falls back by G8.
+ *
+ * **The look is its own read**, `GET /tenant/look`, which every member may make: a guest of one hub
+ * may not read the workspace's set-up (`/tenant`) and still sees its name and look.
  */
 
-import { PICTURES, shownLookOf, type PictureSources, type ShownLook } from '../workspace/branding.ts';
+import type { ResourceState, WorkspaceLook as Look } from '@hubtask/sync-engine';
+
+import { memberLookOf, PICTURES, type PictureSources, type ShownLook } from '../workspace/branding.ts';
+import { engine } from './engine.ts';
 import { media } from './media.svelte.ts';
-import { workspace } from './workspace.svelte.ts';
 
 class WorkspaceLook {
+  #state = $state<ResourceState<Look>>({ status: 'idle' });
   /** Download addresses, by media identifier. */
   #urls = $state<Record<string, string>>({});
   /** Asked once and refused or unreadable: never asked again in this session. */
   #gone = $state<Record<string, true>>({});
   #asking = new Set<string>();
 
-  /** Whether the workspace's answer is in: until then nothing is drawn in the mark's place. */
+  /** Starts the read. **From `untrack`**, for the reason every other store records. */
+  open(): () => void {
+    return engine.subscribe<Look>({ path: '/tenant/look' }, (next) => {
+      this.#state = next;
+    });
+  }
+
+  /** Whether the look's answer is in: until then nothing is drawn in the mark's place. */
   get isRead(): boolean {
-    return workspace.state.status === 'ready' || workspace.state.status === 'failed';
+    return this.#state.status === 'ready' || this.#state.status === 'failed';
   }
 
   /** The workspace's name, as its members read it. */
   get name(): string | undefined {
-    return workspace.workspace?.display_name;
+    return this.#look?.display_name;
   }
 
-  /** What a member sees: the stored choice where the workspace may show it, else the product. */
+  /** What a member sees: the server answers the product's where the workspace may not show its own. */
   get shown(): ShownLook {
-    return shownLookOf(workspace.workspace?.branding);
+    return memberLookOf(this.#look);
+  }
+
+  get #look(): Look | undefined {
+    return this.#state.status === 'ready' ? this.#state.data : undefined;
   }
 
   /**

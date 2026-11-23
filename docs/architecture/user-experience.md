@@ -626,7 +626,8 @@ nobody pays a press for the gallery. Every door to it - the navigation, the pale
   installation's own address draws the product's. The tab reads "{page} – {workspace}", the
   workspace alone where the page names none, and "Hubtask" in its place where no workspace is known.
   The about page keeps "{workspace} runs on hubtask · Version …" under every choice. Another device
-  follows a change when the workspace's `setting` record arrives, by reading the workspace again.
+  follows a change when the workspace's `setting` record arrives, by reading the workspace's look
+  again - a read every member may make, a guest of one hub included (`GET /tenant/look`).
 * **Pickers, never keys.** A setting that names a type, a status, a group, a priority or a field
   is a picker fed by the workspace's own values, validated before saving; a duration is a
   `DurationInput` in minutes, hours or business days, converted on the client; a recurrence is a

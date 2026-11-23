@@ -19,7 +19,7 @@ import { join, dirname } from 'node:path';
 
 import { sharedChromium } from './browser.mjs';
 
-import { ACCOUNT, MANIFEST, WORKSPACE, signedIn, stub } from './fixture.mjs';
+import { ACCOUNT, MANIFEST, WORKSPACE, lookOf, signedIn, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -75,9 +75,9 @@ async function device(browser, { main = ['acme.localhost', 'north.localhost'], m
     if (path === '/meta/capabilities') return route.fulfill({ json: manifest });
     // A workspace with a symbol of its own (UC-INS-22 check 6): its answer, its record, its bytes.
     const symbol = symbols[url.hostname];
-    if (symbol && path === '/tenant' && request.method() === 'GET') {
-      return route.fulfill({ json: { ...WORKSPACE, display_name: NAMES[url.hostname], branding: { header: 'PRODUCT', logo_light_media_id: null, logo_dark_media_id: null, symbol_media_id: symbol, allowed: true } } });
-    }
+    const branded = { ...WORKSPACE, display_name: NAMES[url.hostname], branding: { header: 'PRODUCT', logo_light_media_id: null, logo_dark_media_id: null, symbol_media_id: symbol, allowed: true } };
+    if (symbol && path === '/tenant' && request.method() === 'GET') return route.fulfill({ json: branded });
+    if (symbol && path === '/tenant/look' && request.method() === 'GET') return route.fulfill({ json: lookOf(branded) });
     if (symbol && path === `/media/${symbol}`) {
       return route.fulfill({ json: {
         id: symbol, usage: 'WORKSPACE_LOGO', content_type: 'image/png', size: SYMBOL_PNG.length, ref_count: 1, status: 'READY', created_by: ACCOUNT.id, created_at: '2026-11-23T10:00:00Z',

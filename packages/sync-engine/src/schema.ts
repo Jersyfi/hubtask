@@ -545,6 +545,8 @@ export type WorkspaceStructureChange = components['schemas']['WorkspaceStructure
 /** The workspace's own name and logo as stored, and whether it may show them now (ADR-0112). */
 export type WorkspaceBranding = components['schemas']['WorkspaceBranding'];
 export type WorkspaceHeader = components['schemas']['WorkspaceHeader'];
+/** The workspace's name and look as every member reads them (ADR-0112). */
+export type WorkspaceLook = components['schemas']['WorkspaceLook'];
 export type WorkspacePicture = components['schemas']['WorkspacePicture'];
 /** The pictures the sign-in card draws at a workspace's own address. */
 export type SignInPictures = components['schemas']['SignInPictures'];

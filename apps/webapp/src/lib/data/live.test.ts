@@ -81,12 +81,15 @@ test('a module switch makes the switches, every place\'s set and the manifest st
 
 test('the workspace\'s own record makes the workspace stale too, so its name and look follow', () => {
   // UC-INS-22 check 7: a change of the name, a picture, the choice or the switch is the workspace's
-  // `setting` record under no hub (ADR-0112), and the header reads `/tenant` again on it.
+  // `setting` record under no hub (ADR-0112), and the header reads `/tenant/look` again on it -
+  // the read every member may make - and the workspace where this reader holds it.
   const names = pathsFor(record({ entity: 'setting', entity_id: 't-1' }));
-  assert.deepEqual(names, ['/tenant/modules', '/meta/capabilities', '/containers/*/modules', '/tenant$']);
+  assert.deepEqual(names, ['/tenant/modules', '/meta/capabilities', '/containers/*/modules', '/tenant$', '/tenant/look']);
   assert.ok(names.some((name) => matchesPath(name, '/tenant')));
-  // A hub's switch is not the workspace's: the workspace is not read again for it.
-  assert.equal(pathsFor(record({ entity: 'setting', entity_id: 'h-1', container_id: 'h-1' })).some((name) => matchesPath(name, '/tenant')), false);
+  assert.ok(names.some((name) => matchesPath(name, '/tenant/look')));
+  // A hub's switch is not the workspace's: neither is read again for it.
+  const hubs = pathsFor(record({ entity: 'setting', entity_id: 'h-1', container_id: 'h-1' }));
+  assert.equal(hubs.some((name) => matchesPath(name, '/tenant') || matchesPath(name, '/tenant/look')), false);
 });
 
 test('a board comment makes the boards\' threads stale, and not the board', () => {

@@ -24,6 +24,7 @@
   import type { ConfigTemplate, ConfigTemplateList, ResourceState, TransportError } from '@hubtask/sync-engine';
 
   import { announcer } from '../announce.svelte.ts';
+  import { mayReadWorkspace } from '../data/capability.svelte.ts';
   import { config } from '../data/config.svelte.ts';
   import { answersOf, offersSamples } from '../data/configtemplates.ts';
   import { workspace } from '../data/workspace.svelte.ts';
@@ -48,7 +49,11 @@
 
   let { onstarted, isChoosing = $bindable(false) }: Props = $props();
 
-  $effect(() => untrack(() => workspace.open()));
+  // The offer is the workspace's; a reader who may not read it is offered none and does not ask.
+  $effect(() => {
+    if (mayReadWorkspace() !== true) return;
+    return untrack(() => workspace.open());
+  });
 
   let isOpen = $state(false);
   let isAnswered = $state(false);

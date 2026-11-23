@@ -21,7 +21,7 @@ import { deflateSync } from 'node:zlib';
 
 import { sharedChromium } from './browser.mjs';
 
-import { ACCOUNT, MANIFEST, PERMISSIONS, SIGN_IN_POLICY, WORKSPACE, stub } from './fixture.mjs';
+import { ACCOUNT, MANIFEST, PERMISSIONS, SIGN_IN_POLICY, WORKSPACE, lookOf, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -99,6 +99,7 @@ async function open(browser, {
     if (path === '/tenant' && method === 'GET') {
       return route.fulfill({ json: { ...WORKSPACE, display_name: name, branding: state.branding, sign_in_policy: { ...SIGN_IN_POLICY, own_branding: own } } });
     }
+    if (path === '/tenant/look' && method === 'GET') return route.fulfill({ json: lookOf({ display_name: name, branding: state.branding }) });
     if (path === '/media' && method === 'POST') {
       const id = IDS[state.next];
       state.next += 1;

@@ -359,6 +359,21 @@ export const SIGN_IN_POLICY = {
 export const WORKSPACE = { id: '01a0e2e0-0000-7000-8000-0000000005a1', slug: 'house', display_name: 'House', status: 'ACTIVE', default_locale: 'en', default_time_zone: 'UTC', require_admin_totp: false, created_at: '2026-08-01T08:00:00Z', version: 1, private_hubs_offered: true, several_people: true, sign_in_policy: SIGN_IN_POLICY };
 
 /**
+ * The workspace's name and look as `GET /tenant/look` answers every member, from a workspace as
+ * `GET /tenant` answers it: the stored choice and pictures where it may show them, else the product.
+ */
+export function lookOf(workspace) {
+  const branding = workspace.branding?.allowed ? workspace.branding : undefined;
+  return {
+    display_name: workspace.display_name,
+    header: branding?.header ?? 'PRODUCT',
+    logo_light_media_id: branding?.logo_light_media_id ?? null,
+    logo_dark_media_id: branding?.logo_dark_media_id ?? null,
+    symbol_media_id: branding?.symbol_media_id ?? null,
+  };
+}
+
+/**
  * The private hubs as an administrator lists them: one in use, owned by the other person, and one
  * whose last member left, in the trash. No names - the list has none to give. The reader is the
  * workspace's owner and holds nothing in either, so the emergency access is offered on both
@@ -1074,6 +1089,7 @@ export function stub(route) {
     return route.fulfill({ json: { ...HUB, private: request.postDataJSON().private, version: HUB.version + 1 } });
   }
   if (path.endsWith('/api/v1/tenant') && request.method() === 'GET') return route.fulfill({ json: WORKSPACE });
+  if (path.endsWith('/api/v1/tenant/look') && request.method() === 'GET') return route.fulfill({ json: lookOf(WORKSPACE) });
   // The notices of a changed address the reader has not seen: none, unless a walk routes them.
   if (path.endsWith('/api/v1/accounts/me/address-notices') && request.method() === 'GET') return route.fulfill({ json: [] });
   if (path.endsWith('/api/v1/private-hubs') && request.method() === 'GET') return route.fulfill({ json: PRIVATE_HUBS });

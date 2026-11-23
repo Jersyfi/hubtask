@@ -84,7 +84,7 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { platform } from '../platform/index.ts';
   import { webAppAddress, webAppHost } from '../webApp.ts';
-  import { holdsHere, reachesAdministrationArea } from '../data/capability.svelte.ts';
+  import { holdsHere, mayReadWorkspace, reachesAdministrationArea } from '../data/capability.svelte.ts';
   import { BUNDLED, messages, naming, t } from '../i18n/i18n.svelte.ts';
   import { localesToResolve } from '../i18n/locale.ts';
   import { namingLocale } from '../i18n/naming.ts';
@@ -276,9 +276,9 @@
   });
 
   // The language a name made here is stored in (`naming.ts`): the account's, else the workspace's
-  // default, so the workspace is read for a reader whose account sets none.
+  // default, so the workspace is read for a reader whose account sets none and who may read it.
   $effect(() => {
-    if (!session.isSignedIn || actor.locale) return;
+    if (!session.isSignedIn || actor.locale || mayReadWorkspace() !== true) return;
     return untrack(() => workspace.open());
   });
   $effect(() => {
@@ -298,11 +298,12 @@
   // Whoever holds READ nowhere gets the portal's frame alone (PO-2, E-13): no sidebar, Today,
   // search over Hubtask or *Erstellen*. Decided by what the server answers on the account.
   const isOutside = $derived(session.isSignedIn && isOutsider(actor.hasNoAccess, actor.portals));
-  // The workspace, for its name and look in the header, the switcher and the tab (UC-INS-22
-  // checks 5, 6 and 9). The portal's frame draws neither, so an outsider is not asked to read it.
+  // The workspace's name and look in the header, the switcher and the tab (UC-INS-22 checks 5, 6
+  // and 9), a read every member may make. The portal's frame draws neither, so an outsider is not
+  // asked for it.
   $effect(() => {
     if (!session.isSignedIn || isOutside) return;
-    return untrack(() => workspace.open());
+    return untrack(() => workspaceLook.open());
   });
   $effect(() => tab.name(isOutside ? undefined : workspaceLook.name));
   const shownLook = $derived(workspaceLook.shown);

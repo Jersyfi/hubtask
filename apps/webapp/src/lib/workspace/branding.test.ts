@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { values } from '@hubtask/design-system';
 
 import {
-  cardLookOf, cardSourcesOf, contrastOf, drawingFor, initialsOf, isSameDrawing, markDrawings, mayShowLogoAlone, pictureOf, refusalOf, shownLookOf,
+  cardLookOf, cardSourcesOf, contrastOf, drawingFor, initialsOf, isSameDrawing, markDrawings, mayShowLogoAlone, memberLookOf, pictureOf, refusalOf,
 } from './branding.ts';
 
 const LIGHT = values.light.bg.surface;
@@ -83,12 +83,12 @@ test('two letters stand for a workspace without a symbol', () => {
 });
 
 // UC-INS-22 checks 5, 6 and 8: what the header, the switcher and the sign-in card draw.
-test('a member sees the stored choice only while the workspace may show it', () => {
-  const stored = { header: 'LOGO' as const, logo_light_media_id: 'l', logo_dark_media_id: null, symbol_media_id: 's', allowed: true };
-  assert.deepEqual(shownLookOf(stored), { header: 'LOGO', ids: { LOGO_LIGHT: 'l', SYMBOL: 's' } });
-  // Switched off above: the product, whatever is stored (ADR-0112) - not even the symbol.
-  assert.deepEqual(shownLookOf({ ...stored, allowed: false }), { header: 'PRODUCT', ids: {} });
-  assert.deepEqual(shownLookOf(undefined), { header: 'PRODUCT', ids: {} });
+test('a member sees the look the server answers, and the product until it has answered', () => {
+  const look = { display_name: 'House', header: 'LOGO' as const, logo_light_media_id: 'l', logo_dark_media_id: null, symbol_media_id: 's' };
+  assert.deepEqual(memberLookOf(look), { header: 'LOGO', ids: { LOGO_LIGHT: 'l', SYMBOL: 's' } });
+  // Switched off above, the server answers the product and no picture (ADR-0112): drawn as it is.
+  assert.deepEqual(memberLookOf({ ...look, header: 'PRODUCT', logo_light_media_id: null, symbol_media_id: null }), { header: 'PRODUCT', ids: {} });
+  assert.deepEqual(memberLookOf(undefined), { header: 'PRODUCT', ids: {} });
 });
 
 test('the card draws what the rules at this address carry, and the product where they carry none', () => {

@@ -197,7 +197,7 @@ a value into, the hubs chosen and the hubs given their state as their own. A cha
 workspace's name or look - its name, its pictures, what its header shows, or whether it may show
 its own name and logo (UC-INS-22) - writes the workspace's record as well, as it stands, in the
 change's transaction ([ADR-0112](../adr/ADR-0112-a-workspace-shows-its-own-name-and-logo.md)): same
-content, same receivers, and a client that receives it reads the workspace again beside the
+content, same receivers, and a client that receives it reads the workspace's look again beside the
 switches. Nothing else writes a record: what the
 installation or a plan decides for a workspace reaches a device on its next read of the manifest.
 A workspace's switch records no hub it wrote nothing into, also where the hub's state turned with

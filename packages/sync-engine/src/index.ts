@@ -448,6 +448,7 @@ export type {
   WorkspaceStructureChange,
   WorkspaceBranding,
   WorkspaceHeader,
+  WorkspaceLook,
   WorkspacePicture,
   SignInPictures,
   Cover,

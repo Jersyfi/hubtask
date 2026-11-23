@@ -5,8 +5,10 @@
 // writes reaches the second as a change record on its stream, and the second draws it without a
 // reload - a board's comment written and resolved (UC-CNV-09 check 6), and a product switched off
 // leaving the navigation (UC-INS-21 check 12), the workspace's own name chosen for the header
-// reaching the other's header (UC-INS-22 check 7). The stream is answered and closed with a short
-// `retry`, so a client comes back for the records written since, the way it does after a drain.
+// reaching the other's header (UC-INS-22 check 7), and a guest of one hub, who may not read the
+// workspace's set-up, seeing its name and look all the same (UC-INS-22 checks 5 and 9). The
+// stream is answered and closed with a short `retry`, so a client comes back for the records
+// written since, the way it does after a drain.
 // Chromium only.
 
 import { test } from 'node:test';
@@ -17,7 +19,7 @@ import { join, dirname } from 'node:path';
 import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
-import { ACCOUNT, HUB, MANIFEST, OTHER, WORKSPACE, signedIn, stub } from './fixture.mjs';
+import { ACCOUNT, HUB, MANIFEST, OTHER, WORKSPACE, lookOf, signedIn, stub } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -48,8 +50,13 @@ function workspace(modulesOn) {
   const states = () => ['PLANNING', 'KNOWLEDGE', 'WHITEBOARD'].map((module) => ({ module, on: state.modulesOn.includes(module), source: 'WORKSPACE' }));
   let made = 0;
 
-  /** One client: its own place in the log, and the routes the backend answers before the fixture. */
-  async function client(browser) {
+  /**
+   * One client: its own place in the log, and the routes the backend answers before the fixture.
+   * `guest` is a member whose roles are all on one hub: no permission at the workspace, refused
+   * its set-up as the server refuses it; `asked` holds every read of the set-up the client made.
+   */
+  async function client(browser, { guest = false } = {}) {
+    const asked = [];
     const { page, context, failures } = await signedIn(browser, 1280, 860);
     await context.routeWebSocket(/\/realtime\/documents\/whiteboard\//, (ws) => {
       ws.onMessage(() => {});
@@ -67,7 +74,13 @@ function workspace(modulesOn) {
         const frames = news.map((each, i) => `id: c-${delivered - news.length + i + 1}\ndata: ${JSON.stringify(each)}\n\n`).join('');
         return route.fulfill({ status: 200, contentType: 'text/event-stream', body: `retry: 250\n\n${frames}` });
       }
-      if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: state.modulesOn } });
+      if (path === '/meta/capabilities') {
+        return route.fulfill({ json: { ...MANIFEST, modules_on: state.modulesOn, ...(guest ? { workspace_permissions: [] } : {}) } });
+      }
+      if (path === '/tenant' && method === 'GET') asked.push(path);
+      if (guest && path === '/tenant' && method === 'GET') {
+        return route.fulfill({ status: 403, contentType: 'application/problem+json', body: JSON.stringify({ status: 403, code: 'access.forbidden' }) });
+      }
       if (/^\/containers\/[^/]+\/modules$/.test(path)) return route.fulfill({ json: { modules_on: state.modulesOn } });
       if (path === '/tenant/modules' && method === 'GET') return route.fulfill({ json: { modules: states() } });
       const reach = /^\/tenant\/modules\/([A-Z_]+)\/reach$/.exec(path);
@@ -81,6 +94,7 @@ function workspace(modulesOn) {
         return route.fulfill({ json: { modules: states() } });
       }
       if (path === '/tenant' && method === 'GET') return route.fulfill({ json: { ...WORKSPACE, branding: state.branding } });
+      if (path === '/tenant/look' && method === 'GET') return route.fulfill({ json: lookOf({ ...WORKSPACE, branding: state.branding }) });
       if (path === '/tenant/branding' && method === 'PUT') {
         state.branding = { ...state.branding, header: request.postDataJSON().header };
         // The workspace's look changed: its switches' record, under no container (ADR-0112, O3).
@@ -110,7 +124,7 @@ function workspace(modulesOn) {
       }
       return stub(route);
     });
-    return { page, context, failures };
+    return { page, context, failures, asked };
   }
   return { state, client };
 }
@@ -201,4 +215,29 @@ test('chromium: the header\'s choice saved on one client reaches the other\'s he
   assert.equal(reloads, 0, 'the other client reloaded');
   assert.deepEqual(shared.state.log.map((each) => [each.entity, each.container_id]), [['setting', null]]);
   assert.deepEqual([...admin.failures, ...other.failures], []);
+});
+
+test("chromium: a guest of one hub sees the workspace's name, and the choice saved elsewhere, without reading its set-up (UC-INS-22 checks 5, 7 and 9)", async (t) => {
+  const browser = await sharedChromium(t);
+  const shared = workspace(MANIFEST.modules_on ?? []);
+  shared.state.branding = { ...shared.state.branding, header: 'WORKSPACE_NAME' };
+  const admin = await shared.client(browser);
+  const guest = await shared.client(browser, { guest: true });
+  t.after(() => Promise.all([admin.context.close(), guest.context.close()]));
+
+  await guest.page.goto(`${served.origin}/`);
+  const bar = guest.page.getByRole('banner');
+  // Every member sees the workspace's name in the header and the tab (checks 5 and 9).
+  await bar.getByRole('link', { name: WORKSPACE.display_name, exact: true }).waitFor({ timeout: 15_000 });
+  await guest.page.waitForFunction((name) => document.title.endsWith(`– ${name}`), WORKSPACE.display_name, { timeout: 15_000 });
+
+  await admin.page.goto(`${served.origin}/administration/workspace/name`);
+  await admin.page.getByRole('group', { name: 'What the header shows' }).getByRole('radio', { name: 'Product name' }).check({ timeout: 15_000 });
+  await admin.page.getByRole('button', { name: 'Save', exact: true }).click();
+
+  // The guest's client read the look again on the workspace's record, and never the set-up.
+  await bar.getByRole('link', { name: 'Hubtask', exact: true }).waitFor({ timeout: 15_000 });
+  assert.deepEqual(shared.state.log.map((each) => [each.entity, each.container_id]), [['setting', null]]);
+  assert.deepEqual(guest.asked, [], "the guest's client asked for the workspace's set-up");
+  assert.deepEqual([...admin.failures, ...guest.failures], []);
 });

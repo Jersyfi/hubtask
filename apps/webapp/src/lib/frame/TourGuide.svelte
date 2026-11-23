@@ -10,6 +10,7 @@
   import { untrack } from 'svelte';
 
   import { actor } from '../data/account.svelte.ts';
+  import { mayReadWorkspace } from '../data/capability.svelte.ts';
   import { emergencyNotices } from '../data/emergencynotices.svelte.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
@@ -28,8 +29,12 @@
   $effect(() => {
     tour.attach(onnavigate);
   });
-  // Whether the starter is offered decides the start (user-experience.md §3.1), on any route.
-  $effect(() => untrack(() => workspace.open()));
+  // Whether the starter is offered decides the start (user-experience.md §3.1), on any route. A
+  // reader who may not read the workspace is offered no starter, and is not made to ask.
+  $effect(() => {
+    if (mayReadWorkspace() !== true) return;
+    return untrack(() => workspace.open());
+  });
 
   // The first sign-in of an account that has not taken the tour: started once, when the account
   // is known. A second arrival of the same account - a re-read after a preference changed - does
