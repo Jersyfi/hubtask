@@ -743,12 +743,15 @@ test('chromium: 1280 px - in German the notice, its answers, the mark and the hu
   await dialog.waitFor({ timeout: 10_000 });
   assert.equal((await dialog.locator('h2').textContent()).trim(), 'Notfallzugang auf deinen privaten Hub');
   const text = await dialog.textContent();
-  for (const words of ['hat einen privaten Hub geöffnet, in dem du Mitglied bist', 'Geöffnet', 'Zugriff', 'Grund', 'läuft bis', 'Uhr']) assert.ok(text.includes(words), words);
+  for (const words of ['hat einen privaten Hub geöffnet, in dem du Mitglied bist', 'Geöffnet', 'Grund', 'läuft bis', 'Uhr']) assert.ok(text.includes(words), words);
+  // One noun for the act: the fact says what the title says, one verb for the answer throughout.
+  assert.deepEqual(await dialog.locator('dt').allTextContents(), ['Hub', 'Geöffnet', 'Notfallzugang', 'Grund']);
+  assert.equal(/bestätig/iu.test(text), false, 'the notice says "bestätigen" beside "Zur Kenntnis genommen"');
   await dialog.getByRole('button', { name: 'Hub öffnen' }).waitFor();
   await dialog.getByRole('button', { name: 'Zur Kenntnis genommen' }).waitFor();
   await page.keyboard.press('Escape');
   await dialog.waitFor({ state: 'hidden' });
-  await page.getByRole('button', { name: 'Notfallzugang auf deine privaten Hubs: eine Meldung noch nicht bestätigt' }).waitFor();
+  await page.getByRole('button', { name: 'Notfallzugang auf deine privaten Hubs: eine Meldung noch nicht zur Kenntnis genommen' }).waitFor();
   await page.locator('aside.sidenav').getByRole('treeitem', { name: /^House Privat · über den Notfallzugang geöffnet, bis .* Uhr/ }).waitFor();
   assert.deepEqual(failures, []);
 });

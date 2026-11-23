@@ -6099,7 +6099,7 @@
   "app.emergency_notice.intro_many_owners": "The workspace’s owners opened private hubs you are a member of in the last 30 days. They may do so for one hour each; every member of the hub is told.",
   "app.emergency_notice.fact_hub": "Hub",
   "app.emergency_notice.fact_opened": "Opened",
-  "app.emergency_notice.fact_access": "Access",
+  "app.emergency_notice.fact_access": "Emergency access",
   "app.emergency_notice.fact_reason": "Reason",
   "app.emergency_notice.at": "{when}",
   "app.emergency_notice.running_until": "open until {time}",
