@@ -144,6 +144,8 @@ export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, ad
   // The hubs in their shared order, which a `:reorder` changes as the server would: the preview
   // shows a hub where it was dropped rather than snapping back.
   const hubOrder = [...HUBS];
+  // A page made in a walk is kept under its own hub, and only for that walk.
+  const madeIn = (hub) => written.pages.filter((each) => each.hub_id === hub);
   const handler = async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -224,12 +226,11 @@ export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, ad
       const body = request.postDataJSON() ?? {};
       const made = { id: id(5000 + written.pages.length), hub_id: making[1], parent_id: body.parent_id ?? null, title: body.title ?? '', order_key: 'z', template: false, version: 1 };
       written.pages.push(made);
-      PD_PAGES.push(made);
       return route.fulfill({ status: 201, json: pageRead(made) });
     }
-    if (path.endsWith(`/api/v1/hubs/${IT.id}/pages`) && !url.searchParams.has('templates')) return route.fulfill({ json: { data: [KB, VPN, RUNBOOKS, TEMPLATE], ...PAGE } });
+    if (path.endsWith(`/api/v1/hubs/${IT.id}/pages`) && !url.searchParams.has('templates')) return route.fulfill({ json: { data: [KB, VPN, RUNBOOKS, TEMPLATE, ...madeIn(IT.id)], ...PAGE } });
     if (path.endsWith(`/api/v1/hubs/${IT.id}/whiteboards`)) return route.fulfill({ json: { data: [MAP], ...PAGE } });
-    if (path.endsWith(`/api/v1/hubs/${PD.id}/pages`) && !url.searchParams.has('templates')) return route.fulfill({ json: { data: PD_PAGES, ...PAGE } });
+    if (path.endsWith(`/api/v1/hubs/${PD.id}/pages`) && !url.searchParams.has('templates')) return route.fulfill({ json: { data: [...PD_PAGES, ...madeIn(PD.id)], ...PAGE } });
     if (path.endsWith(`/api/v1/hubs/${PD.id}/whiteboards`)) return route.fulfill({ json: { data: PD_BOARDS, ...PAGE } });
     if (path.endsWith(`/api/v1/hubs/${PD.id}/releases`)) return route.fulfill({ json: { data: RELEASES, ...PAGE } });
     // A server the health lists, opened from its line.
@@ -280,7 +281,7 @@ export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, ad
     // A page or a whiteboard opened, and one made: answered in the contract's shapes, so opening
     // content and *New page* or *New whiteboard* land on a page rather than on a list's shape.
     const opened = /\/api\/v1\/pages\/([^/:]+)$/.exec(path);
-    const known = opened && PAGES().find((each) => each.id === opened[1]);
+    const known = opened && [...PAGES(), ...written.pages].find((each) => each.id === opened[1]);
     if (known && request.method() === 'GET') return route.fulfill({ json: pageRead(known, owner) });
     const board = /\/api\/v1\/whiteboards\/([^/:]+)$/.exec(path);
     const drawn = board && BOARDS().find((each) => each.id === board[1]);
