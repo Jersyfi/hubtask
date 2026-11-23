@@ -384,6 +384,46 @@ test('UC-WRK-38: a page\'s ⋯ archives it or puts it in the trash, a board\'s o
   assert.deepEqual(failures, []);
 });
 
+// The page or board open beside the sidebar, put in the trash from its row's ⋯, leaves for the
+// hub's All contents: the screen does not stay on it, read it again and say it is not there. A
+// phone has no sidebar beside an open page - its contents are a screen of their own.
+for (const [kind, gone, name, toast, missing] of [
+  ['pages', PD_PAGES.find((each) => each.title === 'Meeting notes'), 'page', '1 page went into the trash.', 'There is no such page.'],
+  ['whiteboards', PD_BOARDS.find((each) => each.title === 'Retro board'), 'whiteboard', '“Retro board” is in the trash.', 'The whiteboard was not found.'],
+]) {
+  test(`1280 px: the open ${name} put in the trash from the sidebar leaves for All contents, never "not found"`, async (t) => {
+    const browser = await sharedChromium(t);
+    const record = recorder();
+    const asked = [];
+    let isGone = false;
+    const extra = async (route, request, url) => {
+      const path = url.pathname.replace('/api/v1', '');
+      if (path.startsWith(`/${kind}/${gone.id}`) && isGone) asked.push(`${request.method()} ${path}`);
+      if (path === `/${kind}/${gone.id}` && request.method() === 'GET' && isGone) {
+        return route.fulfill({ status: 404, contentType: 'application/problem+json', body: JSON.stringify({ type: 'about:blank', title: 'not found', status: 404, code: 'not_found', detail_code: `${kind}.not_found` }) }), true;
+      }
+      if (path === `/${kind}/${gone.id}` && request.method() === 'DELETE') isGone = true;
+      return record.extra(route, request, url);
+    };
+    const { page, failures, close } = await open(browser, { width: 1280, path: `/${kind}/${gone.id}`, modulesOn: ALL, owner: true, extra });
+    t.after(close);
+    const passed = [];
+    page.on('framenavigated', (frame) => frame === page.mainFrame() && passed.push(new URL(frame.url()).pathname));
+    await row(page, gone.title).waitFor({ timeout: 10_000 });
+    await row(page, gone.title).hover();
+    await side(page).getByRole('button', { name: `Manage ${gone.title}` }).click();
+    await page.getByRole('menuitem', { name: 'Move to the trash' }).click();
+    await page.getByText(toast).first().waitFor();
+    assert.deepEqual(record.moves.at(-1), { path: `/${kind}/${gone.id}`, method: 'DELETE', body: undefined });
+    await page.waitForURL(`**/hubs/${PD.id}/contents?kind=${kind}`, { timeout: 10_000 });
+    await page.getByRole('heading', { name: 'All contents' }).first().waitFor({ timeout: 10_000 });
+    assert.equal(await page.getByText(missing).count(), 0, `the ${name} that went was shown as not found`);
+    assert.ok(!passed.slice(1).includes(`/${kind}/${gone.id}`), `the ${name} was opened again: ${passed.join(' → ')}`);
+    assert.deepEqual(asked.filter((each) => each.startsWith('GET')), [], `the trashed ${name} was asked for after its delete`);
+    assert.deepEqual(failures, []);
+  });
+}
+
 test('UC-WRK-38 check 9: a page\'s sheet on the phone carries Archive and Move to the trash', async (t) => {
   const browser = await sharedChromium(t);
   const record = recorder();
