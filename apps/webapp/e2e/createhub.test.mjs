@@ -329,22 +329,21 @@ test('chromium: a template the workspace already took, pressed at once after it 
 // given. The plan answers when the walk releases it, after Enter was pressed.
 test('chromium: Enter in the name while the plan is read waits for it, then asks the acknowledgement first', async (t) => {
   const browser = await sharedChromium(t);
-  let asked;
-  const arrived = new Promise((resolve) => (asked = resolve));
   let release;
   const held = new Promise((resolve) => (release = resolve));
   const { page, failures, context, made, events } = await as(browser, {
     planOf: (key) => ({ ...planned(key), flags: { hides_data: true, changes_permissions: false } }),
-    planHeld: () => {
-      asked();
-      return held;
-    },
+    planHeld: () => held,
   });
   t.after(() => context.close());
 
   await page.goto(`${served.origin}/hubs/new`);
-  await main(page).getByRole('radio', { name: /^Kanban team/u }).check();
-  await arrived;
+  const kanban = main(page).getByRole('radio', { name: /^Kanban team/u });
+  await kanban.waitFor({ timeout: 10_000 });
+  // Waited on before the choice, and bounded: a choice that sends no plan fails here, not hangs.
+  const sent = page.waitForRequest((request) => request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/config/templates/kanban_team:plan'), { timeout: 5_000 });
+  await kanban.check();
+  await sent;
   // The choice has rested and its plan is out: the primary waits, saying why.
   await page.waitForFunction((element) => element.getAttribute('aria-disabled') === 'true', await primary(page).elementHandle(), { timeout: 5_000 });
   await nameField(page).focus();
