@@ -27,6 +27,9 @@
 
   import { signInRules } from '../data/signinrules.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
+  import { platform } from '../platform/index.ts';
+  import { cardLookOf, cardSourcesOf } from '../workspace/branding.ts';
+  import WorkspaceMark from '../workspace/WorkspaceMark.svelte';
 
   interface Props {
     /** The heading of this step. */
@@ -55,14 +58,27 @@
   const host = $derived(signInRules.workspaceHost ?? location.hostname);
   const workspace = $derived(signInRules.workspaceName);
   const legal = $derived(signInRules.legal);
+  // The same mark as the header, by the same choice (G7), where the rules at this address carry
+  // one - only at the workspace's own address (UC-INS-22 check 8). An installed app's card and the
+  // installation's own address keep the product's mark.
+  const isOwnAddress = $derived(hostLine === undefined && !isInstallation);
+  const look = $derived(cardLookOf(signInRules.rules?.workspace_header, signInRules.rules?.workspace_pictures));
+  // The name already stands beside its symbol: the line beside the mark keeps only the host.
+  const isNamedInMark = $derived(isOwnAddress && !!workspace && look.header === 'WORKSPACE_NAME');
 </script>
 
 <StandalonePage>
   <div class="brand">
-    <!-- A name rather than a message: the product is called Hubtask in every language. -->
-    <Logo size="md" wordmark="Hubtask" />
+    {#if isOwnAddress}
+      <WorkspaceMark name={workspace} header={look.header} pictures={cardSourcesOf(look.ids, platform.apiBase)} isKnown={signInRules.isLookSettled} />
+    {:else}
+      <!-- A name rather than a message: the product is called Hubtask in every language. -->
+      <Logo size="md" wordmark="Hubtask" />
+    {/if}
     {#if hostLine !== null}
-      {#if hostLine === undefined && !isInstallation && workspace}
+      {#if isNamedInMark}
+        <span class="host">{host}</span>
+      {:else if hostLine === undefined && !isInstallation && workspace}
         <span class="workspace" data-sign-in-workspace>
           <span class="name">{t('app.sign_in.to_workspace_named', { name: workspace })}</span>
           <span class="host">{host}</span>

@@ -210,10 +210,27 @@ class SignInRulesStore {
   read(): () => void {
     if (!this.isServed) return () => {};
     this.#readSettled = false;
-    return engine.subscribe<SignInRules>({ path: RULES }, (next) => {
+    this.#isReading = true;
+    const stop = engine.subscribe<SignInRules>({ path: RULES }, (next) => {
       if (next.status === 'ready') this.#rules = next.data;
       if (next.status === 'ready' || next.status === 'failed') this.#readSettled = true;
     });
+    return () => {
+      this.#isReading = false;
+      stop();
+    };
+  }
+
+  #isReading = $state(false);
+
+  /**
+   * Whether the card knows which mark to draw: as `isSettled`, but a screen that reads no rules
+   * (a public form's card) knows at once that it draws the product's, so its mark is never left
+   * empty waiting for a read nobody started.
+   */
+  get isLookSettled(): boolean {
+    if (!manifest.isRead) return manifest.failure !== undefined;
+    return !this.isServed || this.#readSettled || !this.#isReading;
   }
 
   /**
