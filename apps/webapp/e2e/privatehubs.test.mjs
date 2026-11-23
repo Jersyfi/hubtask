@@ -278,7 +278,7 @@ test('chromium: a member is told in the frame and on the hub, whatever their mai
   const { page, failures, context } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   const access = { ...EMERGENCY_ACCESS, hub_id: HUB.id, opened_by: OTHER.id, opened_at: new Date(Date.now() - 3_600_000).toISOString(), ends_at: new Date(Date.now() - 60_000).toISOString() };
-  await context.route('**/api/v1/accounts/me/emergency-notices', (route) => route.fulfill({ json: [access] }));
+  await context.route('**/api/v1/accounts/me/emergency-notices', (route) => route.fulfill({ json: [{ ...access, acknowledged_at: null }] }));
   await context.route(`**/api/v1/private-hubs/${HUB.id}/accesses`, (route) => route.fulfill({ json: [access] }));
   await context.route(`**/api/v1/containers/${HUB.id}`, (route) => route.fulfill({ json: { ...HUB, private: true } }));
   await context.route('**/api/v1/containers?*', (route) => {
