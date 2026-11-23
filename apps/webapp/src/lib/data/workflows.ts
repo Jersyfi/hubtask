@@ -260,6 +260,33 @@ export function notOffered(stored: readonly string[] | undefined, offered: reado
   return (stored ?? []).filter((value) => !offered.includes(value));
 }
 
+/**
+ * The step's limit after the one choice of roles and groups changed. A value is a group where the
+ * group list offers it - `offered.groups`, or a group the step named when the dialog opened
+ * (`offered.opened`) that the workspace no longer has - otherwise a role, so unticking and ticking a gone group again
+ * keeps it a group. Only the list that changed is written: a step that named no groups names none.
+ */
+export function chooseWho(
+  who: WorkflowStep['who'],
+  next: readonly string[],
+  offered: { readonly groups: readonly string[]; readonly opened: WorkflowStep['who']; readonly roles: readonly string[] },
+): WorkflowStep['who'] {
+  const groupIds = new Set([...offered.groups, ...(offered.opened?.groups ?? []), ...(who?.groups ?? [])]);
+  const shippedRoles = offered.roles;
+  const chosenGroups = next.filter((value) => groupIds.has(value));
+  const roles = new Set(next.filter((value) => !groupIds.has(value)));
+  const rolesBefore = who?.roles ?? [];
+  const groupsBefore = who?.groups ?? [];
+  let after = { ...who };
+  if (roles.size !== rolesBefore.length || rolesBefore.some((role) => !roles.has(role))) {
+    // The shipped roles in their order, then the workspace's own keys the step already names.
+    const ordered = [...shippedRoles.filter((one) => roles.has(one)), ...[...roles].filter((one) => !shippedRoles.includes(one))];
+    after = { ...after, roles: ordered as never };
+  }
+  if (chosenGroups.length !== groupsBefore.length || chosenGroups.some((group, at) => group !== groupsBefore[at])) after = { ...after, groups: chosenGroups };
+  return after;
+}
+
 /** Removes one step. */
 export function removeStep(shape: WorkflowShape, key: string): WorkflowShape {
   return { ...shape, steps: shape.steps.filter((step) => step.key !== key) };

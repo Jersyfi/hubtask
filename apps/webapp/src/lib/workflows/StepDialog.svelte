@@ -16,7 +16,7 @@
 
   import { FROM_DATA, byCatalogue, chooseSeveral } from '../forms/chooseSeveral.ts';
   import {
-    APPROVAL_RULES, CHECK_MESSAGE_CODES, addApprovalLevel, addStep, changeApproval, changeApprovalLevel, changeStep, notOffered, removeApprovalLevel,
+    APPROVAL_RULES, CHECK_MESSAGE_CODES, addApprovalLevel, addStep, changeApproval, changeApprovalLevel, changeStep, chooseWho, notOffered, removeApprovalLevel,
     statusLabel, stepLabel, toggleApproval, whoWhenEmpty, type ApprovalLevel,
   } from '../data/workflows.ts';
   import { accounts } from '../data/accounts.svelte.ts';
@@ -138,24 +138,9 @@
       : []),
   ]);
 
-  /**
-   * Roles and groups are one choice on screen and two lists in the step; only the list that
-   * changed is written, so a step that named no groups still names none.
-   */
-  function chooseWho(each: WorkflowStep, next: readonly string[]) {
-    const groupIds = new Set([...groups.all.map((group) => group.id), ...(each.who?.groups ?? [])]);
-    const chosenGroups = next.filter((value) => groupIds.has(value));
-    const roles = new Set(next.filter((value) => !groupIds.has(value)));
-    const rolesBefore = each.who?.roles ?? [];
-    const groupsBefore = each.who?.groups ?? [];
-    let who = { ...each.who };
-    if (roles.size !== rolesBefore.length || rolesBefore.some((role) => !roles.has(role))) {
-      // The shipped roles in their order, then the workspace's own keys the step already names.
-      const ordered = [...ROLES.filter((one) => roles.has(one)), ...[...roles].filter((one) => !(ROLES as readonly string[]).includes(one))];
-      who = { ...who, roles: ordered as never };
-    }
-    if (chosenGroups.length !== groupsBefore.length || chosenGroups.some((group, at) => group !== groupsBefore[at])) who = { ...who, groups: chosenGroups };
-    change(each, { who });
+  /** Roles and groups are one choice on screen and two lists in the step (`chooseWho`). */
+  function chooseWhoOf(each: WorkflowStep, next: readonly string[]) {
+    change(each, { who: chooseWho(each.who, next, { groups: groups.all.map((group) => group.id), opened: openedWho, roles: ROLES }) });
   }
 
   function changeCheck(each: WorkflowStep, index: number, next: { holds?: string; message?: string | null; messages?: Record<string, string>; message_code?: (typeof CHECK_MESSAGE_CODES)[number] | null }) {
@@ -247,7 +232,7 @@
             { label: t('app.workflow_designer.who_groups'), options: whoGroupOptions },
           ]}
           selected={[...(step.who?.roles ?? []), ...(step.who?.groups ?? [])]}
-          onChange={(next) => chooseWho(step, next)}
+          onChange={(next) => chooseWhoOf(step, next)}
           {...chooseSeveral()}
           emptyLabel={t(whoWhenEmpty(step.who))}
         />
