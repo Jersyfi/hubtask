@@ -241,7 +241,10 @@ allowlist of brand words (*Hubtask*).
   switch asks nothing. The switch waits, drawn busy, until the hub list and the person's roles on
   its private hubs have answered, so that it never goes through unasked on a list still being
   read. The question offers the hubs of the hub list, which is one page: the first 200 hubs that
-  are not archived. A hub beyond it, and an archived one, is switched on in its own settings.
+  are not archived. A hub beyond it, and an archived one, is switched on in its own settings. A
+  product's page while it is off asks the same question from each of its ways to switch on, and a
+  template taken for an existing hub asks none: its products go on in that hub, at the hub where
+  the workspace has them on, else at the workspace naming the hub.
 * **At a hub**, the switch is free while the workspace has the product on, and locked with its
   reason while the workspace has it off - read from the workspace's set, whatever the hub stores
   itself. *Reset* beside "Set here" hands the hub back to the workspace.
@@ -1540,7 +1543,8 @@ workspace's — English*), so leaving it says what it means.
   plan are the starter's own fields (`workspace/TemplateTakeFields.svelte`). At an existing hub's
   (or collection's) *Templates*, where the workspace has not taken the template yet, the plan
   dialog shows the workspace's part first and, once applied, the place's own - two applies in one
-  dialog. Each card says its sentence (`app.templates.summary.*`, one per shipped template) and
+  dialog; at a hub the workspace's apply names that hub (`module_hub_ids`), so the products it
+  switches on are on there too. Each card says its sentence (`app.templates.summary.*`, one per shipped template) and
   folds its *Preview*. At a hub's or a collection's *Templates*, a template whose workspace part
   the workspace has not taken (the list's `workspace_first`) offers a reader who may not change
   the workspace no *Take*: its card says *Ask an administrator to add it* with the names of the
