@@ -180,14 +180,26 @@ test('UC-DOC-01 check 6, UC-CNV-10 check 6: a page has its trail and no tree of 
   const contents = side(page).getByRole('tree', { name: `Contents of ${PD.name}` });
   assert.equal(await contents.getByRole('treeitem', { name: 'How we plan' }).getAttribute('aria-current'), 'page');
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/live-wiki.png` });
-  // ＋ on the page's row: *Page · From a template… · Whiteboard*, the board made under it.
+  // ＋ on the page's row: *Page · Whiteboard*, the board made under it; templates are the create dialog's.
   const row = contents.getByRole('treeitem', { name: 'How we plan' });
   await row.hover();
   await side(page).getByRole('button', { name: 'Create under “How we plan”' }).click();
-  assert.deepEqual(await texts(page.getByRole('menuitem')), ['Page', 'From a template…', 'Whiteboard']);
+  assert.deepEqual(await texts(page.getByRole('menuitem')), ['Page', 'Whiteboard']);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/live-create.png` });
   await page.getByRole('menuitem', { name: 'Whiteboard' }).click();
   await page.getByRole('dialog', { name: 'Create under “How we plan”' }).waitFor({ timeout: 10_000 });
+  assert.deepEqual(failures, []);
+});
+
+test('＋ on the sidebar\'s Contents offers a page and a whiteboard, and no template', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, close } = await walk(browser, `/hubs/${PD.id}`, { width: 1280 });
+  t.after(close);
+  const contents = side(page).locator('section', { has: page.getByRole('heading', { name: /^Contents/ }) });
+  await contents.getByRole('tree', { name: `Contents of ${PD.name}` }).waitFor({ timeout: 10_000 });
+  await contents.locator('.head').hover();
+  await contents.getByRole('button', { name: 'Create in Contents' }).click();
+  assert.deepEqual(await texts(page.getByRole('menuitem')), ['Page', 'Whiteboard']);
   assert.deepEqual(failures, []);
 });
 

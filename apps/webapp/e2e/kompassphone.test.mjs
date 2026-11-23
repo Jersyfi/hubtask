@@ -127,7 +127,7 @@ test('UC-WRK-36 check 15: every stack change is announced, every target is 44 pi
   await page.getByRole('button', { name: 'New', exact: true }).click();
   const made = page.getByRole('dialog', { name: `New in “${IT.name}”` });
   await made.getByRole('heading', { name: `New in “${IT.name}”` }).waitFor();
-  assert.deepEqual(await texts(made.getByRole('listitem')), ['Page', 'Page from a template…', 'Whiteboard', 'Collection']);
+  assert.deepEqual(await texts(made.getByRole('listitem')), ['Page', 'Whiteboard', 'Collection']);
   assert.deepEqual(await small(), [], 'the New sheet: targets under 44 pixels');
   await made.getByRole('button', { name: 'Close' }).click();
   await made.waitFor({ state: 'hidden' });
