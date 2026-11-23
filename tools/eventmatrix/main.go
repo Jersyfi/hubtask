@@ -73,12 +73,13 @@ func repositoryRoot() (string, error) {
 
 // row is one line of the matrix.
 type row struct {
-	area     string
-	action   string
-	useCase  string
-	target   string
-	severity string
-	required bool
+	area          string
+	action        string
+	useCase       string
+	target        string
+	severity      string
+	required      bool
+	firstTimeOnly bool
 }
 
 // render produces the whole page.
@@ -93,6 +94,8 @@ func render(descriptors []usecase.Descriptor) string {
 			target:   descriptor.Audit.TargetType,
 			severity: string(descriptor.Audit.Severity),
 			required: descriptor.Audit.Required,
+			// A repeat that changes nothing writes no entry, so "every time" would be false.
+			firstTimeOnly: descriptor.Audit.FirstTimeOnly,
 		})
 	}
 	// By area first, so that a reader looking for "what does this system record about deletions"
@@ -127,12 +130,16 @@ func render(descriptors []usecase.Descriptor) string {
 
 // recorded says when an entry is written, which is the column a reader is actually looking for.
 //
-// Two states rather than "yes/no". A writing use case records what it did; a read records only
+// Not "yes/no". A writing use case records what it did - every time, or the first time where a
+// repeat changes nothing and writes no entry (`FirstTimeOnly`); a read records only
 // when it is refused, because a trail that grew by being read would bury what it is for
 // (audit.md §4, and `ListAuditEntries` for the reasoning). A write gate SG-13 names as an exception
 // is recorded as a read is, only when refused (audit.md §7): the authorisation service writes the
 // refusal of every use case, required or not.
 func recorded(entry row) string {
+	if entry.required && entry.firstTimeOnly {
+		return "The first time"
+	}
 	if entry.required {
 		return "Every time"
 	}

@@ -58,6 +58,9 @@ type AuditDeclaration struct {
 	TargetType string
 	Severity   audit.Severity
 	Required   bool
+	// FirstTimeOnly says that a required entry is written by the call that changes something, and a
+	// repeat that changes nothing writes none - the event matrix says so instead of "every time".
+	FirstTimeOnly bool
 }
 
 // ActivityDeclaration is what the item's own history records for this use case

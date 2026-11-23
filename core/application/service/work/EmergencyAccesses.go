@@ -263,7 +263,7 @@ func (h AcknowledgeEmergencyNotice) Descriptor() usecase.Descriptor {
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: EmergencyNoticeAcknowledgedAction, TargetType: containerTarget,
-			Severity: audit.SeverityInfo, Required: true,
+			Severity: audit.SeverityInfo, Required: true, FirstTimeOnly: true,
 		},
 		Activity: usecase.ActivityDeclaration{Exempt: "a read receipt of one's own notice."},
 		Handler: usecase.HandlerFunc(func(
