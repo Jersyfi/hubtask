@@ -114,10 +114,13 @@ class Pages {
     });
   }
 
-  /** `leaving` when the screen showing the page leaves it at once (see `trashInvalidates`). */
-  trash(page: Page, { leaving = false }: { leaving?: boolean } = {}): Promise<PageTrashed> {
+  /**
+   * `leaving` when the screen showing the page leaves it at once, `isPost` when the page holds a
+   * post (see `trashInvalidates`).
+   */
+  trash(page: Page, { leaving = false, isPost = false }: { leaving?: boolean; isPost?: boolean } = {}): Promise<PageTrashed> {
     return engine.mutate<PageTrashed>('DELETE', pagePath(page.id), undefined, {
-      invalidates: trashInvalidates(page, leaving),
+      invalidates: trashInvalidates(page, leaving, isPost),
     });
   }
 

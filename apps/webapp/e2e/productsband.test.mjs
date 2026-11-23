@@ -117,7 +117,7 @@ const FOUND = [
   found('SPRINT', '01a0e2e0-0000-7000-8000-000000000a02', 'Sprint 24', ['sprint 24'], { collection_id: SCRUM.id, state: 'ACTIVE' }),
 ];
 /** The API at the network edge, with the workspace's modules and the hub's own. */
-function stubFor({ modulesOn, hubModules, deskless = false, role, deskFlow = false }) {
+function stubFor({ modulesOn, hubModules, deskless = false, role, deskFlow = false, locale = 'en' }) {
   return async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname;
@@ -127,9 +127,9 @@ function stubFor({ modulesOn, hubModules, deskless = false, role, deskFlow = fal
       return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${record}\n{"cursor":"c-e2e"}\n` });
     }
     if (path.endsWith('/api/v1/sync:pull')) return route.fulfill({ json: { changes: [], cursor: 'c-e2e', has_more: false, tombstone_window_days: 90 } });
-    if (path.endsWith('/api/v1/accounts/me')) return route.fulfill({ json: ACCOUNT });
+    if (path.endsWith('/api/v1/accounts/me')) return route.fulfill({ json: { ...ACCOUNT, locale } });
     if (path.endsWith('/api/v1/meta/capabilities')) {
-      return route.fulfill({ json: { product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single', item_types: deskFlow ? MANIFEST.item_types : [], supported_locales: [{ locale: 'en', direction: 'ltr' }], workspace_permissions: PERMISSIONS.OWNER, modules_on: modulesOn, ...(role ? { roles: ROLES } : {}) } });
+      return route.fulfill({ json: { product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single', item_types: deskFlow ? MANIFEST.item_types : [], supported_locales: [{ locale: 'en', direction: 'ltr' }, { locale: 'de', direction: 'ltr' }], workspace_permissions: PERMISSIONS.OWNER, modules_on: modulesOn, ...(role ? { roles: ROLES } : {}) } });
     }
     if (path.endsWith(`/api/v1/containers/${HUB.id}/modules`)) return route.fulfill({ json: { modules_on: hubModules ?? modulesOn } });
     if (path.endsWith('/api/v1/agents')) return route.fulfill({ json: { data: AGENTS } });
@@ -467,6 +467,38 @@ for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
     await noSidewaysScroll(page, `assets ${width} ${scheme}`);
     assert.deepEqual(failures, []);
   });
+}
+
+// Scene phome: under *For you* the cards to continue reading end above the reviews and the spaces'
+// verified, which stand side by side where the screen is wide enough and one under the other
+// otherwise - at every width, in either language, whose words are longer in German.
+const FOR_YOU = { en: ['Continue reading', 'Due for your review · 1', 'Spaces · verified'], de: ['Weiterlesen', 'Dir zur Prüfung fällig · 1', 'Bereiche · geprüft'] };
+for (const width of [1280, 768, 390]) {
+  for (const locale of ['en', 'de']) {
+    test(`chromium ${width} px, light, ${locale}: the cards to continue reading overlap nothing below them`, async (t) => {
+      const browser = await sharedChromium(t);
+      const { page, failures, close } = await open(browser, { width, path: '/pages', modulesOn: ['KNOWLEDGE'], role: 'OWNER', locale });
+      t.after(close);
+      await page.evaluate(([account, ids]) => localStorage.setItem(`hubtask.pages-read.${account}`, JSON.stringify(Object.fromEntries(ids.map((id, i) => [id, i + 1])))), [ACCOUNT.id, [PAGES[0].id, PAGES[1].id]]);
+      await page.reload();
+      const [reading, review, verified] = FOR_YOU[locale].map((name) => page.getByRole('region', { name }));
+      for (const part of [reading, review, verified]) await part.waitFor({ timeout: 10_000 });
+      const box = (locator) => locator.evaluate((node) => node.getBoundingClientRect().toJSON());
+      const [readingBox, reviewBox, verifiedBox] = [await box(reading), await box(review), await box(verified)];
+      const cards = await reading.getByRole('link').evaluateAll((links) => links.map((link) => link.getBoundingClientRect().toJSON()));
+      assert.equal(cards.length, 2);
+      for (const card of cards) {
+        assert.ok(card.bottom <= readingBox.bottom + 1, `${width} ${locale}: a card ends at ${card.bottom}, below its section's ${readingBox.bottom}`);
+        for (const [name, below] of [['the reviews', reviewBox], ['the spaces verified', verifiedBox]]) {
+          assert.ok(card.bottom <= below.top + 1, `${width} ${locale}: a card ends at ${card.bottom}, over ${name} from ${below.top}`);
+        }
+      }
+      if (width >= 905) assert.ok(verifiedBox.left >= reviewBox.right - 1 && Math.abs(verifiedBox.top - reviewBox.top) < 1, `${width} ${locale}: the spaces verified stand beside the reviews`);
+      else assert.ok(verifiedBox.top >= reviewBox.bottom - 1, `${width} ${locale}: the spaces verified stand under the reviews`);
+      await noSidewaysScroll(page, `pages for you ${width} ${locale}`);
+      assert.deepEqual(failures, []);
+    });
+  }
 }
 
 // §2.2, §2.4, §7.4: the desk's home and a hub's Desk tab draw the handler's queues across the

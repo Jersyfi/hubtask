@@ -14,6 +14,16 @@ test('a trash that leaves the page invalidates what lists it; any other re-reads
   assert.deepEqual(trashInvalidates(page, false), ['/pages/p-1', '/hubs/h-1/pages', '/pages/p-1/versions']);
 });
 
+test("a post's page in the trash makes the hub's posts and New for you stale, not the post itself", () => {
+  const page = { id: 'p-1', hub_id: 'h-1' };
+  const lists = trashInvalidates(page, true, true);
+  assert.deepEqual(lists, [
+    '/hubs/h-1/pages', '/trash',
+    '/hubs/h-1/posts', '/hubs/h-1/posts?filter=UNREAD', '/hubs/h-1/posts?filter=MINE', '/hubs/h-1/posts?filter=SCHEDULED', '/posts$',
+  ]);
+  assert.ok(!lists.includes('/posts'), 'a bare /posts would re-read the post that went');
+});
+
 const page = (id: string, parent: string | null, position: string, title = id): Page => ({
   id, hub_id: 'hub', parent_id: parent, title, icon: null, position, template: false, content_language: null, owner_id: null,
   verified_until: null, verified_at: null, verified_by: null, due_for_review: false, archived: false, restricted: false, daily_for: null, trashed_at: null,

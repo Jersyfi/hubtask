@@ -142,7 +142,7 @@ test('R-6: Switch hub and Change position draw different marks, and no menu of t
   const contents = side(page).locator('section', { has: page.getByRole('heading', { name: /^Contents/ }) });
   await contents.locator('.head').hover();
   const create = await marks(contents.getByRole('button', { name: 'Create in Contents' }));
-  assert.equal(new Set(create).size, create.length, 'Page and From a template… share a mark');
+  assert.equal(new Set(create).size, create.length, 'Page and Whiteboard share a mark');
   assert.deepEqual(failures, []);
 });
 

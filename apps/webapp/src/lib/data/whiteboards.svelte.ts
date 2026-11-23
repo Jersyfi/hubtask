@@ -59,8 +59,12 @@ class Whiteboards {
     return engine.mutate<Whiteboard>('POST', `${boardPath(board.id)}:move`, to, { invalidates: touched(board.hub_id, board.id) });
   }
 
-  trash(board: Whiteboard): Promise<Whiteboard> {
-    return engine.mutate<Whiteboard>('DELETE', boardPath(board.id), undefined, { invalidates: touched(board.hub_id, board.id) });
+  /**
+   * `leaving` when the screen showing the board leaves it at once: only the list is stale then, as
+   * a page's trash (`trashInvalidates`) - the board's own reads would find it gone.
+   */
+  trash(board: Whiteboard, { leaving = false }: { leaving?: boolean } = {}): Promise<Whiteboard> {
+    return engine.mutate<Whiteboard>('DELETE', boardPath(board.id), undefined, { invalidates: leaving ? [boardsPath(board.hub_id)] : touched(board.hub_id, board.id) });
   }
 
   restore(board: Pick<Whiteboard, 'id' | 'hub_id'>): Promise<Whiteboard> {

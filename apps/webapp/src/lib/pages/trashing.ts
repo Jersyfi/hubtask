@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-/** Putting the open page in the trash and leaving it for its space's pages. */
+/** Putting the open page in the trash and leaving it for its hub's *All contents*. */
 
 export interface TrashSteps<T> {
   /**
@@ -15,14 +15,22 @@ export interface TrashSteps<T> {
 }
 
 /**
+ * Where a page, a post or a board put in the trash leaves the person who was on it: the hub's *All
+ * contents*, narrowed to the kind it was (a post is not among them). Not the space's own address,
+ * which opens its home page - the page just trashed, when that was the home.
+ */
+export const contentsAfterTrash = (hubId: string, kind?: 'pages' | 'whiteboards'): string =>
+  `/hubs/${hubId}/contents${kind ? `?kind=${kind}` : ''}`;
+
+/**
  * The hub is read before the delete: the delete invalidates the open page, and a screen that read
  * it afterwards would find nothing and stay on the deleted page's address.
  */
-export async function trashAndLeave<T>(page: { readonly hub_id: string }, steps: TrashSteps<T>): Promise<T | undefined> {
+export async function trashAndLeave<T>(page: { readonly hub_id: string }, steps: TrashSteps<T>, kind?: 'pages'): Promise<T | undefined> {
   const hubId = page.hub_id;
   const restore = steps.drop();
   const answer = await steps.trash();
-  if (answer !== undefined) steps.leave(`/hubs/${hubId}/pages`);
+  if (answer !== undefined) steps.leave(contentsAfterTrash(hubId, kind));
   else if (typeof restore === 'function') restore();
   return answer;
 }

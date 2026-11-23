@@ -44,6 +44,7 @@
   import PositionDialog from '../workspace/PositionDialog.svelte';
   import { pages as pagesStore } from '../data/pages.svelte.ts';
   import { whiteboards } from '../data/whiteboards.svelte.ts';
+  import { contentsAfterTrash } from '../pages/trashing.ts';
   import { items } from '../data/items.svelte.ts';
   import { attachEntryGestures } from '../entries/entryGestures.ts';
   import { boardMoveBody, pageMoveBody, pickerPlaces, placementOf, reordered } from '../moving.ts';
@@ -517,15 +518,20 @@
     if (act === 'move') return void (movingContent = id);
     const pageRow = pageRows.find((each) => each.id === id);
     const board = boardRows.find((each) => each.id === id);
+    // The open one is left for the hub's contents: the screen would read it again and find it gone.
+    // A reader who opened another meanwhile stays there.
+    const leaving = act === 'trash' && id === currentContent;
     try {
       if (pageRow && act === 'archive') {
         const archived = await pagesStore.change(pageRow, { archived: true });
         offerMoved(t('app.nav.archived', { title: pageRow.title }), () => pagesStore.change(archived, { archived: false }).then(() => true, () => false));
       } else if (pageRow && act === 'trash') {
-        const trashed = await pagesStore.trash(pageRow);
+        const trashed = await pagesStore.trash(pageRow, { leaving });
+        if (leaving && currentContent === id) onnavigate(contentsAfterTrash(pageRow.hub_id, 'pages'));
         offerMoved(t('app.pages.trashed', { count: trashed.trashed }), () => pagesStore.restore(pageRow.hub_id, pageRow.id).then(() => true, () => false));
       } else if (board && act === 'trash') {
-        await whiteboards.trash(board);
+        await whiteboards.trash(board, { leaving });
+        if (leaving && currentContent === id) onnavigate(contentsAfterTrash(board.hub_id, 'whiteboards'));
         offerMoved(t('app.whiteboards.trashed', { title: board.title }), () => whiteboards.restore(board).then(() => true, () => false));
       }
     } catch (error) {
@@ -1064,10 +1070,10 @@
   let isCreatingCollection = $state(false);
   let collectionHubId = $state<string | undefined>(undefined);
 
-  // ＋ on *Contents* creates at the top, ＋ on a page under it (§5.2): *Page · From a template… ·
-  // Whiteboard*; a whiteboard has no children and so no ＋.
+  // ＋ on *Contents* creates at the top, ＋ on a page under it (§5.2): *Page · Whiteboard*; a
+  // whiteboard has no children and so no ＋. Templates are the create dialog's, not the tree's.
   const createItems = $derived([
-    ...(isOn('KNOWLEDGE') ? [{ id: 'page', label: t('app.nav.create_page'), icon: 'file-text' as const }, { id: 'template', label: t('app.nav.create_from_template'), icon: 'copy' as const }] : []),
+    ...(isOn('KNOWLEDGE') ? [{ id: 'page', label: t('app.nav.create_page'), icon: 'file-text' as const }] : []),
     ...(isOn('WHITEBOARD') ? [{ id: 'whiteboard', label: t('app.nav.create_whiteboard'), icon: 'layout-template' as const }] : []),
   ]);
   const createPath = (at: string, kind: string, under?: string) =>
@@ -1538,7 +1544,7 @@
       <Sheet title={under ? t('app.nav.create_under', { name: under.node.title }) : t('app.nav.new_in_place', { name: hub.name })} closeLabel={t('app.sheet_close')} bind:isOpen={isNewOpen}>
         <ul>
           {#each createItems as item (item.id)}
-            <NavItem label={item.id === 'template' ? t('app.nav.create_page_from_template') : item.label} icon={item.icon} size="touch"
+            <NavItem label={item.label} icon={item.icon} size="touch"
               onnavigate={() => { isNewOpen = false; onnavigate(createPath(hub.id, item.id, under?.node.id)); }} />
           {/each}
         </ul>

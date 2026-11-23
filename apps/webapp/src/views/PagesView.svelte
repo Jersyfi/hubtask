@@ -310,12 +310,12 @@
         return pageEditor?.dropPending();
       },
       trash: async () => {
-        const answer = await act(() => pages.trash(page, { leaving: true }), undefined);
+        const answer = await act(() => pages.trash(page, { leaving: true, isPost: !!post }), undefined);
         if (answer) toast.show({ text: t('app.pages.trashed', { count: String(answer.trashed) }), tone: 'success' });
         return answer;
       },
       leave: onnavigate,
-    });
+    }, post ? undefined : 'pages');
   });
 
   async function copy() {

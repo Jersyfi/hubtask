@@ -22,6 +22,7 @@
     | 'summary'
     | 'german'
     | 'inline'
+    | 'few'
     | 'dense'
     | 'dialog'
     | 'row'
@@ -147,6 +148,7 @@
     summary: ['COMPLETION', ...flatValues.filter((value) => value !== 'COMPLETION' && value !== 'AMOUNT')],
     german: ['COMPLETION', 'DUE_DATE', 'ASSIGNMENT', 'MEMBERS', 'NOTES', 'LABELS', 'COMMENTS', 'ATTACHMENTS'],
     inline: ['LIST', 'BOARD'],
+    few: ['BOARD'],
     dense: ['HUB', 'COLLECTION', 'TASK'],
     dialog: ['DUE_DATE', 'NOTES'],
     row: ['HUB', 'COLLECTION'],
@@ -266,6 +268,21 @@
       error={selected.length === 0 ? 'Offer at least one view.' : undefined}
       isRequired
       requiredLabel="(required)"
+      emptyLabel="No view"
+      filterLabel="Filter the views"
+      clearLabel="Clear the filter"
+      noMatchLabel="No view matches."
+      allLabel="All"
+      noneLabel="None"
+      doneLabel="Done"
+    />
+  {:else if mode === 'few'}
+    <MultiSelect
+      label="Views offered"
+      presentation="field"
+      options={views.slice(0, 3)}
+      {selected}
+      onChange={(next) => (selected = next)}
       emptyLabel="No view"
       filterLabel="Filter the views"
       clearLabel="Clear the filter"

@@ -180,15 +180,56 @@ test('UC-DOC-01 check 6, UC-CNV-10 check 6: a page has its trail and no tree of 
   const contents = side(page).getByRole('tree', { name: `Contents of ${PD.name}` });
   assert.equal(await contents.getByRole('treeitem', { name: 'How we plan' }).getAttribute('aria-current'), 'page');
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/live-wiki.png` });
-  // ＋ on the page's row: *Page · From a template… · Whiteboard*, the board made under it.
+  // ＋ on the page's row: *Page · Whiteboard*, the board made under it; templates are the create dialog's.
   const row = contents.getByRole('treeitem', { name: 'How we plan' });
   await row.hover();
   await side(page).getByRole('button', { name: 'Create under “How we plan”' }).click();
-  assert.deepEqual(await texts(page.getByRole('menuitem')), ['Page', 'From a template…', 'Whiteboard']);
+  assert.deepEqual(await texts(page.getByRole('menuitem')), ['Page', 'Whiteboard']);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/live-create.png` });
   await page.getByRole('menuitem', { name: 'Whiteboard' }).click();
   await page.getByRole('dialog', { name: 'Create under “How we plan”' }).waitFor({ timeout: 10_000 });
   assert.deepEqual(failures, []);
+});
+
+test('＋ on the sidebar\'s Contents offers a page and a whiteboard, and no template', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, close } = await walk(browser, `/hubs/${PD.id}`, { width: 1280 });
+  t.after(close);
+  const contents = side(page).locator('section', { has: page.getByRole('heading', { name: /^Contents/ }) });
+  await contents.getByRole('tree', { name: `Contents of ${PD.name}` }).waitFor({ timeout: 10_000 });
+  await contents.locator('.head').hover();
+  await contents.getByRole('button', { name: 'Create in Contents' }).click();
+  assert.deepEqual(await texts(page.getByRole('menuitem')), ['Page', 'Whiteboard']);
+  assert.deepEqual(failures, []);
+});
+
+test('All contents offers a new page where pages are on and a new whiteboard where whiteboards are on', async (t) => {
+  const browser = await sharedChromium(t);
+  const offered = async (hubModules, shown) => {
+    const { page, failures, written, close } = await walk(browser, `/hubs/${PD.id}/contents`, { width: 1280, hubModules });
+    t.after(close);
+    await main(page).getByRole('heading', { name: 'All contents' }).waitFor({ timeout: 10_000 });
+    const head = main(page).locator('header.head');
+    // Nothing is offered before the hub's modules answer; then the one asked for stands.
+    await head.getByRole('button', { name: shown, exact: true }).waitFor({ timeout: 10_000 });
+    return { page, failures, written, head, names: await texts(head.getByRole('button', { name: /^New / })) };
+  };
+  // Both on: *New page* beside *New whiteboard*, and it makes a page in this hub.
+  const both = await offered(ON, 'New page');
+  assert.deepEqual(both.names, ['New page', 'New whiteboard']);
+  if (SHOTS) await both.page.screenshot({ path: `${SHOTS}/live-contents.png` });
+  await both.head.getByRole('button', { name: 'New page' }).click();
+  // The pages' own way in: the page is made at once and opened.
+  await at(both.page, `/pages/${id(5000)}`);
+  await both.page.getByLabel('Title', { exact: true }).waitFor({ timeout: 15_000 });
+  assert.equal(both.written.pages.length, 1, 'New page made no page');
+  assert.equal(both.written.pages[0].hub_id, PD.id);
+  assert.deepEqual(both.failures, []);
+  // Each product alone: only its own create.
+  const pagesOnly = await offered({ [PD.id]: ON[PD.id].filter((each) => each !== 'WHITEBOARD') }, 'New page');
+  assert.deepEqual(pagesOnly.names, ['New page']);
+  const boardsOnly = await offered({ [PD.id]: ON[PD.id].filter((each) => each !== 'KNOWLEDGE') }, 'New whiteboard');
+  assert.deepEqual(boardsOnly.names, ['New whiteboard']);
 });
 
 test('UC-SVC-03 check 11: the queue\'s Filter narrows it, and Save as queue keeps the narrowing as a queue of the hub', async (t) => {

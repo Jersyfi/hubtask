@@ -226,7 +226,7 @@ What the data cannot do is not offered (P-05).
 | Product at a hub | the hub's ⋯ → *Products*: on and off, only what the workspace allows (`setModule`). Switched on it appears at once with the *new* mark and the card *Find it here · Start with…* | fixed order and place; not moved, not hidden personally | — | — | switching off asks first and says the data stays (UC-INS-21 check 4) |
 | Collection | ＋ on *Collections*: name and kind — the presets List, Tasks, Project, Flow, Scrum; *Desk* where the hub has portal types; the workspace's presets. Sprints start with the first sprint. `STRUCTURE` at the hub | drag in *Collections*, `Alt+↑/↓`. `moveContainer` into its own hub (as built) | — | ⋯ → *Move to…* with the pre-check (§5.3). `moveContainer`, `STRUCTURE` at both hubs | as built: *Archive* with *Undo*; trash (`DELETE_CONTAINER`) |
 | Queue | in the queue's table: set a filter → *Save as queue* (a saved view of the hub marked as a queue), `STRUCTURE` | drag under *Queues* (shared, `STRUCTURE`); a star lifts a queue to the top for oneself | — | — | ⋯ → *Delete* (asks; the requests stay) |
-| Page | ＋ on *Contents* (top) or on a page (under it): menu *Page · From a template… · Whiteboard*. *Capture ▾ → Page* asks for the place. `createPage`, `WRITE_ITEMS` | drag before or after, `Alt+↑/↓`. `movePage` | drag into a page or onto *Contents*, `Alt+→/←`, ⋯ → *Move to…*; subpages come along, at most 12 levels. `movePage` | **not offered** (`pages.parent_other_space`) | ⋯ → *Archive* (`updatePage archived`); trash as built; ⋯ → *Copy* (same hub, `copyPage`) |
+| Page | ＋ on *Contents* (top) or on a page (under it): menu *Page · Whiteboard* (templates in the create dialog, not in the navigation). *Capture ▾ → Page* asks for the place. `createPage`, `WRITE_ITEMS` | drag before or after, `Alt+↑/↓`. `movePage` | drag into a page or onto *Contents*, `Alt+→/←`, ⋯ → *Move to…*; subpages come along, at most 12 levels. `movePage` | **not offered** (`pages.parent_other_space`) | ⋯ → *Archive* (`updatePage archived`); trash as built; ⋯ → *Copy* (same hub, `copyPage`) |
 | Whiteboard | ＋ as for pages → *Whiteboard* (with the template gallery), at the top or under a page | drag as pages **new** | drag under a page **new**; never under a whiteboard (*A whiteboard has no subpages*) | **not offered** (no operation; export and import stay the way) | trash; no archive (none exists) |
 | CI | in the inventory: *New CI ▾*, import, connector | sorted, not ordered | change its class in the CI | not possible (relations stay inside one hub) | lifecycle instead of trash (as built) |
 | Entry | capture, the list, the board | as built (UC-WRK-06) | as built | from a list or board **onto a collection in the sidebar** moves it there: same hub at once with *Undo*; another hub (reached through *Starred*) opens the move dialog (UC-WRK-06 check 5). `moveWorkItem`, `WRITE_ITEMS` at both | as built |
@@ -241,7 +241,7 @@ What the data cannot do is not offered (P-05).
 | *Capture* (top, `Q`) | an entry first; ▾ page, whiteboard, request, collection, hub, CI, goal, dashboard — only what is on and allowed; the place prefilled from the sidebar | an entry: stays open for the next. Anything else opens what was made |
 | ＋ on *Hubs* | the hub gallery | the new hub on its hub level, a hint at the ＋ of *Collections* |
 | ＋ on *Collections* | name, kind (presets), an optional mark | the new collection in its default view |
-| ＋ on *Contents* / on a page | menu: *Page · From a template… · Whiteboard* | the page in edit mode with its title focused / the board with the template gallery |
+| ＋ on *Contents* / on a page | menu: *Page · Whiteboard* | the page in edit mode with its title focused / the board with the template gallery |
 | ＋ in the view bar | a new view: layout and name | the view as a new tab |
 | An empty part | one quiet row, *Create the first page* / *Create the first collection* | as ＋ |
 
@@ -447,8 +447,8 @@ The phone screens of the mockup's §7: **1 Browse** (the workspace level: *Recen
 *Starred*, *Products*, *Hubs*), **2 Hub** (the three parts as on the desktop), **3 Queues** (a stack
 step of its own with live counts, starred first), **4 Contents** (pages and boards in one list; the
 name opens, the separate › descends; filter, *All ▾*, *Tree ▾* as chips; the *New* button floats),
-**5 Collection** (the view as a chip with its sheet), **6 New** on *Contents* (*Page*, *Page from a
-template…*, *Whiteboard*; *Collection* where allowed), **7 Long press** (the context sheet: *Star*,
+**5 Collection** (the view as a chip with its sheet), **6 New** on *Contents* (*Page*, *Whiteboard*;
+*Collection* where allowed), **7 Long press** (the context sheet: *Star*,
 *Create under*, *Move to…*, *Change order*, *Archive*, *Move to the trash*), **8 Reorder mode**
 (grips at the end, *Done*), **9 Move** (the place picker with the pre-check and one button naming
 the target, *Move to “People”*), **10 Account** (the avatar's sheet with the workspace switch).

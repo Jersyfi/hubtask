@@ -196,9 +196,6 @@
   const starts = $derived(shown.map((_, at) => shown.slice(0, at).reduce((sum, section) => sum + section.options.length, 0)));
   const chosenCount = $derived(all.filter((each) => selected.includes(each.value)).length);
 
-  let headBox = $state<HTMLElement | null>(null);
-  let footBox = $state<HTMLElement | null>(null);
-
   function focusActive(): void {
     const node = list?.querySelector<HTMLElement>(`[data-index="${active}"]`);
     if (!node) return;
@@ -215,9 +212,9 @@
   /**
    * Keeps the focused option clear frame by frame until it has stood clear for a few frames on end.
    * While anchor positioning settles the surface on its shrunk fallback (anchor.ts), the engine
-   * also lays it out at its other positions, where nothing overflows, and the list's scroll is
+   * also lays it out at its other positions, where nothing overflows, and the options' scroll is
    * lost; a busy page goes on doing so for frames after a key moved the focus, and an option
-   * scrolled clear once stood below the list again.
+   * scrolled clear once stood below the region again.
    */
   function holdClear(node: HTMLElement, settled = 0, frames = 0): void {
     requestAnimationFrame(() => {
@@ -231,18 +228,16 @@
     });
   }
 
-  /** Whether the option stands wholly inside the list, clear of the stuck head and foot. */
+  /** Whether the option stands wholly inside the region that scrolls it. */
   function isClear(node: HTMLElement): boolean {
     const scroller = scrollerOf(node);
     if (!scroller) return true;
     const box = node.getBoundingClientRect();
     const frame = scroller.getBoundingClientRect();
-    const top = Math.max(frame.top, headBox?.getBoundingClientRect().bottom ?? frame.top);
-    const bottom = Math.min(frame.bottom, footBox?.getBoundingClientRect().top ?? frame.bottom);
-    return box.top >= top && box.bottom <= bottom;
+    return box.top >= frame.top && box.bottom <= frame.bottom;
   }
 
-  /** The surface that scrolls the list: the popover's, or the sheet's body. */
+  /** The box that scrolls the options: their own region, or a surface shrunk below its head and foot. */
   function scrollerOf(node: HTMLElement): HTMLElement | null {
     for (let at = node.parentElement; at; at = at.parentElement) {
       if (at.scrollHeight > at.clientHeight && /auto|scroll/.test(getComputedStyle(at).overflowY)) return at;
@@ -250,9 +245,9 @@
     return null;
   }
 
-  // Focus is never hidden by a stuck region (design-system.md §10, 2.4.11): the browser scrolls a
-  // focused option into the surface, not clear of the head and the foot stuck inside it, so the
-  // option and its ring are scrolled out from under them here.
+  // Focus is never cut off (design-system.md §10, 2.4.11): the browser scrolls a focused option's
+  // box to the region's edge, where its ring lies outside the region and is clipped, so the ring is
+  // scrolled into view as well here.
   function keepClear(node: HTMLElement): void {
     node.scrollIntoView({ block: 'nearest' });
     const scroller = scrollerOf(node);
@@ -260,10 +255,9 @@
     const style = getComputedStyle(node);
     const ring = (Number.parseFloat(style.outlineOffset) || 0) + (Number.parseFloat(style.outlineWidth) || 0);
     const box = node.getBoundingClientRect();
-    const top = headBox?.getBoundingClientRect().bottom;
-    const bottom = footBox?.getBoundingClientRect().top;
-    if (top !== undefined && box.top - ring < top) scroller.scrollTop -= top - (box.top - ring);
-    else if (bottom !== undefined && box.bottom + ring > bottom) scroller.scrollTop += box.bottom + ring - bottom;
+    const frame = scroller.getBoundingClientRect();
+    if (box.top - ring < frame.top) scroller.scrollTop -= frame.top - (box.top - ring);
+    else if (box.bottom + ring > frame.bottom) scroller.scrollTop += box.bottom + ring - frame.bottom;
   }
 
   async function open(): Promise<void> {
@@ -480,9 +474,8 @@
            Tab closes a combobox's popup (APG), and goes on. The sheet is modal and keeps it. -->
       <div class="panel" onfocusout={onPanelFocusout}>
         {#if isReadOnly || isFilterable}
-          <!-- The read-only reason stands in the stuck head with the filter: under the head's cover
-               it would be cut through as the list scrolls. -->
-          <div class="top" bind:this={headBox}>
+          <!-- The read-only reason stands in the head with the filter, outside the options' scroll. -->
+          <div class="top">
             {#if isReadOnly}
               <p class="notice" id={noticeId}><Icon name="lock" size="sm" /><span>{disabledReason}</span></p>
             {/if}
@@ -530,7 +523,7 @@
           {/if}
         </div>
         {#if isFilterable && !isReadOnly}
-          <div class="foot" bind:this={footBox}>
+          <div class="foot">
             {#if flat.length > 0}
               <Button tone="subtle" size="sm" onclick={chooseAll}>{allLabel}</Button>
               <Button tone="subtle" size="sm" onclick={chooseNone}>{noneLabel}</Button>
@@ -653,7 +646,24 @@
 
   .field[data-readonly] .chip { background: var(--bg-surface); }
 
-  .panel { display: flex; flex-direction: column; gap: var(--sp-100); min-inline-size: 0; }
+  /* One maximum height for the open list, the popover's and the sheet's alike: as tall as its rows
+     up to it, then only the options scroll between the head and the foot. */
+  .panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-100);
+    min-inline-size: 0;
+    min-block-size: 0;
+    max-block-size: var(--layout-rail);
+  }
+
+  /* What holds the panel - the popover's surface, the sheet's body - lets it shrink where it has
+     less room than that (anchor.ts's shrunk fallback, a short phone): the options give way, the
+     head and the foot stay. */
+  :global(*):has(> .panel) { display: flex; flex-direction: column; }
+
+  .top,
+  .foot { flex: none; }
 
   .notice {
     display: flex;
@@ -664,8 +674,19 @@
     font-size: var(--fs-075);
   }
 
-  /* The status and the list, with no gap for a status that says nothing. */
-  .body { display: flex; flex-direction: column; min-inline-size: 0; }
+  /* The status and the list, with no gap for a status that says nothing: the one region that
+     scrolls. Room for a focus ring on every side, which its overflow would clip; sideways without
+     moving the rows out of line with the head and the foot. */
+  .body {
+    display: flex;
+    flex: 0 1 auto;
+    flex-direction: column;
+    min-inline-size: 0;
+    min-block-size: 0;
+    margin-inline: calc((var(--sp-025) + var(--bw-ring)) * -1);
+    padding: calc(var(--sp-025) + var(--bw-ring));
+    overflow-y: auto;
+  }
 
   .list { display: flex; flex-direction: column; gap: var(--sp-025); outline: none; }
 
@@ -735,31 +756,7 @@
 
   .empty { margin: 0; padding: var(--sp-150); color: var(--text-subtle); font-size: var(--fs-075); }
 
-  /* The head - the read-only reason and the filter - and the foot stay in view while a long list
-     scrolls under them in the surface. */
-  .top,
-  .foot {
-    position: sticky;
-    z-index: var(--z-sticky);
-    background: var(--bg-raised);
-  }
-
-  /* The surface's own padding lies between a stuck part and its edge: covered, so no row shows
-     through the gap as it scrolls past. */
-  .top::before,
-  .foot::after {
-    content: '';
-    position: absolute;
-    inset-inline: 0;
-    block-size: var(--sp-200);
-    background: var(--bg-raised);
-  }
-
-  .top::before { inset-block-end: 100%; }
-  .foot::after { inset-block-start: 100%; }
-
   .top {
-    inset-block-start: 0;
     display: flex;
     flex-direction: column;
     gap: var(--sp-100);
@@ -767,7 +764,6 @@
   }
 
   .foot {
-    inset-block-end: 0;
     display: flex;
     flex-wrap: wrap;
     align-items: center;

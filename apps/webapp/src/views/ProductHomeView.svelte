@@ -1068,8 +1068,11 @@
     /* design-system-lint-ignore: tracking in em follows the type step it spaces */
     letter-spacing: 0.06em; }
   .read-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-gallery-card)), 1fr)); gap: var(--sp-150); margin: 0; padding: 0; list-style: none; }
+  /* The item a grid, so the card stretches to the row: a card of `block-size: 100%` left the page's
+     column measuring the list without its words, and the card ran over what follows. */
+  .read-cards > li { display: grid; }
   .read-card {
-    display: grid; gap: var(--sp-100); align-content: start; block-size: 100%; padding: var(--sp-200);
+    display: grid; gap: var(--sp-100); align-content: start; padding: var(--sp-200);
     border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface);
     color: var(--text-primary); text-decoration: none;
   }

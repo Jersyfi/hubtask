@@ -127,7 +127,7 @@ test('UC-WRK-36 check 15: every stack change is announced, every target is 44 pi
   await page.getByRole('button', { name: 'New', exact: true }).click();
   const made = page.getByRole('dialog', { name: `New in “${IT.name}”` });
   await made.getByRole('heading', { name: `New in “${IT.name}”` }).waitFor();
-  assert.deepEqual(await texts(made.getByRole('listitem')), ['Page', 'Page from a template…', 'Whiteboard', 'Collection']);
+  assert.deepEqual(await texts(made.getByRole('listitem')), ['Page', 'Whiteboard', 'Collection']);
   assert.deepEqual(await small(), [], 'the New sheet: targets under 44 pixels');
   await made.getByRole('button', { name: 'Close' }).click();
   await made.waitFor({ state: 'hidden' });
@@ -168,6 +168,21 @@ test('UC-INS-21 check 11: on a phone a module off at a hub takes its tool and it
   await tools.getByRole('link', { name: /^Queues/ }).waitFor({ timeout: 10_000 });
   assert.deepEqual(await texts(tools.getByRole('link')), ['Overview', 'Queues']);
   assert.deepEqual(await heads(step(page).locator('h3')), ['Collections'], 'Contents stays with knowledge and whiteboards off');
+  assert.deepEqual(failures, []);
+});
+
+test('on a phone All contents offers a new page beside a new whiteboard where both are on', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, written, close } = await phone(browser, `/hubs/${PD.id}/contents`);
+  t.after(close);
+  // The head folds: the primary at the thumb, the other create in the bar's ⋯.
+  await page.getByRole('button', { name: 'New whiteboard', exact: true }).waitFor({ timeout: 10_000 });
+  await bar(page).getByRole('button', { name: 'New page', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'New page' }).click();
+  await at(page, `/pages/${id(5000)}`);
+  await page.getByLabel('Title', { exact: true }).waitFor({ timeout: 15_000 });
+  assert.equal(written.pages.length, 1, 'New page made no page');
+  assert.equal(written.pages[0].hub_id, PD.id);
   assert.deepEqual(failures, []);
 });
 
