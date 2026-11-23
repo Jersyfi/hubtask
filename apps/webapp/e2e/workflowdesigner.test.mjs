@@ -150,7 +150,7 @@ for (const locale of ['en', 'de']) {
 // An empty *Who may take it* is true of the step (`StepWho.IsOpen`): "anyone" only where roles,
 // person fields, groups and condition are all empty. A role key or a group the list does not
 // offer stays on the closed field, named as no longer offered; a condition alone says that it
-// limits the step.
+// limits the step, and the condition's label and hint say it must hold as well.
 const LIMITED = {
   ...shape,
   steps: [
@@ -184,8 +184,8 @@ for (const locale of ['en', 'de']) {
     });
     const page = await context.newPage();
     const words = locale === 'de'
-      ? { who: 'Wer ihn gehen darf', gone: 'Nicht mehr angeboten', group: 'Eine Gruppe, die nicht mehr angeboten wird', condition: 'Alle, die den Eintrag ändern dürfen, wenn die Bedingung unter Erweitert gilt', label: 'Und nur, wenn das gilt', cancel: 'Abbrechen' }
-      : { who: 'Who may take it', gone: 'No longer offered', group: 'A group no longer offered', condition: 'Anyone who may change the entry, when the condition under Advanced holds', label: 'And only when this holds', cancel: 'Cancel' };
+      ? { who: 'Wer ihn gehen darf', gone: 'Nicht mehr angeboten', group: 'Eine Gruppe, die nicht mehr angeboten wird', condition: 'Alle, die den Eintrag ändern dürfen, wenn die Bedingung unter Erweitert gilt', label: 'Und nur, wenn das gilt', hint: 'Sie muss zusätzlich zu „Wer ihn gehen darf“ gelten. Eine Bedingung in der Sprache der Automationsregeln.', cancel: 'Abbrechen' }
+      : { who: 'Who may take it', gone: 'No longer offered', group: 'A group no longer offered', condition: 'Anyone who may change the entry, when the condition under Advanced holds', label: 'And only when this holds', hint: 'It must hold as well as who may take it. A condition in the language automation rules use.', cancel: 'Cancel' };
 
     await page.goto(`${served.origin}/administration/workflows/${flow.key}`);
     await page.getByText('In progress').first().waitFor({ timeout: 15_000 });
@@ -214,5 +214,9 @@ for (const locale of ['en', 'de']) {
     await dialog.locator('[data-step-dialog="resolve"]').waitFor({ timeout: 5_000 });
     const limited = dialog.getByRole('button', { name: new RegExp(`^${words.who}`, 'u') });
     assert.equal(await valueOf(limited), words.condition, 'a step limited by its condition says anyone');
+    // The server asks the condition besides who may take it (`WorkflowGate.allowed`), never instead.
+    const condition = dialog.getByRole('textbox', { name: words.label, exact: true });
+    assert.equal(await condition.inputValue(), 'priority = 1', 'the condition is not named as holding as well');
+    assert.equal(await describedBy(condition), words.hint);
   });
 }
