@@ -67,6 +67,7 @@
     /**
      * What a reader hears for the drawn asterisk - "(required)" - after the label. Neither a button
      * nor a group takes `aria-required`, so the name says it; the open list is `aria-required` too.
+     * With `aria-labelledby` it is said after the name drawn elsewhere, which draws its own asterisk.
      */
     requiredLabel?: string;
     /** What the closed field says with nothing chosen. */
@@ -121,6 +122,10 @@
   const instanceId = $props.id();
   const uid = `multiselect-${instanceId}`;
   const nameId = $derived(labelledBy ?? `${uid}-label`);
+  // A name drawn elsewhere carries no "(required)" of its own: it is said from here, after it.
+  const requiredId = `${uid}-required`;
+  const isRequiredSaid = $derived(labelledBy !== undefined && isRequired && requiredLabel !== undefined);
+  const names = $derived(isRequiredSaid ? `${nameId} ${requiredId}` : nameId);
   const hintId = $derived(hint ? `${uid}-hint` : undefined);
   const errorId = $derived(error ? `${uid}-error` : undefined);
   const reasonId = `${uid}-reason`;
@@ -304,6 +309,7 @@
 </script>
 
 {#snippet name()}
+  {#if isRequiredSaid}<span class="said" id={requiredId}>{requiredLabel}</span>{/if}
   {#if labelledBy === undefined}
     <span class="label" class:is-hidden={isLabelHidden} id={nameId}>
       {label}{#if isRequired}<span class="required" aria-hidden="true">*</span>{#if requiredLabel}<span class="said">{` ${requiredLabel}`}</span>{/if}{/if}
@@ -364,7 +370,7 @@
   <div
     class="inline"
     role="group"
-    aria-labelledby={nameId}
+    aria-labelledby={names}
     aria-describedby={describedBy}
     data-size={size}
     data-invalid={error ? '' : undefined}
@@ -396,7 +402,7 @@
       aria-haspopup="listbox"
       aria-expanded={isOpen}
       aria-controls={isOpen && flat.length > 0 ? listId : undefined}
-      aria-labelledby={`${nameId} ${valueId}`}
+      aria-labelledby={`${names} ${valueId}`}
       aria-describedby={describedBy}
       onclick={() => (isOpen ? void done() : void open())}
       onkeydown={onFieldKeydown}
@@ -469,8 +475,8 @@
               role="listbox"
               id={listId}
               aria-multiselectable="true"
-            aria-required={isRequired ? 'true' : undefined}
-              aria-labelledby={nameId}
+              aria-required={isRequired ? 'true' : undefined}
+              aria-labelledby={names}
               tabindex="-1"
               bind:this={list}
             >
