@@ -610,3 +610,25 @@ test('chromium: 1280 px — Create collection: the closed look row shows the col
   assert.match(name, /^Colour and symbol.*Teal.*Heart/u, `the row says ${name}`);
   assert.deepEqual(failures, []);
 });
+
+// The one *Dialog M* whose body may scroll at 1280 × 800 (decision #1865, design-system.md §11.8):
+// its kinds are data, so its body scrolls, and its head and *Create* stay in view meanwhile.
+test('chromium: 1280 × 800 — Create collection: the body scrolls, the title and Create stay in view', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, dialog, close } = await openCreateCollection(browser, 1280, 800, COLLECTION);
+  t.after(close);
+
+  const body = dialog.locator('.body');
+  assert.equal(await body.evaluate((element) => element.scrollHeight > element.clientHeight + 1), true, 'the body does not scroll: the exception is not needed');
+  await body.evaluate((element) => element.scrollTo({ top: element.scrollHeight, behavior: 'instant' }));
+  await page.waitForFunction(() => {
+    const element = document.querySelector('dialog[open] .body');
+    return element.scrollTop + element.clientHeight >= element.scrollHeight - 1;
+  }, null, { timeout: 5_000 });
+  for (const [what, part] of [['the title', dialog.getByRole('heading', { level: 2 }).first()], ['Create', dialog.getByRole('button', { name: 'Create', exact: true }).first()]]) {
+    const box = await part.boundingBox();
+    assert.ok(box && box.y >= 0 && box.y + box.height <= 800, `${what} is out of view: ${JSON.stringify(box)}`);
+  }
+  assert.equal(await dialog.getByRole('textbox', { name: 'Description' }).isVisible(), true);
+  assert.deepEqual(failures, []);
+});

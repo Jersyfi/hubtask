@@ -23,7 +23,9 @@ chosen, *Private* was shown and ignored (#1871).
 * Every door to it navigates there, carrying a template chosen before, and *Cancel* goes back.
 * On a phone the details are the page and the starts its optional second step - a full-screen
   layer over it, not a route, that back closes - so a hub made empty costs no press more.
-* A collection keeps its dialog: a name, its kind and its look are *Dialog M*.
+* A collection keeps its dialog: a name, its kind and its look are *Dialog M*. Its kinds are data
+  and grow with the saved presets, so its body may scroll at 1280×800 while its name and *Create*
+  stay in view - the one *Dialog M* that does (decision #1865, design-system.md §11.8).
 
 ## Alternatives not taken
 

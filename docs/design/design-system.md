@@ -1497,7 +1497,9 @@ row that scrolls sideways, one tile per row; its address is the page's, and back
 collection keeps *Dialog M*: its name, its kinds as the same tiles - *Like its hub* first and
 chosen, then the presets, *Scrum*, *Desk* -, *Colour and symbol* one closed `Disclosure` row at
 every width, as on a phone's create-hub page, and the description open under it - the dialog's
-one `Disclosure` is the look.
+one `Disclosure` is the look. It is the one *Dialog M* whose body may scroll at 1280×800 (decision
+#1865): its kinds are data and grow by a row with every two saved presets, so no fixed size holds
+them; its head with the name and its foot with *Create* stay in view while the body scrolls.
 
 **A container screen.** `PageHeader` with one primary action:
 
@@ -1695,7 +1697,8 @@ a form split beside it, and an administered object has no side panel: a task tak
 that fits what it holds. *In place* — one value that is the row's or the head's state. *Popover* —
 one to three values from a short set, saved at once (a bottom `Sheet` on a phone). *Dialog S* — a
 confirmation or one field. *Dialog M* — two to six fields in one group, at most one picker list of
-eight visible rows and one *Advanced* fold, no scrolling at 1280×800. *Dialog L* — seven to twelve
+eight visible rows and one *Advanced* fold, no scrolling at 1280×800 (one exception, *Create
+collection*, §11.8). *Dialog L* — seven to twelve
 fields in at most three titled groups, or one list to choose from with search, or a preview
 beside a short form. *Create page* — more, or steps, or a table, or anything a person may leave
 and come back to. *Record page* — an existing object with lists of its own, opened by its row,
