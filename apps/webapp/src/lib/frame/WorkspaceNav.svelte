@@ -31,6 +31,7 @@
     type MoveKey,
     type NavTreeNode,
     type RowAction,
+    type RowBadge,
     type TreePlacement,
   } from '@hubtask/design-system/components';
   import type { AgentRequestList, ApprovalList, Container, GoalList, HubQueueList, CmdbHealth, ItemQueryResult, PageList, Post, PostList, ReleaseList, SprintList, Star, WhiteboardList } from '@hubtask/sync-engine';
@@ -61,6 +62,7 @@
   import { holds, holdsHere, hubCreationHere, reachesAdministrationArea, roleOrder } from '../data/capability.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
+  import { emergencyNotices } from '../data/emergencynotices.svelte.ts';
   import { engine } from '../data/engine.ts';
   import { entryTypesOffered } from '../data/entrytypes.ts';
   import { entryTypes } from '../data/entrytypes.svelte.ts';
@@ -79,7 +81,7 @@
   import { jumble } from '../data/jumble.svelte.ts';
   import { releasesPath } from '../data/releases.svelte.ts';
   import { today as todayStore } from '../data/today.svelte.ts';
-  import { formatPlainDay, formatShortDay } from '../i18n/datetime.ts';
+  import { formatDay, formatPlainDay, formatShortDay, formatTime } from '../i18n/datetime.ts';
   import { todayIn } from '../i18n/zone.ts';
   import { goalsStanding, nextReleaseOf, sprintsRunning } from '../product/home.ts';
   import { queueQuery } from '../servicedesk/queues.ts';
@@ -122,6 +124,7 @@
   import { device } from '../device.svelte.ts';
   import { AREA_STEP_PATHS, contentsStep, hubStep, queuesStep, type PhoneStep } from '../phone.ts';
   import { page } from './page.svelte.ts';
+  import { hubMarkOf } from './emergencynotice.ts';
   import { actsAsDesk } from '../portal/portal.ts';
   import { platform } from '../platform/index.ts';
   import { needsConnection, renderProblem } from '../problem.ts';
@@ -757,6 +760,21 @@
   const shownHubs = $derived(containers.hubs.filter((each) => !live.hasLost(each.id)));
   const hubSets = $derived(navHubs(shownHubs, { order: hubsOrder, visited: visitedHubs, hidden: actor.account?.nav_hubs_hidden, locale: messages.locale }));
   const orderedHubs = $derived(hubSets.shown);
+  /**
+   * A private hub says so in words, whatever symbol it wears (UC-ID-16): the lock, and for thirty
+   * days after the workspace's owner opened it through the emergency access the shield in the
+   * lock's place - one badge per row - whose name says both (ADR-0073 §4, UC-ID-16 check 11). The warning
+   * tone while the hour runs is an extra; the shape and the name say it.
+   */
+  function privateBadge(hub: Container): RowBadge | undefined {
+    if (!hub.private) return undefined;
+    const opened = hubMarkOf(emergencyNotices.notices, hub.id);
+    if (!opened) return { icon: 'lock', label: t('app.nav.private') };
+    return opened.isRunning
+      ? { icon: 'shield', tone: 'warning', label: t('app.nav.private_opened_until', { time: formatTime(opened.notice.ends_at, messages.locale) }) }
+      : { icon: 'shield', label: t('app.nav.private_opened_on', { date: formatDay(opened.notice.opened_at, messages.locale) }) };
+  }
+
   const hubNode = (each: Container): NavTreeNode => ({
     id: each.id,
     label: each.name,
@@ -764,8 +782,7 @@
     color: each.color_token ?? DEFAULT_TILE,
     part: 'hubs',
     canHoldChildren: false,
-    // A private hub says so in words, whatever symbol it wears (UC-ID-16).
-    badge: each.private ? { icon: 'lock', label: t('app.nav.private') } : undefined,
+    badge: privateBadge(each),
     figure: '›',
     figureLabel: t('app.nav.open_level', { name: each.name }),
   });
@@ -1380,7 +1397,7 @@
       onnavigate={(id) => onnavigate(hubStep(id))}>
       {#each isAllHubsShown ? orderedHubs : orderedHubs.slice(0, HUBS_SHOWN) as each (each.id)}
         <NavItem id={each.id} label={each.name} icon={each.private && !chosenSymbol(each) ? 'lock' : markOf(each)} color={each.color_token ?? DEFAULT_TILE} href={hubStep(each.id)}
-          badge={each.private ? { icon: 'lock', label: t('app.nav.private') } : undefined} size="touch" isDrillDown onnavigate={() => onnavigate(hubStep(each.id))} />
+          badge={privateBadge(each)} size="touch" isDrillDown onnavigate={() => onnavigate(hubStep(each.id))} />
       {/each}
       {#if !isAllHubsShown && orderedHubs.length > HUBS_SHOWN}
         <NavItem label={t('app.nav.more_count', { count: orderedHubs.length - HUBS_SHOWN })} icon="ellipsis" size="touch" isDrillDown onnavigate={() => (isAllHubsShown = true)} />
