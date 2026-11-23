@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { values } from '@hubtask/design-system';
 
 import {
-  cardLookOf, cardSourcesOf, contrastOf, drawingFor, initialsOf, isSameDrawing, luminanceOfHex, markDrawings, mayAskAgain, mayShowLogoAlone, memberLookOf, pictureFailureOf, pictureOf, refusalOf,
+  cardLookOf, cardSourcesOf, contrastOf, drawingFor, initialsOf, isSameDrawing, lookOfWorkspace, luminanceOfHex, markDrawings, mayAskAgain, mayShowLogoAlone, memberLookOf, pictureFailureOf, pictureOf, refusalOf,
 } from './branding.ts';
 
 const LIGHT = values.light.bg.surface;
@@ -98,6 +98,19 @@ test('a member sees the look the server answers, and the product until it has an
   // Switched off above, the server answers the product and no picture (ADR-0112): drawn as it is.
   assert.deepEqual(memberLookOf({ ...look, header: 'PRODUCT', logo_light_media_id: null, symbol_media_id: null }), { header: 'PRODUCT', ids: {} });
   assert.deepEqual(memberLookOf(undefined), { header: 'PRODUCT', ids: {} });
+});
+
+// UC-INS-22 check 5: a reader of `/tenant` is not asked for `/tenant/look` as well.
+test('a reader of the workspace takes its look from that one answer, the product where it may not show its own', () => {
+  const branding = { header: 'LOGO' as const, logo_light_media_id: 'l', logo_dark_media_id: null, symbol_media_id: 's', allowed: true };
+  assert.deepEqual(lookOfWorkspace({ display_name: 'House', branding }), {
+    display_name: 'House', header: 'LOGO', logo_light_media_id: 'l', logo_dark_media_id: null, symbol_media_id: 's',
+  });
+  assert.deepEqual(lookOfWorkspace({ display_name: 'House', branding: { ...branding, allowed: false } }), {
+    display_name: 'House', header: 'PRODUCT', logo_light_media_id: null, logo_dark_media_id: null, symbol_media_id: null,
+  });
+  assert.equal(lookOfWorkspace({ display_name: 'House' })?.header, 'PRODUCT');
+  assert.equal(lookOfWorkspace(undefined), undefined);
 });
 
 // UC-INS-22 check 1: a stored picture that cannot be drawn says why, as far as the browser can tell.

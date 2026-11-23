@@ -84,6 +84,25 @@ export function memberLookOf(look: WorkspaceLook | undefined): ShownLook {
 }
 
 /**
+ * The look a reader of `/tenant` sees, from that one answer: its name, and its stored branding
+ * where `allowed` says the workspace may show it, else the product's - what `GET /tenant/look`
+ * would answer, so whoever may read the workspace is not asked for both.
+ */
+export function lookOfWorkspace(
+  workspace: { readonly display_name: string; readonly branding?: WorkspaceBranding } | undefined,
+): WorkspaceLook | undefined {
+  if (!workspace) return undefined;
+  const branding = workspace.branding?.allowed ? workspace.branding : undefined;
+  return {
+    display_name: workspace.display_name,
+    header: branding?.header ?? 'PRODUCT',
+    logo_light_media_id: branding?.logo_light_media_id ?? null,
+    logo_dark_media_id: branding?.logo_dark_media_id ?? null,
+    symbol_media_id: branding?.symbol_media_id ?? null,
+  };
+}
+
+/**
  * What the sign-in card shows, from the rules at this address: they carry the choice and its
  * pictures only at the workspace's own address, and nothing there means the product's name.
  */

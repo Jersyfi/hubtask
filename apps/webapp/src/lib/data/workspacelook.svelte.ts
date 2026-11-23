@@ -15,17 +15,19 @@
  * mark falls back by G8; one that could not be reached is asked again once the connection is back.
  *
  * **The look is its own read**, `GET /tenant/look`, which every member may make: a guest of one hub
- * may not read the workspace's set-up (`/tenant`) and still sees its name and look.
+ * may not read the workspace's set-up (`/tenant`) and still sees its name and look. Whoever may
+ * read `/tenant` takes the look from that answer instead, so the frame asks one of the two.
  */
 
 import type { ResourceState, WorkspaceLook as Look } from '@hubtask/sync-engine';
 
 import {
-  mayAskAgain, memberLookOf, pictureFailureOf, PICTURES, type FailedRead, type PictureSources, type ShownLook,
+  lookOfWorkspace, mayAskAgain, memberLookOf, pictureFailureOf, PICTURES, type FailedRead, type PictureSources, type ShownLook,
 } from '../workspace/branding.ts';
 import { engine } from './engine.ts';
 import { live } from './live.svelte.ts';
 import { media } from './media.svelte.ts';
+import { workspace } from './workspace.svelte.ts';
 
 class WorkspaceLook {
   #state = $state<ResourceState<Look>>({ status: 'idle' });
@@ -37,14 +39,30 @@ class WorkspaceLook {
 
   /** Starts the read. **From `untrack`**, for the reason every other store records. */
   open(): () => void {
+    this.#fromWorkspace = false;
     return engine.subscribe<Look>({ path: '/tenant/look' }, (next) => {
       this.#state = next;
     });
   }
 
+  /**
+   * Starts the read for whoever may read `/tenant`: the look is taken from that one answer, so
+   * the frame asks one of the two (`lookOfWorkspace`). **From `untrack`**, as `open`.
+   */
+  openFromWorkspace(): () => void {
+    this.#fromWorkspace = true;
+    return workspace.open();
+  }
+
+  #fromWorkspace = $state(false);
+
+  get #read(): ResourceState<unknown> {
+    return this.#fromWorkspace ? workspace.state : this.#state;
+  }
+
   /** Whether the look's answer is in: until then nothing is drawn in the mark's place. */
   get isRead(): boolean {
-    return this.#state.status === 'ready' || this.#state.status === 'failed';
+    return this.#read.status === 'ready' || this.#read.status === 'failed';
   }
 
   /** The workspace's name, as its members read it. */
@@ -58,6 +76,7 @@ class WorkspaceLook {
   }
 
   get #look(): Look | undefined {
+    if (this.#fromWorkspace) return lookOfWorkspace(workspace.workspace);
     return this.#state.status === 'ready' ? this.#state.data : undefined;
   }
 

@@ -300,10 +300,12 @@
   const isOutside = $derived(session.isSignedIn && isOutsider(actor.hasNoAccess, actor.portals));
   // The workspace's name and look in the header, the switcher and the tab (UC-INS-22 checks 5, 6
   // and 9), a read every member may make. The portal's frame draws neither, so an outsider is not
-  // asked for it.
+  // asked for it. Whoever may read `/tenant` takes it from there: one read, not two.
   $effect(() => {
     if (!session.isSignedIn || isOutside) return;
-    return untrack(() => workspaceLook.open());
+    const fromWorkspace = mayReadWorkspace();
+    if (fromWorkspace === undefined) return;
+    return untrack(() => (fromWorkspace ? workspaceLook.openFromWorkspace() : workspaceLook.open()));
   });
   $effect(() => tab.name(isOutside ? undefined : workspaceLook.name));
   const shownLook = $derived(workspaceLook.shown);
