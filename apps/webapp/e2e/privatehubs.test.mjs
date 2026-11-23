@@ -650,6 +650,39 @@ test('chromium: 390 px - on a phone the notice is the centred card; the mark ope
   assert.deepEqual(failures, []);
 });
 
+// The scene *mark-unack*: while a notice is unconfirmed the bar's shield stands on the warning
+// surface, its panel open and the pointer on it too - never on the neutral surface of a plain button.
+for (const colorScheme of ['light', 'dark']) {
+  test(`chromium: 1280 px, ${colorScheme} - with a notice unconfirmed, the open mark keeps the warning surface under the pointer (UC-ID-16 check 11)`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { page, failures, context } = await signedIn(browser, 1280, 860);
+    t.after(() => context.close());
+    await page.emulateMedia({ colorScheme });
+    await notices(context, [told(HUB, 10 * MINUTE)]);
+
+    await page.goto(`${served.origin}/`);
+    const dialog = noticeDialog(page);
+    await dialog.waitFor({ timeout: 10_000 });
+    await page.keyboard.press('Escape');
+    await dialog.waitFor({ state: 'hidden' });
+    const mark = page.getByRole('button', { name: 'Emergency access to your private hubs: one notice not yet acknowledged' });
+    await mark.click();
+    assert.equal(await mark.getAttribute('aria-expanded'), 'true');
+    await mark.hover();
+    const surfaces = await mark.evaluate((button) => {
+      const probe = document.createElement('span');
+      probe.style.background = 'var(--status-warning-surface)';
+      document.body.append(probe);
+      const warning = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return { button: getComputedStyle(button).backgroundColor, around: getComputedStyle(button.parentElement).backgroundColor, warning };
+    });
+    assert.equal(surfaces.around, surfaces.warning, JSON.stringify(surfaces));
+    assert.equal(surfaces.button, 'rgba(0, 0, 0, 0)', `the button paints over the warning surface: ${JSON.stringify(surfaces)}`);
+    assert.deepEqual(failures, []);
+  });
+}
+
 // design-system.md §10 (2.5.8): each card's two presses are a target of their own - `layout.target`
 // on a phone with touch, and never under 24 px.
 for (const [width, height, hasTouch, least] of [[390, 844, true, 44], [1280, 860, false, 24]]) {

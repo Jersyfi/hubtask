@@ -263,6 +263,11 @@
      alone - the mark turns into the warning triangle and the name becomes the report's title. */
   .mark[data-troubled] { border-radius: var(--r-sm); background: var(--status-warning-surface); color: var(--status-warning-text); }
 
+  /* The warning surface is the state, so the button's own hover and open surfaces never cover it
+     (the scene *mark-unack*); its focus ring and the dot still mark where it is. */
+  .mark[data-troubled] :global(.icon-button),
+  .mark[data-troubled] :global(.icon-button:is(:hover, :active, [aria-expanded='true'])) { background: transparent; color: inherit; }
+
   .dot {
     position: absolute;
     inset-block-start: 0;
