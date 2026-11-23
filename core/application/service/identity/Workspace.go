@@ -455,6 +455,7 @@ func workspaceOutput(
 	if workspace.Settings.WeekStart != "" {
 		out["default_week_start"] = string(workspace.Settings.WeekStart)
 	}
+	out["branding"] = brandingOutput(workspace.Branding, ownBrandingAllowed(resolved))
 	if resolved != nil {
 		out["sign_in_policy"] = signInPolicyOutput(*resolved)
 		out["installation_defaults"] = installationDefaultsOutput(resolved.InstallationLocalisation)

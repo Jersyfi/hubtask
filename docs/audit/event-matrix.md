@@ -1401,6 +1401,9 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `workspace.changed` | UpdateWorkspace | `workspace` | NOTICE | Every time |
 | `workspace.device_list_entry_read` | IssueDeviceListEntry | `workspace` | INFO | When refused |
+| `workspace.header_changed` | SetWorkspaceHeader | `workspace` | NOTICE | Every time |
+| `workspace.picture_removed` | RemoveWorkspacePicture | `workspace` | NOTICE | Every time |
+| `workspace.picture_set` | SetWorkspacePicture | `workspace` | NOTICE | Every time |
 | `workspace.read` | ReadWorkspace | `workspace` | INFO | When refused |
 | `workspace.starter_closed` | ApplyStarter | `workspace` | INFO | Every time |
 | `workspace.starter_closed` | CloseStarter | `workspace` | INFO | Every time |

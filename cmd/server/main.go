@@ -1834,6 +1834,10 @@ func run() error {
 	backupRestorer.StepUp = stepUpVerifier
 	accessTokenWriter.StepUp = stepUpVerifier
 	workspaceWriter.StepUp = stepUpVerifier
+	// The workspace's own name and logo (ADR-0112), under the workspace's permission and rule.
+	workspaceBrander := identity.WorkspaceBrander{
+		Writer: workspaceWriter, Branding: postgres.WorkspaceBrandingRepository{}, Objects: mediaObjects,
+	}
 	identityProviderWriter.StepUp = stepUpVerifier
 
 	// The SCIM door a directory provisions through (UC-ID-28), and the LDAP synchronisation that
@@ -3200,6 +3204,9 @@ func run() error {
 		identity.RevokeOauthGrant{Writer: oauthWriter}.Descriptor(),
 		identity.ReadWorkspace{Writer: workspaceWriter}.Descriptor(),
 		identity.UpdateWorkspace{Writer: workspaceWriter}.Descriptor(),
+		identity.SetWorkspaceHeader{Brander: workspaceBrander}.Descriptor(),
+		identity.SetWorkspacePicture{Brander: workspaceBrander}.Descriptor(),
+		identity.RemoveWorkspacePicture{Brander: workspaceBrander}.Descriptor(),
 		identity.ConfigureIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
 		identity.ShowLdapDirectory{Directories: ldapDirectories}.Descriptor(),
 		identity.ConfigureLdapDirectory{Directories: ldapDirectories}.Descriptor(),
