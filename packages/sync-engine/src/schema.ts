@@ -542,6 +542,10 @@ export type StructureChange = components['schemas']['StructureChange'];
 export type StructurePreview = components['schemas']['StructurePreview'];
 export type WorkspaceStructure = components['schemas']['WorkspaceStructure'];
 export type WorkspaceStructureChange = components['schemas']['WorkspaceStructureChange'];
+/** The workspace's own name and logo as stored, and whether it may show them now (ADR-0112). */
+export type WorkspaceBranding = components['schemas']['WorkspaceBranding'];
+export type WorkspaceHeader = components['schemas']['WorkspaceHeader'];
+export type WorkspacePicture = components['schemas']['WorkspacePicture'];
 /**
  * What counts in a collection, counted by the server on the collection's read for the reader
  * (domain-model.md §2): numbers and dates, which the client phrases. Never in a change record, so a

@@ -126,7 +126,7 @@ class Media {
    */
   async upload(
     file: File,
-    usage: 'COVER' | 'ATTACHMENT' | 'IMPORT' | 'AVATAR' | 'DESK_LOGO',
+    usage: 'COVER' | 'ATTACHMENT' | 'IMPORT' | 'AVATAR' | 'DESK_LOGO' | 'WORKSPACE_LOGO',
     options: UploadOptions,
   ): Promise<MediaObject> {
     const contentType = options.contentType ?? file.type;
