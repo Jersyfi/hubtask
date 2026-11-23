@@ -68,6 +68,24 @@ func NewEmergencyAccess(in NewEmergencyAccessInput) (EmergencyAccess, error) {
 // RunningAt reports whether the access is still open at the moment.
 func (a EmergencyAccess) RunningAt(now time.Time) bool { return now.Before(a.EndsAt) }
 
+// EmergencyNotice is an access as a member who was told of it reads it: the access, and when that
+// member confirmed it. Only the member's own confirmation; nobody reads another's.
+type EmergencyNotice struct {
+	Access EmergencyAccess
+	// AcknowledgedAt is zero until the member confirmed it.
+	AcknowledgedAt time.Time
+}
+
+// Acknowledged reports whether the member confirmed it.
+func (n EmergencyNotice) Acknowledged() bool { return !n.AcknowledgedAt.IsZero() }
+
+// ErrEmergencyNoticeNotFound answers a confirmation of an access the caller was not told of, or
+// not within the days it is shown: not found, never forbidden, so that nobody learns from the
+// answer that an access exists.
+func ErrEmergencyNoticeNotFound() error {
+	return shared.ErrNotFound.WithDetail("containers.emergency_access_not_found")
+}
+
 // ErrEmergencyNotPrivate refuses opening a shared hub: the owner reaches it already.
 func ErrEmergencyNotPrivate() error {
 	return shared.ErrConflict.WithDetail("containers.emergency_not_private")

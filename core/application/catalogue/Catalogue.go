@@ -507,6 +507,7 @@ func Descriptors() []usecase.Descriptor {
 		work.OpenPrivateHub{}.Descriptor(),
 		work.ListPrivateHubAccesses{}.Descriptor(),
 		work.ListEmergencyNotices{}.Descriptor(),
+		work.AcknowledgeEmergencyNotice{}.Descriptor(),
 		identity.ListAddressNotices{}.Descriptor(),
 		identity.AcknowledgeAddressNotices{}.Descriptor(),
 		identity.IssueDeviceListEntry{}.Descriptor(),

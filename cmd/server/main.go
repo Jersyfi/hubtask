@@ -3535,6 +3535,10 @@ func run() error {
 		work.ListEmergencyNotices{
 			Accesses: postgres.NewEmergencyAccessRepository(), UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
+		work.AcknowledgeEmergencyNotice{
+			Accesses: postgres.NewEmergencyAccessRepository(), Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{},
+		}.Descriptor(),
 		work.OpenPrivateHub{
 			Accesses: postgres.NewEmergencyAccessRepository(), Hubs: postgres.NewHubLockRepository(),
 			// Every member told in the transaction that opens the hub (ADR-0073 §4).

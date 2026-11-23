@@ -159,10 +159,11 @@ func (r EmergencyAccessRepository) Members(ctx context.Context, hubID shared.ID)
 	return idsFrom(rows)
 }
 
-// NoticesFor answers the accesses the recipient was told of since the moment.
+// NoticesFor answers the accesses the recipient was told of since the moment, with their own
+// confirmation of each.
 func (r EmergencyAccessRepository) NoticesFor(
 	ctx context.Context, recipientID shared.ID, since time.Time,
-) ([]work.EmergencyAccess, error) {
+) ([]work.EmergencyNotice, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
@@ -177,15 +178,40 @@ func (r EmergencyAccessRepository) NoticesFor(
 	if err != nil {
 		return nil, accessQueryFailed("reading the emergency notices", err)
 	}
-	out := make([]work.EmergencyAccess, 0, len(rows))
+	out := make([]work.EmergencyNotice, 0, len(rows))
 	for _, row := range rows {
 		access, err := accessFrom(row.TenantID, row.ID, row.HubID, row.OpenedBy, row.Reason, row.OpenedAt, row.EndsAt)
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, access)
+		out = append(out, work.EmergencyNotice{Access: access, AcknowledgedAt: timeFrom(row.AcknowledgedAt)})
 	}
 	return out, nil
+}
+
+// Acknowledge writes the account's confirmation of the access unless it is there.
+func (r EmergencyAccessRepository) Acknowledge(
+	ctx context.Context, accessID, accountID shared.ID, at time.Time,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	access, err := uuidOf(accessID)
+	if err != nil {
+		return false, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+	written, err := queries.AcknowledgePrivateHubAccess(ctx, sqlc.AcknowledgePrivateHubAccessParams{
+		AccessID: access, AccountID: account, AcknowledgedAt: timestampOf(at),
+	})
+	if err != nil {
+		return false, accessQueryFailed("writing a confirmation of an emergency access", err)
+	}
+	return written == 1, nil
 }
 
 // Find answers one access with its hub's name.
