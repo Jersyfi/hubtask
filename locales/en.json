@@ -7752,6 +7752,7 @@
   "app.webhooks.locale": "Language",
   "app.webhooks.locale_hint": "The language the room is told in, such as de. Empty is the installation's language.",
   "app.webhooks.event_types": "What to be told about",
+  "app.webhooks.event_types_each": "Events one by one",
   "app.webhooks.types_unknown": "This installation has not said yet which events it emits.",
   "app.webhooks.types_note": "These are the events this installation emits. A type it does not emit is refused rather than stored, so a subscription cannot wait for something that will never arrive.",
   "app.webhooks.egress_note": "Whether an address can be reached is this installation's decision, not this screen's: a private address is refused unless the installation deliberately allows them, and the refusal appears here.",

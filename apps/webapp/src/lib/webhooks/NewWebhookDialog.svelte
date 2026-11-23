@@ -9,9 +9,10 @@
   // does not emit is refused rather than stored. **The target URL is not validated here**: a
   // private range is refused by the guarded client (T-07), and the refusal is drawn at the field.
   // **The condition is written, not assembled**: the server compiles it and refuses naming where.
-  import { Button, Checkbox, Dialog, Disclosure, Input, Select, Stack, Textarea } from '@hubtask/design-system/components';
+  import { Button, Checkbox, Dialog, Disclosure, Input, MultiSelect, Select, Stack, Textarea } from '@hubtask/design-system/components';
 
   import { announcer } from '../announce.svelte.ts';
+  import { chooseSeveral } from '../forms/chooseSeveral.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { webhooks } from '../data/webhooks.svelte.ts';
   import { WEBHOOK_FORMATS, eventGroups, isChat, subscriptionBody, type WebhookFormat } from '../data/webhooks.ts';
@@ -71,10 +72,6 @@
 
   function toggleGroup(types: readonly string[], wanted: boolean): void {
     draftTypes = wanted ? [...new Set([...draftTypes, ...types])] : draftTypes.filter((declared) => !types.includes(declared));
-  }
-
-  function toggleType(type: string, wanted: boolean): void {
-    draftTypes = wanted ? [...draftTypes, type] : draftTypes.filter((declared) => declared !== type);
   }
 
   async function subscribe(event: SubmitEvent): Promise<void> {
@@ -187,17 +184,14 @@
 
       <Disclosure tone="quiet" label={t('app.webhooks.advanced')} description={t('app.webhooks.advanced_says')}>
         <Stack gap="150">
-          {#each groups as group (group.id)}
-            <fieldset class="types">
-              <legend class="group-label">{t(`app.webhooks.group.${group.id}`)}</legend>
-              <div class="type-grid">
-                {#each group.types as type (type)}
-                  <Checkbox label={eventWord(type)} checked={draftTypes.includes(type)} onchange={(event) => toggleType(type, (event.currentTarget as HTMLInputElement).checked)} />
-                {/each}
-              </div>
-            </fieldset>
-          {/each}
-          <p class="quiet small">{t('app.webhooks.types_note')}</p>
+          <MultiSelect
+            label={t('app.webhooks.event_types_each')}
+            hint={t('app.webhooks.types_note')}
+            groups={groups.map((group) => ({ label: t(`app.webhooks.group.${group.id}`), options: group.types.map((type) => ({ value: type, label: eventWord(type) })) }))}
+            selected={draftTypes}
+            onChange={(next) => (draftTypes = next)}
+            {...chooseSeveral()}
+          />
           <Select
             label={t('app.webhooks.scope')}
             hint={t('app.webhooks.scope_hint')}
@@ -224,7 +218,5 @@
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
   .types { margin: 0; padding: 0; border: 0; display: grid; gap: var(--sp-100); min-inline-size: 0; }
   .types legend { padding: 0; margin-block-end: var(--sp-100); font-weight: var(--fw-medium); }
-  .types .group-label { font-size: var(--fs-075); color: var(--text-secondary); }
   .groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24ch), 1fr)); gap: var(--sp-100) var(--sp-200); }
-  .type-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22ch), 1fr)); gap: var(--sp-100) var(--sp-200); }
 </style>
