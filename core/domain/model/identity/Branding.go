@@ -136,3 +136,34 @@ func (b Branding) WithPicture(picture Picture, mediaID shared.ID) Branding {
 	}
 	return b
 }
+
+// SignInCard answers what the sign-in card draws of the branding (UC-INS-22 check 8): the choice,
+// and only the pictures that choice draws - the symbol beside the workspace's name; the logos under
+// the logo alone, the symbol where there is no logo. Where the workspace may not show its own name
+// and logo (allowed false), or chose the product's name, the card draws the product's name and no
+// picture: the public read serves nothing the card does not draw.
+func (b Branding) SignInCard(allowed bool) Branding {
+	settled := b.Settled()
+	switch {
+	case !allowed || settled.Header == HeaderProduct:
+		return Branding{Header: HeaderProduct}
+	case settled.Header == HeaderWorkspaceName:
+		return Branding{Header: HeaderWorkspaceName, Symbol: settled.Symbol}
+	case !settled.LogoLight.IsZero() || !settled.LogoDark.IsZero():
+		return Branding{Header: HeaderLogo, LogoLight: settled.LogoLight, LogoDark: settled.LogoDark}
+	}
+	return Branding{Header: HeaderLogo, Symbol: settled.Symbol}
+}
+
+// Draws reports whether the media object is one of the branding's pictures.
+func (b Branding) Draws(mediaID shared.ID) bool {
+	if mediaID.IsZero() {
+		return false
+	}
+	for _, picture := range Pictures() {
+		if b.Of(picture) == mediaID {
+			return true
+		}
+	}
+	return false
+}

@@ -127,3 +127,62 @@ func TestAChoiceOrAPictureNamedWrongIsRefusedWithACode(t *testing.T) {
 		}
 	}
 }
+
+// UC-INS-22 check 8: the sign-in card draws what the header's choice says and only the pictures that
+// choice draws; the product's name, and a workspace that may not show its own, draw none.
+func TestTheSignInCardDrawsOnlyWhatTheChoiceShows(t *testing.T) {
+	light := shared.ID("0194f9a8-0000-7000-8000-000000000001")
+	dark := shared.ID("0194f9a8-0000-7000-8000-000000000002")
+	symbol := shared.ID("0194f9a8-0000-7000-8000-000000000003")
+	all := Branding{LogoLight: light, LogoDark: dark, Symbol: symbol}
+	with := func(header HeaderShows, b Branding) Branding { b.Header = header; return b }
+	cases := []struct {
+		name     string
+		branding Branding
+		allowed  bool
+		want     Branding
+	}{
+		{"nothing chosen", Branding{}, true, Branding{Header: HeaderProduct}},
+		{"the product's name with three pictures", with(HeaderProduct, all), true, Branding{Header: HeaderProduct}},
+		{"the workspace's name draws the symbol beside it", with(HeaderWorkspaceName, all), true,
+			Branding{Header: HeaderWorkspaceName, Symbol: symbol}},
+		{"the workspace's name without a symbol draws none", with(HeaderWorkspaceName, Branding{LogoLight: light}), true,
+			Branding{Header: HeaderWorkspaceName}},
+		{"the logo alone draws the two logos", with(HeaderLogo, all), true,
+			Branding{Header: HeaderLogo, LogoLight: light, LogoDark: dark}},
+		{"the logo alone with one logo draws that one", with(HeaderLogo, Branding{LogoDark: dark, Symbol: symbol}), true,
+			Branding{Header: HeaderLogo, LogoDark: dark}},
+		{"the logo alone falls back to the symbol", with(HeaderLogo, Branding{Symbol: symbol}), true,
+			Branding{Header: HeaderLogo, Symbol: symbol}},
+		{"the logo alone with no picture left is the product's name", Branding{Header: HeaderLogo}, true,
+			Branding{Header: HeaderProduct}},
+		{"switched off above, the logo alone is the product's name", with(HeaderLogo, all), false,
+			Branding{Header: HeaderProduct}},
+		{"switched off above, the workspace's name is the product's name", with(HeaderWorkspaceName, all), false,
+			Branding{Header: HeaderProduct}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.branding.SignInCard(tc.allowed); got != tc.want {
+				t.Errorf("the card draws %+v, want %+v", got, tc.want)
+			}
+		})
+	}
+}
+
+// The public read serves a picture only where the card draws it: a picture the branding holds and
+// the card does not draw, and the zero identifier, are not drawn.
+func TestTheCardDrawsOnlyItsOwnPictures(t *testing.T) {
+	light := shared.ID("0194f9a8-0000-7000-8000-000000000001")
+	symbol := shared.ID("0194f9a8-0000-7000-8000-000000000003")
+	card := Branding{Header: HeaderLogo, LogoLight: light, Symbol: symbol}.SignInCard(true)
+	if !card.Draws(light) {
+		t.Error("the card does not draw the logo it shows")
+	}
+	if card.Draws(symbol) {
+		t.Error("the card draws the symbol beside a logo")
+	}
+	if card.Draws("") {
+		t.Error("the card draws the zero identifier")
+	}
+}
