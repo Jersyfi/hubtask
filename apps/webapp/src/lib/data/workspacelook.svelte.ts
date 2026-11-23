@@ -12,7 +12,7 @@
  * judge their pixels: that needs a read of the object store from this page, which a bucket on
  * another origin without a CORS rule refuses, and the header has no pixels to judge. A picture
  * whose record cannot be read - refused, gone, offline with nothing cached - is left out, so the
- * mark falls back by G8.
+ * mark falls back by G8; one that could not be reached is asked again once the connection is back.
  *
  * **The look is its own read**, `GET /tenant/look`, which every member may make: a guest of one hub
  * may not read the workspace's set-up (`/tenant`) and still sees its name and look.
@@ -20,16 +20,19 @@
 
 import type { ResourceState, WorkspaceLook as Look } from '@hubtask/sync-engine';
 
-import { memberLookOf, PICTURES, type PictureSources, type ShownLook } from '../workspace/branding.ts';
+import {
+  mayAskAgain, memberLookOf, pictureFailureOf, PICTURES, type FailedRead, type PictureSources, type ShownLook,
+} from '../workspace/branding.ts';
 import { engine } from './engine.ts';
+import { live } from './live.svelte.ts';
 import { media } from './media.svelte.ts';
 
 class WorkspaceLook {
   #state = $state<ResourceState<Look>>({ status: 'idle' });
   /** Download addresses, by media identifier. */
   #urls = $state<Record<string, string>>({});
-  /** Asked once and refused or unreadable: never asked again in this session. */
-  #gone = $state<Record<string, true>>({});
+  /** Why a record could not be read; only one that could not be reached is asked again. */
+  #failed = $state<Record<string, FailedRead>>({});
   #asking = new Set<string>();
 
   /** Starts the read. **From `untrack`**, for the reason every other store records. */
@@ -66,9 +69,12 @@ class WorkspaceLook {
     const sources: PictureSources = {};
     for (const picture of PICTURES) {
       const id = ids[picture];
-      if (!id || this.#gone[id]) continue;
+      if (!id) continue;
       const url = this.#urls[id];
-      if (url === undefined && !this.#asking.has(id)) void this.#ask(id);
+      const failed = this.#failed[id];
+      if (url === undefined && !this.#asking.has(id) && mayAskAgain(failed, live.state)) void this.#ask(id);
+      // Asked again or not, a failed picture keeps the fallback until its address is in.
+      if (failed && url === undefined) continue;
       sources[picture] = url ?? null;
     }
     return sources;
@@ -77,15 +83,24 @@ class WorkspaceLook {
   async #ask(id: string): Promise<void> {
     this.#asking.add(id);
     try {
-      const url = await media.downloadUrl(id, Date.now());
-      if (url) this.#urls = { ...this.#urls, [id]: url };
-      else this.#gone = { ...this.#gone, [id]: true };
+      const { url, failure } = await media.downloadOf(id, Date.now());
+      if (url) {
+        const { [id]: _past, ...failed } = this.#failed;
+        this.#failed = failed;
+        this.#urls = { ...this.#urls, [id]: url };
+      } else {
+        this.#fail(id, pictureFailureOf('record', failure, live.state === 'offline'));
+      }
     } catch {
       // A picture that cannot be read is a mark without it; a sentence about media has no place in a header.
-      this.#gone = { ...this.#gone, [id]: true };
+      this.#fail(id, 'unknown');
     } finally {
       this.#asking.delete(id);
     }
+  }
+
+  #fail(id: string, failure: FailedRead['failure']): void {
+    this.#failed = { ...this.#failed, [id]: { failure, connection: live.state } };
   }
 }
 
