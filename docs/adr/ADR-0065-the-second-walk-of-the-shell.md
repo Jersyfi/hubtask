@@ -1,6 +1,6 @@
 # ADR-0065 — Sections, and where a statement about the application lives
 
-**Status:** accepted (the stage row of decision 4 superseded by [ADR-0107](./ADR-0107-the-application-does-not-state-its-maturity-stage.md)) · **Date:** 2026-09-23 · **Accepted:** 2026-09-23
+**Status:** accepted (the stage row of decision 4 superseded by [ADR-0107](./ADR-0107-the-application-does-not-state-its-maturity-stage.md); what decision 4 lets into the bar widened to the emergency notices by [ADR-0113](./ADR-0113-an-emergency-notice-is-told-once-and-confirmed.md)) · **Date:** 2026-09-23 · **Accepted:** 2026-09-23
 
 **Rule lives in:** [design-system.md](../design/design-system.md) §11
 
@@ -132,15 +132,13 @@ that there is something.
 | The stage, while it is not `stable` | The quiet mark, no dot | The stage's sentence, and what it promises |
 | The health report says something is wrong | The mark with a `status.warning` dot | The report's own words, per component |
 | Both | The dot | Both, the report first |
-| The reader's own notices that a private hub of theirs was opened through the emergency access, for thirty days (ADR-0073 §4, decided on #1858) | The shield; with the dot while one is unconfirmed | The notices, each with its hub, the reader's own first |
 
 The stage is not dismissible any more, and that is a simplification rather than a loss: nothing is
 in the way, so nothing has to be pushed out of it. The dismiss existed because the banner took a row
 of every page.
 
-Only what the table names moves into the bar: the stage, the health report and the emergency
-notices of its last row. A notice about **the page** — a refused write, a check's findings — stays
-where `PageHeader` draws it, because it is about the page. The rule that tells them apart:
+Nothing else moves into the bar. A notice about **the page** — a refused write, a check's findings —
+stays where `PageHeader` draws it, because it is about the page. The rule that tells them apart:
 **if it would say the same thing on every screen, it belongs to the bar.**
 
 ### 5. The account menu ends with signing out, and a version is not a suffix

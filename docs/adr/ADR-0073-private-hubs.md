@@ -1,6 +1,6 @@
 # ADR-0073 — A private hub narrows what the workspace's roles reach
 
-**Status:** accepted · **Date:** 2026-09-30 · **Accepted:** 2026-09-30
+**Status:** accepted (how a member is told in the app, §4, superseded by [ADR-0113](./ADR-0113-an-emergency-notice-is-told-once-and-confirmed.md)) · **Date:** 2026-09-30 · **Accepted:** 2026-09-30
 **Rule lives in:** [identity.md](../architecture/identity.md) §22, the emergency access and the
 setting included
 
@@ -37,10 +37,7 @@ reaches into a private hub the person is not a member of.
 Any person may create a private hub **for themselves** where the workspace allows private hubs, and
 becomes its owner-member; they may add other members to it. A person who may already create hubs may
 also mark an existing hub they own private. Without this, a family member without an administrator's
-role — the one who needs privacy most — could not have one. A private hub made from a template asks
-the right to create hubs as any hub from a template does: a template also shapes the workspace
-(owner's decision of 2026-11-22, [UC-ID-16](../usecases/identity/UC-ID-16-keep-a-hub-private.md)
-check 9).
+role — the one who needs privacy most — could not have one.
 
 ### 3. What administrators see
 
@@ -54,13 +51,6 @@ reason, for one hour, not renewable. Opening it **notifies every member of the h
 opened your private hub on … — reason: …") and is recorded in the workspace's trail. Transparency
 instead of secrecy is what reconciles the controller's duties and a family's emergencies with the
 promise of privacy: nobody reads along unnoticed.
-
-How a member is told in the app (decided on #1858): **once, when the app opens**, in a dialog that
-says who, which hub, when, until when and why, and that the member confirms. The confirmation is
-the member's own and is shown to nobody else. Afterwards the bar's mark and the hub's row in the
-navigation carry it for thirty days, and the hub's own notice stays; **no view draws a banner for
-it**. The rule lives in [`identity.md`](../architecture/identity.md) §22 and
-[`design-system.md`](../design/design-system.md) §11.6.
 
 ### 5. What still applies
 
