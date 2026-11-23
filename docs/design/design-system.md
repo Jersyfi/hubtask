@@ -466,7 +466,8 @@ the mark the bar carries; how the product uses them is §11.
   An optional mark and count per link.
 * **The sidebar's pieces** ([`backlog/navigation/README.md`](../backlog/navigation/README.md) §2,
   [ADR-0100](../adr/ADR-0100-a-hub-level-in-the-navigation-and-one-content-tree.md)) — **`NavItem`**
-  (a row: twist, mark or `ProductTile`, name, one badge, figure, and ⋯ and ＋ in the figure's cell on
+  (a row: twist, mark or `ProductTile` - or a mark the caller draws where it is data, such as the current
+  workspace's symbol -, name, one badge, figure, and ⋯ and ＋ in the figure's cell on
   hover and focus; current with the brand bar and `aria-current`; the badge is named, and its
   `warning` tone - on its surface - is an extra while what it says is happening now), **`NavGroup`** (a section head that sticks,
   with ＋ and ⋯, *n more* and a filter past its bound; its head stands on the plane it is drawn on,

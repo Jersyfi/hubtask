@@ -38,3 +38,10 @@ export const privateHubs: Story = {
     'A private hub carries the lock after its name. For thirty days after the workspace’s owner opened one through the emergency access the shield takes the lock’s place, and its name says both facts - while the hour runs on the warning surface (an extra: the shape says it), afterwards as quiet as the lock. One badge per row.',
   args: { mode: 'private' },
 };
+
+export const ownMark: Story = {
+  name: 'A mark the caller draws',
+  about:
+    'A row whose mark is data rather than an icon: the current workspace’s own symbol in the phone’s account sheet, in the mark’s box and as decorative as every mark. The row’s name names it; the selection surface and aria-current say it is the current one.',
+  args: { mode: 'mark' },
+};

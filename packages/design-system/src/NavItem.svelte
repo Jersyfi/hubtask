@@ -1,6 +1,8 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts" module>
+  import type { Snippet } from 'svelte';
+
   import type { IconName } from './icons/index.ts';
   import type { MenuItem } from './overlay.ts';
 
@@ -53,6 +55,11 @@
     href?: string;
     /** A plain mark, drawn in the secondary ink. */
     icon?: IconName;
+    /**
+     * A mark the caller draws in the mark's box instead of `icon`: a picture that is data, such as
+     * a workspace's own symbol. Decorative, as every mark of a row is; the label names the row.
+     */
+    mark?: Snippet;
     /** A label colour: the mark is drawn on its tile (`ProductTile`). */
     color?: string;
     /** The tree level, 0 at a part's top; the indent stops growing at the sixth. */
@@ -113,6 +120,7 @@
     label,
     href,
     icon,
+    mark,
     color,
     level = 0,
     twist,
@@ -256,7 +264,7 @@
     {/if}
   {/if}
   <span class="mark" aria-hidden="true">
-    {#if unreadLabel}<UnreadDot />{:else if icon && color}<ProductTile {icon} {color} />{:else if icon}<Icon name={icon} size="sm" />{/if}
+    {#if unreadLabel}<UnreadDot />{:else if mark}{@render mark()}{:else if icon && color}<ProductTile {icon} {color} />{:else if icon}<Icon name={icon} size="sm" />{/if}
   </span>
   {#if !isRail}
     <span class="name" title={label}>{label}{#if unreadLabel}<VisuallyHidden>{unreadLabel}</VisuallyHidden>{/if}</span>
