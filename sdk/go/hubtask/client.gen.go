@@ -18342,6 +18342,20 @@ type EffectiveStructure struct {
 // EffectiveStructurePreset defines model for EffectiveStructure.Preset.
 type EffectiveStructurePreset string
 
+// EmergencyNotice An emergency access as the member who was told of it reads it: the access, and when this member confirmed it.
+type EmergencyNotice struct {
+	// AcknowledgedAt When the caller confirmed it; null until then.
+	AcknowledgedAt *time.Time         `json:"acknowledged_at"`
+	EndsAt         time.Time          `json:"ends_at"`
+	HubId          openapi_types.UUID `json:"hub_id"`
+	Id             openapi_types.UUID `json:"id"`
+	OpenedAt       time.Time          `json:"opened_at"`
+
+	// OpenedBy The account that opened it; null once that account is gone.
+	OpenedBy *openapi_types.UUID `json:"opened_by"`
+	Reason   string              `json:"reason"`
+}
+
 // EncryptionKeyUsage defines model for EncryptionKeyUsage.
 type EncryptionKeyUsage struct {
 	// Active Whether new values are sealed under it.
@@ -34202,10 +34216,17 @@ type ClientInterface interface {
 
 	// ListEmergencyNotices The emergency accesses the caller was told of in the last 30 days
 	//
-	// Each time the workspace's owner opened a private hub the caller is a member of, within the last 30 days, whatever the mail about it did - so that a person without a mailbox, or one whose mail did not arrive, is told in the app. Newest first. Not a list of notifications: it answers this one kind of notice and nothing else.
+	// Each time the workspace's owner opened a private hub the caller is a member of, within the last 30 days, whatever the mail about it did - so that a person without a mailbox, or one whose mail did not arrive, is told in the app. Newest first, each with the moment the caller confirmed it, or null. Not a list of notifications: it answers this one kind of notice and nothing else.
 	//
 	// Corresponds with GET /accounts/me/emergency-notices (the `ListEmergencyNotices` operationId).
 	ListEmergencyNotices(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AcknowledgeEmergencyNotice Confirm an emergency access the caller was told of
+	//
+	// Records that the caller read the notice of this emergency access. Confirming twice is confirming once. Only a person confirms, and only an access they were told of within the last 30 days; any other answers not found. The confirmation is in the workspace's trail without the reason; the owner who opened the hub is not shown who confirmed.
+	//
+	// Corresponds with POST /accounts/me/emergency-notices/{accessId}:acknowledge (the `AcknowledgeEmergencyNotice` operationId).
+	AcknowledgeEmergencyNotice(ctx context.Context, accessId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListOwnIdentities The sign-in providers the caller's account is connected to
 	//
@@ -46270,11 +46291,28 @@ func (c *Client) SetOwnAvatar(ctx context.Context, body SetOwnAvatarJSONRequestB
 
 // ListEmergencyNotices The emergency accesses the caller was told of in the last 30 days
 //
-// Each time the workspace's owner opened a private hub the caller is a member of, within the last 30 days, whatever the mail about it did - so that a person without a mailbox, or one whose mail did not arrive, is told in the app. Newest first. Not a list of notifications: it answers this one kind of notice and nothing else.
+// Each time the workspace's owner opened a private hub the caller is a member of, within the last 30 days, whatever the mail about it did - so that a person without a mailbox, or one whose mail did not arrive, is told in the app. Newest first, each with the moment the caller confirmed it, or null. Not a list of notifications: it answers this one kind of notice and nothing else.
 //
 // Corresponds with GET /accounts/me/emergency-notices (the `ListEmergencyNotices` operationId).
 func (c *Client) ListEmergencyNotices(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListEmergencyNoticesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AcknowledgeEmergencyNotice Confirm an emergency access the caller was told of
+//
+// Records that the caller read the notice of this emergency access. Confirming twice is confirming once. Only a person confirms, and only an access they were told of within the last 30 days; any other answers not found. The confirmation is in the workspace's trail without the reason; the owner who opened the hub is not shown who confirmed.
+//
+// Corresponds with POST /accounts/me/emergency-notices/{accessId}:acknowledge (the `AcknowledgeEmergencyNotice` operationId).
+func (c *Client) AcknowledgeEmergencyNotice(ctx context.Context, accessId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAcknowledgeEmergencyNoticeRequest(c.Server, accessId)
 	if err != nil {
 		return nil, err
 	}
@@ -71578,6 +71616,40 @@ func NewListEmergencyNoticesRequest(server string) (*http.Request, error) {
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAcknowledgeEmergencyNoticeRequest constructs an http.Request for the AcknowledgeEmergencyNotice method
+func NewAcknowledgeEmergencyNoticeRequest(server string, accessId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "accessId", accessId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/me/emergency-notices/%s:acknowledge", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -113799,12 +113871,21 @@ type ClientWithResponsesInterface interface {
 
 	// ListEmergencyNoticesWithResponse The emergency accesses the caller was told of in the last 30 days
 	//
-	// Each time the workspace's owner opened a private hub the caller is a member of, within the last 30 days, whatever the mail about it did - so that a person without a mailbox, or one whose mail did not arrive, is told in the app. Newest first. Not a list of notifications: it answers this one kind of notice and nothing else.
+	// Each time the workspace's owner opened a private hub the caller is a member of, within the last 30 days, whatever the mail about it did - so that a person without a mailbox, or one whose mail did not arrive, is told in the app. Newest first, each with the moment the caller confirmed it, or null. Not a list of notifications: it answers this one kind of notice and nothing else.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /accounts/me/emergency-notices (the `ListEmergencyNotices` operationId).
 	ListEmergencyNoticesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListEmergencyNoticesResult, error)
+
+	// AcknowledgeEmergencyNoticeWithResponse Confirm an emergency access the caller was told of
+	//
+	// Records that the caller read the notice of this emergency access. Confirming twice is confirming once. Only a person confirms, and only an access they were told of within the last 30 days; any other answers not found. The confirmation is in the workspace's trail without the reason; the owner who opened the hub is not shown who confirmed.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts/me/emergency-notices/{accessId}:acknowledge (the `AcknowledgeEmergencyNotice` operationId).
+	AcknowledgeEmergencyNoticeWithResponse(ctx context.Context, accessId openapi_types.UUID, reqEditors ...RequestEditorFn) (*AcknowledgeEmergencyNoticeResult, error)
 
 	// ListOwnIdentitiesWithResponse The sign-in providers the caller's account is connected to
 	//
@@ -127052,13 +127133,13 @@ type ListEmergencyNoticesResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
-	JSON200 *[]PrivateHubAccess
+	JSON200 *[]EmergencyNotice
 	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
 	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r ListEmergencyNoticesResult) GetJSON200() *[]PrivateHubAccess {
+func (r ListEmergencyNoticesResult) GetJSON200() *[]EmergencyNotice {
 	return r.JSON200
 }
 
@@ -127090,6 +127171,47 @@ func (r ListEmergencyNoticesResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ListEmergencyNoticesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AcknowledgeEmergencyNoticeResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AcknowledgeEmergencyNoticeResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AcknowledgeEmergencyNoticeResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AcknowledgeEmergencyNoticeResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AcknowledgeEmergencyNoticeResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AcknowledgeEmergencyNoticeResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -170900,7 +171022,7 @@ func (c *ClientWithResponses) SetOwnAvatarWithResponse(ctx context.Context, body
 
 // ListEmergencyNoticesWithResponse The emergency accesses the caller was told of in the last 30 days
 //
-// Each time the workspace's owner opened a private hub the caller is a member of, within the last 30 days, whatever the mail about it did - so that a person without a mailbox, or one whose mail did not arrive, is told in the app. Newest first. Not a list of notifications: it answers this one kind of notice and nothing else.
+// Each time the workspace's owner opened a private hub the caller is a member of, within the last 30 days, whatever the mail about it did - so that a person without a mailbox, or one whose mail did not arrive, is told in the app. Newest first, each with the moment the caller confirmed it, or null. Not a list of notifications: it answers this one kind of notice and nothing else.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -170911,6 +171033,21 @@ func (c *ClientWithResponses) ListEmergencyNoticesWithResponse(ctx context.Conte
 		return nil, err
 	}
 	return ParseListEmergencyNoticesResult(rsp)
+}
+
+// AcknowledgeEmergencyNoticeWithResponse Confirm an emergency access the caller was told of
+//
+// Records that the caller read the notice of this emergency access. Confirming twice is confirming once. Only a person confirms, and only an access they were told of within the last 30 days; any other answers not found. The confirmation is in the workspace's trail without the reason; the owner who opened the hub is not shown who confirmed.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts/me/emergency-notices/{accessId}:acknowledge (the `AcknowledgeEmergencyNotice` operationId).
+func (c *ClientWithResponses) AcknowledgeEmergencyNoticeWithResponse(ctx context.Context, accessId openapi_types.UUID, reqEditors ...RequestEditorFn) (*AcknowledgeEmergencyNoticeResult, error) {
+	rsp, err := c.AcknowledgeEmergencyNotice(ctx, accessId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAcknowledgeEmergencyNoticeResult(rsp)
 }
 
 // ListOwnIdentitiesWithResponse The sign-in providers the caller's account is connected to
@@ -191951,11 +192088,40 @@ func ParseListEmergencyNoticesResult(rsp *http.Response) (*ListEmergencyNoticesR
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest []PrivateHubAccess
+		var dest []EmergencyNotice
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAcknowledgeEmergencyNoticeResult parses an HTTP response from a AcknowledgeEmergencyNoticeWithResponse call
+func ParseAcknowledgeEmergencyNoticeResult(rsp *http.Response) (*AcknowledgeEmergencyNoticeResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AcknowledgeEmergencyNoticeResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

@@ -1655,6 +1655,10 @@ func (pending) ListEmergencyNotices(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
+func (pending) AcknowledgeEmergencyNotice(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
 // ListOwnIdentities is overridden by RestController, for the reason given at CreateContainer.
 func (pending) ListOwnIdentities(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 

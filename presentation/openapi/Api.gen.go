@@ -18336,6 +18336,20 @@ type EffectiveStructure struct {
 // EffectiveStructurePreset defines model for EffectiveStructure.Preset.
 type EffectiveStructurePreset string
 
+// EmergencyNotice An emergency access as the member who was told of it reads it: the access, and when this member confirmed it.
+type EmergencyNotice struct {
+	// AcknowledgedAt When the caller confirmed it; null until then.
+	AcknowledgedAt *time.Time         `json:"acknowledged_at"`
+	EndsAt         time.Time          `json:"ends_at"`
+	HubId          openapi_types.UUID `json:"hub_id"`
+	Id             openapi_types.UUID `json:"id"`
+	OpenedAt       time.Time          `json:"opened_at"`
+
+	// OpenedBy The account that opened it; null once that account is gone.
+	OpenedBy *openapi_types.UUID `json:"opened_by"`
+	Reason   string              `json:"reason"`
+}
+
 // EncryptionKeyUsage defines model for EncryptionKeyUsage.
 type EncryptionKeyUsage struct {
 	// Active Whether new values are sealed under it.
@@ -34024,6 +34038,9 @@ type ServerInterface interface {
 	// ListEmergencyNotices The emergency accesses the caller was told of in the last 30 days
 	// (GET /accounts/me/emergency-notices)
 	ListEmergencyNotices(w http.ResponseWriter, r *http.Request)
+	// AcknowledgeEmergencyNotice Confirm an emergency access the caller was told of
+	// (POST /accounts/me/emergency-notices/{accessId}:acknowledge)
+	AcknowledgeEmergencyNotice(w http.ResponseWriter, r *http.Request, accessId openapi_types.UUID)
 	// ListOwnIdentities The sign-in providers the caller's account is connected to
 	// (GET /accounts/me/identities)
 	ListOwnIdentities(w http.ResponseWriter, r *http.Request)
@@ -36908,6 +36925,32 @@ func (siw *ServerInterfaceWrapper) ListEmergencyNotices(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListEmergencyNotices(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AcknowledgeEmergencyNotice operation middleware
+func (siw *ServerInterfaceWrapper) AcknowledgeEmergencyNotice(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accessId" -------------
+	var accessId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accessId", r.PathValue("accessId"), &accessId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accessId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AcknowledgeEmergencyNotice(w, r, accessId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -67291,6 +67334,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/accounts/me/passkeys/{passkeyId}", wrapper.RemoveOwnPasskey)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/me/passkeys/{passkeyId}", wrapper.RenameOwnPasskey)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/emergency-notices", wrapper.ListEmergencyNotices)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/emergency-notices/{accessId}:acknowledge", wrapper.AcknowledgeEmergencyNotice)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/address-notices", wrapper.ListAddressNotices)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/address-notices:acknowledge", wrapper.AcknowledgeAddressNotices)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/device-list-entry", wrapper.IssueDeviceListEntry)

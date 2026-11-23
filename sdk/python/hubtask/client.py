@@ -2237,6 +2237,10 @@ class Client:
         """The emergency accesses the caller was told of in the last 30 days"""
         return self._call("GET", "/accounts/me/emergency-notices", {}, None, {}, None, "none", None, "json")
 
+    def acknowledge_emergency_notice(self, access_id: str) -> None:
+        """Confirm an emergency access the caller was told of"""
+        return self._call("POST", "/accounts/me/emergency-notices/{accessId}:acknowledge", {"accessId": access_id}, None, {}, None, "none", None, "void")
+
     def list_address_notices(self) -> dict[str, Any]:
         """The change of the workspace's address the caller still has to be told of"""
         return self._call("GET", "/accounts/me/address-notices", {}, None, {}, None, "none", None, "json")

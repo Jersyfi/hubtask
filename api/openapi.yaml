@@ -15197,13 +15197,14 @@ paths:
       tags: [identity]
       operationId: listEmergencyNotices
       x-hubtask-rest: generated
-      x-hubtask-rest-answer: privateHubAccessResponse
+      x-hubtask-rest-answer: emergencyNoticeResponse
       summary: The emergency accesses the caller was told of in the last 30 days
       description: >
         Each time the workspace's owner opened a private hub the caller is a member of, within the
         last 30 days, whatever the mail about it did - so that a person without a mailbox, or one
-        whose mail did not arrive, is told in the app. Newest first. Not a list of notifications: it
-        answers this one kind of notice and nothing else.
+        whose mail did not arrive, is told in the app. Newest first, each with the moment the caller
+        confirmed it, or null. Not a list of notifications: it answers this one kind of notice and
+        nothing else.
       responses:
         "200":
           description: The notices
@@ -15212,7 +15213,30 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/PrivateHubAccess"
+                  $ref: "#/components/schemas/EmergencyNotice"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/me/emergency-notices/{accessId}:acknowledge:
+    parameters:
+      - name: accessId
+        in: path
+        required: true
+        description: The emergency access, as the caller's notices name it.
+        schema: { type: string, format: uuid }
+    post:
+      tags: [identity]
+      operationId: acknowledgeEmergencyNotice
+      x-hubtask-rest: generated
+      summary: Confirm an emergency access the caller was told of
+      description: >
+        Records that the caller read the notice of this emergency access. Confirming twice is
+        confirming once. Only a person confirms, and only an access they were told of within the
+        last 30 days; any other answers not found. The confirmation is in the workspace's trail
+        without the reason; the owner who opened the hub is not shown who confirmed.
+      responses:
+        "204":
+          description: Confirmed
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -28411,6 +28435,27 @@ components:
         reason: { type: string }
         opened_at: { type: string, format: date-time }
         ends_at: { type: string, format: date-time }
+
+    EmergencyNotice:
+      type: object
+      description: >
+        An emergency access as the member who was told of it reads it: the access, and when this
+        member confirmed it.
+      required: [id, hub_id, opened_by, reason, opened_at, ends_at, acknowledged_at]
+      properties:
+        id: { type: string, format: uuid }
+        hub_id: { type: string, format: uuid }
+        opened_by:
+          type: [string, "null"]
+          format: uuid
+          description: The account that opened it; null once that account is gone.
+        reason: { type: string }
+        opened_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        acknowledged_at:
+          type: [string, "null"]
+          format: date-time
+          description: When the caller confirmed it; null until then.
 
     Workspace:
       type: object

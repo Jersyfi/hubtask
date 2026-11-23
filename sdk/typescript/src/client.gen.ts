@@ -2820,6 +2820,11 @@ export class HubtaskClient {
     return this.call("GET", "/accounts/me/emergency-notices", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Confirm an emergency access the caller was told of */
+  acknowledgeEmergencyNotice(accessId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("POST", "/accounts/me/emergency-notices/{accessId}:acknowledge", { "accessId": accessId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** The change of the workspace's address the caller still has to be told of */
   listAddressNotices(options: CallOptions = {}): Promise<operations["listAddressNotices"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/accounts/me/address-notices", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

@@ -58,3 +58,13 @@ func privateHubAccessResponse(out usecase.Output) openapi.PrivateHubAccess {
 	}
 	return answer
 }
+
+// emergencyNoticeResponse is one access as the member told of it reads it, with their confirmation.
+func emergencyNoticeResponse(out usecase.Output) openapi.EmergencyNotice {
+	access := privateHubAccessResponse(out)
+	return openapi.EmergencyNotice{
+		Id: access.Id, HubId: access.HubId, OpenedBy: access.OpenedBy, Reason: access.Reason,
+		OpenedAt: access.OpenedAt, EndsAt: access.EndsAt,
+		AcknowledgedAt: optionalTimeField(out["acknowledged_at"]),
+	}
+}

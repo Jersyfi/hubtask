@@ -635,6 +635,16 @@ class PrivateHubAccess(TypedDict, total=False):
     opened_at: Required[str]
     ends_at: Required[str]
 
+class EmergencyNotice(TypedDict, total=False):
+    """An emergency access as the member who was told of it reads it: the access, and when this member confirmed it."""
+    id: Required[str]
+    hub_id: Required[str]
+    opened_by: Required[str | None]
+    reason: Required[str]
+    opened_at: Required[str]
+    ends_at: Required[str]
+    acknowledged_at: Required[str | None]
+
 class Workspace(TypedDict, total=False):
     """A workspace as the people inside it see it. `AdminTenant` is the same row as the installation operator sees it, across workspaces; this one is answered to a member and carries what a member may act on."""
     id: Required[str]
