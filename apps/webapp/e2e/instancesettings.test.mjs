@@ -375,3 +375,15 @@ test('chromium: the account link is drawn with what plans may, and without a loc
   const plain = await said(second.page, 'Provider\'s account page');
   assert.doesNotMatch(plain, /plans|their own|change it/);
 });
+
+// UC-INS-22 check 10, the installation's half: whether workspaces may show their own name and logo
+// is a default with its lock, drawn and sent like every other switch of the sign-in rule.
+test('chromium: the switch for a workspace\'s own name and logo is a default with its lock', async (t) => {
+  const browser = await sharedChromium(t);
+  const level = { ...LEVEL, sign_in: { ...LEVEL.sign_in, own_branding: { set: true, value: false, locked: true, kind: 'FLAG', ...tighten } } };
+  const { page, close } = await open(browser, { level });
+  t.after(close);
+  const words = await said(page, 'Workspaces may show their own name and logo');
+  assert.match(words, /not change it/, words);
+  assert.match(words, /· Off ·/, words);
+});

@@ -721,3 +721,23 @@ test('chromium: a single installation shows no plan on Workspaces; an enforced o
   await enforced.page.getByRole('main').getByRole('button', { name: 'New workspace' }).click();
   await enforced.page.locator('[data-page-kind="create"]').getByRole('combobox', { name: 'Plan' }).waitFor({ timeout: 5_000 });
 });
+
+// UC-INS-22 check 10, the plan's half: a plan decides whether its workspaces may show their own name
+// and logo, with its lock, as it decides every other switch of the sign-in rule.
+test('chromium: a plan offers the switch for a workspace\'s own name and logo, with its lock', async (t) => {
+  const browser = await sharedChromium(t);
+  const own = { own_branding: { set: true, value: false, locked: true, kind: 'FLAG', position: 2, ...tighten } };
+  const plans = PLANS.map((plan) => (plan.name === 'family' ? { ...plan, sign_in: { ...plan.sign_in, ...own } } : plan));
+  const { page, close } = await openInstance(browser, {
+    answer: (route, request, path) => (path === '/admin/plans' && request.method() === 'GET' ? route.fulfill({ json: { data: plans } }) : undefined),
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/instance/plans/family`);
+  const field = page.locator('[data-value="sign_in.own_branding"]');
+  await field.waitFor({ timeout: 10_000 });
+  assert.equal(await field.locator('select').first().inputValue(), 'false');
+  const said = await field.innerText();
+  assert.match(said, /Workspaces may show their own name and logo/, said);
+  assert.match(said, /not change it/, said);
+});
