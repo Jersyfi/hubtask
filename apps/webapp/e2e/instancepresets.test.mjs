@@ -92,6 +92,15 @@ async function openDefaults(browser, { manifest = MULTI, isEnforced = false, wid
   return { page, written, read, failures, close: () => context.close() };
 }
 
+/**
+ * The answer to the next `method` on `path`, taken before the act that sends it: the stub records a
+ * write before it answers, so once this settles the write is in `written`. It settles without an
+ * answer too, and the walk's own assertion says what is missing.
+ */
+const answered = (page, method, path) =>
+  page.waitForResponse((response) => response.request().method() === method && new URL(response.url()).pathname.endsWith(`/api/v1${path}`), { timeout: 10_000 })
+    .catch(() => undefined);
+
 test('chromium: an operator creates, renames, starts again, makes default, locks and withdraws presets (checks 1, 3)', async (t) => {
   const browser = await sharedChromium(t);
   const { page, written, failures, close } = await openDefaults(browser);
@@ -108,8 +117,11 @@ test('chromium: an operator creates, renames, starts again, makes default, locks
   const create = page.locator('[data-installation-preset-create]');
   await create.getByRole('textbox', { name: 'New preset' }).fill('Site visit');
   await create.getByLabel('Starts from').selectOption('PROJECT');
-  await page.getByRole('dialog', { name: 'New preset' }).getByRole('button', { name: 'Create preset' }).click();
-  await page.waitForTimeout(300);
+  // Each act below is taken once the one before has ended - its dialog closed -, as a person
+  // does: the page takes one write at a time.
+  const creating = page.getByRole('dialog', { name: 'New preset' });
+  await creating.getByRole('button', { name: 'Create preset' }).click();
+  await creating.waitFor({ state: 'hidden', timeout: 10_000 });
   const created = written.find((write) => write.method === 'POST' && write.path === '/admin/presets');
   assert.deepEqual(created?.body, { name: 'Site visit', preset: 'PROJECT' });
 
@@ -118,12 +130,14 @@ test('chromium: an operator creates, renames, starts again, makes default, locks
   const renaming = page.getByRole('dialog', { name: 'Rename “Practice appointments”' });
   await renaming.getByRole('textbox').fill('Practice visits');
   await renaming.getByRole('button', { name: 'Rename' }).click();
-  await page.waitForTimeout(300);
+  await renaming.waitFor({ state: 'hidden', timeout: 10_000 });
+  // The read after the write: the row says the new name.
+  await practice.getByText('Practice visits', { exact: true }).waitFor({ timeout: 10_000 });
   await chooseInRow(practice, 'Start again from…');
   const restarting = page.getByRole('dialog', { name: /^Start “/ });
   await restarting.getByLabel('Settings').selectOption('LIST');
   await restarting.getByRole('button', { name: 'Start again' }).click();
-  await page.waitForTimeout(300);
+  await restarting.waitFor({ state: 'hidden', timeout: 10_000 });
   const changes = written.filter((write) => write.method === 'PATCH' && write.path === `/admin/presets/${PRACTICE.id}`);
   assert.deepEqual(changes.map((write) => write.body), [{ name: 'Practice visits' }, { preset: 'LIST' }]);
   assert.equal(changes[0]?.ifMatch, '"1"');
@@ -137,10 +151,11 @@ test('chromium: an operator creates, renames, starts again, makes default, locks
   assert.equal(await locks.getAttribute('aria-haspopup'), 'listbox', 'the locks are not one field');
   assert.deepEqual(await chipsOf(locks), ['Views'], "the default's lock is not drawn");
   // Each press writes at once; what the list holds follows the answer.
+  const lockWritten = answered(page, 'PATCH', `/admin/presets/${CRAFT.id}`);
   await pick(page, locks, ['Success']);
   assert.equal(await defaults.isVisible(), true, 'Escape closed the dialog, not only the list');
   assert.match(await focused(page), /^button "Locked in every workspace to /u, 'closing the list left focus elsewhere');
-  await page.waitForTimeout(300);
+  await lockWritten;
   const locked = written.filter((write) => write.method === 'PATCH' && write.path === `/admin/presets/${CRAFT.id}`).at(-1);
   assert.deepEqual(locked?.body, { locks: ['views', 'celebration', 'fields.TASK.DUE_DATE'] });
   assert.equal(locked?.ifMatch, '"3"');
@@ -148,21 +163,28 @@ test('chromium: an operator creates, renames, starts again, makes default, locks
   await locks.locator('.chips:not(.measure) .chip').nth(1).waitFor({ timeout: 5_000 });
   assert.deepEqual(await chipsOf(locks), ['Views', 'Success'], 'the lock written is not drawn after the read');
 
-  // Check 3: another preset made the default; none made the default.
+  // Check 3: another preset made the default; none made the default. Each choice is made once the
+  // read after the one before says who holds the default: the locks' field names it.
   const defaultSelect = defaults.getByLabel('New workspaces start from');
+  const locksOf = (name) => defaults.getByRole('button', { name: new RegExp(`^Locked in every workspace to “${name}”`, 'u') });
+  let madeDefault = answered(page, 'PATCH', `/admin/presets/${PRACTICE.id}`);
   await defaultSelect.selectOption(PRACTICE.id);
-  await page.waitForTimeout(300);
+  await madeDefault;
   assert.deepEqual(written.filter((write) => write.path === `/admin/presets/${PRACTICE.id}`).at(-1)?.body, { is_default: true });
+  await locksOf('Practice visits').waitFor({ timeout: 10_000 });
   // The default is withdrawn from the preset that holds it now - Practice, once the read after the
   // last write says so.
+  madeDefault = answered(page, 'PATCH', `/admin/presets/${PRACTICE.id}`);
   await defaultSelect.selectOption('');
-  await page.waitForTimeout(300);
+  await madeDefault;
   assert.deepEqual(written.filter((write) => write.path === `/admin/presets/${PRACTICE.id}`).at(-1)?.body, { is_default: false });
+  await defaults.locator('[data-installation-preset-locks]').waitFor({ state: 'detached', timeout: 10_000 });
   // And Craft made the default again, for the withdrawal below.
-  const madeDefault = page.waitForRequest((request) => request.method() === 'PATCH' && request.url().endsWith(`/admin/presets/${CRAFT.id}`));
+  madeDefault = answered(page, 'PATCH', `/admin/presets/${CRAFT.id}`);
   await defaultSelect.selectOption(CRAFT.id);
   await madeDefault;
   assert.deepEqual(written.filter((write) => write.path === `/admin/presets/${CRAFT.id}`).at(-1)?.body, { is_default: true });
+  await locksOf('Craft order').waitFor({ timeout: 10_000 });
 
   await page.keyboard.press('Escape');
   await defaults.waitFor({ state: 'hidden' });
@@ -177,8 +199,9 @@ test('chromium: an operator creates, renames, starts again, makes default, locks
   assert.ok(reason.includes('New workspaces start from this preset'), `the reason reads ${JSON.stringify(reason)}`);
   assert.ok(!written.some((write) => write.method === 'DELETE' && write.path === `/admin/presets/${CRAFT.id}`), "the default's withdrawal was sent");
   await chooseInRow(practice, 'Withdraw');
-  await page.getByRole('dialog', { name: /^Withdraw “/ }).getByRole('button', { name: 'Withdraw' }).click();
-  await page.waitForTimeout(300);
+  const withdrawing = page.getByRole('dialog', { name: /^Withdraw “/ });
+  await withdrawing.getByRole('button', { name: 'Withdraw' }).click();
+  await withdrawing.waitFor({ state: 'hidden', timeout: 10_000 });
   const withdrawn = written.find((write) => write.method === 'DELETE' && write.path === `/admin/presets/${PRACTICE.id}`);
   assert.ok(withdrawn, 'the withdrawal was not sent');
   // On the version read last: each write of Practice above raised it by one from 1.
