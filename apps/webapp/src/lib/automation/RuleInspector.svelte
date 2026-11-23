@@ -267,9 +267,12 @@
         }}
       />
       {#if draft.trigger.event_type?.includes('.updated.')}
+        <!-- Ticks: on a phone this panel is a sheet, and a field would open a second sheet over it
+             (design-system.md §4). -->
         <MultiSelect
           label={t('app.flow.changed_fields')}
           hint={t('app.flow.changed_fields_hint')}
+          presentation="inline"
           options={Object.entries(CHANGED_FIELDS).map(([field, code]) => ({ value: field, label: t(code) }))}
           selected={draft.trigger.changed_fields ?? []}
           onChange={(changed_fields) => onupdate((current) => ({ ...current, trigger: { ...current.trigger, changed_fields: [...changed_fields] } }))}

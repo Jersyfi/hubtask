@@ -164,9 +164,12 @@
     <section aria-labelledby="planview-columns">
       <h3 id="planview-columns">{t('app.planview.columns')}</h3>
       {#if !isGantt}<p class="quiet">{t('app.planview.columns_gantt')}</p>{/if}
+      <!-- Ticks: on a phone this panel is a sheet, and a field would open a second sheet over it
+           (design-system.md §4). -->
       <MultiSelect
         label={t('app.planview.columns')}
         aria-labelledby="planview-columns"
+        presentation="inline"
         options={PLAN_COLUMNS.map((column) => ({ value: column, label: t(`app.planview.col_${column}`), hint: column === 'slip' ? t('app.planview.with_baseline') : undefined }))}
         selected={setup.columns}
         onChange={(next) => (setup = { ...setup, columns: PLAN_COLUMNS.filter((each) => next.includes(each)) })}

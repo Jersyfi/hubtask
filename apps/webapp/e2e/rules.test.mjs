@@ -16,7 +16,7 @@ import { sharedChromium } from './browser.mjs';
 
 import { PERMISSIONS, fallback, unstubbedSoFar } from './fixture.mjs';
 import { serve } from './serve.mjs';
-import { chipsOf, describedBy, focused } from './several.mjs';
+import { describedBy } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -1075,16 +1075,30 @@ test('chromium: the trigger chooses its entries with one query line, names resol
   assert.ok(patch.entries.includes(COLLECTION.id) && !patch.entries.includes('Q4 campaign'), `the name went as its identifier: ${patch.entries}`);
 });
 
-// The fields an update waits for are one field of eight (design-system.md §4): named by its
-// question and described by what none means, it opens from the keyboard on the first option, Space
-// ticks, Escape closes the list onto the field, and the save carries the fields in the order ticked.
-test('chromium: the fields an update waits for are one field, chosen by the keyboard and saved', async (t) => {
+// The fields an update waits for are eight ticks (design-system.md §4: inside the panel that is a
+// sheet on a phone, a field would open a second sheet): one group named by its question and
+// described by what none means, ticked by the keyboard; the save carries the fields in the order
+// ticked, and the rule read again after the write shows them ticked.
+test('chromium: the fields an update waits for are ticks, chosen by the keyboard and saved', async (t) => {
   const browser = await sharedChromium(t);
   const written = [];
   const UPDATED = 'de.hubtask.work.item.updated.v1';
   const context = await browser.newContext({ viewport: { width: 1400, height: 1200 } });
   t.after(() => context.close());
+  let stored = RULE;
   await context.route('**/api/v1/**', stubFor(written));
+  // The rule as the server holds it after the write, not the one before (e2e/AGENTS.md).
+  await context.route('**/api/v1/automation/rules**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (path.endsWith(`/automation/rules/${RULE.id}`) && request.method() === 'PATCH') {
+      written.push(request.postDataJSON());
+      stored = { ...stored, ...request.postDataJSON(), version: stored.version + 1 };
+      return route.fulfill({ json: stored });
+    }
+    if (path.endsWith('/automation/rules') && request.method() === 'GET') return route.fulfill({ json: { ...PAGE, data: [stored, STALE] } });
+    return route.fallback();
+  });
   await context.route('**/api/v1/meta/capabilities', (route) => route.fulfill({ json: { ...MANIFEST, event_types: [...MANIFEST.event_types, UPDATED] } }));
   await context.addInitScript(() => {
     sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
@@ -1097,30 +1111,56 @@ test('chromium: the fields an update waits for are one field, chosen by the keyb
   const inspector = page.locator('aside.inspector');
   await inspector.getByLabel('Which event').selectOption(UPDATED);
 
-  const field = inspector.getByRole('button', { name: /^Only when one of these changed/u });
-  await field.waitFor({ timeout: 5_000 });
-  assert.equal(await field.getAttribute('aria-haspopup'), 'listbox', 'the changed fields are not one field');
-  assert.equal(await describedBy(field), 'None means: on every change, a rename included.');
-  assert.equal((await field.locator('.value').textContent()).trim(), 'Nothing chosen');
-  assert.equal(await inspector.locator('input[type="checkbox"]').count(), 0, 'the ticks are still drawn');
-
-  await field.focus();
-  await page.keyboard.press('Enter');
-  const list = page.getByRole('listbox', { name: 'Only when one of these changed' });
-  await list.waitFor({ timeout: 5_000 });
-  assert.equal(await focused(page), 'option "Title"', 'Enter did not land on the first option');
+  const ticks = inspector.getByRole('group', { name: 'Only when one of these changed' });
+  await ticks.waitFor({ timeout: 5_000 });
+  assert.equal(await inspector.getByRole('button', { name: /^Only when one of these changed/u }).count(), 0, 'the changed fields open a list of their own');
+  assert.equal(await describedBy(ticks), 'None means: on every change, a rename included.');
+  assert.equal(await ticks.getByRole('checkbox').count(), 8);
+  await ticks.getByRole('checkbox', { name: 'Title', exact: true }).focus();
   await page.keyboard.press('Space');
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowDown');
-  assert.equal(await focused(page), 'option "Due date"', 'a changed field is named by its wire name');
+  await ticks.getByRole('checkbox', { name: 'Due date', exact: true }).focus();
   await page.keyboard.press('Space');
-  assert.equal(await list.getByRole('option', { name: 'Due date' }).getAttribute('aria-selected'), 'true');
-  await page.keyboard.press('Escape');
-  await list.waitFor({ state: 'detached', timeout: 5_000 });
-  assert.match(await focused(page), /^button "Only when one of these changed /u, 'closing the list left focus elsewhere');
-  assert.deepEqual(await chipsOf(field), ['Title', 'Due date']);
+  assert.equal(await ticks.getByRole('checkbox', { name: 'Due date', exact: true }).isChecked(), true);
 
   const sent = page.waitForRequest((request) => request.method() === 'PATCH' && request.url().endsWith(`/automation/rules/${RULE.id}`));
   await page.getByRole('button', { name: 'Save the rule' }).click();
   assert.deepEqual((await sent).postDataJSON().trigger, { kind: 'EVENT', event_type: UPDATED, changed_fields: ['title', 'due_at'] });
+
+  // The screen after the write: the rule read again carries the two ticked.
+  await page.reload();
+  await page.locator('[data-card="trigger"]').click({ timeout: 15_000 });
+  const again = page.locator('aside.inspector').getByRole('group', { name: 'Only when one of these changed' });
+  await again.waitFor({ timeout: 5_000 });
+  assert.equal(await again.getByRole('checkbox', { checked: true }).count(), 2, 'the rule read again does not carry what was saved');
+  assert.equal(await again.getByRole('checkbox', { name: 'Title', exact: true }).isChecked(), true);
+  assert.equal(await again.getByRole('checkbox', { name: 'Due date', exact: true }).isChecked(), true);
+});
+
+// At a phone's width the rule's panel is a sheet: the changed fields are ticks inside it, and
+// ticking one opens no second sheet over it (design-system.md §4).
+test('chromium: 390 px - the fields an update waits for are ticks inside the panel\'s sheet', async (t) => {
+  const browser = await sharedChromium(t);
+  const UPDATED = 'de.hubtask.work.item.updated.v1';
+  const context = await browser.newContext({ viewport: { width: 390, height: 800 } });
+  t.after(() => context.close());
+  await context.route('**/api/v1/**', stubFor([]));
+  await context.route('**/api/v1/meta/capabilities', (route) => route.fulfill({ json: { ...MANIFEST, event_types: [...MANIFEST.event_types, UPDATED] } }));
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/rules/${RULE.id}`);
+  await page.locator('[data-card="2"]').waitFor();
+  await page.locator('[data-card="trigger"]').click();
+  await page.getByLabel('Which event').selectOption(UPDATED);
+  const ticks = page.getByRole('group', { name: 'Only when one of these changed' });
+  await ticks.waitFor({ timeout: 5_000 });
+  const title = ticks.getByRole('checkbox', { name: 'Title', exact: true });
+  await title.scrollIntoViewIfNeeded();
+  await title.focus();
+  await page.keyboard.press('Space');
+  assert.equal(await title.isChecked(), true);
+  const modals = await page.evaluate(() => [...document.querySelectorAll('dialog[open]')].filter((each) => each.matches(':modal')).length);
+  assert.equal(modals, 1, 'a second sheet opened over the panel');
 });
