@@ -180,7 +180,8 @@ test('chromium: the entry\'s column is changed from the entry', { timeout: 60_00
     await status.getByRole('button', { name: /Change status/ }).click();
     await page.getByRole('menuitemradio', { name: new RegExp(`^${BUCKETS[1].name}`) }).click();
     await page.waitForTimeout(400);
-    const moved = written.find((each) => each.call === `POST /items/${ITEMS[2].id}:drop`);
+    // The base product's column write, with the module on as with it off (UC-WRK-05 check 6).
+    const moved = written.find((each) => each.call === `PATCH /items/${ITEMS[2].id}`);
     assert.equal(moved?.body?.bucket_id, BUCKETS[1].id);
   } finally {
     await close();

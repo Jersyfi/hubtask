@@ -12,6 +12,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/meta"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/notification"
@@ -258,6 +259,36 @@ func TestTheManifestReportsTheAutomationVocabulary(t *testing.T) {
 	}
 	if !slices.Equal(manifest.AutomationActions, h.Actions) {
 		t.Errorf("actions %v, want the catalogue's %v", manifest.AutomationActions, h.Actions)
+	}
+}
+
+// What each action declares goes to a signed-in caller only; an anonymous one gets both maps
+// present and empty, so the shape stays one.
+func TestTheActionsDeclarationsAreTheSignedInCallers(t *testing.T) {
+	fields := map[string][]usecase.Field{"COMPLETE_WORK_ITEM": {{Name: "item_id", Kind: usecase.KindString, Required: true}}}
+	summaries := map[string]string{"COMPLETE_WORK_ITEM": "Completes an entry."}
+	for _, test := range []struct {
+		name  string
+		actor appshared.ActorContext
+		want  int
+	}{
+		{"anonymous", appshared.Anonymous("en", "UTC"), 0},
+		{"signed in", member(), 1},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			h := handler(profiles{list: systemDefaults()}, &unitOfWork{})
+			h.ActionFields, h.ActionSummaries = fields, summaries
+			manifest, err := h.Execute(t.Context(), test.actor)
+			if err != nil {
+				t.Fatalf("reading the manifest: %v", err)
+			}
+			if manifest.AutomationActionFields == nil || manifest.AutomationActionSummaries == nil {
+				t.Fatalf("a map is absent: fields %v, summaries %v", manifest.AutomationActionFields, manifest.AutomationActionSummaries)
+			}
+			if len(manifest.AutomationActionFields) != test.want || len(manifest.AutomationActionSummaries) != test.want {
+				t.Errorf("fields %v, summaries %v, want %d each", manifest.AutomationActionFields, manifest.AutomationActionSummaries, test.want)
+			}
+		})
 	}
 }
 

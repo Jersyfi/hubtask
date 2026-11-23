@@ -431,9 +431,10 @@ class Items {
    */
   async rewriteNotes(id: string, notes: string): Promise<WorkItem> {
     const current = await engine.refresh<WorkItem>({ path: `/items/${id}` });
-    const version = current.status === 'ready' ? current.data.version : undefined;
+    // Unread, there is no version to write against: nothing is written over a text nobody saw.
+    if (current.status !== 'ready') throw current.status === 'failed' ? current.error : new Error('the entry was not read');
     return engine.mutate<WorkItem>('PATCH', `/items/${id}`, { notes }, {
-      ...(version !== undefined ? { ifMatch: etagFor(version) } : {}),
+      ifMatch: etagFor(current.data.version),
       invalidates: touchesOf(id),
     });
   }

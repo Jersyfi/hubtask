@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	settingrepo "github.com/Jersyfi/hubtask/core/application/repository/setting"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -168,6 +170,62 @@ func (SettingRepository) Remove(ctx context.Context, place settingrepo.Place, ke
 		return false, queryFailed("removing a setting", err)
 	}
 	return removed > 0, nil
+}
+
+// HubsWithout answers every hub of the workspace that stores nothing under the key.
+func (SettingRepository) HubsWithout(ctx context.Context, key domain.Key) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListHubsWithoutSetting(ctx, string(key))
+	if err != nil {
+		return nil, queryFailed("reading the hubs without a setting", err)
+	}
+	return hubIDs(rows)
+}
+
+// PinHubs writes the flag at each hub named that stores none under the key, in one statement.
+func (SettingRepository) PinHubs(ctx context.Context, pin settingrepo.HubPin, at time.Time) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	params := sqlc.PinHubSettingFlagsParams{
+		Key: string(pin.Key), Value: pin.On, OnWhere: make([]string, 0, len(pin.OnWhere)), UpdatedAt: timestampOf(at),
+	}
+	for _, key := range pin.OnWhere {
+		params.OnWhere = append(params.OnWhere, string(key))
+	}
+	for _, hub := range pin.Hubs {
+		row, err := uuidOf(hub.RowID)
+		if err != nil {
+			return nil, err
+		}
+		scope, err := uuidOf(hub.HubID)
+		if err != nil {
+			return nil, err
+		}
+		params.Ids = append(params.Ids, row)
+		params.Hubs = append(params.Hubs, scope)
+	}
+	rows, err := queries.PinHubSettingFlags(ctx, params)
+	if err != nil {
+		return nil, queryFailed("pinning a setting at the hubs", err)
+	}
+	return hubIDs(rows)
+}
+
+func hubIDs(rows []pgtype.UUID) ([]shared.ID, error) {
+	hubs := make([]shared.ID, 0, len(rows))
+	for _, row := range rows {
+		hub, err := idFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		hubs = append(hubs, hub)
+	}
+	return hubs, nil
 }
 
 type allowedDocument struct {

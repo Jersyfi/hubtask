@@ -86,7 +86,9 @@
   import { platform } from '../platform/index.ts';
   import { webAppAddress, webAppHost } from '../webApp.ts';
   import { holdsHere, reachesAdministrationArea } from '../data/capability.svelte.ts';
-  import { t } from '../i18n/i18n.svelte.ts';
+  import { BUNDLED, messages, naming, t } from '../i18n/i18n.svelte.ts';
+  import { localesToResolve } from '../i18n/locale.ts';
+  import { namingLocale } from '../i18n/naming.ts';
   import { DESTINATIONS, PRODUCTS, SETTINGS, account, administrationFor, currentRow, instanceSection, leftToWebApp, type AccountAction } from '../navigation.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
   import { webhooks } from '../data/webhooks.svelte.ts';
@@ -269,6 +271,17 @@
   $effect(() => {
     if (!session.isSignedIn || !isInAdministration) return;
     return untrack(() => workspace.open());
+  });
+
+  // The language a name made here is stored in (`naming.ts`): the account's, else the workspace's
+  // default, so the workspace is read for a reader whose account sets none.
+  $effect(() => {
+    if (!session.isSignedIn || actor.locale) return;
+    return untrack(() => workspace.open());
+  });
+  $effect(() => {
+    const supported = localesToResolve(manifest.isRead, manifest.supportedLocales, BUNDLED);
+    naming.adopt(namingLocale({ account: actor.locale, workspace: workspace.workspace?.default_locale }, supported, messages.locale));
   });
 
   // Whose list of recently opened entries this device is holding. The account's id is the key, so

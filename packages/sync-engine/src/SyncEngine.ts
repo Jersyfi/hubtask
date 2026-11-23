@@ -141,6 +141,14 @@ export interface ResourceRequest {
    * invalidates nothing, because it wrote nothing.
    */
   readonly body?: unknown;
+  /**
+   * Ask again with the held copy's tag in `If-None-Match`, and keep that copy on a `304`.
+   *
+   * Only a copy this engine read from the server and still holds is named: none after a reset,
+   * none from the replica, none over more than one page. A `304` to a read that named none is a
+   * failure, never an answer.
+   */
+  readonly revalidate?: boolean;
 }
 
 /**
@@ -1565,16 +1573,27 @@ export class SyncEngine {
     // tab order back to the row. Only the first read, and a retry after a failure, show `loading`;
     // a reload is invisible until it lands, and lands as `ready` like the first.
     if (entry.state.status !== 'ready') this.#publish(entry, { status: 'loading' });
+    const held = request.revalidate && entry.state.status === 'ready' && entry.state.source === 'server' &&
+      entry.state.etag !== undefined && (entry.pages ?? 1) === 1
+      ? entry.state
+      : undefined;
     try {
       // A document makes it a `POST`, and nothing else about it changes. It still reads: no cache
       // is dropped here, because a read that invalidated would make a board reload itself. The
       // options are taken inside the call, so the retry after an exchange carries the new bearer.
       const answer = await this.#attempt(() => {
-        const options = this.#options(request);
+        const options = { ...this.#options(request), ifNoneMatch: held?.etag };
         return request.body === undefined
           ? this.#transport.get<T>(request.path, options)
           : this.#transport.send<T>('POST', request.path, request.body, options);
       });
+      if (answer.status === 304) {
+        if (!held) throw new TransportError('malformed', { status: 304 });
+        const etag = answer.etag ?? held.etag;
+        entry.etag = etag;
+        this.#publish(entry, { status: 'ready', data: held.data, at: this.#clock.now(), source: 'server', etag });
+        return;
+      }
       entry.etag = answer.etag;
       const data = (entry.pages ?? 1) > 1 ? await this.#pagesAfter(request, entry, answer.body) : answer.body;
       this.#publish(entry, {

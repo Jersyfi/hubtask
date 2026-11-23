@@ -46,7 +46,7 @@ injected ([arc42.md](./arc42.md) §8.13).
 14. **Audit obligation**: a security- or compliance-relevant operation is in the `AuditableAction` registry.
 15. **Sync impact**: change log entries produced, each field's merge rule ([offline-sync.md](./offline-sync.md) §4).
 16. **Client availability**: the area of the client capability matrix; a restriction beyond [arc42.md](./arc42.md) §8.19 is recorded there with its reason and an ADR.
-17. **No other product's name in the implementation** ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md) decision 6): not in code, comments, identifiers, commits, pull request or issue text, the catalogue, the UI, the website, the workbench or a specification. An ADR may name where a pattern is proven in one sentence of context; a dependency is named where its licence requires; an import format carries its name.
+17. **No other product's name in the implementation** ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md) decision 6): not in code, comments, identifiers, commits, pull request or issue text, the catalogue, the UI, the website, the workbench or a specification. An ADR may name where a pattern is proven in one sentence of context; a dependency is named where its licence requires; an import format carries its name; a deployment platform's file and its documentation carry its name.
 
 ---
 

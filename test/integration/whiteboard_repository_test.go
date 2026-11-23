@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	syncrepo "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/domain/model/reference"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/whiteboard"
@@ -308,6 +309,78 @@ func TestTheBoardWalkStaysInItsWorkspace(t *testing.T) {
 	}
 	if _, found := seen(tenantB)[board]; found {
 		t.Error("the workspace next door walked the board")
+	}
+}
+
+// The initial sync's comment walk (UC-CNV-09 check 6) answers a workspace's own comments with
+// their board's hub, pages them by identifier, leaves out those of a board in the trash, and
+// answers none of them to the workspace next door.
+func TestTheBoardCommentWalkStaysInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	hub, board, _ := seedBoard(ctx, t)
+	repo := postgres.NewWhiteboardRepository()
+	snapshot := postgres.NewSnapshotRepository()
+	at := time.Date(2026, 11, 22, 9, 0, 0, 0, time.UTC)
+	first := whiteboard.Comment{ID: freshID(t), BoardID: board, AuthorID: authorA, Body: "Why here?", Element: "s1", X: 3, Y: 4, CreatedAt: at, Version: 1}
+	second := whiteboard.Comment{ID: freshID(t), BoardID: board, ParentID: first.ID, AuthorID: authorA, Body: "Because", CreatedAt: at.Add(time.Minute), Version: 1}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := repo.InsertComment(ctx, first); err != nil {
+			return err
+		}
+		return repo.InsertComment(ctx, second)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	walked := func(tenant shared.ID) map[shared.ID]syncrepo.BoardComment {
+		found := map[shared.ID]syncrepo.BoardComment{}
+		if err := write(ctx, t, tenant, func(ctx context.Context) error {
+			// One row a page, so the paging by identifier is what finds the second.
+			after := shared.ID("")
+			for {
+				page, err := snapshot.WhiteboardComments(ctx, after, 1)
+				if err != nil || len(page) == 0 {
+					return err
+				}
+				if page[0].Comment.ID <= after {
+					t.Fatalf("the walk went back from %s to %s", after, page[0].Comment.ID)
+				}
+				after = page[0].Comment.ID
+				found[after] = page[0]
+			}
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return found
+	}
+	own := walked(tenantA)
+	if got := own[first.ID]; got.HubID != hub || got.Comment.BoardID != board || got.Comment.Body != "Why here?" ||
+		got.Comment.Element != "s1" || got.Comment.X != 3 || got.Comment.Version != 1 {
+		t.Errorf("the workspace's walk holds %+v for the thread", got)
+	}
+	if got := own[second.ID]; got.HubID != hub || got.Comment.ParentID != first.ID {
+		t.Errorf("the workspace's walk holds %+v for the reply", got)
+	}
+	next := walked(tenantB)
+	if _, found := next[first.ID]; found {
+		t.Error("the workspace next door walked the comment")
+	}
+	if _, found := next[second.ID]; found {
+		t.Error("the workspace next door walked the reply")
+	}
+
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		trashed, err := repo.Find(ctx, board)
+		if err != nil {
+			return err
+		}
+		gone := at.Add(time.Hour)
+		trashed.DeletedAt, trashed.UpdatedAt = &gone, gone
+		return repo.Update(ctx, trashed, trashed.Version)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, found := walked(tenantA)[first.ID]; found {
+		t.Error("the walk holds a comment of a board in the trash")
 	}
 }
 

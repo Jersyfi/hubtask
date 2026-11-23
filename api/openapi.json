@@ -14866,15 +14866,44 @@
         "x-hubtask-rest": "delegated",
         "x-hubtask-rest-to": "Meta",
         "summary": "Self-description of the installation",
-        "description": "Item types, capability profiles, field types, enum values, limits, supported locales,\nlayout hints, automation triggers and actions, and event types.\nClients configure themselves from this instead of hard-coding values.\n",
+        "description": "Item types, capability profiles, field types, enum values, limits, supported locales,\nlayout hints, automation triggers and actions, and event types.\nClients configure themselves from this instead of hard-coding values.\n\nThe answer is the caller's: a signed-in caller reads their workspace's manifest, an\nanonymous one the installation's. It is never stored (`Cache-Control: no-store`), and a\nclient that holds a copy asks again with that copy's `ETag` in `If-None-Match`: where the\nmanifest is unchanged the answer is `304` without a body. That saves the bytes on the\nwire, not the building of the answer.\n",
         "security": [],
+        "parameters": [
+          {
+            "name": "If-None-Match",
+            "in": "header",
+            "required": false,
+            "description": "The `ETag` of the manifest the client holds. Where it is still this caller's answer, the server answers `304` without a body.\n",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "The manifest",
+            "headers": {
+              "ETag": {
+                "description": "A strong tag over the whole answer. Two callers share one only where their answers are equal.\n",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Capabilities"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The manifest the client holds is still this caller's answer; no body.",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -17188,7 +17217,7 @@
         "x-hubtask-rest-list": "data",
         "x-hubtask-rest-answer": "invitationDeliveryResponse",
         "summary": "How the last mail to each of many accounts went",
-        "description": "For the people list's rows: for up to 200 accounts, the last mail this workspace queued\nfor each - an invitation, or any other mail it tells a person by (`category`) - queued,\nbeing sent, sent, failed with its code, or cancelled, and when. The newer of the last\ninvitation and the last other mail is answered. An account with no mail on record (none\nqueued, an installation that hands invitations over as links, or one finished long enough\nago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation\ndoes.\n",
+        "description": "For the people list's rows: for up to 200 accounts, the last mail this workspace queued\nfor each - an invitation, or any other mail it tells a person by (`category`) - queued,\nbeing sent, sent, failed with its code, or cancelled, and when. While an account is\ninvited and has not accepted, its last invitation mail is answered, whatever other mail\nwent out since - cancelled where the invitation was handed over by link; with no\ninvitation mail on record, the last other mail. For any other account the newer of the\nlast invitation and the last other mail is answered. An account with no mail on record (none\nqueued, an installation that hands invitations over as links, or one finished long enough\nago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation\ndoes.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -19561,7 +19590,7 @@
         "x-hubtask-rest-shown-once": "owner_redemption_token",
         "x-hubtask-rest-location": "/admin/tenants",
         "summary": "Provision a workspace",
-        "description": "Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
+        "description": "Creates the tenant with its defaults: a default hub, an example collection with the standard labels (and its starting columns only where the structure in force opens it on its board), the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -28651,7 +28680,7 @@
         "operationId": "setModule",
         "x-hubtask-rest": "generated",
         "summary": "Switch a module on or off",
-        "description": "Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.\n",
+        "description": "Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. On at the workspace allows the module and is what a hub made afterwards starts with; it changes no hub that exists, except the hubs named in `hub_ids`, where it is switched on as well. Off at the workspace takes the module from every hub, and on again gives each hub the state it had. A hub decides for itself inside that: switching on there what the workspace has off is refused with `setting.not_allowed`. `hub_ids` goes with `switch: ON` at the workspace only - otherwise `module.hubs_with_on_only` - and needs the right to change the shape of each hub named. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.\n",
         "parameters": [
           {
             "name": "module",
@@ -30468,7 +30497,7 @@
           "containerId": "collection_id"
         },
         "summary": "Show a collection's tasks as a board, or as a list again",
-        "description": "`COLUMNS` gives a list a board: two columns, open and done (named in the workspace's\nlanguage), the completed entries in the done one and the open ones in the other. `NONE`\ntakes the columns off again, the done column last; completion stays as it is. Refused with\n`board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`\nwhere the collection already stands there. `dry_run` counts and writes nothing. Needs\nSTRUCTURE where the collection is.\n",
+        "description": "`COLUMNS` gives a list a board: two columns, open and done (named in the creating person's\nlanguage, or the workspace's default), the completed entries in the done one and the open\nones in the other. `NONE` takes the columns off again, the done column last; completion\nstays as it is. Refused with `board.workflow_runs` while a workflow runs for tasks there and\nwith `board.level_unchanged` where the collection already stands there. `dry_run` counts and\nwrites nothing. Needs STRUCTURE where the collection is.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -39710,7 +39739,7 @@
               "null"
             ],
             "maxLength": 35,
-            "description": "The language the invitation card was read in, as a BCP 47 tag. The owner a new workspace was made for finds its default hub, example collection, columns and labels named in it, where nobody has renamed them yet; a language without a catalogue reads the source language. Absent, they keep the workspace's language. Ignored for anybody else.\n"
+            "description": "The language the invitation card was read in, as a BCP 47 tag. Whoever accepts, it becomes the account's language where the account has none; an account that already has a language keeps it. The owner a new workspace was made for also finds its default hub, example collection, columns and labels named in it - or in the account's own language - where nobody has renamed them yet. Absent, or a language this installation has no catalogue for, the account gets none and those defaults keep the workspace's language.\n"
           }
         }
       },
@@ -55777,6 +55806,15 @@
             "format": "uuid",
             "description": "A collection taking a template's collection part; its document is its hub's, which `hub_id` names or the collection implies."
           },
+          "module_hub_ids": {
+            "type": "array",
+            "maxItems": 200,
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "With the workspace's document: the existing hubs in which a module this apply switches on for the workspace is switched on as well, as `hub_ids` of `setModule` - the hub a template is taken for. Omitted, no existing hub changes. With `hub_id` it is refused as `module.hubs_with_on_only`, more than 200 as `module.hubs_too_many`. A plan that waits for a person carries none.\n"
+          },
           "from_sandbox": {
             "type": "boolean",
             "description": "Promotes the sandbox - what it changed since its copy - instead of a document."
@@ -56545,6 +56583,15 @@
             "type": "string",
             "format": "uuid",
             "description": "The hub to switch it for; omitted is the workspace."
+          },
+          "hub_ids": {
+            "type": "array",
+            "maxItems": 200,
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "With `switch: ON` at the workspace: the existing hubs the module is switched on in as well. Omitted or empty, no existing hub changes. More than 200 are refused as `module.hubs_too_many`; a further request for the hub itself switches it on there.\n"
           }
         }
       },
@@ -59395,7 +59442,7 @@
               "FLOW",
               null
             ],
-            "description": "The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set. A collection whose structure offers the board starts with the columns to do, in progress and done, named in the workspace's language; where the board is its default view, the column in progress is limited to three.\n"
+            "description": "The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set. A collection whose structure opens on the board starts with the columns to do, in progress and done, named in the creating person's language, or the workspace's default, the column in progress limited to three; one that offers the board only beside a list starts without columns.\n"
           },
           "preset_id": {
             "type": [
@@ -70802,7 +70849,7 @@
               },
               "action_fields": {
                 "type": "object",
-                "description": "For every kind in `actions`, the parameters its use case declares - the same fields the MCP tool schema for that use case is derived from, and derived here from the same declaration rather than written a second time. A rule editor builds an action's form from this rather than from a schema compiled into it: a client with its own would be wrong on the installation whose use case grew a field. Always present, and a kind with no parameters maps to an empty array. What a rule may leave out is not said here: a rule supplies some parameters and the run supplies the rest, so `required` describes the call, not the rule.\n",
+                "description": "For every kind in `actions`, the parameters its use case declares - the same fields the MCP tool schema for that use case is derived from, and derived here from the same declaration rather than written a second time. A rule editor builds an action's form from this rather than from a schema compiled into it: a client with its own would be wrong on the installation whose use case grew a field. Always present, filled for a signed-in caller and empty for an anonymous one, who writes no rule; a kind with no parameters maps to an empty array. What a rule may leave out is not said here: a rule supplies some parameters and the run supplies the rest, so `required` describes the call, not the rule.\n",
                 "additionalProperties": {
                   "type": "array",
                   "items": {
@@ -70812,7 +70859,7 @@
               },
               "action_summaries": {
                 "type": "object",
-                "description": "For every kind in `actions`, the one sentence its use case declares - the same sentence the MCP tool for it carries, derived from the same declaration. A rule editor's catalogue says it under the kind's name, so that every kind the installation serves is readable without a copy of the sentences compiled into a client. Protocol documentation in English, as every description in this document is; a client that lacks it shows the name alone. Always present.\n",
+                "description": "For every kind in `actions`, the one sentence its use case declares - the same sentence the MCP tool for it carries, derived from the same declaration. A rule editor's catalogue says it under the kind's name, so that every kind the installation serves is readable without a copy of the sentences compiled into a client. Protocol documentation in English, as every description in this document is; a client that lacks it shows the name alone. Always present, filled for a signed-in caller and empty for an anonymous one.\n",
                 "additionalProperties": {
                   "type": "string"
                 }

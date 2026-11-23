@@ -106,8 +106,19 @@ type RedeemInvitationCommand struct {
 // SeedLocaliser names the defaults provisioning seeded for an owner in the owner's language,
 // inside the redemption's transaction (admin.LocaliseSeed): until the redemption nobody knows what
 // that language is, and the workspace's own is only the operator's guess (user-experience.md §4).
+// It answers the language the seed is named in, "" where there was none of it to name or no
+// catalogue for the language. Serves is the same catalogue match: the tag where the installation
+// renders it, else "".
 type SeedLocaliser interface {
-	LocaliseSeed(ctx context.Context, owner domain.Account, locale string, now time.Time) error
+	LocaliseSeed(ctx context.Context, owner domain.Account, locale string, now time.Time) (string, error)
+	Serves(locale string) string
+}
+
+// RedemptionAccounts is the slice of the account store the redemption writes the owner's language
+// through.
+type RedemptionAccounts interface {
+	Find(ctx context.Context, accountID shared.ID) (domain.Account, error)
+	UpdatePreferences(ctx context.Context, account domain.Account, at time.Time) error
 }
 
 // RedeemInvitation closes the invitation loop: the token from the mail, a password under
@@ -126,8 +137,13 @@ type RedeemInvitation struct {
 	// where the product's own default is what a password is judged against - which is exactly what
 	// this route enforced before there was a rule to resolve.
 	Passwords *PasswordWriter
-	// Seed renames what provisioning seeded for this person into their language. Nil keeps it.
+	// Seed renames what provisioning seeded for this person into their language, and tells which
+	// languages a catalogue serves. Nil keeps the seed and stores no language.
 	Seed SeedLocaliser
+	// Accounts keeps the language the card was read in as the account's own where it has none,
+	// whoever was invited, so the names the person reads and the ones the server stores later agree
+	// (i18n-l10n.md §2). Nil stores nothing.
+	Accounts RedemptionAccounts
 }
 
 // Execute redeems. Unknown, expired and already-redeemed are one indistinguishable refusal:
@@ -233,10 +249,22 @@ func (h RedeemInvitation) Execute(
 		account = found.Account
 		account.Status = domain.AccountActive
 
-		if h.Seed != nil && cmd.Locale != "" {
-			if err := h.Seed.LocaliseSeed(ctx, account, cmd.Locale, now); err != nil {
-				return err
-			}
+		changes := []audit.Change{{
+			Field: "status", Classification: audit.Open,
+			From: string(domain.AccountInvited), To: string(domain.AccountActive),
+		}}
+		if err := h.nameTheSeed(ctx, account, cmd.Locale, now); err != nil {
+			return err
+		}
+		stored, err := h.keepTheLanguage(ctx, account, cmd.Locale, now)
+		if err != nil {
+			return err
+		}
+		if stored != "" {
+			account.Locale = stored
+			changes = append(changes, audit.Change{
+				Field: "locale", Classification: audit.Open, To: stored,
+			})
 		}
 
 		if err := w.Audit.Append(ctx, audit.Entry{
@@ -251,10 +279,7 @@ func (h RedeemInvitation) Execute(
 			TargetType: accountTarget,
 			TargetID:   account.ID,
 			Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
-			Changes: audit.Changes(audit.Change{
-				Field: "status", Classification: audit.Open,
-				From: string(domain.AccountInvited), To: string(domain.AccountActive),
-			}),
+			Changes:    audit.Changes(changes...),
 		}); err != nil {
 			return err
 		}
@@ -299,6 +324,53 @@ func (h RedeemInvitation) Execute(
 		return SignInResult{}, err
 	}
 	return SignInResult{Pair: &pair}, nil
+}
+
+// nameTheSeed names the redeemer's own untouched seed in the account's own language, else in the
+// one the card was read in. Anybody without a seed of their own finds nothing to rename.
+func (h RedeemInvitation) nameTheSeed(
+	ctx context.Context, account domain.Account, requested string, now time.Time,
+) error {
+	if h.Seed == nil {
+		return nil
+	}
+	language := account.Locale
+	if language == "" {
+		language = requested
+	}
+	if language == "" {
+		return nil
+	}
+	_, err := h.Seed.LocaliseSeed(ctx, account, language, now)
+	return err
+}
+
+// keepTheLanguage stores the language the card was read in as the account's, for every invited
+// person without one, and answers it (i18n-l10n.md §2): never over a language the account already
+// has, and only one a catalogue serves - an unserved one would read the source language.
+func (h RedeemInvitation) keepTheLanguage(
+	ctx context.Context, account domain.Account, requested string, now time.Time,
+) (string, error) {
+	if account.Locale != "" || h.Seed == nil || h.Accounts == nil {
+		return "", nil
+	}
+	served := h.Seed.Serves(requested)
+	if served == "" {
+		return "", nil
+	}
+	// The whole row, because the store writes every preference column at once.
+	current, err := h.Accounts.Find(ctx, account.ID)
+	if err != nil {
+		return "", err
+	}
+	updated, err := current.WithLocale(served)
+	if err != nil {
+		return "", err
+	}
+	if err := h.Accounts.UpdatePreferences(ctx, updated, now); err != nil {
+		return "", err
+	}
+	return updated.Locale, nil
 }
 
 // rulesFor resolves the workspace's rule, or the product's default on an installation wired
@@ -352,8 +424,9 @@ func (h RedeemInvitation) Descriptor() usecase.Descriptor {
 			"is the same indistinguishable refusal.",
 		SideEffects: "Sets the first password, activates the account, kills the token, opens a " +
 			"session or mints the pending credential of the ENROLL step, writes audit entries, " +
-			"and for the owner a workspace was made for renames its untouched defaults into the " +
-			"language sent.",
+			"for the owner a workspace was made for renames its untouched defaults into the " +
+			"account's language, else the one sent, and for everybody keeps the one sent as the " +
+			"account's where it had none and the installation has a catalogue for it.",
 		Input: []usecase.Field{
 			{
 				Name: "token", Kind: usecase.KindString, Required: true,
@@ -388,8 +461,9 @@ func (h RedeemInvitation) Descriptor() usecase.Descriptor {
 			},
 			{
 				Name: "locale", Kind: usecase.KindString,
-				Description: "The language the invitation card was read in. The owner a workspace " +
-					"was made for finds its untouched defaults named in it.",
+				Description: "The language the invitation card was read in. Kept as the account's " +
+					"language where it has none and the installation has a catalogue for it; the " +
+					"owner a workspace was made for also finds its untouched defaults named in it.",
 			},
 		},
 		Audit: usecase.AuditDeclaration{

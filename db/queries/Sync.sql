@@ -645,6 +645,18 @@ WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after') AND deleted_at 
 ORDER BY id
 LIMIT sqlc.arg('batch');
 
+-- name: SnapshotWhiteboardComments :many
+-- The comments of the boards outside the trash (migration 0273), each filed under its board's hub,
+-- which decides who is told of it. A comment taken back is among them: its place in the thread
+-- stays, and the reader's side answers no words.
+SELECT c.id, c.whiteboard_id, c.parent_id, c.author_id, c.body, c.element_id, c.x, c.y, c.resolved_at,
+       c.resolved_by, c.created_at, c.edited_at, c.deleted_at, c.version, w.hub_id
+FROM whiteboard_comment c
+JOIN whiteboard w ON w.tenant_id = c.tenant_id AND w.id = c.whiteboard_id
+WHERE c.tenant_id = current_tenant_id() AND c.id > sqlc.arg('after') AND w.deleted_at IS NULL
+ORDER BY c.id
+LIMIT sqlc.arg('batch');
+
 -- name: SnapshotCmdbAffected :many
 -- The CIs entries name as affected (migration 0274), each filed under the CI's hub.
 SELECT a.id, a.item_id, a.ci_id, a.added_by, a.added_at, c.hub_id

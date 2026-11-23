@@ -189,6 +189,53 @@ func TestTheCapabilityManifestMatchesTheSchema(t *testing.T) {
 	}
 }
 
+// A client holding the manifest asks with its tag, and what the server answers then - a 304 with
+// the tag and no body - is an answer the specification declares, with the header the client sends.
+func TestTheManifestsRevalidationIsTheSpecifiedOne(t *testing.T) {
+	controller := rest.NewRestController()
+	controller.Meta = &rest.MetaDoor{Capabilities: manifest{result: usecase.Capabilities{APIVersion: usecase.APIVersion}}}
+	read := func(tag string) *httptest.ResponseRecorder {
+		r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, rest.APIBasePath+"/meta/capabilities", nil)
+		if tag != "" {
+			r.Header.Set("If-None-Match", tag)
+		}
+		response := httptest.NewRecorder()
+		controller.Routes().ServeHTTP(response, r)
+		return response
+	}
+	first := read("")
+	tag := first.Header().Get("ETag")
+	if first.Code != http.StatusOK || tag == "" {
+		t.Fatalf("the first read answered %d with ETag %q", first.Code, tag)
+	}
+	again := read(tag)
+	if again.Code != http.StatusNotModified || again.Body.Len() != 0 || again.Header().Get("ETag") != tag {
+		t.Fatalf("revalidating with %q answered %d, %d bytes, ETag %q", tag, again.Code, again.Body.Len(), again.Header().Get("ETag"))
+	}
+
+	op := declaredRoutes(t)[http.MethodGet+" "+rest.APIBasePath+"/meta/capabilities"]
+	if op == nil {
+		t.Fatal("the specification declares no GET /meta/capabilities")
+	}
+	for status, answer := range map[string]*httptest.ResponseRecorder{"200": first, "304": again} {
+		declared := op.Responses[status]
+		if declared == nil {
+			t.Errorf("the specification declares no %s for the manifest, the server answers one", status)
+			continue
+		}
+		if _, ok := declared.Headers["ETag"]; !ok && answer.Header().Get("ETag") != "" {
+			t.Errorf("the %s carries an ETag the specification does not declare", status)
+		}
+	}
+	sent := false
+	for _, parameter := range op.Parameters {
+		sent = sent || (parameter.In == "header" && parameter.Name == "If-None-Match")
+	}
+	if !sent {
+		t.Error("the specification declares no If-None-Match the client may send")
+	}
+}
+
 // An item type the specification does not know is a contract break dressed as data: the enum in
 // the document is what a client generates its own types from.
 func TestAnUnknownItemTypeIsCaughtByTheSchema(t *testing.T) {

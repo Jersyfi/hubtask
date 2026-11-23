@@ -104,7 +104,7 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   assert.deepEqual((await trail.getByRole('link').allTextContents()).map((each) => each.trim()), [HUB.name, COLLECTION.name]);
 
   // Completion from the head: the status button's next step, *Done*, makes the same write the row
-  // makes; the title is struck through, and the status's *To do* reopens and takes the stroke away
+  // makes; the title is struck through, and the status's *Open* reopens and takes the stroke away
   // (UC-WRK-04 checks 1, 2 - the checkbox stays the row's).
   // The client re-reads the entry after either write, so the entry answers what was last written.
   let current = ENTRY;
@@ -131,7 +131,7 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   await page.waitForFunction(() => getComputedStyle(document.querySelector('h1 .title-text')).textDecorationLine === 'line-through', undefined, { timeout: 5_000 })
     .catch(() => assert.fail('a completed entry is not struck through'));
   await head.getByRole('button', { name: /^Status: / }).click();
-  await page.getByRole('menuitemradio', { name: /To do/ }).first().click();
+  await page.getByRole('menuitemradio', { name: /^Open/ }).first().click();
   await page.waitForTimeout(300);
   assert.ok(written.some((w) => w.method === 'POST' && w.path.endsWith(`/items/${ENTRY.id}:reopen`)), `the status did not reopen: ${JSON.stringify(written)}`);
   assert.equal(await struck(), 'none', 'a reopened entry is still struck through');

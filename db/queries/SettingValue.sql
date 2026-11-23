@@ -21,6 +21,40 @@ ON CONFLICT (tenant_id, level, scope_id, key) DO UPDATE
   SET value = excluded.value, hold = excluded.hold, allowed = excluded.allowed,
       set_by = excluded.set_by, updated_at = excluded.updated_at;
 
+-- name: ListHubsWithoutSetting :many
+-- Every hub of the workspace that stores nothing under the key - archived and trashed hubs too,
+-- or restoring one would change what it has.
+SELECT c.id
+FROM container c
+WHERE c.tenant_id = current_tenant_id() AND c.type = 'HUB'
+  AND NOT EXISTS (
+    SELECT 1 FROM setting_value held
+    WHERE held.tenant_id = current_tenant_id() AND held.level = 'HUB' AND held.scope_id = c.id
+      AND held.key = sqlc.arg('key')::text
+  )
+ORDER BY c.id;
+
+-- name: PinHubSettingFlags :many
+-- A flag written at each hub named that stores none under the key, `ids[i]` being the new row's
+-- id for `hubs[i]`, answering the hubs written. A hub that stores on under one of `on_where` gets
+-- on whatever `value` says. The join keeps the write to the workspace's own hubs whatever is
+-- named; the conflict target is the workspace's own row, and DO NOTHING leaves it as it is.
+INSERT INTO setting_value (id, tenant_id, level, scope_id, key, value, hold, updated_at)
+SELECT pin.id, current_tenant_id(), 'HUB', c.id, sqlc.arg('key')::text,
+  to_jsonb(sqlc.arg('value')::boolean OR EXISTS (
+    SELECT 1 FROM setting_value held
+    WHERE held.tenant_id = current_tenant_id() AND held.level = 'HUB' AND held.scope_id = c.id
+      AND held.key = ANY(sqlc.arg('on_where')::text[]) AND held.value = 'true'::jsonb
+  )),
+  'SET', sqlc.arg('updated_at')
+FROM (
+  SELECT unnest(sqlc.arg('ids')::uuid[]) AS id, unnest(sqlc.arg('hubs')::uuid[]) AS hub_id
+) pin
+JOIN container c ON c.id = pin.hub_id
+WHERE c.tenant_id = current_tenant_id() AND c.type = 'HUB'
+ON CONFLICT (tenant_id, level, scope_id, key) DO NOTHING
+RETURNING scope_id;
+
 -- name: DeleteSettingValue :execrows
 DELETE FROM setting_value
 WHERE level = sqlc.arg('level') AND scope_id = sqlc.arg('scope_id') AND key = sqlc.arg('key');

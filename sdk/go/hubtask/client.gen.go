@@ -15187,10 +15187,10 @@ type Capabilities struct {
 
 	// Automation The vocabulary a rule is written in, and what a rule editor is built from rather than from a list compiled into it - a client with its own would be wrong on the installation that has one more.
 	Automation *struct {
-		// ActionFields For every kind in `actions`, the parameters its use case declares - the same fields the MCP tool schema for that use case is derived from, and derived here from the same declaration rather than written a second time. A rule editor builds an action's form from this rather than from a schema compiled into it: a client with its own would be wrong on the installation whose use case grew a field. Always present, and a kind with no parameters maps to an empty array. What a rule may leave out is not said here: a rule supplies some parameters and the run supplies the rest, so `required` describes the call, not the rule.
+		// ActionFields For every kind in `actions`, the parameters its use case declares - the same fields the MCP tool schema for that use case is derived from, and derived here from the same declaration rather than written a second time. A rule editor builds an action's form from this rather than from a schema compiled into it: a client with its own would be wrong on the installation whose use case grew a field. Always present, filled for a signed-in caller and empty for an anonymous one, who writes no rule; a kind with no parameters maps to an empty array. What a rule may leave out is not said here: a rule supplies some parameters and the run supplies the rest, so `required` describes the call, not the rule.
 		ActionFields *map[string][]AutomationActionField `json:"action_fields,omitempty"`
 
-		// ActionSummaries For every kind in `actions`, the one sentence its use case declares - the same sentence the MCP tool for it carries, derived from the same declaration. A rule editor's catalogue says it under the kind's name, so that every kind the installation serves is readable without a copy of the sentences compiled into a client. Protocol documentation in English, as every description in this document is; a client that lacks it shows the name alone. Always present.
+		// ActionSummaries For every kind in `actions`, the one sentence its use case declares - the same sentence the MCP tool for it carries, derived from the same declaration. A rule editor's catalogue says it under the kind's name, so that every kind the installation serves is readable without a copy of the sentences compiled into a client. Protocol documentation in English, as every description in this document is; a client that lacks it shows the name alone. Always present, filled for a signed-in caller and empty for an anonymous one.
 		ActionSummaries *map[string]string `json:"action_summaries,omitempty"`
 
 		// Actions Every use case a rule may perform, as `RuleAction.kind` names it - one name per use case, in SCREAMING_SNAKE_CASE, sorted. The engine's own flow kinds `WAIT`, `BRANCH` and `STOP` are not in it: they are control structures rather than use cases and are in no catalogue, so a client names those three itself.
@@ -16632,9 +16632,12 @@ type ConfigApplyRequest struct {
 	FromSandbox *bool `json:"from_sandbox,omitempty"`
 
 	// HubId A hub, for the hub's own document (its modules, structure, workflow scheme and business calendars); omitted is the workspace's.
-	HubId    *openapi_types.UUID     `json:"hub_id,omitempty"`
-	Mode     *ConfigApplyRequestMode `json:"mode,omitempty"`
-	PlanHash string                  `json:"plan_hash"`
+	HubId *openapi_types.UUID     `json:"hub_id,omitempty"`
+	Mode  *ConfigApplyRequestMode `json:"mode,omitempty"`
+
+	// ModuleHubIds With the workspace's document: the existing hubs in which a module this apply switches on for the workspace is switched on as well, as `hub_ids` of `setModule` - the hub a template is taken for. Omitted, no existing hub changes. With `hub_id` it is refused as `module.hubs_with_on_only`, more than 200 as `module.hubs_too_many`. A plan that waits for a person carries none.
+	ModuleHubIds *[]openapi_types.UUID `json:"module_hub_ids,omitempty"`
+	PlanHash     string                `json:"plan_hash"`
 
 	// Template The template@version the document came from, recorded as the workspace's provenance - or with `hub_id` as the hub's, for a template with a hub part, and with `collection_id` as the collection's, for a template with a collection part.
 	Template  *string `json:"template,omitempty"`
@@ -17330,7 +17333,7 @@ type ContainerCreate struct {
 	Name        string              `json:"name"`
 	ParentId    *openapi_types.UUID `json:"parent_id,omitempty"`
 
-	// Preset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set. A collection whose structure offers the board starts with the columns to do, in progress and done, named in the workspace's language; where the board is its default view, the column in progress is limited to three.
+	// Preset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set. A collection whose structure opens on the board starts with the columns to do, in progress and done, named in the creating person's language, or the workspace's default, the column in progress limited to three; one that offers the board only beside a list starts without columns.
 	Preset *ContainerCreatePreset `json:"preset,omitempty"`
 
 	// PresetId A saved preset to start from instead - the workspace's, the installation's or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
@@ -17341,7 +17344,7 @@ type ContainerCreate struct {
 	Type    ContainerType `json:"type"`
 }
 
-// ContainerCreatePreset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set. A collection whose structure offers the board starts with the columns to do, in progress and done, named in the workspace's language; where the board is its default view, the column in progress is limited to three.
+// ContainerCreatePreset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set. A collection whose structure opens on the board starts with the columns to do, in progress and done, named in the creating person's language, or the workspace's default, the column in progress limited to three; one that offers the board only beside a list starts without columns.
 type ContainerCreatePreset string
 
 // ContainerMilestone defines model for ContainerMilestone.
@@ -20136,7 +20139,7 @@ type InvitationInspection struct {
 
 // InvitationRedemption defines model for InvitationRedemption.
 type InvitationRedemption struct {
-	// Locale The language the invitation card was read in, as a BCP 47 tag. The owner a new workspace was made for finds its default hub, example collection, columns and labels named in it, where nobody has renamed them yet; a language without a catalogue reads the source language. Absent, they keep the workspace's language. Ignored for anybody else.
+	// Locale The language the invitation card was read in, as a BCP 47 tag. Whoever accepts, it becomes the account's language where the account has none; an account that already has a language keeps it. The owner a new workspace was made for also finds its default hub, example collection, columns and labels named in it - or in the account's own language - where nobody has renamed them yet. Absent, or a language this installation has no catalogue for, the account gets none and those defaults keep the workspace's language.
 	Locale *string `json:"locale,omitempty"`
 
 	// Password The first password, under the workspace's password policy.
@@ -21732,8 +21735,11 @@ type ModuleState struct {
 // ModuleSwitch defines model for ModuleSwitch.
 type ModuleSwitch struct {
 	// HubId The hub to switch it for; omitted is the workspace.
-	HubId  *openapi_types.UUID `json:"hub_id,omitempty"`
-	Switch ModuleSwitchSwitch  `json:"switch"`
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+
+	// HubIds With `switch: ON` at the workspace: the existing hubs the module is switched on in as well. Omitted or empty, no existing hub changes. More than 200 are refused as `module.hubs_too_many`; a further request for the hub itself switches it on there.
+	HubIds *[]openapi_types.UUID `json:"hub_ids,omitempty"`
+	Switch ModuleSwitchSwitch    `json:"switch"`
 }
 
 // ModuleSwitchSwitch defines model for ModuleSwitch.Switch.
@@ -31342,6 +31348,12 @@ type RevokeMembershipParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// GetCapabilitiesParams defines parameters for GetCapabilities.
+type GetCapabilitiesParams struct {
+	// IfNoneMatch The `ETag` of the manifest the client holds. Where it is still this caller's answer, the server answers `304` without a body.
+	IfNoneMatch *string `json:"If-None-Match,omitempty"`
+}
+
 // RegisterOauthClientParams defines parameters for RegisterOauthClient.
 type RegisterOauthClientParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -34772,8 +34784,11 @@ type ClientInterface interface {
 	//
 	// For the people list's rows: for up to 200 accounts, the last mail this workspace queued
 	// for each - an invitation, or any other mail it tells a person by (`category`) - queued,
-	// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
-	// invitation and the last other mail is answered. An account with no mail on record (none
+	// being sent, sent, failed with its code, or cancelled, and when. While an account is
+	// invited and has not accepted, its last invitation mail is answered, whatever other mail
+	// went out since - cancelled where the invitation was handed over by link; with no
+	// invitation mail on record, the last other mail. For any other account the newer of the
+	// last invitation and the last other mail is answered. An account with no mail on record (none
 	// queued, an installation that hands invitations over as links, or one finished long enough
 	// ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
 	// does.
@@ -34787,8 +34802,11 @@ type ClientInterface interface {
 	//
 	// For the people list's rows: for up to 200 accounts, the last mail this workspace queued
 	// for each - an invitation, or any other mail it tells a person by (`category`) - queued,
-	// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
-	// invitation and the last other mail is answered. An account with no mail on record (none
+	// being sent, sent, failed with its code, or cancelled, and when. While an account is
+	// invited and has not accepted, its last invitation mail is answered, whatever other mail
+	// went out since - cancelled where the invitation was handed over by link; with no
+	// invitation mail on record, the last other mail. For any other account the newer of the
+	// last invitation and the last other mail is answered. An account with no mail on record (none
 	// queued, an installation that hands invitations over as links, or one finished long enough
 	// ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
 	// does.
@@ -35451,7 +35469,7 @@ type ClientInterface interface {
 
 	// ProvisionTenantWithBody Provision a workspace
 	//
-	// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+	// Creates the tenant with its defaults: a default hub, an example collection with the standard labels (and its starting columns only where the structure in force opens it on its board), the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -35460,7 +35478,7 @@ type ClientInterface interface {
 
 	// ProvisionTenant Provision a workspace
 	//
-	// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+	// Creates the tenant with its defaults: a default hub, an example collection with the standard labels (and its starting columns only where the structure in force opens it on its board), the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -38533,12 +38551,12 @@ type ClientInterface interface {
 
 	// SwitchBoardWithBody Show a collection's tasks as a board, or as a list again
 	//
-	// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
-	// language), the completed entries in the done one and the open ones in the other. `NONE`
-	// takes the columns off again, the done column last; completion stays as it is. Refused with
-	// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
-	// where the collection already stands there. `dry_run` counts and writes nothing. Needs
-	// STRUCTURE where the collection is.
+	// `COLUMNS` gives a list a board: two columns, open and done (named in the creating person's
+	// language, or the workspace's default), the completed entries in the done one and the open
+	// ones in the other. `NONE` takes the columns off again, the done column last; completion
+	// stays as it is. Refused with `board.workflow_runs` while a workflow runs for tasks there and
+	// with `board.level_unchanged` where the collection already stands there. `dry_run` counts and
+	// writes nothing. Needs STRUCTURE where the collection is.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -38547,12 +38565,12 @@ type ClientInterface interface {
 
 	// SwitchBoard Show a collection's tasks as a board, or as a list again
 	//
-	// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
-	// language), the completed entries in the done one and the open ones in the other. `NONE`
-	// takes the columns off again, the done column last; completion stays as it is. Refused with
-	// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
-	// where the collection already stands there. `dry_run` counts and writes nothing. Needs
-	// STRUCTURE where the collection is.
+	// `COLUMNS` gives a list a board: two columns, open and done (named in the creating person's
+	// language, or the workspace's default), the completed entries in the done one and the open
+	// ones in the other. `NONE` takes the columns off again, the done column last; completion
+	// stays as it is. Refused with `board.workflow_runs` while a workflow runs for tasks there and
+	// with `board.level_unchanged` where the collection already stands there. `dry_run` counts and
+	// writes nothing. Needs STRUCTURE where the collection is.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -42076,8 +42094,14 @@ type ClientInterface interface {
 	// layout hints, automation triggers and actions, and event types.
 	// Clients configure themselves from this instead of hard-coding values.
 	//
+	// The answer is the caller's: a signed-in caller reads their workspace's manifest, an
+	// anonymous one the installation's. It is never stored (`Cache-Control: no-store`), and a
+	// client that holds a copy asks again with that copy's `ETag` in `If-None-Match`: where the
+	// manifest is unchanged the answer is `304` without a body. That saves the bytes on the
+	// wire, not the building of the answer.
+	//
 	// Corresponds with GET /meta/capabilities (the `GetCapabilities` operationId).
-	GetCapabilities(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetCapabilities(ctx context.Context, params *GetCapabilitiesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadConfigSchema The configuration document's JSON Schema
 	//
@@ -44954,7 +44978,7 @@ type ClientInterface interface {
 
 	// SetModuleWithBody Switch a module on or off
 	//
-	// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+	// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. On at the workspace allows the module and is what a hub made afterwards starts with; it changes no hub that exists, except the hubs named in `hub_ids`, where it is switched on as well. Off at the workspace takes the module from every hub, and on again gives each hub the state it had. A hub decides for itself inside that: switching on there what the workspace has off is refused with `setting.not_allowed`. `hub_ids` goes with `switch: ON` at the workspace only - otherwise `module.hubs_with_on_only` - and needs the right to change the shape of each hub named. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -44963,7 +44987,7 @@ type ClientInterface interface {
 
 	// SetModule Switch a module on or off
 	//
-	// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+	// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. On at the workspace allows the module and is what a hub made afterwards starts with; it changes no hub that exists, except the hubs named in `hub_ids`, where it is switched on as well. Off at the workspace takes the module from every hub, and on again gives each hub the state it had. A hub decides for itself inside that: switching on there what the workspace has off is refused with `setting.not_allowed`. `hub_ids` goes with `switch: ON` at the workspace only - otherwise `module.hubs_with_on_only` - and needs the right to change the shape of each hub named. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -47168,8 +47192,11 @@ func (c *Client) CreateManagedAccount(ctx context.Context, params *CreateManaged
 //
 // For the people list's rows: for up to 200 accounts, the last mail this workspace queued
 // for each - an invitation, or any other mail it tells a person by (`category`) - queued,
-// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
-// invitation and the last other mail is answered. An account with no mail on record (none
+// being sent, sent, failed with its code, or cancelled, and when. While an account is
+// invited and has not accepted, its last invitation mail is answered, whatever other mail
+// went out since - cancelled where the invitation was handed over by link; with no
+// invitation mail on record, the last other mail. For any other account the newer of the
+// last invitation and the last other mail is answered. An account with no mail on record (none
 // queued, an installation that hands invitations over as links, or one finished long enough
 // ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
 // does.
@@ -47193,8 +47220,11 @@ func (c *Client) ReadInvitationDeliveriesWithBody(ctx context.Context, contentTy
 //
 // For the people list's rows: for up to 200 accounts, the last mail this workspace queued
 // for each - an invitation, or any other mail it tells a person by (`category`) - queued,
-// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
-// invitation and the last other mail is answered. An account with no mail on record (none
+// being sent, sent, failed with its code, or cancelled, and when. While an account is
+// invited and has not accepted, its last invitation mail is answered, whatever other mail
+// went out since - cancelled where the invitation was handed over by link; with no
+// invitation mail on record, the last other mail. For any other account the newer of the
+// last invitation and the last other mail is answered. An account with no mail on record (none
 // queued, an installation that hands invitations over as links, or one finished long enough
 // ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
 // does.
@@ -48567,7 +48597,7 @@ func (c *Client) ListTenants(ctx context.Context, reqEditors ...RequestEditorFn)
 
 // ProvisionTenantWithBody Provision a workspace
 //
-// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+// Creates the tenant with its defaults: a default hub, an example collection with the standard labels (and its starting columns only where the structure in force opens it on its board), the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type.
 //
@@ -48586,7 +48616,7 @@ func (c *Client) ProvisionTenantWithBody(ctx context.Context, params *ProvisionT
 
 // ProvisionTenant Provision a workspace
 //
-// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+// Creates the tenant with its defaults: a default hub, an example collection with the standard labels (and its starting columns only where the structure in force opens it on its board), the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -55019,12 +55049,12 @@ func (c *Client) RenameContainerWithApplicationMergePatchPlusJSONBody(ctx contex
 
 // SwitchBoardWithBody Show a collection's tasks as a board, or as a list again
 //
-// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
-// language), the completed entries in the done one and the open ones in the other. `NONE`
-// takes the columns off again, the done column last; completion stays as it is. Refused with
-// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
-// where the collection already stands there. `dry_run` counts and writes nothing. Needs
-// STRUCTURE where the collection is.
+// `COLUMNS` gives a list a board: two columns, open and done (named in the creating person's
+// language, or the workspace's default), the completed entries in the done one and the open
+// ones in the other. `NONE` takes the columns off again, the done column last; completion
+// stays as it is. Refused with `board.workflow_runs` while a workflow runs for tasks there and
+// with `board.level_unchanged` where the collection already stands there. `dry_run` counts and
+// writes nothing. Needs STRUCTURE where the collection is.
 //
 // Takes any type of body and a specified content type.
 //
@@ -55043,12 +55073,12 @@ func (c *Client) SwitchBoardWithBody(ctx context.Context, containerId ContainerI
 
 // SwitchBoard Show a collection's tasks as a board, or as a list again
 //
-// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
-// language), the completed entries in the done one and the open ones in the other. `NONE`
-// takes the columns off again, the done column last; completion stays as it is. Refused with
-// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
-// where the collection already stands there. `dry_run` counts and writes nothing. Needs
-// STRUCTURE where the collection is.
+// `COLUMNS` gives a list a board: two columns, open and done (named in the creating person's
+// language, or the workspace's default), the completed entries in the done one and the open
+// ones in the other. `NONE` takes the columns off again, the done column last; completion
+// stays as it is. Refused with `board.workflow_runs` while a workflow runs for tasks there and
+// with `board.level_unchanged` where the collection already stands there. `dry_run` counts and
+// writes nothing. Needs STRUCTURE where the collection is.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -62851,9 +62881,15 @@ func (c *Client) RevokeMembership(ctx context.Context, membershipId MembershipId
 // layout hints, automation triggers and actions, and event types.
 // Clients configure themselves from this instead of hard-coding values.
 //
+// The answer is the caller's: a signed-in caller reads their workspace's manifest, an
+// anonymous one the installation's. It is never stored (`Cache-Control: no-store`), and a
+// client that holds a copy asks again with that copy's `ETag` in `If-None-Match`: where the
+// manifest is unchanged the answer is `304` without a body. That saves the bytes on the
+// wire, not the building of the answer.
+//
 // Corresponds with GET /meta/capabilities (the `GetCapabilities` operationId).
-func (c *Client) GetCapabilities(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetCapabilitiesRequest(c.Server)
+func (c *Client) GetCapabilities(ctx context.Context, params *GetCapabilitiesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetCapabilitiesRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -68839,7 +68875,7 @@ func (c *Client) ListModules(ctx context.Context, params *ListModulesParams, req
 
 // SetModuleWithBody Switch a module on or off
 //
-// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. On at the workspace allows the module and is what a hub made afterwards starts with; it changes no hub that exists, except the hubs named in `hub_ids`, where it is switched on as well. Off at the workspace takes the module from every hub, and on again gives each hub the state it had. A hub decides for itself inside that: switching on there what the workspace has off is refused with `setting.not_allowed`. `hub_ids` goes with `switch: ON` at the workspace only - otherwise `module.hubs_with_on_only` - and needs the right to change the shape of each hub named. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
 //
 // Takes any type of body and a specified content type.
 //
@@ -68858,7 +68894,7 @@ func (c *Client) SetModuleWithBody(ctx context.Context, module Module, contentTy
 
 // SetModule Switch a module on or off
 //
-// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. On at the workspace allows the module and is what a hub made afterwards starts with; it changes no hub that exists, except the hubs named in `hub_ids`, where it is switched on as well. Off at the workspace takes the module from every hub, and on again gives each hub the state it had. A hub decides for itself inside that: switching on there what the workspace has off is refused with `setting.not_allowed`. `hub_ids` goes with `switch: ON` at the workspace only - otherwise `module.hubs_with_on_only` - and needs the right to change the shape of each hub named. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -99749,7 +99785,7 @@ func NewRevokeMembershipRequest(server string, membershipId MembershipId, params
 }
 
 // NewGetCapabilitiesRequest constructs an http.Request for the GetCapabilities method
-func NewGetCapabilitiesRequest(server string) (*http.Request, error) {
+func NewGetCapabilitiesRequest(server string, params *GetCapabilitiesParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -99770,6 +99806,21 @@ func NewGetCapabilitiesRequest(server string) (*http.Request, error) {
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfNoneMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-None-Match", *params.IfNoneMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-None-Match", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -114354,8 +114405,11 @@ type ClientWithResponsesInterface interface {
 	//
 	// For the people list's rows: for up to 200 accounts, the last mail this workspace queued
 	// for each - an invitation, or any other mail it tells a person by (`category`) - queued,
-	// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
-	// invitation and the last other mail is answered. An account with no mail on record (none
+	// being sent, sent, failed with its code, or cancelled, and when. While an account is
+	// invited and has not accepted, its last invitation mail is answered, whatever other mail
+	// went out since - cancelled where the invitation was handed over by link; with no
+	// invitation mail on record, the last other mail. For any other account the newer of the
+	// last invitation and the last other mail is answered. An account with no mail on record (none
 	// queued, an installation that hands invitations over as links, or one finished long enough
 	// ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
 	// does.
@@ -114369,8 +114423,11 @@ type ClientWithResponsesInterface interface {
 	//
 	// For the people list's rows: for up to 200 accounts, the last mail this workspace queued
 	// for each - an invitation, or any other mail it tells a person by (`category`) - queued,
-	// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
-	// invitation and the last other mail is answered. An account with no mail on record (none
+	// being sent, sent, failed with its code, or cancelled, and when. While an account is
+	// invited and has not accepted, its last invitation mail is answered, whatever other mail
+	// went out since - cancelled where the invitation was handed over by link; with no
+	// invitation mail on record, the last other mail. For any other account the newer of the
+	// last invitation and the last other mail is answered. An account with no mail on record (none
 	// queued, an installation that hands invitations over as links, or one finished long enough
 	// ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
 	// does.
@@ -115097,7 +115154,7 @@ type ClientWithResponsesInterface interface {
 
 	// ProvisionTenantWithBodyWithResponse Provision a workspace
 	//
-	// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+	// Creates the tenant with its defaults: a default hub, an example collection with the standard labels (and its starting columns only where the structure in force opens it on its board), the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -115106,7 +115163,7 @@ type ClientWithResponsesInterface interface {
 
 	// ProvisionTenantWithResponse Provision a workspace
 	//
-	// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+	// Creates the tenant with its defaults: a default hub, an example collection with the standard labels (and its starting columns only where the structure in force opens it on its board), the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -118411,12 +118468,12 @@ type ClientWithResponsesInterface interface {
 
 	// SwitchBoardWithBodyWithResponse Show a collection's tasks as a board, or as a list again
 	//
-	// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
-	// language), the completed entries in the done one and the open ones in the other. `NONE`
-	// takes the columns off again, the done column last; completion stays as it is. Refused with
-	// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
-	// where the collection already stands there. `dry_run` counts and writes nothing. Needs
-	// STRUCTURE where the collection is.
+	// `COLUMNS` gives a list a board: two columns, open and done (named in the creating person's
+	// language, or the workspace's default), the completed entries in the done one and the open
+	// ones in the other. `NONE` takes the columns off again, the done column last; completion
+	// stays as it is. Refused with `board.workflow_runs` while a workflow runs for tasks there and
+	// with `board.level_unchanged` where the collection already stands there. `dry_run` counts and
+	// writes nothing. Needs STRUCTURE where the collection is.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -118425,12 +118482,12 @@ type ClientWithResponsesInterface interface {
 
 	// SwitchBoardWithResponse Show a collection's tasks as a board, or as a list again
 	//
-	// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
-	// language), the completed entries in the done one and the open ones in the other. `NONE`
-	// takes the columns off again, the done column last; completion stays as it is. Refused with
-	// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
-	// where the collection already stands there. `dry_run` counts and writes nothing. Needs
-	// STRUCTURE where the collection is.
+	// `COLUMNS` gives a list a board: two columns, open and done (named in the creating person's
+	// language, or the workspace's default), the completed entries in the done one and the open
+	// ones in the other. `NONE` takes the columns off again, the done column last; completion
+	// stays as it is. Refused with `board.workflow_runs` while a workflow runs for tasks there and
+	// with `board.level_unchanged` where the collection already stands there. `dry_run` counts and
+	// writes nothing. Needs STRUCTURE where the collection is.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -122336,10 +122393,16 @@ type ClientWithResponsesInterface interface {
 	// layout hints, automation triggers and actions, and event types.
 	// Clients configure themselves from this instead of hard-coding values.
 	//
+	// The answer is the caller's: a signed-in caller reads their workspace's manifest, an
+	// anonymous one the installation's. It is never stored (`Cache-Control: no-store`), and a
+	// client that holds a copy asks again with that copy's `ETag` in `If-None-Match`: where the
+	// manifest is unchanged the answer is `304` without a body. That saves the bytes on the
+	// wire, not the building of the answer.
+	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /meta/capabilities (the `GetCapabilities` operationId).
-	GetCapabilitiesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetCapabilitiesResult, error)
+	GetCapabilitiesWithResponse(ctx context.Context, params *GetCapabilitiesParams, reqEditors ...RequestEditorFn) (*GetCapabilitiesResult, error)
 
 	// ReadConfigSchemaWithResponse The configuration document's JSON Schema
 	//
@@ -125484,7 +125547,7 @@ type ClientWithResponsesInterface interface {
 
 	// SetModuleWithBodyWithResponse Switch a module on or off
 	//
-	// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+	// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. On at the workspace allows the module and is what a hub made afterwards starts with; it changes no hub that exists, except the hubs named in `hub_ids`, where it is switched on as well. Off at the workspace takes the module from every hub, and on again gives each hub the state it had. A hub decides for itself inside that: switching on there what the workspace has off is refused with `setting.not_allowed`. `hub_ids` goes with `switch: ON` at the workspace only - otherwise `module.hubs_with_on_only` - and needs the right to change the shape of each hub named. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -125493,7 +125556,7 @@ type ClientWithResponsesInterface interface {
 
 	// SetModuleWithResponse Switch a module on or off
 	//
-	// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+	// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. On at the workspace allows the module and is what a hub made afterwards starts with; it changes no hub that exists, except the hubs named in `hub_ids`, where it is switched on as well. Off at the workspace takes the module from every hub, and on again gives each hub the state it had. A hub decides for itself inside that: switching on there what the workspace has off is refused with `setting.not_allowed`. `hub_ids` goes with `switch: ON` at the workspace only - otherwise `module.hubs_with_on_only` - and needs the right to change the shape of each hub named. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -156006,6 +156069,16 @@ func (r RevokeMembershipResult) ContentType() string {
 	return ""
 }
 
+// GetCapabilitiesResult200Headers the declared response headers of an HTTP 200 response for GetCapabilities
+type GetCapabilitiesResult200Headers struct {
+	ETag *string
+}
+
+// GetCapabilitiesResult304Headers the declared response headers of an HTTP 304 response for GetCapabilities
+type GetCapabilitiesResult304Headers struct {
+	ETag *string
+}
+
 type GetCapabilitiesResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -156013,6 +156086,10 @@ type GetCapabilitiesResult struct {
 	JSON200 *Capabilities
 	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
 	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *GetCapabilitiesResult200Headers
+	// Headers304 the parsed response headers for an HTTP 304 response
+	Headers304 *GetCapabilitiesResult304Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -171633,8 +171710,11 @@ func (c *ClientWithResponses) CreateManagedAccountWithResponse(ctx context.Conte
 //
 // For the people list's rows: for up to 200 accounts, the last mail this workspace queued
 // for each - an invitation, or any other mail it tells a person by (`category`) - queued,
-// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
-// invitation and the last other mail is answered. An account with no mail on record (none
+// being sent, sent, failed with its code, or cancelled, and when. While an account is
+// invited and has not accepted, its last invitation mail is answered, whatever other mail
+// went out since - cancelled where the invitation was handed over by link; with no
+// invitation mail on record, the last other mail. For any other account the newer of the
+// last invitation and the last other mail is answered. An account with no mail on record (none
 // queued, an installation that hands invitations over as links, or one finished long enough
 // ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
 // does.
@@ -171654,8 +171734,11 @@ func (c *ClientWithResponses) ReadInvitationDeliveriesWithBodyWithResponse(ctx c
 //
 // For the people list's rows: for up to 200 accounts, the last mail this workspace queued
 // for each - an invitation, or any other mail it tells a person by (`category`) - queued,
-// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
-// invitation and the last other mail is answered. An account with no mail on record (none
+// being sent, sent, failed with its code, or cancelled, and when. While an account is
+// invited and has not accepted, its last invitation mail is answered, whatever other mail
+// went out since - cancelled where the invitation was handed over by link; with no
+// invitation mail on record, the last other mail. For any other account the newer of the
+// last invitation and the last other mail is answered. An account with no mail on record (none
 // queued, an installation that hands invitations over as links, or one finished long enough
 // ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
 // does.
@@ -172808,7 +172891,7 @@ func (c *ClientWithResponses) ListTenantsWithResponse(ctx context.Context, reqEd
 
 // ProvisionTenantWithBodyWithResponse Provision a workspace
 //
-// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+// Creates the tenant with its defaults: a default hub, an example collection with the standard labels (and its starting columns only where the structure in force opens it on its board), the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -172823,7 +172906,7 @@ func (c *ClientWithResponses) ProvisionTenantWithBodyWithResponse(ctx context.Co
 
 // ProvisionTenantWithResponse Provision a workspace
 //
-// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+// Creates the tenant with its defaults: a default hub, an example collection with the standard labels (and its starting columns only where the structure in force opens it on its board), the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -178144,12 +178227,12 @@ func (c *ClientWithResponses) RenameContainerWithApplicationMergePatchPlusJSONBo
 
 // SwitchBoardWithBodyWithResponse Show a collection's tasks as a board, or as a list again
 //
-// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
-// language), the completed entries in the done one and the open ones in the other. `NONE`
-// takes the columns off again, the done column last; completion stays as it is. Refused with
-// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
-// where the collection already stands there. `dry_run` counts and writes nothing. Needs
-// STRUCTURE where the collection is.
+// `COLUMNS` gives a list a board: two columns, open and done (named in the creating person's
+// language, or the workspace's default), the completed entries in the done one and the open
+// ones in the other. `NONE` takes the columns off again, the done column last; completion
+// stays as it is. Refused with `board.workflow_runs` while a workflow runs for tasks there and
+// with `board.level_unchanged` where the collection already stands there. `dry_run` counts and
+// writes nothing. Needs STRUCTURE where the collection is.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -178164,12 +178247,12 @@ func (c *ClientWithResponses) SwitchBoardWithBodyWithResponse(ctx context.Contex
 
 // SwitchBoardWithResponse Show a collection's tasks as a board, or as a list again
 //
-// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
-// language), the completed entries in the done one and the open ones in the other. `NONE`
-// takes the columns off again, the done column last; completion stays as it is. Refused with
-// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
-// where the collection already stands there. `dry_run` counts and writes nothing. Needs
-// STRUCTURE where the collection is.
+// `COLUMNS` gives a list a board: two columns, open and done (named in the creating person's
+// language, or the workspace's default), the completed entries in the done one and the open
+// ones in the other. `NONE` takes the columns off again, the done column last; completion
+// stays as it is. Refused with `board.workflow_runs` while a workflow runs for tasks there and
+// with `board.level_unchanged` where the collection already stands there. `dry_run` counts and
+// writes nothing. Needs STRUCTURE where the collection is.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -184643,11 +184726,17 @@ func (c *ClientWithResponses) RevokeMembershipWithResponse(ctx context.Context, 
 // layout hints, automation triggers and actions, and event types.
 // Clients configure themselves from this instead of hard-coding values.
 //
+// The answer is the caller's: a signed-in caller reads their workspace's manifest, an
+// anonymous one the installation's. It is never stored (`Cache-Control: no-store`), and a
+// client that holds a copy asks again with that copy's `ETag` in `If-None-Match`: where the
+// manifest is unchanged the answer is `304` without a body. That saves the bytes on the
+// wire, not the building of the answer.
+//
 // Returns a wrapper object for the known response body format(s).
 //
 // Corresponds with GET /meta/capabilities (the `GetCapabilities` operationId).
-func (c *ClientWithResponses) GetCapabilitiesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetCapabilitiesResult, error) {
-	rsp, err := c.GetCapabilities(ctx, reqEditors...)
+func (c *ClientWithResponses) GetCapabilitiesWithResponse(ctx context.Context, params *GetCapabilitiesParams, reqEditors ...RequestEditorFn) (*GetCapabilitiesResult, error) {
+	rsp, err := c.GetCapabilities(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -189657,7 +189746,7 @@ func (c *ClientWithResponses) ListModulesWithResponse(ctx context.Context, param
 
 // SetModuleWithBodyWithResponse Switch a module on or off
 //
-// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. On at the workspace allows the module and is what a hub made afterwards starts with; it changes no hub that exists, except the hubs named in `hub_ids`, where it is switched on as well. Off at the workspace takes the module from every hub, and on again gives each hub the state it had. A hub decides for itself inside that: switching on there what the workspace has off is refused with `setting.not_allowed`. `hub_ids` goes with `switch: ON` at the workspace only - otherwise `module.hubs_with_on_only` - and needs the right to change the shape of each hub named. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -189672,7 +189761,7 @@ func (c *ClientWithResponses) SetModuleWithBodyWithResponse(ctx context.Context,
 
 // SetModuleWithResponse Switch a module on or off
 //
-// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. On at the workspace allows the module and is what a hub made afterwards starts with; it changes no hub that exists, except the hubs named in `hub_ids`, where it is switched on as well. Off at the workspace takes the module from every hub, and on again gives each hub the state it had. A hub decides for itself inside that: switching on there what the workspace has off is refused with `setting.not_allowed`. `hub_ids` goes with `switch: ON` at the workspace only - otherwise `module.hubs_with_on_only` - and needs the right to change the shape of each hub named. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -212508,6 +212597,9 @@ func ParseGetCapabilitiesResult(rsp *http.Response) (*GetCapabilitiesResult, err
 		}
 		response.JSON200 = &dest
 
+	case rsp.StatusCode == 304:
+		break // No content-type
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -212515,6 +212607,29 @@ func ParseGetCapabilitiesResult(rsp *http.Response) (*GetCapabilitiesResult, err
 		}
 		response.ApplicationproblemJSON4XX = &dest
 
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers GetCapabilitiesResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
+	case rsp.StatusCode == 304:
+		var headers GetCapabilitiesResult304Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers304 = &headers
 	}
 
 	return response, nil

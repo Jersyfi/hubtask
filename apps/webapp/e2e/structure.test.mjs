@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// How much structure a collection has (UC-WRK-23 checks 1, 3, 4, 6, 7, 9) and switching it without
+// How much structure a collection has (UC-WRK-23 checks 1, 3, 4, 6, 7, 9, 10) and switching it without
 // loss (UC-WRK-24 checks 1, 2, 4, 6, 7), walked over the shared
 // fixture's structure hub as three readers:
 //
@@ -15,6 +15,8 @@
 // * an administrator meets a project whose views and task dates the workspace locked: the lock
 //   and who set it beside the setting, the controls readable and unavailable, and a preset chosen
 //   under the lock keeping the locked value;
+// * the owner's unsaved change meets settings changed elsewhere: the bar counts the owner's own,
+//   offers no Save, and the notice applies the owner's change to the current settings or shows them;
 // * a member sees the list as its settings make it, and no Structure panel.
 //
 // Chromium only; what the server decides is its own tests' (check 8).
@@ -35,8 +37,24 @@ const served = await serve(DIST);
 test.after(() => served.close());
 showStructures();
 
+/**
+ * The list's settings as somebody else changes them (check 10): from `change` on, the list's read
+ * answers the changed settings and the stream carries the container's change record. The stream
+ * is closed with a short `retry`, so the client comes back for a record written since.
+ */
+function elsewhere() {
+  const live = { container: undefined, log: [], delivered: 0 };
+  // `inherited`: changed where the list inherits it from, so the list's own version stays.
+  live.change = (settings, { inherited = false } = {}) => {
+    const list = live.container ?? SHAPES.list;
+    live.container = { ...list, version: inherited ? list.version : list.version + 1, structure: { ...list.structure, settings: { ...list.structure.settings, ...settings } } };
+    live.log.push({ op: 'UPSERT', entity: 'container', entity_id: list.id, container_id: list.parent_id, payload: live.container });
+  };
+  return live;
+}
+
 /** A signed-in tab whose reader holds `role` on the workspace, with the structure writes recorded. */
-async function as(browser, role, width = 1280) {
+async function as(browser, role, width = 1280, live = undefined) {
   const context = await browser.newContext({ viewport: { width, height: 900 } });
   // Every reader starts from the fixture as written: an earlier walk's saves are forgotten.
   forgetUnstubbed();
@@ -47,6 +65,22 @@ async function as(browser, role, width = 1280) {
     const path = url.pathname.replace(/^.*\/api\/v1/, '');
     if (request.method() === 'PATCH' && path.endsWith('/structure')) written.push(request.postDataJSON());
     if (request.method() === 'POST' && path === '/containers') written.push(request.postDataJSON());
+    if (live && path === '/stream') {
+      const news = live.log.slice(live.delivered);
+      const first = live.delivered;
+      live.delivered = live.log.length;
+      const frames = news.map((each, i) => `id: s-${first + i + 1}\ndata: ${JSON.stringify(each)}\n\n`).join('');
+      return route.fulfill({ status: 200, contentType: 'text/event-stream', body: `retry: 250\n\n${frames}` });
+    }
+    if (live?.container && path === `/containers/${SHAPES.list.id}` && request.method() === 'GET') return route.fulfill({ json: live.container });
+    if (live?.container && path === '/containers' && url.searchParams.get('parent_id') === SHAPE_HUB.id) {
+      return route.fulfill({ json: { ...PAGE, data: [live.container, SHAPES.locked] } });
+    }
+    if (live?.container && path === `/containers/${SHAPES.list.id}/structure` && request.method() === 'PATCH') {
+      const { settings = {} } = request.postDataJSON();
+      live.container = { ...live.container, version: live.container.version + 1, structure: { ...live.container.structure, settings: { ...live.container.structure.settings, ...settings } } };
+      return route.fulfill({ json: { ...live.container, kept_by_lock: [], clipped_by_levels: [] } });
+    }
     if (path === '/memberships') {
       const scope = url.searchParams.get('scope_type');
       const rows = scope === 'TENANT' ? [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role }, { id: 'm9', scope_type: 'TENANT', account_id: OTHER.id, role: 'ADMIN' }] : [];
@@ -414,6 +448,102 @@ test('chromium: an administrator - a lock shows its value and who set it, and ca
   await page.getByRole('dialog', { name: 'Show less?' }).getByRole('button', { name: 'Hide and save' }).click();
   await page.getByText('1 locked setting kept its value.').first().waitFor({ timeout: 5_000 });
   assert.deepEqual(written, [{ preset: 'LIST', narrowing: 'HIDE' }]);
+  assert.deepEqual(failures, []);
+});
+
+// Check 10: the owner ticks "A date" under Capture; meanwhile somebody else takes "A leading
+// amount" out of Capture and turns Success to every celebration. The bar counts the owner's one
+// change and offers no Save; the notice names Capture, changed on both sides.
+async function changedMeanwhile(page, panel, live) {
+  const capture = panel.locator('[data-setting="capture"]');
+  await capture.getByRole('checkbox', { name: 'A date' }).click();
+  const bar = page.getByRole('region', { name: 'Unsaved changes' });
+  await bar.getByText('1 change').waitFor({ timeout: 5_000 });
+  live.change({ capture: ['LINES'], celebration: 'ALL' });
+  const notice = page.getByRole('alert').filter({ hasText: 'The settings were changed meanwhile' });
+  await notice.waitFor({ timeout: 15_000 });
+  assert.ok((await notice.textContent()).includes('You also changed Capture: applying keeps your value there.'), await notice.textContent());
+  assert.equal(await bar.getByText('1 change').count(), 1, 'the bar counts the change made elsewhere as the owner\'s');
+  assert.equal(await bar.getByRole('button', { name: 'Save', exact: true }).count(), 0, 'Save is offered while the settings changed meanwhile');
+  assert.equal(await bar.getByRole('button', { name: 'Apply my changes', exact: true }).count(), 1);
+  return { notice, bar, capture };
+}
+
+test('chromium: the owner - settings changed meanwhile: applying my changes sends only mine (check 10)', async (t) => {
+  const browser = await sharedChromium(t);
+  const live = elsewhere();
+  const { context, page, failures, written } = await as(browser, 'OWNER', 1280, live);
+  t.after(() => context.close());
+
+  await openCollection(page, SHAPES.list);
+  const panel = await openPanel(page, SHAPES.list.name, 'Views');
+  const { notice, bar, capture } = await changedMeanwhile(page, panel, live);
+
+  await notice.getByRole('button', { name: 'Apply my changes to the current settings' }).click();
+  await notice.waitFor({ state: 'detached', timeout: 5_000 });
+  // The change made elsewhere is shown; the owner's own stays on top of it.
+  assert.equal(await panel.locator('[data-setting="celebration"]').getByRole('combobox').inputValue(), 'ALL');
+  assert.ok(await capture.getByRole('checkbox', { name: 'A date' }).isChecked());
+  await bar.getByText('1 change').waitFor();
+  await bar.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('[data-save-bar] .bar') === null, null, { timeout: 5_000 });
+  assert.deepEqual(written, [{ settings: { capture: ['LINES', 'AMOUNT', 'DATE'] } }], 'a setting the owner did not change was sent');
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: the owner - settings changed meanwhile while the save was previewed: nothing is written over them (check 10)', async (t) => {
+  const browser = await sharedChromium(t);
+  const live = elsewhere();
+  const { context, page, failures, written } = await as(browser, 'OWNER', 1280, live);
+  t.after(() => context.close());
+
+  await openCollection(page, SHAPES.list);
+  const panel = await openPanel(page, SHAPES.list.name, 'Views');
+  await panel.locator('[data-setting="capture"]').getByRole('checkbox', { name: 'A date' }).click();
+  const bar = page.getByRole('region', { name: 'Unsaved changes' });
+  await bar.getByText('1 change').waitFor({ timeout: 5_000 });
+  // The save's preview is answered only once the other change is in force here.
+  let release;
+  const held = new Promise((resolve) => (release = resolve));
+  await page.route('**/structure:preview', async (route) => {
+    await held;
+    await route.fallback();
+  });
+  const previewed = page.waitForRequest((request) => request.url().endsWith('/structure:preview') && request.postDataJSON()?.settings?.capture !== undefined, { timeout: 10_000 });
+  await bar.getByRole('button', { name: 'Save', exact: true }).click();
+  await previewed;
+  // An inherited change: the list's own version, the one the save writes against, stays.
+  live.change({ capture: ['LINES'], celebration: 'ALL' }, { inherited: true });
+  const notice = page.getByRole('alert').filter({ hasText: 'The settings were changed meanwhile' });
+  await notice.waitFor({ timeout: 15_000 });
+  release();
+
+  await notice.getByRole('button', { name: 'Apply my changes to the current settings' }).click()
+    .catch(() => assert.fail(`the previewed save was written over the other change: ${JSON.stringify(written)}`));
+  await notice.waitFor({ state: 'detached', timeout: 5_000 });
+  await bar.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('[data-save-bar] .bar') === null, null, { timeout: 5_000 });
+  assert.deepEqual(written, [{ settings: { capture: ['LINES', 'AMOUNT', 'DATE'] } }], 'the save previewed before the other change was written');
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: the owner - settings changed meanwhile: showing the current settings sends nothing (check 10)', async (t) => {
+  const browser = await sharedChromium(t);
+  const live = elsewhere();
+  const { context, page, failures, written } = await as(browser, 'OWNER', 1280, live);
+  t.after(() => context.close());
+
+  await openCollection(page, SHAPES.list);
+  const panel = await openPanel(page, SHAPES.list.name, 'Views');
+  const { notice, capture } = await changedMeanwhile(page, panel, live);
+
+  await notice.getByRole('button', { name: 'Show the current settings' }).click();
+  await notice.waitFor({ state: 'detached', timeout: 5_000 });
+  await page.waitForFunction(() => document.querySelector('[data-save-bar] .bar') === null, null, { timeout: 5_000 });
+  assert.equal(await panel.locator('[data-setting="celebration"]').getByRole('combobox').inputValue(), 'ALL');
+  assert.equal(await capture.getByRole('checkbox', { name: 'A date' }).isChecked(), false);
+  assert.equal(await capture.getByRole('checkbox', { name: 'A leading amount' }).isChecked(), false);
+  assert.deepEqual(written, []);
   assert.deepEqual(failures, []);
 });
 

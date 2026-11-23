@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-07, P-11]
 state: verified
 tasks: [UX-26]
-checked_by: [core/domain/model/work/Flow_test.go, core/domain/model/work/StartingColumns_test.go, test/integration/starting_columns_test.go, core/domain/model/work/Figure_test.go, core/application/service/work/FlowGate_test.go, core/application/service/work/FigureReader_test.go, test/integration/flow_gate_test.go, test/integration/figure_repository_test.go, apps/webapp/src/lib/data/figure.test.ts, apps/webapp/e2e/flow.test.mjs, apps/webapp/e2e/figure.test.mjs, apps/webapp/e2e/boardlevels.test.mjs]
+checked_by: [core/domain/model/work/Flow_test.go, core/domain/model/work/StartingColumns_test.go, core/application/service/work/StartColumns_test.go, core/application/service/admin/Provision_test.go, test/integration/provision_columns_test.go, core/application/service/automation/RunRule_test.go, test/integration/rule_columns_test.go, test/integration/starting_columns_test.go, core/domain/model/work/Figure_test.go, core/application/service/work/FlowGate_test.go, core/application/service/work/FigureReader_test.go, test/integration/flow_gate_test.go, test/integration/figure_repository_test.go, apps/webapp/src/lib/data/figure.test.ts, apps/webapp/e2e/flow.test.mjs, apps/webapp/e2e/figure.test.mjs, apps/webapp/e2e/boardlevels.test.mjs]
 ---
 
 # Run a collection as a flow
@@ -29,6 +29,8 @@ The support team's "Requests" collection uses *Flow*: columns *New*, *In progres
 5. On a flow under a workflow each column shows the statuses mapped to it, and the statuses no
    column shows sit in a folded column *Ohne Spalte* that accepts drops; a collection created
    under a workflow starts with one column per status (owner's decision of 2026-11-12).
+6. The columns a new collection's board starts with are named in the creating person's account
+   language, or the workspace's default where the account sets none or a rule creates it.
 
 ## Where it ends
 

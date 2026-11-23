@@ -45,3 +45,32 @@ export function entryEditOf(opened: EntryDraft, draft: EntryDraft): EntryEdit {
     ...(draft.language !== opened.language ? { content_language: draft.language || null } : {}),
   };
 }
+
+/** The two texts of an entry somebody else can change while a person writes in place. */
+export type TextField = 'title' | 'notes';
+
+/**
+ * The write of an edit in place, decided three ways (UC-SYN-02 check 10): what each field was when
+ * the person began (`base`), what the person holds (`mine`) and what the entry holds now
+ * (`theirs`). A field the person did not change is not sent, whatever arrived meanwhile - sending
+ * it back would undo the other person's change with a version `If-Match` accepts. A field changed
+ * by both to different texts is a conflict: nothing is written until the person chooses.
+ */
+export interface InlineWrite {
+  readonly edit: EntryEdit;
+  readonly conflicts: readonly TextField[];
+}
+
+export function inlineWriteOf(base: EntryDraft, mine: EntryDraft, theirs: EntryDraft): InlineWrite {
+  const own = entryEditOf(base, mine);
+  const arrived = entryEditOf(base, theirs);
+  const edit: EntryEdit = {};
+  const conflicts: TextField[] = [];
+  for (const field of ['title', 'notes'] as const) {
+    if (!(field in own)) continue;
+    if (!(field in arrived)) edit[field] = own[field] as never;
+    else if (own[field] !== arrived[field]) conflicts.push(field);
+  }
+  if ('content_language' in own) edit.content_language = own.content_language;
+  return { edit, conflicts };
+}

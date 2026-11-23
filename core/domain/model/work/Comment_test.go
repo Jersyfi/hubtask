@@ -204,3 +204,36 @@ func TestAReplyToAnInternalNoteIsInternal(t *testing.T) {
 		t.Errorf("a reply to an internal note is %+v, %v", reply, err)
 	}
 }
+
+// UC-SYN-02 check 7: the notes a push keeps are the text of the field, unbounded as the field is -
+// beyond a comment's 20000 characters - while a comment somebody writes keeps its own bound.
+func TestAKeptVersionIsBoundedAsTheFieldItHolds(t *testing.T) {
+	long := strings.Repeat("a", work.MaxCommentBodyLength+1)
+	cases := []struct {
+		name, code, field, body, refused string
+	}{
+		{"notes displaced in a push", work.DisplacedVersionCode, work.FieldNotes, long, ""},
+		{"a blank version", work.DisplacedVersionCode, work.FieldNotes, "  ", "comments.body_required"},
+		{"a person's comment", "", "", long, "comments.body_too_long"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			draft := draftComment(c.body, nil)
+			if c.code != "" {
+				draft.SystemCode, draft.SystemParams = c.code, map[string]string{"field": c.field}
+			}
+			comment, err := work.NewComment(draft)
+			switch {
+			case err == nil && c.refused != "":
+				t.Fatalf("kept, want refused as %q", c.refused)
+			case err != nil && shared.AsError(err).DetailCode != c.refused:
+				t.Fatalf("refused as %v, want %q", err, c.refused)
+			case err != nil:
+				return
+			}
+			if comment.Body != c.body {
+				t.Errorf("kept %d characters of %d", len(comment.Body), len(c.body))
+			}
+		})
+	}
+}

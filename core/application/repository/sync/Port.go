@@ -214,6 +214,9 @@ type Snapshot interface {
 	// Whiteboards pages the workspace's boards outside the trash with their scenes, for reading
 	// offline (M4).
 	Whiteboards(ctx context.Context, after shared.ID, batch int) ([]whiteboard.Board, error)
+	// WhiteboardComments pages the comments of the boards outside the trash, each with its
+	// board's hub; a comment taken back is among them, without its words (UC-CNV-09).
+	WhiteboardComments(ctx context.Context, after shared.ID, batch int) ([]BoardComment, error)
 	// CIs pages the workspace's configuration items that are not merged away, for reading a
 	// hub's inventory offline (M6).
 	CIs(ctx context.Context, after shared.ID, batch int) ([]cmdb.CI, error)
@@ -322,6 +325,12 @@ type EstimateOf struct {
 // GoalCheckIn is a check-in with the hub of its goal, which decides who is told of it.
 type GoalCheckIn struct {
 	CheckIn goal.CheckIn
+	HubID   shared.ID
+}
+
+// BoardComment is a board's comment with the hub of its board, which decides who is told of it.
+type BoardComment struct {
+	Comment whiteboard.Comment
 	HubID   shared.ID
 }
 

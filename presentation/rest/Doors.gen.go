@@ -2619,12 +2619,12 @@ func (c *RestController) GetCalendarFeedDocument(w http.ResponseWriter, r *http.
 }
 
 // GetCapabilities answers GET /meta/capabilities by the adapter in Meta, which holds the connection.
-func (c *RestController) GetCapabilities(w http.ResponseWriter, r *http.Request) {
+func (c *RestController) GetCapabilities(w http.ResponseWriter, r *http.Request, params openapi.GetCapabilitiesParams) {
 	if c.Meta == nil {
-		c.pending.GetCapabilities(w, r)
+		c.pending.GetCapabilities(w, r, params)
 		return
 	}
-	c.Meta.GetCapabilities(w, r)
+	c.Meta.GetCapabilities(w, r, params)
 }
 
 // GetContainer answers GET /containers/{containerId} by the generated mapping.

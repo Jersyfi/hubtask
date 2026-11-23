@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgtype"
-
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
@@ -86,19 +84,43 @@ func (r InvitationJobRepository) LatestMail(
 	if err != nil {
 		return nil, err
 	}
-	keys := make([]pgtype.UUID, 0, len(accountIDs))
-	for _, id := range accountIDs {
-		key, err := uuidOf(id)
-		if err != nil {
-			return nil, err
-		}
-		keys = append(keys, key)
+	keys, err := uuidsOf(accountIDs)
+	if err != nil {
+		return nil, err
 	}
 	rows, err := queries.LatestMailPerRecipient(ctx, keys)
 	if err != nil {
 		return nil, shared.ErrUnavailable.WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("reading the last mail per account: %w", err))
 	}
+	return lastMailsFrom(rows), nil
+}
+
+// LatestInvitationMail answers the newest invitation notification of each account that has one.
+func (r InvitationJobRepository) LatestInvitationMail(
+	ctx context.Context, accountIDs []shared.ID,
+) ([]repository.LastMail, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	keys, err := uuidsOf(accountIDs)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.LatestInvitationMailPerRecipient(ctx, keys)
+	if err != nil {
+		return nil, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the last invitation mail per account: %w", err))
+	}
+	same := make([]sqlc.LatestMailPerRecipientRow, 0, len(rows))
+	for _, row := range rows {
+		same = append(same, sqlc.LatestMailPerRecipientRow(row))
+	}
+	return lastMailsFrom(same), nil
+}
+
+func lastMailsFrom(rows []sqlc.LatestMailPerRecipientRow) []repository.LastMail {
 	out := make([]repository.LastMail, 0, len(rows))
 	for _, row := range rows {
 		account, err := idFrom(row.AccountID)
@@ -125,7 +147,7 @@ func (r InvitationJobRepository) LatestMail(
 		}
 		out = append(out, mail)
 	}
-	return out, nil
+	return out
 }
 
 // CancelOpen cancels the invitation mail still waiting for one account, in the transaction's

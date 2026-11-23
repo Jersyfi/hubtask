@@ -15,6 +15,7 @@ import (
 	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	work "github.com/Jersyfi/hubtask/core/domain/model/work"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
@@ -27,7 +28,9 @@ import (
 // user-experience.md §4 against the real stores: a workspace provisioned in German whose owner
 // redeems the invitation in English finds its default hub, example collection, columns and labels
 // in English - with the events and change entries a rename owes - except what somebody already
-// renamed; and another workspace's seed is untouched (gate SG-3).
+// renamed, and keeps English as the account's language; an owner who already had a language keeps
+// it and finds the seed in it; a member invited into another workspace keeps the card's language
+// and renames nothing; and that workspace's seed and owner are untouched (gate SG-3).
 func TestTheOwnersRedemptionNamesTheSeedInTheOwnersLanguage(t *testing.T) {
 	ctx := context.Background()
 	writer, signIn, uow := realWriter(ctx, t)
@@ -46,8 +49,9 @@ func TestTheOwnersRedemptionNamesTheSeedInTheOwnersLanguage(t *testing.T) {
 	provisioning := adminservice.ProvisionTenant{
 		Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(pageCursors()),
 		Accounts: postgres.NewAccountRepository(), Redemption: signIn,
-		Grants:     postgres.NewMembershipGrantRepository(pageCursors()),
-		Containers: containers, Buckets: buckets, Labels: labels,
+		Grants: postgres.NewMembershipGrantRepository(pageCursors()),
+		// Opened on the board, so the example collection has columns to rename.
+		Containers: containers, Buckets: buckets, Labels: labels, Structure: boardFirst{},
 		Events: events, Changes: changes, Audit: postgres.NewAuditSink(ids), Renderer: renderer,
 		Domains: textadapter.Domains{}, Text: text.Composing{},
 		UnitOfWork: uow, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
@@ -69,23 +73,91 @@ func TestTheOwnersRedemptionNamesTheSeedInTheOwnersLanguage(t *testing.T) {
 		}
 		return provisioned
 	}
-	mine, theirs := provision("a"), provision("b")
+	mine, theirs, spoken := provision("a"), provision("b"), provision("c")
 
 	// A label somebody renamed before the owner arrived keeps its name.
 	if _, err := admin.Exec(ctx, `UPDATE label SET name = 'Ideen', version = 2
 		WHERE collection_id = $1 AND name = 'Idee'`, mine.ExampleCollectionID.String()); err != nil {
 		t.Fatalf("renaming a label: %v", err)
 	}
+	// An owner who already has a language of their own.
+	if _, err := admin.Exec(ctx, `UPDATE account SET locale = 'de' WHERE id = $1`,
+		spoken.OwnerAccountID.String()); err != nil {
+		t.Fatalf("setting the owner's language: %v", err)
+	}
 
 	redeem := identityservice.RedeemInvitation{Writer: writer, Seed: adminservice.LocaliseSeed{
-		Tenants: postgres.NewAdminTenantRepository(), Containers: containers, Buckets: buckets, Labels: labels,
+		Locales: renderer, Tenants: postgres.NewAdminTenantRepository(),
+		Containers: containers, Buckets: buckets, Labels: labels,
 		Events: events, Changes: changes, Renderer: renderer, Text: text.Composing{}, IDs: ids, HLC: hybrid,
-	}}
+	}, Accounts: postgres.NewAccountRepository()}
+	for _, owner := range []adminservice.ProvisionedTenant{mine, spoken} {
+		if _, err := redeem.Execute(ctx, identityservice.RedeemInvitationCommand{
+			Token: owner.OwnerRedemption, Password: secret.New("seven blue lanterns above the harbour"),
+			Locale: "en",
+		}); err != nil {
+			t.Fatalf("redeeming: %v", err)
+		}
+	}
+
+	// A member invited into their workspace, whose seed is its owner's, reads the card in English.
+	member := ids.NewID()
+	if _, err := admin.Exec(ctx, `INSERT INTO account (id, tenant_id, kind, email, display_name, status)
+		VALUES ($1, $2, 'USER', $3, 'Invited Member', 'INVITED')`, member.String(),
+		theirs.Tenant.ID.String(), "member-"+member.String()[24:]+"@seedlocale.example"); err != nil {
+		t.Fatalf("inviting the member: %v", err)
+	}
+	if _, err := admin.Exec(ctx, `INSERT INTO membership (id, tenant_id, account_id, scope_type, role)
+		VALUES ($1, $2, $3, 'TENANT', 'MEMBER')`, ids.NewID().String(), theirs.Tenant.ID.String(),
+		member.String()); err != nil {
+		t.Fatalf("placing the member: %v", err)
+	}
+	memberToken, err := identityservice.MintRedemptionToken{
+		Accounts: signIn, UnitOfWork: uow, Clock: clockadapter.System{}, Entropy: clockadapter.CryptoRandom{},
+	}.MintRedemptionToken(ctx, theirs.Tenant.ID, member)
+	if err != nil || memberToken.IsEmpty() {
+		t.Fatalf("minting the member's token (empty: %v): %v", memberToken.IsEmpty(), err)
+	}
 	if _, err := redeem.Execute(ctx, identityservice.RedeemInvitationCommand{
-		Token: mine.OwnerRedemption, Password: secret.New("seven blue lanterns above the harbour"),
-		Locale: "en",
+		Token: memberToken, Password: secret.New("seven blue lanterns above the harbour"), Locale: "en",
 	}); err != nil {
-		t.Fatalf("redeeming: %v", err)
+		t.Fatalf("redeeming the member's invitation: %v", err)
+	}
+
+	// UC-ID-07/8, UC-ID-07/9 and UC-ID-07/10: the card's language is the owner's and the member's
+	// from now on; an owner who had one keeps it, and nobody else's account is touched.
+	language := func(account shared.ID) string {
+		t.Helper()
+		var locale *string
+		if err := admin.QueryRow(ctx, `SELECT locale FROM account WHERE id = $1`,
+			account.String()).Scan(&locale); err != nil {
+			t.Fatalf("reading the account's language: %v", err)
+		}
+		if locale == nil {
+			return ""
+		}
+		return *locale
+	}
+	for _, tc := range []struct {
+		whose   string
+		account shared.ID
+		want    string
+	}{
+		{"my owner", mine.OwnerAccountID, "en"},
+		{"the owner who had spoken", spoken.OwnerAccountID, "de"},
+		{"their owner", theirs.OwnerAccountID, ""},
+		{"their member", member, "en"},
+	} {
+		if got := language(tc.account); got != tc.want {
+			t.Errorf("%s's language is %q, want %q", tc.whose, got, tc.want)
+		}
+	}
+	for _, tenant := range []shared.ID{mine.Tenant.ID, theirs.Tenant.ID} {
+		if kept := countIn(ctx, t, `SELECT count(*) FROM audit_log
+			WHERE tenant_id = $1 AND action = 'auth.invitation_redeemed' AND changes ? 'locale'`,
+			tenant.String()); kept != 1 {
+			t.Errorf("%d redemption entries name the language kept in %s, want 1", kept, tenant)
+		}
 	}
 
 	names := func(query string, id shared.ID) []string {
@@ -124,6 +196,8 @@ func TestTheOwnersRedemptionNamesTheSeedInTheOwnersLanguage(t *testing.T) {
 		{"their hub", containerNames, theirs.DefaultHubID, []string{"Allgemein"}},
 		{"their collection", containerNames, theirs.ExampleCollectionID, []string{"Erste Schritte"}},
 		{"their columns", bucketNames, theirs.ExampleCollectionID, []string{"Erledigt", "In Arbeit", "Zu erledigen"}},
+		{"the spoken owner's hub", containerNames, spoken.DefaultHubID, []string{"Allgemein"}},
+		{"the spoken owner's columns", bucketNames, spoken.ExampleCollectionID, []string{"Erledigt", "In Arbeit", "Zu erledigen"}},
 	} {
 		if got := names(tc.query, tc.id); !slices.Equal(got, tc.want) {
 			t.Errorf("%s: %v, want %v", tc.what, got, tc.want)
@@ -143,4 +217,13 @@ func TestTheOwnersRedemptionNamesTheSeedInTheOwnersLanguage(t *testing.T) {
 	if version := countIn(ctx, t, `SELECT version FROM container WHERE id = $1`, mine.DefaultHubID.String()); version != 2 {
 		t.Errorf("the hub is at version %d, want 2", version)
 	}
+}
+
+// boardFirst answers a structure that opens every collection on its board, as *Flow* does.
+type boardFirst struct{}
+
+func (boardFirst) InForce(context.Context, work.Container) (work.EffectiveStructure, error) {
+	return work.EffectiveStructure{Values: work.StructureValues{Views: &work.Views{
+		Offered: []work.ViewLayout{work.ViewKanban}, Default: work.ViewKanban,
+	}}}, nil
 }

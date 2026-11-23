@@ -3091,6 +3091,7 @@ class ConfigApplyRequest(TypedDict, total=False):
     template: str
     hub_id: str
     collection_id: str
+    module_hub_ids: list[str]
     from_sandbox: bool
 
 class ConfigDraft(TypedDict, total=False):
@@ -3260,6 +3261,7 @@ class ModulesOn(TypedDict, total=False):
 class ModuleSwitch(TypedDict, total=False):
     switch: Required[Literal["ON", "OFF", "INHERIT"]]
     hub_id: str
+    hub_ids: list[str]
 
 PlanFeature = Literal["AUTOMATION_RULES", "WEBHOOKS", "OWN_SIGN_IN_PROVIDERS"]
 

@@ -11,8 +11,9 @@
 import type { ModuleList, ModuleReach, ModulesOn, ModuleState, ModuleSwitch, ResourceState } from '@hubtask/sync-engine';
 
 import { engine, INTENT } from './engine.ts';
+import { switchBody } from './modules.ts';
 
-export { asksFirst, isSetHere, offReach, modulesHere, moduleCodes, unavailableBecause, type ModulePlace } from './modules.ts';
+export { asksFirst, asksWhichHubs, hubsOffered, isOfferSettled, isSetHere, offReach, modulesHere, moduleCodes, unavailableBecause, type ModulePlace } from './modules.ts';
 
 const PATH = '/tenant/modules';
 const CAPABILITIES = '/meta/capabilities';
@@ -44,10 +45,12 @@ class Modules {
     return engine.subscribe<ModuleReach>({ path: hubId ? `${at}?hub_id=${encodeURIComponent(hubId)}` : at }, onNext);
   }
 
-  /** Switches one module on, off, or back to the level above. */
-  async switch(module: ModuleState['module'], to: ModuleSwitch['switch'], hubId?: string): Promise<ModuleList> {
-    const body: ModuleSwitch = hubId ? { switch: to, hub_id: hubId } : { switch: to };
-    return engine.mutate<ModuleList>('PUT', `${PATH}/${encodeURIComponent(module)}`, body, {
+  /**
+   * Switches one module on, off, or back to the level above. `inHubs` are the existing hubs a
+   * workspace's switch-on switches on as well; without them no hub that exists changes.
+   */
+  async switch(module: ModuleState['module'], to: ModuleSwitch['switch'], hubId?: string, inHubs: readonly string[] = []): Promise<ModuleList> {
+    return engine.mutate<ModuleList>('PUT', `${PATH}/${encodeURIComponent(module)}`, switchBody(to, hubId, inHubs), {
       idempotencyKey: INTENT,
       invalidates: [PATH, CAPABILITIES, PLACES],
     });

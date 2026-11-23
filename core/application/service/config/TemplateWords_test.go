@@ -4,10 +4,12 @@
 package config
 
 import (
+	"context"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 )
 
 // germanWords knows a few of the templates' words in German and nothing in any other language.
@@ -27,13 +29,13 @@ func (g germanWords) Render(locale, code string, _ map[string]string) string {
 
 var someGerman = germanWords{"Card": "Karte", "To do": "Zu erledigen", "Done": "Erledigt"}
 
-// A Hubtask template is planned in the applying person's language and stored as that plain text;
-// a word no catalogue holds stays as shipped, and the shipped template itself is not touched.
+// A Hubtask template is planned in the applying person's account language and stored as that plain
+// text; a word no catalogue holds stays as shipped, and the shipped template itself is not touched.
 func TestAHubtaskTemplateIsPlannedInTheApplyingPersonsLanguage(t *testing.T) {
 	f := newFixture()
 	f.desk.Words = someGerman
 	german := person
-	german.Locale = "de"
+	german.Locale, german.AccountLocale = "de", "de"
 
 	plan := invoke(t, PlanConfigTemplate{f.desk}.Descriptor(), german, usecase.Input{"key": "kanban_team"})
 	document := plan["document"].(map[string]any)
@@ -73,5 +75,25 @@ func TestAWorkspaceTemplateKeepsItsOwnWords(t *testing.T) {
 	}}
 	if got := localizedTemplate(own, someGerman, "de").Document["types"]["card"]["name"]; got != "Card" {
 		t.Errorf("a workspace template's word became %v", got)
+	}
+}
+
+type workspaceIn string
+
+func (w workspaceIn) Find(context.Context) (identity.Workspace, error) {
+	return identity.Workspace{Tenant: identity.Tenant{DefaultLocale: string(w)}}, nil
+}
+
+// A template's words become the workspace's own names, so a person whose account sets no language
+// plans them in the workspace's default, not in the language the browser asked for (i18n-l10n.md §2).
+func TestATemplateIsPlannedInTheWorkspacesLanguageWhereTheAccountSetsNone(t *testing.T) {
+	f := newFixture()
+	f.desk.Words, f.desk.Workspaces = someGerman, workspaceIn("de")
+	browsing := person
+	browsing.Locale = "en"
+
+	plan := invoke(t, PlanConfigTemplate{f.desk}.Descriptor(), browsing, usecase.Input{"key": "kanban_team"})
+	if name := plan["document"].(map[string]any)["types"].(map[string]any)["card"].(map[string]any)["name"]; name != "Karte" {
+		t.Errorf("the type is named %v, want the workspace's Karte", name)
 	}
 }

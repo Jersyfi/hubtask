@@ -34,6 +34,7 @@ export { default as Input } from './Input.svelte';
 export { default as Menu } from './Menu.svelte';
 export { default as Popover } from './Popover.svelte';
 export { default as Radio } from './Radio.svelte';
+export { default as ChoiceCards, type ChoiceCard } from './ChoiceCards.svelte';
 export { default as Select, type Option as SelectOption, type OptionGroup as SelectOptionGroup } from './Select.svelte';
 export { default as Spinner } from './Spinner.svelte';
 export { default as ProgressBar } from './ProgressBar.svelte';
@@ -267,6 +268,8 @@ export { pageBar, providePageBar, type PageBack, type PageBar, type PageHead, ty
 // built from, and the arithmetic behind them.
 export { default as StateLozenge } from './StateLozenge.svelte';
 export { default as StatusButton } from './StatusButton.svelte';
+export { default as StateMark } from './StateMark.svelte';
+export { markLook, type MarkForm } from './statemark.ts';
 export { default as ObjectHead, type DeadlineChip, type ObjectKey } from './ObjectHead.svelte';
 export { default as Property } from './Property.svelte';
 export { default as PropertyRail, type RailSection } from './PropertyRail.svelte';

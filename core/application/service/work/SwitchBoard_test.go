@@ -17,8 +17,9 @@ import (
 )
 
 // List ↔ board without a workflow (domain-model.md §3.5a, L0 ↔ L1): *Als Board anzeigen* creates
-// an open and a done column in the workspace's language, the completed entries in the done one;
-// back to a list takes the columns off, the done column last, and keeps completion.
+// an open and a done column in the acting person's language, else the workspace's, the completed
+// entries in the done one; back to a list takes the columns off, the done column last, and keeps
+// completion.
 
 // unplacedTasks answers PlaceUnplaced with the tasks of one completion standing in no column.
 type unplacedTasks struct {
@@ -75,9 +76,30 @@ func (h *switchHarness) eventsOf(kind event.Type) int {
 	return n
 }
 
-// *Als Board anzeigen*: an open and a done column named in the workspace's language, the
-// completed entries into the done one and the open ones into the other, each column announced and
-// recorded, the switch audited with its counts.
+// The two columns of a switched board follow the same rule as a new collection's (UC-WRK-05
+// check 11, UC-WRK-31 check 6): the switching account's language, else the workspace's default -
+// never the request's.
+func TestASwitchedBoardsColumnsFollowTheAccountElseTheWorkspace(t *testing.T) {
+	for _, tc := range []struct{ accountLocale, want string }{
+		{"", "de:seed.bucket.open"},
+		{"fr", "fr:seed.bucket.open"},
+	} {
+		h := newSwitchHarness()
+		switching := actor()
+		switching.Locale, switching.AccountLocale = "en", tc.accountLocale
+		if _, err := h.switcher.Execute(t.Context(), switching, collectionID, domain.StateModeColumns, false); err != nil {
+			t.Fatal(err)
+		}
+		board, err := h.buckets.List(t.Context(), collectionID)
+		if err != nil || len(board) != 2 || board[0].Name != tc.want {
+			t.Errorf("account %q: board %+v (%v), want the open column named %q", tc.accountLocale, board, err, tc.want)
+		}
+	}
+}
+
+// *Als Board anzeigen*: an open and a done column named in the acting person's language, else the
+// workspace's, the completed entries into the done one and the open ones into the other, each
+// column announced and recorded, the switch audited with its counts.
 func TestShowingAListAsABoardGivesItAnOpenAndADoneColumn(t *testing.T) {
 	h := newSwitchHarness()
 	report, err := h.switcher.Execute(t.Context(), actor(), collectionID, domain.StateModeColumns, false)
@@ -124,7 +146,7 @@ func TestShowingAListAsABoardGivesItAnOpenAndADoneColumn(t *testing.T) {
 }
 
 // Back to a list: every column is taken off, the done column last, its entries standing in no
-// column and keeping their completion.
+// column and keeping their completion - what *Remove columns* confirms (UC-WRK-05 check 13).
 func TestABoardBackToAListTakesTheColumnsOffTheDoneOneLast(t *testing.T) {
 	h := newSwitchHarness()
 	threeColumnBoard(h.buckets)

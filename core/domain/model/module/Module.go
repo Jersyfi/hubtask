@@ -12,6 +12,7 @@ package module
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/setting"
@@ -187,4 +188,26 @@ func (s Set) Require(key Key) error {
 		return nil
 	}
 	return shared.ErrForbidden.WithDetail(OffCode).WithParams(map[string]string{"module": string(key)})
+}
+
+// MaxChosenHubs bounds the hubs one switch of the workspace names: each costs a read and an
+// authorisation question before anything is written.
+const MaxChosenHubs = 200
+
+// TooManyHubsCode is the refusal of a switch naming more hubs than MaxChosenHubs.
+const TooManyHubsCode = "module.hubs_too_many"
+
+// BoundChosenHubs refuses a switch naming more than MaxChosenHubs hubs, at the field's pointer.
+func BoundChosenHubs(count int, path string) error {
+	if count > MaxChosenHubs {
+		return TooManyHubs(path)
+	}
+	return nil
+}
+
+// TooManyHubs refuses the list at the field's pointer.
+func TooManyHubs(path string) error {
+	return shared.ErrValidation.WithDetail(TooManyHubsCode).
+		WithParams(map[string]string{"maximum": strconv.Itoa(MaxChosenHubs)}).
+		WithFields(shared.FieldError{Path: path, Code: TooManyHubsCode})
 }

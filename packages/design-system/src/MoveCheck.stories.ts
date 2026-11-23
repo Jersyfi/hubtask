@@ -24,3 +24,10 @@ export const clear: Story = {
     'Every obstacle resolved: Move is available, the warnings remain.',
   args: { mode: 'clear' },
 };
+
+export const framed: Story = {
+  name: 'Framed: what a step will do',
+  about:
+    'Standing on its own in a dialog - a switch-off’s consequences: one bordered group with a hairline between the lines, each text a heading over its quieter detail, each mark the tone’s round mark (a line may bring its own glyph, `pause` for what pauses), a link where the way out is a place to go.',
+  args: { mode: 'framed' },
+};

@@ -22,11 +22,17 @@
     icon?: IconName;
     /** `bold` for the one state on a screen that must be seen first. */
     emphasis?: 'subtle' | 'bold';
-    /** `sm` in a row or a chip line; `md` stands on its own - in an object's head, the status button's shape. */
-    size?: 'sm' | 'md';
+    /**
+     * `sm` in a row or a chip line; `mark` beside a `StateMark`, at the mark's height - the state
+     * control's chip in a row and on a card; `md` stands on its own - in an object's head, the
+     * status button's shape.
+     */
+    size?: 'sm' | 'mark' | 'md';
+    /** Whether it is the face of a control that opens the choices: a chevron after the word, inside its edge. */
+    hasChevron?: boolean;
   }
 
-  const { label, vocabulary, state, tone, icon, emphasis = 'subtle', size = 'sm' }: Props = $props();
+  const { label, vocabulary, state, tone, icon, emphasis = 'subtle', size = 'sm', hasChevron = false }: Props = $props();
 
   const look = $derived(vocabulary && state !== undefined ? lozengeLook(vocabulary, state) : undefined);
   const drawnTone = $derived<LozengeTone>(tone ?? look?.tone ?? 'neutral');
@@ -36,6 +42,7 @@
 <span class="lozenge" data-tone={drawnTone} data-emphasis={emphasis} data-size={size}>
   {#if mark}<Icon name={mark} size="sm" />{/if}
   <span class="word">{label}</span>
+  {#if hasChevron}<span class="chevron" aria-hidden="true"><Icon name="chevron-down" size="sm" /></span>{/if}
 </span>
 
 <style>
@@ -67,6 +74,15 @@
   }
 
   .word { overflow: hidden; text-overflow: ellipsis; }
+
+  .chevron { display: inline-flex; flex: none; }
+
+  /* Beside the round mark the chip is the mark's height, so the two read as one control (§4 StateMark). */
+  .lozenge[data-size='mark'] {
+    box-sizing: border-box;
+    min-block-size: calc(var(--sp-250) + var(--sp-025));
+    padding: 0 var(--sp-100);
+  }
 
   /* The status button's shape and height (`StatusButton`), read only: a head's status that is not changed there. */
   .lozenge[data-size='md'] {

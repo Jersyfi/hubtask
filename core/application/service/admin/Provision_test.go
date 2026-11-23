@@ -261,6 +261,22 @@ func (s *bucketsStore) Insert(_ context.Context, bucket work.Bucket) error {
 	return nil
 }
 
+// structureFake answers the structure in force for the example collection: the system default -
+// a list first, a board offered - unless a test opens it on the board.
+type structureFake struct {
+	boardFirst bool
+	asked      []work.Container
+}
+
+func (s *structureFake) InForce(_ context.Context, container work.Container) (work.EffectiveStructure, error) {
+	s.asked = append(s.asked, container)
+	views := &work.Views{Offered: []work.ViewLayout{work.ViewListCollapsed, work.ViewKanban}, Default: work.ViewListCollapsed}
+	if s.boardFirst {
+		views.Default = work.ViewKanban
+	}
+	return work.EffectiveStructure{Values: work.StructureValues{Views: views}}, nil
+}
+
 type labelsStore struct{ inserted []work.Label }
 
 func (s *labelsStore) Insert(_ context.Context, label work.Label) error {
@@ -328,6 +344,7 @@ type provisionFixture struct {
 	containers *containersStore
 	buckets    *bucketsStore
 	labels     *labelsStore
+	structure  *structureFake
 	events     *eventsStore
 	changes    *changesStore
 	audit      *auditSink
@@ -362,12 +379,12 @@ func newProvisionFixture() *provisionFixture {
 		redemption: &redemptionStore{}, grants: &grantsStore{}, containers: &containersStore{},
 		buckets: &bucketsStore{}, labels: &labelsStore{}, events: &eventsStore{},
 		changes: &changesStore{}, audit: &auditSink{}, renderer: &renderer{}, work: &unitOfWork{},
-		hosts: &hostsStore{}, jobs: &jobsFake{},
+		hosts: &hostsStore{}, jobs: &jobsFake{}, structure: &structureFake{},
 	}
 	f.handler = ProvisionTenant{
 		Tenants: f.tenants, Journal: f.journal, Accounts: f.accounts,
 		Redemption: f.redemption, Grants: f.grants, Containers: f.containers,
-		Buckets: f.buckets, Labels: f.labels, Events: f.events, Changes: f.changes,
+		Buckets: f.buckets, Labels: f.labels, Structure: f.structure, Events: f.events, Changes: f.changes,
 		Audit: f.audit, Renderer: f.renderer, UnitOfWork: f.work,
 		Clock: clock.Fixed(now), IDs: &sequentialIDs{}, HLC: &hlcSource{},
 		Entropy: clock.FixedEntropy{}, Tenancy: env.TenancyMulti, Text: text.Composing{},
@@ -510,7 +527,8 @@ func TestProvisioningCreatesTheWholeSection5Table(t *testing.T) {
 		t.Errorf("grant %+v", f.grants.grants)
 	}
 
-	// The structure: a hub, a collection inside it, three buckets (the last done), four labels.
+	// The structure: a hub, a collection inside it, four labels - and no column, because the default
+	// structure opens the collection on its list (UC-WRK-31 check 1).
 	if len(f.containers.inserted) != 2 {
 		t.Fatalf("%d containers", len(f.containers.inserted))
 	}
@@ -525,14 +543,11 @@ func TestProvisioningCreatesTheWholeSection5Table(t *testing.T) {
 	if hub.CreatedBy != owner.ID {
 		t.Errorf("the hub's creator is %v, want the owner", hub.CreatedBy)
 	}
-	if len(f.buckets.inserted) != 3 || !f.buckets.inserted[2].IsDoneBucket ||
-		f.buckets.inserted[0].IsDoneBucket || f.buckets.inserted[1].IsDoneBucket {
-		t.Errorf("buckets %+v", f.buckets.inserted)
+	if len(f.buckets.inserted) != 0 {
+		t.Errorf("columns %+v, want none under the default structure", f.buckets.inserted)
 	}
-	if f.buckets.inserted[0].OrderKey >= f.buckets.inserted[1].OrderKey ||
-		f.buckets.inserted[1].OrderKey >= f.buckets.inserted[2].OrderKey {
-		t.Errorf("bucket order %q %q %q", f.buckets.inserted[0].OrderKey,
-			f.buckets.inserted[1].OrderKey, f.buckets.inserted[2].OrderKey)
+	if len(f.structure.asked) != 1 || f.structure.asked[0].ID != collection.ID {
+		t.Errorf("the structure was asked for %+v, want the example collection", f.structure.asked)
 	}
 	if len(f.labels.inserted) != 4 {
 		t.Errorf("%d labels", len(f.labels.inserted))
@@ -540,8 +555,8 @@ func TestProvisioningCreatesTheWholeSection5Table(t *testing.T) {
 
 	// Every seeded row announced itself: an event and a change entry each, so a synchronising
 	// client's first pull sees the same workspace the API answers.
-	if len(f.events.appended) != 9 || len(f.changes.recorded) != 9 {
-		t.Errorf("%d events, %d changes, want 9 each", len(f.events.appended), len(f.changes.recorded))
+	if len(f.events.appended) != 6 || len(f.changes.recorded) != 6 {
+		t.Errorf("%d events, %d changes, want 6 each", len(f.events.appended), len(f.changes.recorded))
 	}
 
 	// The evidence: the new tenant's own trail, and the instance journal.
@@ -555,8 +570,61 @@ func TestProvisioningCreatesTheWholeSection5Table(t *testing.T) {
 	}
 }
 
+// UC-WRK-31 check 1, for the example collection: where the structure in force opens it on the
+// board, it starts with the columns every board-first collection does - to do, in progress with
+// its limit, done last and completing -, each announced; under the default structure it has none.
+func TestTheExampleCollectionStartsWithColumnsOnlyWhereItsBoardOpensFirst(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		boardFirst bool
+		columns    []string
+	}{
+		{"the default structure opens the list", false, nil},
+		{"a structure opens the board", true, []string{"seed.bucket.todo", "seed.bucket.doing", "seed.bucket.done"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newProvisionFixture()
+			f.structure.boardFirst = tc.boardFirst
+
+			provisioned, err := f.handler.Execute(t.Context(), operator(), provisionCommand())
+			if err != nil {
+				t.Fatalf("provisioning: %v", err)
+			}
+
+			if len(f.buckets.inserted) != len(tc.columns) {
+				t.Fatalf("%d columns, want %d: %+v", len(f.buckets.inserted), len(tc.columns), f.buckets.inserted)
+			}
+			previous := ""
+			for i, column := range f.buckets.inserted {
+				if column.CollectionID != provisioned.ExampleCollectionID {
+					t.Errorf("column %d is in %v, want the example collection", i, column.CollectionID)
+				}
+				if column.Name != "rendered "+tc.columns[i] {
+					t.Errorf("column %d is named %q, want %s rendered", i, column.Name, tc.columns[i])
+				}
+				if column.IsDoneBucket != (i == len(tc.columns)-1) {
+					t.Errorf("column %d done %v, want only the last", i, column.IsDoneBucket)
+				}
+				if column.OrderKey <= previous {
+					t.Errorf("column %d ranks %q after %q", i, column.OrderKey, previous)
+				}
+				previous = column.OrderKey
+			}
+			if tc.boardFirst && (f.buckets.inserted[1].WipLimit == nil || *f.buckets.inserted[1].WipLimit != work.StartingWipLimit) {
+				t.Errorf("the work in progress is limited to %v, want %d", f.buckets.inserted[1].WipLimit, work.StartingWipLimit)
+			}
+			if want := 6 + len(tc.columns); len(f.events.appended) != want || len(f.changes.recorded) != want {
+				t.Errorf("%d events, %d changes, want %d each", len(f.events.appended), len(f.changes.recorded), want)
+			}
+		})
+	}
+}
+
 func TestTheSeededNamesSpeakTheWorkspacesLocale(t *testing.T) {
 	f := newProvisionFixture()
+	// Opened on the board, so the columns' names are rendered beside the hub's, the collection's and
+	// the labels'.
+	f.structure.boardFirst = true
 
 	if _, err := f.handler.Execute(t.Context(), operator(), provisionCommand()); err != nil {
 		t.Fatalf("provisioning: %v", err)

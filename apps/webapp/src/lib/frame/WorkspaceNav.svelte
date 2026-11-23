@@ -85,7 +85,7 @@
   import { stars } from '../data/stars.svelte.ts';
   import { isStarred } from '../data/stars.ts';
   import { boardsPath } from '../data/whiteboards.svelte.ts';
-  import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { defaultName, messages, t } from '../i18n/i18n.svelte.ts';
   import {
     COLLECTIONS_FILTER_FROM,
     COLLECTIONS_SHOWN,
@@ -402,7 +402,7 @@
     if (!hubId || isWritingPost) return;
     isWritingPost = true;
     try {
-      const made = await posts.draft(hubId, t('app.posts.untitled'));
+      const made = await posts.draft(hubId, await defaultName('app.posts.untitled'));
       onnavigate(`/posts/${made.page_id}/write`);
     } catch (error) {
       toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });

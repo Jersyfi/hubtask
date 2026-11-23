@@ -153,6 +153,13 @@ func (s *layerReading) with(
 	return domain.ResolveStructure(bound, workspace, layers...), nil
 }
 
+// InForce resolves the structure in force for a container inside the caller's transaction, holding
+// the layers above it as a creation does: the reading CreateContainer gives a new collection's
+// starting columns, for a writer outside this package that seeds one (provisioning).
+func (r StructureResolver) InForce(ctx context.Context, container domain.Container) (domain.EffectiveStructure, error) {
+	return r.within(repository.LayerShared).Of(ctx, container)
+}
+
 // Resolve resolves a page of containers in one read-only transaction of its own. Called after the
 // permission question was answered, so it resolves only what the caller may see.
 func (r StructureResolver) Resolve(

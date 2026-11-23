@@ -235,6 +235,16 @@ allowlist of brand words (*Hubtask*).
   is first visited), *Start with…* (the templates that need this module, one press each) and the
   one or two settings it still needs (the desk's intake address, its business calendar). The same
   card for every module.
+* **Switched on at the workspace where hubs exist**, the switch on *Modules* first asks *Switch on
+  in which existing hubs?* in a dialog: the hubs the person may shape, none chosen, *Switch on* as
+  its one primary (UC-INS-21 check 13). The card follows the answer; without a hub to choose the
+  switch asks nothing. The switch waits, drawn busy, until the hub list and the person's roles on
+  its private hubs have answered, so that it never goes through unasked on a list still being
+  read. The question offers the hubs of the hub list, which is one page: the first 200 hubs that
+  are not archived. A hub beyond it, and an archived one, is switched on in its own settings.
+* **At a hub**, the switch is free while the workspace has the product on, and locked with its
+  reason while the workspace has it off - read from the workspace's set, whatever the hub stores
+  itself. *Reset* beside "Set here" hands the hub back to the workspace.
 * **Off, reached by a link**: the module-off problem carries the place (hub or workspace) and
   whether the reader holds `STRUCTURE` there. The screen is a neutral `EmptyState` (kind
   `unused`), never a danger banner: it says what the product does in one line, and offers *Switch
@@ -465,8 +475,10 @@ body to each catalogue.
 example collection, its columns and its labels in the workspace's language, because the owner's is
 not known yet. The owner's redemption sends the language the invitation card was read in, and
 whatever of that seed is still untouched — at its first version, under the name the workspace's
-language gives it — is renamed into it, with the events and change entries a rename owes
-(`admin.LocaliseSeed`). Anybody else's redemption renames nothing.
+language gives it — is renamed into the account's own language, else into the one sent where a
+catalogue serves it, with the events and change entries a rename owes (`admin.LocaliseSeed`).
+Anybody else's redemption renames nothing. Every redemption, the owner's included, keeps the one
+sent as the account's language where it has none ([i18n-l10n.md](./i18n-l10n.md) §2).
 
 ---
 
@@ -1047,13 +1059,20 @@ or switches off (configuration.md, `itil_service_desk@17`), never by a computati
   and the done column one (a ticked card moves to the done column; a card dropped there
   completes), as D-02 says for workflow collections; a column cut at the edge shows a scroll hint.
   As built with the work surface, the server keeps column and completion together at every level
-  (domain-model.md §3.5a): an entry's state is one control - a checkbox in a list (L0), the column
-  chip on a board without a workflow (L1), the status chip under one (L2) - the same on the list
-  row, the card and the entry head; a board under a workflow names each column's statuses and folds
-  the unmapped ones into *Ohne Spalte*, a drop target; every drop goes through `POST
+  (domain-model.md §3.5a): an entry's state is one control of two parts, the step and the state -
+  in a row and on a card the round mark followed by the column chip on a board without a workflow
+  (L1) and by the status chip under one (L2), the mark alone in a list (L0); in the entry head the
+  state's lozenge and the step as a labelled button - the same on the list row, the card and the
+  entry head. One press of the mark completes (into the done column on a board), or under a
+  workflow takes the next step towards done. A board under a workflow names each column's statuses
+  and folds the unmapped ones into *Ohne Spalte*, a drop target; there a drop goes through `POST
   /items/{id}:drop`, a choice among several steps opens a picker and a refusal says its reason at
-  the card. *Show as board*, *Back to the list* and *Workflow from these columns* sit in the
-  collection's ⋯ and preview the server's dry run first.
+  the card. A board without a workflow writes the column through `PATCH /items/{id}`
+  (`bucket_id`), which belongs to the base product and so works with Workflows switched off. *Show as board*, *Back to the list* and *Workflow from these columns* sit in the
+  collection's ⋯ and preview the server's dry run first. A collection that keeps columns but offers
+  no board says so in its settings under the views, with *Remove columns* - the same switch back to
+  a list, whose confirmation says it cannot be undone: a board switched on later starts with two
+  new columns, not these (UC-WRK-05 check 13).
 * **The default view comes from the template** per collection kind: Kanban opens on the board, a
   classic project on its plan, a desk on its queue, Scrum on the sprint board.
 
@@ -1318,7 +1337,11 @@ The six groups of `configuration/ui.md` §1 stay. Inside them:
   recorded the mail, then by the invitation notification - sent, failed or suppressed with its
   reason, or withdrawn for a link -, or, where it is newer, the person's last notification of any
   other kind with its `category` and its delivery job's failure (*Last mail (a comment) sent …*).
-  *Copy invitation link* where
+  While the person is invited and has not accepted, no other mail takes the invitation's place,
+  a newer failed one neither: the row shows the invitation job, else the newest invitation
+  notification, also once the queue has cleared the job; only with no invitation mail on record
+  (an installation that sends no mail, an invitation older than the records kept) the last other
+  mail (UC-ID-14 check 8). *Copy invitation link* where
   mail is configured is `delivery: LINK` on the renewal, behind step-up and the role ceiling,
   audited as `LINK`; it cancels the waiting invitation job and delivery and sets the unsent record
   aside, and is refused (`accounts.invitation_mail_sending`) while a delivery is being sent, since

@@ -7,7 +7,7 @@
   import CommentThread, { type ThreadComment } from './CommentThread.svelte';
   import InContext from './_InContext.svelte';
 
-  const { mode = 'thread' }: { mode?: 'thread' | 'removed' | 'empty' | 'paged' | 'table' | 'others' } = $props();
+  const { mode = 'thread' }: { mode?: 'thread' | 'removed' | 'empty' | 'paged' | 'table' | 'others' | 'kept' } = $props();
 
   /** One comment, its two affordances off for `reason` - or on, in the comparison row. */
   const single = (reason: string | undefined): ThreadComment[] => [
@@ -59,6 +59,21 @@
     { id: 'o2', authorName: 'Sofia Marchetti', body: 'I have attached the revised plan to the work package.', when: '4 Sep 2026, 11:48', at: '2026-09-04T09:48:00Z', isChangeable: false },
   ];
 
+  // A version kept when two devices changed the text while apart, between two posts; the link to it
+  // has landed, so it is marked.
+  const kept: ThreadComment[] = [
+    { id: 'k0', authorName: 'Jonas Brandt', body: 'I changed the description to the online order.', when: '22 Nov 2026, 09:58', at: '2026-11-22T08:58:00Z', isChangeable: false },
+    {
+      id: 'k1',
+      authorName: 'Amelie Fischer',
+      system: { label: 'Kept version', heading: 'Diverging version from Amelie Fischer, written on this device at 22 Nov 2026, 10:00. This is the text that lost the merge; the entry carries the other one.' },
+      body: 'Tiles ordered online already.\nDelivery on Thursday.',
+      when: '22 Nov 2026, 10:00',
+      at: '2026-11-22T09:00:00Z',
+      isEditable: false,
+    },
+  ];
+
   const withRemoved: ThreadComment[] = [
     {
       id: 'r1',
@@ -100,7 +115,8 @@
 {:else}
 <CommentThread
   label="Comments"
-  comments={mode === 'empty' ? [] : mode === 'removed' ? withRemoved : mode === 'others' ? others : conversation}
+  comments={mode === 'empty' ? [] : mode === 'removed' ? withRemoved : mode === 'others' ? others : mode === 'kept' ? kept : conversation}
+  markedId={mode === 'kept' ? 'k1' : undefined}
   emptyLabel="Nothing has been said about this entry yet. Start the conversation."
   removedLabel="This comment was removed."
   editLabel="Edit"

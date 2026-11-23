@@ -481,6 +481,19 @@ func (d Desk) answered(ctx context.Context, actor appshared.ActorContext, t doma
 	return answered, nil
 }
 
+// namingLocale is the language a template's words are stored in: they become the workspace's own
+// names, so they follow the account, else the workspace - not the browser that planned them.
+func (d Desk) namingLocale(ctx context.Context, actor appshared.ActorContext) (string, error) {
+	if actor.AccountLocale != "" || d.Workspaces == nil {
+		return actor.NamingLocale(""), nil
+	}
+	workspace, err := d.Workspaces.Find(ctx)
+	if err != nil {
+		return "", err
+	}
+	return actor.NamingLocale(workspace.DefaultLocale), nil
+}
+
 func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hub, collection shared.ID, key string, version int, take []string, answers map[string]string, samples bool) (usecase.Output, error) {
 	var out usecase.Output
 	err := d.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -502,7 +515,11 @@ func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hu
 		if chosen == nil {
 			return domain.ErrTemplateUnknown(key)
 		}
-		local := localizedTemplate(*chosen, d.Words, actor.Locale)
+		locale, err := d.namingLocale(ctx, actor)
+		if err != nil {
+			return err
+		}
+		local := localizedTemplate(*chosen, d.Words, locale)
 		local.Document = resolvedGoalSets(local.Document, d.Clock.Now().UTC())
 		chosen = &local
 		uses, err := d.Store.TemplateUses(ctx, "")
@@ -551,7 +568,7 @@ func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hu
 			// planned in: a name the workspace kept in another language counts as its own edit.
 			took := use.Document
 			if chosen.Origin == domain.OriginHubtask && d.Words != nil {
-				took = localizedDocument(use.Document, d.Words, actor.Locale)
+				took = localizedDocument(use.Document, d.Words, locale)
 			}
 			if handle != "" {
 				took = keyedUnder(took, handle)

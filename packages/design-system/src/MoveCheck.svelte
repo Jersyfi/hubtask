@@ -7,11 +7,16 @@
     /** `ok` is a check that passed, `obstacle` holds *Move* back, `warning` only says what follows. */
     readonly tone: 'ok' | 'obstacle' | 'warning';
     readonly text: string;
-    /** The one step that resolves an obstacle: "Lift the type into the workspace". */
-    readonly way?: { readonly label: string; readonly onselect: () => void };
+    /** A quieter second line under the text: what follows from it, whom it names. */
+    readonly detail?: string;
+    /** A mark of the line's own in place of the tone's glyph: `pause` for what pauses. */
+    readonly icon?: IconName;
+    /** The one step that resolves an obstacle: "Lift the type into the workspace"; a link where it is a place to go. */
+    readonly way?: { readonly label: string; readonly onselect: () => void } | { readonly label: string; readonly href: string };
     /** What follows the step: "or choose a destination that has it." */
     readonly rest?: string;
   }
+  import type { IconName } from './icons/index.ts';
 </script>
 
 <script lang="ts">
@@ -28,26 +33,34 @@
     items: readonly MoveCheckItem[];
     /** The words of each mark for a screen reader: "Passed", "Obstacle", "Warning". */
     toneLabels: { readonly ok: string; readonly obstacle: string; readonly warning: string };
+    /**
+     * Whether the list stands on its own as what a step will do - a switch-off's consequences: one
+     * bordered group with a hairline between its lines, each text a heading over its detail.
+     */
+    isFramed?: boolean;
   }
 
-  const { label, items, toneLabels }: Props = $props();
+  const { label, items, toneLabels, isFramed = false }: Props = $props();
+
+  const glyphs: Record<MoveCheckItem['tone'], IconName> = { ok: 'check', obstacle: 'x', warning: 'triangle-alert' };
 </script>
 
-<ul class="checks" aria-label={label} aria-live="polite">
+<ul class="checks" data-framed={isFramed ? '' : undefined} aria-label={label} aria-live="polite">
   {#each items as item (item.id)}
     <li class="check" data-tone={item.tone}>
       <span class="mark" title={toneLabels[item.tone]}>
-        {#if item.tone === 'ok'}
-          <Icon name="check" size="sm" label={toneLabels.ok} />
-        {:else if item.tone === 'obstacle'}
-          <Icon name="x" size="sm" label={toneLabels.obstacle} />
+        {#if item.icon || isFramed || item.tone !== 'warning'}
+          <Icon name={item.icon ?? glyphs[item.tone]} size="sm" label={toneLabels[item.tone]} />
         {:else}
           <span class="bang" role="img" aria-label={toneLabels.warning}>!</span>
         {/if}
       </span>
       <span class="words">
-        {#if item.tone === 'obstacle'}<strong>{item.text}</strong>{:else}{item.text}{/if}
-        {#if item.way}
+        {#if item.tone === 'obstacle' || isFramed}<strong>{item.text}</strong>{:else}{item.text}{/if}
+        {#if item.detail}<small class="detail">{item.detail}</small>{/if}
+        {#if item.way && 'href' in item.way}
+          <a class="way" href={item.way.href}>{item.way.label}</a>
+        {:else if item.way}
           <button type="button" class="way" onclick={item.way.onselect}>{item.way.label}</button>
         {/if}
         {#if item.rest}{item.rest}{/if}
@@ -103,10 +116,35 @@
     color: var(--text-brand);
     font: inherit;
     text-align: start;
+    text-decoration: none;
     cursor: pointer;
   }
 
   .way:hover { text-decoration: underline; }
+
+  .detail { display: block; color: var(--text-subtle); font-size: var(--fs-075); }
+
+  /* Framed: the lines of one bordered group. */
+  [data-framed] {
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-md);
+  }
+
+  [data-framed] .check {
+    display: grid;
+    grid-template-columns: var(--sp-250) minmax(0, 1fr);
+    gap: var(--sp-100);
+    margin: 0;
+    padding: var(--sp-100) var(--sp-150);
+    font-size: var(--fs-100);
+  }
+
+  [data-framed] .check + .check { border-block-start: var(--bw-hairline) solid var(--border-subtle); }
+  [data-framed] .words { min-inline-size: 0; }
+  [data-framed] .way { display: block; font-size: var(--fs-075); font-weight: var(--fw-semibold); }
+
+  /* The tone's round mark, centred on the heading's first line. */
+  [data-framed] .mark { margin-block-start: calc((1lh - var(--sp-200) - var(--sp-025)) / 2); }
 
   .way:focus-visible {
     outline: var(--bw-ring) solid var(--focus-ring);

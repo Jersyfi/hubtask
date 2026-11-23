@@ -202,6 +202,10 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "account" {
 		os.Exit(runAccountCommand(os.Args[2:], os.Stdout, os.Stderr))
 	}
+	// The bucket's CORS rule, asked about and set with the server's own storage keys.
+	if len(os.Args) > 1 && os.Args[1] == "storage" {
+		os.Exit(runStorageCommand(os.Args[2:], os.Stdout, os.Stderr))
+	}
 
 	// The bootstrap logger exists before the configuration does, because the first thing that
 	// can fail is reading the configuration - and that error is logged (T-18).
@@ -1692,6 +1696,12 @@ func run() error {
 	}
 	targetWarnings.Refresh(ctx)
 	registry.AddWarningSource(targetWarnings.Warnings)
+	// Whether the bucket lets the browser's upload through (deployment.md §6.1): asked in the
+	// background, at start and every storage.CORSCheckEvery, and served from the last answer.
+	if watch := bucketCORSWatch(cfg, mediaTransfers); watch != nil {
+		watch.Start(ctx)
+		registry.AddWarningSource(watch.Warnings)
+	}
 	// The client address, resolved once at the edge for every bucket and every session
 	// (HUBTASK_TRUSTED_PROXIES); it warns when an ingress forwards addresses nobody trusts.
 	proxyTrust := rest.NewProxyTrust(cfg.Request.TrustedProxies)
@@ -1944,7 +1954,7 @@ func run() error {
 		Tenants: postgres.NewAdminTenantRepository(), Plans: postgres.NewPlanRepository(),
 		Journal:  postgres.NewInstanceJournal(cursors),
 		Accounts: accounts, Redemption: signInStore, Grants: grants,
-		Containers: containers, Buckets: buckets, Labels: labels,
+		Containers: containers, Buckets: buckets, Labels: labels, Structure: structures,
 		Events: outbox, Changes: changes, Audit: auditSink, Renderer: renderer,
 		Domains: domains, Text: forms,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
@@ -2005,6 +2015,8 @@ func run() error {
 		// A switch of the goals at the workspace resynchronises its devices (offline-sync.md §8).
 		Epochs: postgres.NewEpochRepository(),
 		Hold:   postgres.NewConfigRepository(),
+		// A switch reaches the other devices as a change record (offline-sync.md §3.1).
+		Changes: changes, HLC: hybrid,
 	}
 	// The configuration document (F-6): read and written through the registry it is part of, so
 	// every block it changes goes through the use case every other door reaches.
@@ -2014,8 +2026,9 @@ func run() error {
 		TemplatePages: postgres.TemplatePageRepository{}, GoalSets: postgres.GoalSetRepository{}, Drafts: postgres.ConfigDraftRepository{},
 		Settings:   postgres.SettingRepository{},
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
-		// A Hubtask template's names in the applying person's language (user-experience.md §4).
-		Words: renderer,
+		// A Hubtask template's names in the applying account's language, else the workspace's
+		// (user-experience.md §4, i18n-l10n.md §2).
+		Words: renderer, Workspaces: postgres.NewWorkspaceSettingsRepository(),
 	}
 	// The first start keeps the configuration as it left it as a version (configuration.md §5).
 	starterKept := starter
@@ -2062,6 +2075,7 @@ func run() error {
 		Authorizer: authorizer, Reader: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Text: forms, Reviews: reviewClocks, Changes: changes, HLC: hybrid,
 		PersonalHubs: privateHubMaker{catalogue: personalHubs}, Words: renderer,
+		Workspaces: postgres.NewWorkspaceSettingsRepository(),
 		// A page's public link, where the workspace allows it (UC-DOC-08).
 		Public: knowledgeservice.PublicLinking{
 			Links:    postgres.NewPagePublicLinkRepository(security.NewPageLinkHasher(cfg.SecretKey)),
@@ -2977,7 +2991,8 @@ func run() error {
 		identity.GetAccount{Members: authorizer, Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.ResolveAccounts{Members: authorizer, Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.ReadInvitationDeliveries{
-			Jobs: postgres.NewInvitationJobRepository(), Authorizer: authorizer, UnitOfWork: unitOfWork,
+			Jobs: postgres.NewInvitationJobRepository(), Accounts: accounts,
+			Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		identity.ReadSignInDetails{
 			Details: postgres.NewAccountRepository(), Authorizer: authorizer, UnitOfWork: unitOfWork,
@@ -3149,11 +3164,14 @@ func run() error {
 		syncservice.ForgetSyncDevice{Writer: deviceWriter}.Descriptor(),
 		identity.RedeemInvitation{
 			Writer: sessionWriter, Passwords: &passwordWriter,
-			// The provisioned owner's untouched defaults, in the language the card was read in.
+			// The provisioned owner's untouched defaults, in the owner's language, else the one the
+			// card was read in - which then becomes the owner's.
 			Seed: adminservice.LocaliseSeed{
-				Tenants: provisioning.Tenants, Containers: containers, Buckets: buckets, Labels: labels,
+				Locales: renderer, Tenants: provisioning.Tenants,
+				Containers: containers, Buckets: buckets, Labels: labels,
 				Events: outbox, Changes: changes, Renderer: renderer, Text: forms, IDs: ids, HLC: hybrid,
 			},
+			Accounts: accounts,
 		}.Descriptor(),
 		identity.SetUpInstallation{
 			Writer: sessionWriter, Passwords: &passwordWriter, Codes: setupCodes,
@@ -4338,6 +4356,8 @@ func run() error {
 				Settings: postgres.SettingRepository{},
 				// A kind the walk skipped is counted (A-39).
 				Signals: metrics,
+				// The module switches of the workspace and of each hub, as their records carry them.
+				Switches: modules,
 			},
 			Signals: metrics,
 			// The push applies a device's queue through the catalogue as the pushing person:

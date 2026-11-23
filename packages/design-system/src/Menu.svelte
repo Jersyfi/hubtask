@@ -236,27 +236,35 @@
     width: max-content;
     max-width: 40ch;
     max-height: 60vh;
-    overflow: auto;
     margin: var(--sp-050);
     padding: var(--sp-050);
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
     /* Drawn where its trigger is, so it would inherit a current row's weight: items are regular. */
     font-weight: var(--fw-regular);
-    /* A list taller than its room scrolls inside it, and says so where the scrollbar does not: a
-       shade at the edge with more to come, covered by the surface's own colour once it is reached. */
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-overlay);
+    animation: open var(--motion-attach-duration) var(--motion-attach-easing) both;
+  }
+
+  /* A list taller than its room scrolls inside the surface, never the surface itself: Chromium
+     lays an anchored overlay in the top layer out again on its own scroll, and the surface's scroll
+     springs back by the difference between its tried sizes - the item scrolled to slides away
+     under the pointer. It says so where the scrollbar does not: a shade at the edge with more to
+     come, covered by the surface's own colour once it is reached. */
+  .menu {
+    display: flex;
+    flex-direction: column;
+    min-block-size: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
     background:
       linear-gradient(var(--bg-raised), transparent) top / 100% var(--sp-300) no-repeat local,
       linear-gradient(transparent, var(--bg-raised)) bottom / 100% var(--sp-300) no-repeat local,
       radial-gradient(farthest-side at 50% 0, var(--border-default), transparent) top / 100% var(--sp-150) no-repeat scroll,
       radial-gradient(farthest-side at 50% 100%, var(--border-default), transparent) bottom / 100% var(--sp-150) no-repeat scroll,
       var(--bg-raised);
-    overscroll-behavior: contain;
-    box-shadow: var(--shadow-overlay);
-    animation: open var(--motion-attach-duration) var(--motion-attach-easing) both;
   }
-
-  .menu { display: flex; flex-direction: column; }
 
   /* Above the items and not among them: a hairline under it, and it takes no focus. */
   .head {

@@ -102,8 +102,8 @@ moment it was minted (against the window, §7) and the workspace's synchronisati
 A **null cursor is the initial synchronisation**: the current state, one kind at a time
 (containers, buckets, labels, entries, set elements, comments, reminders, recurrence rules,
 templates, entry types, link types, workflows, custom roles, links, the reader's own role grants,
-pages, configuration items, their relations, the CMDB's catalogue, entry schedules, goal periods,
-goals, check-ins, dashboards, sprints, entries' open sprints and estimates, releases and entries' releases, custom field definitions, the reader's own time records, running timer, weeks and capacities, the kinds of work, the time policy, the absences, the cost rates and the budgets, portfolios, the agents' models, agents, held acts, evaluation cases and runs, and the workflow scheme), paged by identifier, each row
+pages, whiteboards and their comments, configuration items, their relations, the CMDB's catalogue, entry schedules, goal periods,
+goals, check-ins, dashboards, sprints, entries' open sprints and estimates, releases and entries' releases, custom field definitions, the reader's own time records, running timer, weeks and capacities, the kinds of work, the time policy, the absences, the cost rates and the budgets, portfolios, the agents' models, agents, held acts, evaluation cases and runs, the workflow scheme, and the module switches), paged by identifier, each row
 judged by the same permission as a delta record, with the log position taken *before* the first
 page so a change landing mid-walk is the first delta's. Entry types, link types and workflows are
 the workspace's vocabulary and reach every member; a custom role reaches whoever may read at the
@@ -178,6 +178,33 @@ decide: who may is asked online, and a decision needs the server; the reader's o
 entry's goals and approvals from the copy. An entry's commits, branches and pull requests
 (`code_link`, UC-INT-13) and its files in a store (`file_link`, UC-INT-14) are filed under its
 collection too and read from the copy while the server is away; a forge's hooks are read online. A
+board's comment (`whiteboard_comment`, UC-CNV-09) is filed under its board's hub and walked after
+the boards, so READ there decides who holds it; writing, rewriting, resolving, reopening and taking
+one back record it as `ListWhiteboardComments` answers it - a comment taken back as an upsert that
+keeps its place and carries no words. The sweeps write no record of a comment: a board trashed,
+purged by retention or erased takes its comments with it on the device as on the server, so a
+client drops a board's comments when it drops the board, and a walk leaves out those of a board in
+the trash. A resolved thread a workspace's retention rule removes from a board that stays
+([data-retention.md](./data-retention.md) §3, `WHITEBOARD_HISTORY`) therefore stays in a device's
+copy until its next walk; a client that shows a board's threads reads them from the server while
+it can. The module switches (`setting`, UC-INS-21) are one record per place, by the
+place's identifier: the workspace's under no container, reaching every member and no requester, as
+the capabilities' `modules_on` does; a hub's filed under the hub, reaching whoever may read it, as
+`ListContainerModules` answers. A record carries each module and whether it is on there - keys and
+booleans, never which level decided or locked it, which `ListModules` answers whoever may shape the
+place. `SetModule` records the place it wrote - with a workspace's switch also each hub it wrote
+a value into, the hubs chosen and the hubs given their state as their own - and nothing else
+writes a record: what the
+installation or a plan decides for a workspace reaches a device on its next read of the manifest.
+A workspace's switch records no hub it wrote nothing into, also where the hub's state turned with
+it: a hub that stores on is off under a workspace switched off and on again when the workspace
+is, and neither turn records the hub. A hub's record in a device's copy is therefore what the hub
+resolved to when it was written or walked, not what it resolves to now, and a client never derives
+a hub's modules from it: on any `setting` record it re-reads every place's modules. The web app
+does, with the workspace's switches and the manifest, and answers no module read from the copy
+(`apps/webapp/src/lib/data/replica.ts` maps none). The
+switch of a module that narrows the replica still advances the epoch (§8): the record tells the
+screens, the epoch moves the copy. A
 mid-walk page cursor names the kind and key it resumes after; the pull continues it, the stream
 refuses it.
 
@@ -283,6 +310,7 @@ logged.
 | Definitions carrying a tree | The template's `nodes` | **Whole**: one `UPSERT` with the document on every change, a payload-less `DELETE` when it goes, LWW over the whole document — two trees merged node by node would be a shape nobody designed. Applying a template is an act, not a state: it travels as `TEMPLATE_APPLY`, the server stamps it when the push arrives, and its entries arrive as ordinary creations |
 | Definitions beside the entries | A container's name, description, icon and colour; a label; a bucket | Like a reminder: **whole** on creation (the client's identifier) and deletion, **LWW per field** between. A container's structure and privacy are refused in a patch (`sync.field_not_mergeable`), its policies and place and a bucket's place are not in the frame yet (`sync.field_unavailable`) |
 | Suggestions | Everything on an `ai_suggestion` | **Server-side, not merged**: delivered as an `UPSERT` with the whole record and its status; the change a decision caused arrives as the entry's own `UPSERT`. A second answer to one proposal is refused as already decided |
+| Module switches and a board's comments | A place's modules (`setting`); a comment on a board (`whiteboard_comment`) | **Server-side, never merged or pushed**: each record is an `UPSERT` with the whole state - every module of the place and whether it is on there; the comment as `ListWhiteboardComments` answers it - and a later record replaces the earlier one whole. A comment taken back is an `UPSERT` without its words, never a `DELETE`. Both are written online through their use cases, and neither is an entity of the push (`sync.entity_unknown`); a client re-reads on the record rather than applying it (§3.1) |
 | Account preferences | `locale`, `time_zone`, `week_start`, `celebrations`, `onboarding_completed_at` | **Last writer wins** through `UpdateAccountPreferences`, never a push: an account is not a synchronised entity |
 | Counters | Progress, derived values, a collection's figure | Computed server-side, never set by a client (a calculated field of an entry whose writes wait is shown as the browser computes it, `packages/expression`, until the server's answer lands); a collection's figure travels in no change record and is answered only by the server's read, so a read the replica answers carries none |
 | A container's structure in force | `structure` on a hub or collection ([domain-model.md](./domain-model.md) §2) | **Resolved by the server, never merged or pushed**: the record carries the structure in force whole - each setting's value, its source and the locks - and a later record replaces it whole. A change of a layer records it for every container that inherits that layer, in the writer's transaction: a hub's for its collections, the workspace's for every hub and collection, past a thousand by advancing the epoch instead (§8). A structure is written online; a client offline offers no change of it (`sync.needs_connection`). A container record held from before the server answered `structure` lacks it; a client that finds `features.structure` and such a record takes a fresh snapshot once. A collection moved to another hub records its structure in force too, since it now inherits from there. An entry record never carries the `hidden` mark a read answers ([domain-model.md](./domain-model.md) §2): the client derives it from the container's structure and the installation's types, and a container record makes the entries under it stale |
@@ -412,7 +440,26 @@ When two versions of an entry's notes collide, one loses but does not disappear:
 * The activity entry marks the merge.
 * The push answers `CONFLICT` with `field`, `mine`, `theirs` and `preserved_comment_id`, so a client can offer a choice.
 
-This applies to the notes only; titles and structured fields merge unambiguously.
+In the push this applies to the notes only; titles and structured fields merge unambiguously.
+
+Online, nothing is filed. The web app compares each of the title and the notes three ways — as
+the person began, as they hold it, as the entry holds it now — and sends only what the person
+changed, so a field somebody else changed meanwhile is never sent back. Where both changed the
+same field to different texts, it writes nothing and asks first: an alert dialog says who changed
+it and when, shows both versions, and the person takes the other's text — their own is dropped —
+or overwrites it with their own, one write against the version in place. What a
+field said before is read in the entry's history, which keeps both sides of a title and of the
+notes only that they changed ([domain-model.md](./domain-model.md) §3.5).
+
+The kept version of the push is bounded as the field it holds, not as a comment: notes by no
+bound of their own (the column is unbounded text; only the request body limit caps them), so
+notes longer than a comment's 20 000 characters are kept whole. A comment somebody writes keeps
+its bound.
+
+A client renders a kept version's heading from its code and parameters, never as a post by the
+person it was filed for, and shows its text as filed. The web app addresses one comment as
+`/items/{id}?comment={commentId}`: the conflict's `preserved_comment_id` leads there, and the
+conversation opens on it.
 
 ---
 
@@ -657,3 +704,21 @@ it, order it and decide who may touch it.
 |---|---|---|
 | SY-E | Awareness across processes - closed: relayed on `hubtask_awareness` (see *Awareness* above) | - |
 | SY-F | Reconnect traffic - closed on the client: the writer answers the server's empty vector with the difference to the state it was just handed (`packages/editor` `LiveDocument`). Measured by `live.test.ts` (*a reconnecting writer sends only what the server lacks*): a page of about 107 KB and 20 writers reconnecting, half with offline words, sent 107,090 bytes per reconnect before and under 200 after, so the log grows by the offline words. Compacting without a writer needs a server-side merge (a CRDT library in Go), which the owner's answer A rules out; the log is bounded instead: a writer that opens a document past 500 updates is asked at once, an update landing more than 2,500 past the snapshot is counted (`hubtask_realtime_document_backlog_total{outcome="overdue"}`, A-24), and at 5,000 the log refuses new updates (`realtime.compaction_overdue`, counted `refused`) and asks the writer again - its snapshot is its whole state, the refused words included, and lifts the refusal (`TestALogNobodyCompactsIsBounded`, `TestALogNobodyCompactsRefusesUpdatesUntilASnapshot`, `TestARefusedUpdateAsksTheWriterForItsSnapshot`) | a log measured to outgrow the 500-update compaction |
+
+## 14. What a signed-in tab fetches ahead
+
+The web app's screens and the parts they open are chunks of their own, fetched when first reached.
+Offline that is too late, so once a signed-in tab is idle it fetches, one at a time, every screen's
+and part's chunk the reader can open (`apps/webapp/src/lib/frame/precache.ts`):
+
+* **For everybody signed in:** every screen and part but the administration area, once per tab.
+* **For somebody who reaches the administration** (`STRUCTURE` or `READ_CONFIGURATION` on the
+  workspace): that area's chunk too, as soon as the manifest says so - at its first read or after a
+  role granted later in the session - once, after the first list. Somebody who cannot open it never
+  fetches it; the area is online only anyway (§1).
+* **Not at all** while the browser is offline or the connection asks to save data; a chunk that
+  cannot be fetched then is fetched when its screen is reached.
+
+The manifest the reach is read from (`/meta/capabilities`) is not kept by the browser's cache: it
+stays `no-store`, and the tab re-reads it with the tag of the copy it holds in memory
+([api-guidelines.md](./api-guidelines.md) §1, item 4); sign-out holds none (§9 rule 6).

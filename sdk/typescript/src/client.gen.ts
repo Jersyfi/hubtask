@@ -41,7 +41,7 @@ export interface CallOptions {
 }
 
 type BodyKind = 'json' | 'raw' | 'none';
-type AnswerKind = 'json' | 'raw' | 'void';
+type AnswerKind = 'json' | 'revalidated' | 'raw' | 'void';
 
 export class HubtaskClient {
   readonly #options: ClientOptions;
@@ -55,6 +55,8 @@ export class HubtaskClient {
    * the query is appended with `undefined` values left out, the bearer is added, and a non-2xx
    * answer becomes a ProblemError - a body that is not a problem document (a proxy's HTML) still
    * becomes one, with the status and an empty code, so that a caller has one shape to handle.
+   * A 'revalidated' answer is JSON, or undefined where the server answered 304: the copy the
+   * caller holds is still current.
    */
   protected async call<T>(
     method: string,
@@ -79,7 +81,7 @@ export class HubtaskClient {
     if (qs) url += `?${qs}`;
 
     const sent = new Headers(this.#options.headers);
-    if (answer === 'json') sent.set('Accept', 'application/json, application/problem+json');
+    if (answer === 'json' || answer === 'revalidated') sent.set('Accept', 'application/json, application/problem+json');
     const token = typeof this.#options.token === 'function' ? await this.#options.token() : this.#options.token;
     if (token) sent.set('Authorization', `Bearer ${token}`);
     for (const [key, value] of Object.entries(headers)) if (value !== undefined) sent.set(key, value);
@@ -95,6 +97,7 @@ export class HubtaskClient {
 
     const doFetch = this.#options.fetch ?? fetch;
     const response = await doFetch(this.#options.baseUrl + url, { method, headers: sent, body: payload, signal });
+    if (response.status === 304 && answer === 'revalidated') return undefined as T;
     if (!response.ok) {
       let problem: Problem = { status: response.status, code: '' };
       try {
@@ -1836,8 +1839,8 @@ export class HubtaskClient {
 
   /** Self-description of the installation
    * Public: sent without a bearer where the client holds none. */
-  getCapabilities(options: CallOptions = {}): Promise<operations["getCapabilities"]['responses'][200]['content']["application/json"]> {
-    return this.call("GET", "/meta/capabilities", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  getCapabilities(options: CallOptions & { readonly ifNoneMatch?: string } = {}): Promise<operations["getCapabilities"]['responses'][200]['content']["application/json"] | undefined> {
+    return this.call("GET", "/meta/capabilities", {  }, undefined, { "If-None-Match": options.ifNoneMatch }, undefined, "none", undefined, "revalidated", options.signal);
   }
 
   /** Deep self-diagnosis of the installation */

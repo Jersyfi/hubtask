@@ -83,7 +83,8 @@ test('chromium: a card is carried from anywhere on it, and the click that ends t
   await carry(page, { x: from.x + from.width / 2, y: from.y + from.height / 2 }, { x: to.x + to.width / 2, y: to.y + 80 });
   await page.waitForTimeout(400);
 
-  const move = written.find((each) => each.method === 'POST' && each.path.endsWith(`/items/${ITEMS[0].id}:drop`));
+  // Without a workflow the column is the base product's write (`PATCH bucket_id`), not `:drop`.
+  const move = written.find((each) => each.method === 'PATCH' && each.path.endsWith(`/items/${ITEMS[0].id}`));
   assert.equal(move?.body?.bucket_id, BUCKETS[1].id, `the card did not change column: ${JSON.stringify(written)}`);
   // And letting go did not also open the entry it had just filed.
   assert.equal(new URL(page.url()).pathname, `/collections/${COLLECTION.id}`, 'the drag ended by opening the entry');
@@ -179,7 +180,7 @@ test('chromium: a finger that moves at once is scrolling, and one that waits is 
   const to = await doing.boundingBox();
   const middle = { x: from.x + from.width / 2, y: from.y + from.height / 2 };
   const target = { x: to.x + to.width / 2, y: to.y + 80 };
-  const moves = () => written.filter((each) => each.method === 'POST' && each.path.endsWith(':drop'));
+  const moves = () => written.filter((each) => each.method === 'PATCH' && 'bucket_id' in (each.body ?? {}));
 
   // A finger that moves at once is scrolling the board: nothing is carried, nothing is written.
   await fingerCarry(page, context, middle, target);

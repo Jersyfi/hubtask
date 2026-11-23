@@ -21,7 +21,7 @@
   import { modules, modulesHere } from '../lib/data/modules.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
-  import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import { defaultName, messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { productOf } from '../lib/navigation.ts';
   import { attentionAcross, continueReading, daysOverdue, isVerified, pagesFigures, verifiedBySpace, phasesOf, planCounts, createAt, createOf, homeTabs, placesByUse, writableHubs, isUnused, hubScreenOf, hubsWithAssetsFirst, inventoryByClass, inventorySummary, nextReleaseOf, pagesToReview, recentBoards, recentPages, recentPosts, releasesDue, sprintsRunning } from '../lib/product/home.ts';
   import CollectionFigure from '../lib/entries/CollectionFigure.svelte';
@@ -181,7 +181,7 @@
   /** A post is written at once as a draft in the hub, and opens to be written, as the hub's page does. */
   async function makePostIn(hubId: string): Promise<void> {
     try {
-      const made = await posts.create(hubId, { title: t('app.posts.untitled'), publish_at: null, audience: 'HUB', group_ids: [], discussion: true, notify: true });
+      const made = await posts.create(hubId, { title: await defaultName('app.posts.untitled'), publish_at: null, audience: 'HUB', group_ids: [], discussion: true, notify: true });
       onnavigate(`/posts/${made.page_id}/write`);
     } catch (error) {
       toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });

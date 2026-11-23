@@ -5,12 +5,15 @@ package config
 
 import (
 	"context"
+	"maps"
+	"slices"
 	"strings"
 
 	settingrepo "github.com/Jersyfi/hubtask/core/application/repository/setting"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -483,8 +486,42 @@ func applyFields() []usecase.Field {
 		usecase.Field{Name: "acknowledge", Kind: usecase.KindBool, Description: "True once the person has seen that the plan hides data or changes permissions; required when it does."},
 		usecase.Field{Name: "template", Kind: usecase.KindString, Description: "The template@version the document came from, recorded as the workspace's provenance - or, with hub_id, as the hub's, for a template with a hub part, and with collection_id as the collection's, for a template with a collection part."},
 		collectionField(),
+		usecase.Field{Name: chosenHubsField, Kind: usecase.KindIDList, Description: "With the workspace's document: the existing hubs in which a module this apply switches on for the workspace is switched on as well, as SetModule's hub_ids - the hub a template is taken for, at most 200. A proposal carries none."},
 		usecase.Field{Name: "step_up_token", Kind: usecase.KindString, CallerOnly: true, Description: "The fresh proof from /auth/step-up, needed where the plan changes the sign-in rule (step_up)."},
 	)
+}
+
+const chosenHubsField = "module_hub_ids"
+
+// withChosenHubs names the hubs chosen with an apply in each of its switches of a module on at the
+// workspace, so that a template taken for an existing hub does not leave that hub without the
+// module (UC-INS-21 check 13). The plan and its hash stay the document's alone.
+func withChosenHubs(ops []operation, in usecase.Input, hub shared.ID) ([]operation, error) {
+	chosen, err := in.IDList(chosenHubsField)
+	if err != nil || len(chosen) == 0 {
+		return ops, err
+	}
+	if err := module.BoundChosenHubs(len(chosen), "/"+chosenHubsField); err != nil {
+		return nil, err
+	}
+	if !hub.IsZero() {
+		return nil, shared.ErrValidation.WithDetail("module.hubs_with_on_only").
+			WithFields(shared.FieldError{Path: "/" + chosenHubsField, Code: "module.hubs_with_on_only"})
+	}
+	ids := make([]any, 0, len(chosen))
+	for _, id := range chosen {
+		ids = append(ids, id.String())
+	}
+	named := slices.Clone(ops)
+	for i, op := range named {
+		if op.UseCase != "SetModule" || text(op.Input[switchAttribute]) != "ON" {
+			continue
+		}
+		input := maps.Clone(op.Input)
+		input["hub_ids"] = ids
+		named[i].Input = input
+	}
+	return named, nil
 }
 
 // ProposeConfig keeps a plan for a person to apply or decline (D-16).
@@ -658,7 +695,11 @@ func (d Desk) apply(ctx context.Context, actor appshared.ActorContext, in usecas
 		if err := d.drifted(ctx, actor, now, d.Clock.Now()); err != nil {
 			return err
 		}
-		if err := d.run(ctx, actor, p.Ops, in.String("step_up_token")); err != nil {
+		ops, err := withChosenHubs(p.Ops, in, hub)
+		if err != nil {
+			return err
+		}
+		if err := d.run(ctx, actor, ops, in.String("step_up_token")); err != nil {
 			return err
 		}
 		if err := d.publishedDrafts(ctx, hub, document); err != nil {

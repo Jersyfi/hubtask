@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-08, P-11, P-13]
 state: partial
 tasks: [B-09, F2-11, F2-12, F9-07, F10-11]
-checked_by: [test/integration/structure_test.go, core/domain/model/work/Bucket_test.go, apps/webapp/e2e/board.test.mjs, apps/webapp/e2e/container.test.mjs, apps/webapp/e2e/entrybyrole.test.mjs, apps/webapp/e2e/boardlevels.test.mjs, apps/webapp/src/lib/entries/boardlevel.test.ts, apps/webapp/e2e/entryhead.test.mjs, apps/webapp/e2e/viewpanel.test.mjs]
+checked_by: [test/integration/structure_test.go, core/domain/model/work/Bucket_test.go, apps/webapp/e2e/board.test.mjs, apps/webapp/e2e/container.test.mjs, apps/webapp/e2e/entrybyrole.test.mjs, apps/webapp/e2e/boardlevels.test.mjs, apps/webapp/src/lib/entries/boardlevel.test.ts, apps/webapp/e2e/entryhead.test.mjs, apps/webapp/e2e/viewpanel.test.mjs, apps/webapp/src/lib/workspace/unusedColumns.test.ts, core/application/service/work/SwitchBoard_test.go, core/application/service/work/WorkflowsOffBoard_test.go, apps/webapp/src/lib/entries/statechip.test.ts]
 ---
 
 # Run a collection as a board
@@ -55,8 +55,10 @@ column at a time.
     do, the person picks one in a picker and nothing changes until they do; where none does, the
     drop is refused and the card shows why (owner's decision of 2026-11-12).
 11. An entry's state is changed by one control, the same on the list row, the card, the entry head
-    and the phone sheet: the checkbox without columns, the column chip on a board without a
-    workflow, the status chip where a workflow runs. A person who may change the collection's shape
+    and the phone sheet: one round mark in the same place on every level - one press completes, an
+    arrow where the next step of a workflow does not complete the entry -, alone without columns,
+    followed by the column chip on a board without a workflow and by the status chip where a
+    workflow runs (owner's decision of 2026-11-22). A person who may change the collection's shape
     shows a list as a board and a board without a workflow as a list again from the collection's
     ⋯ menu, after a preview: a board starts with an open and a done column, completed cards in the
     done one; back to a list the columns go and every entry keeps its completion. Neither is
@@ -65,6 +67,10 @@ column at a time.
     value -, each lane a row of the same columns with its count, the cards without a value in the
     last lane; the lanes are saved with the view as `grouping.lanes_by`, held to the grouping's
     rule (E-21).
+13. A collection that has columns but offers no board says so in its settings with the number of
+    columns and offers *Remove columns*; the confirmation says how many columns go, that every
+    entry keeps whether it is done, and that it cannot be undone; after confirming the collection
+    has no columns and no entry changed its completion (owner's decision of 2026-11-22).
 
 ## Where it ends
 

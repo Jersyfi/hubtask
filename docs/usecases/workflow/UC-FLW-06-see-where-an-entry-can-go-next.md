@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-12, P-13]
 state: partial
 tasks: []
-checked_by: [core/domain/model/work/Workflow_test.go, core/application/service/work/EntryStepsPicture_test.go, apps/webapp/src/lib/entries/entrysteps.test.ts, apps/webapp/e2e/entryhead.test.mjs]
+checked_by: [core/domain/model/work/Workflow_test.go, core/application/service/work/EntryStepsPicture_test.go, core/application/service/work/WorkflowsOffBoard_test.go, apps/webapp/src/lib/entries/entrysteps.test.ts, apps/webapp/e2e/entryhead.test.mjs, apps/webapp/e2e/boardlevels.test.mjs]
 ---
 
 # See where an entry can go next and how its workflow looks
@@ -54,5 +54,4 @@ to do, in progress and done, and the main button is *Done*, which completes the 
 
 ## Today
 
-* Check 5: not met where the Workflows module is off — the steps are read from the workflows module, so a board's entry shows open and done instead of the board's columns; tracked in #1864.
 * Check 6: not proven — the steps' door is one use case behind REST, MCP and `hubctl item steps`, and no test compares their answers.

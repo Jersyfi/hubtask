@@ -483,11 +483,12 @@ func (s StreamChanges) mayReadWorkspaceWide(
 	}
 	switch entity {
 	case entityEntryType, entityLinkType, entityWorkflow, entityWorkflowScheme, entityCustomField,
-		entityWorkTypes, entityTimePolicy, entityAbsence:
+		entityWorkTypes, entityTimePolicy, entityAbsence, entitySetting:
 		// What ListEntryTypes, ListLinkTypes and ListWorkflows answer every member, the
 		// workspace-wide definitions ListCustomFields answers within every collection, what every
-		// member fills a time record in with and the shared calendar ListAbsences answers: any
-		// member's, no requester's (access.Request.AnyMember).
+		// member fills a time record in with, the shared calendar ListAbsences answers and the
+		// modules on at the workspace, which the capabilities answer: any member's, no
+		// requester's (access.Request.AnyMember).
 		return s.mayReadAsMember(ctx, actor, resolved)
 	case entityRoleGrant, entityTimeRecord, entityTimer, entityTimesheet, entityCapacities:
 		// The walk reads the reader's own grants and time only; the stream decides each record by

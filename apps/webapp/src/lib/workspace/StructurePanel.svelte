@@ -20,7 +20,7 @@
 
   import { untrack, type Snippet } from 'svelte';
 
-  import { Button, Checkbox, DataTable, Input, SaveBar, Select, SettingRow, SettingsLayout, SettingsSection, SourceChip } from '@hubtask/design-system/components';
+  import { Banner, Button, Checkbox, DataTable, Input, SaveBar, Select, SettingRow, SettingsLayout, SettingsSection, SourceChip } from '@hubtask/design-system/components';
   import type { DataColumn, PageHead, SectionLink } from '@hubtask/design-system/components';
   import type { Container, CustomFieldDefinition, EffectiveStructure, EntryType, StructureChange, StructurePreview, StructureSettings, Workflow } from '@hubtask/sync-engine';
 
@@ -39,6 +39,7 @@
   import NarrowingDialog from './NarrowingDialog.svelte';
   import { reachOf } from '../settings/reach.ts';
   import SavePresetDialog from './SavePresetDialog.svelte';
+  import UnusedColumnsHint from './UnusedColumnsHint.svelte';
   import { GROUP_CODES, STRUCTURE_GROUPS, groupOf, isGroup, orderSections, sectionOf, type StructureGroup } from './placeSections.ts';
   import { DRAWABLE } from '../entries/layouts.ts';
   import { toast } from '../frame/toasts.svelte.ts';
@@ -51,10 +52,14 @@
   import TableSection from '../page/TableSection.svelte';
   import {
     SETTINGS,
-    changeOf,
+    bothChanged,
     choosePreset,
     countOf,
+    isBehind,
     isOwn,
+    ownChangeOf,
+    rebase,
+    toSave,
     levelRefusal,
     lockOf,
     renameLevel,
@@ -171,9 +176,31 @@
   });
 
   const chosen = $derived(draft?.preset ? presets.find(draft.preset) : undefined);
-  const change = $derived(draft && structure ? changeOf(draft, structure, chosen) : undefined);
-  const changeCount = $derived(countOf(change));
+  /**
+   * Changed meanwhile (UC-WRK-23 check 10): the settings changed elsewhere while the draft held a
+   * change of the reader's. Then nothing is saved - the save would write the other change back -
+   * and the bar counts the reader's own change until it is applied to the current settings.
+   */
+  const behind = $derived(draft && structure ? isBehind(draft, structure, chosen) : false);
+  const change = $derived(draft && structure ? toSave(draft, structure, chosen) : undefined);
+  const changeCount = $derived(countOf(behind && draft && structure ? ownChangeOf(draft, structure, chosen) : change));
+  const overlap = $derived(behind && draft && structure ? bothChanged(draft, structure, container.type, chosen) : []);
   $effect(() => leaveGuard.hold(() => changeCount));
+  // The notice is drawn filled, so it is said through the frame's one live region as it appears.
+  let wasBehind = false;
+  $effect(() => {
+    const now = behind;
+    untrack(() => {
+      if (now && !wasBehind) announcer.say(t('app.structure.meanwhile.title'));
+      wasBehind = now;
+    });
+  });
+
+  function applyMine() {
+    if (!draft || !structure) return;
+    draft = rebase(draft, structure, container.type, chosen);
+    failure = undefined;
+  }
 
   /**
    * What the change in the draft reaches, asked once the person pauses (configuration/ui.md A3):
@@ -181,17 +208,18 @@
    * leaves the bar without the line; the save asks again and reports it.
    */
   const PREVIEW_PAUSE_MS = 400;
-  let reach = $state<{ change: StructureChange; preview: StructurePreview } | undefined>();
+  let reach = $state<{ change: StructureChange; preview: StructurePreview; version: number } | undefined>();
   $effect(() => {
     const asked = change;
     const id = container.id;
+    const version = container.version;
     reach = undefined;
     if (!asked) return;
     let isCurrent = true;
     const timer = setTimeout(() => {
       containers.previewStructure(id, asked).then(
         (preview) => {
-          if (isCurrent) reach = { change: asked, preview };
+          if (isCurrent) reach = { change: asked, preview, version };
         },
         () => {},
       );
@@ -496,7 +524,7 @@
   }
 
   /** A change that would stop showing something, waiting for the person's choice (UC-WRK-24 check 2). */
-  let narrowing = $state<{ change: StructureChange; preview: StructurePreview } | undefined>();
+  let narrowing = $state<{ change: StructureChange; preview: StructurePreview; version: number } | undefined>();
 
   /**
    * Saves a change that offers as much or more at once (check 1); one that would stop showing
@@ -509,13 +537,19 @@
     if (isFieldMissing || isViewMissing) return;
     isSaving = true;
     failure = undefined;
+    // Written as previewed, against the version previewed. A change that arrived meanwhile is
+    // never written over unseen: the list's own is the server's to refuse, one it inherits leaves
+    // the draft behind, and the bar then offers to apply the reader's change to it.
+    const wanted = change;
+    const version = container.version;
     try {
-      const preview = await containers.previewStructure(container.id, change);
+      const preview = await containers.previewStructure(container.id, wanted);
+      if (behind) return;
       if (preview.narrows) {
-        narrowing = { change, preview };
+        narrowing = { change: wanted, preview, version };
         return;
       }
-      await write(change);
+      await write(wanted, version);
     } catch (error) {
       failure = renderProblem(error as never, messages);
     } finally {
@@ -525,10 +559,14 @@
 
   async function confirmNarrowing(choice: 'HIDE' | 'FLATTEN') {
     if (!narrowing || isSaving) return;
+    if (behind) {
+      narrowing = undefined;
+      return;
+    }
     isSaving = true;
     failure = undefined;
     try {
-      await write({ ...narrowing.change, narrowing: choice });
+      await write({ ...narrowing.change, narrowing: choice }, narrowing.version);
       narrowing = undefined;
     } catch (error) {
       narrowing = undefined;
@@ -538,9 +576,9 @@
     }
   }
 
-  async function write(change: StructureChange) {
+  async function write(change: StructureChange, version: number) {
     const before = structure;
-    const answered = await containers.setStructure(container.id, change, container.version);
+    const answered = await containers.setStructure(container.id, change, version);
     if (answered.structure) draft = afterSave(answered.structure, before, structure);
     const kept = answered.kept_by_lock ?? [];
     announcer.say(t('app.structure.saved_announced'));
@@ -674,11 +712,11 @@
     label={t('app.save_bar.label')}
     changesLabel={changeCount > 0 ? t('app.save_bar.changes', { count: String(changeCount) }) : undefined}
     discardLabel={t('app.save_bar.discard')}
-    saveLabel={t('app.workspace.save')}
+    saveLabel={behind ? t('app.structure.meanwhile.apply_short') : t('app.workspace.save')}
     {isSaving}
     savingLabel={t('app.workspace.saving')}
     onDiscard={discard}
-    onSave={() => void save()}
+    onSave={() => (behind ? applyMine() : void save())}
     reachLabel={reach ? reachOf(reach.preview, t) : undefined}
     planLabel={t('app.settings.show_plan')}
     onPlan={reach?.preview.narrows ? () => (narrowing = reach) : undefined}
@@ -741,6 +779,23 @@
         advanced={group === 'types' && offeredTypes.length > 0 ? { label: t('app.settings.types_advanced'), description: t('app.settings.types_advanced_hint'), rows: typesAdvanced } : undefined}
       >
         {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
+        {#if behind}
+          <div class="meanwhile" data-structure-meanwhile>
+            <Banner tone="warning" title={t('app.structure.meanwhile.title')}>
+              {t('app.structure.meanwhile.text')}
+              {#if overlap.length > 0}
+                {t('app.structure.meanwhile.overlap', {
+                  count: String(overlap.length),
+                  settings: new Intl.ListFormat(messages.locale, { type: 'conjunction' }).format(overlap.map(titleOf)),
+                })}
+              {/if}
+              {#snippet action()}
+                <Button size="sm" tone="primary" onclick={applyMine}>{t('app.structure.meanwhile.apply')}</Button>
+                <Button size="sm" tone="secondary" onclick={discard}>{t('app.structure.meanwhile.show')}</Button>
+              {/snippet}
+            </Banner>
+          </div>
+        {/if}
         {#if group === 'template'}
           <div data-setting="preset">
             <SettingRow
@@ -814,6 +869,7 @@
                   />
                 {/snippet}
               </SettingRow>
+              <UnusedColumnsHint {container} offered={(structure.settings.views?.offered ?? []) as readonly string[]} mayShape={mayShapeHere} />
             {:else if setting === 'counts' && figures}
               <SettingRow label={titleOf(setting)} help={t('app.figure.intro')} fieldWidth="md" lockReason={lockReason('counts')}>
                 {#snippet source()}{@render chipFor(setting)}{/snippet}
@@ -1067,4 +1123,11 @@
   .pending { padding: 0 var(--sp-250) var(--sp-150); }
   .quiet { color: var(--text-secondary); }
   .failure { margin: 0; padding: var(--sp-150) var(--sp-250) 0; color: var(--text-danger); }
+  /* In line with the setting rows below it, whose padding it takes. */
+  .meanwhile { padding: var(--sp-150) var(--sp-250) var(--sp-100); }
+
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width < 600px) {
+    .meanwhile { padding-inline: var(--sp-200); }
+  }
 </style>

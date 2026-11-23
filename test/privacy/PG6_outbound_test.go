@@ -91,6 +91,9 @@ func isIdentifierURL(value string) bool {
 		// The CalendarServer namespace of `getctag`: a WebDAV property name every CalDAV client
 		// asks by, written into an XML document and never fetched.
 		"calendarserver.org/ns",
+		// The S3 API's XML namespace, the xmlns of a bucket's CORS document: written into the
+		// document sent to the operator's own endpoint and never fetched.
+		"s3.amazonaws.com/doc/2006-03-01/",
 		// The Adaptive Card schema a chat room's card names as its `$schema`, a dialect like
 		// JSON Schema's: written into the message and never fetched.
 		"adaptivecards.io/schemas/",

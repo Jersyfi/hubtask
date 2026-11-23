@@ -26,10 +26,11 @@
   // resolve is named by its kind.
 
   import LazyView from '../lib/frame/LazyView.svelte';
-  import { untrack, type Snippet } from 'svelte';
+  import { tick, untrack, type Snippet } from 'svelte';
 
   import {
     ActivityFeed,
+    Banner,
     Breadcrumb,
     Button,
     DetailPage,
@@ -71,6 +72,7 @@
     namesInstant,
     namesMedia,
     namesPeople,
+    lastChangeOf,
   } from '../lib/data/activity.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { changeRefusalCode, declaresType, holds, mayDo, offerIn, roleOrder } from '../lib/data/capability.svelte.ts';
@@ -90,8 +92,9 @@
   import { formatDecimal } from '../lib/i18n/number.ts';
   import { formatDuration } from '../lib/i18n/duration.ts';
   import { commentsPath } from '../lib/data/comments.svelte.ts';
+  import { addressedComment } from '../lib/data/comments.ts';
   import { engine } from '../lib/data/engine.ts';
-  import { entryEditOf } from '../lib/data/edits.ts';
+  import { entryEditOf, inlineWriteOf, type EntryDraft, type EntryEdit, type TextField } from '../lib/data/edits.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { labels } from '../lib/data/labels.svelte.ts';
   import { attachmentsPath, media } from '../lib/data/media.svelte.ts';
@@ -129,6 +132,8 @@
   import DuePanel from '../lib/entries/DuePanel.svelte';
   import LanguagePicker from '../lib/entries/LanguagePicker.svelte';
   import ConflictStrip from '../lib/entries/ConflictStrip.svelte';
+  import MeanwhileDialog from '../lib/entries/MeanwhileDialog.svelte';
+  import { leaveGuard } from '../lib/frame/leave.svelte.ts';
   import AiAsk from '../lib/entries/AiAsk.svelte';
   import AiPlace from '../lib/entries/AiPlace.svelte';
   import TranslatePanel from '../lib/entries/TranslatePanel.svelte';
@@ -156,7 +161,7 @@
   import { entryParts } from '../lib/frame/parts.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { languageName } from '../lib/i18n/locale.ts';
-  import { renderProblem } from '../lib/problem.ts';
+  import { renderProblem, type RenderedProblem } from '../lib/problem.ts';
   import { actionsOfHead } from '../lib/palette/actions.ts';
   import { commands } from '../lib/palette/commands.svelte.ts';
 
@@ -172,14 +177,16 @@
     isInPane?: boolean;
     /** Takes this address's place in the history: the right view for one link (PO-5). */
     onreplace?: (path: string) => void;
+    /** The comment the address names (`?comment=`): the conversation opens on it. */
+    comment?: string;
   }
 
-  const { id, onnavigate, isInPane = false, onreplace }: Props = $props();
+  const { id, onnavigate, isInPane = false, onreplace, comment }: Props = $props();
 
   /** The head's primary act, from the status (E-23): the next step, or *Done* without a workflow. */
-  let statusNext = $state<{ label: string; icon?: 'check'; onclick: () => void } | undefined>(undefined);
+  let statusNext = $state<{ label: string; icon?: 'check' | 'arrow-right'; disabledReason?: string; onclick: () => void } | undefined>(undefined);
   /** A ticket's second act beside it: the step that waits for the requester (deskentry.d). */
-  let statusSecond = $state<{ label: string; onclick: () => void } | undefined>(undefined);
+  let statusSecond = $state<{ label: string; icon?: 'undo-2'; disabledReason?: string; onclick: () => void } | undefined>(undefined);
   /** The ticket's one deadline chip in the action bar (ET-6). */
   let deadlineChip = $state<DeadlineChip | undefined>(undefined);
   /** The sections a phone draws under the description instead of as a mark of their own. */
@@ -981,6 +988,9 @@
   const isWritable = $derived(isChangeable && frozenReason === undefined);
   const instanceId = $props.id();
   const readOnlyNoticeId = `item-${instanceId}-read-only`;
+  const pausedNoticeId = `item-${instanceId}-paused`;
+  let isWorkflowPaused = $state(false);
+  let entryStatus = $state<EntryStatus | undefined>(undefined);
   provideReasonGroup(() => ({ id: readOnlyNoticeId, reason: readOnlyReason }));
 
   async function unarchive() {
@@ -1161,36 +1171,227 @@
    */
   const notesShown = $derived(isInlineDirty ? inlineNotes : (item?.notes ?? ''));
 
-  async function commitInline() {
-    if (!item || !isInlineDirty) return;
+  /**
+   * Changed meanwhile (UC-SYN-02 check 10): what each text was when the reader began - the notes
+   * as the editor showed them when it took the focus, the title as its field opened - so that a
+   * leave decides each field three ways (`inlineWriteOf`). A text the reader did not change is not
+   * sent back over somebody else's; one both changed is not written until the reader answers the
+   * warning: keep the saved version, or overwrite it with theirs.
+   */
+  let inlineBase: EntryDraft | undefined;
+  let notesAtFocus: string | undefined;
+  /** The field the warning asks about; it stays asked until answered, also while the dialog is closed. */
+  let meanwhileField = $state<TextField | undefined>(undefined);
+  let isAsking = $state(false);
+  let isOverwriting = $state(false);
+  let overwriteFailure = $state<RenderedProblem | undefined>(undefined);
+  /** Who last changed the field and when, from the entry's history; the entry's own stamp without it. */
+  const meanwhileBy = $derived.by(() => {
+    if (!item || !meanwhileField) return undefined;
+    const last = history.state.status === 'ready' ? lastChangeOf(history.state.data.data ?? [], meanwhileField) : undefined;
+    const stamp = last?.at ?? item.updated_at;
+    const at = stamp ? formatDateTime(stamp, messages.locale) : undefined;
+    if (last?.actorId && last.actorId === actor.account?.id) return { isReader: true, at };
+    return { name: (last?.actorId ? accounts.nameOf(last.actorId) : undefined) ?? t('app.sync.meanwhile.somebody'), at };
+  });
+  /** The reader's own title while their change of it is not saved: the title field opens with it. */
+  const unsavedTitle = $derived(item && isInlineDirty && inlineBase && inlineTitle !== inlineBase.title ? inlineTitle : undefined);
+  // A newer saved version while the question is open: the dialog shows it, and it is said.
+  let asked: { field: TextField; theirs: string } | undefined;
+  $effect(() => {
+    const field = meanwhileField;
+    const theirs = field && item ? (field === 'title' ? item.title : (item.notes ?? '')) : undefined;
+    untrack(() => {
+      if (field && theirs !== undefined && asked?.field === field && asked.theirs !== theirs && isAsking) announcer.say(t('app.sync.meanwhile.changed_again'));
+      asked = field && theirs !== undefined ? { field, theirs } : undefined;
+    });
+  });
+  // An unanswered warning, or a refused save, holds a text that is not saved: leaving would drop it unseen.
+  $effect(() => leaveGuard.hold(() => (meanwhileField || (isInlineDirty && writeFailure) ? 1 : 0)));
+
+  function heldNow(): EntryDraft | undefined {
+    return item ? { title: item.title, notes: item.notes ?? '', language: item.content_language ?? '' } : undefined;
+  }
+
+  function holdNotesBase() {
+    if (!isInlineDirty) notesAtFocus = item?.notes ?? '';
+  }
+
+  /** Counts the reader's edits in place, so a save can tell whether one came while it was on its way. */
+  let edits = 0;
+
+  function typeNotes(markdown: string) {
+    edits += 1;
+    const now = heldNow();
+    if (!isInlineDirty && now) inlineBase = { ...now, notes: notesAtFocus ?? now.notes };
+    inlineNotes = markdown;
+    isInlineDirty = true;
+  }
+
+  function mineOf(base: EntryDraft): EntryDraft {
+    // The language is not edited in place: whatever arrived for it is not the reader's to send.
+    return { title: inlineTitle, notes: inlineNotes, language: base.language };
+  }
+
+  function settleInline() {
+    isInlineDirty = false;
+    inlineBase = undefined;
+    notesAtFocus = undefined;
+    meanwhileField = undefined;
+    isAsking = false;
+    overwriteFailure = undefined;
+  }
+
+  /**
+   * Writes what the decision sends. `stale`: the entry moved before the stream said so
+   * (`version_conflict`), and it has been read again for the decision to be taken anew - unless it
+   * was the last try, when it is drawn as any other refusal is, answered `refused`.
+   */
+  async function sendInline(id: string, edit: EntryEdit, version: number, isLastTry = false): Promise<'written' | 'stale' | 'refused'> {
+    writeFailure = undefined;
+    isTitleFailure = false;
+    try {
+      await items.update(id, edit, version);
+      announcer.say(t('app.entries.saved_announced'));
+      return 'written';
+    } catch (error) {
+      if ((error as { isVersionConflict?: boolean }).isVersionConflict) {
+        await engine.refresh<WorkItem>({ path: itemPath(id) });
+        if (!isLastTry) return 'stale';
+      }
+      const problem = error as { detailCode?: string };
+      writeFailure = renderProblem(error as never, messages);
+      isTitleFailure = writeFailure.fields.has('/title') || problem.detailCode === 'items.title_empty';
+      return 'refused';
+    }
+  }
+
+  /** A save on its way: another leave waits for its answer rather than sending the same text twice. */
+  let isSaving = false;
+
+  async function commitInline(isRetry = false) {
+    if (!item || !isInlineDirty || isAsking || (isSaving && !isRetry)) return;
     if (inlineTitle.trim() === '') {
       writeFailure = renderProblem({ status: 422, code: 'items.title_empty', detailCode: 'items.title_empty', fieldErrors: [] } as never, messages);
       isTitleFailure = true;
       return;
     }
-    const body = entryEditOf(
-      { title: item.title, notes: item.notes ?? '', language: item.content_language ?? '' },
-      { title: inlineTitle, notes: inlineNotes, language: item.content_language ?? '' },
-    );
-    isInlineDirty = false;
-    if (Object.keys(body).length === 0) return;
-    writeFailure = undefined;
-    isTitleFailure = false;
-    try {
-      await items.update(item.id, body, item.version);
-      announcer.say(t('app.entries.saved_announced'));
-    } catch (error) {
-      const problem = error as { detailCode?: string };
-      writeFailure = renderProblem(error as never, messages);
-      isTitleFailure = writeFailure.fields.has('/title') || problem.detailCode === 'items.title_empty';
+    const now = heldNow() as EntryDraft;
+    const base = inlineBase ?? now;
+    const { edit, conflicts } = inlineWriteOf(base, mineOf(base), now);
+    const [conflict] = conflicts;
+    if (conflict) {
+      // Nothing is written: the warning asks, and asks again on the next save until answered.
+      meanwhileField = conflict;
+      overwriteFailure = undefined;
+      isAsking = true;
+      return;
     }
+    if (Object.keys(edit).length === 0) {
+      settleInline();
+      return;
+    }
+    // The reader's text stays until it is written: a refused save must not take it off the screen.
+    const sent = mineOf(base);
+    const editsAtSend = edits;
+    isSaving = true;
+    const answer = await sendInline(item.id, edit, item.version, isRetry);
+    isSaving = false;
+    if (answer === 'stale' && !isRetry) {
+      void history.refresh();
+      // Read again: asked about where both changed the text, written against the newer version where not.
+      await commitInline(true);
+      return;
+    }
+    if (answer !== 'written') return;
+    // An edit made while the save was on its way - of either field, also back to the text sent - is
+    // still the reader's change, saved next against the entry as that write left it, read first.
+    if (edits === editsAtSend) {
+      settleInline();
+      return;
+    }
+    inlineBase = { ...(inlineBase ?? base), ...('title' in edit ? { title: sent.title } : {}), ...('notes' in edit ? { notes: sent.notes } : {}) };
+    await engine.refresh<WorkItem>({ path: itemPath(item.id) });
+    await commitInline();
   }
+
+  /** The field taken as it stands now: what the reader began from, so their own text of it is gone. */
+  function rebased(field: TextField, theirs: string): EntryDraft {
+    return { ...(inlineBase ?? (heldNow() as EntryDraft)), [field]: theirs };
+  }
+
+  /** *Keep the saved version*: the reader's text of the field is dropped and nothing is written for it. */
+  async function keepSaved() {
+    const field = meanwhileField;
+    if (!item || !field || isOverwriting) return;
+    const theirs = field === 'title' ? item.title : (item.notes ?? '');
+    if (field === 'title') inlineTitle = theirs;
+    else inlineNotes = theirs;
+    inlineBase = rebased(field, theirs);
+    meanwhileField = undefined;
+    isAsking = false;
+    // The other field may still hold a change of the reader's own: written now, or asked about.
+    await tick();
+    await commitInline();
+  }
+
+  /** *Overwrite with mine*: one write of the reader's text against the version in place. */
+  async function overwrite() {
+    const field = meanwhileField;
+    if (!item || !field || isOverwriting) return;
+    const base = rebased(field, field === 'title' ? item.title : (item.notes ?? ''));
+    const { edit, conflicts } = inlineWriteOf(base, mineOf(base), heldNow() as EntryDraft);
+    // The other field changed by both as well: that one is asked about next, not written unseen.
+    const [other] = conflicts;
+    if (other) {
+      // A question of its own: closed and opened again, so it is announced anew and its focus
+      // starts on the safe answer again.
+      inlineBase = base;
+      overwriteFailure = undefined;
+      isAsking = false;
+      await tick();
+      meanwhileField = other;
+      isAsking = true;
+      return;
+    }
+    isOverwriting = true;
+    overwriteFailure = undefined;
+    const id = item.id;
+    try {
+      await items.update(id, edit, item.version);
+    } catch (error) {
+      overwriteFailure = renderProblem(error as never, messages);
+      announcer.say(t('app.sync.meanwhile.not_written'));
+      if ((error as { isVersionConflict?: boolean }).isVersionConflict) await engine.refresh<WorkItem>({ path: itemPath(id) });
+      return;
+    } finally {
+      isOverwriting = false;
+    }
+    settleInline();
+    announcer.say(t('app.entries.saved_announced'));
+  }
+
+  /** The comment an address names: the conversation opens, on a tab that shows it, and the thread finds it. */
+  let addressed = $state<string | undefined>(undefined);
+  function openOnComment(commentId: string) {
+    addressed = commentId;
+    mark = 'entry-conversation';
+    if (activeTab === 'history' || activeTab === 'notes') activeTab = 'all';
+    document.getElementById('entry-conversation')?.scrollIntoView({ block: 'start' });
+  }
+  $effect(() => {
+    const named = addressedComment(comment);
+    untrack(() => {
+      if (named) openOnComment(named);
+      else addressed = undefined;
+    });
+  });
 
   function revertInline() {
     if (!item) return;
     inlineTitle = item.title;
     inlineNotes = item.notes ?? '';
-    isInlineDirty = false;
+    settleInline();
     writeFailure = undefined;
     isTitleFailure = false;
   }
@@ -1296,7 +1497,13 @@
     { id: 'link', icon: 'link' }, { id: 'list', icon: 'list' }, { id: 'checklist', icon: 'list-checks' }, { id: 'quote', icon: 'quote' },
   ];
 
-  function rename(title: string) {
+  function rename(title: string, opened: string) {
+    edits += 1;
+    const now = heldNow();
+    // The title the field opened with is what the reader began from, whatever arrived since -
+    // unless the reader had already changed it unsaved: then where they began the first time.
+    const began = isInlineDirty && inlineBase ? inlineBase : now;
+    if (now && began) inlineBase = { ...began, title: began !== now && inlineTitle !== began.title ? began.title : opened };
     inlineTitle = title;
     isInlineDirty = true;
     void commitInline();
@@ -1318,10 +1525,31 @@
   {#snippet top()}
     <ReplicaMark state={entry.state} />
     <ConflictStrip itemId={item.id} />
+    {#if meanwhileField && meanwhileBy}
+      <MeanwhileDialog
+        bind:isOpen={isAsking}
+        field={meanwhileField}
+        theirs={meanwhileField === 'title' ? item.title : (item.notes ?? '')}
+        mine={meanwhileField === 'title' ? inlineTitle : inlineNotes}
+        by={meanwhileBy}
+        failure={overwriteFailure}
+        {isOverwriting}
+        onkeep={() => void keepSaved()}
+        onoverwrite={() => void overwrite()}
+        {onnavigate}
+      />
+    {/if}
 
     <!-- One object, one shape (WB-1, §6.9): the head spans the full width - key with its product's
          tile, type, the title edited in place, and the action bar: status with its steps, the next
          step, person, due date, the one deadline chip, ⋯. Only under it the page splits. -->
+    <!-- A workflow in force with its module off: said once above the head, as the approved design
+         draws it; the head's paused state refers to this notice instead of repeating it. -->
+    {#if isWorkflowPaused}
+      <div class="paused-notice" id={pausedNoticeId} data-paused-notice>
+        <Banner tone="info" icon="pause" title={t('app.entries.workflow_paused_title')}>{t('app.entries.workflow_paused_text')}</Banner>
+      </div>
+    {/if}
     <!-- `data-tour`: where the tour points for "what an entry carries". -->
     <div class="head" data-tour="entry" data-celebrating={moment && moment.item.id === item.id ? '' : undefined}>
       {#if moment && moment.item.id === item.id}
@@ -1339,6 +1567,7 @@
         type={{ label: itemType?.name ?? typeName(item.type) }}
         meta={headMeta}
         title={item.title}
+        {unsavedTitle}
         titleLabel={t('app.entries.new_title')}
         editTitleLabel={isWritable ? t('app.entry.edit_title') : undefined}
         onrename={isWritable ? rename : undefined}
@@ -1353,9 +1582,11 @@
         menu={{ label: t('app.workspace.actions', { name: item.title }), items: entryMenu, onselect: chooseFromMenu, opener: 'entry-menu' }}
         isCompact={isInPane}
         isDone={item.completion?.is_completed === true}
+        hasStepOnPhone={isWorkflowPaused}
+        onopenstatus={() => entryStatus?.openMenu()}
       >
         {#snippet status()}
-          {#key item.id}<EntryStatus {item} bind:runs={hasWorkflow} bind:next={statusNext} bind:second={statusSecond} offersSecond={isDeskEntry} oncomplete={() => void toggleCompleted()} disabledReason={isChangeable ? frozenReason : (roleReason ?? frozenReason)} reasonSaidAt={readOnlyReason ? readOnlyNoticeId : undefined} {onnavigate} />{/key}
+          {#key item.id}<EntryStatus bind:this={entryStatus} {item} bind:runs={hasWorkflow} bind:next={statusNext} bind:second={statusSecond} offersSecond={isDeskEntry} oncomplete={() => void toggleCompleted()} disabledReason={isChangeable ? frozenReason : (roleReason ?? frozenReason)} reasonSaidAt={readOnlyReason ? readOnlyNoticeId : undefined} bind:isPaused={isWorkflowPaused} pausedSaidAt={pausedNoticeId} {onnavigate} />{/key}
         {/snippet}
       </ObjectHead>
       <!-- A ticket's deadlines stand under its head on a phone, each a line (the `deskentry` phone scene). -->
@@ -1419,6 +1650,8 @@
           {#if !typeFailure}<div class="pending" aria-busy="true"><Skeleton lines={3} /></div>{/if}
         {:else if carries('NOTES') && (isWritable || notesShown.trim() !== '')}
           {#key item.id}
+            <!-- The notes as the editor showed them when it took the focus: what the reader began from. -->
+            <div class="notes-field" onfocusin={holdNotesBase}>
             <RichText
               bind:this={notesText}
               value={notesShown}
@@ -1427,10 +1660,11 @@
               editable={isWritable}
               lang={entryLang}
               {onnavigate}
-              onchange={(markdown) => { inlineNotes = markdown; isInlineDirty = true; }}
+              onchange={typeNotes}
               oncommit={() => void commitInline()}
               onescape={revertInline}
             />
+            </div>
           {/key}
           {#if isWritable}
             <MentionDialog bind:isOpen={isMentionOpen} selfId={item.id} oninsert={insertMention} />
@@ -1500,7 +1734,7 @@
                  desk's is known only after the manifest and its collection arrive. -->
             {#key `${shownTab}/${isDeskEntry}`}
               <CommentPanel {item} path={peoplePath} mayComment={frozenReason === undefined ? mayCommentHere : false} isClosed={frozenReason !== undefined}
-                isDesk={isDeskEntry} show={shownTab === 'all' ? 'all' : shownTab === 'replies' ? 'replies' : shownTab === 'notes' ? 'notes' : 'comments'} events={quietRows} requester={requesterName} />
+                isDesk={isDeskEntry} show={shownTab === 'all' ? 'all' : shownTab === 'replies' ? 'replies' : shownTab === 'notes' ? 'notes' : 'comments'} events={quietRows} requester={requesterName} {addressed} />
             {/key}
           {:else}
             <Stack gap="150">
@@ -1793,6 +2027,8 @@
 {/if}
 
 <style>
+  .notes-field { display: contents; }
+
   .chips { display: inline-flex; flex-wrap: wrap; gap: var(--sp-050); }
 
 
@@ -1844,6 +2080,7 @@
 
 
   .head { display: flex; flex-direction: column; gap: var(--sp-150); position: relative; }
+  .paused-notice { margin-block-end: var(--sp-150); }
 
   /* The main column under the full-width head; the jump marks stay on top while it scrolls. */
   .entry-main { display: flex; flex-direction: column; min-inline-size: 0; }

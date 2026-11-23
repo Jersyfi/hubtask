@@ -662,7 +662,7 @@
       completeLabel={t('app.entries.complete', { title: item.title })}
       hasTwist={false}
       entryKey={ticketKeyOf(containers.find(item.collection_id), item.number)}
-      onToggleComplete={() => void toggle(item)}
+      onToggleComplete={() => toggle(item)}
     >
       {#snippet trailing()}
         {#if hasPlace}<EntryPlace collectionId={item.collection_id} withHub />{/if}<DueMark {item} />

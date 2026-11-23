@@ -64,6 +64,40 @@ func (q *Queries) InstanceSettingsUnder(ctx context.Context, prefix string) ([]I
 	return items, nil
 }
 
+const listHubsWithoutSetting = `-- name: ListHubsWithoutSetting :many
+SELECT c.id
+FROM container c
+WHERE c.tenant_id = current_tenant_id() AND c.type = 'HUB'
+  AND NOT EXISTS (
+    SELECT 1 FROM setting_value held
+    WHERE held.tenant_id = current_tenant_id() AND held.level = 'HUB' AND held.scope_id = c.id
+      AND held.key = $1::text
+  )
+ORDER BY c.id
+`
+
+// Every hub of the workspace that stores nothing under the key - archived and trashed hubs too,
+// or restoring one would change what it has.
+func (q *Queries) ListHubsWithoutSetting(ctx context.Context, key string) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listHubsWithoutSetting, key)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSettingValues = `-- name: ListSettingValues :many
 
 SELECT sv.level, sv.scope_id, sv.key, sv.value, sv.hold, sv.allowed, sv.set_by, sv.updated_at
@@ -117,6 +151,64 @@ func (q *Queries) ListSettingValues(ctx context.Context, arg ListSettingValuesPa
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const pinHubSettingFlags = `-- name: PinHubSettingFlags :many
+INSERT INTO setting_value (id, tenant_id, level, scope_id, key, value, hold, updated_at)
+SELECT pin.id, current_tenant_id(), 'HUB', c.id, $1::text,
+  to_jsonb($2::boolean OR EXISTS (
+    SELECT 1 FROM setting_value held
+    WHERE held.tenant_id = current_tenant_id() AND held.level = 'HUB' AND held.scope_id = c.id
+      AND held.key = ANY($3::text[]) AND held.value = 'true'::jsonb
+  )),
+  'SET', $4
+FROM (
+  SELECT unnest($5::uuid[]) AS id, unnest($6::uuid[]) AS hub_id
+) pin
+JOIN container c ON c.id = pin.hub_id
+WHERE c.tenant_id = current_tenant_id() AND c.type = 'HUB'
+ON CONFLICT (tenant_id, level, scope_id, key) DO NOTHING
+RETURNING scope_id
+`
+
+type PinHubSettingFlagsParams struct {
+	Key       string
+	Value     bool
+	OnWhere   []string
+	UpdatedAt pgtype.Timestamptz
+	Ids       []pgtype.UUID
+	Hubs      []pgtype.UUID
+}
+
+// A flag written at each hub named that stores none under the key, `ids[i]` being the new row's
+// id for `hubs[i]`, answering the hubs written. A hub that stores on under one of `on_where` gets
+// on whatever `value` says. The join keeps the write to the workspace's own hubs whatever is
+// named; the conflict target is the workspace's own row, and DO NOTHING leaves it as it is.
+func (q *Queries) PinHubSettingFlags(ctx context.Context, arg PinHubSettingFlagsParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, pinHubSettingFlags,
+		arg.Key,
+		arg.Value,
+		arg.OnWhere,
+		arg.UpdatedAt,
+		arg.Ids,
+		arg.Hubs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var scope_id pgtype.UUID
+		if err := rows.Scan(&scope_id); err != nil {
+			return nil, err
+		}
+		items = append(items, scope_id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

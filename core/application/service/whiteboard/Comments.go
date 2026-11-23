@@ -7,6 +7,7 @@ import (
 	"context"
 	"time"
 
+	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -26,6 +27,10 @@ const (
 
 	maxCommentsListed = 1000
 	commentTarget     = "whiteboard_comment"
+
+	// CommentEntity is the change log's name for a board's comment, filed under the board's hub
+	// (offline-sync.md §3.1).
+	CommentEntity = "whiteboard_comment"
 )
 
 // The audit codes of a board's comments. Their words go to the trail as fingerprints (rule 10).
@@ -138,6 +143,20 @@ func (s Studio) recordComment(ctx context.Context, actor appshared.ActorContext,
 	})
 }
 
+// announceComment records the comment as ListWhiteboardComments answers it now, filed under its
+// board's hub, so that the other open clients show it without a reload and a device's copy holds
+// it (UC-CNV-09 check 6). A comment taken back is an upsert too: its place stays, its words go.
+func (s Studio) announceComment(ctx context.Context, actor appshared.ActorContext, board domain.Board, comment domain.Comment) error {
+	if s.Changes == nil {
+		return nil
+	}
+	return s.Changes.Record(ctx, changelog.Change{
+		TenantID: actor.TenantID, Entity: CommentEntity, EntityID: comment.ID, Op: changelog.Upsert,
+		ContainerID: board.HubID, ActorID: actor.AccountID, HLC: s.HLC.Next(),
+		Payload: CommentOutput(comment),
+	})
+}
+
 // AddWhiteboardComment writes a thread pinned to an object or a place, or a reply in a thread, and
 // tells the people it names.
 type AddWhiteboardComment struct{ Studio Studio }
@@ -186,10 +205,13 @@ func (h AddWhiteboardComment) Execute(ctx context.Context, actor appshared.Actor
 		if err := h.Studio.tell(ctx, actor, board, domain.Mentions(comment.Body), now); err != nil {
 			return err
 		}
-		return h.Studio.recordComment(ctx, actor, BoardCommentAddedAction, comment.ID, []audit.Change{
+		if err := h.Studio.recordComment(ctx, actor, BoardCommentAddedAction, comment.ID, []audit.Change{
 			{Field: "whiteboard_id", Classification: audit.Open, To: board.ID.String()},
 			{Field: "body", Classification: audit.Sensitive, To: comment.Body},
-		}, now)
+		}, now); err != nil {
+			return err
+		}
+		return h.Studio.announceComment(ctx, actor, board, comment)
 	})
 	return comment, err
 }
@@ -376,7 +398,10 @@ func (h ChangeWhiteboardComment) Execute(ctx context.Context, actor appshared.Ac
 				return err
 			}
 		}
-		return h.Studio.recordComment(ctx, actor, action, current.ID, changes, now)
+		if err := h.Studio.recordComment(ctx, actor, action, current.ID, changes, now); err != nil {
+			return err
+		}
+		return h.Studio.announceComment(ctx, actor, board, next)
 	})
 	return next, err
 }

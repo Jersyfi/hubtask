@@ -9,18 +9,40 @@
   import Popover from './Popover.svelte';
   import Stack from './Stack.svelte';
 
-  const { mode = 'confirm', size }: { mode?: 'confirm' | 'layers' | 'wide' | 'hang'; size?: 's' | 'm' | 'l' | 'discard' } = $props();
+  const { mode = 'confirm', size }: { mode?: 'confirm' | 'layers' | 'wide' | 'hang' | 'alert'; size?: 's' | 'm' | 'l' | 'discard' } = $props();
 
   let working = $state(false);
   let hanging = $state(false);
   let hook = $state<HTMLElement | undefined>(undefined);
 
   let confirming = $state(false);
+  let alerting = $state(false);
+  let choice = $state<'convert' | 'pause' | undefined>(undefined);
   let editing = $state(false);
 </script>
 
 {#if size}
   <DialogSizesDemo {size} />
+{:else if mode === 'alert'}
+  <Stack gap="200">
+    <Button tone="secondary" onclick={() => { choice = undefined; alerting = true; }}>Switch Workflows off…</Button>
+    <Dialog
+      title="Switch Workflows off?"
+      bind:isOpen={alerting}
+      dismissLabel="Close"
+      size="m"
+      isAlert
+      primary={{ label: 'Switch off', tone: 'danger', onclick: () => (alerting = false), disabledReason: choice ? undefined : 'Choose first what happens to the entries.' }}
+    >
+      {#snippet actions()}
+        <Button onclick={() => (alerting = false)}>Keep it on</Button>
+      {/snippet}
+      <Stack gap="200">
+        <span>Statuses with steps disappear for everyone. 17 open entries stand in such a status.</span>
+        <Checkbox label="Convert them to columns" checked={choice === 'convert'} onchange={() => (choice = choice === 'convert' ? undefined : 'convert')} />
+      </Stack>
+    </Dialog>
+  </Stack>
 {:else if mode === 'hang'}
   <Stack gap="200" align="end">
     <span bind:this={hook}><Button tone="primary" icon="plus" onclick={() => (hanging = true)}>Create</Button></span>

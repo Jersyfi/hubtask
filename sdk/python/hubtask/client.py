@@ -65,7 +65,7 @@ class Client:
         if params:
             url += "?" + urllib.parse.urlencode(params)
         sent: dict[str, str] = dict(self.headers)
-        if answer == "json":
+        if answer in ("json", "revalidated"):
             sent["Accept"] = "application/json, application/problem+json"
         token = self.token() if callable(self.token) else self.token
         if token:
@@ -85,6 +85,8 @@ class Client:
         try:
             response = self.opener.open(request, timeout=self.timeout)
         except urllib.error.HTTPError as refused:
+            if refused.code == 304 and answer == "revalidated":
+                return None  # the copy the caller holds is still current
             raw = refused.read()
             problem: dict[str, Any] = {"status": refused.code, "code": ""}
             try:
@@ -1471,9 +1473,9 @@ class Client:
         """A data feed's rows"""
         return self._call("GET", "/odata/{token}/Entries", {"token": token}, query, {}, None, "none", None, "json")
 
-    def get_capabilities(self) -> "Capabilities":
+    def get_capabilities(self, *, if_none_match: str | None = None) -> "Capabilities | None":
         """Self-description of the installation"""
-        return self._call("GET", "/meta/capabilities", {}, None, {}, None, "none", None, "json")
+        return self._call("GET", "/meta/capabilities", {}, None, {"If-None-Match": if_none_match}, None, "none", None, "revalidated")
 
     def get_health_report(self) -> "HealthReport":
         """Deep self-diagnosis of the installation"""

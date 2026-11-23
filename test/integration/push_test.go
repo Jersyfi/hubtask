@@ -7,6 +7,7 @@ package integration
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -429,6 +430,45 @@ func TestADisplacedNotesVersionIsFindableAgainAfterTheMerge(t *testing.T) {
 	}
 	if merged != 1 {
 		t.Errorf("%d merge steps in the history, want one", merged)
+	}
+}
+
+// UC-SYN-02 check 7 for notes longer than a comment may be: the notes have no bound of their
+// own, so the version that loses a push is kept whole in the real column, while a comment
+// somebody writes keeps its 20000.
+func TestNotesLongerThanACommentAreKeptWhole(t *testing.T) {
+	ctx := context.Background()
+	seedMemberships(ctx, t)
+	collection := collectionFor(ctx, t, tenantB, authorB)
+	task := seedTask(ctx, t, tenantB, authorB, collection)
+	push := mergingPushFor(ctx, t)
+	_, comments, _ := mergeCatalogueFor(ctx, t)
+	actor := pushActor(tenantB, authorB)
+	long := strings.Repeat("l", workdomain.MaxCommentBodyLength+1)
+	wall := time.Now()
+	deviceA, deviceB := freshID(t), freshID(t)
+	later, _ := shared.NewHLC(wall.Add(2*time.Minute), 1, deviceA.String())
+	earlier, _ := shared.NewHLC(wall.Add(time.Minute), 1, deviceB.String())
+
+	if _, err := push.Push(ctx, actor, syncservice.PushRequest{DeviceID: deviceA,
+		Mutations: []syncservice.Mutation{patchMutation(t, task, "notes", "Kept: the later version", later)}}); err != nil {
+		t.Fatalf("device A: %v", err)
+	}
+	response, err := push.Push(ctx, actor, syncservice.PushRequest{DeviceID: deviceB,
+		Mutations: []syncservice.Mutation{patchMutation(t, task, "notes", long, earlier)}})
+	if err != nil {
+		t.Fatalf("device B: %v", err)
+	}
+	result := response.Results[0]
+	if result.Conflict == nil || result.Conflict.PreservedCommentID.IsZero() {
+		t.Fatalf("device B was answered %+v, want the long version preserved", result)
+	}
+	if kept := findComment(ctx, t, tenantB, result.Conflict.PreservedCommentID); kept.Body != long {
+		t.Errorf("the push kept %d characters of %d", len(kept.Body), len(long))
+	}
+
+	if _, err := comments.Execute(ctx, actor, work.AddCommentCommand{ItemID: task, Body: long}); shared.AsError(err).DetailCode != "comments.body_too_long" {
+		t.Errorf("a person's comment of %d characters: %v", len(long), err)
 	}
 }
 

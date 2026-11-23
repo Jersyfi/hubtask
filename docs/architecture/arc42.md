@@ -524,6 +524,11 @@ and ships on mobile. The matrix governs what UI is built, never what the API per
 is a new row here with its reason, and an ADR. The web client's areas and routes:
 [design-system.md](../design/design-system.md) §11.5.
 
+A change another device made that a client re-reads on its record - a module switched on or off,
+a board's comment ([offline-sync.md](./offline-sync.md) §3.1) - is an end-user feature and adds no
+row: by parity it is every client's, built once in the web app. The question a workspace's
+switch-on asks is part of *Administration*.
+
 The UI's building blocks above the components are the design system's compositions and page kinds
 (`packages/design-system`, wave 6): every screen of a client is one page kind, the content has two
 levels of containment, and a task opens in a dialog or on a page of its own by one ladder

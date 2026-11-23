@@ -6,10 +6,12 @@ package identity
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -19,7 +21,10 @@ import (
 type invitationJobsDouble struct {
 	jobs  []repository.InvitationJob
 	mails []repository.LastMail
-	asked []shared.ID
+	// invitations are the invitation records on file; askedInvitations whose were read.
+	invitations      []repository.LastMail
+	askedInvitations []shared.ID
+	asked            []shared.ID
 	// cancelled is whose open invitation mail was cancelled; open how many it finds.
 	cancelled []shared.ID
 	open      int
@@ -37,6 +42,17 @@ func (d *invitationJobsDouble) Latest(_ context.Context, ids []shared.ID) ([]rep
 
 func (d *invitationJobsDouble) LatestMail(_ context.Context, _ []shared.ID) ([]repository.LastMail, error) {
 	return d.mails, nil
+}
+
+func (d *invitationJobsDouble) LatestInvitationMail(_ context.Context, ids []shared.ID) ([]repository.LastMail, error) {
+	d.askedInvitations = append(d.askedInvitations, ids...)
+	var out []repository.LastMail
+	for _, mail := range d.invitations {
+		if slices.Contains(ids, mail.AccountID) {
+			out = append(out, mail)
+		}
+	}
+	return out, nil
 }
 
 // §8.3: the row says the last mail of any kind - a newer mail in place of the invitation, the last
@@ -69,7 +85,7 @@ func TestThePeopleListSaysTheLastMailOfAnyKind(t *testing.T) {
 			{AccountID: ids[4], Category: "SLA", State: "PENDING", RecordedAt: early, DeliveryError: "mail.unavailable"},
 		},
 	}
-	h := ReadInvitationDeliveries{Jobs: jobs, Authorizer: &authorizer{}, UnitOfWork: &unitOfWork{}}
+	h := ReadInvitationDeliveries{Jobs: jobs, Accounts: newAccounts(), Authorizer: &authorizer{}, UnitOfWork: &unitOfWork{}}
 	got, err := h.Execute(context.Background(), adminActor(), ids)
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
@@ -116,7 +132,7 @@ func TestThePeopleListSaysHowEachInvitationMailWent(t *testing.T) {
 		{AccountID: ids[5], State: "CANCELLED", QueuedAt: queued, FinishedAt: finished},
 	}}
 	auth := &authorizer{}
-	h := ReadInvitationDeliveries{Jobs: jobs, Authorizer: auth, UnitOfWork: &unitOfWork{}}
+	h := ReadInvitationDeliveries{Jobs: jobs, Accounts: newAccounts(), Authorizer: auth, UnitOfWork: &unitOfWork{}}
 	actor := adminActor()
 
 	got, err := h.Execute(context.Background(), actor, ids)
@@ -148,7 +164,7 @@ func TestThePeopleListSaysHowEachInvitationMailWent(t *testing.T) {
 	// Refused before the queue is read; bounded like a name lookup.
 	refused := &authorizer{refuse: shared.ErrForbidden}
 	jobs.asked = nil
-	if _, err := (ReadInvitationDeliveries{Jobs: jobs, Authorizer: refused, UnitOfWork: &unitOfWork{}}).Execute(context.Background(), actor, ids); !errors.Is(err, shared.ErrForbidden) || jobs.asked != nil {
+	if _, err := (ReadInvitationDeliveries{Jobs: jobs, Accounts: newAccounts(), Authorizer: refused, UnitOfWork: &unitOfWork{}}).Execute(context.Background(), actor, ids); !errors.Is(err, shared.ErrForbidden) || jobs.asked != nil {
 		t.Errorf("a reader without the right got %v and the queue was asked %v", err, jobs.asked)
 	}
 	many := make([]shared.ID, MaxResolvedAccounts+1)
@@ -187,7 +203,7 @@ func TestASucceededInvitationJobIsNotASentMail(t *testing.T) {
 		done(ids[4], "", "", time.Time{}),
 		done(ids[5], "SUPPRESSED", MailReplacedByLink, time.Time{}),
 	}}
-	h := ReadInvitationDeliveries{Jobs: jobs, Authorizer: &authorizer{}, UnitOfWork: &unitOfWork{}}
+	h := ReadInvitationDeliveries{Jobs: jobs, Accounts: newAccounts(), Authorizer: &authorizer{}, UnitOfWork: &unitOfWork{}}
 
 	got, err := h.Execute(context.Background(), adminActor(), ids)
 	if err != nil {
@@ -212,5 +228,94 @@ func TestASucceededInvitationJobIsNotASentMail(t *testing.T) {
 		if got[i].AccountID != ids[index] || got[i].State != w.state || got[i].Code != w.code || !got[i].At.Equal(w.at) {
 			t.Errorf("delivery %d: %+v, want %+v", i, got[i], w)
 		}
+	}
+}
+
+// UC-ID-14 check 8: while a person is invited and an invitation mail is on record, the row says
+// that mail - cancelled where it was handed over by link - whatever other mail went out since; with
+// none on record, the last other mail. An accepted person's row is unchanged.
+func TestAnInvitedPersonsRowKeepsTheInvitationMail(t *testing.T) {
+	invitedAt := time.Date(2026, 11, 4, 9, 0, 0, 0, time.UTC)
+	later := invitedAt.Add(time.Hour)
+	ids := []shared.ID{
+		shared.MustParseID("0192f000-0000-7000-8000-00000000f001"),
+		shared.MustParseID("0192f000-0000-7000-8000-00000000f002"),
+		shared.MustParseID("0192f000-0000-7000-8000-00000000f003"),
+		shared.MustParseID("0192f000-0000-7000-8000-00000000f004"),
+		shared.MustParseID("0192f000-0000-7000-8000-00000000f005"),
+		shared.MustParseID("0192f000-0000-7000-8000-00000000f006"),
+		shared.MustParseID("0192f000-0000-7000-8000-00000000f007"),
+	}
+	const (
+		clearedThenRole  = iota // invited, the queue cleared the job, a newer role mail
+		jobThenFailed           // invited, the job still known, a newer failed mail
+		recordThenFailed        // invited, the job cleared, a newer failed mail
+		linkByJob               // invited, handed over by link while the job is known
+		linkByRecord            // invited, handed over by link, the job cleared
+		noInvitationMail        // invited, no invitation mail on record (no mail server)
+		accepted                // accepted, a newer role mail
+	)
+	role := func(id shared.ID) repository.LastMail {
+		return repository.LastMail{AccountID: id, Category: "MEMBERSHIP", State: "SENT", RecordedAt: later, SentAt: later}
+	}
+	failed := func(id shared.ID) repository.LastMail {
+		return repository.LastMail{AccountID: id, Category: "ASSIGNMENT", State: "FAILED", Reason: "mail.recipient_rejected", RecordedAt: later, DeliveryEnded: later}
+	}
+	sentInvitation := func(id shared.ID) repository.LastMail {
+		return repository.LastMail{AccountID: id, Category: "INVITATION", State: "SENT", RecordedAt: invitedAt, SentAt: invitedAt}
+	}
+	jobs := &invitationJobsDouble{
+		jobs: []repository.InvitationJob{
+			{AccountID: ids[jobThenFailed], State: "SUCCEEDED", QueuedAt: invitedAt, FinishedAt: invitedAt, MailState: "SENT", MailSentAt: invitedAt},
+			{AccountID: ids[linkByJob], State: "CANCELLED", QueuedAt: invitedAt, FinishedAt: invitedAt},
+		},
+		mails: []repository.LastMail{
+			role(ids[clearedThenRole]), failed(ids[jobThenFailed]), failed(ids[recordThenFailed]),
+			role(ids[linkByJob]), role(ids[linkByRecord]), role(ids[noInvitationMail]), role(ids[accepted]),
+		},
+		invitations: []repository.LastMail{
+			sentInvitation(ids[clearedThenRole]), sentInvitation(ids[recordThenFailed]),
+			{AccountID: ids[linkByRecord], Category: "INVITATION", State: "SUPPRESSED", Reason: MailReplacedByLink, RecordedAt: invitedAt},
+			sentInvitation(ids[accepted]),
+		},
+	}
+	people := make([]domain.Account, 0, len(ids))
+	for i, id := range ids {
+		status := domain.AccountInvited
+		if i == accepted {
+			status = domain.AccountActive
+		}
+		people = append(people, domain.Account{ID: id, Status: status})
+	}
+	h := ReadInvitationDeliveries{Jobs: jobs, Accounts: newAccounts(people...), Authorizer: &authorizer{}, UnitOfWork: &unitOfWork{}}
+
+	got, err := h.Execute(context.Background(), adminActor(), ids)
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	by := map[shared.ID]InvitationDelivery{}
+	for _, d := range got {
+		by[d.AccountID] = d
+	}
+	want := map[int]InvitationDelivery{
+		clearedThenRole:  {Category: "INVITATION", State: "SENT", At: invitedAt},
+		jobThenFailed:    {State: "SENT", At: invitedAt},
+		recordThenFailed: {Category: "INVITATION", State: "SENT", At: invitedAt},
+		linkByJob:        {State: "CANCELLED", At: invitedAt},
+		linkByRecord:     {Category: "INVITATION", State: "CANCELLED", At: invitedAt},
+		noInvitationMail: {Category: "MEMBERSHIP", State: "SENT", At: later},
+		accepted:         {Category: "MEMBERSHIP", State: "SENT", At: later},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %d rows, want %d: %+v", len(got), len(want), got)
+	}
+	for i, w := range want {
+		g, ok := by[ids[i]]
+		if !ok || g.Category != w.Category || g.State != w.State || g.Code != w.Code || !g.At.Equal(w.At) {
+			t.Errorf("row %d: got %+v, want %+v", i, g, w)
+		}
+	}
+	if slices.Contains(jobs.askedInvitations, ids[accepted]) {
+		t.Errorf("the invitation record of an accepted person was read: %v", jobs.askedInvitations)
 	}
 }

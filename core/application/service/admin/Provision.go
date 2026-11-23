@@ -85,6 +85,11 @@ type (
 	LabelSeeder interface {
 		Insert(ctx context.Context, label work.Label) error
 	}
+	// StructureInForce is the resolver every reader of a structure uses (the work service's
+	// StructureResolver), asked inside the provisioning transaction.
+	StructureInForce interface {
+		InForce(ctx context.Context, container work.Container) (work.EffectiveStructure, error)
+	}
 )
 
 // ProvisionTenantCommand is the input, typed.
@@ -131,7 +136,8 @@ type ProvisionedTenant struct {
 
 // ProvisionTenant creates a workspace with its defaults, exactly the §5 table: the tenant row,
 // the owner as an invited account with a redemption token, the OWNER membership, a default hub,
-// an example collection, standard buckets and labels - one transaction, so a workspace either
+// an example collection with the standard labels, and its board's columns where the board is the
+// view it opens on - one transaction, so a workspace either
 // exists whole or not at all. Idempotent under `Idempotency-Key` through the middleware every
 // POST already has.
 type ProvisionTenant struct {
@@ -152,9 +158,14 @@ type ProvisionTenant struct {
 	Containers ContainerSeeder
 	Buckets    BucketSeeder
 	Labels     LabelSeeder
-	Events     outbox.Events
-	Changes    changelog.ChangeLog
-	Audit      audit.Sink
+	// Structure answers the structure in force for the example collection, whose columns follow
+	// the rule every new collection's do (work.StartingColumns, UC-WRK-31 check 1). Nil is a build
+	// without the resolver, which only a test makes: the collection then starts without columns,
+	// as under the default structure.
+	Structure StructureInForce
+	Events    outbox.Events
+	Changes   changelog.ChangeLog
+	Audit     audit.Sink
 	// Platform tells a purchase platform the workspace exists (UC-INS-14).
 	Platform platform.Recorder
 	// Renderer names the seeded structure in the workspace's own locale: the names are content
@@ -360,9 +371,9 @@ func (h ProvisionTenant) Execute(
 
 // SeedWorkspace writes a new workspace as multi-tenancy.md §5 draws it, inside the caller's
 // transaction, which must run in the new tenant's own scope: the tenant row, the owner account as
-// given, the OWNER membership, the canonical host, the default hub and example collection with their
-// buckets and labels, the provisioning in the new trail and the first retention sweep. It answers
-// the default hub and the example collection.
+// given, the OWNER membership, the canonical host, the default hub and the example collection with
+// its labels and starting columns, the provisioning in the new trail and the first retention sweep.
+// It answers the default hub and the example collection.
 //
 // Provisioning and the first start's setup both call it, so a workspace is the same however it
 // began; what differs - the owner's way in and the journal's entry - stays with each caller.
@@ -411,8 +422,10 @@ func (h ProvisionTenant) SeedWorkspace(
 	return hubID, collectionID, nil
 }
 
-// seedStructure writes the §5 defaults: a hub, a collection inside it, three buckets, four
-// labels - each with the event and the change entry any creation owes, so a synchronising
+// seedStructure writes the §5 defaults: a hub, a collection inside it, four labels and the
+// columns the collection's board starts with where the structure in force opens it on the board -
+// none under the default structure, which opens the list - each with the event and the change
+// entry any creation owes, so a synchronising
 // client's first pull sees the same workspace the API answers (offline-sync.md §3.1).
 func (h ProvisionTenant) seedStructure(
 	ctx context.Context, tenant domain.Tenant, owner domain.Account,
@@ -441,16 +454,16 @@ func (h ProvisionTenant) seedStructure(
 		return "", "", err
 	}
 
+	var columns []work.StartingColumn
+	if h.Structure != nil {
+		inForce, err := h.Structure.InForce(ctx, collection)
+		if err != nil {
+			return "", "", err
+		}
+		columns = work.StartingColumns(inForce.Values)
+	}
 	orderKey := ""
-	for _, bucket := range []struct {
-		code  string
-		done  bool
-		color string
-	}{
-		{"seed.bucket.todo", false, "slate"},
-		{"seed.bucket.doing", false, "blue"},
-		{"seed.bucket.done", true, "green"},
-	} {
+	for _, column := range columns {
 		next, err := service.OrderKeyAfter(orderKey)
 		if err != nil {
 			return "", "", err
@@ -458,8 +471,8 @@ func (h ProvisionTenant) seedStructure(
 		orderKey = next
 		if err := h.seedBucket(ctx, work.NewBucketInput{
 			ID: h.IDs.NewID(), TenantID: tenant.ID, CollectionID: collection.ID,
-			Name: name(bucket.code), OrderKey: orderKey, Text: h.Text,
-			IsDoneBucket: bucket.done, ColorToken: bucket.color,
+			Name: name(column.NameCode), OrderKey: orderKey, Text: h.Text,
+			WipLimit: &column.WipLimit, IsDoneBucket: column.IsDoneBucket, ColorToken: column.ColorToken,
 		}, eventActor, now); err != nil {
 			return "", "", err
 		}
@@ -593,8 +606,9 @@ func (h ProvisionTenant) Descriptor() usecase.Descriptor {
 		Name: ProvisionTenantName,
 		Summary: "Creates a workspace with its defaults: the tenant, an invited owner whose " +
 			"invitation is mailed where this installation sends mail and whose redemption token " +
-			"is answered once where it does not, a default hub, an example collection, standard " +
-			"buckets and labels. Multi mode only, and idempotent under an Idempotency-Key.",
+			"is answered once where it does not, a default hub, an example collection with the " +
+			"standard labels, and the starting columns only where the structure in force opens " +
+			"the collection on its board. Multi mode only, and idempotent under an Idempotency-Key.",
 		SideEffects: "Writes the tenant and its seeded structure, queues the owner's invitation " +
 			"mail where this installation sends mail, announces the structure's events, records the provisioning in the new tenant's audit trail and in the " +
 			"instance journal.",

@@ -40,9 +40,9 @@ for (const width of [390, 1280]) {
     const { page, context, failures } = await list(width);
     const rows = await page.locator('[data-row]').evaluateAll((each) =>
       each.map((row) => ({
-        boxes: row.querySelectorAll('input[type="checkbox"]').length,
+        boxes: row.querySelectorAll('[role="checkbox"]').length,
         marks: row.querySelectorAll('.mark, .twist').length,
-        inset: row.querySelector('input[type="checkbox"]').getBoundingClientRect().x - row.getBoundingClientRect().x,
+        inset: row.querySelector('[role="checkbox"]').getBoundingClientRect().x - row.getBoundingClientRect().x,
       })),
     );
     assert.equal(rows.length, GROCERY_ITEMS.length);

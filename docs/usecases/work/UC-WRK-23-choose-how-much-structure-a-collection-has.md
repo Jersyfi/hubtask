@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-06, P-07, P-08, P-10]
 state: verified
 tasks: [UX-09, UX-10, UX-17]
-checked_by: [core/domain/model/work/StructureSettings_test.go, core/application/service/work/ListPresets_test.go, core/application/service/work/SetContainerStructure_test.go, core/application/service/work/SetWorkspaceStructure_test.go, presentation/rest/StructureController_test.go, cmd/hubctl/Structure_test.go, test/integration/container_structure_test.go, apps/webapp/src/lib/data/offer.test.ts, apps/webapp/src/lib/data/levels.test.ts, apps/webapp/src/lib/workspace/structureDraft.test.ts, apps/webapp/src/lib/data/query.test.ts, apps/webapp/e2e/structure.test.mjs, apps/webapp/src/lib/workspace/placeSections.test.ts]
+checked_by: [core/domain/model/work/StructureSettings_test.go, core/application/service/work/ListPresets_test.go, core/application/service/work/SetContainerStructure_test.go, core/application/service/work/SetWorkspaceStructure_test.go, presentation/rest/StructureController_test.go, cmd/hubctl/Structure_test.go, test/integration/container_structure_test.go, apps/webapp/src/lib/data/offer.test.ts, apps/webapp/src/lib/data/levels.test.ts, apps/webapp/src/lib/workspace/structureDraft.test.ts, apps/webapp/src/lib/data/query.test.ts, apps/webapp/e2e/structure.test.mjs, apps/webapp/src/lib/workspace/placeSections.test.ts, apps/webapp/src/lib/workspace/structurePanel.test.ts]
 ---
 
 # Choose how much structure a collection has
@@ -31,6 +31,7 @@ In `D1` the person creates the collection "Groceries" and picks the preset *List
 7. An administrator locks a setting for the workspace; a hub or collection then shows the value with the lock and who set it, and cannot change it.
 8. The effective settings of a collection are readable and writable through the API, MCP and `hubctl` with the same refusals as in the web app.
 9. A member without the right to change the shape sees the collection as its settings make it and is not offered the collection's settings.
+10. When a collection's settings were changed elsewhere while a person has unsaved changes there, the save bar counts only that person's changes, says that the settings were changed meanwhile and offers to apply the person's changes to the current settings or to show the current settings; nothing the person did not change is saved.
 
 ## Where it ends
 

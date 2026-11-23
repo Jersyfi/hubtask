@@ -251,6 +251,41 @@ func TestApplyingPreferencesDoesNotMutate(t *testing.T) {
 	}
 }
 
+// The language alone is set, checked like every preference, and the rest stays (i18n-l10n.md §2).
+func TestALanguageIsSetAloneAndChecked(t *testing.T) {
+	invited, _ := Invite(accountID, tenantID, "anna@example.org", "Anna", nil, nil)
+	account, err := invited.WithPreferences(Preferences{TimeZone: "Europe/Berlin", WeekStart: "SUNDAY"})
+	if err != nil {
+		t.Fatalf("setting the preferences: %v", err)
+	}
+	for _, c := range []struct {
+		name, given, want string
+		refused           bool
+	}{
+		{"a language", "de", "de", false},
+		{"a region kept", " de-AT ", "de-AT", false},
+		{"empty inherits", "", "", false},
+		{"not a tag", "de_DE!", "", true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			updated, err := account.WithLocale(c.given)
+			if c.refused {
+				if err == nil {
+					t.Fatalf("%q was accepted as %q", c.given, updated.Locale)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("setting %q: %v", c.given, err)
+			}
+			if updated.Locale != c.want || updated.TimeZone != "Europe/Berlin" || updated.WeekStart != "SUNDAY" {
+				t.Errorf("got %q, %q, %q; want %q with the zone and week start kept",
+					updated.Locale, updated.TimeZone, updated.WeekStart, c.want)
+			}
+		})
+	}
+}
+
 // encoder stands in for the idna adapter (i18n-l10n.md §7): one Unicode domain, and one the DNS
 // refuses.
 type encoder struct{}

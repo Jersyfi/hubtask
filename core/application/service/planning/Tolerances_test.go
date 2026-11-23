@@ -52,6 +52,12 @@ func (s *settingStore) Remove(_ context.Context, place settingrepo.Place, key se
 	return false, nil
 }
 
+func (*settingStore) HubsWithout(context.Context, setting.Key) ([]shared.ID, error) { return nil, nil }
+
+func (*settingStore) PinHubs(context.Context, settingrepo.HubPin, time.Time) ([]shared.ID, error) {
+	return nil, nil
+}
+
 // UC-PLN-04 checks 5 and 6: a hub's tolerance reaches its collections and, locked, is not changed
 // there; a plan whose forecast end slips past its latest baseline's by more than the tolerance is
 // in exception, and the exception is recorded.

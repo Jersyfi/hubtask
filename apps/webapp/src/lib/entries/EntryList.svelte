@@ -53,8 +53,9 @@
   import { buckets } from '../data/buckets.svelte.ts';
   import { statusLabel } from '../data/workflows.ts';
   import StateChip from './StateChip.svelte';
-  import { advanceOf, chipOf, type Chip } from './statechip.ts';
-  import { takeChoice } from './statetake.ts';
+  import EntryMark from './EntryMark.svelte';
+  import { chipOf, markOf, type Chip, type Mark } from './statechip.ts';
+  import { takeMark } from './statetake.ts';
   import SlaRemaining from '../servicedesk/SlaRemaining.svelte';
   import { accounts } from '../data/accounts.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
@@ -202,10 +203,12 @@
     /** The fields the installation can sort by, so only those heads are buttons. */
     sortable?: readonly string[];
     /**
-     * The collection's level for its tasks (build-plan §5): at COLUMNS a task's row shows its column
-     * chip, at WORKFLOW its status chip, both in the checkbox's place; at NONE the checkbox completes.
+     * The collection's level for its tasks (build-plan §5): at COLUMNS a task's row shows the mark
+     * and its column chip, at WORKFLOW the mark and its status chip; at NONE the mark alone.
      */
     stateMode?: StateMode;
+    /** The Workflows module is off here: a workflow in force is paused, and its chip says so. */
+    isWorkflowPaused?: boolean;
     /** The workflow the collection runs, for the status chip's names and steps. */
     workflow?: WorkflowShape;
     /**
@@ -251,6 +254,7 @@
     rowLimit,
     isAddedInPlace = false,
     stateMode,
+    isWorkflowPaused = false,
     workflow,
     levelOfType,
     withSla = false,
@@ -263,23 +267,36 @@
     const wanted = collectionId;
     return untrack(() => buckets.open(wanted));
   });
-  /** The state chip of a task's row at L1 and L2, or nothing where the checkbox completes. */
-  function chipFor(entry: WorkItem): Chip | undefined {
-    if (entry.type !== 'TASK') return undefined;
+  /** A task's level and the workflow it runs: its type's own where that differs. */
+  function levelFor(entry: WorkItem) {
     const own = entry.entry_type ? levelOfType?.(entry.entry_type) : undefined;
     const mode = own?.mode ?? stateMode;
-    const shape = own?.workflow ?? workflow;
+    return { mode, shape: own?.workflow ?? workflow };
+  }
+  function stepNameIn(shape: WorkflowShape | undefined) {
+    return (_key: string, name: string | null | undefined, to: string) => {
+      const status = shape?.statuses.find((each) => each.key === to);
+      return name ?? (status ? statusLabel(status, t) : to);
+    };
+  }
+  /** The state chip of a task's row at L1 and L2, or nothing where the mark alone stands. */
+  function chipFor(entry: WorkItem): Chip | undefined {
+    if (entry.type !== 'TASK') return undefined;
+    const { mode, shape } = levelFor(entry);
     return chipOf(mode, entry, buckets.of(collectionId), shape, {
       noColumn: mode === 'WORKFLOW' ? t('app.board.unmapped') : t('app.board.unbucketed'),
       statusName: (key) => {
         const status = shape?.statuses.find((each) => each.key === key);
         return status ? statusLabel(status, t) : key;
       },
-      stepName: (_key, name, to) => {
-        const status = shape?.statuses.find((each) => each.key === to);
-        return name ?? (status ? statusLabel(status, t) : to);
-      },
+      stepName: stepNameIn(shape),
+      paused: isWorkflowPaused ? { label: t('app.entries.workflow_paused'), reason: t('app.entries.workflow_paused_reason') } : undefined,
     });
+  }
+  /** What one press on a row's mark does (E5): completes, reopens, or takes the next step. */
+  function markFor(entry: WorkItem): Mark | undefined {
+    const { mode, shape } = levelFor(entry);
+    return markOf(entry.type === 'TASK' ? mode : undefined, entry, isWorkflowPaused ? 'paused' : shape, stepNameIn(shape));
   }
   let isAllRowsShown = $state(false);
   /** Where `rowLimit` cuts the rows: before the first top-level row past the limit. */
@@ -295,25 +312,25 @@
   const isFolded = (fold: string) => folded.includes(fold);
   const toggleFold = (fold: string) => (folded = isFolded(fold) ? folded.filter((each) => each !== fold) : [...folded, fold]);
 
-  /** Where a swipe towards the end - and the menu's *advance* - carries an entry at L1 and L2. */
+  /** Where a swipe towards the end - and the menu's *advance* - carries an entry at L2. */
   function advanceFor(item: WorkItem) {
-    const chip = chipFor(item);
-    return chip ? advanceOf(chip) : undefined;
+    const mark = markFor(item);
+    return mark?.kind === 'step' ? mark.choice : undefined;
   }
 
   /**
-   * A row's one act (work-surface concept §7): at L0 it completes - or reopens - the entry, at L1
-   * and L2 it carries it to the next column or along the first step. Its menu offers the same.
+   * A row's one act (work-surface concept §7): the mark's - at L0 and L1 it completes or reopens
+   * the entry (E6), at L2 it takes the next step. Its menu offers the same.
    */
   async function act(id: string) {
     const row = rowById.get(id);
     if (!row || isFrozen(row)) return;
-    if (!chipFor(row.item)) return void toggleComplete(row.item);
-    const next = advanceFor(row.item);
-    if (!next) return;
+    const mark = markFor(row.item);
+    if (!mark) return;
+    if (mark.kind !== 'step') return void toggleComplete(row.item);
     writeFailure = undefined;
     try {
-      await takeChoice(row.item, next);
+      await takeMark(row.item, mark);
     } catch (error) {
       writeFailure = renderProblem(error as never, messages);
     }
@@ -1050,13 +1067,30 @@
     return () => node.removeEventListener('keydown', onKeydown);
   });
 
+  /** A row's title, the link `ListRow` draws for it. */
+  const TITLE = '[data-row] .task-row > .row > .content';
+
   /**
    * The table's keys (WB-4): ↑ and ↓ walk from a row's title to the next one's, Enter opens it (the
    * title is a link), Space on it picks it for the bulk bar. Alt with the arrows stays the rank's.
    */
   function walk(event: KeyboardEvent, node: HTMLElement, id: string): boolean {
     if (event.altKey || event.ctrlKey || event.metaKey) return false;
-    const title = (event.target as Element).closest('.content');
+    // On a row's mark ↓ opens the state's menu where a chip beside it has one (design §3.1, the
+    // mark's own key); a mark alone - a list without columns - walks to the next row's mark.
+    const mark = (event.target as Element).closest<HTMLElement>('[data-row] .state-mark');
+    if (mark && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
+      if (event.key === 'ArrowDown' && mark.closest('[data-row]')?.querySelector('button[data-state-chip]')) return false;
+      const marks = [...node.querySelectorAll<HTMLElement>('[data-row] .state-mark')];
+      const next = marks[marks.indexOf(mark) + (event.key === 'ArrowDown' ? 1 : -1)];
+      if (!next) return false;
+      event.preventDefault();
+      next.focus();
+      return true;
+    }
+    // The row's own title, never a `.content` around the list (the frame has one): the mark and
+    // the chip beside the title keep their keys - Space on the mark is its press, not a pick.
+    const title = (event.target as Element).closest(TITLE);
     if (!title) return false;
     if (event.key === ' ' && isSelectable) {
       event.preventDefault();
@@ -1064,7 +1098,7 @@
       return true;
     }
     if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return false;
-    const titles = [...node.querySelectorAll<HTMLElement>('[data-row] .content')];
+    const titles = [...node.querySelectorAll<HTMLElement>(TITLE)];
     const next = titles[titles.indexOf(title as HTMLElement) + (event.key === 'ArrowDown' ? 1 : -1)];
     if (!next) return false;
     event.preventDefault();
@@ -1191,6 +1225,8 @@
 
   /** The menus of the rows, so a right click, a key or a long press can open one. */
   const menus = $state<Record<string, EntryMenu | undefined>>({});
+  /** Each row's state chip, whose menu ↓ on the mark beside it opens. */
+  const chips = $state<Record<string, StateChip | undefined>>({});
   let actions = $state<EntryActions | undefined>(undefined);
 
   /**
@@ -1916,14 +1952,12 @@
         {/if}
       {/snippet}
       {#snippet phoneEnd()}
-        {@const rowChip = rowChipOf(row)}
         {@const type = typeOf(entryTypes.all, row.item.type, row.item.entry_type)}
         {@const priority = priorityOf(row.item, [])}
         {@const rest = cellFields.filter((field) => !['key', 'type', 'priority', 'sla', 'people', 'requester'].includes(field))}
         <span class="phone-person">{#if fields.includes('people')}<PeopleMarks assigneeId={row.item.assignee_id} memberIds={[]} />{/if}</span>
         <span class="phone-meta">
           <span class="phone-key">{#if type && (isKeyFirst || showsTypes || fields.includes('type'))}<span class="type-mark" data-entry-type={type.key} title={typeName(type.key)}><Icon name={iconOf(type)} size="sm" /></span>{/if}<EntryKey collection={keyedCollection} number={row.item.number} /></span>
-          {#if rowChip}<StateChip item={row.item} chip={rowChip} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
           {#if priority}<PriorityMark level={priorityLevel(priority)} label={priority} />{/if}
           {#each rest as field (field)}<span class="meta-field" data-field={field}>{@render fieldValue(row, field)}</span>{/each}
         </span>
@@ -1934,10 +1968,20 @@
           <EntryMenu bind:this={menus[row.item.id]} title={row.item.title} items={menuItems(row)} onselect={(id) => chose(row, id)} />
         </span>
       {/snippet}
+      {#snippet markCell()}
+        <EntryMark item={row.item} mark={markFor(row.item)} stateLabel={rowChipOf(row)?.label ?? ''} isPaused={rowChipOf(row)?.pausedReason !== undefined} onopenstate={() => chips[row.item.id]?.open() ?? false} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} />
+      {/snippet}
+      <!-- A phone row's state as the approved design draws it: the mark and its chip on the title's
+           line, before the title - never the chip apart on the meta line. -->
+      {#snippet phoneState()}
+        {@const rowChip = rowChipOf(row)}
+        {#if rowChip}<span class="phone-state">{@render markCell()}<StateChip bind:this={chips[row.item.id]} item={row.item} chip={rowChip} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} /></span>{/if}
+      {/snippet}
       {#snippet chipCell()}
         {@const rowChip = rowChipOf(row)}
         {#if isKeyFirst}<span class="lead-key"><EntryKey collection={keyedCollection} number={row.item.number} /></span>{/if}
-        {#if rowChip}<span class="lead-state"><StateChip item={row.item} chip={rowChip} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} /></span>{:else if hasStateColumn}<span class="lead-state"></span>{/if}
+        {#if rowChip}{@render markCell()}{/if}
+        {#if rowChip}<span class="lead-state"><StateChip bind:this={chips[row.item.id]} item={row.item} chip={rowChip} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} /></span>{:else if hasStateColumn}<span class="lead-state"></span>{/if}
       {/snippet}
       <!-- One row in every list (L1): a simple list's line is the same row, without the twist,
            because nothing is inside it - and a press on it opens it as everywhere (L6). -->
@@ -1971,7 +2015,7 @@
             ? expanded.filter((id) => id !== row.item.id)
             : [...expanded, row.item.id])}
         trailing={isPhoneRow ? phoneEnd : rowEnd}
-        state={!isPhoneRow && (rowChipOf(row) || isKeyFirst) ? chipCell : undefined}
+        state={isPhoneRow ? (rowChipOf(row) ? phoneState : undefined) : rowChipOf(row) || isKeyFirst ? chipCell : undefined}
         isOneLine={root !== undefined}
         isRuled={root === undefined}
       />
@@ -2450,6 +2494,10 @@
   .phone-person { grid-column: 3; grid-row: 1; display: inline-flex; }
   .phone-meta { grid-column: 2 / 4; grid-row: 2; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); min-inline-size: 0; font-size: var(--fs-075); }
   .phone-key { display: inline-flex; align-items: center; gap: var(--sp-050); }
+  .phone-state { display: inline-flex; align-items: center; gap: var(--sp-100); }
+  /* Mark and chip stand on the title's first line: the leading is that line high, and what is
+     taller in it - the twist's thumb target - overflows it evenly. */
+  .row[data-phone] :global(.task-row > .row > .leading:has(.phone-state)) { align-self: start; block-size: calc(var(--fs-100) * var(--lh-normal)); }
   .phone-key:empty { display: none; }
   .phone-sla { grid-column: 2 / 4; grid-row: 3; display: flex; min-inline-size: 0; }
   .phone-sla :global(.sla), .phone-sla :global(.deadline) { flex: 1; }

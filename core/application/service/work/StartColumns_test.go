@@ -202,3 +202,33 @@ func TestACollectionUnderAWorkflowStartsWithAColumnPerStatus(t *testing.T) {
 		marked = marked || store.inserted[i].IsDoneBucket
 	}
 }
+
+// UC-WRK-31 check 6: a new collection's starting columns are named in the creating person's
+// account language, or the workspace's default where the account sets none - whatever language
+// the request asked for.
+func TestTheStartingColumnsFollowTheAccountElseTheWorkspace(t *testing.T) {
+	tests := []struct {
+		name, accountLocale, want string
+	}{
+		{"no account language takes the workspace's, not the request's", "", "de:seed.bucket.todo"},
+		{"the account's language wins", "fr", "fr:seed.bucket.todo"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHarness()
+			store := &startedColumns{}
+			h.handler.Buckets, h.handler.Workspaces, h.handler.Renderer = store, workspaces{locale: "de"}, echoRenderer{}
+			creator := actor()
+			creator.Locale, creator.AccountLocale = "en", tc.accountLocale
+			if tc.accountLocale != "" {
+				creator.Locale = tc.accountLocale
+			}
+			if err := h.handler.startColumns(context.Background(), collectionUnder(), creator, structured(boardOn(domain.ViewKanban)), now); err != nil {
+				t.Fatalf("starting the columns: %v", err)
+			}
+			if len(store.inserted) == 0 || store.inserted[0].Name != tc.want {
+				t.Fatalf("columns %+v, want the first named %q", store.inserted, tc.want)
+			}
+		})
+	}
+}

@@ -436,3 +436,66 @@ test('a permission refusal is not a session refusal', async () => {
 
   assert.equal(exchanges, 0);
 });
+
+const SELF = { path: '/meta/capabilities', revalidate: true } as const;
+
+test('a revalidated read sends the held tag and keeps the held copy on a 304', async () => {
+  const transport = new FakeTransport().answer(SELF.path, { version: '1' }, '"m1"');
+  const clock = new FixedClock();
+  const engine = new SyncEngine({ transport, clock });
+  const seen: ResourceState<{ version: string }>[] = [];
+  engine.subscribe<{ version: string }>(SELF, (state) => seen.push(state));
+  await engine.refresh(SELF);
+  const held = seen.at(-1);
+
+  clock.advance(5_000);
+  await engine.refresh(SELF);
+
+  assert.equal(transport.calls[0]?.options.ifNoneMatch, undefined, 'the first read holds nothing to name');
+  assert.equal(transport.calls.at(-1)?.options.ifNoneMatch, '"m1"');
+  const ready = seen.at(-1);
+  assert.equal(ready?.status, 'ready');
+  if (ready?.status !== 'ready' || held?.status !== 'ready') return;
+  assert.equal(ready.data, held.data, 'the copy held is the copy published');
+  assert.equal(ready.at, clock.now());
+  assert.equal(ready.source, 'server');
+  assert.equal(ready.etag, '"m1"');
+});
+
+test('a read without the option names no tag', async () => {
+  const transport = new FakeTransport().answer(ME.path, { id: 'a1' }, '"v1"');
+  const engine = new SyncEngine({ transport });
+  engine.subscribe(ME, () => {});
+  await engine.refresh(ME);
+  await engine.refresh(ME);
+
+  assert.ok(transport.calls.every((call) => call.options.ifNoneMatch === undefined));
+});
+
+test('no tag is named after a reset: sign-out keeps no copy to revalidate', async () => {
+  const transport = new FakeTransport().answer(SELF.path, { version: '1' }, '"m1"');
+  const engine = new SyncEngine({ transport });
+  engine.subscribe(SELF, () => {});
+  await engine.refresh(SELF);
+
+  await engine.reset();
+  const seen: ResourceState<{ version: string }>[] = [];
+  engine.subscribe<{ version: string }>(SELF, (state) => seen.push(state));
+  await settle();
+
+  assert.equal(transport.calls.at(-1)?.options.ifNoneMatch, undefined);
+  const ready = seen.at(-1);
+  assert.deepEqual(ready?.status === 'ready' ? ready.data : undefined, { version: '1' });
+});
+
+test('a 304 to a read that holds no copy is a failure, never an answer', async () => {
+  const transport = new FakeTransport().answer(SELF.path, { version: '1' }, '"m1"').notModified(SELF.path);
+  const engine = new SyncEngine({ transport });
+  const seen: ResourceState<unknown>[] = [];
+  engine.subscribe(SELF, (state) => seen.push(state));
+  await settle();
+
+  const last = seen.at(-1);
+  assert.equal(last?.status, 'failed');
+  assert.equal(last?.status === 'failed' ? last.error.status : undefined, 304);
+});

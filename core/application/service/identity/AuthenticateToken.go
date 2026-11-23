@@ -166,6 +166,7 @@ func (a AuthenticateToken) Execute(
 			Locale: firstNonEmpty(
 				credential.Account.Locale, cmd.RequestedLocale,
 				credential.TenantLocale, cmd.FallbackLocale),
+			AccountLocale: credential.Account.Locale,
 			TimeZone: firstNonEmpty(
 				credential.Account.TimeZone, credential.TenantTimeZone, cmd.FallbackTimeZone),
 		}
@@ -296,6 +297,7 @@ func (a AuthenticateToken) executeSession(
 			Locale: firstNonEmpty(
 				credential.Account.Locale, cmd.RequestedLocale,
 				credential.TenantLocale, cmd.FallbackLocale),
+			AccountLocale: credential.Account.Locale,
 			TimeZone: firstNonEmpty(
 				credential.Account.TimeZone, credential.TenantTimeZone, cmd.FallbackTimeZone),
 		}

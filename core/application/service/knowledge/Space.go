@@ -83,6 +83,11 @@ type Reader interface {
 	Permitted(ctx context.Context, actor appshared.ActorContext, request access.Request, paths [][]identity.Scope) ([]bool, error)
 }
 
+// WorkspaceReader reads the workspace the transaction is bound to, for the language it declared.
+type WorkspaceReader interface {
+	Find(ctx context.Context) (identity.Workspace, error)
+}
+
 // Space is what every page use case shares.
 type Space struct {
 	Pages      repository.Pages
@@ -102,10 +107,12 @@ type Space struct {
 	// it can be read without the server. A nil Changes records nothing, a test's convenience.
 	Changes changelog.ChangeLog
 	HLC     clock.HLCSource
-	// PersonalHubs makes a person's own private hub on first use (UC-DOC-07), named in their
-	// language by Words; nil offers no personal space.
+	// PersonalHubs makes a person's own private hub on first use (UC-DOC-07), named by Words in
+	// their account's language, else in the workspace's default Workspaces reads; nil offers no
+	// personal space.
 	PersonalHubs PersonalHubs
 	Words        i18n.Renderer
+	Workspaces   WorkspaceReader
 	// Public offers a page's public link where the workspace allows it (UC-DOC-08); its zero
 	// value offers none.
 	Public PublicLinking

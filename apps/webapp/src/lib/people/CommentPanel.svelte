@@ -15,6 +15,13 @@
   //
   // **A body is plain text with its whitespace kept.** Rendering Markdown is a dependency and
   // therefore a proposal rather than a commit, and the notes are shown the same way.
+  //
+  // **A comment the server filed is headed by its code** (`system_code`, `system_params`), rendered
+  // here through the catalogue (rule 8), so a kept version reads as what it is.
+  //
+  // **An addressed comment is looked for until it is found or the thread ends** (`addressed`): a
+  // fresh read first - it may have been filed a moment ago -, then older pages; drawn, it is marked
+  // and focused by the thread, and a comment that is gone or out of sight says so.
 
   import { untrack } from 'svelte';
 
@@ -25,7 +32,8 @@
   import { actor } from '../data/account.svelte.ts';
   import { accounts } from '../data/accounts.svelte.ts';
   import { comments, commentsPath } from '../data/comments.svelte.ts';
-  import { BODY_LIMIT, bodyLength, isRemoved, isWithinLimit, mayModerate, mayReplyTo, threadOf } from '../data/comments.ts';
+  import { BODY_LIMIT, bodyLength, isRemoved, isWithinLimit, mayModerate, mayReplyTo, systemNoteOf, threadOf, threadsToShow } from '../data/comments.ts';
+  import { devices } from '../data/devices.svelte.ts';
   import { people, type Path } from '../data/people.svelte.ts';
   import { resource } from '../data/resource.svelte.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
@@ -60,6 +68,7 @@
     show = 'comments',
     events = [],
     requester,
+    addressed,
   }: {
     item: WorkItem;
     path: Path;
@@ -75,6 +84,8 @@
     events?: readonly ThreadEvent[];
     /** Who a public reply on a ticket reaches, for the reply tab's words. */
     requester?: string;
+    /** The comment the address names (`?comment=`), already read as an identifier. */
+    addressed?: string;
   } = $props();
 
   /** Whether the next post is a note for the team (ET-7); a reply to an internal note is one anyway. */
@@ -173,20 +184,28 @@
     writer?.reset(draft);
   }
 
+  const inView = () => rows.filter((comment) => (show === 'replies' ? !comment.internal : show === 'notes' ? comment.internal : true));
+
   function threadRows(): readonly ThreadComment[] {
-    const kept = rows.filter((comment) => (show === 'replies' ? !comment.internal : show === 'notes' ? comment.internal : true));
-    return threadOf(kept).map(({ comment, replies }) => ({
+    return threadOf(inView()).map(({ comment, replies }) => ({
       ...renderOne(comment),
       replies: replies.map(renderOne),
     }));
   }
 
+  const deviceWords = (id: string) =>
+    devices.isThisDevice(id) ? t('app.comments.this_device') : (devices.all.find((each) => each.id === id)?.display_name ?? t('app.comments.another_device'));
+
   function renderOne(comment: Comment): Omit<ThreadComment, 'replies'> {
     const moderates = mayModerate(comment, actor.account?.id, roles);
     const removed = isRemoved(comment);
+    const authorName = accounts.nameOf(comment.author_id) ?? t('app.people.unnamed');
+    const system = systemNoteOf(comment, authorName, { say: t, moment: (iso) => formatDateTime(iso, messages.locale), device: deviceWords });
     return {
       id: comment.id,
-      authorName: accounts.nameOf(comment.author_id) ?? t('app.people.unnamed'),
+      authorName,
+      system,
+      isEditable: system ? false : undefined,
       authorSrc: accounts.pictureOf(comment.author_id),
       body: comment.body ?? undefined,
       when: formatDateTime(comment.created_at, messages.locale),
@@ -199,6 +218,49 @@
       isChangeable: moderates && !isClosed,
     };
   }
+
+  let markedId = $state<string | undefined>(undefined);
+  let isAddressGone = $state(false);
+  let seeking = 0;
+
+  async function seek(id: string): Promise<void> {
+    const turn = ++seeking;
+    isAddressGone = false;
+    const reach = () => threadsToShow(threadOf(inView()), id);
+    let isUnread = false;
+    try {
+      if (reach() === undefined) await page.refresh();
+      while (reach() === undefined && hasMore && turn === seeking) await page.loadMore();
+    } catch (error) {
+      // An older page that failed is said where *Load more* asks again: the comment may stand on it.
+      isUnread = true;
+      olderFailed = renderProblem(error as never, messages).message;
+    }
+    if (turn !== seeking) return;
+    const found = reach();
+    // A conversation that did not arrive is drawn as the thread's failure; nothing in it was searched.
+    if (found === undefined && (isUnread || page.state.status === 'failed')) return;
+    if (found === undefined) {
+      markedId = undefined;
+      isAddressGone = true;
+      announcer.say(t('app.comments.address_gone'));
+      return;
+    }
+    shownCount = Math.max(shownCount, found);
+    markedId = id;
+  }
+
+  $effect(() => {
+    const id = addressed;
+    untrack(() => {
+      if (id) void seek(id);
+      else {
+        seeking += 1;
+        markedId = undefined;
+        isAddressGone = false;
+      }
+    });
+  });
 
   async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     writeFailure = undefined;
@@ -314,8 +376,12 @@
         {/if}
       </div>
     {/if}
+    {#if isAddressGone}
+      <p class="gone" data-comment-gone>{t('app.comments.address_gone')}</p>
+    {/if}
     <CommentThread
       label={t('app.comments.title')}
+      {markedId}
       comments={threadRows().slice(0, shownCount)}
       body={formatted}
       events={show === 'all' ? quietRowsInView(events, threadRows().slice(0, shownCount)) : []}
@@ -368,6 +434,7 @@
   .dock-room { order: 1; flex: none; }
 
   .failure { margin: 0; color: var(--text-danger); }
+  .gone { margin: 0; color: var(--text-secondary); }
 
   .mentions { display: flex; flex-direction: column; gap: var(--sp-050); }
   .mentions-title { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-medium); }

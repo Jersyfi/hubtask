@@ -141,6 +141,63 @@ export function pathsFor(record: ChangeRecord): readonly string[] {
     case 'workflow':
       return ['/workflows', '/items/*/steps'];
 
+    case 'setting':
+      // A module switched at the workspace or a hub (the record's place): the switches themselves,
+      // every place's own set - a hub's switch moves its collections', the workspace's every
+      // hub's - and the manifest, whose `modules_on` every other screen asks. The names are
+      // `modules.switch`'s, so the switching client and every other one re-read the same.
+      return ['/tenant/modules', '/meta/capabilities', '/containers/*/modules'];
+
+    case 'whiteboard_comment':
+      // Filed under the board's hub; the record names the comment, not its board, so every board's
+      // thread that is being read: the open board's panel and the home's "to you".
+      return ['/whiteboards/*/comments'];
+
+    // Walked into a device's copy, and no read of this client is re-read on their record: each
+    // is a decision, held to the walk's kinds by test/architecture, so that a new kind cannot
+    // fall into `default` unnoticed.
+    case 'custom_role':
+    case 'entry_link':
+    case 'role_grant':
+    case 'cmdb_ci':
+    case 'cmdb_relation':
+    case 'cmdb_affected':
+    case 'cmdb_ci_group':
+    case 'cmdb_asset':
+    case 'cmdb_catalogue':
+    case 'entry_schedule':
+    case 'goal_period':
+    case 'goal':
+    case 'goal_check_in':
+    case 'dashboard':
+    case 'sprint':
+    case 'sprint_entry':
+    case 'entry_estimate':
+    case 'release':
+    case 'release_entry':
+    case 'time_record':
+    case 'time_timer':
+    case 'time_work_types':
+    case 'time_policy':
+    case 'timesheet':
+    case 'time_capacities':
+    case 'time_absence':
+    case 'time_cost_rates':
+    case 'time_budget':
+    case 'portfolio':
+    case 'agent_model':
+    case 'agent':
+    case 'agent_request':
+    case 'agent_eval_case':
+    case 'agent_eval_run':
+    case 'approval':
+    case 'entry_sla':
+    case 'satisfaction_rating':
+    case 'code_link':
+    case 'file_link':
+    case 'workflow_scheme':
+      return [];
+
     default:
       // A newer server's entity. Nothing here draws it, so nothing here is stale — and a client
       // that reloaded everything on a name it had never met would punish the installation for

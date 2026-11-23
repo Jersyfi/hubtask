@@ -266,6 +266,8 @@
   // defined (UC-FLW-02 check 5). Read only where the module is on: elsewhere the server refuses the
   // read, and every collection would log the refusal (run R3 at 10⁷ entries).
   const workflowsOn = $derived(typesShown(placeManifest));
+  /** A workflow stays in force on the server with the module off (`WorkflowGate`): it is paused here. */
+  const isWorkflowPaused = $derived(placeManifest !== undefined && !workflowsOn);
   $effect(() => {
     if (!workflowsOn) return;
     return untrack(() => workflows.open());
@@ -1659,6 +1661,7 @@
             <Board
               collectionId={container.id}
               isReadOnly={isReadOnly}
+              {readOnlyReason}
               {query}
               {lastResults}
               onopen={opensBeside ? openBeside : undefined}
@@ -1669,6 +1672,7 @@
               mayCreate={mayCreateHere}
               {mayShape}
               level={stateMode}
+              isWorkflowPaused={isWorkflowPaused}
               workflow={boardShape}
               {levelOfType}
               showsKey={arrangement?.fields.includes('key') ?? false}
@@ -1710,6 +1714,7 @@
               onsort={sortByColumn}
               sortable={sortFields}
               {stateMode}
+              {isWorkflowPaused}
               workflow={boardShape}
               {levelOfType}
               withSla={isDesk && modulesOn.includes('SERVICE_DESK')}

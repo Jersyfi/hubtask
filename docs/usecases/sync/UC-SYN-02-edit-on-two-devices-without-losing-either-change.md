@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-11, P-12]
 state: built
 tasks: [N-05, N-06, N-07, F6-06]
-checked_by: [core/application/service/sync/Patch_test.go, core/application/service/sync/Set_test.go, core/application/service/sync/Move_test.go, test/sync/sync_test.go, packages/sync-engine/test/hlc.test.ts, packages/sync-engine/test/ordering.test.ts]
+checked_by: [core/application/service/sync/Patch_test.go, core/application/service/sync/Set_test.go, core/application/service/sync/Move_test.go, test/sync/sync_test.go, packages/sync-engine/test/hlc.test.ts, packages/sync-engine/test/ordering.test.ts, core/domain/model/work/Comment_test.go, test/integration/push_test.go, apps/webapp/src/lib/data/comments.test.ts, apps/webapp/src/lib/data/edits.test.ts, apps/webapp/src/lib/data/activity.test.ts, apps/webapp/e2e/meanwhile.test.mjs]
 ---
 
 # Edit on two devices without losing either change
@@ -45,10 +45,21 @@ Anna's app shows a note on the entry offering to compare the two.
    person may not make is refused, not applied.
 9. A field only the server writes — provenance, retention announcements, lifecycle stamps, counters
    — is refused when a device sends it (`sync.field_not_mergeable`).
+10. When somebody else changes an entry's title or description while a person is editing it,
+    saving it writes nothing and a warning asks first: it says who changed it and when and shows
+    both versions; the person keeps the saved version, which drops their own text, or overwrites it
+    with theirs; closing the warning leaves their text unsaved, and the next save asks again. A text
+    the person did not change is never written back over somebody else's. The kept version of
+    check 7 is shown in the entry's conversation as a kept version whose heading names whose
+    version it holds, never as a post by the person it was filed for, with its text exactly as
+    filed; the offline conflict's link opens the conversation on it, marked and focused, and an
+    address of a comment that is gone or out of the reader's sight says so.
 
 ## Where it ends
 
-* No character-by-character merging of the same text; one version wins and the other is kept as a
-  comment.
+* No character-by-character merging of the same text; one version wins. After an offline merge the
+  other is kept as a comment; online the person who is about to overwrite decides, and nothing is
+  kept as a comment.
 * No choice of merge rule per workspace.
-* Rules, calendar subscriptions, sessions and settings do not synchronise at all.
+* Rules, calendar subscriptions, sessions and settings do not synchronise at all, except module
+  switches, which reach every device (UC-INS-21 check 12).

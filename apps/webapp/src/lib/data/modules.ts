@@ -3,31 +3,72 @@
 
 /**
  * What the *Modules* section decides before it sends anything (UC-INS-21): whether a switch asks
- * first, why a switch is not offered, and whether the place may hand a module back to the level
- * above. The server refuses the same cases; this only keeps a control from promising what it would
+ * first and what its question offers, why a switch is not offered, and whether the place may hand
+ * a module back to the level above. The server refuses the same cases; this only keeps a control from promising what it would
  * refuse (P-05).
  */
 
-import type { ModuleReach, ModuleState } from '@hubtask/sync-engine';
+import type { ModuleReach, ModuleState, ModuleSwitch } from '@hubtask/sync-engine';
 
 /** The place the section switches for: the workspace, or one hub. */
 export type ModulePlace = 'WORKSPACE' | 'HUB';
 
-/** Switching off asks first and says the data is kept and hidden (check 4); switching on does not. */
+/** Switching off asks first and says the data is kept and hidden (check 4). */
 export function asksFirst(state: ModuleState, next: boolean): boolean {
   return state.on && !next;
 }
 
 /**
  * The message code of why a module cannot be switched here, or none: a lock above (check 6), or -
- * at a hub - a module the workspace has off, which a hub never widens (check 3).
+ * at a hub - a module the workspace has off, which a hub never switches on (check 3). The
+ * workspace's set decides that, not where the hub's value comes from: a hub keeps a value of its
+ * own under a workspace that is off. Unread, the workspace's set allows nothing.
  */
-export function unavailableBecause(state: ModuleState, place: ModulePlace): string | undefined {
+export function unavailableBecause(
+  state: ModuleState, place: ModulePlace, workspaceOn?: readonly string[],
+): string | undefined {
   if (state.locked_by === 'INSTANCE') return 'app.modules.locked_installation';
   if (state.locked_by === 'PLAN') return 'app.modules.locked_plan';
   if (state.locked_by === 'WORKSPACE' && place === 'HUB') return 'app.modules.locked_workspace';
-  if (place === 'HUB' && !state.on && state.source !== 'HUB') return 'app.modules.off_in_workspace';
+  if (place === 'HUB' && !state.on && !(workspaceOn ?? []).includes(state.module)) return 'app.modules.off_in_workspace';
   return undefined;
+}
+
+/**
+ * The hubs the question of a workspace's switch-on offers (check 13): those the reader may shape.
+ * A shared hub follows the reader's standing on the workspace; a private one only a role held on
+ * it, and neither is offered while its answer is out.
+ */
+export function hubsOffered<H extends { readonly private?: boolean }>(
+  hubs: readonly H[], shapesWorkspace: boolean | undefined, shapesPrivate: (hub: H) => boolean | undefined,
+): H[] {
+  return hubs.filter((hub) => (hub.private === true ? shapesPrivate(hub) : shapesWorkspace) === true);
+}
+
+/**
+ * Whether the question's offer can be decided (check 13): the hub list has answered - `undefined`
+ * is a list still being read - and so has every hub in it. Until then a workspace's switch-on
+ * waits; decided on what has arrived so far, it would go through unasked.
+ */
+export function isOfferSettled<H extends { readonly private?: boolean }>(
+  hubs: readonly H[] | undefined, shapesWorkspace: boolean | undefined, shapesPrivate: (hub: H) => boolean | undefined,
+): boolean {
+  if (hubs === undefined) return false;
+  return hubs.every((hub) => (hub.private === true ? shapesPrivate(hub) : shapesWorkspace) !== undefined);
+}
+
+/**
+ * Whether switching on asks in which existing hubs (check 13): at the workspace, and only where
+ * there is a hub to choose - without one the switch goes through at once (check 2).
+ */
+export function asksWhichHubs(state: ModuleState, next: boolean, place: ModulePlace, offered: readonly unknown[]): boolean {
+  return place === 'WORKSPACE' && next && !state.on && offered.length > 0;
+}
+
+/** What a switch sends: the hubs chosen go with a workspace's switch-on only, as the server asks. */
+export function switchBody(to: ModuleSwitch['switch'], hubId?: string, chosen: readonly string[] = []): ModuleSwitch {
+  if (hubId) return { switch: to, hub_id: hubId };
+  return to === 'ON' && chosen.length > 0 ? { switch: to, hub_ids: [...chosen] } : { switch: to };
 }
 
 /** Whether this place decided the module itself, so that it may leave it to the level above. */

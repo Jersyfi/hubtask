@@ -58,7 +58,8 @@
   import { laneOf, lanesOf } from '../data/viewquery.ts';
   import { NO_COLUMN, columnRefusals, unmappedStatuses } from './boardlevel.ts';
   import StateChip from './StateChip.svelte';
-  import { chipOf } from './statechip.ts';
+  import EntryMark from './EntryMark.svelte';
+  import { chipOf, markOf } from './statechip.ts';
 
   import { announcer } from '../announce.svelte.ts';
   import { celebration } from '../celebration.svelte.ts';
@@ -85,6 +86,8 @@
   interface Props {
     collectionId: string;
     isReadOnly?: boolean;
+    /** Why the board is read-only, said on each card's state controls. */
+    readOnlyReason?: string;
     /**
      * What the reader has asked of the board: a filter, an order, and the field it groups by.
      *
@@ -137,9 +140,11 @@
     /**
      * The collection's level for its tasks (build-plan §5): COLUMNS - the columns are the states;
      * WORKFLOW - each column shows one or more statuses of `workflow`, the statuses no column shows
-     * stand folded in *Ohne Spalte*. Every drop goes through `:drop`, which decides at either.
+     * stand folded in *Ohne Spalte*. A move at COLUMNS is the column write, at WORKFLOW `:drop`.
      */
     level?: StateMode;
+    /** The Workflows module is off here: a workflow in force is paused, its cards do not move. */
+    isWorkflowPaused?: boolean;
     /** An entry type's own level and workflow where it differs from the tasks' (build-plan §5). */
     levelOfType?: (entryType: string) => { readonly mode: StateMode | undefined; readonly workflow: WorkflowShape | undefined } | undefined;
     /** The workflow the collection runs, where it runs one: the statuses' names. */
@@ -149,6 +154,7 @@
   const {
     collectionId,
     isReadOnly = false,
+    readOnlyReason,
     query,
     lastResults,
     onopen,
@@ -159,6 +165,7 @@
     mayCreate,
     mayShape,
     level,
+    isWorkflowPaused = false,
     levelOfType,
     workflow,
     showsKey = false,
@@ -171,6 +178,8 @@
 
   /** Whether a card may be carried, ranked or moved: not archived, and the reader's to change. */
   const isMovable = (card: WorkItem) => !isReadOnly && changeRefusal(card) === undefined;
+  /** Why a card's mark and state chip are off: a read-only board first, then the reader's role. */
+  const stateRefusal = (card: WorkItem) => (isReadOnly ? readOnlyReason : undefined) ?? changeRefusal(card);
 
   /** The sentence one card shows about the last bulk, or nothing where it was not in it. */
   function bulkNote(itemId: string): string | undefined {
@@ -265,6 +274,7 @@
     get noColumn() { return t('app.board.unmapped'); },
     statusName,
     stepName: (_key: string, name: string | null | undefined, to: string) => name ?? statusName(to),
+    paused: isWorkflowPaused ? { label: t('app.entries.workflow_paused'), reason: t('app.entries.workflow_paused_reason') } : undefined,
   });
   /** The statuses no column shows (*Ohne Spalte*), folded, never hidden (build-plan §5). */
   const unmapped = $derived(isWorkflow && isBucketBoard ? unmappedStatuses(columns, workflow?.statuses.map((each) => each.key) ?? []) : []);
@@ -281,20 +291,23 @@
    */
   let carriedSteps = $state<Pick<EntrySteps, 'status' | 'steps' | 'blocked'> | undefined>(undefined);
   let carriedFrom = $state<string | undefined>(undefined);
+  /** The carried card's own level: the one `moveTo` writes by, so the refusals follow the same rule. */
+  let carriedLevel = $state<StateMode | undefined>(undefined);
   let stopCarried: (() => void) | undefined;
   function carry(card: WorkItem | undefined, from: string) {
     stopCarried?.();
     stopCarried = undefined;
     carriedSteps = undefined;
     carriedFrom = card ? from : undefined;
-    if (card && isWorkflow) {
+    carriedLevel = card ? levelOfCard(card) : undefined;
+    if (card && carriedLevel === 'WORKFLOW' && !isWorkflowPaused) {
       stopCarried = workflows.steps(card.id, (state) => {
         if (state.status === 'ready') carriedSteps = state.data;
       });
     }
   }
   const refusals = $derived(
-    carriedFrom === undefined || !isBucketBoard ? new Map<string, string>() : columnRefusals(level, columns, unmapped, carriedSteps, carriedFrom),
+    carriedFrom === undefined || !isBucketBoard ? new Map<string, string>() : columnRefusals(carriedLevel, columns, unmapped, carriedSteps, carriedFrom),
   );
   $effect(() => () => stopCarried?.());
 
@@ -487,11 +500,16 @@
     }
   }
 
+  /** A card's own level: its entry type's where that differs from the tasks'. */
+  const levelOfCard = (card: WorkItem) => (card.entry_type ? levelOfType?.(card.entry_type)?.mode : undefined) ?? level;
+
   /**
-   * Drops a card on a column through `:drop` (build-plan §5): the server decides at the
-   * collection's level - a move (the done column completes, leaving it reopens), the one step that
-   * reaches the column, or the steps to choose among, which opens the picker and writes nothing
-   * until one is chosen. A refusal is the server's code, said in words.
+   * Moves a card into a column (build-plan §5). Where no workflow runs (L1) it is the base
+   * product's column write, `PATCH bucket_id` - the server completes into the done column and
+   * reopens out of it, and it works with the Workflows module off, which refuses `:drop`
+   * (UC-FLW-06 check 5). Under a workflow (L2) it is `:drop`: the one step that reaches the column,
+   * or the steps to choose among, which opens the picker and writes nothing until one is chosen.
+   * A refusal is the server's code, said in words.
    */
   async function moveTo(item: WorkItem, bucketId: string | null, step?: string): Promise<WorkItem | undefined> {
     writeFailure = undefined;
@@ -499,8 +517,15 @@
     // A limit is advice: the move goes ahead, and is announced as going over it (UC-WRK-31 check 3).
     const isOverLimit =
       item.bucket_id !== bucketId && goesOverLimit(target?.wip_limit, countOf(bucketId), cardsOf(bucketId).length);
+    // A paused workflow still decides where its entries stand, and its steps are the module's.
+    if (isWorkflowPaused && levelOfCard(item) === 'WORKFLOW') {
+      writeFailure = { message: t('app.entries.workflow_paused_board') } as ReturnType<typeof renderProblem>;
+      return undefined;
+    }
     try {
-      const answer: DropAnswer = await items.drop(item.id, bucketId, item.version, step);
+      const answer: DropAnswer = levelOfCard(item) === 'WORKFLOW'
+        ? await items.drop(item.id, bucketId, item.version, step)
+        : { outcome: 'MOVED', steps: [], item: await items.setBucket(item.id, bucketId, item.version) };
       if (answer.outcome === 'CHOOSE') {
         choosing = { item, bucketId, steps: answer.steps };
         return undefined;
@@ -613,6 +638,8 @@
 
   /** The menus of the cards, so a right click, a key or a long press can open one. */
   const menus = $state<Record<string, EntryMenu | undefined>>({});
+  /** Each card's state chip, whose menu ↓ on the mark beside it opens. */
+  const chips = $state<Record<string, StateChip | undefined>>({});
   let actions = $state<EntryActions | undefined>(undefined);
 
   function chose(card: WorkItem, cards: readonly WorkItem[], id: string) {
@@ -1072,7 +1099,8 @@
                   {#snippet footer()}
                     {@const own = card.entry_type ? levelOfType?.(card.entry_type) : undefined}
                     {@const cardChip = card.type === 'TASK' && isBucketBoard ? chipOf(own?.mode ?? level, card, columns, own?.workflow ?? workflow, own?.mode === 'WORKFLOW' ? { ...chipNames, noColumn: t('app.board.unmapped') } : chipNames) : undefined}
-                    {#if cardChip}<StateChip item={card} chip={cardChip} disabledReason={changeRefusal(card)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
+                    {#if cardChip}<EntryMark item={card} mark={markOf(own?.mode ?? level, card, isWorkflowPaused ? 'paused' : own?.workflow ?? workflow, chipNames.stepName)} stateLabel={cardChip.label} isPaused={cardChip.pausedReason !== undefined} onopenstate={() => chips[card.id]?.open() ?? false} disabledReason={stateRefusal(card)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
+                    {#if cardChip}<StateChip bind:this={chips[card.id]} item={card} chip={cardChip} disabledReason={stateRefusal(card)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
                     {#if showsKey}<EntryKey collection={keyedCollection} number={card.number} />{/if}
                     <DueMark item={card} />
                     {#if card.counts && card.counts.parts > 0}

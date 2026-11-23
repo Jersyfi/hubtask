@@ -5,7 +5,7 @@
   import Button from './Button.svelte';
   import MoveCheck, { type MoveCheckItem } from './MoveCheck.svelte';
 
-  const { mode = 'obstacle' }: { mode?: 'obstacle' | 'clear' } = $props();
+  const { mode = 'obstacle' }: { mode?: 'obstacle' | 'clear' | 'framed' } = $props();
 
   let isLifted = $state(untrack(() => mode === 'clear'));
   const items = $derived<MoveCheckItem[]>([
@@ -24,8 +24,20 @@
     { id: 'structure', tone: 'warning', text: 'Takes the fields, views and rules of IT operations.' },
   ]);
   const obstacles = $derived(items.filter((item) => item.tone === 'obstacle').length);
+  const consequences: MoveCheckItem[] = [
+    { id: 'places', tone: 'warning', text: '4 collections run a workflow.', detail: 'Offers (Sales) · Website tickets (Service) · Hiring (People)' },
+    { id: 'open', tone: 'warning', text: '34 open entries stand in a status that exists only under a workflow.', detail: '25 of them could then not even be completed.' },
+    { id: 'rules', tone: 'warning', icon: 'pause', text: '3 switched-on rules pause.', way: { label: 'View rules', href: '#rules' } },
+    { id: 'kept', tone: 'ok', icon: 'info', text: '14 people work on here without it.', detail: 'The workflows, their drafts and every entry’s history stay stored.' },
+  ];
 </script>
 
+{#if mode === 'framed'}
+  <div class="dialog">
+    <h2 class="title">Switch Workflows off?</h2>
+    <MoveCheck label="What switching off reaches" items={consequences} toneLabels={{ ok: 'Stays', obstacle: 'Obstacle', warning: 'Changes' }} isFramed />
+  </div>
+{:else}
 <div class="dialog">
   <h2 class="title">Move “Web app”</h2>
   <MoveCheck label="Before moving" {items} toneLabels={{ ok: 'Passed', obstacle: 'Obstacle', warning: 'Warning' }} />
@@ -34,6 +46,7 @@
     <Button tone="primary" disabledReason={obstacles > 0 ? 'Resolve the obstacle first' : undefined}>Move</Button>
   </div>
 </div>
+{/if}
 
 <style>
   .dialog {

@@ -1,11 +1,11 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The state control at L1 and L2 (build-plan §5): a chip with the entry's column or status, its
-  // menu the columns or the steps. The same on the list row, the board card and the phone sheet;
-  // at L0 there is none - the row's checkbox completes. Every choice goes to the server's door: a
-  // column through `:drop` (completion follows the done column there), a step through the step.
-  import { Menu, StateLozenge, type MenuItem } from '@hubtask/design-system/components';
+  // Where the entry stands at L1 and L2 (build-plan §5): a chip with the entry's column or status,
+  // its menu the columns or the steps; beside the mark, the same on the list row, the board card and
+  // the phone sheet. At L0 there is none - the mark alone completes. A paused workflow's chip only
+  // reads and says why. Every choice goes through `takeChoice`.
+  import { Menu, StateLozenge, VisuallyHidden, type MenuItem } from '@hubtask/design-system/components';
   import type { WorkItem } from '@hubtask/sync-engine';
 
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -28,6 +28,14 @@
     chip.choices.map((choice) => ({ id: choice.id, label: choice.label, icon: choice.isCurrent ? ('check' as const) : undefined })),
   );
 
+  let menu = $state<{ open: (index?: number) => void } | undefined>(undefined);
+  /** Opens the chip's menu from the mark beside it: ↓ on either part of the control (design §3.1). */
+  export function open(): boolean {
+    if (!menu) return false;
+    menu.open(0);
+    return true;
+  }
+
   async function choose(id: string) {
     try {
       await takeChoice(item, { id, label: chip.choices.find((each) => each.id === id)?.label ?? '' });
@@ -37,13 +45,15 @@
   }
 </script>
 
-{#if disabledReason || menuItems.length === 0}
-  <span class="chip" data-state-chip title={disabledReason}><StateLozenge label={chip.label} vocabulary="category" state={chip.category} size="sm" /></span>
+{#if chip.pausedReason}
+  <span class="chip" data-state-chip data-paused title={chip.pausedReason}><StateLozenge label={chip.label} tone="warning" icon="pause" size="mark" /><VisuallyHidden>{chip.pausedReason}</VisuallyHidden></span>
+{:else if disabledReason || menuItems.length === 0}
+  <span class="chip" data-state-chip title={disabledReason}><StateLozenge label={chip.label} vocabulary="category" state={chip.category} size="mark" /></span>
 {:else}
-  <Menu label={t('app.entries.state_menu', { title: item.title })} items={menuItems} onselect={(id) => void choose(id)}>
+  <Menu bind:this={menu} label={t('app.entries.state_menu', { title: item.title })} items={menuItems} onselect={(id) => void choose(id)}>
     {#snippet trigger(props)}
       <button type="button" class="chip" data-state-chip aria-label={t('app.entries.state_chip', { title: item.title, state: chip.label })} {...props}>
-        <StateLozenge label={chip.label} vocabulary="category" state={chip.category} size="sm" />
+        <StateLozenge label={chip.label} vocabulary="category" state={chip.category} size="mark" hasChevron />
       </button>
     {/snippet}
   </Menu>
@@ -65,6 +75,18 @@
   span.chip { cursor: default; }
 
   .chip:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+
+  /* The chevron says the chip opens the choices. Where a pointer hovers it appears with the row or
+     card under the pointer or holding the focus, and its room is kept beside the chip until then,
+     so nothing moves when it does; without hover it always stands. */
+  @media (hover: hover) {
+    button.chip { padding-inline-end: calc(var(--fs-075) + var(--sp-050)); }
+    button.chip :global(.chevron) { display: none; }
+    :global(:is([data-row], [data-card]):is(:hover, :focus-within)) button.chip,
+    button.chip:is(:hover, :focus-visible, [aria-expanded='true']) { padding-inline-end: 0; }
+    :global(:is([data-row], [data-card]):is(:hover, :focus-within)) button.chip :global(.chevron),
+    button.chip:is(:hover, :focus-visible, [aria-expanded='true']) :global(.chevron) { display: inline-flex; }
+  }
 
   /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
      reaches layout.target beyond its drawn box (P-2). */

@@ -105,12 +105,13 @@ feedback.
 ## 5. The list, board and workflow model (owner's decision of 2026-11-12)
 
 Three levels per entry type in a collection, derived and never a setting: **L0** a list without columns
-and workflow — a checkbox in the list, *Offen/Erledigt* in the entry; **L1** board columns without a
+and workflow — the round mark in the list, *Offen/Erledigt* in the entry; **L1** board columns without a
 workflow — the columns are the states, exactly one done column, the server keeps done column and
-completion together through every door, the list shows a column chip instead of a checkbox; **L2** a
+completion together through every door, the list shows the mark followed by a column chip (owner's
+decision of 2026-11-22: the chip no longer replaces the mark); **L2** a
 workflow — the board keeps its own columns, each column shows one or more statuses (Jira-like mapping),
 unmapped statuses in a folded *Ohne Spalte* column that accepts drops, a drop takes the one possible step,
-asks among several, refuses none with a reason; the list shows the status chip. Switching levels always
+asks among several, refuses none with a reason; the list shows the mark followed by the status chip. Switching levels always
 previews (column ↔ status, *Workflow aus diesen Spalten*, back to a list keeps completion). One control in
 the same place on the list row, the card, the entry head and the phone sheet. Owner's answers: open entries
 standing in a done column are completed by the repair; unmapped statuses are shown folded, never hidden;

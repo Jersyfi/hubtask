@@ -14,7 +14,7 @@ export default {
 export const levels: Story = {
   name: 'The three levels, expanded',
   about:
-    'A task holds work packages, a work package holds activities — domain-model.md §3.4, and the indent is the depth. It mirrors in RTL, because it is `padding-inline-start` and not a left. Completion is a **checkbox**, not an icon button: it is a two-state control a screen reader announces as checked, and its label is announced rather than drawn because the title beside it is what the reader sees.',
+    'A task holds work packages, a work package holds activities — domain-model.md §3.4, and the indent is the depth. It mirrors in RTL, because it is `padding-inline-start` and not a left. Completion is the round **state mark** (`StateMark`), a checkbox to a screen reader: a two-state control announced as checked, its name announced rather than drawn because the title beside it is what the reader sees.',
 };
 
 export const collapsed: Story = {
@@ -69,6 +69,6 @@ export const inTableRow: Story = {
 export const anywhere: Story = {
   name: 'Rows from anywhere, without the twist',
   about:
-    'Rows gathered from many places - *Today*, a search - open nothing in place, so they leave the twist out (`hasTwist={false}`) and the checkbox starts at the row’s edge. A level keeps the twist’s place on every row, so its titles line up whether or not a row has children; compare with the first story. Each row carries its key before the title (`entryKey`), because a list that mixes collections is where a person quotes one.',
+    'Rows gathered from many places - *Today*, a search - open nothing in place, so they leave the twist out (`hasTwist={false}`) and the mark starts at the row’s edge. A level keeps the twist’s place on every row, so its titles line up whether or not a row has children; compare with the first story. Each row carries its key before the title (`entryKey`), because a list that mixes collections is where a person quotes one.',
   args: { mode: 'anywhere' },
 };

@@ -253,6 +253,75 @@ func (q *Queries) InsertNotification(ctx context.Context, arg InsertNotification
 	return result.RowsAffected(), nil
 }
 
+const latestInvitationMailPerRecipient = `-- name: LatestInvitationMailPerRecipient :many
+SELECT a.account_id::uuid AS account_id, n.category, n.state, n.reason, n.created_at, n.sent_at,
+       d.finished_at AS delivery_finished_at, d.last_error AS delivery_error,
+       d.last_error_params AS delivery_error_params
+FROM unnest($1::uuid[]) AS a(account_id)
+CROSS JOIN LATERAL (
+  SELECT nn.id, nn.category, nn.state, nn.reason, nn.created_at, nn.sent_at
+  FROM notification nn
+  WHERE nn.tenant_id = current_tenant_id() AND nn.recipient_id = a.account_id
+    AND nn.category = 'INVITATION'
+  ORDER BY nn.created_at DESC, nn.id DESC
+  LIMIT 1
+) n
+LEFT JOIN LATERAL (
+  SELECT j.finished_at, j.last_error, j.last_error_params
+  FROM job j
+  WHERE j.tenant_id = current_tenant_id() AND j.kind = 'notification.deliver'
+    AND j.dedupe_key = n.id::text
+  ORDER BY j.created_at DESC, j.id DESC
+  LIMIT 1
+) d ON true
+`
+
+type LatestInvitationMailPerRecipientRow struct {
+	AccountID           pgtype.UUID
+	Category            string
+	State               string
+	Reason              *string
+	CreatedAt           pgtype.Timestamptz
+	SentAt              pgtype.Timestamptz
+	DeliveryFinishedAt  pgtype.Timestamptz
+	DeliveryError       *string
+	DeliveryErrorParams []byte
+}
+
+// The newest invitation notification of each account, for the people list's row of a person still
+// invited (user-experience.md §8.3): the invitation stands there whatever other mail went out
+// since, also once the queue has cleared its job. Joined as LatestMailPerRecipient is, the job
+// table naming the tenant itself; the partial index of 0370 serves the category.
+func (q *Queries) LatestInvitationMailPerRecipient(ctx context.Context, accountIds []pgtype.UUID) ([]LatestInvitationMailPerRecipientRow, error) {
+	rows, err := q.db.Query(ctx, latestInvitationMailPerRecipient, accountIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LatestInvitationMailPerRecipientRow{}
+	for rows.Next() {
+		var i LatestInvitationMailPerRecipientRow
+		if err := rows.Scan(
+			&i.AccountID,
+			&i.Category,
+			&i.State,
+			&i.Reason,
+			&i.CreatedAt,
+			&i.SentAt,
+			&i.DeliveryFinishedAt,
+			&i.DeliveryError,
+			&i.DeliveryErrorParams,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const latestMailPerRecipient = `-- name: LatestMailPerRecipient :many
 SELECT a.account_id::uuid AS account_id, n.category, n.state, n.reason, n.created_at, n.sent_at,
        d.finished_at AS delivery_finished_at, d.last_error AS delivery_error,

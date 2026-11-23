@@ -21,7 +21,7 @@
   import { boardPath, whiteboards } from '../lib/data/whiteboards.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
-  import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import { messages, naming, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import BoardCanvas from '../lib/whiteboards/BoardCanvas.svelte';
   import type { BoardStart } from '../lib/whiteboards/BoardTemplates.svelte';
@@ -87,8 +87,9 @@
   /** A board made untitled takes its template's name, until a person names it (scene wnew). */
   async function begun(choice: BoardStart) {
     const board = current;
-    if (!board || choice === 'BLANK' || board.title !== t('app.create.untitled', { kind: 'whiteboard' })) return;
-    await act(() => whiteboards.rename(board, t(`app.whiteboards.start_${choice.toLowerCase()}`)));
+    const untitled = [naming.t('app.create.untitled', { kind: 'whiteboard' }), t('app.create.untitled', { kind: 'whiteboard' })];
+    if (!board || choice === 'BLANK' || !untitled.includes(board.title)) return;
+    await act(() => whiteboards.rename(board, naming.t(`app.whiteboards.start_${choice.toLowerCase()}`)));
   }
 
   const collections = $derived(hubId ? containers.collectionsOf(hubId).map((each) => ({ id: each.id, name: each.name, settings: each.structure?.settings })) : []);

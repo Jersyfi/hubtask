@@ -6,6 +6,7 @@ package setting_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -32,6 +33,8 @@ var (
 type memorySettings struct {
 	instance, plan domain.Layer
 	rows           map[settingrepo.Place]map[domain.Key]domain.Entry
+	hubs           []shared.ID
+	pinned         []settingrepo.PinnedHub
 }
 
 func newMemory() *memorySettings {
@@ -68,6 +71,41 @@ func (m *memorySettings) Remove(_ context.Context, place settingrepo.Place, key 
 	_, held := m.rows[place][key]
 	delete(m.rows[place], key)
 	return held, nil
+}
+
+// HubsWithout answers, of the hubs the store was told exist, those storing nothing under the key;
+// a hub it was not told of stands for one made afterwards.
+func (m *memorySettings) HubsWithout(_ context.Context, key domain.Key) ([]shared.ID, error) {
+	var without []shared.ID
+	for _, each := range m.hubs {
+		if _, held := m.rows[settingrepo.Place{Level: domain.LevelHub, ScopeID: each}][key]; !held {
+			without = append(without, each)
+		}
+	}
+	return without, nil
+}
+
+// PinHubs writes as the adapter's statement does, and keeps the row ids it was handed.
+func (m *memorySettings) PinHubs(ctx context.Context, pin settingrepo.HubPin, at time.Time) ([]shared.ID, error) {
+	var written []shared.ID
+	for _, each := range pin.Hubs {
+		place := settingrepo.Place{Level: domain.LevelHub, ScopeID: each.HubID}
+		if _, held := m.rows[place][pin.Key]; held || !slices.Contains(m.hubs, each.HubID) {
+			continue
+		}
+		on := pin.On
+		for _, key := range pin.OnWhere {
+			if stored, _ := m.rows[place][key].Value.(bool); stored {
+				on = true
+			}
+		}
+		if err := m.Put(ctx, each.RowID, place, pin.Key, domain.Entry{Value: on, Hold: domain.HoldSet}, at); err != nil {
+			return nil, err
+		}
+		m.pinned = append(m.pinned, each)
+		written = append(written, each.HubID)
+	}
+	return written, nil
 }
 
 type containers struct{}
@@ -169,7 +207,8 @@ func TestSwitchingModules(t *testing.T) {
 		t.Errorf("planning after switching on = %+v", state)
 	}
 
-	// Check 3: narrowed to a hub; a hub never widens.
+	// Check 3: a hub made after the switch has the module, decides for itself and switches it off;
+	// it never switches on what the workspace has off.
 	states, err = set.Execute(ctx, actor(), settingservice.SetModuleCommand{Module: module.Planning, Switch: settingservice.SwitchOff, HubID: hub})
 	if err != nil {
 		t.Fatal(err)

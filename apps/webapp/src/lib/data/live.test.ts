@@ -69,6 +69,27 @@ test('the workspace vocabulary makes its own lists stale', () => {
   assert.ok(pathsFor(record({ entity: 'workflow' })).some((name) => matchesPath(name, '/items/i-1/steps')));
 });
 
+test('a module switch makes the switches, every place\'s set and the manifest stale', () => {
+  // UC-INS-21 check 12: what the switching client invalidates itself (modules.switch), so a
+  // product switched off leaves every other device's navigation without a reload.
+  const names = ['/tenant/modules', '/meta/capabilities', '/containers/*/modules'];
+  assert.deepEqual(pathsFor(record({ entity: 'setting', entity_id: 't-1' })), names);
+  assert.deepEqual(pathsFor(record({ entity: 'setting', entity_id: 'h-1', container_id: 'h-1' })), names);
+  for (const read of ['/meta/capabilities', '/tenant/modules', '/tenant/modules?hub_id=h-1', '/containers/h-1/modules', '/containers/c-9/modules']) {
+    assert.ok(names.some((name) => matchesPath(name, read)), read);
+  }
+});
+
+test('a board comment makes the boards\' threads stale, and not the board', () => {
+  // UC-CNV-09 check 6: the record names the comment, so every thread being read - the open
+  // board's panel and the home's - and never the scene, which somebody may be drawing.
+  const names = pathsFor(record({ entity: 'whiteboard_comment', entity_id: 'k-1', container_id: 'h-1' }));
+  assert.deepEqual(names, ['/whiteboards/*/comments']);
+  assert.ok(names.some((name) => matchesPath(name, '/whiteboards/w-1/comments')));
+  assert.equal(names.some((name) => matchesPath(name, '/whiteboards/w-1')), false);
+  assert.equal(names.some((name) => matchesPath(name, '/hubs/h-1/whiteboards')), false);
+});
+
 test('every entity the server records and this client draws makes something stale', () => {
   // The server has no closed set of entity names - `sync.Change.Entity` is a string each service
   // names - so this is the list of those this client draws; a name missing from `pathsFor` would
@@ -76,7 +97,7 @@ test('every entity the server records and this client draws makes something stal
   const drawn = [
     'item', 'work_item', 'container', 'comment', 'label', 'bucket', 'reminder', 'recurrence_rule', 'media_object',
     'membership', 'group', 'custom_field', 'custom_field_definition', 'saved_view', 'template', 'account',
-    'page', 'whiteboard', 'entry_type', 'link_type', 'workflow',
+    'page', 'whiteboard', 'entry_type', 'link_type', 'workflow', 'setting', 'whiteboard_comment',
   ];
   for (const entity of drawn) {
     assert.notDeepEqual(pathsFor(record({ entity, entity_id: 'x-1', container_id: 'c-1' })), [], entity);

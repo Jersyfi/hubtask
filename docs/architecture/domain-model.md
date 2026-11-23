@@ -469,7 +469,16 @@ sandbox out (a scratch copy; what its promotion wrote is a version).
 
 **Modules** (UC-INS-21, package `core/domain/model/module`) are catalogue entries `module.<name>`
 of kind `FLAG`, off by default: the installation and a plan lock one on or off, the workspace
-switches it, a hub only switches off what the workspace has on. A use case of a module declares it
+switches it, a hub decides inside what the workspace has on and never switches on what the
+workspace has off. **On at the workspace allows a module and is what a hub made afterwards starts
+with; no hub that exists changes, except the hubs the switch names (`hub_ids`), and off at the
+workspace covers every hub.** The resolver is unchanged: whenever what the workspace resolves to
+turns - by its own switch or by leaving it to the installation or the plan - `SetModule` writes,
+in the same transaction, the state each hub had as that hub's own value where it stores none
+(archived and trashed hubs too), so on again gives each hub the state it had. An installation's or
+a plan's default that changes reaches the hubs of a workspace that decides nothing itself as
+before: it passes no `SetModule` ([ADR-0109](../adr/ADR-0109-a-product-switched-on-at-the-workspace-is-offered-to-hubs.md)).
+A use case of a module declares it
 (`usecase.Descriptor.Module`); the registry refuses it with `403 module.off` where the module is
 off, through every door: at the hub its input names - directly, through a collection, an entry, a
 page, a board, a configuration item or a goal in it - and at the workspace where it names none. The installation's and a plan's documents carry them as the `module`
@@ -803,7 +812,20 @@ take into a status of the column, offers the choice among several, or is refused
 (`board.no_step`, `board.step_blocked`, `board.column_without_status`). A mapping is proposed by
 `work.DefaultMapping`: the same name first, then the done column takes the DONE statuses, the first
 column the initial one, the next empty column the first IN_PROGRESS; the rest stay unmapped with a
-suggestion. Switching levels always previews:
+suggestion.
+
+**The Workflows module and the levels.** L0 and L1 are the base product's: completing, reopening
+and a column written by `PATCH /items/{id}` (`UpdateWorkItem`, no module) work with the module off,
+the coupling above included; the drop, the steps read and the step are the module's and are refused
+with `module.off`, so a client moves an entry at L1 by the column write and keeps the drop for L2.
+A workflow stays in force with the module off - `WorkflowGate.InForce` knows no module -: the
+collection stays at L2, completing takes the first allowed step into done or is refused with
+`workflows.no_step_to_done`, and nothing else moves its entries until the module is on again or the
+workflow goes (L2 → L1 below). So switching the module off where a workflow runs asks first whether
+to convert those places to columns - each scheme row removed through `SetWorkflowScheme` while the
+module is still on, one write per row and not atomic - or only to pause (UC-INS-21 check 14).
+
+Switching levels always previews:
 
 * **A workflow comes or goes** (`PreviewWorkflowScheme`, `SetWorkflowScheme`): the preview answers
   per board reached its level before and after, its columns with the statuses each would show, the
@@ -819,8 +841,8 @@ suggestion. Switching levels always previews:
   progress, every step free -, run for the collection's tasks, each column showing its own status,
   every entry taking its column's status; one transaction, a dry run as the preview.
 * **List ↔ board** (`SwitchBoard`, L0 ↔ L1): *Als Board anzeigen* creates an open and a done column
-  in the workspace's language, completed entries in the done one; back to a list soft-deletes the
-  columns, the done column last, and keeps completion. Both are refused while a workflow runs for
+  in the acting person's language, else the workspace's, completed entries in the done one; back
+  to a list soft-deletes the columns, the done column last, and keeps completion. Both are refused while a workflow runs for
   tasks (`board.workflow_runs`) and where the tasks already stand so (`board.level_unchanged`).
 
 A **template** says the same two things apart. A type's `workflow` flag says a workflow *runs* for

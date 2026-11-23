@@ -5,6 +5,7 @@ package admin
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
@@ -34,21 +35,20 @@ var (
 	}
 )
 
-// maxLocaleLength is the contract's bound on a BCP 47 tag; a longer one is no language.
-const maxLocaleLength = 35
-
 // seedListSize bounds the containers read: the seed is one hub with one collection, and a person
 // who has not yet redeemed has created nothing else.
 const seedListSize = 50
 
-// LocaliseSeed renames the defaults provisioning seeded for an owner into the language the owner
-// redeemed the invitation in (user-experience.md §4). It runs inside the redemption's transaction,
-// in the workspace's scope.
+// LocaliseSeed renames the defaults provisioning seeded for an owner into the owner's language
+// (user-experience.md §4). It runs inside the redemption's transaction, in the workspace's scope.
 //
 // Only what is still exactly as seeded moves: created by this owner, at its first version, under
 // the name the workspace's language gives it. Anything somebody renamed, and anybody else's
 // redemption, finds nothing to do - so a later owner never renames an established workspace.
 type LocaliseSeed struct {
+	// Locales are the catalogues present. A language without one names nothing: rendering it would
+	// fall back to the source language, which nobody asked for. Nil serves every language.
+	Locales    i18n.Locales
 	Tenants    adminrepo.Tenants
 	Containers workrepo.Containers
 	Buckets    workrepo.Buckets
@@ -61,85 +61,129 @@ type LocaliseSeed struct {
 	HLC        clock.HLCSource
 }
 
-// LocaliseSeed implements identity.SeedLocaliser.
+// LocaliseSeed implements identity.SeedLocaliser. It answers the language the owner's seed is now
+// named in - the tag given, also where the workspace's language already was it - or "" where
+// nothing of the seed is untouched or no catalogue serves the language: then nothing was named.
 func (l LocaliseSeed) LocaliseSeed(
 	ctx context.Context, owner domain.Account, locale string, now time.Time,
-) error {
-	if locale == "" || len(locale) > maxLocaleLength {
-		return nil
+) (string, error) {
+	tag := l.Serves(locale)
+	if tag == "" {
+		return "", nil
 	}
 	tenant, err := l.Tenants.Find(ctx)
 	if err != nil {
-		return err
+		return "", err
 	}
-	if locale == tenant.DefaultLocale {
-		return nil
-	}
-	names := seedNames{renderer: l.Renderer, Text: l.Text, from: tenant.DefaultLocale, to: locale}
+	names := seedNames{renderer: l.Renderer, Text: l.Text, from: tenant.DefaultLocale, to: tag}
 	actor := event.Actor{Kind: shared.ActorUser, ID: owner.ID}
 
 	hubs, err := l.Containers.List(ctx, workrepo.ContainerQuery{
 		Type: work.ContainerHub, Page: workrepo.Page{Size: seedListSize},
 	})
 	if err != nil {
-		return err
+		return "", err
 	}
+	var seeded bool
 	for _, hub := range hubs.Containers {
 		if hub.CreatedBy != owner.ID {
 			continue
 		}
-		if err := l.renameContainer(ctx, hub, names, seedHubName, actor, now); err != nil {
-			return err
+		found, err := l.renameContainer(ctx, hub, names, seedHubName, actor, now)
+		if err != nil {
+			return "", err
 		}
+		seeded = seeded || found
 		collections, err := l.Containers.List(ctx, workrepo.ContainerQuery{
 			ParentID: hub.ID, Type: work.ContainerCollection, Page: workrepo.Page{Size: seedListSize},
 		})
 		if err != nil {
-			return err
+			return "", err
 		}
 		for _, collection := range collections.Containers {
 			if collection.CreatedBy != owner.ID {
 				continue
 			}
-			if err := l.renameContainer(ctx, collection, names, seedCollectionName, actor, now); err != nil {
-				return err
+			found, err := l.renameContainer(ctx, collection, names, seedCollectionName, actor, now)
+			if err != nil {
+				return "", err
 			}
+			seeded = seeded || found
 			if err := l.renameBuckets(ctx, collection.ID, names, actor, now); err != nil {
-				return err
+				return "", err
 			}
 			if err := l.renameLabels(ctx, collection.ID, names, actor, now); err != nil {
-				return err
+				return "", err
 			}
 		}
 	}
-	return nil
+	if !seeded {
+		return "", nil
+	}
+	return tag, nil
 }
 
+// Serves implements identity.SeedLocaliser: the tag as sent where a catalogue renders it, "" for
+// an empty, malformed or unserved one. The redemption keeps only such a language as an account's.
+func (l LocaliseSeed) Serves(locale string) string {
+	tag, ok := shared.LanguageTag(locale)
+	if !ok || tag == "" || !l.served(tag) {
+		return ""
+	}
+	return tag
+}
+
+// served tells whether a catalogue renders the tag, matched down its subtags as the renderer
+// matches it (`de-AT` reads `de`).
+func (l LocaliseSeed) served(tag string) bool {
+	if l.Locales == nil {
+		return true
+	}
+	supported := l.Locales.SupportedLocales()
+	for candidate := tag; ; {
+		for _, locale := range supported {
+			if strings.EqualFold(locale.Tag, candidate) {
+				return true
+			}
+		}
+		cut := strings.LastIndex(candidate, "-")
+		if cut < 0 {
+			return false
+		}
+		candidate = candidate[:cut]
+	}
+}
+
+// renameContainer answers whether the container is still as seeded, renamed now or already named
+// in the owner's language.
 func (l LocaliseSeed) renameContainer(
 	ctx context.Context, container work.Container, names seedNames, code string,
 	actor event.Actor, now time.Time,
-) error {
+) (bool, error) {
 	wanted, ok := names.untouched(container.Version, container.Name, code)
 	if !ok {
-		return nil
+		return false, nil
+	}
+	if wanted == container.Name {
+		return true, nil
 	}
 	after, changes, err := container.Renamed(work.ContainerAttributes{Name: &wanted}, l.Text, now)
 	if err != nil || len(changes) == 0 {
-		return err
+		return err == nil, err
 	}
 	if err := l.Containers.SetAttributes(ctx, after, container.Version); err != nil {
-		return err
+		return false, err
 	}
 	after.Version = container.Version + 1
 	announcement, err := event.NewContainerRenamed(l.IDs.NewID(), after, changes, actor, now, event.Cause{})
 	if err != nil {
-		return err
+		return false, err
 	}
 	if err := l.Events.Append(ctx, announcement); err != nil {
-		return err
+		return false, err
 	}
 	// The container itself is the visibility filter, as for every rename (offline-sync.md §3.1).
-	return l.record(ctx, after.TenantID, "container", after.ID, after.ID, actor.ID, changes)
+	return true, l.record(ctx, after.TenantID, "container", after.ID, after.ID, actor.ID, changes)
 }
 
 func (l LocaliseSeed) renameBuckets(
@@ -154,6 +198,9 @@ func (l LocaliseSeed) renameBuckets(
 			wanted, ok := names.untouched(bucket.Version, bucket.Name, code)
 			if !ok {
 				continue
+			}
+			if wanted == bucket.Name {
+				break
 			}
 			after, changes, err := bucket.Updated(work.BucketAttributes{Name: &wanted}, l.Text)
 			if err != nil {
@@ -194,6 +241,9 @@ func (l LocaliseSeed) renameLabels(
 			wanted, ok := names.untouched(label.Version, label.Name, code)
 			if !ok {
 				continue
+			}
+			if wanted == label.Name {
+				break
 			}
 			after, changes, err := label.Updated(work.LabelAttributes{Name: &wanted}, l.Text)
 			if err != nil {
@@ -247,12 +297,12 @@ type seedNames struct {
 	from, to string
 }
 
+// untouched answers the name in the owner's language, and whether the name is still as seeded.
 func (n seedNames) untouched(version int, name, code string) (string, bool) {
 	if version != 1 || name != n.render(n.from, code) {
 		return "", false
 	}
-	wanted := n.render(n.to, code)
-	return wanted, wanted != name
+	return n.render(n.to, code), true
 }
 
 func (n seedNames) render(locale, code string) string {

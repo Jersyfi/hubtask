@@ -323,7 +323,7 @@ versions compared side by side (UC-DOC-06/3). Scenes `pread`, `pcover`, `pwrite`
 | W-6 | **Ideas become work.** *Aufgabe daraus* in the selection bar, *3 Aufgaben* for a frame; the card shows key, person, status and tick, live. |
 | W-7 | **Recognised by its picture.** A thumbnail drawn from the board's objects on the home, in search and in pages. |
 
-Bound and kept: comments at an object or a place, mentions up to 20 people, not live (UC-CNV-09);
+Bound and kept: comments at an object or a place, mentions up to 20 people, told to other clients once written, not while typed (UC-CNV-09);
 no presentation mode, private mode, visitor links, reactions or shape libraries (UC-CNV-01, 04, 05);
 a note becomes a task of the task level, columns do not become statuses, arrows not dependencies
 (UC-CNV-02); two board versions are not compared (UC-CNV-06). Scenes `wboard`, `wsel`, `wsess`,

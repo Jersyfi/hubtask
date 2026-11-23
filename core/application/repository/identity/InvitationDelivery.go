@@ -49,6 +49,10 @@ type InvitationJobs interface {
 	// LatestMail answers the newest notification of each account that has one, of the
 	// transaction's workspace (user-experience.md §8.3: the last mail of any kind).
 	LatestMail(ctx context.Context, accountIDs []shared.ID) ([]LastMail, error)
+	// LatestInvitationMail answers the newest INVITATION notification of each account that has
+	// one, of the transaction's workspace: what stands on the row of a person still invited, also
+	// once the queue has cleared the invitation's job.
+	LatestInvitationMail(ctx context.Context, accountIDs []shared.ID) ([]LastMail, error)
 	// CancelOpen cancels the invitation mail still waiting for one account and sets its unsent
 	// record aside, and answers how many jobs it cancelled: a handed-over link must not be
 	// replaced by the token a later delivery would mint (identity.md §12, "Never both"). A mail

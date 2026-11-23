@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-08, P-11, P-12, P-13]
 state: partial
 tasks: [B-07, F2-09, F6-13]
-checked_by: [test/integration/completion_test.go, test/integration/rollup_test.go, core/domain/model/work/Completion_test.go, core/domain/model/work/CompletionPolicy_test.go, core/application/service/work/CompleteWorkItem_test.go, apps/webapp/e2e/entry.test.mjs, apps/webapp/e2e/structure.test.mjs, test/integration/capability_profile_test.go, apps/webapp/e2e/boardlevels.test.mjs, apps/webapp/src/lib/entries/statechip.test.ts]
+checked_by: [test/integration/completion_test.go, test/integration/rollup_test.go, core/domain/model/work/Completion_test.go, core/domain/model/work/CompletionPolicy_test.go, core/application/service/work/CompleteWorkItem_test.go, apps/webapp/e2e/entry.test.mjs, apps/webapp/e2e/structure.test.mjs, test/integration/capability_profile_test.go, apps/webapp/e2e/boardlevels.test.mjs, apps/webapp/e2e/entryhead.test.mjs, apps/webapp/src/lib/entries/statechip.test.ts]
 ---
 
 # Tick work off, and take it back
@@ -27,11 +27,11 @@ it.
 
 ## How to check
 
-1. Every entry type carries completion. In a list without columns or workflow (L0) a checkbox
-   before the title completes it and the same checkbox reopens it; on a board without a workflow
-   (L1) the row shows a column chip instead, and under a workflow (L2) a status chip - the same
-   control on the list row, the card, the entry head and the phone sheet (owner's decision of
-   2026-11-12).
+1. Every entry type carries completion. In a list without columns or workflow (L0) a round mark
+   before the title completes it and the same mark reopens it; on a board without a workflow (L1)
+   the mark is followed by the column chip, and under a workflow (L2) by the status chip - the same
+   control on the list row, the card, the entry head and the phone sheet (owner's decisions of
+   2026-11-12 and 2026-11-22).
 2. A completed entry shows its title struck through and records who completed it and when;
    reopening clears both.
 3. The history shows `item.completed` and `item.reopened` as two different sentences.
@@ -55,4 +55,5 @@ it.
 
 ## Today
 
-* Check 1: partly met — the checkbox (L0), the column chip (L1) and the status chip (L2) are the one control on the list row, the card and the entry head; the phone sheet is not yet walked.
+* Check 6: not proven — no test cites it.
+* Check 8: not proven — no test cites it.

@@ -98,6 +98,55 @@ export function focusReturn(previous: Element | null | undefined): boolean {
   return true;
 }
 
+/** A control as `safeAnswer` reads it: whether it is drawn, and whether it is unavailable now. */
+export interface AnswerControl {
+  readonly offsetParent: Element | null;
+  getAttribute(name: string): string | null;
+}
+
+/**
+ * Where an alert dialog's focus starts (APG Alert Dialog): on its safe answer - the first control
+ * of its foot that is drawn and usable, which the caller places first (*Keep it on*) - and where
+ * the foot is gone, as on a phone's full screen, on the close control, which is the same answer.
+ * Never on the destructive one, not even where the safe answer is unavailable for now.
+ */
+export function safeAnswer<T extends AnswerControl>(foot: readonly T[], dismiss: T | null | undefined): T | undefined {
+  const usable = (control: T) =>
+    control.offsetParent !== null && control.getAttribute('aria-disabled') !== 'true' && control.getAttribute('data-tone') !== 'danger';
+  return foot.find(usable) ?? (dismiss && dismiss.offsetParent !== null ? dismiss : undefined);
+}
+
+/** What `keptFocus` reads of an open dialog at one moment. */
+export interface DialogFocus<T extends AnswerControl> {
+  /** The focused element, `null` where the focus fell to the page's body. */
+  readonly active: T | null;
+  /** Whether `active` lies inside this dialog; outside it, another layer holds the focus. */
+  readonly isInside: boolean;
+  /** Whether `active` is the heading this rule put the focus on for want of an answer. */
+  readonly isOnFallback: boolean;
+  readonly isAlert: boolean;
+  readonly foot: readonly T[];
+  readonly dismiss: T | null | undefined;
+  readonly heading: T;
+}
+
+/**
+ * Where an open dialog's focus goes when its content changes under it (WCAG 2.4.3): a control
+ * removed, or hidden by the dialog growing to the full screen, drops the focus to the body. It then
+ * goes to the safe answer of an alert (`safeAnswer`), to the close control of any other dialog,
+ * and with neither drawn to the dialog's own heading - and from that heading to the answer once one
+ * is drawn again. `undefined`: the focus stays where it is, also in another layer over this one.
+ */
+export function keptFocus<T extends AnswerControl>(now: DialogFocus<T>): { readonly target: T; readonly isFallback: boolean } | undefined {
+  const isDrawn = (control: T) => control.offsetParent !== null;
+  if (now.active !== null && !now.isInside) return undefined;
+  const answer = now.isAlert ? safeAnswer(now.foot, now.dismiss) : now.dismiss && isDrawn(now.dismiss) ? now.dismiss : undefined;
+  const isLost = now.active === null || !isDrawn(now.active);
+  if (isLost) return answer ? { target: answer, isFallback: false } : { target: now.heading, isFallback: true };
+  if (now.isOnFallback && answer) return { target: answer, isFallback: false };
+  return undefined;
+}
+
 /**
  * What can be focused inside a container. `Dialog` needs none of this - a modal `<dialog>` is
  * trapped by the browser - but a popover is not modal, and the first thing it does on open is

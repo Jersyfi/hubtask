@@ -51,3 +51,10 @@ export const notOffered: Story = {
     'The first comment is the reader’s own, with *Edit* and *Remove*; the second is somebody else’s and this reader is no administrator, so neither control is drawn and no sentence explains their absence (`isChangeable: false`, UC-WRK-19 check 3). A reason is for something the reader could change or wait out; a role that never may is not one.',
   args: { mode: 'others' },
 };
+
+export const kept: Story = {
+  name: 'A kept version is a system note, not a post',
+  about:
+    'A version of a text kept when somebody else changed it meanwhile is filed in the name of the person whose choice kept it. Drawn as a post it would read as their words - the other person’s text under their name. So it is drawn as the thread’s quiet rows are: an icon in place of the avatar, its mark word (*Kept version*) in place of the author, the heading naming whose version it holds, and the text on the history’s rail exactly as filed, never formatted. It can be removed, not rewritten (`isEditable: false`). It is also the comment the address named (`markedId`): marked with the selection surface and focused.',
+  args: { mode: 'kept' },
+};

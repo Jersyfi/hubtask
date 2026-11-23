@@ -25,7 +25,8 @@ import {
   type LocaleTarget,
   type SupportedLocale,
 } from './locale.ts';
-import { createMessages } from './messages.ts';
+import { createMessages, type Messages } from './messages.ts';
+import { namingMessages } from './naming.ts';
 
 /**
  * What this build carries, until `/meta/capabilities` says what the installation has: so that a
@@ -157,6 +158,52 @@ export const messages = new ActiveMessages();
 /** What a component imports. Short because it is written more often than anything else here. */
 export function t(code: string, params?: MessageParams): string {
   return messages.t(code, params);
+}
+
+/**
+ * The words a name the client stores from a default text is written in (`naming.ts`): the naming
+ * locale's catalogue, read through the same loader. Until it has arrived, and where nothing has
+ * been adopted, the interface's words answer.
+ */
+class NamingWords {
+  #locale: string | undefined;
+  #messages = $state.raw<Messages | undefined>(undefined);
+  #ready: Promise<void> = Promise.resolve();
+
+  /**
+   * Settles when the catalogue of the locale last adopted has arrived, or failed to. A locale
+   * adopted while one loaded replaces that load, so the wait goes on to the one current then.
+   */
+  get ready(): Promise<void> {
+    return (async () => {
+      let awaited: Promise<void>;
+      do {
+        awaited = this.#ready;
+        await awaited;
+      } while (awaited !== this.#ready);
+    })();
+  }
+
+  adopt(locale: string): void {
+    if (locale === this.#locale) return;
+    this.#locale = locale;
+    this.#messages = undefined;
+    this.#ready = namingMessages(locale, loadCatalogue).then((loaded) => {
+      if (this.#locale === locale) this.#messages = loaded;
+    });
+  }
+
+  t(code: string, params?: MessageParams): string {
+    return (this.#messages ?? messages).t(code, params);
+  }
+}
+
+export const naming = new NamingWords();
+
+/** A default name as it is stored: in the account's language, else the workspace's (`naming.ts`). */
+export async function defaultName(code: string, params?: MessageParams): Promise<string> {
+  await naming.ready;
+  return naming.t(code, params);
 }
 
 /**

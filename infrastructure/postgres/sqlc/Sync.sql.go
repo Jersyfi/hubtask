@@ -3397,6 +3397,78 @@ func (q *Queries) SnapshotTimeBudgets(ctx context.Context, arg SnapshotTimeBudge
 	return items, nil
 }
 
+const snapshotWhiteboardComments = `-- name: SnapshotWhiteboardComments :many
+SELECT c.id, c.whiteboard_id, c.parent_id, c.author_id, c.body, c.element_id, c.x, c.y, c.resolved_at,
+       c.resolved_by, c.created_at, c.edited_at, c.deleted_at, c.version, w.hub_id
+FROM whiteboard_comment c
+JOIN whiteboard w ON w.tenant_id = c.tenant_id AND w.id = c.whiteboard_id
+WHERE c.tenant_id = current_tenant_id() AND c.id > $1 AND w.deleted_at IS NULL
+ORDER BY c.id
+LIMIT $2
+`
+
+type SnapshotWhiteboardCommentsParams struct {
+	After pgtype.UUID
+	Batch int32
+}
+
+type SnapshotWhiteboardCommentsRow struct {
+	ID           pgtype.UUID
+	WhiteboardID pgtype.UUID
+	ParentID     pgtype.UUID
+	AuthorID     pgtype.UUID
+	Body         string
+	ElementID    string
+	X            float64
+	Y            float64
+	ResolvedAt   pgtype.Timestamptz
+	ResolvedBy   pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+	EditedAt     pgtype.Timestamptz
+	DeletedAt    pgtype.Timestamptz
+	Version      int32
+	HubID        pgtype.UUID
+}
+
+// The comments of the boards outside the trash (migration 0273), each filed under its board's hub,
+// which decides who is told of it. A comment taken back is among them: its place in the thread
+// stays, and the reader's side answers no words.
+func (q *Queries) SnapshotWhiteboardComments(ctx context.Context, arg SnapshotWhiteboardCommentsParams) ([]SnapshotWhiteboardCommentsRow, error) {
+	rows, err := q.db.Query(ctx, snapshotWhiteboardComments, arg.After, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SnapshotWhiteboardCommentsRow{}
+	for rows.Next() {
+		var i SnapshotWhiteboardCommentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.WhiteboardID,
+			&i.ParentID,
+			&i.AuthorID,
+			&i.Body,
+			&i.ElementID,
+			&i.X,
+			&i.Y,
+			&i.ResolvedAt,
+			&i.ResolvedBy,
+			&i.CreatedAt,
+			&i.EditedAt,
+			&i.DeletedAt,
+			&i.Version,
+			&i.HubID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const snapshotWhiteboards = `-- name: SnapshotWhiteboards :many
 SELECT id, hub_id, title, scene, deleted_at, created_by, created_at, updated_by, updated_at, version,
        parent_page_id, order_key

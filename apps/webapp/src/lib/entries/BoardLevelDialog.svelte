@@ -4,9 +4,11 @@
   // The level switches of a collection's tasks (build-plan §5), each previewed before it is made:
   // *Als Board anzeigen* (L0 → L1: two columns, the done entries in the done one), *Zurück zur
   // Liste* (L1 → L0: the columns go, completion stays) and *Workflow aus diesen Spalten* (L1 → L2:
-  // a status per column). The preview is the server's own dry run - counts, never a guess.
+  // a status per column). The preview is the server's own dry run - counts, never a guess. Taking
+  // the columns off cannot be undone, and the preview says so: a board switched on later starts
+  // with two new columns, not these (UC-WRK-05 check 13).
   import { untrack } from 'svelte';
-  import { Dialog } from '@hubtask/design-system/components';
+  import { Callout, Dialog } from '@hubtask/design-system/components';
   import type { BoardSwitch, BoardWorkflow } from '@hubtask/sync-engine';
 
   import { announcer } from '../announce.svelte.ts';
@@ -61,6 +63,7 @@
 
   const switched = $derived(preview && 'entries_placed' in preview ? preview : undefined);
   const made = $derived(preview && 'statuses' in preview ? preview : undefined);
+  const removes = $derived(asked === 'list' || asked === 'remove');
 </script>
 
 <Dialog
@@ -69,7 +72,7 @@
   onClose={onclose}
   title={t(`app.board.level.${asked}_title`)}
   dismissLabel={t('app.workspace.cancel')}
-  primary={{ label: t(`app.board.level.${asked}_confirm`), onclick: () => void confirm(), isBusy, disabledReason: preview ? undefined : failure ?? t('app.board.level.reading') }}
+  primary={{ label: t(`app.board.level.${asked}_confirm`), tone: removes ? 'danger' : 'primary', onclick: () => void confirm(), isBusy, disabledReason: preview ? undefined : failure ?? t('app.board.level.reading') }}
 >
   <p class="lead">{t(`app.board.level.${asked}_lead`)}</p>
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
@@ -77,9 +80,10 @@
     <ul class="facts" data-level-preview>
       {#if switched.columns_created > 0}<li>{t('app.board.level.columns_created', { count: switched.columns_created })}</li>{/if}
       {#if switched.columns_removed > 0}<li>{t('app.board.level.columns_removed', { count: switched.columns_removed })}</li>{/if}
-      <li>{t('app.board.level.entries_placed', { count: switched.entries_placed })}</li>
-      {#if asked === 'list'}<li>{t('app.board.level.completion_kept')}</li>{/if}
+      <li>{t(removes ? 'app.board.level.entries_left' : 'app.board.level.entries_placed', { count: switched.entries_placed })}</li>
+      {#if removes}<li>{t('app.board.level.completion_kept')}</li>{/if}
     </ul>
+    {#if removes}<div data-level-final><Callout tone="warning">{t('app.board.level.columns_final')}</Callout></div>{/if}
   {:else if made}
     <ul class="mapping" data-level-preview>
       {#each made.statuses as status (status.key)}

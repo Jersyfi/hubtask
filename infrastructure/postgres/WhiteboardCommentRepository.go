@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	syncrepo "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/whiteboard"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
@@ -103,6 +104,33 @@ func (WhiteboardRepository) UpdateComment(ctx context.Context, comment whiteboar
 		return shared.ErrVersionConflict.WithDetail("whiteboards.comment_version_conflict")
 	}
 	return nil
+}
+
+// WhiteboardComments pages the comments of the boards outside the trash, each with its board's hub.
+func (SnapshotRepository) WhiteboardComments(ctx context.Context, after shared.ID, batch int) ([]syncrepo.BoardComment, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotWhiteboardComments(ctx, sqlc.SnapshotWhiteboardCommentsParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("whiteboard comments", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotWhiteboardCommentsRow) (syncrepo.BoardComment, error) {
+		comment, err := boardCommentFrom(sqlc.FindWhiteboardCommentRow{
+			ID: row.ID, WhiteboardID: row.WhiteboardID, ParentID: row.ParentID, AuthorID: row.AuthorID,
+			Body: row.Body, ElementID: row.ElementID, X: row.X, Y: row.Y, ResolvedAt: row.ResolvedAt,
+			ResolvedBy: row.ResolvedBy, CreatedAt: row.CreatedAt, EditedAt: row.EditedAt,
+			DeletedAt: row.DeletedAt, Version: row.Version,
+		})
+		if err != nil {
+			return syncrepo.BoardComment{}, err
+		}
+		hub, err := idFrom(row.HubID)
+		return syncrepo.BoardComment{Comment: comment, HubID: hub}, err
+	})
 }
 
 func boardCommentFrom(row sqlc.FindWhiteboardCommentRow) (whiteboard.Comment, error) {

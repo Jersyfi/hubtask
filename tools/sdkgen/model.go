@@ -58,6 +58,9 @@ type Operation struct {
 	Headers     []Param
 	Body        *Body
 	Answer      *Answer
+	// NotModified is an operation that declares 304: a client that revalidated its copy gets no
+	// body, and that is a result of the call rather than a refusal.
+	NotModified bool
 }
 
 // Property is one field of an object schema, as the Python TypedDict needs it.
@@ -241,6 +244,11 @@ func (r *reader) operation(path, method string, node *yaml.Node, shared []*yaml.
 				Required:    boolean(get(body, "required")),
 			}
 			break
+		}
+	}
+	for _, response := range mapping(get(node, "responses")) {
+		if response.Key.Value == "304" {
+			op.NotModified = true
 		}
 	}
 	for _, response := range mapping(get(node, "responses")) {

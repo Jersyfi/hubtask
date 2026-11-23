@@ -41,6 +41,14 @@ test('an unknown state still has a look, so its word still stands', () => {
   assert.deepEqual(lozengeLook('category', 'archived-by-a-newer-server'), { tone: 'neutral' });
 });
 
+test('a lozenge that opens the choices carries its chevron inside its edge, unannounced', () => {
+  const lozenge = source('StateLozenge.svelte');
+  const markup = lozenge.slice(lozenge.indexOf('</script>'), lozenge.indexOf('<style>'));
+  const inside = markup.slice(markup.indexOf('<span class="lozenge"'), markup.lastIndexOf('</span>'));
+  assert.match(inside, /\{#if hasChevron\}<span class="chevron" aria-hidden="true"><Icon name="chevron-down" size="sm" \/><\/span>\{\/if\}/);
+  assert.ok(inside.indexOf('class="word"') < inside.indexOf('class="chevron"'), 'the chevron follows the word');
+});
+
 // --- StatusButton ---------------------------------------------------------------------------
 
 const todo = { id: 'ready', label: 'Ready', category: 'todo' };
@@ -257,6 +265,89 @@ test('the head’s title is edited in place with Enter and Escape, and the edit 
   assert.match(head, /event\.key === 'Enter'\) finish\(true\)/);
   assert.match(head, /event\.key === 'Escape'/);
   assert.match(head, /label=\{editTitleLabel\}/, 'the keyboard’s way in is a named button');
+});
+
+test('the head’s second step carries an icon and a reason the way the first does', () => {
+  const head = source('ObjectHead.svelte');
+  assert.match(head, /secondary\?: \{ label: string; icon\?: IconName; disabledReason\?: string; onclick: \(\) => void \}/);
+  assert.match(head, /<Button tone="secondary" size="sm" icon=\{secondary\.icon\} disabledReason=\{secondary\.disabledReason\}/);
+  assert.match(head, /<Button tone="primary" size="sm" icon=\{next\.icon\} disabledReason=\{next\.disabledReason\}/);
+});
+
+// --- StateMark ----------------------------------------------------------------------------------
+
+import { markLook } from '../src/statemark.ts';
+
+test('the mark is a checkbox where one press completes or reopens, a button named by its step otherwise', () => {
+  assert.deepEqual(markLook('check', false), { role: 'checkbox', ariaChecked: 'false', icon: 'check' });
+  assert.deepEqual(markLook('check', true), { role: 'checkbox', ariaChecked: 'true', icon: 'check' });
+  assert.deepEqual(markLook('step', false), { role: undefined, ariaChecked: undefined, icon: 'arrow-right' });
+  assert.equal(markLook('step', true).ariaChecked, undefined, 'a step is never announced as checked');
+});
+
+test('the mark is one round control, named by what the press does, filled once done', () => {
+  const mark = source('StateMark.svelte');
+  assert.match(mark, /role=\{look\.role\}\s+aria-checked=\{look\.ariaChecked\}\s+aria-label=\{label\}/);
+  assert.match(mark, /border-radius: var\(--r-full\);/, 'round, the same shape on every level');
+  assert.match(mark, /inline-size: calc\(var\(--sp-250\) \+ var\(--sp-025\)\);\s*block-size: calc\(var\(--sp-250\) \+ var\(--sp-025\)\);/, 'the drawn mark is twenty-two pixels, from the space scale');
+  assert.match(mark, /border: var\(--bw-thick\) solid var\(--border-default\);/);
+  assert.match(mark, /\.state-mark\[data-on\] \{\s*border-color: var\(--status-success-accent\);\s*background: var\(--status-success-accent\);\s*color: var\(--text-inverse\);/);
+  assert.match(mark, /\.state-mark\[aria-disabled='true'\] \{ border-style: dashed;/, 'unavailable reads without colour');
+});
+
+test('the mark’s hit area grows to the thumb’s target on a phone, the drawn mark does not (§7)', () => {
+  const mark = source('StateMark.svelte');
+  assert.match(mark, /\.state-mark::after \{\s*content: '';\s*position: absolute;\s*inset: calc\(\(100% - var\(--density-control-sm-min\)\) \/ 2\);/);
+  assert.match(mark, /@media \(pointer: coarse\), \(width < 600px\) \{\s*\.state-mark::after \{ inset: calc\(\(100% - var\(--layout-target\)\) \/ 2\); \}/);
+});
+
+test('an unavailable or busy mark refuses the press and says why at the mark', () => {
+  const mark = source('StateMark.svelte');
+  assert.match(mark, /function press\(\) \{\s*if \(unavailable \|\| isBusy\) return;/);
+  assert.match(mark, /aria-describedby=\{reasonId\}/);
+  assert.match(mark, /<Reason id=\{reasonId\}/);
+  // Under a reason a group states once there is no bubble, and still no key or click gets past it.
+  assert.match(mark, /if \(!\(unavailable && groupReasonId\) && !isBusy\) return;\s*return guard\(\[button\], \(\) => \{\}\);/);
+});
+
+test('a press is drawn at once, and the caller’s next answer replaces it', () => {
+  const mark = source('StateMark.svelte');
+  assert.match(mark, /if \(form === 'check'\) pressed = !\(pressed \?\? checked\);/);
+  assert.match(mark, /\$effect\.pre\(\(\) => \{\s*void checked;\s*pressed = undefined;/);
+  assert.match(mark, /if \(answer instanceof Promise\) void answer\.finally\(\(\) => \(pressed = undefined\)\);/, 'a write that changed nothing ends the drawing');
+});
+
+test('a task row completes by the mark, the same one a board card and a level-1 row carry', () => {
+  const row = source('TaskRow.svelte');
+  assert.match(row, /<StateMark\s+label=\{completeLabel\}\s+checked=\{isCompleted\}\s+disabledReason=\{completeDisabledReason\}/);
+  assert.doesNotMatch(row, /<Checkbox/);
+});
+
+// --- Dialog as an alert dialog --------------------------------------------------------------------
+
+import { safeAnswer } from '../src/focus.ts';
+
+const control = (name, { shown = true, disabled = false } = {}) => ({
+  name,
+  offsetParent: shown ? {} : null,
+  getAttribute: (attribute) => (attribute === 'aria-disabled' && disabled ? 'true' : null),
+});
+
+test('an alert dialog’s focus starts on the safe answer, never the destructive one (APG Alert Dialog)', () => {
+  const keep = control('keep');
+  const off = control('off');
+  const dismiss = control('dismiss');
+  assert.equal(safeAnswer([keep, off], dismiss), keep, 'the first answer of the foot');
+  assert.equal(safeAnswer([control('hidden', { shown: false }), keep, off], dismiss), keep, 'one not drawn is passed over');
+  assert.equal(safeAnswer([control('keep', { shown: false }), control('off', { shown: false })], dismiss), dismiss, 'a phone’s full screen has no foot: the close control');
+  assert.equal(safeAnswer([], control('dismiss', { shown: false })), undefined);
+});
+
+test('an alert dialog is announced as one and described by its body', () => {
+  const dialog = source('Dialog.svelte');
+  assert.match(dialog, /role=\{isAlert \? 'alertdialog' : undefined\}\s+aria-describedby=\{isAlert \? bodyId : undefined\}/);
+  assert.match(dialog, /<div class="body" id=\{bodyId\}/);
+  assert.match(dialog, /untrack\(\(\) => \{\s*if \(isAlert\) \{\s*const answers = \[\.\.\.\(foot\?\.querySelectorAll<HTMLElement>\('button'\) \?\? \[\]\)\];\s*safeAnswer\(answers, head\?\.querySelector<HTMLElement>\('\.dismiss button'\)\)\?\.focus\(\);\s*\} else \{\s*firstField\(\)\?\.focus\(\);/, 'not the first field: the safe answer, read once at opening');
 });
 
 // --- BucketColumn (board, build-plan §5) ------------------------------------------------------

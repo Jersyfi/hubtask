@@ -16,7 +16,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ACCOUNT, ITEMS, LABELS, MANIFEST, OTHER, PERMISSIONS, signedIn, stub } from './fixture.mjs';
+import { ACCOUNT, COLLECTION, ITEMS, LABELS, MANIFEST, OTHER, PERMISSIONS, signedIn, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -56,8 +56,8 @@ async function open(width, { runs, asks = false, requires = false, path = `/item
     }
     // The server answers an entry's steps only where the workflows module is on (`module.off`
     // otherwise), so a board whose steps it answers is such a place.
-    if (board && !runs && read === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: [...(MANIFEST.modules_on ?? []), 'WORKFLOWS'] } });
-    if (board && !runs && /\/containers\/[^/]+\/modules$/.test(read)) return route.fulfill({ json: { modules_on: [...(MANIFEST.modules_on ?? []), 'WORKFLOWS'] } });
+    if (board === true && !runs && read === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: [...(MANIFEST.modules_on ?? []), 'WORKFLOWS'] } });
+    if (board === true && !runs && /\/containers\/[^/]+\/modules$/.test(read)) return route.fulfill({ json: { modules_on: [...(MANIFEST.modules_on ?? []), 'WORKFLOWS'] } });
     const answered = extra?.(read, request.method());
     if (answered) return route.fulfill({ json: answered });
     if (title && read === `/items/${ENTRY.id}`) return route.fulfill({ json: { ...ENTRY, title } });
@@ -74,11 +74,14 @@ async function open(width, { runs, asks = false, requires = false, path = `/item
     if (board && read === `/items/${ENTRY.id}/steps`) {
       return route.fulfill({ json: { state_mode: 'COLUMNS', columns: BOARD, column_id: BOARD[0].id, workflow: null, status: null, steps: [], blocked: [], done_route: [], by_default: true, may_design: false } });
     }
-    // A column chosen in the status menu is the board's drop (`:drop`); the server completes it.
-    if (board && read === `/items/${ENTRY.id}:drop` && request.method() === 'POST') {
+    // A column chosen in the status menu is the base product's column write (`PATCH bucket_id`),
+    // with the Workflows module on or off; the server completes it into the done column.
+    if (board && read === `/items/${ENTRY.id}` && request.method() === 'PATCH') {
       patches.push(request.postDataJSON());
-      return route.fulfill({ json: { outcome: 'MOVED', steps: [], item: { ...ENTRY, bucket_id: BOARD[2].id, version: ENTRY.version + 1, completion: { is_completed: true } } } });
+      const chosen = BOARD.find((column) => column.id === request.postDataJSON()?.bucket_id);
+      return route.fulfill({ json: { ...ENTRY, bucket_id: chosen?.id ?? null, version: ENTRY.version + 1, completion: { is_completed: chosen?.completes ?? false } } });
     }
+    if (board && read.endsWith(':drop')) patches.push({ drop: request.postDataJSON() });
     if (!runs && read === `/items/${ENTRY.id}/steps`) {
       return route.fulfill({ json: { workflow: null, status: null, steps: [], blocked: [], done_route: [], picture: SHAPE, by_default: true, may_design: false } });
     }
@@ -344,7 +347,215 @@ test('chromium: on a board without a workflow the menu lists its columns, the do
     assert.ok(await page.locator('[data-tour="entry"]').getByRole('button', { name: 'Done', exact: true }).isVisible(), 'Done stays the main action');
     await rows.nth(2).click();
     await page.waitForTimeout(400);
-    assert.deepEqual(patches, [{ bucket_id: BOARD[2].id }], 'choosing a column drops the entry into it, the server keeping the done column');
+    assert.deepEqual(patches, [{ bucket_id: BOARD[2].id }], 'choosing a column writes it by PATCH, the server keeping the done column');
+  } finally {
+    await close();
+  }
+});
+
+// UC-FLW-06 check 5 with the Workflows module off: the board's columns are the states all the same,
+// built from the collection's level and its column list (the steps are the module's and are not
+// asked), the menu is headed *Column*, a column is written by PATCH and never by `:drop`.
+test('chromium: on a board with Workflows off the entry still shows its columns and writes one by PATCH (UC-FLW-06/5)', { timeout: 60_000 }, async () => {
+  const patches = [];
+  const columns = BOARD.map((column, n) => ({ id: column.id, collection_id: ENTRY.collection_id, name: column.name, order_key: `a${n}`, wip_limit: null, is_done_bucket: column.completes, color_token: null, version: 1 }));
+  const asked = [];
+  const extra = (read, method) => {
+    if (read.endsWith('/steps')) asked.push(read);
+    if (method === 'GET' && read === `/containers/${ENTRY.collection_id}`) return { ...COLLECTION, state_mode: 'COLUMNS', state_modes: { task: 'COLUMNS' } };
+    if (method === 'GET' && read === `/containers/${ENTRY.collection_id}/buckets`) return columns;
+    if (method === 'GET' && read === `/items/${ENTRY.id}`) return { ...ENTRY, bucket_id: BOARD[1].id };
+    return undefined;
+  };
+  const { page, close } = await open(1280, { runs: false, board: 'off', patches, extra });
+  try {
+    const status = page.locator('[data-steps]');
+    await status.waitFor({ timeout: 10_000 });
+    assert.equal(await status.getAttribute('data-status'), BOARD[1].id);
+    await status.getByRole('button', { name: /Change status/ }).click();
+    assert.ok(await page.getByText('Column', { exact: true }).first().isVisible(), 'the menu is headed Column, no module\'s word');
+    const rows = page.getByRole('menuitemradio');
+    assert.deepEqual((await rows.allInnerTexts()).map((text) => text.split('\n')[0].trim()), ['Ideas', 'Building', 'Shipped']);
+    const written = page.waitForResponse((response) => response.request().method() === 'PATCH' && response.url().endsWith(`/items/${ENTRY.id}`));
+    await rows.nth(0).click();
+    await written;
+    assert.deepEqual(patches, [{ bucket_id: BOARD[0].id }], 'the column went through PATCH');
+    assert.deepEqual(asked, [], 'the module\'s steps were asked with the module off');
+    assert.ok(await page.locator('[data-tour="entry"]').getByRole('button', { name: 'Done', exact: true }).isVisible(), 'Done is the main action');
+  } finally {
+    await close();
+  }
+});
+
+// The original complaint (D3): in a list an entry is completed from inside it, and once done the
+// same place offers *Reopen* - the state reads *Open* / *Done* (E7).
+test('chromium: in a list the state reads Open, Done completes, and a completed entry keeps Reopen (UC-FLW-06/5)', { timeout: 60_000 }, async () => {
+  const written = [];
+  const extra = (read, method) => {
+    if (method === 'GET' && read === `/containers/${ENTRY.collection_id}`) return { ...COLLECTION, state_mode: 'NONE', state_modes: { task: 'NONE' } };
+    if (method === 'GET' && read === `/items/${ENTRY.id}`) return { ...ENTRY, completion: { is_completed: true, completed_at: '2026-11-20T09:00:00Z', completed_by: ACCOUNT.id } };
+    if (method === 'POST' && read.endsWith(':reopen')) { written.push(read); return { ...ENTRY, version: ENTRY.version + 1, completion: { is_completed: false } }; }
+    return undefined;
+  };
+  const { page, close } = await open(1280, { runs: false, extra });
+  try {
+    const head = page.locator('[data-tour="entry"]');
+    await page.locator('[data-steps]').waitFor({ timeout: 10_000 });
+    assert.match(await page.locator('[data-steps]').innerText(), /Done/);
+    const reopen = head.getByRole('button', { name: 'Reopen', exact: true });
+    assert.ok(await reopen.isVisible(), 'a completed entry offers Reopen in the head');
+    assert.equal(await reopen.locator('svg').count(), 1, 'Reopen carries its arrow back, as the design draws it');
+    const reopened = page.waitForResponse((response) => response.url().endsWith(':reopen'));
+    await reopen.click();
+    await reopened;
+    assert.deepEqual(written, [`/items/${ENTRY.id}:reopen`]);
+  } finally {
+    await close();
+  }
+});
+
+// A workflow's step is not queued offline (only completing and a column are), so the head's step
+// stays drawn and says it needs a connection instead of failing after the press.
+test('chromium: offline, the head\'s workflow step waits for a connection and says so', { timeout: 60_000 }, async () => {
+  const { page, close } = await open(1280, { runs: true });
+  try {
+    const head = page.locator('[data-tour="entry"]');
+    const step = head.getByRole('button', { name: 'Start work' });
+    await step.waitFor({ timeout: 10_000 });
+    assert.equal(await step.getAttribute('aria-disabled'), null, 'online the step is pressable');
+    await page.context().setOffline(true);
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-tour="entry"] button[aria-disabled="true"]')].some((button) => button.textContent?.includes('Start work')), null, { timeout: 5_000 });
+    const said = await step.evaluate((button) => (button.getAttribute('aria-describedby') ?? '').split(' ').map((id) => document.getElementById(id)?.textContent ?? '').join(' '));
+    assert.match(said, /Steps need a connection/);
+    await page.context().setOffline(false);
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-tour="entry"] button')].some((button) => button.textContent?.includes('Start work') && !button.hasAttribute('aria-disabled')), null, { timeout: 5_000 });
+  } finally {
+    await close();
+  }
+});
+
+// A workflow in force while the module is off (`WorkflowGate` knows no module): the head says the
+// workflow is paused, with the reason, offers no step, and Done goes to the base product's
+// `:complete`, which the server answers with the step to done or a refusal in words.
+test('chromium: a workflow paused with Workflows off says so, and Done asks the server to complete (UC-FLW-06/5)', { timeout: 60_000 }, async () => {
+  const written = [];
+  const extra = (read, method) => {
+    if (method === 'GET' && read === `/containers/${ENTRY.collection_id}`) return { ...COLLECTION, state_mode: 'WORKFLOW', state_modes: { task: 'WORKFLOW' } };
+    if (method === 'POST' && read.endsWith(':complete')) { written.push(read); return { ...ENTRY, version: ENTRY.version + 1, completion: { is_completed: true } }; }
+    if (read.endsWith('/steps') || read.endsWith(':step')) written.push(read);
+    return undefined;
+  };
+  const { page, close } = await open(1280, { runs: false, extra });
+  try {
+    const status = page.locator('[data-steps]');
+    await status.waitFor({ timeout: 10_000 });
+    assert.match(await status.innerText(), /Workflow paused/);
+    assert.ok(await page.getByText(/Workflows is switched off here/).first().isVisible(), 'the reason is said');
+    const completed = page.waitForResponse((response) => response.url().endsWith(':complete'));
+    await page.locator('[data-tour="entry"]').getByRole('button', { name: 'Done', exact: true }).click();
+    await completed;
+    assert.deepEqual(written, [`/items/${ENTRY.id}:complete`]);
+  } finally {
+    await close();
+  }
+});
+
+// The approved design's paused head: the notice above the head says it once, the paused state stays
+// a lozenge of its own height, and Done stands beside it on one line - on a phone too, since the
+// paused state opens no sheet that could carry the step (WB-8).
+for (const width of [1280, 390]) {
+  test(`chromium ${width}: a paused workflow's head - the notice above it, the paused state and Done on one line`, { timeout: 60_000 }, async () => {
+    const extra = (read, method) => {
+      if (method === 'GET' && read === `/containers/${ENTRY.collection_id}`) return { ...COLLECTION, state_mode: 'WORKFLOW', state_modes: { task: 'WORKFLOW' } };
+      return undefined;
+    };
+    const { page, close } = await open(width, { runs: false, extra });
+    try {
+      const head = page.locator('[data-tour="entry"]');
+      const state = head.locator('[data-steps] .status');
+      await state.waitFor({ timeout: 10_000 });
+      const notice = page.locator('[data-paused-notice]');
+      assert.match(await notice.innerText(), /Workflows is switched off here\.[\s\S]*Completing works where a step leads to done/);
+      const done = head.getByRole('button', { name: 'Done', exact: true });
+      assert.ok(await done.isVisible(), 'Done is not in the head');
+      const [n, s, d] = await Promise.all([notice.boundingBox(), state.boundingBox(), done.boundingBox()]);
+      assert.ok(n.y + n.height <= s.y, 'the notice does not stand above the head');
+      // The state stands at the step button's height: a control's on a desk, a thumb's on a phone.
+      assert.ok(s.height <= d.height + 1, `the paused state is ${s.height} px high beside a ${d.height} px step`);
+      assert.ok(Math.abs((s.y + s.height / 2) - (d.y + d.height / 2)) < 4, 'Done is not on the paused state\'s line');
+      assert.equal(await head.locator('[data-steps] .reason').count(), 0, 'the reason is said a second time beside the state');
+      assert.equal(await state.getAttribute('aria-describedby'), await notice.getAttribute('id'), 'the state does not refer to the notice');
+    } finally {
+      await close();
+    }
+  });
+}
+
+// The phone's steps live in the status's sheet (WB-8, design-system.md §4 ObjectHead): on every
+// level the sheet carries the step the desk's button takes.
+for (const [level, step] of [['NONE', 'Done'], ['COLUMNS', 'Shipped'], ['WORKFLOW', 'Start work']]) {
+  test(`chromium 390: at ${level} the status's sheet carries the step`, { timeout: 60_000 }, async () => {
+    const extra = (read, method) => {
+      if (level === 'WORKFLOW') return undefined;
+      if (method === 'GET' && read === `/containers/${ENTRY.collection_id}`) return { ...COLLECTION, state_mode: level, state_modes: { task: level } };
+      if (method === 'GET' && read === `/containers/${ENTRY.collection_id}/buckets`) return BOARD.map((each, n) => ({ id: each.id, collection_id: ENTRY.collection_id, name: each.name, order_key: `a${n}`, wip_limit: null, is_done_bucket: each.completes, color_token: null, version: 1, statuses: [] }));
+      return undefined;
+    };
+    const { page, close } = await open(390, { runs: level === 'WORKFLOW', extra });
+    try {
+      const head = page.locator('[data-tour="entry"]');
+      const state = head.locator('[data-steps]').getByRole('button');
+      await state.waitFor({ timeout: 10_000 });
+      await state.click();
+      const sheet = page.getByRole('dialog');
+      await sheet.waitFor({ timeout: 5_000 });
+      assert.ok(await sheet.getByRole('button', { name: new RegExp(step) }).first().isVisible(), `the sheet holds no ${step}`);
+    } finally {
+      await close();
+    }
+  });
+}
+
+// The design's keys (§3.1): ↓ on the step opens the state's menu, as ↓ on the state does; Escape
+// gives the focus back to the state.
+test('chromium: ↓ on the head\'s Done opens the status menu', { timeout: 60_000 }, async () => {
+  const extra = (read, method) => {
+    if (method === 'GET' && read === `/containers/${ENTRY.collection_id}`) return { ...COLLECTION, state_mode: 'NONE', state_modes: { task: 'NONE' } };
+    return undefined;
+  };
+  const { page, close } = await open(1280, { runs: false, extra });
+  try {
+    const done = page.locator('[data-tour="entry"]').getByRole('button', { name: 'Done', exact: true });
+    await done.waitFor({ timeout: 10_000 });
+    await done.focus();
+    await page.keyboard.press('ArrowDown');
+    const menu = page.getByRole('menu');
+    await menu.waitFor({ timeout: 5_000 });
+    assert.deepEqual((await menu.getByRole('menuitemradio').allTextContents()).map((each) => each.trim().split(/\s+/)[0]), ['Open', 'Done']);
+    await page.keyboard.press('Escape');
+    assert.match(await page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? ''), /^Status: Open/);
+  } finally {
+    await close();
+  }
+});
+
+// The approved design: completed under a paused workflow, the head offers no step back and says so,
+// as the row's and the card's mark do.
+test('chromium: completed under a paused workflow, the head offers no step and says none leads back', { timeout: 60_000 }, async () => {
+  const written = [];
+  const extra = (read, method) => {
+    if (method === 'GET' && read === `/containers/${ENTRY.collection_id}`) return { ...COLLECTION, state_mode: 'WORKFLOW', state_modes: { task: 'WORKFLOW' } };
+    if (method === 'GET' && read === `/items/${ENTRY.id}`) return { ...ENTRY, status: 'resolved', completion: { is_completed: true, completed_at: '2026-11-20T09:00:00Z', completed_by: ACCOUNT.id } };
+    if (method === 'POST') written.push(read);
+    return undefined;
+  };
+  const { page, close } = await open(1280, { runs: false, extra });
+  try {
+    const head = page.locator('[data-tour="entry"]');
+    await page.locator('[data-steps]').waitFor({ timeout: 10_000 });
+    assert.equal((await head.locator('[data-no-step-back]').textContent())?.trim(), 'No step leads back while the workflow is paused.');
+    assert.equal(await head.getByRole('button', { name: /^(Reopen|Done)$/ }).count(), 0, 'the head offers a step under a paused workflow');
+    assert.deepEqual(written.filter((each) => each.endsWith(':reopen') || each.endsWith(':complete')), []);
   } finally {
     await close();
   }

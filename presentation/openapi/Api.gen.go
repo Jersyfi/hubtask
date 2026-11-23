@@ -15181,10 +15181,10 @@ type Capabilities struct {
 
 	// Automation The vocabulary a rule is written in, and what a rule editor is built from rather than from a list compiled into it - a client with its own would be wrong on the installation that has one more.
 	Automation *struct {
-		// ActionFields For every kind in `actions`, the parameters its use case declares - the same fields the MCP tool schema for that use case is derived from, and derived here from the same declaration rather than written a second time. A rule editor builds an action's form from this rather than from a schema compiled into it: a client with its own would be wrong on the installation whose use case grew a field. Always present, and a kind with no parameters maps to an empty array. What a rule may leave out is not said here: a rule supplies some parameters and the run supplies the rest, so `required` describes the call, not the rule.
+		// ActionFields For every kind in `actions`, the parameters its use case declares - the same fields the MCP tool schema for that use case is derived from, and derived here from the same declaration rather than written a second time. A rule editor builds an action's form from this rather than from a schema compiled into it: a client with its own would be wrong on the installation whose use case grew a field. Always present, filled for a signed-in caller and empty for an anonymous one, who writes no rule; a kind with no parameters maps to an empty array. What a rule may leave out is not said here: a rule supplies some parameters and the run supplies the rest, so `required` describes the call, not the rule.
 		ActionFields *map[string][]AutomationActionField `json:"action_fields,omitempty"`
 
-		// ActionSummaries For every kind in `actions`, the one sentence its use case declares - the same sentence the MCP tool for it carries, derived from the same declaration. A rule editor's catalogue says it under the kind's name, so that every kind the installation serves is readable without a copy of the sentences compiled into a client. Protocol documentation in English, as every description in this document is; a client that lacks it shows the name alone. Always present.
+		// ActionSummaries For every kind in `actions`, the one sentence its use case declares - the same sentence the MCP tool for it carries, derived from the same declaration. A rule editor's catalogue says it under the kind's name, so that every kind the installation serves is readable without a copy of the sentences compiled into a client. Protocol documentation in English, as every description in this document is; a client that lacks it shows the name alone. Always present, filled for a signed-in caller and empty for an anonymous one.
 		ActionSummaries *map[string]string `json:"action_summaries,omitempty"`
 
 		// Actions Every use case a rule may perform, as `RuleAction.kind` names it - one name per use case, in SCREAMING_SNAKE_CASE, sorted. The engine's own flow kinds `WAIT`, `BRANCH` and `STOP` are not in it: they are control structures rather than use cases and are in no catalogue, so a client names those three itself.
@@ -16626,9 +16626,12 @@ type ConfigApplyRequest struct {
 	FromSandbox *bool `json:"from_sandbox,omitempty"`
 
 	// HubId A hub, for the hub's own document (its modules, structure, workflow scheme and business calendars); omitted is the workspace's.
-	HubId    *openapi_types.UUID     `json:"hub_id,omitempty"`
-	Mode     *ConfigApplyRequestMode `json:"mode,omitempty"`
-	PlanHash string                  `json:"plan_hash"`
+	HubId *openapi_types.UUID     `json:"hub_id,omitempty"`
+	Mode  *ConfigApplyRequestMode `json:"mode,omitempty"`
+
+	// ModuleHubIds With the workspace's document: the existing hubs in which a module this apply switches on for the workspace is switched on as well, as `hub_ids` of `setModule` - the hub a template is taken for. Omitted, no existing hub changes. With `hub_id` it is refused as `module.hubs_with_on_only`, more than 200 as `module.hubs_too_many`. A plan that waits for a person carries none.
+	ModuleHubIds *[]openapi_types.UUID `json:"module_hub_ids,omitempty"`
+	PlanHash     string                `json:"plan_hash"`
 
 	// Template The template@version the document came from, recorded as the workspace's provenance - or with `hub_id` as the hub's, for a template with a hub part, and with `collection_id` as the collection's, for a template with a collection part.
 	Template  *string `json:"template,omitempty"`
@@ -17324,7 +17327,7 @@ type ContainerCreate struct {
 	Name        string              `json:"name"`
 	ParentId    *openapi_types.UUID `json:"parent_id,omitempty"`
 
-	// Preset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set. A collection whose structure offers the board starts with the columns to do, in progress and done, named in the workspace's language; where the board is its default view, the column in progress is limited to three.
+	// Preset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set. A collection whose structure opens on the board starts with the columns to do, in progress and done, named in the creating person's language, or the workspace's default, the column in progress limited to three; one that offers the board only beside a list starts without columns.
 	Preset *ContainerCreatePreset `json:"preset,omitempty"`
 
 	// PresetId A saved preset to start from instead - the workspace's, the installation's or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
@@ -17335,7 +17338,7 @@ type ContainerCreate struct {
 	Type    ContainerType `json:"type"`
 }
 
-// ContainerCreatePreset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set. A collection whose structure offers the board starts with the columns to do, in progress and done, named in the workspace's language; where the board is its default view, the column in progress is limited to three.
+// ContainerCreatePreset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set. A collection whose structure opens on the board starts with the columns to do, in progress and done, named in the creating person's language, or the workspace's default, the column in progress limited to three; one that offers the board only beside a list starts without columns.
 type ContainerCreatePreset string
 
 // ContainerMilestone defines model for ContainerMilestone.
@@ -20130,7 +20133,7 @@ type InvitationInspection struct {
 
 // InvitationRedemption defines model for InvitationRedemption.
 type InvitationRedemption struct {
-	// Locale The language the invitation card was read in, as a BCP 47 tag. The owner a new workspace was made for finds its default hub, example collection, columns and labels named in it, where nobody has renamed them yet; a language without a catalogue reads the source language. Absent, they keep the workspace's language. Ignored for anybody else.
+	// Locale The language the invitation card was read in, as a BCP 47 tag. Whoever accepts, it becomes the account's language where the account has none; an account that already has a language keeps it. The owner a new workspace was made for also finds its default hub, example collection, columns and labels named in it - or in the account's own language - where nobody has renamed them yet. Absent, or a language this installation has no catalogue for, the account gets none and those defaults keep the workspace's language.
 	Locale *string `json:"locale,omitempty"`
 
 	// Password The first password, under the workspace's password policy.
@@ -21726,8 +21729,11 @@ type ModuleState struct {
 // ModuleSwitch defines model for ModuleSwitch.
 type ModuleSwitch struct {
 	// HubId The hub to switch it for; omitted is the workspace.
-	HubId  *openapi_types.UUID `json:"hub_id,omitempty"`
-	Switch ModuleSwitchSwitch  `json:"switch"`
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+
+	// HubIds With `switch: ON` at the workspace: the existing hubs the module is switched on in as well. Omitted or empty, no existing hub changes. More than 200 are refused as `module.hubs_too_many`; a further request for the hub itself switches it on there.
+	HubIds *[]openapi_types.UUID `json:"hub_ids,omitempty"`
+	Switch ModuleSwitchSwitch    `json:"switch"`
 }
 
 // ModuleSwitchSwitch defines model for ModuleSwitch.Switch.
@@ -31336,6 +31342,12 @@ type RevokeMembershipParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// GetCapabilitiesParams defines parameters for GetCapabilities.
+type GetCapabilitiesParams struct {
+	// IfNoneMatch The `ETag` of the manifest the client holds. Where it is still this caller's answer, the server answers `304` without a body.
+	IfNoneMatch *string `json:"If-None-Match,omitempty"`
+}
+
 // RegisterOauthClientParams defines parameters for RegisterOauthClient.
 type RegisterOauthClientParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -35795,7 +35807,7 @@ type ServerInterface interface {
 	RevokeMembership(w http.ResponseWriter, r *http.Request, membershipId MembershipId, params RevokeMembershipParams)
 	// GetCapabilities Self-description of the installation
 	// (GET /meta/capabilities)
-	GetCapabilities(w http.ResponseWriter, r *http.Request)
+	GetCapabilities(w http.ResponseWriter, r *http.Request, params GetCapabilitiesParams)
 	// ReadConfigSchema The configuration document's JSON Schema
 	// (GET /meta/config-schema)
 	ReadConfigSchema(w http.ResponseWriter, r *http.Request)
@@ -57234,8 +57246,35 @@ func (siw *ServerInterfaceWrapper) RevokeMembership(w http.ResponseWriter, r *ht
 // GetCapabilities operation middleware
 func (siw *ServerInterfaceWrapper) GetCapabilities(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetCapabilitiesParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-None-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-None-Match")]; found {
+		var IfNoneMatch string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-None-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-None-Match", valueList[0], &IfNoneMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-None-Match", Err: err})
+			return
+		}
+
+		params.IfNoneMatch = &IfNoneMatch
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetCapabilities(w, r)
+		siw.Handler.GetCapabilities(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {

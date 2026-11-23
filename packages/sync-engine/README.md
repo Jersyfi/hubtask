@@ -33,6 +33,10 @@ const stop = engine.subscribe<Account>({ path: '/accounts/me' }, (state) => {
   version is `409 version_conflict`, never `412`
   ([ADR-0025](../../docs/adr/ADR-0025-precondition-failures.md)); `TransportError.isVersionConflict`
   reads the code, because a taken container name is a `409` too.
+* **`If-None-Match`.** `ResourceRequest.revalidate` asks again with the tag of the copy the entry
+  holds from the server, and a `304` publishes that copy as `ready` again. No tag is named for a
+  copy from the replica, over more than one page, or after `reset`, which holds none; a `304` to a
+  read that named none fails as `malformed`.
 * **A read that is a `POST`.** `ResourceRequest.body` makes one: `/items:query` and `/search` take
   a document, because a search term in a query string travels through access logs (`security.md`
   §9). Such a resource is keyed on the path *and* the document, with its keys sorted, so two board

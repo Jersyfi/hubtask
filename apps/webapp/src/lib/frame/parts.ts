@@ -4,7 +4,7 @@
 // The parts a screen loads on demand, each a chunk of its own (F-10): a place's settings and the
 // editors an entry opens. Kept in one table so the app precaches them with the screens - a part
 // loaded only inside its screen would be missing offline until it had been opened once
-// (offline-sync.md §13).
+// (offline-sync.md §14).
 
 import { blockLibraries } from '@hubtask/editor/libraries';
 

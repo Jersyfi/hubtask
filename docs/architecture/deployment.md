@@ -117,6 +117,52 @@ back, or a release whose notes name one - the older binary refuses to start
 set `HUBTASK_VERSION` back, then `./restore.sh --upgrade-dump <file>` (backup-restore.md §8.6).
 Writes made on the newer release since are lost with it.
 
+#### On Coolify (best effort)
+
+`deploy/coolify/compose.yaml` is the reference arranged for Coolify: create a *Docker Compose*
+resource from it, give `app` its domain on port 8080, and set `HUBTASK_VERSION` (a release tag),
+`HUBTASK_BASE_URL` (that domain, with `https://`) and `HUBTASK_TRUSTED_PROXIES` (the network the
+platform's proxy reaches the container from, as a CIDR). Every other variable is the reference's,
+with its default, and is set in the platform's interface as it would be in `.env`. The database
+password, the application role's password and the secret key are the platform's generated
+`SERVICE_PASSWORD_64_*` values, which its documentation describes as random passwords of 64
+characters without symbols - what a DSN carries unescaped. That is the platform's statement, not
+something the repository can check.
+
+It differs from the reference only where the file marks it (`[C1]`-`[C10]` in its header): no
+published ports; generated secrets; `upgrade-dump` and `migrate` taken out of the platform's health
+check (`exclude_from_hc`), since a one-shot that has exited is not unhealthy; the database service
+named `postgres`; no `ops` service and no bind mount; `HUBTASK_TRUSTED_PROXIES` required; required
+variables written `${NAME:?}`; no project name; the volumes named as on the installation it was
+walked on; no instance file bound from a checkout. Plain Compose refuses `exclude_from_hc`, so the file is for the platform only.
+
+What it does not give, said plainly:
+
+* **No gate starts it.** `test/architecture` holds it to the reference - every key each service
+  sets (health check, restart, read-only, security options, tmpfs, shared memory, entrypoint,
+  dependencies, volumes), the same variables with the same values, the same database image and
+  digest, every DSN and `PGHOST` naming its own file's database service, each DSN carrying its
+  role's password, each marked difference named in the test with its mark - and
+  `make gate-compose` starts the reference only. It was walked by hand by the owner on one release. Through the platform's proxy
+  the event stream of `/api/v1/stream` was seen unbuffered; the WebSocket upgrade of
+  `/api/v1/realtime/` was not checked. Without it pages and boards open read-only (above).
+* **No `backup.sh` or `restore.sh`.** The system backup is the platform's scheduled backup of the
+  `postgres` service plus a backup target configured in the application
+  ([backup-restore.md](./backup-restore.md)). **Media in local storage - the `hubtask-media`
+  volume - is covered by neither**; an installation that keeps it there backs the volume up by
+  other means or stores media in object storage (§6.1).
+* **An upgrade dump is restored by hand**: the dumps lie in the `hubtask-upgrade-dumps` volume, and
+  `pg_restore` of one runs in a container of the database's image with that volume mounted
+  (backup-restore.md §8.6); `restore.sh --upgrade-dump` is not available.
+* **No instance file from a checkout.** The reference binds `./instance.json` beside it; the
+  platform has no checkout. Its documentation offers a bind mount whose `content:` the platform
+  writes into the resource's directory - sketched, commented, under `app`'s volumes - which was not
+  walked, and `instance check` before a restart has no `docker compose run` here.
+* **The operations port is not published**: `/readyz` and the metrics are reached only inside the
+  service network.
+* **Multi mode needs a host per workspace**: each workspace's host as a domain of `app` with
+  `HUBTASK_WORKSPACE_HOSTS=assigned`, or a wildcard record and certificate (§6.1).
+
 ### 2.2 Kubernetes
 
 Four deployments from **one** image, distinguished by `HUBTASK_ROLES`:
@@ -292,6 +338,50 @@ runs it as a pre-upgrade hook (`instanceCheck.enabled`, on where an instance fil
 upgrade stops with the refusal in the hook's log while the running pods keep serving. What only the
 database can judge (a plan against the installation's values) is still the start's to refuse.
 
+With `HUBTASK_STORAGE_KIND=s3` the browser uploads straight to the bucket and reads a file's bytes
+from it (a document's first page, a board's pictures in an export), so the bucket needs a CORS rule
+that allows `PUT` and `GET`. Hubtask checks it: every process asks the bucket what a browser asks - an unsigned
+`OPTIONS` with the interface's `Origin`, `PUT` and `content-type` - at start and then every
+15 minutes, and while the bucket refuses, `/meta/health` warns `config.storage_cors_missing`
+with the bucket, the refused origin, when it was checked and how often it is asked again. Each
+process holds its own answer, so behind several replicas one may warn a little longer than
+another. A bucket that does not answer is not
+a missing rule; the storage probe reports it. The origins asked are `HUBTASK_BASE_URL`'s, and in
+multi mode with `HUBTASK_WORKSPACE_HOSTS=subdomain` also one workspace's, `https://hubtask-cors-check.<base host>`.
+With `assigned` hosts only the base origin is asked: each assigned host is an origin of its own
+and has to be added to the rule by hand.
+
+`docker compose run --rm --no-deps app storage cors check` asks once and prints each origin's
+answer; `... storage cors apply` reads the bucket's rules (`GET ?cors`) and writes Hubtask's rule
+(`PUT ?cors`, signed with the server's keys, `Content-MD5` beside the body). It puts its rule first
+and keeps the rules others set; a rule of others that allows `PUT` from one of the same origins
+(or `*`) answers the upload on its own terms, so `apply` then writes nothing and prints the
+bucket's rules and its own (exit 4). `--replace` removes those rules - it prints each one first
+and writes only after `--yes` or the bucket's name typed on a terminal. After a successful
+`apply` a running server's warning goes at its next check, at the latest after 15 minutes: the
+command runs in a process of its own and cannot reach the answer the server holds. A key that may
+not read or set the configuration (`s3:GetBucketCORS`, `s3:PutBucketCORS`) gets one sentence
+and the rule as JSON for the provider's console (exit 1); a provider that does not take the call
+(`501`, `NotImplemented`) gets "set it in the provider's own way" (exit 3) - such a provider
+may still pass `check` where it answers preflights from a setting of its own. The rule, for a
+console, in single mode (in subdomain mode `https://*.<base host>` joins the base origin, a pattern
+the bucket matches and answers with the asking origin):
+
+```json
+[
+  {
+    "AllowedHeaders": ["Content-Type"],
+    "AllowedMethods": ["PUT", "GET"],
+    "AllowedOrigins": ["https://tasks.example.org"]
+  }
+]
+```
+
+The calls are tested against a stand-in server built from the S3 documentation and against
+SeaweedFS, the S3 server the integration suite runs (`test/integration/storage_cors_test.go`),
+which takes the rule and answers the preflight from it. How AWS and the hosted providers answer
+is not proven.
+
 Required, with no default: `HUBTASK_DB_DSN` (the connection as `hubtask_app`) and
 `HUBTASK_SECRET_KEY` — the installation secret, at least 32 characters. It peppers stored
 credential hashes, signs cursors, mints media and feed tokens and keys the audit trail's
@@ -322,7 +412,7 @@ one that has none, and on a row naming a variable no code reads:
 | `HUBTASK_DB_MAX_CONNS` / `_MIN_CONNS` | `10` / `2` | Pool size **per process**; several roles mean several pools |
 | `HUBTASK_DB_STATEMENT_TIMEOUT` / `HUBTASK_DB_WORKER_STATEMENT_TIMEOUT` | `5s` / `60s` | Query budget on the interactive path / for background work |
 | `HUBTASK_DB_CONNECT_TIMEOUT`, `HUBTASK_DB_MAX_CONN_LIFETIME`, `HUBTASK_DB_MAX_CONN_IDLE_TIME` | `5s`, `1h`, `30m` | Reaching the database once; how long a pooled connection is reused, so that a failover reaches the pool rather than pinning it to a former primary; how long an idle one is kept |
-| `HUBTASK_STORAGE_KIND`, `HUBTASK_S3_*` | `local` | With `s3`, the bucket and both keys are mandatory; path style is the default (`HUBTASK_S3_USE_PATH_STYLE`), and requests are signed for `us-east-1` unless `HUBTASK_S3_REGION` names the provider's region. The interface's policy names the bucket's origin ([ADR-0047](../adr/ADR-0047-media-origin-in-the-interface-policy.md)). **The bucket needs a CORS rule for the upload**, which Hubtask cannot set: allowed origin exactly the interface's origin (never `*`), method `PUT`, header `Content-Type`, no credentials — the presigned URL is the credential. Without it an upload fails in the browser with a message naming the bucket |
+| `HUBTASK_STORAGE_KIND`, `HUBTASK_S3_*` | `local` | With `s3`, the bucket and both keys are mandatory; path style is the default (`HUBTASK_S3_USE_PATH_STYLE`), and requests are signed for `us-east-1` unless `HUBTASK_S3_REGION` names the provider's region. The interface's policy names the bucket's origin ([ADR-0047](../adr/ADR-0047-media-origin-in-the-interface-policy.md)). **The bucket needs a CORS rule for the upload** - allowed origin the interface's origin, method `PUT`, header `Content-Type`, no credentials, the presigned URL being the credential - which `hubtask storage cors apply` sets and the health report checks (below the table). `*` as the origin works for the browser and is not recommended: it lets any page upload with a URL it holds. Without the rule an upload fails in the browser with a message naming the bucket |
 | `HUBTASK_STORAGE_LOCAL_PATH` | `/var/lib/hubtask/media` | Where `local` storage keeps the media - **a backup of the installation has to include this volume** (the Compose stack mounts `media` there); empty with `local` refuses the start (`config.storage_path_missing`) |
 | `HUBTASK_CLAMD_ADDRESS`, `HUBTASK_CLAMD_TIMEOUT`, `HUBTASK_CLAMD_STREAM_MAX_BYTES` | —, `2m`, `25 MiB` | The ClamAV daemon uploads are scanned by ([security.md](./security.md) §4), overriding the instance file's `upload_scanner`; a scan past the timeout holds the file; with a scanner, uploads are capped to the daemon's stream limit, so no accepted file is one it refuses for size. Empty: no scan |
 | `HUBTASK_SMTP_*` | port `587`, `starttls`, `10s` | Without a host, mail degrades (warning); with one, `_FROM` is mandatory |

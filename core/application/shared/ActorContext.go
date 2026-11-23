@@ -112,8 +112,12 @@ type ActorContext struct {
 	// APIClient is the OAuth client the credential was issued to, empty for everything
 	// that is not a grant session. It is what the audit trail records as the acting app.
 	APIClient shared.ID
-	// Locale is BCP 47, resolved request → account → tenant → installation (i18n-l10n.md §2).
+	// Locale is BCP 47, resolved account → request → tenant → installation (i18n-l10n.md §2): the
+	// language the answer is rendered in.
 	Locale string
+	// AccountLocale is the account's own language and nothing else, set by authentication alone:
+	// an actor a rule, a job or a public door builds carries none. NamingLocale reads it.
+	AccountLocale string
 	// TimeZone is an IANA name. Every relative date in a query and every reminder is computed in
 	// it, so it travels with the actor rather than being looked up per use case.
 	TimeZone string
@@ -122,6 +126,16 @@ type ActorContext struct {
 	// The week anchors of a query - `@start_of_week`, `@end_of_week` - are computed from it, so
 	// it travels here beside the zone rather than being looked up per use case. Empty is Monday.
 	WeekStart string
+}
+
+// NamingLocale is the language a name stored from a default text is rendered in: the account's
+// own, else the workspace's default the caller looked up - never the request's, so a stored name
+// does not follow whichever browser made it (i18n-l10n.md §2).
+func (a ActorContext) NamingLocale(workspaceDefault string) string {
+	if a.AccountLocale != "" {
+		return a.AccountLocale
+	}
+	return workspaceDefault
 }
 
 // IsViewingAs reports whether this request is an administrator looking at the app as this person.

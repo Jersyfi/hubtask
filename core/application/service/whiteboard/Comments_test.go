@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/archive"
+	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/application/service/privacy"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -189,6 +190,73 @@ func TestACommentIsResolvedByAWriterAndChangedByItsAuthor(t *testing.T) {
 	}
 	if _, err := (ListWhiteboardComments{Studio: s}).Descriptor().Handler.Invoke(ctx, actor(bert), usecase.Input{"whiteboard_id": privateBoard["id"]}); err == nil {
 		t.Fatal("somebody outside the hub read its board's comments")
+	}
+}
+
+// UC-CNV-09 check 6: a comment written, resolved or taken back is recorded in the change log as
+// ListWhiteboardComments answers it, filed under the board's hub - what the other open clients and
+// a device's next synchronisation receive. A repeated take-back, which writes nothing, records
+// nothing, and a comment taken back is recorded without its words.
+func TestEveryWriteOfACommentReachesTheChangeLog(t *testing.T) {
+	s, _, _ := studio(gate{})
+	log := &changeLog{}
+	s.Changes, s.HLC = log, &hlcs{}
+	ctx := context.Background()
+	out, err := CreateWhiteboard{Studio: s}.Descriptor().Handler.Invoke(ctx, actor(anna), usecase.Input{"hub_id": hub.String(), "title": "Retro"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	board := out["id"].(string)
+	log.changes = nil
+	thread, err := AddWhiteboardComment{Studio: s}.Descriptor().Handler.Invoke(ctx, actor(anna), usecase.Input{
+		"whiteboard_id": board, "body": "Move this", "element_id": "s1", "x": 12.0, "y": 8.0,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	change := ChangeWhiteboardComment{Studio: s}.Descriptor().Handler
+	if _, err := change.Invoke(ctx, actor(bert), usecase.Input{"comment_id": thread["id"], "resolved": true}); err != nil {
+		t.Fatal(err)
+	}
+	take := DeleteWhiteboardComment{Studio: s}.Descriptor().Handler
+	for range 2 {
+		if _, err := take.Invoke(ctx, actor(anna), usecase.Input{"comment_id": thread["id"]}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(log.changes) != 3 {
+		t.Fatalf("%d changes after writing, resolving and taking back a comment, want 3", len(log.changes))
+	}
+	for i, recorded := range log.changes {
+		if recorded.Entity != "whiteboard_comment" || recorded.EntityID.String() != thread["id"] || recorded.ContainerID != hub ||
+			recorded.Op != changelog.Upsert || recorded.Payload["whiteboard_id"] != board || recorded.Payload["version"] != i+1 {
+			t.Errorf("write %d was recorded as %+v", i, recorded)
+		}
+	}
+	written, resolved, taken := log.changes[0], log.changes[1], log.changes[2]
+	if written.Payload["body"] != "Move this" || written.Payload["element_id"] != "s1" || written.ActorID != anna {
+		t.Errorf("the comment was recorded as %+v", written)
+	}
+	if resolved.Payload["resolved"] != true || resolved.Payload["resolved_by"] != bert.String() || resolved.ActorID != bert {
+		t.Errorf("the resolving was recorded as %+v", resolved)
+	}
+	if taken.Payload["deleted"] != true || taken.Payload["body"] != "" {
+		t.Errorf("the take-back was recorded as %+v", taken)
+	}
+	list, err := ListWhiteboardComments{Studio: s}.Descriptor().Handler.Invoke(ctx, actor(bert), usecase.Input{"whiteboard_id": board})
+	if err != nil {
+		t.Fatal(err)
+	}
+	listed := list["data"].([]usecase.Output)[0]
+	for key, value := range listed {
+		if recorded, _ := taken.Payload[key]; recorded != value {
+			if at, isTime := value.(time.Time); !isTime || !at.Equal(recorded.(time.Time)) {
+				t.Errorf("the record's %q is %v, the list answers %v", key, recorded, value)
+			}
+		}
+	}
+	if len(taken.Payload) != len(listed) {
+		t.Errorf("the record carries %d members, the list %d: nothing more", len(taken.Payload), len(listed))
 	}
 }
 

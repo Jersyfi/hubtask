@@ -34,6 +34,7 @@ Windows run the same Linux container through Docker Desktop. What varies, and is
 | Kubernetes ≥ 1.28 | linux/amd64 | `supported` | `nightly.yml:matrix-kind` |
 | Kubernetes ≥ 1.28 | linux/arm64 | `best effort` | — the image is multi-arch and the chart architecture-agnostic; no ARM cluster runs in CI |
 | Docker Desktop | macOS, Windows | `best effort` | — the same Linux container; the runtime differences are Docker's |
+| Coolify (`deploy/coolify/compose.yaml`) | the image's (linux/amd64, linux/arm64) | `best effort` | — no job starts the file: it needs the platform's generated secrets and a key plain Compose refuses, so a test holds it to the reference instead, and it was walked by hand on one release ([deployment.md](./deployment.md) §2.1, "On Coolify") |
 | A bare binary (no container) | any | `unsupported` | — the image carries the migrator, the locales and the CA bundle; a loose binary is a support surface nobody has scoped |
 
 ## 3. The runtime environment

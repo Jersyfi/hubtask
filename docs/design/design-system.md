@@ -219,14 +219,20 @@ attributes selected by a stylesheet, never as an inline `style`:
 [ADR-0028](../adr/ADR-0028-embedded-web-ui.md)'s `style-src 'self'` has no `'unsafe-inline'`, so a
 `style="gap: …"` is refused — silently, in production only. Every component inherits that.
 
-### Wave 1 — nothing works without these (≈ 23)
-Icon · Button · IconButton · Input · CodeField · Textarea · Select · Checkbox · CheckboxGroup · Radio · Switch ·
+### Wave 1 — nothing works without these (≈ 24)
+Icon · Button · IconButton · Input · CodeField · Textarea · Select · Checkbox · CheckboxGroup · Radio · ChoiceCards · Switch ·
 Tooltip · Menu · Popover · Dialog · Toast · Banner · Avatar · AvatarGroup · Badge · Spinner ·
 ProgressBar · Kbd
 
 `CheckboxGroup` is the fieldset `Radio` is, for several answers: a question that needs at least one
 is wrong as a group, so its error is said once under the group and every box is `aria-invalid`,
 which is where a form moves focus (case 3 below).
+
+`ChoiceCards` is `Radio` for a choice whose answers each need a sentence: native radios of one name
+inside their cards' labels — the whole card pressed, the arrow keys walking and choosing, a reader
+hearing a named radio group — each card a title, one line and an optional mark; the chosen one
+marked by its edge, its surface and the filled dot. A switch-off's *convert or pause* and a start's
+template tiles are its cases.
 
 `CodeField` is **one** native input drawn as its places — never one box per digit, which breaks
 pasting and `Backspace` and makes a screen reader announce six fields. Six places or eight, the group
@@ -242,6 +248,9 @@ arithmetic, and `overlay.ts` is what opening a layer means, written once so `Men
 cannot disagree about what dismisses them. Focus is trapped in a `Dialog` and returned to the
 trigger on close; a `Menu` is operable with arrows, `Home`, `End` and type-ahead; `Escape` closes one
 layer at a time, which is why `Dialog` refuses the platform's `cancel` and asks the register; a
+`Dialog` with `isAlert` is the APG Alert Dialog — a consequence that interrupts on purpose,
+announced as `alertdialog` and described by its body, the focus starting on the safe answer the
+caller places first in the foot, never on the destructive primary; a
 `Toast` is announced without taking focus.
 
 **Status emphasis is a prop of `Badge`, not a tone**: `emphasis: 'subtle' | 'bold'`, subtle by
@@ -261,7 +270,7 @@ flow at every moment and always its `aria-describedby`: it shows on hover of the
 bubble (it stays while the pointer is over either, WCAG 1.4.13), on focus, and on a click or a tap,
 and goes on blur, `Escape` and a press elsewhere. A composite says one reason for all of its parts,
 from a mark at its heading. `test/conventions.test.js` fails a native `disabled` anywhere but on an
-option and in `Radio`; `apps/webapp/e2e/workbench-layout.test.mjs` measures in three engines that
+option and in `Radio` and `ChoiceCards`; `apps/webapp/e2e/workbench-layout.test.mjs` measures in three engines that
 no reason moves a box. The eight cases, and the pattern each takes:
 
 1. *The role forbids it* — not shown (P-05); where a page needs it for orientation, a gate with a
@@ -344,7 +353,7 @@ the rows and fields under it say nothing about it.
 
 | Component | Why it follows from the model |
 |---|---|
-| `TaskRow` | `TASK`, `WORK_PACKAGE`, `ACTIVITY`: `type` gives the mark and the indent, `expansion` whether the row hides anything. A type the manifest reports and the icon set has no mark for still gets a row. Which levels of a subtree are open is the device's (§11.10). A row waiting to synchronise takes a `pendingLabel` and the `pending` motion role, in opacity alone |
+| `TaskRow` | `TASK`, `WORK_PACKAGE`, `ACTIVITY`: `type` gives the mark and the indent, `expansion` whether the row hides anything. A type the manifest reports and the icon set has no mark for still gets a row. Which levels of a subtree are open is the device's (§11.10). A row waiting to synchronise takes a `pendingLabel` and the `pending` motion role, in opacity alone. It completes by the round `StateMark` (wave 7), the same mark a board card and every level's row carry |
 | `WorkItemCard` | Kanban, with `cover` as colour **or** image. A colour cover is a strip, not a filled card, because a label token's background was measured against its own foreground only. The card itself is what is dragged (§11.9) |
 | `BucketColumn` | `wipLimit` and `isDoneBucket` are **announced, never enforced** — the server accepts a card past the limit and completes nothing in a done column; the board acts, the component writes nothing |
 | `LabelChip` + `LabelPicker` | Ten `colorToken` values, each a **pair** (`bg`, `fg`) measured together. The picker is handed one collection's labels; the tick, not the colour, says which are on the entry |
@@ -356,7 +365,7 @@ the rows and fields under it say nothing about it.
 | `CapabilityGate` | A control **with a reason** — `ErrCapabilityNotSupported` never becomes silent ignoring. A refusal the manifest predicts is a client defect; one it could not is rendered as a sentence. **An optional feature the installation does not serve is not rendered at all**; a served feature degraded now is gated with the reason `/meta/health` names. A control that never applies to this reader is absent, not gated |
 | `SourceChip` | Where a value comes from, beside its name — *Set here*, *Default*, *Plan*, *Installation* — the order P-07 resolves; a lock a mark and a word. Pressed, a `Popover` with the value, its source and whom to ask. It knows no levels: the source and the lock are the application's answer |
 | `PlanSummary` | A plan in words ([`user-experience.md`](../architecture/user-experience.md) §5.4): what an act would do — or did — one resolved sentence a change, each with its kind (*add*, *keep*, *change*, *remove*, *refuse*) as a mark beside it, never a colour alone; an empty plan is a sentence, and `reach` the one line under the list. A list, not a live region: the caller announces the plan once. It knows no plan and no key |
-| `CommentThread` | Nested, with "removed" as its own state |
+| `CommentThread` | Nested, with "removed" as its own state; a system note (a kept version) drawn as a quiet row with its heading, and an addressed comment marked and focused |
 | `UploadField` | Moves no bytes: it hands the caller a `File` and renders the progress the caller reports. The native file input stays in the accessibility tree and the drop target is an addition; the size limit is handed in and **announced**. Variant `button` draws the button alone, for a toolbar, and `icon` the paperclip alone with its words as the name, for a bar of icon buttons; no screen draws a native file input of its own (`apps/webapp/build/forms.test.js`) |
 | `ActivityFeed` | `verb` is an i18n code the component **never sees** — every sentence arrives resolved. An ordered list with a real `<time datetime>`; a step with no change set is a shorter sentence |
 | `Timeline` | A **schedule**: dated gridlines at the caller's `scale` (day · week · month · quarter · year), **today marked across every row**, a **span** where `start_at` and `due_at` exist and a **point** where only the due does; what it cannot place it **trays** beside the axis. The window opens where the work is. **A drag names columns, never dates.** A bar moves both ends, an end moves one, a trayed entry carried onto the axis asks for its first dates, and the span **redraws where it would land**. A bar one column wide has **no** end handles; a handle's target is the whole cell. The alternative to every drag is the row, which opens the date editor (§10, 2.5.7 and 2.5.8). One cell per column, a span *marks* its cells, because `style-src 'self'` refuses an inline `grid-column`. **A dependency is an arrow** from the end of the bar waited for to the start of the waiting one, measured off the two bars, dashed and tinted where the waiting entry starts too early, and said in words under the axis. **As a Gantt chart** (UC-PLN-02) a row is a milestone (a diamond), a summary (a thin, darker bar) or critical (tinted and **hatched in the surface's colour**, at 3:1 against a normal bar, and *critical* in the row's name through `criticalLabel`), may carry a **baseline** as a thin lane under its bar, is indented by its depth, and a dependency is **drawn by dragging** from the knob after a bar's end onto the waiting row; the keyboard path to the same link is the caller's table. The row under the pointer or the focus draws and says **its dependencies more strongly**, and its title is described by their words. With `resizeLabel` a **grip** between the titles and the axis sets the title column to one of four token steps, by the arrow keys or by carrying it |
@@ -369,7 +378,7 @@ the rows and fields under it say nothing about it.
 | `PermissionMatrix` | The role matrix as **this installation** enforces it, read from `/meta/capabilities`'s `roles`, never compiled in. Not a control; `item_access` beside the permission columns, not flattened into a tick |
 | `OneTimeSecret` | A value shown for the only time — a minted token, a webhook signing secret, a TOTP secret with recovery codes, an inbound trigger or jumble intake address. Reveal, copy, an optional acknowledgement before dismissal. It renders no value it was not handed, writes to no storage and holds nothing once gone |
 | `QrCode` | The TOTP provisioning URI beside the same secret written out ([ADR-0053](../adr/ADR-0053-totp-qr-code.md)). Our own encoder in `qr.ts`, no dependency: byte mode, level M, versions 1–13, held to the standard's vectors and a real decoder; past 13 it refuses by name and the screen shows the secret alone. One SVG path, **dark on light in both modes**; the payload never in the DOM as text |
-| `SyncStatus` + `ConflictResolver` | `SyncStatus` is the connection mark (§11.6), fed by `engine.queue()` and the stream's state, with **no sentence of its own**. Pressed, it lists every waiting change as *what* and *where* and every refused one with its reason and a dismiss — never swallowed ([`offline-sync.md`](../architecture/offline-sync.md) §9). Losing the server is announced once through a `status` region; a moving count is not. `ConflictResolver` handles a `CONFLICT` on the notes: both versions as text — theirs in place, mine already a system comment it links to — and two ways out: keep theirs, or write mine again as an ordinary `PATCH`. **Never a merge, never an automatic retry** ([ADR-0021](../adr/ADR-0021-offline-sync.md)). It opens from the mark's list and from the entry's strip |
+| `SyncStatus` + `ConflictResolver` | `SyncStatus` is the connection mark (§11.6), fed by `engine.queue()` and the stream's state, with **no sentence of its own**. Pressed, it lists every waiting change as *what* and *where* and every refused one with its reason and a dismiss — never swallowed ([`offline-sync.md`](../architecture/offline-sync.md) §9). Losing the server is announced once through a `status` region; a moving count is not. `ConflictResolver` handles a `CONFLICT` on the notes: both versions as text — theirs in place, mine already a system comment it links to — and two ways out: keep theirs, or write mine again as an ordinary `PATCH`. **Never a merge, never an automatic retry** ([ADR-0021](../adr/ADR-0021-offline-sync.md)). It opens from the mark's list and from the entry's strip. A title or description somebody else changed while the reader was editing it online is no conflict record: the entry asks before it overwrites, with a `Dialog` in its alert mode (§11, the entry screen) |
 | `Celebration` | §7's slot: `tier` 1–3, one asset per tier, no taller than `--motion-celebration-area`, moving no further than `--motion-celebration-travel`. **Never blocking**: `inert`, off the tree, unmounted by the caller on `onDone`, its one sentence a `status` region. Under reduced motion every tier is rule 6's colour change. Assets may change; tiers, tokens and triggers may not |
 | `Tour` + `CoachMark` | §8's pattern: a spotlight on one element of the real interface, positioned by CSS (`spotlightTo` in `anchor.ts`), the overlay of rule 2 being the cut-out's shadow; the element stays interactive. `CoachMark` is a caption, one body line, the count, and *next*, *back*, *skip*; a non-modal `dialog` — focus moves to it, `Escape` skips, the tab order is its controls and the element. The steps are the client's (`apps/webapp/src/lib/tour.ts`) |
 | `TemplateCard` + `TemplateGallery` | A template as a person chooses it ([`user-experience.md`](../architecture/user-experience.md) §5.2): mark, name, one sentence, the products it switches on as chips, a quiet note of where it stands (*In use*, *Update available*), *Preview* folded (`details`, what taking it creates, in words), the caller's act — never its key or version as the subtitle. Where the template draws something (a board), a small drawing of it stands in place of the mark; in a gallery that is a choice the chosen card has a thicker brand edge and its act is pressed, and `isCompact` tightens it inside a dialog. The gallery is one family as a named list of cards that wraps to the width; every create dialog and the catalogue draw it |
@@ -424,7 +433,9 @@ the mark the bar carries; how the product uses them is §11.
   `--nav-plane`, the raised panel of a flyout or a drawer), **`NavFlyout`** (*Recent*, the hub quick
   switch, which drops from the hub's head through `anchor`), **`NavLevel`** (the workspace or the hub level, sliding in), **`ProductTile`** (a
   product's mark on its label tile), **`MoveCheck`** (the pre-check's list of obstacles and
-  warnings, each with its way out); on `compact` **`BrowseStack`** (a stack per bottom-bar tab) and
+  warnings, each with its way out — a button, or a link where it is a place; `isFramed` draws it as
+  a step's consequences in a dialog: one bordered group with hairlines, each line a heading over a
+  quieter detail; a line may bring its own glyph); on `compact` **`BrowseStack`** (a stack per bottom-bar tab) and
   **`Sheet`** (a bottom sheet with a heading and *Close*). The content tree is a `role="tree"` with
   `aria-level` and `aria-expanded`.
 * **`PageHeader`** — the breadcrumb (the parent only on `compact`), the title and an optional
@@ -506,7 +517,7 @@ while the page scrolls sticks under `--page-sticky-top`, the app bar's height un
 otherwise.
 
 ### Wave 7 — the work surface
-`StateLozenge` · `StatusButton` · `ObjectHead` · `Property` · `PropertyRail` · `JumpMarks` ·
+`StateLozenge` · `StatusButton` · `StateMark` · `ObjectHead` · `Property` · `PropertyRail` · `JumpMarks` ·
 `StepBar` · `FoldingSection` · `ProductBand` · `Card` · `Widget` · `WidgetStrip` · `SummaryStrip` · `Composer` · `QueryLine` · `PriorityMark` ·
 `DeadlineBar` · `DeadlineList` · `DensitySwitch` · `TrustLine` · `PageOutline` · `FloatingBar` · `FloatingToolbar` ·
 `BlockHandle` · `BoxPopover` · `InsertList` · `LiveBlock`
@@ -523,7 +534,9 @@ and every behaviour a test can hold lives in a module beside them: `lozenge.ts`,
   are decided once in `lozenge.ts` (`LOZENGE_VOCABULARIES`); the word is the caller's. A neutral
   state carries no glyph, every other one does (UX-7). `bold` for the one state a screen must show
   first, `md` where it stands alone, and a `brand` tone for the reader's own work (*Mine*), which
-  is no status. `Badge` stays the system's vocabulary about itself.
+  is no status. `hasChevron` draws a chevron after the word, inside its edge, where the lozenge is
+  the face of a control that opens the choices (a row's or a card's state chip). `Badge` stays the
+  system's vocabulary about itself.
 * **`StatusButton`** — the status as a lozenge button in its category's tone. Pressed (or ↓), it
   opens "from *X* on" (E-23): every allowed step with its target lozenge and what it asks, the
   steps the reader may not take as rows with their reason (focusable, `aria-disabled`, never
@@ -533,14 +546,25 @@ and every behaviour a test can hold lives in a module beside them: `lozenge.ts`,
   the lozenge without a chevron and the reason beside it. `primaryStep` in `steps.ts` chooses the
   next step: the workflow's marked one if the reader may take it, otherwise the first allowed step
   forward, never a step back; `defaultSteps` makes every status reachable with *Done* as the next.
+* **`StateMark`** — the one press of an entry's state control in a row and on a card: a small round
+  mark in the checkbox's place on every level, before the column or status chip where there is
+  one. Empty where one press completes, filled with a tick once done, an arrow where the press takes
+  a step that does not complete the entry. Where it completes or reopens it is the APG Checkbox
+  pattern (`role="checkbox"`, `aria-checked`), otherwise a button named by its step; the drawn
+  mark stays small and its hit area reaches `layout.target` on a phone or with a coarse pointer.
+  Not pressable now, its edge breaks and the reason is said at the mark. ↓ on it opens the chip's
+  menu beside it; a mark alone in a list walks to the next row's mark instead.
 * **`ObjectHead`** — one head for entry, ticket, inventory object, goal, release, agent and
   portfolio (WB-1): the breadcrumb and the tools (hidden on a phone, where the bar carries them), the
   key with its product's tile, the type lozenge and a meta line, the title edited in place (the
   words or the pencil; Enter keeps, Escape gives the old title back, blur keeps), and the action
-  bar — the status, the next step as the one primary, a second step the workflow offers, a
+  bar — the status, the next step as the one primary, a second step the workflow offers (or
+  *Reopen* with its arrow back once done; either step with its reason where it cannot be taken now), a
   divider, the person (an empty one said), the due date, **one** deadline chip (what is breached
   and the next deadline, ET-6), quiet facts and the end tools. On a phone the steps live in the
-  status's sheet and the person is the avatar alone (WB-8).
+  status's sheet - where the status opens none now, as under a paused workflow, its step stays in
+  the bar (`hasStepOnPhone`) - and the person is the avatar alone (WB-8). ↓ on a step opens the
+  status's choices (`onopenstatus`), as ↓ on the status does.
 * **`Property`** and **`PropertyRail`** — the rail of ET-1, `layout.rail` wide: sections products
   register (`RailSection`: a title, a product's tile, a count, folded or empty), the form's groups
   in the form's order. A head is a twist (`aria-expanded`); an empty section is one line with "+"
@@ -1344,7 +1368,7 @@ the others stacked beside it; below, one. Top to bottom:
 
 * **On you** — the reader's open dated entries in three bands of their own day: *Overdue* (past
   due), *Today* (due before their next day begins) and *Coming up*. Each row has its working
-  checkbox — the ordinary completion, queued while offline — and its place, the hub's mark before
+  round mark (`StateMark`) — the ordinary completion, queued while offline — and its place, the hub's mark before
   the collection's. What is past carries the overdue mark with its date; nothing blames.
 * **Lists** — every collection whose figure is *open*, as one tile with the figure, drawn in the
   collection's colour where it has one; its entries are not rows in the bands.
@@ -1433,7 +1457,11 @@ forms* (levels, fields, entry types), *Workflow* (completion, a hub's workflows)
 what counts, capture, success) and *Rules* (the automation behaviours, above a collection's rules),
 held by one draft and one save bar: each setting with its `SourceChip`, a reset where the value is
 set here, and a lock drawn as the chip's lock with the controls still readable and unavailable,
-their reason naming who set it (§4, cases 2 and 6). The old addresses `…/settings/structure` and
+their reason naming who set it (§4, cases 2 and 6). When the settings change elsewhere while the
+draft holds a change of the reader's, a warning `Banner` above the section's rows says so and names
+the settings changed on both sides; the save bar counts the reader's own change and offers no
+*Save* until *Apply my changes to the current settings* lays it over what is in force, beside *Show
+the current settings* (UC-WRK-23 check 10). The old addresses `…/settings/structure` and
 `…/settings/automation` open *Types & forms* and *Rules*. The other sections are each the same
 component that is a dialog elsewhere (`PanelOrDialog`). Only a reader who may change
 the shape is offered *Settings…*; anybody else at the address reads whose the settings are.
@@ -1468,10 +1496,17 @@ between columns is the card's menu (§11.9).
 
 **An entry screen**, top to bottom:
 
-1. **The head**: the completion checkbox, the title and the notes edited in place — an input that
-   looks like text until focused, the same `PATCH` and conflict path — and the set values as chips,
-   one height whether or not they carry a mark. Where the collection has columns and the reader may
-   write, the column's chip is the menu that moves the entry to another column, the done column
+1. **The head**: the state control, the title and the notes edited in place — an input that
+   looks like text until focused, the same `PATCH` and conflict path; where somebody else changed
+   the same text meanwhile, saving writes nothing and an alert `Dialog` S asks first (UC-SYN-02
+   check 10): who changed it and when, the saved version above the reader's, *Keep the saved
+   version* (the focus starts there; the reader's text is dropped) and *Overwrite with mine* (one
+   `PATCH` against the version in place; a refusal is said in the dialog, which stays); closing it
+   leaves the text unsaved, and the next save asks again — and the set values as chips,
+   one height whether or not they carry a mark. The state control is the state's lozenge
+   (`StatusButton`) followed by the step as a labelled button (`ObjectHead`'s `next`): in a list the
+   lozenge reads *Open* or *Done* and the button *Done* or *Reopen*; where the collection has columns, the column's lozenge
+   is the menu that moves the entry to another column by `PATCH {bucket_id}`, the done column
    completing it as a drop on the board does. Where a workflow runs for the entry, the head
    carries its status with the steps the reader may take from it instead, and names the type in
    place of the level; neither the level nor *No column* is drawn there (`user-experience.md` §5.6).
@@ -1482,7 +1517,7 @@ between columns is the card's menu (§11.9).
 2. **The whole subtree**: `EntryList` with a `rootId` — no second flatten, row menu or drag; its rows
    carry the one entry menu every place that shows an entry carries (UC-WRK-28 check 1), without
    *Select*, since no bulk bar acts there. Every
-   level carries its checkbox, type mark, twist and "done of total" count, each row one line ruled
+   level carries its round mark, type mark, twist and "done of total" count, each row one line ruled
    from the next (`TaskRow` `isOneLine`, the title losing its end); the section heading is the
    manifest's name for the child type. The top level ends in the capture field drawn in place
    (C-4: the same parser and chips, the level as its kind pill, Enter adds and the line stays);
@@ -1516,10 +1551,10 @@ its manual order, so nothing is dragged in it; the menu's moves stay.
 ([UC-WRK-25](../usecases/work/UC-WRK-25-keep-a-simple-list.md)): the open entries under the
 collection's categories in their order, the entries ticked in the last 24 hours under the
 collection's name for done entries (*Done* without one), and the older ones under *Recently*, most
-often completed first. A line is its box and its words, with no twist and no type mark: the list has
+often completed first. A line is its mark and its words, with no twist and no type mark: the list has
 one level. Capture, opened there, takes several lines as several entries and reads a leading amount
-where the collection offers one, showing it as a chip before submitting. **The checkbox ticks; the row opens**, here as in every list: a
-row is ticked by a tap on its start — a target of at least 44 points around the box — or by a swipe
+where the collection offers one, showing it as a chip before submitting. **The mark ticks; the row opens**, here as in every list: a
+row is ticked by a tap on its start — a target of at least 44 points around the mark — or by a swipe
 towards the inline end, and a tap anywhere else but its controls opens the entry; a still hold opens
 the row's menu with *Select* first ([ADR-0088](../adr/ADR-0088-a-long-press-opens-the-entry-menu.md)),
 and the grip drags within its section. The row's menu holds the amount and the category. For somebody who may change the shape, the *Done* heading can be
@@ -1584,8 +1619,9 @@ it, so the way back is where the way there was. Below
 **Selection is a mode, off by default.** No list draws a selection control until somebody selects:
 the toolbar's *Select*, the entry menu's *Select* (a long press on a coarse pointer opens it), or
 `Ctrl`/`Cmd`-click on a row. While on,
-rows carry the checkbox, the page head becomes the count and the bulk verbs, and `Escape` ends it.
-Otherwise a row's leading slot holds the completion checkbox only, and the type is a mark on the
+rows carry the selection checkbox, the page head becomes the count and the bulk verbs, and `Escape`
+ends it. Otherwise a row's leading slot holds the round completion mark (`StateMark`), followed by
+the column or status chip where the entry stands on a board or under a workflow, and the type is a mark on the
 title's line. List and board share one selection store; switching keeps the selection.
 
 **A list row's tools show where the reader is.** Where the pointer hovers (`hover: hover`) and from

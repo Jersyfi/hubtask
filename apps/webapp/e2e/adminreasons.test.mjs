@@ -112,6 +112,9 @@ async function walk(page, paths) {
     await page.locator('main').waitFor({ timeout: 15_000 });
     // The reads the page starts arrive from the stub at once; this lets them draw.
     await page.waitForTimeout(400);
+    // A page header's primary is wider than a phone for a moment while the layout settles; the
+    // width is measured once it settled, or after five seconds, when an overflow is the page's own.
+    await page.waitForFunction(() => document.documentElement.scrollWidth <= window.innerWidth + 1, undefined, { timeout: 5_000 }).catch(() => undefined);
     for (const breach of await breaches(page)) found.push(`${path}: ${breach}`);
   }
   return found;

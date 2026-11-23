@@ -15,8 +15,19 @@ updates:
 
   # The database image of the Compose stacks, pinned by digest so a pull never changes the
   # PostgreSQL minor unseen (deployment.md §2.1); this is what moves the pin, as a reviewed change.
+  #
+  # One entry for both directories, grouped by dependency name: the platform file in
+  # deploy/coolify must carry the reference's digest (test/architecture), so a pull request per
+  # directory would be red on its own and the pin could never move. `group-by: dependency-name`
+  # opens one pull request per dependency across the directories listed.
   - package-ecosystem: docker-compose
-    directory: /deploy/docker
+    directories:
+      - /deploy/docker
+      - /deploy/coolify
+    groups:
+      database-image:
+        patterns: ["*"]
+        group-by: dependency-name
     schedule:
       interval: weekly
       day: monday

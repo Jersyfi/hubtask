@@ -113,6 +113,9 @@
   <ObjectHead objectKey={{ label: 'TAMA-31', icon: 'square-check' }} type={{ label: 'Task' }} title="Untitled entry" titleLabel="Title" editTitleLabel="Edit title" onrename={() => {}} person={{ emptyLabel: 'Nobody – name someone' }} next={{ label: 'Done', icon: 'check', onclick: () => {} }}>
     {#snippet status()}<StatusButton current={STORY_STATUSES[1]!} steps={[]} label="Status: Ready" menuTitle="From “Ready” on" closeLabel="Close" />{/snippet}
   </ObjectHead>
+  <ObjectHead objectKey={{ label: 'TAMA-32', icon: 'square-check' }} type={{ label: 'Task' }} title="Order the tiles" titleLabel="Title" isDone person={{ emptyLabel: 'Nobody – name someone' }} secondary={{ label: 'Reopen', icon: 'undo-2', onclick: () => {} }}>
+    {#snippet status()}<StatusButton current={{ id: 'done', label: 'Done', category: 'done' }} steps={[]} label="Status: Done" menuTitle="Status" closeLabel="Close" />{/snippet}
+  </ObjectHead>
 {:else}
   <ObjectHead objectKey={{ label: 'TAMA-18', icon: 'square-check' }} type={{ label: 'Story' }} {title} titleLabel="Title" person={{ name: 'Amelia Hughes' }} due={{ label: '3 – 27 Nov' }}>
     {#snippet status()}<StatusButton current={IN_PROGRESS} steps={STORY_STEPS} label="Status" menuTitle="" disabledReason="Read only: you are a guest in Team Atlas." closeLabel="Close" />{/snippet}

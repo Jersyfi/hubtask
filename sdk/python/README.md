@@ -25,6 +25,10 @@ except ProblemError as refused:
     print(refused.status, refused.problem["code"], refused.problem.get("field_errors"))
 ```
 
+A refusal raises `ProblemError`; a `304` does not. An operation whose contract answers `304`
+(`get_capabilities` with `if_none_match`) returns `None` there: the copy the caller holds is still
+current.
+
 [`examples/quickstart.py`](./examples/quickstart.py) lists a hub's collections, creates an entry
 and reads it back; `python3 sdk/python/examples/quickstart.py` with `HUBTASK_URL`,
 `HUBTASK_TOKEN` and `HUBTASK_HUB` set.

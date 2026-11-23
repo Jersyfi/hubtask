@@ -37,6 +37,7 @@ var (
 
 type settings struct {
 	rows map[settingrepo.Place]map[domain.Key]domain.Entry
+	hubs []shared.ID
 }
 
 func (s *settings) Above(context.Context, string) (domain.Layer, domain.Layer, error) {
@@ -155,4 +156,31 @@ func TestAPlanningOperationAHubHasOffIsRefusedThroughEveryDoor(t *testing.T) {
 			t.Errorf("the action answered %v, want %s", err, module.OffCode)
 		}
 	})
+}
+
+// HubsWithout answers, of the hubs the store was told exist, those storing nothing under the key.
+func (s *settings) HubsWithout(_ context.Context, key domain.Key) ([]shared.ID, error) {
+	var without []shared.ID
+	for _, hub := range s.hubs {
+		if _, held := s.rows[settingrepo.Place{Level: domain.LevelHub, ScopeID: hub}][key]; !held {
+			without = append(without, hub)
+		}
+	}
+	return without, nil
+}
+
+// PinHubs writes as the adapter's statement does.
+func (s *settings) PinHubs(ctx context.Context, pin settingrepo.HubPin, at time.Time) ([]shared.ID, error) {
+	var written []shared.ID
+	for _, hub := range pin.Hubs {
+		place := settingrepo.Place{Level: domain.LevelHub, ScopeID: hub.HubID}
+		if _, held := s.rows[place][pin.Key]; held {
+			continue
+		}
+		if err := s.Put(ctx, hub.RowID, place, pin.Key, domain.Entry{Value: pin.On, Hold: domain.HoldSet}, at); err != nil {
+			return nil, err
+		}
+		written = append(written, hub.HubID)
+	}
+	return written, nil
 }

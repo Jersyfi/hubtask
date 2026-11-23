@@ -47,13 +47,16 @@
     titleLabel: string;
     /** *Edit title*: given with `onrename`, the title is edited in place. */
     editTitleLabel?: string;
-    onrename?: (title: string) => void;
+    /** With the new title, the one the field opened with: what the person began from. */
+    onrename?: (title: string, opened: string) => void;
+    /** A title the person typed and did not save yet: the field opens with it, over `title`. */
+    unsavedTitle?: string;
     /** The `StatusButton`, or a `StateLozenge` where the state is not the reader's to change. */
     status?: Snippet;
-    /** The next step, the head's one primary act. */
-    next?: { label: string; icon?: IconName; onclick: () => void };
-    /** A second step the workflow offers beside it: *Wait for Hannah*. */
-    secondary?: { label: string; onclick: () => void };
+    /** The next step, the head's one primary act; with a reason, drawn and not pressable now. */
+    next?: { label: string; icon?: IconName; disabledReason?: string; onclick: () => void };
+    /** A second step the workflow offers beside it: *Wait for Hannah*; or *Reopen* with its arrow once done. */
+    secondary?: { label: string; icon?: IconName; disabledReason?: string; onclick: () => void };
     /** Who has it; `emptyLabel` when nobody does, said, never left blank (P-05). */
     person?: { name: string; src?: string } | { emptyLabel: string };
     due?: { label: string; tone?: 'neutral' | 'warning' | 'danger' };
@@ -73,6 +76,10 @@
     isDone?: boolean;
     /** An object without a status sheet (goal, release, agent, CI): its next step and ⋯ stay on a phone. */
     hasActsOnPhone?: boolean;
+    /** The status opens no sheet now (a paused workflow): its step stays in the bar on a phone. */
+    hasStepOnPhone?: boolean;
+    /** Opens the status's choices: ↓ on a step does what ↓ on the status does (§4, the state control). */
+    onopenstatus?: () => void;
   }
 
   const {
@@ -83,6 +90,7 @@
     titleLabel,
     editTitleLabel,
     onrename,
+    unsavedTitle,
     status,
     next,
     secondary,
@@ -96,11 +104,20 @@
     menu,
     isCompact = false,
     hasActsOnPhone = false,
+    hasStepOnPhone = false,
+    onopenstatus,
     isDone = false,
   }: Props = $props();
 
+  function stepKeys(event: KeyboardEvent) {
+    if (event.key !== 'ArrowDown' || !onopenstatus || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    event.preventDefault();
+    onopenstatus();
+  }
+
   let isEditing = $state(false);
   let draft = $state('');
+  let opened = '';
   let field = $state<HTMLInputElement | null>(null);
   let editButton = $state<HTMLElement | null>(null);
 
@@ -108,7 +125,8 @@
 
   function startEditing() {
     if (!canEdit) return;
-    draft = title;
+    draft = unsavedTitle ?? title;
+    opened = title;
     isEditing = true;
   }
 
@@ -116,7 +134,8 @@
     if (!isEditing) return;
     isEditing = false;
     const next = draft.trim();
-    if (isSaved && next !== '' && next !== title) onrename?.(next);
+    // With an unsaved title held, entering the saved one is a choice too: the caller lets the held one go.
+    if (isSaved && next !== '' && (next !== title || unsavedTitle !== undefined)) onrename?.(next, opened);
     queueMicrotask(() => editButton?.querySelector('button')?.focus());
   }
 
@@ -162,7 +181,7 @@
   {/if}
 {/snippet}
 
-<header class="object-head" data-compact={isCompact ? '' : undefined} data-phone-acts={hasActsOnPhone ? '' : undefined}>
+<header class="object-head" data-compact={isCompact ? '' : undefined} data-phone-acts={hasActsOnPhone ? '' : undefined} data-phone-step={hasStepOnPhone ? '' : undefined}>
   <!-- A compact head without a trail spends no row on its tools: they end the title's line. -->
   {#if trail || ((tools || menu) && !isCompact)}
     <div class="top">
@@ -214,8 +233,8 @@
 
   <div class="action-bar" bind:this={bar}>
     {#if status}{@render status()}{/if}
-    {#if next}<span class="step"><Button tone="primary" size="sm" icon={next.icon} onclick={next.onclick}>{next.label}</Button></span>{/if}
-    {#if secondary}<span class="step"><Button tone="secondary" size="sm" onclick={secondary.onclick}>{secondary.label}</Button></span>{/if}
+    {#if next}<span class="step"><Button tone="primary" size="sm" icon={next.icon} disabledReason={next.disabledReason} onclick={next.onclick} onkeydown={stepKeys}>{next.label}</Button></span>{/if}
+    {#if secondary}<span class="step"><Button tone="secondary" size="sm" icon={secondary.icon} disabledReason={secondary.disabledReason} onclick={secondary.onclick} onkeydown={stepKeys}>{secondary.label}</Button></span>{/if}
     {#if person || due || deadline || facts}<span class="divider" aria-hidden="true" bind:this={divider} data-alone={isDividerAlone ? '' : undefined}></span>{/if}
     {#if person}
       {#if 'name' in person}
@@ -307,8 +326,8 @@
   }
 
   .action-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
-  /* One type size in the bar: the steps at the status button's 13 px semibold, the next step
-     lifted by the primary's glow (the grammar mockup). */
+  /* The steps are the Button of their size, no type of their own (B-4); the next step lifted by
+     the primary's glow (the grammar mockup). */
   .step :global(.button[data-tone='primary']) { box-shadow: var(--shadow-glow); }
 
   .divider {
@@ -351,7 +370,8 @@
   .facts { display: inline-flex; align-items: center; gap: var(--sp-150); color: var(--text-secondary); font-size: var(--fs-075); }
   .end { display: inline-flex; align-items: center; gap: var(--sp-100); margin-inline-start: auto; }
 
-  /* A phone: the bar carries the way back and the tools; the steps are in the status's sheet (WB-8). */
+  /* A phone: the bar carries the way back and the tools; the steps are in the status's sheet (WB-8),
+     unless the status opens none now - then its step stays beside it. */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (width < 600px) {
     .meta { flex-basis: 100%; }
@@ -363,7 +383,7 @@
     .person-name { display: none; }
     .title { font-size: var(--fs-450); }
     .object-head[data-phone-acts] .top { display: flex; }
-    .object-head[data-phone-acts] .step { display: inline-flex; }
+    .object-head:is([data-phone-acts], [data-phone-step]) .step { display: inline-flex; }
   }
 
   @media (prefers-reduced-motion: reduce) {

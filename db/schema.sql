@@ -2045,9 +2045,11 @@ CREATE TABLE comment (
   -- Conditional since migration 0012: a tombstone's body is empty - deletion clears the text
   -- rather than hiding it - while a living comment carries 1 to 20000 characters. A tombstone a
   -- legal hold covers keeps its text until the retention pass clears it once no hold covers it
-  -- (data-retention.md §4); no read serves it (Comment.sql).
+  -- (data-retention.md §4); no read serves it (Comment.sql). A system comment holds the notes a
+  -- push kept and is unbounded as the notes are, by the domain (migration 0446).
   body              text NOT NULL CONSTRAINT comment_body_check
-                      CHECK (deleted_at IS NOT NULL OR length(body) BETWEEN 1 AND 20000),
+                      CHECK (deleted_at IS NOT NULL OR length(body) BETWEEN 1 AND 20000
+                             OR (kind = 'SYSTEM' AND length(body) >= 1)),
   created_at        timestamptz NOT NULL DEFAULT now(),
   edited_at         timestamptz,
   deleted_at        timestamptz,

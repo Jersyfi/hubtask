@@ -291,6 +291,35 @@ test('the stream applies each record before it invalidates, and the cursor advan
   assert.ok(seen.includes('ready'), 'the watched entry was re-read after the record');
 });
 
+// ADR-0108: a board's comments leave the device with the board, and another board's stay.
+test('a deleted whiteboard takes its comments out of the store', async () => {
+  const BOARD = '0192f000-0000-7000-8000-0000000000b1';
+  const OTHER_BOARD = '0192f000-0000-7000-8000-0000000000b2';
+  const ON_BOARD = '0192f000-0000-7000-8000-0000000000d1';
+  const ON_OTHER = '0192f000-0000-7000-8000-0000000000d2';
+  const transport = new FakeTransport()
+    .snapshotSessions({
+      records: [
+        ...WORKSPACE,
+        whole('whiteboard', BOARD, { hub_id: HUB, title: 'Plan' }, HUB),
+        whole('whiteboard', OTHER_BOARD, { hub_id: HUB, title: 'Other' }, HUB),
+        whole('whiteboard_comment', ON_BOARD, { whiteboard_id: BOARD, body: 'here' }, HUB),
+        whole('whiteboard_comment', ON_OTHER, { whiteboard_id: OTHER_BOARD, body: 'there' }, HUB),
+      ],
+      cursor: 'c-1',
+    })
+    .answer('/sync:pull', { changes: [], cursor: 'c-1', has_more: false })
+    .streamSessions({ events: [frame('c-2', { op: 'DELETE', entity: 'whiteboard', entity_id: BOARD, container_id: HUB } as ChangeRecord)], open: true });
+  const { engine, storage } = await attached(transport);
+  const stop = engine.listen({ pathsFor });
+  await settle(20);
+  stop();
+
+  assert.equal(await held(storage, 'whiteboard', BOARD), undefined);
+  assert.equal(await held(storage, 'whiteboard_comment', ON_BOARD), undefined, 'the board\'s comment stayed on the device');
+  assert.notEqual(await held(storage, 'whiteboard_comment', ON_OTHER), undefined, 'another board\'s comment went with it');
+});
+
 // The shells' store too: what a revocation deletes is deleted through the port, whichever store is
 // beneath it (F7-04).
 for (const [store, fresh] of STORES) {

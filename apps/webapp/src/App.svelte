@@ -39,7 +39,7 @@
   import { viewAs } from './lib/data/viewas.svelte.ts';
   import { platform } from './lib/platform/index.ts';
   import { session } from './lib/session.svelte.ts';
-  import { precacheWhenIdle } from './lib/frame/precache.ts';
+  import { precacheByReach } from './lib/frame/precache.ts';
   import { loadFrame, partLoaders, ruleViews, workViews } from './lib/frame/parts.ts';
   import { onceEach } from './lib/frame/once.ts';
   import { connectorReturnOf } from './lib/data/connectorreturn.ts';
@@ -370,8 +370,8 @@
     if (!session.isSignedIn) return;
     return untrack(() => viewAs.open());
   });
-  // Every screen's and part's chunk once the signed-in session is idle, so one never opened before
-  // going offline still opens from the copy (precache.ts).
+  // Every chunk of a screen or part the reader can open, once the signed-in session is idle, so one
+  // never opened before going offline still opens from the copy (precache.ts).
   // Signed in: the frame and the work's screens are fetched at once and together, not one after
   // the other as each is drawn.
   $effect(() => {
@@ -379,12 +379,8 @@
     void loadFrame().catch(() => {});
     for (const load of Object.values(workViews)) void load().catch(() => {});
   });
-  let precached = false;
-  $effect(() => {
-    if (!session.isSignedIn || precached) return;
-    precached = true;
-    void precacheWhenIdle([...Object.values(views), ...partLoaders()]);
-  });
+  const precache = precacheByReach(views, partLoaders());
+  $effect(() => precache({ signedIn: session.isSignedIn, administration: reachesAdministrationArea() }));
   $effect(() => {
     const accountId = liveAccountId;
     if (!accountId) return;
@@ -562,7 +558,7 @@
     <LazyView load={views.ArchiveView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'item'}
     {#key route.params.id}
-      <LazyView load={views.ItemView} props={{ id: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
+      <LazyView load={views.ItemView} props={{ id: route.params.id ?? '', comment: route.query['comment'], onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
     {/key}
   {:else if route.name === 'approvals'}
     <LazyView load={views.ApprovalsView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
