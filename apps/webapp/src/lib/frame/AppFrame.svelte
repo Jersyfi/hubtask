@@ -300,11 +300,14 @@
   const isOutside = $derived(session.isSignedIn && isOutsider(actor.hasNoAccess, actor.portals));
   // The workspace's name and look in the header, the switcher and the tab (UC-INS-22 checks 5, 6
   // and 9), a read every member may make. The portal's frame draws neither, so an outsider is not
-  // asked for it. Whoever may read `/tenant` takes it from there: one read, not two.
+  // asked for it. Whoever may read `/tenant` takes it from there: one read, not two. A manifest
+  // that could not be read leaves that unknown, so the look every member may read is asked
+  // rather than the home link standing empty.
   $effect(() => {
     if (!session.isSignedIn || isOutside) return;
-    const fromWorkspace = mayReadWorkspace();
-    if (fromWorkspace === undefined) return;
+    const may = mayReadWorkspace();
+    if (may === undefined && manifest.state.status !== 'failed') return;
+    const fromWorkspace = may === true;
     return untrack(() => (fromWorkspace ? workspaceLook.openFromWorkspace() : workspaceLook.open()));
   });
   $effect(() => tab.name(isOutside ? undefined : workspaceLook.name));

@@ -100,6 +100,18 @@ test('chromium: the manifest never answers — the entry says so, and the bar ca
   assert.equal(await reason.count(), 1, 'the reason the server gave is not shown');
   assert.notEqual((await reason.innerText()).trim(), '', 'the reason the server gave is empty');
 
+  // The home link does not stand empty: without the manifest nobody knows whether this reader may
+  // read `/tenant`, so the look every member may read is asked, and the product's mark is drawn (G8).
+  const home = page.getByRole('banner', { name: 'Application bar' }).locator('a.home');
+  await home.locator('.waiting').waitFor({ state: 'detached', timeout: 5_000 })
+    .catch(() => assert.fail('the home link stays an empty box while the manifest is unread'));
+  assert.equal(await home.locator('svg').first().isVisible(), true, 'the home link draws no mark');
+  assert.equal(
+    await page.getByRole('banner', { name: 'Application bar' }).getByRole('link', { name: 'Hubtask', exact: true }).count(),
+    1,
+    'the home link has no name',
+  );
+
   // The mark in the bar carries the dot: there is something to read, without a count.
   const mark = markOf(page);
   assert.equal(await mark.locator('.dot').count(), 1, 'the bar does not say there is something to read');
