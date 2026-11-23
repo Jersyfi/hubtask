@@ -43,3 +43,12 @@ test('a dialog that is a step goes back with ‹ and its own name; every other k
   assert.match(markup, /\{#if isStep\}[\s\S]*?<IconButton icon="chevron-left" label=\{dismissLabel\}/, 'a step’s way out is ‹, named in words');
   assert.match(markup, /\{:else\}\s*<span class="dismiss"><IconButton icon="x" label=\{closeName\(\) \?\? dismissLabel\}/, 'every other dialog keeps ✕');
 });
+
+test('a disclosure that is a row of a form stands the column’s width at a thumb’s height, its chevron at the end', () => {
+  const { style } = parts(read('Disclosure.svelte'));
+  const row = /\[data-tone='row'\] \.toggle \{([^}]*)\}/.exec(style)?.[1] ?? '';
+  assert.match(row, /align-self: stretch;/, 'the row is not the column’s width');
+  assert.match(row, /min-block-size: var\(--layout-target\);/, 'the row is below a thumb’s target');
+  assert.match(row, /border: var\(--bw-hairline\) solid var\(--border-subtle\);/, 'the row has no edge');
+  assert.match(style, /\[data-tone='row'\] \.chevron \{ order: 1; \}/, 'the chevron is not at the row’s end');
+});

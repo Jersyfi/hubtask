@@ -16,8 +16,12 @@
     /** One quiet line beside the label: what is inside, so nobody has to open it to find out. */
     description?: string;
     isOpen?: boolean;
-    /** `quiet` sits in running text (a refusal's details); `section` heads a settings block. */
-    tone?: 'section' | 'quiet';
+    /**
+     * `quiet` sits in running text (a refusal's details); `section` heads a settings block; `row` is
+     * a field of a form on a phone, folded to one bordered row the column's width - a place's
+     * colour and symbol, previewed beside its name while closed.
+     */
+    tone?: 'section' | 'quiet' | 'row';
     children: Snippet;
   }
 
@@ -75,6 +79,21 @@
   .description { color: var(--text-secondary); font-weight: var(--fw-regular); font-size: var(--fs-075); }
 
   [data-tone='quiet'] .toggle { color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-regular); }
+
+  /* A row of the form: the label at its start, the chevron at its end, as tall as a thumb's target. */
+  [data-tone='row'] .toggle {
+    align-self: stretch;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    min-block-size: var(--layout-target);
+    margin-inline-start: 0;
+    padding: 0 var(--sp-150);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-lg);
+  }
+
+  [data-tone='row'] .chevron { order: 1; }
 
   /* A thumb's target (§7): the toggle is layout.target tall where the pointer is coarse. */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */

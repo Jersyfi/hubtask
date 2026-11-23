@@ -8,10 +8,18 @@
   import Stack from './Stack.svelte';
   import Switch from './Switch.svelte';
 
-  const { open = false }: { open?: boolean } = $props();
+  const { open = false, isRow = false }: { open?: boolean; isRow?: boolean } = $props();
   let calendar = $state(false);
 </script>
 
+{#if isRow}
+  <Stack gap="200">
+    <Disclosure label="Colour and symbol" tone="row" isOpen={open}>
+      <Switch label="A colour of its own" />
+      <Switch label="A symbol of its own" />
+    </Disclosure>
+  </Stack>
+{:else}
 <Stack gap="300">
   <Disclosure label="Advanced" description="Calendar time, escalation" isOpen={open}>
     <Switch label="Measure by calendar time instead of business hours" bind:checked={calendar} />
@@ -22,3 +30,4 @@
     </Disclosure>
   </Banner>
 </Stack>
+{/if}

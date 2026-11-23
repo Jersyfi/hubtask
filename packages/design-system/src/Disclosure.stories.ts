@@ -22,3 +22,10 @@ export const opened: Story = {
   about: 'The chevron turns, mirrored in a right-to-left page; the content arrives once, and at once under reduced motion.',
   args: { open: true },
 };
+
+export const row: Story = {
+  name: 'A row of a form on a phone',
+  about:
+    '`tone="row"`: a field folded to one bordered row the column’s width, the label at its start and the chevron at its end, as tall as a thumb’s target - *Colour and symbol* on the phone’s *Create hub*, whose mark beside the name keeps the choice in view while it is closed.',
+  args: { isRow: true },
+};
