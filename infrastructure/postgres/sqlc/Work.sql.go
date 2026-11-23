@@ -11,6 +11,29 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const acknowledgePrivateHubAccess = `-- name: AcknowledgePrivateHubAccess :execrows
+INSERT INTO private_hub_access_acknowledgement (tenant_id, access_id, account_id, acknowledged_at)
+VALUES (current_tenant_id(), $1::uuid, $2::uuid,
+        $3::timestamptz)
+ON CONFLICT (tenant_id, access_id, account_id) DO NOTHING
+`
+
+type AcknowledgePrivateHubAccessParams struct {
+	AccessID       pgtype.UUID
+	AccountID      pgtype.UUID
+	AcknowledgedAt pgtype.Timestamptz
+}
+
+// A member's confirmation of an access they were told of, written once: a second finds the row and
+// writes nothing, so the caller knows whether this was the first.
+func (q *Queries) AcknowledgePrivateHubAccess(ctx context.Context, arg AcknowledgePrivateHubAccessParams) (int64, error) {
+	result, err := q.db.Exec(ctx, acknowledgePrivateHubAccess, arg.AccessID, arg.AccountID, arg.AcknowledgedAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const childCompletion = `-- name: ChildCompletion :one
 SELECT
   count(*)::int AS total,
@@ -371,9 +394,12 @@ func (q *Queries) CountOpenItemsByAssignee(ctx context.Context, accountIds []pgt
 }
 
 const emergencyNoticesFor = `-- name: EmergencyNoticesFor :many
-SELECT x.id, x.tenant_id, x.hub_id, x.opened_by, x.reason, x.opened_at, x.ends_at
+SELECT x.id, x.tenant_id, x.hub_id, x.opened_by, x.reason, x.opened_at, x.ends_at,
+       k.acknowledged_at
 FROM notification n
 JOIN private_hub_access x ON x.id = n.private_hub_access_id
+LEFT JOIN private_hub_access_acknowledgement k
+  ON k.tenant_id = x.tenant_id AND k.access_id = x.id AND k.account_id = n.recipient_id
 WHERE n.recipient_id = $1::uuid
   AND n.category = 'EMERGENCY_ACCESS'
   AND x.opened_at >= $2::timestamptz
@@ -385,17 +411,29 @@ type EmergencyNoticesForParams struct {
 	Since       pgtype.Timestamptz
 }
 
+type EmergencyNoticesForRow struct {
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	HubID          pgtype.UUID
+	OpenedBy       pgtype.UUID
+	Reason         string
+	OpenedAt       pgtype.Timestamptz
+	EndsAt         pgtype.Timestamptz
+	AcknowledgedAt pgtype.Timestamptz
+}
+
 // The emergency accesses a person was told of since a moment, from their own notification
 // records, whatever the mail did: what the web app shows a person without a mailbox (ADR-0073 §4).
-func (q *Queries) EmergencyNoticesFor(ctx context.Context, arg EmergencyNoticesForParams) ([]PrivateHubAccess, error) {
+// Each with the person's own confirmation, if any; nobody else's.
+func (q *Queries) EmergencyNoticesFor(ctx context.Context, arg EmergencyNoticesForParams) ([]EmergencyNoticesForRow, error) {
 	rows, err := q.db.Query(ctx, emergencyNoticesFor, arg.RecipientID, arg.Since)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []PrivateHubAccess{}
+	items := []EmergencyNoticesForRow{}
 	for rows.Next() {
-		var i PrivateHubAccess
+		var i EmergencyNoticesForRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.TenantID,
@@ -404,6 +442,7 @@ func (q *Queries) EmergencyNoticesFor(ctx context.Context, arg EmergencyNoticesF
 			&i.Reason,
 			&i.OpenedAt,
 			&i.EndsAt,
+			&i.AcknowledgedAt,
 		); err != nil {
 			return nil, err
 		}

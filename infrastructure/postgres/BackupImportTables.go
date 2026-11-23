@@ -1640,6 +1640,17 @@ var importers = map[string]importer{
 			return queries.ClearPrivateHubAccess(ctx)
 		},
 	},
+	"private_hub_access_acknowledgement": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportPrivateHubAccessAcknowledgement(ctx, sqlc.ImportPrivateHubAccessAcknowledgementParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsPrivateHubAccessAcknowledgement(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearPrivateHubAccessAcknowledgement(ctx)
+		},
+	},
 	"container_milestone": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportContainerMilestone(ctx, sqlc.ImportContainerMilestoneParams{Payload: payload, Overwrite: overwrite})

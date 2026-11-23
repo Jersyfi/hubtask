@@ -1308,13 +1308,25 @@ ORDER BY a.id;
 -- name: EmergencyNoticesFor :many
 -- The emergency accesses a person was told of since a moment, from their own notification
 -- records, whatever the mail did: what the web app shows a person without a mailbox (ADR-0073 §4).
-SELECT x.id, x.tenant_id, x.hub_id, x.opened_by, x.reason, x.opened_at, x.ends_at
+-- Each with the person's own confirmation, if any; nobody else's.
+SELECT x.id, x.tenant_id, x.hub_id, x.opened_by, x.reason, x.opened_at, x.ends_at,
+       k.acknowledged_at
 FROM notification n
 JOIN private_hub_access x ON x.id = n.private_hub_access_id
+LEFT JOIN private_hub_access_acknowledgement k
+  ON k.tenant_id = x.tenant_id AND k.access_id = x.id AND k.account_id = n.recipient_id
 WHERE n.recipient_id = sqlc.arg('recipient_id')::uuid
   AND n.category = 'EMERGENCY_ACCESS'
   AND x.opened_at >= sqlc.arg('since')::timestamptz
 ORDER BY x.opened_at DESC, x.id DESC;
+
+-- name: AcknowledgePrivateHubAccess :execrows
+-- A member's confirmation of an access they were told of, written once: a second finds the row and
+-- writes nothing, so the caller knows whether this was the first.
+INSERT INTO private_hub_access_acknowledgement (tenant_id, access_id, account_id, acknowledged_at)
+VALUES (current_tenant_id(), sqlc.arg('access_id')::uuid, sqlc.arg('account_id')::uuid,
+        sqlc.arg('acknowledged_at')::timestamptz)
+ON CONFLICT (tenant_id, access_id, account_id) DO NOTHING;
 
 -- name: FindPrivateHubAccess :one
 -- One emergency access with its hub's name: what the members' mail says at delivery.

@@ -554,6 +554,21 @@ FROM (
   ORDER BY s.key_1
   LIMIT sqlc.arg('batch')::int;
 
+-- name: ExportPrivateHubAccessAcknowledgements :many
+-- Exported whole: a confirmation is written once and goes with its access or its account.
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.access_id::text || '/' || x.account_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.access_id AS key_1,
+         x.account_id AS key_2
+  FROM private_hub_access_acknowledgement x
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;
+
 -- name: ExportContainerMilestones :many
 -- Exported whole: a milestone goes with its container and leaves no deletion marker of its own.
 SELECT s.record_id, s.changed_at, s.payload

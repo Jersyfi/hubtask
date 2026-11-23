@@ -5175,6 +5175,54 @@ func (q *Queries) ExportPosts(ctx context.Context, arg ExportPostsParams) ([]Exp
 	return items, nil
 }
 
+const exportPrivateHubAccessAcknowledgements = `-- name: ExportPrivateHubAccessAcknowledgements :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.access_id::text || '/' || x.account_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.access_id AS key_1,
+         x.account_id AS key_2
+  FROM private_hub_access_acknowledgement x
+) s
+  WHERE (s.key_1, s.key_2) > ($1::uuid, $2::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT $3::int
+`
+
+type ExportPrivateHubAccessAcknowledgementsParams struct {
+	AfterID     pgtype.UUID
+	AfterSecond pgtype.UUID
+	Batch       int32
+}
+
+type ExportPrivateHubAccessAcknowledgementsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+// Exported whole: a confirmation is written once and goes with its access or its account.
+func (q *Queries) ExportPrivateHubAccessAcknowledgements(ctx context.Context, arg ExportPrivateHubAccessAcknowledgementsParams) ([]ExportPrivateHubAccessAcknowledgementsRow, error) {
+	rows, err := q.db.Query(ctx, exportPrivateHubAccessAcknowledgements, arg.AfterID, arg.AfterSecond, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportPrivateHubAccessAcknowledgementsRow{}
+	for rows.Next() {
+		var i ExportPrivateHubAccessAcknowledgementsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportPrivateHubAccesses = `-- name: ExportPrivateHubAccesses :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

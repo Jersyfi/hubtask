@@ -1347,6 +1347,18 @@ func (q *Queries) ClearPrivateHubAccess(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearPrivateHubAccessAcknowledgement = `-- name: ClearPrivateHubAccessAcknowledgement :execrows
+DELETE FROM private_hub_access_acknowledgement
+`
+
+func (q *Queries) ClearPrivateHubAccessAcknowledgement(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPrivateHubAccessAcknowledgement)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearPublicForm = `-- name: ClearPublicForm :execrows
 DELETE FROM public_form
 `
@@ -3170,6 +3182,17 @@ SELECT EXISTS (SELECT 1 FROM private_hub_access WHERE id = ($1::jsonb->>'id')::u
 
 func (q *Queries) HoldsPrivateHubAccess(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsPrivateHubAccess, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPrivateHubAccessAcknowledgement = `-- name: HoldsPrivateHubAccessAcknowledgement :one
+SELECT EXISTS (SELECT 1 FROM private_hub_access_acknowledgement WHERE access_id = ($1::jsonb->>'access_id')::uuid AND account_id = ($1::jsonb->>'account_id')::uuid) AS held
+`
+
+func (q *Queries) HoldsPrivateHubAccessAcknowledgement(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPrivateHubAccessAcknowledgement, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -7468,6 +7491,44 @@ type ImportPrivateHubAccessParams struct {
 // rather than refused by the foreign key.
 func (q *Queries) ImportPrivateHubAccess(ctx context.Context, arg ImportPrivateHubAccessParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importPrivateHubAccess, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPrivateHubAccessAcknowledgement = `-- name: ImportPrivateHubAccessAcknowledgement :execrows
+INSERT INTO private_hub_access_acknowledgement (
+  tenant_id,
+  access_id,
+  account_id,
+  acknowledged_at
+)
+SELECT
+  r.tenant_id,
+  r.access_id,
+  r.account_id,
+  r.acknowledged_at
+FROM jsonb_populate_record(
+  NULL::private_hub_access_acknowledgement,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+WHERE EXISTS (SELECT 1 FROM private_hub_access x WHERE x.id = r.access_id)
+  AND EXISTS (SELECT 1 FROM account a WHERE a.id = r.account_id)
+ON CONFLICT (tenant_id, access_id, account_id) DO UPDATE SET
+  acknowledged_at = EXCLUDED.acknowledged_at
+WHERE $2::boolean
+`
+
+type ImportPrivateHubAccessAcknowledgementParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+// A confirmation whose access or account the restore did not bring back confirms nothing, and is
+// skipped rather than refused by the foreign key.
+func (q *Queries) ImportPrivateHubAccessAcknowledgement(ctx context.Context, arg ImportPrivateHubAccessAcknowledgementParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importPrivateHubAccessAcknowledgement, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

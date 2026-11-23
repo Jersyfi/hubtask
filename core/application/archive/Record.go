@@ -556,6 +556,18 @@ var entities = []Entity{
 			{Field: "opened_by", Table: "account"},
 		},
 	},
+	// A member's confirmation that they read the notice of an access (UC-ID-16 check 10): the proof
+	// that they were told, so a restore that brought the access back without it would ask again.
+	// Whole: a row carries no change stamp and goes with its access or its account by cascade. Not
+	// duplicable, as its access is not.
+	{
+		Name: "private_hub_access_acknowledgements", Table: "private_hub_access_acknowledgement",
+		Whole: true, Later: true, Keys: []string{"access_id", "account_id"},
+		References: []Reference{
+			{Field: "access_id", Table: "private_hub_access"},
+			{Field: "account_id", Table: "account"},
+		},
+	},
 	// When a collection or hub was last left with nothing open (UC-WRK-29 check 4). Archived
 	// although a later finish would record it again: until then a restore would take from the
 	// collection a date its members saw on it. It names nobody. Whole, because a milestone goes

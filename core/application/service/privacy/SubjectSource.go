@@ -60,6 +60,8 @@ var subjectColumns = map[string][]string{
 	"legal_hold":       {"placed_by", "released_by"},
 	// The emergency accesses they opened, with the reason they wrote (ADR-0073 §4).
 	"private_hub_access": {"opened_by"},
+	// Their confirmations that they read the notice of an access (UC-ID-16 check 10).
+	"private_hub_access_acknowledgement": {"account_id"},
 	// The workspace's own roles they hold, and their own settings: a person's level of the settings
 	// catalogue is the one whose scope is their account.
 	"custom_role_grant": {"account_id"},

@@ -2854,6 +2854,13 @@ type PrivateHubAccess struct {
 	EndsAt   pgtype.Timestamptz
 }
 
+type PrivateHubAccessAcknowledgement struct {
+	TenantID       pgtype.UUID
+	AccessID       pgtype.UUID
+	AccountID      pgtype.UUID
+	AcknowledgedAt pgtype.Timestamptz
+}
+
 type PublicForm struct {
 	TenantID     pgtype.UUID
 	CollectionID pgtype.UUID

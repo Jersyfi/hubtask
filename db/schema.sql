@@ -2969,6 +2969,22 @@ CREATE TABLE private_hub_access (
 );
 CREATE INDEX private_hub_access_hub_idx ON private_hub_access (tenant_id, hub_id, opened_at DESC);
 
+-- A member's confirmation that they read the notice of an access (migration 0448, UC-ID-16 check 10):
+-- one row per member per access, identifiers and a moment; gone with the access and with the account.
+CREATE TABLE private_hub_access_acknowledgement (
+  tenant_id       uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  access_id       uuid NOT NULL,
+  account_id      uuid NOT NULL,
+  acknowledged_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, access_id, account_id),
+  CONSTRAINT private_hub_access_acknowledgement_access_id_fkey
+    FOREIGN KEY (tenant_id, access_id) REFERENCES private_hub_access (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT private_hub_access_acknowledgement_account_id_fkey
+    FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX private_hub_access_acknowledgement_account_idx
+  ON private_hub_access_acknowledgement (tenant_id, account_id);
+
 -- ============================== Notification ===============================
 
 -- What somebody is to be told, and how far that got. References and no content: what an
@@ -4038,6 +4054,7 @@ BEGIN
     'webhook_subscription','webhook_delivery','calendar_feed',
     'outbox_event','event_consumption','idempotency_key','usage_record',
     'notification','notification_preference','private_hub_access',
+    'private_hub_access_acknowledgement',
     'audit_anchor','audit_pseudonym','retention_policy','data_subject_request','consent_record',
     'ai_objection_notice','address_change_notice','blocked_domain',
     'erasure_kept',
