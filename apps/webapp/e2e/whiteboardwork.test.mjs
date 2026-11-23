@@ -357,7 +357,7 @@ for (const width of [1280, 390]) {
     let isGone = false;
     await context.route(`**/api/v1/whiteboards/${BOARD_ID}**`, (route) => {
       const request = route.request();
-      if (isGone) asked.push(`${request.method()} ${new URL(request.url()).pathname.replace('/api/v1', '')}`);
+      if (isGone || request.method() === 'DELETE') asked.push(`${request.method()} ${new URL(request.url()).pathname.replace('/api/v1', '')}`);
       if (request.method() === 'DELETE') {
         isGone = true;
         return route.fulfill({ json: board(ELEMENTS, { trashed_at: new Date().toISOString() }) });
@@ -377,6 +377,7 @@ for (const width of [1280, 390]) {
     await page.getByRole('heading', { name: 'All contents' }).first().waitFor({ timeout: 10_000 });
     assert.equal(await page.getByText('The whiteboard was not found.').count(), 0, 'the board that went was shown as not found');
     assert.ok(!passed.slice(1).includes(`/whiteboards/${BOARD_ID}`), `the board was opened again: ${passed.join(' → ')}`);
+    assert.deepEqual(asked.filter((each) => each.startsWith('DELETE')), [`DELETE /whiteboards/${BOARD_ID}`], 'the trash sent no single delete of the board');
     assert.deepEqual(asked.filter((each) => each.startsWith('GET')), [], 'the trashed board was asked for after its delete');
     assert.deepEqual(failures, []);
   });
