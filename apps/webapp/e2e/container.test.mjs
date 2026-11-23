@@ -432,13 +432,14 @@ test('chromium: 375 px — while picking, a press on a row\'s label chip lands o
 // UC-WRK-01 check 12: *Create collection* offers its kinds as one choice, *Like its hub* chosen
 // when the dialog opens, the chosen kind marked by its edge and a tick - the hub page's tile.
 
-/** Opens the hub, answers the collection's creation with `made`, and opens the dialog. */
-async function openCreateCollection(browser, width, height, made) {
+/** Opens the hub, answers the collection's creation with `made` - or `refusal`, a problem - and opens the dialog. */
+async function openCreateCollection(browser, width, height, made, refusal) {
   const { page, failures, context } = await signedIn(browser, width, height, width < 600 ? { hasTouch: true } : {});
   const sent = [];
   await page.route('**/api/v1/containers', (route, request) => {
     if (request.method() !== 'POST') return route.fallback();
     sent.push(request.postDataJSON());
+    if (refusal) return route.fulfill({ status: refusal.status, contentType: 'application/problem+json', body: JSON.stringify(refusal) });
     return route.fulfill({ status: 201, json: made });
   });
   await page.goto(`${served.origin}/hubs/${HUB.id}`);
@@ -564,5 +565,28 @@ test('chromium: 390 px — Create collection is the whole screen, one tile per r
   assert.equal(sent[0].preset, 'FLOW');
   assert.equal(sent[0].name, 'Garden');
   assert.equal(sent[0].color_token, 'violet', 'the chosen colour is not sent');
+  assert.deepEqual(failures, []);
+});
+
+// A refusal that names no field is the form's: said where it is seen, at the foot above the
+// buttons, and the focus moves to it, so it is read out and not left under the fold.
+test('chromium: 1280 × 800 — Create collection refused for another reason than the name: the refusal is in view and takes the focus', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, dialog, sent, close } = await openCreateCollection(browser, 1280, 800, COLLECTION, { status: 403, code: 'errors.forbidden', detail_code: 'access.not_permitted' });
+  t.after(close);
+
+  await dialog.getByRole('textbox', { name: 'Name' }).fill('Garden');
+  await dialog.getByRole('button', { name: 'Create', exact: true }).first().click();
+  const alert = dialog.getByRole('alert');
+  await alert.waitFor({ timeout: 5_000 });
+  await page.waitForFunction(() => document.activeElement?.getAttribute('role') === 'alert', null, { timeout: 5_000 });
+  const seen = await alert.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    const body = element.closest('dialog').querySelector('.body')?.getBoundingClientRect() ?? element.closest('dialog').getBoundingClientRect();
+    return { top: box.top, bottom: box.bottom, bodyTop: body.top, bodyBottom: body.bottom };
+  });
+  assert.ok(seen.top >= seen.bodyTop && seen.bottom <= seen.bodyBottom, `the refusal is out of view: ${JSON.stringify(seen)}`);
+  assert.equal(sent.length, 1);
+  assert.equal(await dialog.getByRole('textbox', { name: 'Name' }).getAttribute('aria-invalid'), null, 'the name is marked for a refusal that is not about it');
   assert.deepEqual(failures, []);
 });

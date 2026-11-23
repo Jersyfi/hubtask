@@ -32,7 +32,7 @@
 
   import type { LabelToken } from '@hubtask/design-system';
   import type { TransportError } from '@hubtask/sync-engine';
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
 
   interface Props {
     isOpen: boolean;
@@ -106,8 +106,12 @@
   const nameErrorId = `${uid}-name-error`;
   const nameError = $derived(isNameMissing ? t('app.workspace.name_required') : isNameFailure ? failure?.message : undefined);
 
-  // As on the hub's page: a missing or taken name marks the field and takes the focus there.
+  // As on the hub's page: a missing or taken name marks the field and takes the focus there. A
+  // refusal that names no field is the form's: the focus moves to it, which scrolls it into view
+  // above the buttons and reads it out (design-system.md §13, G5).
   const focusName = () => queueMicrotask(() => nameInput?.focus());
+  let failureNote = $state<HTMLElement | null>(null);
+  const focusFailure = () => void tick().then(() => failureNote?.focus());
 
   async function create() {
     if (isSaving) return;
@@ -137,6 +141,7 @@
       isNameFailure =
         problem.detailCode === 'containers.name_taken' || failure.fields.has('/name');
       if (isNameFailure) focusName();
+      else focusFailure();
     } finally {
       isSaving = false;
     }
@@ -180,13 +185,14 @@
     <!-- Everything that is not about the name is a sentence above the buttons rather than a field
          error, because there is no field for it to land on. -->
     {#if failure && !isNameFailure}
-      <p class="failure" role="alert">{failure.message}</p>
+      <p class="failure" role="alert" tabindex="-1" bind:this={failureNote}>{failure.message}</p>
     {/if}
   </Stack>
 </Dialog>
 
 <style>
-  .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
+  .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; scroll-margin-block: var(--sp-200); }
+  .failure:focus { outline: none; }
   .name-field { display: grid; gap: var(--sp-050); }
   .name {
     display: flex;
