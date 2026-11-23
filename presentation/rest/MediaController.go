@@ -55,6 +55,9 @@ type MediaDoor struct {
 	// Clock judges an expiring capability: a port rather than time.Now, so that a test can stand
 	// at the moment a token expires.
 	Clock clock.Clock
+	// SignIn admits a picture the sign-in card draws (GetWorkspacePicture). Nil leaves the route
+	// answering not wired.
+	SignIn SignInPictureReader
 }
 
 // UploadMediaContent answers PUT /media/{mediaId}:content.

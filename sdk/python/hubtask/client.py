@@ -1821,6 +1821,10 @@ class Client:
         """What a sign-in screen may know before anybody has signed in"""
         return self._call("GET", "/auth/sign-in-rules", {}, None, {}, None, "none", None, "json")
 
+    def get_workspace_picture(self, media_id: str) -> bytes:
+        """A picture the sign-in card draws"""
+        return self._call("GET", "/auth/workspace-pictures/{mediaId}", {"mediaId": media_id}, None, {}, None, "none", None, "raw")
+
     def enroll_totp(self, body: "TotpEnrollmentStart") -> "TotpEnrollment":
         """Begin TOTP enrolment"""
         return self._call("POST", "/auth/mfa/totp:enroll", {}, None, {}, body, "json", "application/json", "json")

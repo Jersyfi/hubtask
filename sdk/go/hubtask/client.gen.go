@@ -26033,6 +26033,18 @@ type SignInPasswordChange struct {
 	PendingToken string `json:"pending_token"`
 }
 
+// SignInPictures The workspace's pictures the sign-in card draws, each by the identifier `GET /auth/workspace-pictures/{mediaId}` serves it under, at the address the rules were read at. With the workspace's name only the symbol is drawn beside it; with the logo alone the logo for the theme, the other theme's where only one exists, and the symbol where neither does. A picture the workspace does not have, or that choice does not draw, is absent.
+type SignInPictures struct {
+	// LogoDarkMediaId The logo drawn on the dark theme.
+	LogoDarkMediaId *openapi_types.UUID `json:"logo_dark_media_id,omitempty"`
+
+	// LogoLightMediaId The logo drawn on the light theme.
+	LogoLightMediaId *openapi_types.UUID `json:"logo_light_media_id,omitempty"`
+
+	// SymbolMediaId The square symbol.
+	SymbolMediaId *openapi_types.UUID `json:"symbol_media_id,omitempty"`
+}
+
 // SignInPolicy The workspace's sign-in rule, every switch at the levels that decide it: what is in force here, what the level above set, and whether a lock is on it.
 // **A locked switch is answered, not withheld.** A setting that simply is not there is a setting somebody opens a support ticket about; one shown with its value, its reason and a control that is switched off is one they understand.
 type SignInPolicy struct {
@@ -26203,11 +26215,17 @@ type SignInRules struct {
 	// SignInNames True while this workspace has at least one managed account - a person who signs in with a sign-in name instead of an address - so the card's first field asks for either. False everywhere else, a host without a workspace included.
 	SignInNames *bool `json:"sign_in_names,omitempty"`
 
+	// WorkspaceHeader What the card shows in the product's mark's place: the workspace's name, or its own logo alone. Absent where the card shows the product's name - no workspace answers the address the request arrived at, the workspace chose the product's name, or it may not show its own name and logo now.
+	WorkspaceHeader *WorkspaceHeader `json:"workspace_header,omitempty"`
+
 	// WorkspaceHost The host this answer was resolved for, which the card shows beside the workspace's name.
 	WorkspaceHost string `json:"workspace_host"`
 
 	// WorkspaceName The display name of the workspace this host answers, which is what the card names. Absent where no workspace answers the host.
 	WorkspaceName *string `json:"workspace_name,omitempty"`
+
+	// WorkspacePictures Present with `workspace_header`; the pictures that choice draws.
+	WorkspacePictures *SignInPictures `json:"workspace_pictures,omitempty"`
 }
 
 // SlaGoal defines model for SlaGoal.
@@ -37289,6 +37307,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with DELETE /auth/tokens/{tokenId} (the `RevokeAccessToken` operationId).
 	RevokeAccessToken(ctx context.Context, tokenId TokenId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetWorkspacePicture A picture the sign-in card draws
+	//
+	// The bytes of one picture `GET /auth/sign-in-rules` names in `workspace_pictures`, for a browser without a session to draw: only a picture of the workspace the address the request arrived at answers, only while the sign-in card shows it, and only as the raster image type it was stored as. Anything else - another workspace's picture, one that was replaced or removed, the installation's own address, a workspace that shows the product's name - is the same 404. A picture's identifier changes when the picture changes, so the answer may be cached for as long as the address stands.
+	//
+	// Corresponds with GET /auth/workspace-pictures/{mediaId} (the `GetWorkspacePicture` operationId).
+	GetWorkspacePicture(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// StartInboundRunWithBody Start a rule from outside
 	//
@@ -52303,6 +52328,23 @@ func (c *Client) CreateAccessToken(ctx context.Context, params *CreateAccessToke
 // Corresponds with DELETE /auth/tokens/{tokenId} (the `RevokeAccessToken` operationId).
 func (c *Client) RevokeAccessToken(ctx context.Context, tokenId TokenId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRevokeAccessTokenRequest(c.Server, tokenId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetWorkspacePicture A picture the sign-in card draws
+//
+// The bytes of one picture `GET /auth/sign-in-rules` names in `workspace_pictures`, for a browser without a session to draw: only a picture of the workspace the address the request arrived at answers, only while the sign-in card shows it, and only as the raster image type it was stored as. Anything else - another workspace's picture, one that was replaced or removed, the installation's own address, a workspace that shows the product's name - is the same 404. A picture's identifier changes when the picture changes, so the answer may be cached for as long as the address stands.
+//
+// Corresponds with GET /auth/workspace-pictures/{mediaId} (the `GetWorkspacePicture` operationId).
+func (c *Client) GetWorkspacePicture(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetWorkspacePictureRequest(c.Server, mediaId)
 	if err != nil {
 		return nil, err
 	}
@@ -80186,6 +80228,40 @@ func NewRevokeAccessTokenRequest(server string, tokenId TokenId) (*http.Request,
 	}
 
 	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetWorkspacePictureRequest constructs an http.Request for the GetWorkspacePicture method
+func NewGetWorkspacePictureRequest(server string, mediaId MediaId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "mediaId", mediaId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/workspace-pictures/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -117480,6 +117556,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with DELETE /auth/tokens/{tokenId} (the `RevokeAccessToken` operationId).
 	RevokeAccessTokenWithResponse(ctx context.Context, tokenId TokenId, reqEditors ...RequestEditorFn) (*RevokeAccessTokenResult, error)
 
+	// GetWorkspacePictureWithResponse A picture the sign-in card draws
+	//
+	// The bytes of one picture `GET /auth/sign-in-rules` names in `workspace_pictures`, for a browser without a session to draw: only a picture of the workspace the address the request arrived at answers, only while the sign-in card shows it, and only as the raster image type it was stored as. Anything else - another workspace's picture, one that was replaced or removed, the installation's own address, a workspace that shows the product's name - is the same 404. A picture's identifier changes when the picture changes, so the answer may be cached for as long as the address stands.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /auth/workspace-pictures/{mediaId} (the `GetWorkspacePicture` operationId).
+	GetWorkspacePictureWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*GetWorkspacePictureResult, error)
+
 	// StartInboundRunWithBodyWithResponse Start a rule from outside
 	//
 	// The other half of the `INBOUND_WEBHOOK` trigger: an external system posts here and the rule's run begins, in the same engine every other trigger produces into.
@@ -136854,6 +136939,47 @@ func (r RevokeAccessTokenResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r RevokeAccessTokenResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetWorkspacePictureResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GetWorkspacePictureResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r GetWorkspacePictureResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetWorkspacePictureResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetWorkspacePictureResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetWorkspacePictureResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -176581,6 +176707,21 @@ func (c *ClientWithResponses) RevokeAccessTokenWithResponse(ctx context.Context,
 	return ParseRevokeAccessTokenResult(rsp)
 }
 
+// GetWorkspacePictureWithResponse A picture the sign-in card draws
+//
+// The bytes of one picture `GET /auth/sign-in-rules` names in `workspace_pictures`, for a browser without a session to draw: only a picture of the workspace the address the request arrived at answers, only while the sign-in card shows it, and only as the raster image type it was stored as. Anything else - another workspace's picture, one that was replaced or removed, the installation's own address, a workspace that shows the product's name - is the same 404. A picture's identifier changes when the picture changes, so the answer may be cached for as long as the address stands.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /auth/workspace-pictures/{mediaId} (the `GetWorkspacePicture` operationId).
+func (c *ClientWithResponses) GetWorkspacePictureWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*GetWorkspacePictureResult, error) {
+	rsp, err := c.GetWorkspacePicture(ctx, mediaId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetWorkspacePictureResult(rsp)
+}
+
 // StartInboundRunWithBodyWithResponse Start a rule from outside
 //
 // The other half of the `INBOUND_WEBHOOK` trigger: an external system posts here and the rule's run begins, in the same engine every other trigger produces into.
@@ -199313,6 +199454,32 @@ func ParseRevokeAccessTokenResult(rsp *http.Response) (*RevokeAccessTokenResult,
 	case rsp.StatusCode == 204:
 		break // No content-type
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetWorkspacePictureResult parses an HTTP response from a GetWorkspacePictureWithResponse call
+func ParseGetWorkspacePictureResult(rsp *http.Response) (*GetWorkspacePictureResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetWorkspacePictureResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {

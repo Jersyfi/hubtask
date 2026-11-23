@@ -49,6 +49,9 @@ var PublicRoutes = map[string]bool{
 	// guesser can use, and a host no workspace answers at gets the installation's own level rather
 	// than a refusal that would be a directory of hosts.
 	http.MethodGet + " " + APIBasePath + "/auth/sign-in-rules": true,
+	// A picture that card draws, for the same visitor: only one the card at this address draws,
+	// decided in the application layer, and every other request the same 404 (T-34).
+	http.MethodGet + " " + APIBasePath + "/auth/workspace-pictures/{mediaId}": true,
 	// The change step of a sign-in is public for the pending credential's reason (ADR-0068 §3): the
 	// credential in the body is the whole of what authenticates the call, and the caller has no
 	// bearer yet - that is the thing this call exists to produce.

@@ -2289,6 +2289,12 @@ export class HubtaskClient {
     return this.call("GET", "/auth/sign-in-rules", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** A picture the sign-in card draws
+   * Public: sent without a bearer where the client holds none. */
+  getWorkspacePicture(mediaId: string, options: CallOptions = {}): Promise<Response> {
+    return this.call("GET", "/auth/workspace-pictures/{mediaId}", { "mediaId": mediaId }, undefined, {  }, undefined, "none", undefined, "raw", options.signal);
+  }
+
   /** Begin TOTP enrolment
    * Public: sent without a bearer where the client holds none. */
   enrollTotp(body: NonNullable<operations["enrollTotp"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["enrollTotp"]['responses'][201]['content']["application/json"]> {

@@ -182,6 +182,10 @@ func (pending) SetUpInstallation(w http.ResponseWriter, r *http.Request) { notAv
 // The sign-in surface of ADR-0068.
 func (pending) GetSignInRules(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+func (pending) GetWorkspacePicture(w http.ResponseWriter, r *http.Request, _ openapi.MediaId) {
+	notAvailable(w, r)
+}
+
 func (pending) ChangePassword(w http.ResponseWriter, r *http.Request, _ openapi.ChangePasswordParams) {
 	notAvailable(w, r)
 }

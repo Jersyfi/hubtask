@@ -26027,6 +26027,18 @@ type SignInPasswordChange struct {
 	PendingToken string `json:"pending_token"`
 }
 
+// SignInPictures The workspace's pictures the sign-in card draws, each by the identifier `GET /auth/workspace-pictures/{mediaId}` serves it under, at the address the rules were read at. With the workspace's name only the symbol is drawn beside it; with the logo alone the logo for the theme, the other theme's where only one exists, and the symbol where neither does. A picture the workspace does not have, or that choice does not draw, is absent.
+type SignInPictures struct {
+	// LogoDarkMediaId The logo drawn on the dark theme.
+	LogoDarkMediaId *openapi_types.UUID `json:"logo_dark_media_id,omitempty"`
+
+	// LogoLightMediaId The logo drawn on the light theme.
+	LogoLightMediaId *openapi_types.UUID `json:"logo_light_media_id,omitempty"`
+
+	// SymbolMediaId The square symbol.
+	SymbolMediaId *openapi_types.UUID `json:"symbol_media_id,omitempty"`
+}
+
 // SignInPolicy The workspace's sign-in rule, every switch at the levels that decide it: what is in force here, what the level above set, and whether a lock is on it.
 // **A locked switch is answered, not withheld.** A setting that simply is not there is a setting somebody opens a support ticket about; one shown with its value, its reason and a control that is switched off is one they understand.
 type SignInPolicy struct {
@@ -26197,11 +26209,17 @@ type SignInRules struct {
 	// SignInNames True while this workspace has at least one managed account - a person who signs in with a sign-in name instead of an address - so the card's first field asks for either. False everywhere else, a host without a workspace included.
 	SignInNames *bool `json:"sign_in_names,omitempty"`
 
+	// WorkspaceHeader What the card shows in the product's mark's place: the workspace's name, or its own logo alone. Absent where the card shows the product's name - no workspace answers the address the request arrived at, the workspace chose the product's name, or it may not show its own name and logo now.
+	WorkspaceHeader *WorkspaceHeader `json:"workspace_header,omitempty"`
+
 	// WorkspaceHost The host this answer was resolved for, which the card shows beside the workspace's name.
 	WorkspaceHost string `json:"workspace_host"`
 
 	// WorkspaceName The display name of the workspace this host answers, which is what the card names. Absent where no workspace answers the host.
 	WorkspaceName *string `json:"workspace_name,omitempty"`
+
+	// WorkspacePictures Present with `workspace_header`; the pictures that choice draws.
+	WorkspacePictures *SignInPictures `json:"workspace_pictures,omitempty"`
 }
 
 // SlaGoal defines model for SlaGoal.
@@ -34702,6 +34720,9 @@ type ServerInterface interface {
 	// RevokeAccessToken Revoke a personal access token
 	// (DELETE /auth/tokens/{tokenId})
 	RevokeAccessToken(w http.ResponseWriter, r *http.Request, tokenId TokenId)
+	// GetWorkspacePicture A picture the sign-in card draws
+	// (GET /auth/workspace-pictures/{mediaId})
+	GetWorkspacePicture(w http.ResponseWriter, r *http.Request, mediaId MediaId)
 	// StartInboundRun Start a rule from outside
 	// (POST /automation/inbound/{token})
 	StartInboundRun(w http.ResponseWriter, r *http.Request, token string)
@@ -42336,6 +42357,32 @@ func (siw *ServerInterfaceWrapper) RevokeAccessToken(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RevokeAccessToken(w, r, tokenId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetWorkspacePicture operation middleware
+func (siw *ServerInterfaceWrapper) GetWorkspacePicture(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetWorkspacePicture(w, r, mediaId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -67402,6 +67449,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/sessions:view-as", wrapper.GetViewAs)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:view-as", wrapper.StartViewAs)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/sign-in-rules", wrapper.GetSignInRules)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/workspace-pictures/{mediaId}", wrapper.GetWorkspacePicture)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:enroll", wrapper.EnrollTotp)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:confirm", wrapper.ConfirmTotp)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/step-up", wrapper.StepUp)

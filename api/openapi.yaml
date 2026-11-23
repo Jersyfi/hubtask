@@ -12018,6 +12018,35 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /auth/workspace-pictures/{mediaId}:
+    parameters:
+      - $ref: "#/components/parameters/MediaId"
+    get:
+      tags: [auth]
+      operationId: getWorkspacePicture
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Media
+      security: []
+      summary: A picture the sign-in card draws
+      description: >
+        The bytes of one picture `GET /auth/sign-in-rules` names in `workspace_pictures`, for a
+        browser without a session to draw: only a picture of the workspace the address the request
+        arrived at answers, only while the sign-in card shows it, and only as the raster image type
+        it was stored as. Anything else - another workspace's picture, one that was replaced or
+        removed, the installation's own address, a workspace that shows the product's name - is the
+        same 404. A picture's identifier changes when the picture changes, so the answer may be
+        cached for as long as the address stands.
+      responses:
+        "200":
+          description: The picture
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /auth/mfa/totp:enroll:
     post:
       tags: [auth]
@@ -30578,6 +30607,16 @@ components:
           description: >
             The display name of the workspace this host answers, which is what the card names. Absent
             where no workspace answers the host.
+        workspace_header:
+          $ref: "#/components/schemas/WorkspaceHeader"
+          description: >
+            What the card shows in the product's mark's place: the workspace's name, or its own logo
+            alone. Absent where the card shows the product's name - no workspace answers the
+            address the request arrived at, the workspace chose the product's name, or it may not
+            show its own name and logo now.
+        workspace_pictures:
+          $ref: "#/components/schemas/SignInPictures"
+          description: Present with `workspace_header`; the pictures that choice draws.
         methods:
           type: array
           items: { $ref: "#/components/schemas/SignInMethod" }
@@ -30604,6 +30643,28 @@ components:
             True while this workspace has at least one managed account - a person who signs in with
             a sign-in name instead of an address - so the card's first field asks for either. False
             everywhere else, a host without a workspace included.
+
+    SignInPictures:
+      type: object
+      description: >
+        The workspace's pictures the sign-in card draws, each by the identifier
+        `GET /auth/workspace-pictures/{mediaId}` serves it under, at the address the rules were read
+        at. With the workspace's name only the symbol is drawn beside it; with the logo alone the
+        logo for the theme, the other theme's where only one exists, and the symbol where neither
+        does. A picture the workspace does not have, or that choice does not draw, is absent.
+      properties:
+        logo_light_media_id:
+          type: string
+          format: uuid
+          description: The logo drawn on the light theme.
+        logo_dark_media_id:
+          type: string
+          format: uuid
+          description: The logo drawn on the dark theme.
+        symbol_media_id:
+          type: string
+          format: uuid
+          description: The square symbol.
 
     MfaChallenge:
       type: object

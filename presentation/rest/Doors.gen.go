@@ -2845,6 +2845,15 @@ func (c *RestController) GetWorkItem(w http.ResponseWriter, r *http.Request, ite
 	c.door(w, r, restDoors["getWorkItem"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(workItemResponse))
 }
 
+// GetWorkspacePicture answers GET /auth/workspace-pictures/{mediaId} by the adapter in Media, which holds the connection.
+func (c *RestController) GetWorkspacePicture(w http.ResponseWriter, r *http.Request, mediaId openapi.MediaId) {
+	if c.Media == nil {
+		c.pending.GetWorkspacePicture(w, r, mediaId)
+		return
+	}
+	c.Media.GetWorkspacePicture(w, r, mediaId)
+}
+
 // GiveConsent answers POST /privacy/consents:give by the generated mapping.
 func (c *RestController) GiveConsent(w http.ResponseWriter, r *http.Request) {
 	var body openapi.GiveConsentJSONRequestBody

@@ -1227,12 +1227,20 @@ class SignInRules(TypedDict, total=False):
     """The least a sign-in screen needs, and deliberately no more."""
     workspace_host: Required[str]
     workspace_name: str
+    workspace_header: "WorkspaceHeader"
+    workspace_pictures: "SignInPictures"
     methods: Required[list["SignInMethod"]]
     providers: Required[list["ProviderSummary"]]
     password: Required["PasswordRules"]
     legal: Required["LegalLinks"]
     password_fallback: bool
     sign_in_names: bool
+
+class SignInPictures(TypedDict, total=False):
+    """The workspace's pictures the sign-in card draws, each by the identifier `GET /auth/workspace-pictures/{mediaId}` serves it under, at the address the rules were read at. With the workspace's name only the symbol is drawn beside it; with the logo alone the logo for the theme, the other theme's where only one exists, and the symbol where neither does. A picture the workspace does not have, or that choice does not draw, is absent."""
+    logo_light_media_id: str
+    logo_dark_media_id: str
+    symbol_media_id: str
 
 class MfaChallenge(TypedDict, total=False):
     """The second step a two-step sign-in owes. The pending credential is a row with the session machinery's discipline - short-lived, single-use, revoked by the clock - and it can do nothing but complete this sign-in."""
