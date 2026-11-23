@@ -3,7 +3,9 @@
 
 // The workspace's own logo and header choice, on *Administration → Workspace → Name and look*
 // (UC-INS-22 checks 1, 2, 3, 4, 10 and 11, the screen's half; the server's half is proven by the
-// integration and contract tests the use case names). Whoever may rename the workspace uploads a
+// integration and contract tests the use case names), and where every member then sees it
+// (UC-INS-22 checks 5, 8, 9 and 12): the header in light and dark, the tab, the about page, the
+// sign-in card at the workspace's own address. Whoever may rename the workspace uploads a
 // logo for light, one for dark and a square symbol through the three media steps and sees them in
 // the preview of both surfaces; chooses what the header shows and saves it with the section; a
 // refused file is said at its picture; removing the last picture under "the logo alone" returns the
@@ -24,7 +26,12 @@ import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
-const served = await serve(DIST);
+// The policy the binary sends on every answer (security.md §9): a picture is drawn under it.
+const POLICY =
+  "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; " +
+  "connect-src 'self'; manifest-src 'self'; worker-src 'self' blob:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+
+const served = await serve(DIST, { headers: { 'content-security-policy': POLICY } });
 test.after(() => served.close());
 
 const CRC = Array.from({ length: 256 }, (_, n) => {
@@ -73,9 +80,12 @@ const OPEN = { value: true, installation: true, lock: null, source: 'DEFAULT', i
  * A signed-in reader of the workspace whose branding the stub keeps: the three media steps, the
  * three branding writes, every request the walk asserts recorded in `sent`.
  */
-async function open(browser, { width = 1280, height = 900, held = NONE, own = OPEN, permissions = PERMISSIONS.OWNER, refuse = {}, locale } = {}) {
-  const context = await browser.newContext({ viewport: { width, height } });
-  const state = { branding: { ...held }, bytes: {}, next: 0 };
+async function open(browser, {
+  width = 1280, height = 900, held = NONE, own = OPEN, permissions = PERMISSIONS.OWNER, refuse = {}, locale,
+  path: at = '/administration/workspace/name', colorScheme = 'light', name = WORKSPACE.display_name, bytes = {}, broken = [],
+} = {}) {
+  const context = await browser.newContext({ viewport: { width, height }, colorScheme });
+  const state = { branding: { ...held }, bytes: { ...bytes }, next: 0, contents: [] };
   const sent = [];
   const later = new Date(Date.now() + 5 * 60_000).toISOString();
   const record = (id, size) => ({ id, usage: 'WORKSPACE_LOGO', content_type: 'image/png', size, ref_count: 0, created_by: ACCOUNT.id, created_at: '2026-11-23T10:00:00Z' });
@@ -87,7 +97,7 @@ async function open(browser, { width = 1280, height = 900, held = NONE, own = OP
     if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: permissions } });
     if (path === '/accounts/me' && method === 'GET' && locale) return route.fulfill({ json: { ...ACCOUNT, locale } });
     if (path === '/tenant' && method === 'GET') {
-      return route.fulfill({ json: { ...WORKSPACE, branding: state.branding, sign_in_policy: { ...SIGN_IN_POLICY, own_branding: own } } });
+      return route.fulfill({ json: { ...WORKSPACE, display_name: name, branding: state.branding, sign_in_policy: { ...SIGN_IN_POLICY, own_branding: own } } });
     }
     if (path === '/media' && method === 'POST') {
       const id = IDS[state.next];
@@ -102,7 +112,14 @@ async function open(browser, { width = 1280, height = 900, held = NONE, own = OP
       sent.push(['PUT bytes']);
       return route.fulfill({ status: 204 });
     }
-    if (bytes) return route.fulfill({ status: 200, contentType: 'image/png', body: state.bytes[bytes[1]] ?? Buffer.alloc(0) });
+    if (bytes) {
+      state.contents.push(bytes[1]);
+      // The object store refusing a picture: the mark falls back past it.
+      if (broken.includes(bytes[1])) {
+        return route.fulfill({ status: 404, contentType: 'application/problem+json', body: JSON.stringify({ status: 404, code: 'media.not_found' }) });
+      }
+      return route.fulfill({ status: 200, contentType: 'image/png', body: state.bytes[bytes[1]] ?? Buffer.alloc(0) });
+    }
     const confirm = /^\/media\/([^/:]+):confirm$/.exec(path);
     if (confirm) {
       sent.push(['confirm']);
@@ -139,9 +156,16 @@ async function open(browser, { width = 1280, height = 900, held = NONE, own = OP
   const page = await context.newPage();
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
-  await page.goto(`${served.origin}/administration/workspace/name`);
+  await page.goto(`${served.origin}${at}`);
   return { page, sent, state, failures, close: () => context.close() };
 }
+
+/** The bar's home link by its one name: the product's or the workspace's. */
+const homeLink = (page, name) => page.getByRole('banner').getByRole('link', { name, exact: true });
+/** The header's home link, for what it holds. */
+const home = (page) => page.locator('header a.home');
+/** What of the mark is drawn now under the document's theme. */
+const drawnImages = (page) => home(page).locator('img:visible');
 
 const group = (page) => page.locator('[data-branding]');
 const row = (page, picture) => page.locator(`[data-branding-picture="${picture}"]`);
@@ -251,14 +275,15 @@ test('chromium: 1280 px — a refused file is said at its picture, and the pictu
 // product's name, the screen says so, and the focus is back on that row's upload.
 test('chromium: 1280 px — removing the last picture returns the header to the product name', async (t) => {
   const browser = await sharedChromium(t);
-  const { page, sent, failures, close, state } = await open(browser, { held: { ...NONE, header: 'LOGO', symbol_media_id: IDS[3] } });
-  state.bytes[IDS[3]] = TEAL;
+  const { page, sent, failures, close } = await open(browser, { held: { ...NONE, header: 'LOGO', symbol_media_id: IDS[3] }, bytes: { [IDS[3]]: TEAL } });
   t.after(close);
   await group(page).getByText('Logo and header').waitFor({ timeout: 15_000 });
   const choice = page.getByRole('group', { name: 'What the header shows' });
   assert.equal(await choice.getByRole('radio', { name: 'Logo only' }).isChecked(), true);
-  // The symbol alone stands in for the logo on both bars.
+  // The symbol alone stands in for the logo on both bars, and in the header itself, named by the workspace.
   await page.locator('[data-preview="dark"] img').waitFor({ timeout: 10_000 });
+  await drawnImages(page).first().waitFor({ timeout: 10_000 });
+  await homeLink(page, WORKSPACE.display_name).waitFor();
 
   await row(page, 'SYMBOL').getByRole('button', { name: 'Remove' }).click();
   await page.getByText('Removed. Without a picture, the header shows the product\'s name again.').first().waitFor({ timeout: 10_000 });
@@ -267,6 +292,9 @@ test('chromium: 1280 px — removing the last picture returns the header to the 
   assert.equal(await choice.getByRole('radio', { name: 'Logo only' }).isDisabled(), true);
   assert.equal(await preview(page, 'light').getAttribute('aria-label'), 'Hubtask');
   assert.equal(await page.evaluate(() => document.activeElement?.textContent?.trim()), 'Choose symbol');
+  // UC-INS-22 checks 4 and 5: the header itself shows the product's mark again, once the workspace is read again.
+  await homeLink(page, 'Hubtask').waitFor({ timeout: 10_000 });
+  assert.equal(await home(page).locator('img').count(), 0, 'a picture is still in the header');
   assert.deepEqual(failures, []);
 });
 
@@ -349,4 +377,239 @@ test('chromium: 1280 px — in German, the group speaks du and names its limits'
     assert.ok(said.includes(words), `${words} is missing`);
   }
   assert.deepEqual(failures, []);
+});
+
+// ---- Where every member sees it: the header, the tab, the about page, the sign-in card --------
+// UC-INS-22 checks 5, 8, 9 and 12 (the web halves; the server's are the tests the use case names).
+
+const LONG = 'Freiwillige Feuerwehr Unterlindenbach e. V.';
+const LOGOS = { ...NONE, logo_light_media_id: IDS[0], logo_dark_media_id: IDS[1], symbol_media_id: IDS[2] };
+const PICTURE_BYTES = { [IDS[0]]: NAVY, [IDS[1]]: PALE, [IDS[2]]: TEAL };
+
+/** Where the controls beside the mark stand: the search's way in and the account. */
+async function barPlaces(page) {
+  const box = async (locator) => {
+    const at = await locator.boundingBox();
+    return at ? [Math.round(at.x), Math.round(at.y), Math.round(at.width)] : undefined;
+  };
+  return {
+    search: await box(page.getByRole('banner').getByRole('combobox').first()),
+    account: await box(page.getByRole('banner').getByRole('button', { name: ACCOUNT.display_name })),
+  };
+}
+
+for (const colorScheme of ['light', 'dark']) {
+  test(`chromium: 1280 px, ${colorScheme} — with the workspace's name chosen the header shows its symbol and name, and nothing beside it moves`, async (t) => {
+    const browser = await sharedChromium(t);
+    const before = await open(browser, { path: '/', colorScheme });
+    t.after(before.close);
+    await homeLink(before.page, 'Hubtask').waitFor({ timeout: 15_000 });
+    await before.page.getByRole('banner').getByRole('button', { name: ACCOUNT.display_name }).waitFor();
+    const product = await barPlaces(before.page);
+
+    const { page, failures, close } = await open(browser, {
+      path: '/', colorScheme, held: { ...LOGOS, header: 'WORKSPACE_NAME' }, bytes: PICTURE_BYTES,
+    });
+    t.after(close);
+    const link = homeLink(page, WORKSPACE.display_name);
+    await link.waitFor({ timeout: 15_000 });
+    assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), colorScheme);
+    // The symbol beside the name, 24 px, drawn from the picture the member read as an avatar is.
+    const symbol = drawnImages(page);
+    await symbol.waitFor({ timeout: 10_000 });
+    assert.match((await symbol.getAttribute('src')) ?? '', new RegExp(`/media/${IDS[2]}:content`));
+    const size = await symbol.boundingBox();
+    assert.ok(size && Math.round(size.width) === 24 && Math.round(size.height) === 24, JSON.stringify(size));
+    assert.equal((await home(page).innerText()).trim(), WORKSPACE.display_name);
+    assert.equal(await homeLink(page, 'Hubtask').count(), 0, 'the product is named beside the workspace');
+    // The controls beside it stand where they stood with the product's mark.
+    await page.getByRole('banner').getByRole('button', { name: ACCOUNT.display_name }).waitFor();
+    assert.deepEqual(await barPlaces(page), product, 'the mark moved the bar');
+    assert.deepEqual([...before.failures, ...failures], []);
+  });
+}
+
+test('chromium: 1280 px — a long name is cut at its box, its whole name the tooltip', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, close } = await open(browser, { path: '/', name: LONG, held: { ...NONE, header: 'WORKSPACE_NAME' } });
+  t.after(close);
+  await homeLink(page, LONG).waitFor({ timeout: 15_000 });
+  const word = home(page).getByText(LONG, { exact: true });
+  const cut = await word.evaluate((element) => ({ shown: element.clientWidth, whole: element.scrollWidth, title: element.getAttribute('title') }));
+  assert.ok(cut.shown <= 240 && cut.whole > cut.shown, JSON.stringify(cut));
+  assert.equal(cut.title, LONG);
+  // Two letters where there is no symbol: the first word's and the last's.
+  assert.equal((await home(page).locator('[aria-hidden="true"]').first().innerText()).trim(), 'FV');
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: 1280 px — the logo alone: each theme its own logo, a switch of theme shows the other at once', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, state, failures, close } = await open(browser, { path: '/', held: { ...LOGOS, header: 'LOGO' }, bytes: PICTURE_BYTES });
+  t.after(close);
+  // The logo stands alone, so the link is named by the workspace and the picture is named nowhere else.
+  await homeLink(page, WORKSPACE.display_name).waitFor({ timeout: 15_000 });
+  const logo = drawnImages(page);
+  await logo.waitFor({ timeout: 10_000 });
+  assert.match((await logo.getAttribute('src')) ?? '', new RegExp(IDS[0]));
+  assert.equal(await logo.getAttribute('alt'), '');
+  await page.waitForFunction(() => [...document.querySelectorAll('header a.home img')].every((each) => each.complete && each.naturalWidth > 0));
+  // Contained in its box: 32 px high and no wider than 192, never stretched (60 × 12 drawn 160 × 32).
+  const box = await logo.boundingBox();
+  assert.ok(box && Math.round(box.height) === 32 && box.width <= 192 && Math.round(box.width) === 160, JSON.stringify(box));
+  const asked = state.contents.length;
+
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
+  assert.match((await drawnImages(page).getAttribute('src')) ?? '', new RegExp(IDS[1]));
+  assert.equal(state.contents.length, asked, 'the theme switch had to load the other logo');
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: 1280 px — a picture that fails to load falls back by the rule, never to a broken image', async (t) => {
+  const browser = await sharedChromium(t);
+  const held = { ...NONE, header: 'LOGO', logo_light_media_id: IDS[0], symbol_media_id: IDS[2] };
+  // The light logo is refused by the store: the symbol stands in for it.
+  const first = await open(browser, { path: '/', held, bytes: PICTURE_BYTES, broken: [IDS[0]] });
+  t.after(first.close);
+  await first.page.waitForFunction((id) => {
+    const shown = [...document.querySelectorAll('header a.home img')].filter((each) => each.checkVisibility());
+    return shown.length === 1 && shown[0].src.includes(id) && shown[0].naturalWidth > 0;
+  }, IDS[2], { timeout: 15_000 });
+  await homeLink(first.page, WORKSPACE.display_name).waitFor();
+
+  // Both refused: the product's mark, and no image left in the header.
+  const second = await open(browser, { path: '/', held, bytes: PICTURE_BYTES, broken: [IDS[0], IDS[2]] });
+  t.after(second.close);
+  await homeLink(second.page, 'Hubtask').waitFor({ timeout: 15_000 });
+  await second.page.waitForFunction(() => document.querySelectorAll('header a.home img').length === 0);
+  assert.deepEqual([...first.failures, ...second.failures], []);
+});
+
+test('chromium: 1280 px — switched off above, the header shows the product whatever is stored', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, close } = await open(browser, {
+    path: '/', held: { ...LOGOS, header: 'WORKSPACE_NAME', allowed: false }, bytes: PICTURE_BYTES,
+    own: { value: false, installation: false, lock: 'INSTANCE', source: 'INSTANCE', installation_source: 'INSTANCE' },
+  });
+  t.after(close);
+  await homeLink(page, 'Hubtask').waitFor({ timeout: 15_000 });
+  assert.equal(await home(page).locator('img').count(), 0);
+  assert.deepEqual(failures, []);
+});
+
+// UC-INS-22 checks 9 and 12: the tab names the page and the workspace; the about page keeps the
+// product's name and version under every choice, and the account group keeps its *About*.
+for (const header of ['PRODUCT', 'WORKSPACE_NAME', 'LOGO']) {
+  test(`chromium: 1280 px — with ${header}, the tab names the workspace and the about page says it runs on Hubtask`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { page, failures, close } = await open(browser, { path: '/installation', held: { ...LOGOS, header }, bytes: PICTURE_BYTES });
+    t.after(close);
+    const line = page.locator('[data-runs-with]');
+    await line.waitFor({ timeout: 15_000 });
+    await page.waitForFunction((name) => document.title === `This installation – ${name}`, WORKSPACE.display_name, { timeout: 10_000 });
+    await page.waitForFunction((name) => document.querySelector('[data-runs-with]')?.textContent?.includes(name), WORKSPACE.display_name);
+    const said = (await line.innerText()).replace(/\s+/g, ' ').trim();
+    assert.match(said, new RegExp(`^${WORKSPACE.display_name} runs on hubtask · Version ${MANIFEST.product_version}$`, 'i'));
+    // The name is the product's own, not a styling of it: a screen reader meets "Hubtask".
+    assert.equal(await line.getByText('Hubtask', { exact: true }).count(), 1);
+    await page.getByRole('banner').getByRole('button', { name: ACCOUNT.display_name }).click();
+    await page.getByRole('menuitem', { name: 'About Hubtask' }).waitFor();
+    assert.deepEqual(failures, []);
+  });
+}
+
+test('chromium: 390 px — the phone bar keeps the page title and draws no mark', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, close } = await open(browser, { path: '/', width: 390, height: 844, held: { ...LOGOS, header: 'LOGO' }, bytes: PICTURE_BYTES });
+  t.after(close);
+  await page.waitForFunction((name) => document.title === `Today – ${name}`, WORKSPACE.display_name, { timeout: 15_000 });
+  assert.equal(await page.locator('header img').count(), 0, 'the phone bar draws a logo');
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  assert.equal(overflow, 0);
+  assert.deepEqual(failures, []);
+});
+
+const RULES = {
+  workspace_host: 'house.example', workspace_name: WORKSPACE.display_name, methods: ['PASSWORD'], providers: [], legal: {},
+  password: {
+    min_length: 12, min_lowercase: 0, min_uppercase: 0, min_digits: 0, min_symbols: 0, min_classes: 0, max_repeat: null,
+    common_passwords: true, context_words: true, breach_check: false, history_count: 0, not_current: false,
+  },
+};
+
+/** A visitor at the workspace's own address, signed out; the rules carry its look where `header` is given. */
+async function visitor(browser, { header, pictures = {}, colorScheme = 'light', width = 1280, height = 860, broken = [] }) {
+  const context = await browser.newContext({ viewport: { width, height }, colorScheme });
+  const read = [];
+  await context.route('**/api/v1/**', (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, features: { ...MANIFEST.features, sign_in_rules: true } } });
+    if (path === '/auth/sign-in-rules') return route.fulfill({ json: { ...RULES, ...(header ? { workspace_header: header, workspace_pictures: pictures } : {}) } });
+    const picture = /^\/auth\/workspace-pictures\/([^/]+)$/.exec(path);
+    if (picture) {
+      read.push(picture[1]);
+      if (broken.includes(picture[1])) {
+        return route.fulfill({ status: 404, contentType: 'application/problem+json', body: JSON.stringify({ type: 'about:blank', title: 'media.not_found', status: 404, code: 'media.not_found' }) });
+      }
+      return route.fulfill({ status: 200, contentType: 'image/png', headers: { 'cache-control': 'public, max-age=300', etag: `"${picture[1]}"` }, body: PICTURE_BYTES[picture[1]] });
+    }
+    return stub(route);
+  });
+  const page = await context.newPage();
+  const failures = [];
+  page.on('pageerror', (error) => failures.push(String(error)));
+  await page.goto(`${served.origin}/`);
+  await page.getByRole('heading', { name: 'Sign in' }).waitFor({ timeout: 15_000 });
+  return { page, read, failures, close: () => context.close() };
+}
+
+const card = (page) => page.locator('main');
+
+// UC-INS-22 checks 8 and 9: the card at the workspace's address shows what the header's choice says.
+test('chromium: 1280 px — the sign-in card with the name chosen shows the symbol and the name, the host beside it', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, read, failures, close } = await visitor(browser, { header: 'WORKSPACE_NAME', pictures: { symbol_media_id: IDS[2] } });
+  t.after(close);
+  const symbol = card(page).locator('img:visible');
+  await symbol.waitFor({ timeout: 10_000 });
+  assert.equal(new URL((await symbol.getAttribute('src')) ?? '', served.origin).pathname, `/api/v1/auth/workspace-pictures/${IDS[2]}`);
+  await page.waitForFunction(() => [...document.querySelectorAll('main img')].every((each) => each.complete && each.naturalWidth > 0));
+  assert.deepEqual(read, [IDS[2]]);
+  const said = (await card(page).innerText()).replace(/\s+/g, ' ').trim();
+  assert.ok(said.startsWith(`${WORKSPACE.display_name} house.example`), said);
+  assert.equal(said.includes(`to ${WORKSPACE.display_name}`), false, 'the name is said twice');
+  assert.equal(await page.title(), WORKSPACE.display_name);
+  assert.deepEqual(failures, []);
+});
+
+for (const colorScheme of ['light', 'dark']) {
+  test(`chromium: 1280 px, ${colorScheme} — the sign-in card with the logo alone shows that theme's logo and names the workspace beside it`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { page, failures, close } = await visitor(browser, { colorScheme, header: 'LOGO', pictures: { logo_light_media_id: IDS[0], logo_dark_media_id: IDS[1] } });
+    t.after(close);
+    const logo = card(page).locator('img:visible');
+    await logo.waitFor({ timeout: 10_000 });
+    assert.match((await logo.getAttribute('src')) ?? '', new RegExp(colorScheme === 'dark' ? IDS[1] : IDS[0]));
+    await card(page).getByRole('img', { name: WORKSPACE.display_name, exact: true }).waitFor();
+    await card(page).getByText(`to ${WORKSPACE.display_name}`).waitFor();
+    assert.deepEqual(failures, []);
+  });
+}
+
+test('chromium: 390 px — the sign-in card keeps the product where the rules carry no look, and where its picture is refused', async (t) => {
+  const browser = await sharedChromium(t);
+  const plain = await visitor(browser, { width: 390, height: 844 });
+  t.after(plain.close);
+  await card(plain.page).getByText(`to ${WORKSPACE.display_name}`).waitFor({ timeout: 10_000 });
+  assert.equal(await card(plain.page).getByText('Hubtask', { exact: true }).count(), 1);
+  assert.equal(await card(plain.page).locator('img').count(), 0);
+  assert.deepEqual(plain.read, []);
+
+  const refused = await visitor(browser, { header: 'LOGO', pictures: { logo_light_media_id: IDS[0] }, broken: [IDS[0]], width: 390, height: 844 });
+  t.after(refused.close);
+  await refused.page.waitForFunction(() => document.querySelectorAll('main img').length === 0 && document.querySelector('main')?.textContent?.includes('Hubtask'), null, { timeout: 10_000 });
+  const overflow = await refused.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  assert.equal(overflow, 0);
+  assert.deepEqual([...plain.failures, ...refused.failures], []);
 });

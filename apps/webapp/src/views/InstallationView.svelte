@@ -5,9 +5,11 @@
   // rather than fetched and ignored - and it is also the deep link the reload test uses, because
   // it is a real second route rather than a fragment.
 
-  import { Badge, Button, Icon, Inline, PageHeader, DetailPage, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, Button, Icon, Inline, Logo, PageHeader, DetailPage, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { workspaceLook } from '../lib/data/workspacelook.svelte.ts';
+  import { PRODUCT_NAME } from '../lib/frame/tabtitle.ts';
   import FailureState from '../lib/frame/FailureState.svelte';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -136,6 +138,14 @@
        server the operator, not the project, is who answers for the service. -->
   <section class="about">
     <h2>{t('app.about.title')}</h2>
+    <!-- Whatever the header shows, the product's name and version stay readable here, where
+         somebody looks for what software runs (UC-INS-22 check 12, ADR-0112). -->
+    <p class="runs" data-runs-with>
+      <span>{workspaceLook.name ? t('app.about.runs_with', { workspace: workspaceLook.name }) : t('app.about.runs_with_alone')}</span>
+      <!-- A name rather than a message: the product is called Hubtask in every language. -->
+      <Logo size="sm" wordmark={PRODUCT_NAME} />
+      <span>· {t('app.about.version', { version: manifest.value?.product_version ?? '—' })}</span>
+    </p>
     <p class="note">{t('app.about.note')}</p>
     <ul>
       <li>
@@ -196,6 +206,16 @@
     font-family: var(--font-display);
     font-size: var(--fs-300);
     font-weight: var(--fw-semibold);
+  }
+
+  .about .runs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-100);
+    margin: 0 0 var(--sp-100);
+    color: var(--text-primary);
+    font-size: var(--fs-100);
   }
 
   .about .note {
