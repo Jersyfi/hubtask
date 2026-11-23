@@ -75,8 +75,9 @@
 
   const { template: asked, product, oncancel, onland, onstep }: Props = $props();
 
-  // The page is one screen: what scrolls is inside it (`page.fill`); on a phone, the whole screen.
-  $effect(() => page.fill());
+  // The page is one screen from `medium` up, so its head stays: what scrolls is inside it
+  // (`page.fill`); on a phone, the whole screen.
+  $effect(() => page.fill('medium'));
   $effect(() => page.takeScreen());
 
   const isPhone = $derived(viewport.isCompact);
@@ -626,10 +627,11 @@
 
   .no-match { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); margin: 0; padding: var(--sp-300) 0; color: var(--text-secondary); font-size: var(--fs-090); }
 
-  /* 600 to 904: one scroll; the details a block of two columns on top, the start's tools sticking. */
+  /* 600 to 904: one scroll under the head; the details a block of two columns on top, the start's
+     tools sticking at its top. */
   /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
   @media (width < 905px) {
-    .panes { display: block; block-size: auto; }
+    .panes { display: block; overflow: auto; }
 
     .details {
       display: grid;
@@ -650,7 +652,7 @@
     .a-sum { grid-area: sum; }
 
     .start { display: block; }
-    .tools { position: sticky; inset-block-start: var(--page-sticky-top, var(--layout-appbar-height)); z-index: var(--z-sticky); }
+    .tools { position: sticky; inset-block-start: 0; z-index: var(--z-sticky); }
     .scroll { overflow: visible; }
   }
 
@@ -659,7 +661,7 @@
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (width < 600px) {
     /* The details fill the screen down to the foot's bar, one surface as far as the primary. */
-    .panes { display: flex; flex-direction: column; }
+    .panes { display: flex; flex-direction: column; block-size: auto; overflow: visible; }
     .details { display: flex; flex: 1 0 auto; align-items: stretch; padding: var(--sp-200); border-block-end: 0; }
 
     .start { display: grid; flex: 1 1 auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: var(--sp-200); min-block-size: 0; }

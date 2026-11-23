@@ -27,6 +27,7 @@ class Page {
   #title = $state<string | undefined>(undefined);
   #menu = $state<PageMenu | undefined>(undefined);
   #fills = $state(false);
+  #boundFrom = $state<'medium' | 'expanded'>('expanded');
   #place = $state<string | null | undefined>(undefined);
 
   get title(): string | undefined {
@@ -110,6 +111,15 @@ class Page {
     return this.#fills;
   }
 
+  /**
+   * From which width the frame bounds a filled page's region to the viewport: `expanded` for a
+   * canvas whose details become a sheet below it, `medium` for a page whose head keeps its primary
+   * in view while its content scrolls (*Create hub*, ADR-0111).
+   */
+  get boundFrom(): 'medium' | 'expanded' {
+    return this.#boundFrom;
+  }
+
   #writes = $state(0);
 
   /** Whether somebody writes in a page's body now: the phone's bottom bar then steps aside (§9). */
@@ -147,11 +157,13 @@ class Page {
     };
   }
 
-  /** Takes the content region for as long as the caller's effect lives. */
-  fill(): () => void {
+  /** Takes the content region for as long as the caller's effect lives, bounded from `from` up. */
+  fill(from: 'medium' | 'expanded' = 'expanded'): () => void {
     this.#fills = true;
+    this.#boundFrom = from;
     return () => {
       this.#fills = false;
+      this.#boundFrom = 'expanded';
     };
   }
 }

@@ -556,9 +556,10 @@ Every product home and every hub tool has one anatomy (mockup: `shell.html`, *Pr
   colour, symbol, description, and a summary of the chosen start that says what it sets up - beside
   the choice of how the hub starts: a search, the families as a single-choice filter with counts,
   and the starts as one radio group of tiles (`ChoiceCards`, a tick in the corner), *Empty hub*
-  first, pinned, chosen when the page opens and never filtered away. From `expanded` each column
-  scrolls on its own and the head with *Create hub* stays; from `medium` the details are a block of
-  two columns above the starts, whose tools stick. Below `medium` the details are the page and
+  first, pinned, chosen when the page opens and never filtered away. The head with *Create hub*
+  stays from `medium` up: from `expanded` each column scrolls on its own; from `medium` the details
+  are a block of two columns above the starts, one scroll under the head, and the starts' tools
+  stick. Below `medium` the details are the page and
 *Create hub* stands across the foot, at the thumb; the starts are a second step, opened only from
 the summary's *Choose a template*, a layer over the page that keeps its address - a tile chosen
 there is chosen at once, and *Done*, ‹, Escape and back close it. Most hubs are made empty, so

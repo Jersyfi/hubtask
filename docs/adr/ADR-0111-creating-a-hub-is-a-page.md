@@ -36,7 +36,8 @@ chosen, *Private* was shown and ignored (#1871).
 ## Consequences
 
 §5.2's one create anatomy has a stated exception. The page is wider than a dialog and needs the
-frame's filled region from `expanded` (`CreatePage`'s `isFilled`), and below `medium` the phone's
+frame's filled region from `medium` (`CreatePage`'s `isFilled`, `page.fill('medium')`), so its head
+stays while the starts scroll, and below `medium` the phone's
 whole screen, where the frame draws neither of its bars (`page.takeScreen`). The phone's second
 step is a `Dialog` that is a step (`isStep`), held in the session history so the system's back
 closes it (`Router.hold`).

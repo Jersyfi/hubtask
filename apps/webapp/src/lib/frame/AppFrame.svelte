@@ -763,7 +763,7 @@
 
 </script>
 
-<div class="frame" data-density={viewport.isSpacious ? 'spacious' : undefined} data-filled={page.fills ? '' : undefined} data-bottombar={session.isSignedIn && (!isPhone || isBottomBarShown) ? '' : undefined}>
+<div class="frame" data-density={viewport.isSpacious ? 'spacious' : undefined} data-filled={page.fills ? page.boundFrom : undefined} data-bottombar={session.isSignedIn && (!isPhone || isBottomBarShown) ? '' : undefined}>
   <!-- The first stop on every page (2.4.1): the frame puts many stops between its top and the
        first control of the content, and this is the one that skips them.
        Hidden until it takes focus, so nobody with a pointer ever sees it. The click is handled
@@ -946,7 +946,7 @@
     {/if}
     <!-- `tabindex="-1"` so that the skip link has somewhere to land; a landmark is not a control,
          so it draws no ring when it does. -->
-    <main id="main" tabindex="-1" data-filled={page.fills ? '' : undefined} bind:this={mainElement}
+    <main id="main" tabindex="-1" data-filled={page.fills ? page.boundFrom : undefined} bind:this={mainElement}
       ontouchstart={swipeStart} ontouchend={swipeEnd} ontouchcancel={() => (swipe = null)}>
       <div class="content">
         <!-- One banner zone (ux-inventory.md §E1): what the frame has to say to the person - the
@@ -1258,7 +1258,8 @@
      window by the height of everything above it. `min-block-size: 0` down the flex chain, or the
      automatic minimum size lets the region grow with its content anyway. Below that the page
      scrolls as every page does: the details are a sheet there, and a bar that scrolls away
-     leaves the canvas the screen. */
+     leaves the canvas the screen. A page whose head holds its primary - *Create hub* - is bounded
+     from `medium` (`page.fill('medium')`), so the head stays while its content scrolls. */
   /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
   @media (width >= 905px) {
     .frame[data-filled] { box-sizing: border-box; block-size: 100dvh; min-block-size: 0; }
@@ -1268,6 +1269,17 @@
     main[data-filled] { min-block-size: 0; overflow: hidden; }
 
     main[data-filled] .content { block-size: 100%; }
+  }
+
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width >= 600px) {
+    .frame[data-filled='medium'] { box-sizing: border-box; block-size: 100dvh; min-block-size: 0; }
+
+    .frame[data-filled='medium'] .body { min-block-size: 0; }
+
+    main[data-filled='medium'] { min-block-size: 0; overflow: hidden; }
+
+    main[data-filled='medium'] .content { block-size: 100%; }
   }
 
   main:focus { outline: none; }

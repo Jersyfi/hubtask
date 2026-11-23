@@ -510,6 +510,32 @@ test('chromium: 768 px - the details are a block of two columns above the starts
   assert.deepEqual(failures, []);
 });
 
+// From 600 to 904 px the head with *Create hub* stays while the starts scroll, as it does wider:
+// the details and the starts are one scroll under it, the start's tools sticking at its top.
+test('chromium: 768 × 1024 - scrolled to the last start, the head with Create hub and the search stay in view', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, context } = await as(browser, { width: 768, height: 1024 });
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/hubs/new`);
+  await main(page).getByRole('radio', { name: /^Kanban team/u }).check();
+  const last = main(page).getByRole('radio', { name: /^Approvals/u });
+  const tile = await main(page).getByRole('radio', { name: /^Household/u }).boundingBox();
+  await page.mouse.move(tile.x + tile.width / 2, tile.y + tile.height / 2);
+  await page.mouse.wheel(0, 4000);
+  const handle = await last.elementHandle();
+  await page.waitForFunction((element) => element.closest('label').getBoundingClientRect().bottom <= window.innerHeight, handle, { timeout: 5_000 });
+  for (const [what, part] of [['Create hub', primary(page)], ['the title', main(page).getByRole('heading', { level: 1, name: 'Create hub' })], ['the search', main(page).getByRole('searchbox', { name: 'Search templates' })]]) {
+    const box = await part.boundingBox();
+    assert.ok(box && box.y >= 0 && box.y + box.height <= 1024, `${what} scrolled away: ${JSON.stringify(box)}`);
+  }
+  const search = await main(page).getByRole('searchbox', { name: 'Search templates' }).boundingBox();
+  const head = await primary(page).boundingBox();
+  assert.ok(search.y > head.y + head.height, 'the search stands over the head');
+  assert.equal(await page.evaluate(() => window.scrollY), 0, 'the page itself scrolled');
+  assert.deepEqual(failures, []);
+});
+
 /** Which element has the focus, as a walk reads it: its type, its name, whether it is in the step. */
 const focused = (page) => page.evaluate(() => {
   const element = document.activeElement;
