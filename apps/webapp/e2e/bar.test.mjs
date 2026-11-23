@@ -116,13 +116,14 @@ test('chromium: 375 px — every page hands its title to the bar', async (t) => 
   for (const route of ROUTES) {
     await page.goto(`${served.origin}${route}`);
     // The title arrives with the screen rather than with the navigation, so it is waited for
-    // rather than read at once - a page that never sets one is what the timeout finds.
-    const bar = page.locator('[data-bar="title"]');
-    const title = await bar.textContent({ timeout: 4_000 }).catch(() => undefined);
-    // Drawn, not only present: an empty search slot once shared the bar's room with the title
-    // and squeezed it to no width at all, with the words still in the tree.
-    const width = title ? ((await bar.boundingBox())?.width ?? 0) : 0;
-    if (!title || title.trim() === '' || width === 0) silent.push(route);
+    // rather than read at once - a page that never sets one is what the timeout finds. Drawn, not
+    // only present: an empty search slot once shared the bar's room with the title and squeezed
+    // it to no width at all, with the words still in the tree.
+    const drawn = await page.waitForFunction(() => {
+      const bar = document.querySelector('[data-bar="title"]');
+      return bar !== null && (bar.textContent ?? '').trim() !== '' && bar.getBoundingClientRect().width > 0;
+    }, null, { timeout: 15_000 }).then(() => true, () => false);
+    if (!drawn) silent.push(route);
   }
 
   assert.deepEqual(silent, [], `these pages show the wordmark above their own heading: ${silent.join(', ')}`);
