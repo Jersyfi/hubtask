@@ -61,7 +61,7 @@ export function isOfferSettled<H extends { readonly private?: boolean }>(
  * Whether switching on asks in which existing hubs (check 13): at the workspace, and only where
  * there is a hub to choose - without one the switch goes through at once (check 2).
  */
-export function asksWhichHubs(state: ModuleState, next: boolean, place: ModulePlace, offered: readonly unknown[]): boolean {
+export function asksWhichHubs(state: Pick<ModuleState, 'on'>, next: boolean, place: ModulePlace, offered: readonly unknown[]): boolean {
   return place === 'WORKSPACE' && next && !state.on && offered.length > 0;
 }
 
@@ -77,7 +77,7 @@ export function isSetHere(state: ModuleState, place: ModulePlace): boolean {
 }
 
 /** The message code of a module's name and of the sentence beneath it. */
-export function moduleCodes(state: ModuleState): { readonly name: string; readonly hint: string } {
+export function moduleCodes(state: Pick<ModuleState, 'module'>): { readonly name: string; readonly hint: string } {
   const key = state.module.toLowerCase();
   return { name: `app.modules.name_${key}`, hint: `app.modules.hint_${key}` };
 }

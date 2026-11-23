@@ -18,6 +18,7 @@ import { sharedChromium } from './browser.mjs';
 import { HUB, PAGE, chooseNew } from './fixture.mjs';
 import { serve } from './serve.mjs';
 import { ids, productWalk } from './productwalk.mjs';
+import { pick, valueOf } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -85,6 +86,23 @@ async function hubSwitch(page, hub) {
   return row;
 }
 
+/**
+ * The question's hubs: a list from data, so the field (design-system.md §4). Opens it and answers
+ * the hubs offered in their order and how many of them are chosen, then closes it onto the field.
+ */
+async function offered(page, field) {
+  await field.click();
+  const list = page.getByRole('listbox');
+  await list.waitFor({ timeout: 5_000 });
+  const names = await list.getByRole('option').evaluateAll((options) => options.map((option) => document.getElementById(option.getAttribute('aria-labelledby'))?.textContent?.trim()));
+  const chosen = await list.getByRole('option', { selected: true }).count();
+  await page.keyboard.press('Escape');
+  await list.waitFor({ state: 'detached', timeout: 5_000 });
+  return { names, chosen };
+}
+
+const hubsField = (dialog) => dialog.getByRole('button', { name: /^Switch on in which existing hubs\?/u });
+
 /** The workspace's switch on *Modules*, once it is drawn. */
 async function workspaceSwitch(page) {
   await page.goto(`${served.origin}/administration/modules`);
@@ -106,15 +124,14 @@ test('chromium: switching a product on asks in which existing hubs, and each hub
   let row = await workspaceSwitch(page);
   await row.getByRole('switch').click();
   const dialog = page.getByRole('dialog');
-  const question = dialog.getByRole('group', { name: 'Switch on in which existing hubs?' });
+  const question = hubsField(dialog);
   await question.waitFor({ timeout: 5_000 });
-  assert.deepEqual(await question.getByRole('checkbox').evaluateAll((boxes) => boxes.map((box) => box.checked)), [false, false], 'a hub is chosen before the person chose');
-  assert.equal(await question.getByRole('checkbox', { name: 'House', exact: true }).count(), 1);
-  assert.equal(await question.getByRole('checkbox', { name: 'Garden', exact: true }).count(), 1);
+  assert.equal(await valueOf(question), 'Nothing chosen', 'a hub is chosen before the person chose');
+  assert.deepEqual(await offered(page, question), { names: ['House', 'Garden'], chosen: 0 });
   assert.equal(switches().length, 0, 'the switch was sent before its question was answered');
   assert.equal(await row.getByRole('switch').isChecked(), false, 'the switch is drawn on while its question stands');
 
-  await question.getByRole('checkbox', { name: 'House', exact: true }).check();
+  assert.deepEqual(await pick(page, question, ['House']), ['House']);
   await dialog.getByRole('button', { name: 'Switch on', exact: true }).click();
   await row.locator(`[data-reset="${MODULE}"]`).waitFor({ timeout: 5_000 });
   assert.deepEqual(switches().map((each) => each.body), [{ switch: 'ON', hub_ids: [HUB.id] }]);
@@ -157,10 +174,11 @@ test('chromium: switching a product on asks in which existing hubs, and each hub
   // On again, nothing chosen: each hub has the state it had (check 13).
   row = await workspaceSwitch(page);
   await row.getByRole('switch').click();
-  const again = page.getByRole('dialog').getByRole('group', { name: 'Switch on in which existing hubs?' });
+  const again = hubsField(page.getByRole('dialog'));
   await again.waitFor({ timeout: 5_000 });
-  assert.equal(await again.getByRole('checkbox').count(), 3, 'the hub made since is not offered');
-  assert.deepEqual(await again.getByRole('checkbox').evaluateAll((boxes) => boxes.map((box) => box.checked)), [false, false, false]);
+  const offeredAgain = await offered(page, again);
+  assert.equal(offeredAgain.names.length, 3, 'the hub made since is not offered');
+  assert.equal(offeredAgain.chosen, 0);
   await page.getByRole('dialog').getByRole('button', { name: 'Switch on', exact: true }).click();
   await page.getByText('Plans is on.', { exact: true }).first().waitFor({ timeout: 5_000 });
   assert.deepEqual(switches().at(-1).body, { switch: 'ON' }, 'hubs were sent that nobody chose');
@@ -235,10 +253,10 @@ test('chromium: a switch pressed while the hub list is still being read waits an
 
   order.push('hubs answered');
   release();
-  const question = page.getByRole('dialog').getByRole('group', { name: 'Switch on in which existing hubs?' });
+  const question = hubsField(page.getByRole('dialog'));
   await question.waitFor({ timeout: 5_000 });
   assert.deepEqual(order, ['hubs answered'], 'the switch went through before the hub list was answered');
-  assert.equal(await question.getByRole('checkbox').count(), 2, 'the question does not offer both hubs');
+  assert.equal((await offered(page, question)).names.length, 2, 'the question does not offer both hubs');
   assert.deepEqual(walk.written.filter((each) => each.method === 'PUT'), []);
   assert.deepEqual(walk.errors(), []);
 });
@@ -253,14 +271,21 @@ test('chromium: the question on a phone fills the screen and switches on in the 
 
   const row = await workspaceSwitch(page);
   await row.getByRole('switch').click();
-  const dialog = page.getByRole('dialog');
-  const question = dialog.getByRole('group', { name: 'Switch on in which existing hubs?' });
+  const dialog = page.getByRole('dialog', { name: 'Switch Plans on' });
+  const question = hubsField(dialog);
   await question.waitFor({ timeout: 5_000 });
   const box = await dialog.boundingBox();
   assert.ok(box.width >= 390 * 0.9 && box.height >= 844 * 0.9, `the question is ${box.width}x${box.height} on a 390x844 screen`);
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'the question scrolls sideways');
-  await question.getByRole('checkbox', { name: 'Garden', exact: true }).check();
-  await question.getByRole('checkbox', { name: 'House', exact: true }).check();
+  // The list is the field's sheet over the question, the one sheet there (design-system.md §4).
+  await question.click();
+  const list = page.getByRole('listbox');
+  await list.waitFor({ timeout: 5_000 });
+  await list.getByRole('option', { name: 'Garden', exact: true }).click();
+  await list.getByRole('option', { name: 'House', exact: true }).click();
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
+  await list.waitFor({ state: 'detached', timeout: 5_000 });
+  assert.equal(await page.locator(':focus').getAttribute('aria-haspopup'), 'listbox', 'Done left the focus elsewhere than on the field');
   await dialog.getByRole('button', { name: 'Switch on', exact: true }).click();
   await page.getByText('Plans is on, and on in 2 hubs.').first().waitFor({ timeout: 5_000 });
   assert.deepEqual(walk.written.filter((each) => each.method === 'PUT').map((each) => each.body), [{ switch: 'ON', hub_ids: [GARDEN.id, HUB.id] }]);

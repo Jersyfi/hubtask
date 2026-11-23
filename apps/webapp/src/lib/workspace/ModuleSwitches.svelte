@@ -16,7 +16,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, CheckboxGroup, ChoiceCards, Dialog, Disclosure, IconButton, Inline, MoveCheck, ProgressBar, SettingRow, Spinner, Switch, type MoveCheckItem } from '@hubtask/design-system/components';
+  import { Button, ChoiceCards, Dialog, Disclosure, IconButton, Inline, MoveCheck, ProgressBar, SettingRow, Spinner, Switch, type MoveCheckItem } from '@hubtask/design-system/components';
   import type { ConfigTemplate, ConfigTemplateList, ModuleList, ModuleReach, ModuleState, ResourceState } from '@hubtask/sync-engine';
 
   import { buckets } from '../data/buckets.svelte.ts';
@@ -24,21 +24,20 @@
   import { statusLabel } from '../data/workflows.ts';
   import { needsChoice, rowsInReach, strandedBy, type OffChoice, type RowReach, type SchemeRow } from './workflowsoff.ts';
 
+  import ModuleOnQuestion from './ModuleOnQuestion.svelte';
   import ValueSource from './ValueSource.svelte';
   import ViewAsFile from '../settings/ViewAsFile.svelte';
   import SectionFindings from '../settings/SectionFindings.svelte';
-  import { asksFirst, asksWhichHubs, hubsOffered, isOfferSettled, isSetHere, moduleCodes, modules, offReach, unavailableBecause } from '../data/modules.svelte.ts';
-  import { actor } from '../data/account.svelte.ts';
+  import { asksFirst, isSetHere, moduleCodes, modules, offReach, unavailableBecause } from '../data/modules.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
-  import { people } from '../data/people.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import FailureNote from '../frame/FailureNote.svelte';
   import { newMarks } from '../product/newmark.svelte.ts';
   import { settingsOf, startsOf, switchedOn } from '../product/switchedon.ts';
-  import { holds, holdsHere, hubCreationHere, roleOrder } from '../data/capability.svelte.ts';
+  import { holdsHere, hubCreationHere } from '../data/capability.svelte.ts';
   import { config } from '../data/config.svelte.ts';
   import { createHubPath } from './createHub.ts';
 
@@ -244,48 +243,8 @@
     return { label: t('app.modules.off_confirm'), tone: 'danger' as const, onclick: confirmOff, disabledReason: t('app.modules.off_wf_choose_first') };
   });
 
-  // A private hub counts only a role held on it, so its memberships are read; a shared hub
-  // follows the workspace's, which the manifest already answers.
-  $effect(() => {
-    if (hubId) return;
-    const hidden = containers.hubs.filter((hub) => hub.private === true).map((hub) => hub.id);
-    untrack(() => hidden.forEach((id) => people.open({ hubId: id })));
-  });
-  /** Whether the reader may shape a private hub, by the role held on it; `undefined` while that is out. */
-  const shapesPrivate = (hub: { readonly id: string }): boolean | undefined => {
-    const role = people.roleOf({ hubId: hub.id }, actor.account?.id, roleOrder());
-    if (role === undefined) return undefined;
-    return role !== null && holds(role, 'STRUCTURE').status === 'permitted';
-  };
-  // The hubs the switch-on's question offers: those the reader may shape (check 13) among the hub
-  // list, which is one page - the first 200 hubs that are not archived (containers.svelte.ts). A
-  // hub beyond it is not offered here and is switched on in its own settings
-  // (user-experience.md §2.8).
-  const offered = $derived(hubId ? [] : hubsOffered(containers.hubs, holdsHere('STRUCTURE'), shapesPrivate));
-  /**
-   * Whether the offer can be decided: the hub list and every hub's answer are in. A list that
-   * failed is decided with no hub - the switch then changes none, as with none chosen.
-   */
-  const isSettled = $derived.by(() => {
-    const list = containers.hubsState.status;
-    if (list === 'failed') return true;
-    return isOfferSettled(list === 'ready' ? containers.hubs : undefined, holdsHere('STRUCTURE'), shapesPrivate);
-  });
-  /** The module whose switch-on waits for the offer to be decided. */
-  let waiting = $state<ModuleState | undefined>(undefined);
-  $effect(() => {
-    const state = waiting;
-    if (!state || !isSettled) return;
-    untrack(() => {
-      waiting = undefined;
-      busy = undefined;
-      switchOn(state);
-    });
-  });
-  /** The module whose switch-on is asking in which existing hubs, and the hubs ticked: none at first. */
-  let asking = $state<ModuleState | undefined>(undefined);
-  let isAsking = $state(false);
-  let chosen = $state<readonly string[]>([]);
+  /** The question of a switch-on at the workspace: in which existing hubs (check 13). */
+  let question = $state<ReturnType<typeof ModuleOnQuestion> | undefined>(undefined);
 
   let refusal = $state<{ module: ModuleState['module']; message: string } | undefined>(undefined);
   /** The module just switched on here, whose card says where it is now (user-experience.md §2.8). */
@@ -336,46 +295,28 @@
       isConfirming = true;
       return;
     }
-    if (next && place === 'WORKSPACE' && !isSettled) {
-      // Not decided on the hubs read so far: with none offered yet it would go through unasked.
+    if (next && place === 'WORKSPACE') {
+      // Drawn off until the question is answered: cancelled, nothing switches.
       control.checked = state.on;
       drawn[state.module] = state.on;
-      busy = state.module;
-      waiting = state;
-      return;
-    }
-    if (asksWhichHubs(state, next, place, offered)) {
-      control.checked = state.on;
-      drawn[state.module] = state.on;
-      ask(state);
+      void switchOn(state);
       return;
     }
     drawn[state.module] = next;
     void send(state, next ? 'ON' : 'OFF');
   }
 
-  function ask(state: ModuleState) {
-    chosen = [];
-    asking = state;
-    isAsking = true;
-  }
-
-  /** The switch-on that waited: after the question where hubs are offered (check 13), at once where none is (check 2). */
-  function switchOn(state: ModuleState) {
-    if (asksWhichHubs(state, true, place, offered)) return ask(state);
+  /**
+   * A switch-on at the workspace: after the question where hubs are offered (check 13), at once
+   * where none is (check 2). The row shows progress while the offer is being decided.
+   */
+  async function switchOn(state: ModuleState) {
+    if (!question) return;
+    busy = state.module;
+    const inHubs = await question.ask(state, () => (busy = undefined));
+    if (inHubs === undefined) return;
     drawn[state.module] = true;
-    void send(state, 'ON');
-  }
-
-  function confirmOn() {
-    const state = asking;
-    // A hub that left the list while the question stood open is not sent.
-    const inHubs = chosen.filter((id) => offered.some((hub) => hub.id === id));
-    isAsking = false;
-    asking = undefined;
-    if (!state) return;
-    drawn[state.module] = true;
-    void send(state, 'ON', inHubs);
+    await send(state, 'ON', inHubs);
   }
 
   function confirmOff() {
@@ -554,29 +495,7 @@
   <Button tone="secondary" onclick={() => (isConfirming = false)}>{t('app.modules.off_cancel')}</Button>
 {/snippet}
 
-{#if asking}
-  <Dialog
-    size="m"
-    bind:isOpen={isAsking}
-    title={t('app.modules.on_hubs_title', { module: t(moduleCodes(asking).name) })}
-    dismissLabel={t('app.modules.on_hubs_cancel')}
-    onClose={() => (asking = undefined)}
-    primary={{ label: t('app.modules.on_hubs_confirm'), onclick: confirmOn }}
-  >
-    <div data-on-hubs={asking.module}>
-      <CheckboxGroup
-        label={t('app.modules.on_hubs_question')}
-        hint={t('app.modules.on_hubs_hint', { module: t(moduleCodes(asking).name) })}
-        options={offered.map((hub) => ({ value: hub.id, label: hub.name }))}
-        selected={chosen}
-        onChange={(next) => (chosen = next)}
-      />
-    </div>
-    {#snippet actions()}
-      <Button tone="secondary" onclick={() => (isAsking = false)}>{t('app.modules.on_hubs_cancel')}</Button>
-    {/snippet}
-  </Dialog>
-{/if}
+<ModuleOnQuestion bind:this={question} isActive={!hubId} />
 
 <style>
   .switches { display: flex; flex-direction: column; gap: var(--sp-200); min-width: 0; }
