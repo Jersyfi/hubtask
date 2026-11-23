@@ -5,9 +5,9 @@ context: admin
 actors: [PE-owner, PE-admin, PE-member, PE-guest, PE-operator, PE-platform]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-06, P-07, P-08, P-09, P-12]
-state: partial
+state: verified
 tasks: []
-checked_by: [core/domain/model/identity/Branding_test.go, core/domain/model/identity/OwnBrandingSwitch_test.go, core/domain/model/media/Object_test.go, core/application/service/identity/WorkspaceBranding_test.go, core/application/service/media/ReadMedia_test.go, test/integration/workspace_branding_test.go, test/contract/workspace_branding_test.go, core/application/service/identity/SignInPictures_test.go, core/application/service/identity/WorkspaceAnnounce_test.go, core/application/service/setting/ModuleRecords_test.go, presentation/rest/WorkspacePictureController_test.go, presentation/rest/SignInRulesController_test.go, test/integration/workspace_look_record_test.go, test/integration/erasure_shown_pictures_test.go, apps/webapp/src/lib/workspace/branding.test.ts, apps/webapp/e2e/branding.test.mjs, apps/webapp/e2e/instancesettings.test.mjs, apps/webapp/e2e/instanceplans.test.mjs]
+checked_by: [core/domain/model/identity/Branding_test.go, core/domain/model/identity/OwnBrandingSwitch_test.go, core/domain/model/media/Object_test.go, core/application/service/identity/WorkspaceBranding_test.go, core/application/service/media/ReadMedia_test.go, test/integration/workspace_branding_test.go, test/contract/workspace_branding_test.go, core/application/service/identity/SignInPictures_test.go, core/application/service/identity/WorkspaceAnnounce_test.go, core/application/service/setting/ModuleRecords_test.go, presentation/rest/WorkspacePictureController_test.go, presentation/rest/SignInRulesController_test.go, test/integration/workspace_look_record_test.go, test/integration/erasure_shown_pictures_test.go, apps/webapp/src/lib/workspace/branding.test.ts, apps/webapp/e2e/branding.test.mjs, apps/webapp/e2e/instancesettings.test.mjs, apps/webapp/e2e/instanceplans.test.mjs, apps/webapp/e2e/devicelist.test.mjs, apps/webapp/e2e/livechanges.test.mjs, apps/webapp/src/lib/data/live.test.ts, apps/webapp/src/lib/frame/tabtitle.test.ts]
 ---
 
 # Show the workspace under its own name and logo
@@ -58,12 +58,3 @@ off for the installation, and every settings screen says that the installation d
 No colours and no fonts of a workspace's own. No app icon, store name, splash or favicon of a
 workspace's own, and no logo in the head of a mail. No branding the installation sets for every
 workspace at once. No SVG. Other workspaces in the device's list of workspaces keep their letter.
-
-## Today
-
-* Check 5: not met — the header draws only the product's mark, tracked in #1868.
-* Check 6: not met — the navigation and the switcher draw no symbol, tracked in #1868.
-* Check 7: not met — the web app does not read the workspace again on its `setting` record, tracked in #1868.
-* Check 8: not met — the sign-in card does not draw the choice and the pictures the rules carry, tracked in #1868.
-* Check 9: not met — the tab's title is fixed, tracked in #1868.
-* Check 12: not met — the about page draws no line with the product's name beside a workspace's own, tracked in #1868.

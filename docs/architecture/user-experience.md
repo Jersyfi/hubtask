@@ -617,7 +617,15 @@ nobody pays a press for the gallery. Every door to it - the navigation, the pale
   Name and look*, not a page of its own: a preview of the header on a light and a dark surface,
   the choice of what it shows (saved with the section), then the logo for light, the logo for dark
   and the square symbol, each set by choosing a file. Where the installation or a plan switched it
-  off, the group is one row with no control that names who did.
+  off, the group is one row with no control that names who did. Every member then meets the choice
+  in the app bar's home link from `medium` up (`design-system.md` §11.2); on a phone the bar keeps
+  the page's title and the workspace's row in the account sheet carries its symbol, as the current
+  row of *Switch workspace* does - the other rows keep their letters, since the device's list holds
+  only address and name. The sign-in card at the workspace's own address draws the same mark; the
+  installation's own address draws the product's. The tab reads "{page} – {workspace}", the
+  workspace alone where the page names none, and "Hubtask" in its place where no workspace is known.
+  The about page keeps "{workspace} runs on hubtask · Version …" under every choice. Another device
+  follows a change when the workspace's `setting` record arrives, by reading the workspace again.
 * **Pickers, never keys.** A setting that names a type, a status, a group, a priority or a field
   is a picker fed by the workspace's own values, validated before saving; a duration is a
   `DurationInput` in minutes, hours or business days, converted on the client; a recurrence is a

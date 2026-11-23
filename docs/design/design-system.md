@@ -1140,8 +1140,8 @@ of its own bars beside it (`page.takeScreen`). `WorkPage` and `DetailPage` — t
 | Width | Start | Middle | End |
 |---|---|---|---|
 | `compact` | on a tab's root the avatar; deeper *‹ the level above* (a section: ☰, opening its `NavDrawer`) | the page's title | on a root the notice mark · the connection mark; deeper ☆ · the page menu; every control 44 px |
-| `medium` | ☰ | the mark and the wordmark · a field's look that opens the palette in a dialog (*Search or run a command*, `⌘K`), shrinking with the bar, with *＋* (*Capture*, `Q`, its mark alone) beside it | the notice mark · the connection mark · the account menu |
-| ≥ `expanded` | the rail toggle | the mark and the wordmark · the palette's field (*Search or run a command*, `⌘K`) with *＋ Capture* (`Q`) beside it | the notice mark · the connection mark · the account menu |
+| `medium` | ☰ | the home link's mark (below) · a field's look that opens the palette in a dialog (*Search or run a command*, `⌘K`), shrinking with the bar, with *＋* (*Capture*, `Q`, its mark alone) beside it | the notice mark · the connection mark · the account menu |
+| ≥ `expanded` | the rail toggle | the home link's mark (below) · the palette's field (*Search or run a command*, `⌘K`) with *＋ Capture* (`Q`) beside it | the notice mark · the connection mark · the account menu |
 
 * **No page action in the bar** ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md),
   [ADR-0065](../adr/ADR-0065-the-second-walk-of-the-shell.md)). Its only page control is the page's
@@ -1162,6 +1162,21 @@ of its own bars beside it (`page.takeScreen`). `WorkPage` and `DetailPage` — t
 * **One control size.** The rail toggle, the notice mark, the connection mark and the avatar are
   the same square with the same hover shape (§13, G2).
 * The two marks are §11.6. Nothing else moves into the bar beyond *Capture*.
+* **The home link shows what the workspace chose** (UC-INS-22,
+  [ADR-0112](../adr/ADR-0112-a-workspace-shows-its-own-name-and-logo.md)), drawn by `WorkspaceMark`
+  in the web app: the product's mark and wordmark (the default), the workspace's square symbol -
+  or two letters - with its name, or its logo alone. The box is fixed: a logo 32 px high
+  (`space.400`) and at most `layout.field.sm` wide, contained and never stretched; the symbol 24 px
+  beside the name; the name in the display face at `fontSize.300`, at most `layout.list.title`
+  wide, then an ellipsis with the whole name as its tooltip. The link has one name - the product's,
+  or the workspace's - and the picture beside a visible name is decorative. A picture is drawn as an
+  avatar is; one still asked for keeps its box, and one that fails to load falls back by the
+  choice's rule (the other theme's logo, the symbol, the product), never to a broken image. Both
+  themes' drawings stand and the document's theme hides one, so a theme switch shows the other with
+  nothing to load. Switched off above, the product's mark, whatever is stored. On `compact` the bar
+  keeps the page's title; the workspace is named in the account sheet, its own row carrying its
+  symbol. The sign-in card at the workspace's own address draws the same mark by the same choice,
+  and the product's name and version stay on the about page (*… runs on hubtask · Version*).
 
 ### 11.3 One navigation list
 
@@ -1834,6 +1849,10 @@ another device ([`backlog/navigation/README.md`](../backlog/navigation/README.md
   two container types, the bucket, the jumble, the capability, and the relationships a general set
   has no word for. Where Lucide already says a noun well — a label `tag`, a comment
   `message-square`, a reminder `bell` — nothing is drawn.
+* **A workspace's own symbol is data, not an icon**: a picture the workspace uploaded, drawn in a
+  fixed square box (`WorkspaceSymbol`) with two letters where there is none or it fails to load,
+  decorative wherever a name stands beside it - the switcher's row, a navigation row's mark
+  (`NavItem`'s `mark`), the header beside the name (§11.2).
 * **An automation building block is drawn with its kind's icon from one table, falling back to its
   group's icon** (`apps/webapp/src/lib/automation/words.ts`), the same in the panel, the `+` popover
   and the card. Every icon that table names is declared in `build/icons.js`.
