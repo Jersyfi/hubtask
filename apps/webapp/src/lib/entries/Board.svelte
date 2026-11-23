@@ -701,10 +701,12 @@
       return key === null || key === undefined ? null : { key, elements: elementsOf(key) };
     },
     ondrop: ({ id, to, levelKey }) => {
-      carry(undefined, NO_COLUMN);
       const from = board?.querySelector(`[data-card="${id}"]`)?.getAttribute('data-column') ?? 'none';
       const card = cardsOf(from === 'none' ? null : from).find((each) => each.id === id);
-      if (card) void drop(card, from, levelKey, to);
+      // Read before the carry ends: ending it empties the refusals.
+      const refused = from === levelKey ? undefined : refusals.get(levelKey);
+      carry(undefined, NO_COLUMN);
+      if (card) void drop(card, from, levelKey, to, refused);
     },
     // A finger held still on a card and lifted asks for its menu (ADR-0088); one that moves drags.
     onhold: (id) => menus[id]?.open(0),
@@ -715,12 +717,11 @@
     return [...(board?.querySelectorAll<HTMLElement>(`[data-column="${key}"]`) ?? [])];
   }
 
-  async function drop(card: WorkItem, from: string, to: string, position: number) {
+  async function drop(card: WorkItem, from: string, to: string, position: number, refused: string | undefined) {
     // Across columns is a column change only where a column is a bucket. On any other grouping the
     // drag ranks within the column it was dropped in and changes nothing else, because the value
     // it was grouped by is not a place an entry can be put.
     // A column that refuses says so while the card is carried, and nothing is written.
-    const refused = from === to ? undefined : refusals.get(to);
     if (refused) {
       writeFailure = { message: t(refused) } as ReturnType<typeof renderProblem>;
       return;
