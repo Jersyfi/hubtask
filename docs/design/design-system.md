@@ -287,8 +287,8 @@ trigger on close; a `Menu` is operable with arrows, `Home`, `End` and type-ahead
 layer at a time, which is why `Dialog` refuses the platform's `cancel` and asks the register; a
 `Dialog` with `isAlert` is the APG Alert Dialog — a consequence that interrupts on purpose,
 announced as `alertdialog` and described by its body, the focus starting on the safe answer the
-caller places first in the foot, never on the destructive primary; a
-`Toast` is announced without taking focus.
+caller places first in the foot, never on the destructive primary, and a click beside it does not
+close it (✕ and Escape do); a `Toast` is announced without taking focus.
 
 **Status emphasis is a prop of `Badge`, not a tone**: `emphasis: 'subtle' | 'bold'`, subtle by
 default (rule 3). `Banner`, `Callout` and `Toast` take the surface and the border of their tone;
@@ -466,8 +466,9 @@ the mark the bar carries; how the product uses them is §11.
   An optional mark and count per link.
 * **The sidebar's pieces** ([`backlog/navigation/README.md`](../backlog/navigation/README.md) §2,
   [ADR-0100](../adr/ADR-0100-a-hub-level-in-the-navigation-and-one-content-tree.md)) — **`NavItem`**
-  (a row: twist, mark or `ProductTile`, name, figure, and ⋯ and ＋ in the figure's cell on hover and
-  focus; current with the brand bar and `aria-current`), **`NavGroup`** (a section head that sticks,
+  (a row: twist, mark or `ProductTile`, name, one badge, figure, and ⋯ and ＋ in the figure's cell on
+  hover and focus; current with the brand bar and `aria-current`; the badge is named, and its
+  `warning` tone - on its surface - is an extra while what it says is happening now), **`NavGroup`** (a section head that sticks,
   with ＋ and ⋯, *n more* and a filter past its bound; its head stands on the plane it is drawn on,
   `--nav-plane`, the raised panel of a flyout or a drawer), **`NavFlyout`** (*Recent*, the hub quick
   switch, which drops from the hub's head through `anchor`), **`NavLevel`** (the workspace or the hub level, sliding in), **`ProductTile`** (a
@@ -1122,7 +1123,8 @@ of its own bars beside it (`page.takeScreen`). `WorkPage` and `DetailPage` — t
   hands its folded menu into the bar's menu slot. The `h1` stays in the content for the reader, not
   drawn twice. The frame never derives titles from routes.
 * **A notice about the page** — a refused write, a check's findings — is drawn by `PageHeader`. **If
-  it would say the same on every screen, it belongs to the bar** (§11.6).
+  it would say the same on every screen, it belongs to the bar** (§11.6) — the reader's emergency
+  notices too, after the dialog that told them once.
 * **Width of content.** The reading measure belongs to running text, and `app.css` gives it every
   paragraph. A form keeps a column wide enough for its fields. A table, a list of rows, a matrix and
   a card take the region.
@@ -1385,15 +1387,35 @@ refusal (with *Dismiss* beside it), *Resolve* for a conflict. **Connected means 
 accepted**, not that a record arrived.
 
 **The notice mark** (`apps/webapp/src/lib/frame/NoticeMark.svelte`) is drawn signed in or not,
-whenever there is something wrong to say:
+whenever there is something wrong to say, and while the reader has an emergency notice of the last
+thirty days:
 
 | What | The mark | Pressed |
 |---|---|---|
 | The health report says something is wrong | The mark with a `status.warning` dot | The report's own words, per component |
 | The manifest could not be read | The mark with a dot | That it could not, and the way to ask again |
 | Both | The dot | Both, the report first |
+| A private hub of the reader's was opened through the emergency access, unconfirmed | `shield` with the dot, on the `status.warning` surface | *Emergency access to your private hubs*: each notice with its hub as a link, who, when, until when, the reason in two lines, and *Acknowledged* |
+| Only confirmed notices of the last thirty days | `shield`, quiet: no dot, no tint | The same section, each notice marked confirmed |
+| A notice and a fault | The triangle with the dot | The reader's section first, then the fault's |
 
-With neither, no mark is drawn. The product's maturity stage is not stated in the application, only
+With none of these, no mark is drawn. The mark's name says what it holds ("…: one notice not yet
+acknowledged", "…: notices of the last 30 days"); the dot is not the only sign. On a phone the mark
+stands on the roots, as the bar's marks do.
+
+**The emergency notice** (ADR-0073 §4, UC-ID-16 check 11) is told **once, when the app opens**, on
+whatever view it opens at: a `Dialog` S with `isAlert` (an M with several notices from `medium` up;
+on a phone the centred card for any number), titled with what happened, its body who, which hub,
+when, until when and why, its foot *Open the hub* first - where the focus starts - and
+*Acknowledged*. It waits for a moment nothing else holds the reader: no layer open, nothing being
+typed, neither the starter nor a tour on screen. ✕ and Escape close it without confirming, and it
+asks again at the next opening; a click beside it does not close it. A refused confirmation keeps
+it open and says so; offline the confirmation is unavailable and says why. Nothing is queued: a
+confirmation is the proof the reader read it. Afterwards the mark above and the hub's row carry it:
+for thirty days the hub's badge is `shield` in the lock's place, named "Private · opened through
+the emergency access, until …" while the hour runs (on the `status.warning` surface, an extra) and
+"… on …" afterwards. The folded rail and the hub level's head stay unmarked; the hub's own notice
+is on its page. **No view draws a banner for it.** The product's maturity stage is not stated in the application, only
 in the release notes ([ADR-0107](../adr/ADR-0107-the-application-does-not-state-its-maturity-stage.md),
 [`versioning-release.md`](../architecture/versioning-release.md) §5). No banner above a page states
 the health report.

@@ -990,8 +990,10 @@ refused before the hub is looked up (`access.not_permitted`).
   `notification.emergency_access`, which a process of the previous release has no handler for, so
   it is never sent with another category's words during a rollout. Every member is also told in
   the app from their own record, whatever the mail did - `GET /accounts/me/emergency-notices`, the
-  last 30 days, on the start view (not in every view: a work view keeps its layout) - which is how a managed account without a mailbox is told; the hub
-  lists its accesses to whoever reads it (`GET /private-hubs/{hubId}/accesses`).
+  last 30 days - which is how a managed account without a mailbox is told: once, when the app
+  opens, in a dialog the member confirms; afterwards behind the bar's mark and on the hub's row in
+  the navigation, and no view draws a banner for it (`design-system.md` §11.6). The hub lists its
+  accesses to whoever reads it (`GET /private-hubs/{hubId}/accesses`).
 * **The member confirms it once** (UC-ID-16 check 10, `AcknowledgeEmergencyNotice`,
   `POST /accounts/me/emergency-notices/{accessId}:acknowledge`). A person confirms an access they
   were told of by that record, within the same 30 days; anybody else - the owner who opened it, a

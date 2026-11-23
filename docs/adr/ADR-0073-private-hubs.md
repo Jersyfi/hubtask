@@ -55,6 +55,13 @@ opened your private hub on … — reason: …") and is recorded in the workspac
 instead of secrecy is what reconciles the controller's duties and a family's emergencies with the
 promise of privacy: nobody reads along unnoticed.
 
+How a member is told in the app (decided on #1858): **once, when the app opens**, in a dialog that
+says who, which hub, when, until when and why, and that the member confirms. The confirmation is
+the member's own and is shown to nobody else. Afterwards the bar's mark and the hub's row in the
+navigation carry it for thirty days, and the hub's own notice stays; **no view draws a banner for
+it**. The rule lives in [`identity.md`](../architecture/identity.md) §22 and
+[`design-system.md`](../design/design-system.md) §11.6.
+
 ### 5. What still applies
 
 Backups and the workspace export contain private hubs — the data belongs to the workspace — marked as

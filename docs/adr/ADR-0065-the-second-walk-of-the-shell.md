@@ -132,12 +132,13 @@ that there is something.
 | The stage, while it is not `stable` | The quiet mark, no dot | The stage's sentence, and what it promises |
 | The health report says something is wrong | The mark with a `status.warning` dot | The report's own words, per component |
 | Both | The dot | Both, the report first |
+| The reader's own notices that a private hub of theirs was opened through the emergency access, for thirty days (ADR-0073 §4, decided on #1858) | The shield; with the dot while one is unconfirmed | The notices, each with its hub, the reader's own first |
 
 The stage is not dismissible any more, and that is a simplification rather than a loss: nothing is
 in the way, so nothing has to be pushed out of it. The dismiss existed because the banner took a row
 of every page.
 
-Nothing else moves into the bar. A notice about **the page** — a refused write, a check's findings —
+Nothing else moves into the bar than these and the emergency notices of the last row. A notice about **the page** — a refused write, a check's findings —
 stays where `PageHeader` draws it, because it is about the page. The rule that tells them apart:
 **if it would say the same thing on every screen, it belongs to the bar.**
 
