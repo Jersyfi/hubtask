@@ -853,7 +853,11 @@ product bounds (§5.2)  →  the installation's default and lock  →  the plan'
   change to the workspace's three pictures and its header's choice with `workspace.branding_off`
   (403), its parameter `origin` the level that switched it off, and a client shows the product's
   name; what is stored stays. The pictures and the choice themselves are the workspace's, set
-  under STRUCTURE (`PUT /tenant/branding`, `PUT`/`DELETE /tenant/branding/{picture}`).
+  under STRUCTURE (`PUT /tenant/branding`, `PUT`/`DELETE /tenant/branding/{picture}`). Every
+  member - a role on one hub is enough - reads the name and the look the header shows through
+  `GET /tenant/look`: the name, the choice and the picture identifiers, the product's name and
+  none where the switch is off. The workspace's set-up (`GET /tenant`) stays a READ at the
+  workspace.
 * **Never a switch:** exporting, deleting or asking about one's own data, language, time zone,
   accessibility. Rate limits, the lockout curve, the key ring, and a workspace's name, colour and
   start page have no installation level; language and time zone may be defaulted there, never locked.

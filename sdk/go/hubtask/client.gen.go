@@ -29028,6 +29028,23 @@ type WorkspaceHost struct {
 // WorkspaceHostState `PENDING` resolves nothing: a host somebody typed is not a host they own. `VERIFIED` is one whose zone carried the mark and which may become canonical; it is not serving yet. `ACTIVE` is verified, its certificate in place, and answering - the canonical host is always this one. `BROKEN` was `ACTIVE` and stopped, and the row is kept because it is the way back: when it recovers it is `ACTIVE` again without anybody doing anything.
 type WorkspaceHostState string
 
+// WorkspaceLook The workspace's name and look as its members see them: the stored choice and pictures where the workspace may show its own name and logo, else `PRODUCT` and no pictures.
+type WorkspaceLook struct {
+	DisplayName string `json:"display_name"`
+
+	// Header What the header and the sign-in card show: the product's name, the workspace's name, or the workspace's own logo alone.
+	Header WorkspaceHeader `json:"header"`
+
+	// LogoDarkMediaId The logo drawn on the dark theme, or null.
+	LogoDarkMediaId *openapi_types.UUID `json:"logo_dark_media_id"`
+
+	// LogoLightMediaId The logo drawn on the light theme, or null.
+	LogoLightMediaId *openapi_types.UUID `json:"logo_light_media_id"`
+
+	// SymbolMediaId The square symbol, or null.
+	SymbolMediaId *openapi_types.UUID `json:"symbol_media_id"`
+}
+
 // WorkspaceNearQuota One workspace at or above 90% of a quota, and the quotas that put it there.
 type WorkspaceNearQuota struct {
 	// Quotas Only the quotas at or above 90% of their ceiling.
@@ -45208,6 +45225,20 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /tenant/device-list-entry (the `IssueDeviceListEntry` operationId).
 	IssueDeviceListEntry(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadWorkspaceLook The workspace's name and look, as every member sees them
+	//
+	// What the header, the switcher and the tab show of the workspace: its display name, what
+	// the header shows and the pictures it may draw. Any member of the workspace reads it - a
+	// role on one hub is enough -, so a member who may not read the workspace's set-up
+	// (`GET /tenant`) still sees its name and look. Nothing else of the workspace is in it.
+	//
+	// Where the installation, the plan or the workspace does not let it show its own name and
+	// logo, it answers the product's name (`PRODUCT`) and no pictures, whatever is stored. Every
+	// picture it names is readable by the same member (`GET /media/{mediaId}`).
+	//
+	// Corresponds with GET /tenant/look (the `ReadWorkspaceLook` operationId).
+	ReadWorkspaceLook(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListModules The modules of the suite at the workspace or one hub
 	//
@@ -69258,6 +69289,30 @@ func (c *Client) SetWorkspacePicture(ctx context.Context, picture WorkspacePictu
 // Corresponds with GET /tenant/device-list-entry (the `IssueDeviceListEntry` operationId).
 func (c *Client) IssueDeviceListEntry(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewIssueDeviceListEntryRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadWorkspaceLook The workspace's name and look, as every member sees them
+//
+// What the header, the switcher and the tab show of the workspace: its display name, what
+// the header shows and the pictures it may draw. Any member of the workspace reads it - a
+// role on one hub is enough -, so a member who may not read the workspace's set-up
+// (`GET /tenant`) still sees its name and look. Nothing else of the workspace is in it.
+//
+// Where the installation, the plan or the workspace does not let it show its own name and
+// logo, it answers the product's name (`PRODUCT`) and no pictures, whatever is stored. Every
+// picture it names is readable by the same member (`GET /media/{mediaId}`).
+//
+// Corresponds with GET /tenant/look (the `ReadWorkspaceLook` operationId).
+func (c *Client) ReadWorkspaceLook(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadWorkspaceLookRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -109999,6 +110054,33 @@ func NewIssueDeviceListEntryRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewReadWorkspaceLookRequest constructs an http.Request for the ReadWorkspaceLook method
+func NewReadWorkspaceLookRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/look")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListModulesRequest constructs an http.Request for the ListModules method
 func NewListModulesRequest(server string, params *ListModulesParams) (*http.Request, error) {
 	var err error
@@ -126259,6 +126341,22 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /tenant/device-list-entry (the `IssueDeviceListEntry` operationId).
 	IssueDeviceListEntryWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*IssueDeviceListEntryResult, error)
+
+	// ReadWorkspaceLookWithResponse The workspace's name and look, as every member sees them
+	//
+	// What the header, the switcher and the tab show of the workspace: its display name, what
+	// the header shows and the pictures it may draw. Any member of the workspace reads it - a
+	// role on one hub is enough -, so a member who may not read the workspace's set-up
+	// (`GET /tenant`) still sees its name and look. Nothing else of the workspace is in it.
+	//
+	// Where the installation, the plan or the workspace does not let it show its own name and
+	// logo, it answers the product's name (`PRODUCT`) and no pictures, whatever is stored. Every
+	// picture it names is readable by the same member (`GET /media/{mediaId}`).
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /tenant/look (the `ReadWorkspaceLook` operationId).
+	ReadWorkspaceLookWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadWorkspaceLookResult, error)
 
 	// ListModulesWithResponse The modules of the suite at the workspace or one hub
 	//
@@ -167438,6 +167536,54 @@ func (r IssueDeviceListEntryResult) ContentType() string {
 	return ""
 }
 
+type ReadWorkspaceLookResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkspaceLook
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadWorkspaceLookResult) GetJSON200() *WorkspaceLook {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadWorkspaceLookResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadWorkspaceLookResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadWorkspaceLookResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadWorkspaceLookResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadWorkspaceLookResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListModulesResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -190841,6 +190987,28 @@ func (c *ClientWithResponses) IssueDeviceListEntryWithResponse(ctx context.Conte
 		return nil, err
 	}
 	return ParseIssueDeviceListEntryResult(rsp)
+}
+
+// ReadWorkspaceLookWithResponse The workspace's name and look, as every member sees them
+//
+// What the header, the switcher and the tab show of the workspace: its display name, what
+// the header shows and the pictures it may draw. Any member of the workspace reads it - a
+// role on one hub is enough -, so a member who may not read the workspace's set-up
+// (`GET /tenant`) still sees its name and look. Nothing else of the workspace is in it.
+//
+// Where the installation, the plan or the workspace does not let it show its own name and
+// logo, it answers the product's name (`PRODUCT`) and no pictures, whatever is stored. Every
+// picture it names is readable by the same member (`GET /media/{mediaId}`).
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /tenant/look (the `ReadWorkspaceLook` operationId).
+func (c *ClientWithResponses) ReadWorkspaceLookWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadWorkspaceLookResult, error) {
+	rsp, err := c.ReadWorkspaceLook(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadWorkspaceLookResult(rsp)
 }
 
 // ListModulesWithResponse The modules of the suite at the workspace or one hub
@@ -221131,6 +221299,39 @@ func ParseIssueDeviceListEntryResult(rsp *http.Response) (*IssueDeviceListEntryR
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest DeviceListEntry
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadWorkspaceLookResult parses an HTTP response from a ReadWorkspaceLookWithResponse call
+func ParseReadWorkspaceLookResult(rsp *http.Response) (*ReadWorkspaceLookResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadWorkspaceLookResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkspaceLook
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

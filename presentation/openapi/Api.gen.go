@@ -29022,6 +29022,23 @@ type WorkspaceHost struct {
 // WorkspaceHostState `PENDING` resolves nothing: a host somebody typed is not a host they own. `VERIFIED` is one whose zone carried the mark and which may become canonical; it is not serving yet. `ACTIVE` is verified, its certificate in place, and answering - the canonical host is always this one. `BROKEN` was `ACTIVE` and stopped, and the row is kept because it is the way back: when it recovers it is `ACTIVE` again without anybody doing anything.
 type WorkspaceHostState string
 
+// WorkspaceLook The workspace's name and look as its members see them: the stored choice and pictures where the workspace may show its own name and logo, else `PRODUCT` and no pictures.
+type WorkspaceLook struct {
+	DisplayName string `json:"display_name"`
+
+	// Header What the header and the sign-in card show: the product's name, the workspace's name, or the workspace's own logo alone.
+	Header WorkspaceHeader `json:"header"`
+
+	// LogoDarkMediaId The logo drawn on the dark theme, or null.
+	LogoDarkMediaId *openapi_types.UUID `json:"logo_dark_media_id"`
+
+	// LogoLightMediaId The logo drawn on the light theme, or null.
+	LogoLightMediaId *openapi_types.UUID `json:"logo_light_media_id"`
+
+	// SymbolMediaId The square symbol, or null.
+	SymbolMediaId *openapi_types.UUID `json:"symbol_media_id"`
+}
+
 // WorkspaceNearQuota One workspace at or above 90% of a quota, and the quotas that put it there.
 type WorkspaceNearQuota struct {
 	// Quotas Only the quotas at or above 90% of their ceiling.
@@ -36609,6 +36626,9 @@ type ServerInterface interface {
 	// IssueDeviceListEntry This workspace's entry for the device's list of workspaces
 	// (GET /tenant/device-list-entry)
 	IssueDeviceListEntry(w http.ResponseWriter, r *http.Request)
+	// ReadWorkspaceLook The workspace's name and look, as every member sees them
+	// (GET /tenant/look)
+	ReadWorkspaceLook(w http.ResponseWriter, r *http.Request)
 	// ListModules The modules of the suite at the workspace or one hub
 	// (GET /tenant/modules)
 	ListModules(w http.ResponseWriter, r *http.Request, params ListModulesParams)
@@ -64059,6 +64079,20 @@ func (siw *ServerInterfaceWrapper) IssueDeviceListEntry(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r)
 }
 
+// ReadWorkspaceLook operation middleware
+func (siw *ServerInterfaceWrapper) ReadWorkspaceLook(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadWorkspaceLook(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListModules operation middleware
 func (siw *ServerInterfaceWrapper) ListModules(w http.ResponseWriter, r *http.Request) {
 
@@ -67588,6 +67622,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/address-notices", wrapper.ListAddressNotices)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/address-notices:acknowledge", wrapper.AcknowledgeAddressNotices)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/device-list-entry", wrapper.IssueDeviceListEntry)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/look", wrapper.ReadWorkspaceLook)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/tenant/branding", wrapper.SetWorkspaceHeader)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/tenant/branding/{picture}", wrapper.RemoveWorkspacePicture)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/tenant/branding/{picture}", wrapper.SetWorkspacePicture)

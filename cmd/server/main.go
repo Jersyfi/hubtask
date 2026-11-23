@@ -3209,6 +3209,7 @@ func run() error {
 		identity.ListOauthGrants{Writer: oauthWriter}.Descriptor(),
 		identity.RevokeOauthGrant{Writer: oauthWriter}.Descriptor(),
 		identity.ReadWorkspace{Writer: workspaceWriter}.Descriptor(),
+		identity.ReadWorkspaceLook{Writer: workspaceWriter}.Descriptor(),
 		identity.UpdateWorkspace{Writer: workspaceWriter}.Descriptor(),
 		identity.SetWorkspaceHeader{Brander: workspaceBrander}.Descriptor(),
 		identity.SetWorkspacePicture{Brander: workspaceBrander}.Descriptor(),

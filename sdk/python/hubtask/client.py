@@ -2257,6 +2257,10 @@ class Client:
         """This workspace's entry for the device's list of workspaces"""
         return self._call("GET", "/tenant/device-list-entry", {}, None, {}, None, "none", None, "json")
 
+    def read_workspace_look(self) -> "WorkspaceLook":
+        """The workspace's name and look, as every member sees them"""
+        return self._call("GET", "/tenant/look", {}, None, {}, None, "none", None, "json")
+
     def set_workspace_header(self, body: "WorkspaceHeaderInput") -> "WorkspaceBranding":
         """Choose what the header shows"""
         return self._call("PUT", "/tenant/branding", {}, None, {}, body, "json", "application/json", "json")

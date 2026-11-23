@@ -17,6 +17,7 @@ import (
 	"time"
 
 	mediarepo "github.com/Jersyfi/hubtask/core/application/repository/media"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	catalogue "github.com/Jersyfi/hubtask/core/application/usecase"
@@ -188,5 +189,80 @@ func TestAWorkspacesBrandingAtTheRestDoor(t *testing.T) {
 	status, raw = call(http.MethodPut, "/tenant/branding/FAVICON", `{"media_id":"`+logo.String()+`"}`)
 	if status < 400 || status >= 500 {
 		t.Errorf("a fourth picture answered %d %s", status, raw)
+	}
+}
+
+// onOneHub authorises as the access service does for a guest of one hub: a member of the workspace
+// (AnyMember), holding no permission at the workspace itself.
+type onOneHub struct{}
+
+func (onOneHub) Authorize(_ context.Context, _ appshared.ActorContext, request access.Request) error {
+	if request.AnyMember {
+		return nil
+	}
+	return shared.ErrForbidden.WithDetail("access.forbidden")
+}
+
+// UC-INS-22 checks 5 and 9 at the REST door: a guest of one hub, refused the workspace's set-up,
+// reads its name and look as the contract's WorkspaceLook, and nothing else of the workspace.
+func TestAWorkspacesLookAtTheRestDoorForAGuestOfOneHub(t *testing.T) {
+	spec := contractSpec(t)
+	tenant := shared.MustParseID("0192f000-0000-7000-8000-00000000000a")
+	guest := shared.MustParseID("0192f000-0000-7000-8000-00000000000e")
+	symbol := shared.MustParseID("0192f000-0000-7000-8000-0000000000a1")
+	workspace := &brandedWorkspace{row: identitydomain.Workspace{
+		Tenant: identitydomain.Tenant{
+			ID: tenant, Slug: "acme", DisplayName: "Acme", Status: identitydomain.TenantActive,
+			DefaultLocale: "en", DefaultTimeZone: "UTC",
+		},
+		Version:  1,
+		Branding: identitydomain.Branding{Header: identitydomain.HeaderWorkspaceName, Symbol: symbol},
+	}}
+	writer := identity.WorkspaceWriter{
+		Workspaces: workspace, Authorizer: onOneHub{}, Audit: &kept{},
+		UnitOfWork: directly{}, Clock: portclock.Fixed(time.Date(2026, 11, 23, 9, 0, 0, 0, time.UTC)),
+	}
+	registry, err := catalogue.NewRegistry(nil,
+		identity.ReadWorkspace{Writer: writer}.Descriptor(),
+		identity.ReadWorkspaceLook{Writer: writer}.Descriptor(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	controller := rest.NewRestController()
+	controller.UseCases = registry
+	routes := controller.Routes()
+	ctx := appshared.ContextWithActor(context.Background(), appshared.ActorContext{
+		Kind: appshared.ActorUser, TenantID: tenant, AccountID: guest, Scopes: []string{"workspace:read"},
+	})
+	call := func(path string) (int, []byte) {
+		t.Helper()
+		request := httptest.NewRequestWithContext(ctx, http.MethodGet, rest.APIBasePath+path, nil)
+		response := httptest.NewRecorder()
+		routes.ServeHTTP(response, request)
+		return response.Code, response.Body.Bytes()
+	}
+
+	if status, raw := call("/tenant"); status != http.StatusForbidden {
+		t.Errorf("the workspace's set-up answered a guest of one hub %d %s, want 403", status, raw)
+	}
+	status, raw := call("/tenant/look")
+	if status != http.StatusOK {
+		t.Fatalf("the look answered %d %s", status, raw)
+	}
+	problems, err := spec.validateAgainst("WorkspaceLook", raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, problem := range problems {
+		t.Errorf("WorkspaceLook: %s", problem)
+	}
+	var look map[string]any
+	if err := json.Unmarshal(raw, &look); err != nil {
+		t.Fatal(err)
+	}
+	if look["display_name"] != "Acme" || look["header"] != "WORKSPACE_NAME" || look["symbol_media_id"] != symbol.String() ||
+		look["logo_light_media_id"] != nil || len(look) != 5 {
+		t.Errorf("the look answered %v", look)
 	}
 }

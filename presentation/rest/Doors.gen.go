@@ -599,6 +599,7 @@ var restDoors = map[string]restDoor{
 	"readWhiteboardVersion":             {UseCase: "ReadWhiteboardVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readWorkload":                      {UseCase: "ReadWorkload", Status: 200, Query: []string{"calendar", "from", "weeks", "zone"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"weeks"}},
 	"readWorkspace":                     {UseCase: "ReadWorkspace", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readWorkspaceLook":                 {UseCase: "ReadWorkspaceLook", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readWorkspaceTolerance":            {UseCase: "ReadWorkspaceTolerance", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"reapplyErasures":                   {UseCase: "ReapplyErasures", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"reconcileCis":                      {UseCase: "ReconcileCis", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -4724,6 +4725,12 @@ func (c *RestController) ReadWorkload(w http.ResponseWriter, r *http.Request, pl
 // ReadWorkspace answers GET /tenant by the generated mapping.
 func (c *RestController) ReadWorkspace(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["readWorkspace"], usecase.Input{}, nil, nil, answerBy(workspaceResponse))
+}
+
+// ReadWorkspaceLook answers GET /tenant/look by the generated mapping.
+func (c *RestController) ReadWorkspaceLook(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.WorkspaceLook
+	c.door(w, r, restDoors["readWorkspaceLook"], usecase.Input{}, nil, nil, &answer)
 }
 
 // ReadWorkspaceTolerance answers GET /plans:tolerance by the generated mapping.

@@ -738,6 +738,7 @@ func Descriptors() []usecase.Descriptor {
 		identity.ListOauthGrants{}.Descriptor(),
 		identity.RevokeOauthGrant{}.Descriptor(),
 		identity.ReadWorkspace{}.Descriptor(),
+		identity.ReadWorkspaceLook{}.Descriptor(),
 		identity.UpdateWorkspace{}.Descriptor(),
 		identity.SetWorkspaceHeader{}.Descriptor(),
 		identity.SetWorkspacePicture{}.Descriptor(),

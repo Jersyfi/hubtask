@@ -2846,6 +2846,11 @@ export class HubtaskClient {
     return this.call("GET", "/tenant/device-list-entry", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** The workspace's name and look, as every member sees them */
+  readWorkspaceLook(options: CallOptions = {}): Promise<operations["readWorkspaceLook"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/tenant/look", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Choose what the header shows */
   setWorkspaceHeader(body: NonNullable<operations["setWorkspaceHeader"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setWorkspaceHeader"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/tenant/branding", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);

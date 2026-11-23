@@ -15345,6 +15345,31 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /tenant/look:
+    get:
+      tags: [meta]
+      operationId: readWorkspaceLook
+      x-hubtask-rest: generated
+      summary: The workspace's name and look, as every member sees them
+      description: |
+        What the header, the switcher and the tab show of the workspace: its display name, what
+        the header shows and the pictures it may draw. Any member of the workspace reads it - a
+        role on one hub is enough -, so a member who may not read the workspace's set-up
+        (`GET /tenant`) still sees its name and look. Nothing else of the workspace is in it.
+
+        Where the installation, the plan or the workspace does not let it show its own name and
+        logo, it answers the product's name (`PRODUCT`) and no pictures, whatever is stored. Every
+        picture it names is readable by the same member (`GET /media/{mediaId}`).
+      responses:
+        "200":
+          description: The workspace's name and look
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceLook"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /tenant/branding:
     put:
       tags: [meta]
@@ -27155,6 +27180,28 @@ components:
         allowed:
           type: boolean
           description: Whether the workspace may show its own name and logo now.
+
+    WorkspaceLook:
+      type: object
+      required: [display_name, header, logo_light_media_id, logo_dark_media_id, symbol_media_id]
+      description: >
+        The workspace's name and look as its members see them: the stored choice and pictures
+        where the workspace may show its own name and logo, else `PRODUCT` and no pictures.
+      properties:
+        display_name: { type: string }
+        header: { $ref: "#/components/schemas/WorkspaceHeader" }
+        logo_light_media_id:
+          type: [string, "null"]
+          format: uuid
+          description: The logo drawn on the light theme, or null.
+        logo_dark_media_id:
+          type: [string, "null"]
+          format: uuid
+          description: The logo drawn on the dark theme, or null.
+        symbol_media_id:
+          type: [string, "null"]
+          format: uuid
+          description: The square symbol, or null.
 
     AvatarInput:
       type: object

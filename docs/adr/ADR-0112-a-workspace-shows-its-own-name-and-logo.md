@@ -51,7 +51,13 @@ for that party, not a loophole.
   A change of the name, a picture, the choice or the switch writes the record the module switches
   write, with the same content and the same receivers
   ([ADR-0108](./ADR-0108-a-module-switch-and-a-board-comment-are-change-records.md)), and a
-  client reads the workspace again on it. Not a record kind of its own: more protocol for one read.
+  client reads the workspace's look again on it. Not a record kind of its own: more protocol for
+  one read.
+* **Every member reads the look through a read of its own** (decided 2026-11-23). A member whose
+  roles are all on hubs may not read the workspace's set-up, so the header, the switcher and the
+  tab read `GET /tenant/look`: the name, the choice and the picture identifiers, open to any
+  member of the workspace. Not the set-up opened to every member: it carries the sign-in rule,
+  the addresses and the defaults, which are the administrators'.
 * **Not in this cut:** an installation-wide branding, colours and fonts, a favicon, a mail head,
   the installed apps' names and icons. The product's name and version stay readable on the about
   page.
@@ -67,8 +73,9 @@ for that party, not a loophole.
 
 ## Consequences
 
-The workspace's answer carries `branding`; the media usage `WORKSPACE_LOGO` exists; every member
-reads the pictures the workspace shows. The archive carries the pictures after the media
+The workspace's answer carries `branding`; `GET /tenant/look` answers the name and the look to
+every member; the media usage `WORKSPACE_LOGO` exists; every member reads the pictures the
+workspace shows. The archive carries the pictures after the media
 (`workspace_pictures`) and the choice with the workspace's settings. `SignInRules` carries
 `workspace_header` and `workspace_pictures`, `GET /auth/workspace-pictures/{mediaId}` serves them,
 and the workspace's `setting` record is written at every such change. The configuration document

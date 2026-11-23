@@ -2385,6 +2385,10 @@ func (pending) RemoveDeskLogo(w http.ResponseWriter, r *http.Request, _ openapi.
 	notAvailable(w, r)
 }
 
+func (pending) ReadWorkspaceLook(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
 func (pending) SetWorkspaceHeader(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }

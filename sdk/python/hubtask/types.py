@@ -190,6 +190,14 @@ class WorkspaceBranding(TypedDict, total=False):
     symbol_media_id: Required[str | None]
     allowed: Required[bool]
 
+class WorkspaceLook(TypedDict, total=False):
+    """The workspace's name and look as its members see them: the stored choice and pictures where the workspace may show its own name and logo, else `PRODUCT` and no pictures."""
+    display_name: Required[str]
+    header: Required["WorkspaceHeader"]
+    logo_light_media_id: Required[str | None]
+    logo_dark_media_id: Required[str | None]
+    symbol_media_id: Required[str | None]
+
 class AvatarInput(TypedDict, total=False):
     media_id: Required[str]
 
