@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path';
 import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
-import { HUB, signedIn, stub } from './fixture.mjs';
+import { HUB, MANIFEST, signedIn, stub } from './fixture.mjs';
 import { productWalk } from './productwalk.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -38,6 +38,9 @@ test('chromium: a refused new whiteboard leaves the reader where they were with 
       });
     }
     if (path.endsWith(`/hubs/${HUB.id}/whiteboards`)) return route.fulfill({ json: { data: [] } });
+    // *New whiteboard* stands only where whiteboards are on, at the workspace and the hub.
+    if (path.endsWith('/meta/capabilities')) return route.fulfill({ json: { ...MANIFEST, modules_on: ['WHITEBOARD'] } });
+    if (path.endsWith(`/containers/${HUB.id}/modules`)) return route.fulfill({ json: { modules_on: ['WHITEBOARD'] } });
     return stub(route);
   });
   await page.goto(`${served.origin}/hubs/${HUB.id}/whiteboards`);
