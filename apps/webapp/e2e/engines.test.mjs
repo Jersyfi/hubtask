@@ -71,6 +71,10 @@ async function stub(route) {
   if (url.pathname.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') {
     return route.fulfill({ json: { ...EMPTY_PAGE, data: [HUB] } });
   }
+  // The workspace's look, as `WorkspaceLook` answers it: the product's, with no picture.
+  if (url.pathname.endsWith('/api/v1/tenant/look')) {
+    return route.fulfill({ json: { display_name: 'Engines', header: 'PRODUCT', logo_light_media_id: null, logo_dark_media_id: null, symbol_media_id: null } });
+  }
   // A bare list, as the contract answers it - not a page: the create dialog reads it.
   if (url.pathname.endsWith('/api/v1/presets')) return route.fulfill({ json: [] });
   // The saved views, a bare array too, as fixture.mjs answers them: the search reads them once it
