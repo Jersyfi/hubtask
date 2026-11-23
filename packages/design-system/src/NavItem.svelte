@@ -18,6 +18,12 @@
   export interface RowBadge {
     readonly icon: IconName;
     readonly label: string;
+    /**
+     * `warning` while what the mark says is happening now - a private hub open through the
+     * emergency access: on that tone's surface, an extra only - the icon and its name say it (§6
+     * rule 3).
+     */
+    readonly tone?: 'warning';
   }
 
   /** How the row stands in a drag (design-system.md §11.9): carried, a target, just landed. */
@@ -255,7 +261,7 @@
   {#if !isRail}
     <span class="name" title={label}>{label}{#if unreadLabel}<VisuallyHidden>{unreadLabel}</VisuallyHidden>{/if}</span>
     {#if badge}
-      <span class="badge" title={badge.label}><Icon name={badge.icon} label={badge.label} size="sm" /></span>
+      <span class="badge" data-tone={badge.tone} title={badge.label}><Icon name={badge.icon} label={badge.label} size="sm" /></span>
     {/if}
     {#if waitingLabel}
       <span class="badge waiting" title={waitingLabel}><Icon name="cloud-upload" label={waitingLabel} size="sm" /></span>
@@ -518,6 +524,9 @@
     inline-size: var(--layout-nav-actionglyph);
     block-size: var(--layout-nav-actionglyph);
   }
+
+  /* On its tone's surface, as every status is (§6 rule 3): the shape and the name say it first. */
+  .badge[data-tone='warning'] { border-radius: var(--r-sm); background: var(--status-warning-surface); color: var(--status-warning-accent); }
 
   .waiting { color: var(--text-secondary); }
 

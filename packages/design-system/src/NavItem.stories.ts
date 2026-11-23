@@ -31,3 +31,10 @@ export const rail: Story = {
     'The rail: one mark per row, centred; the name is the accessible name and the tooltip.',
   args: { mode: 'rail' },
 };
+
+export const privateHubs: Story = {
+  name: 'Private hubs, one opened in an emergency',
+  about:
+    'A private hub carries the lock after its name. For thirty days after the workspace’s owner opened one through the emergency access the shield takes the lock’s place, and its name says both facts - while the hour runs on the warning surface (an extra: the shape says it), afterwards as quiet as the lock. One badge per row.',
+  args: { mode: 'private' },
+};
