@@ -43,6 +43,33 @@ async function list(browser) {
 }
 
 /**
+ * The answer to the next `method` request whose path ends in `end`, taken before the act that sends
+ * it: the write is recorded before it is answered, so once this settles `written` holds it. It
+ * settles without an answer too, and the walk's own assertion says what is missing.
+ */
+const answered = (page, method, end, body = () => true) =>
+  page.waitForResponse((response) => {
+    const request = response.request();
+    return request.method() === method && new URL(request.url()).pathname.endsWith(end) && body(request.postDataJSON());
+  }, { timeout: 15_000 }).catch(() => undefined);
+
+/**
+ * Stops the page's clock just ahead of its reading. The clock runs while the moment is read and
+ * the pause sent, and a loaded runner can take longer than any margin between the two, which
+ * `pauseAt` refuses as a moment in the past. The refused call has stopped the clock already - it
+ * pauses before it moves forward - so the moment read once more is ahead of it.
+ */
+async function pause(page) {
+  const ahead = async () => new Date((await page.evaluate(() => Date.now())) + 50);
+  try {
+    await page.clock.pauseAt(await ahead());
+  } catch (error) {
+    if (!/fast-forward to the past/.test(String(error))) throw error;
+    await page.clock.pauseAt(await ahead());
+  }
+}
+
+/**
  * Does `act`, then presses *Undo* on the message that says `text` once it has stood for eight
  * seconds. The clock is paused before the act, so the eight seconds are exactly that from the
  * moment the message arrived; it runs again afterwards. The pointer is kept off the message: a
@@ -50,7 +77,7 @@ async function list(browser) {
  */
 async function undoAfterEightSeconds(page, act, text) {
   await page.mouse.move(1, 1);
-  await page.clock.pauseAt(new Date((await page.evaluate(() => Date.now())) + 50));
+  await pause(page);
   await act();
   const message = page.locator('.toast', { hasText: text });
   // The message follows the write's answer, which a loaded runner can take seconds to deliver.
@@ -77,15 +104,17 @@ test('chromium: 1280 px — the trash and the archive from an entry\'s menu take
   const menu = page.getByRole('button', { name: `Actions for ${entry.title}`, exact: true }).first();
 
   await reveal(menu);
+  let back = answered(page, 'POST', `/items/${entry.id}:restore`);
   await undoAfterEightSeconds(page, () => page.getByRole('menuitem', { name: 'Move to the trash' }).click(), `${entry.title} is in the trash.`);
-  await page.waitForTimeout(300);
+  await back;
   assert.ok(written.some((w) => w.method === 'DELETE' && w.path.endsWith(`/items/${entry.id}`)), 'the trash was not at once');
   assert.ok(written.some((w) => w.method === 'POST' && w.path.endsWith(`/items/${entry.id}:restore`)), 'Undo sent no :restore');
   await settle(page);
 
   await reveal(menu);
+  back = answered(page, 'POST', `/items/${entry.id}:unarchive`);
   await undoAfterEightSeconds(page, () => page.getByRole('menuitem', { name: 'Archive' }).click(), `${entry.title} is archived.`);
-  await page.waitForTimeout(300);
+  await back;
   assert.ok(written.some((w) => w.method === 'POST' && w.path.endsWith(`/items/${entry.id}:unarchive`)), 'Undo sent no :unarchive');
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
@@ -99,6 +128,7 @@ test('chromium: 1280 px — a label taken off an entry and a label deleted from 
   const label = LABELS[0];
 
   // A label taken off in the row's label picker (a row's chips carry no ✕, L-1).
+  let back = answered(page, 'PUT', `/items/${tagged.id}/labels/${label.id}`);
   await undoAfterEightSeconds(
     page,
     async () => {
@@ -109,7 +139,7 @@ test('chromium: 1280 px — a label taken off an entry and a label deleted from 
     },
     `The label is off ${tagged.title}.`,
   );
-  await page.waitForTimeout(300);
+  await back;
   assert.ok(written.some((w) => w.method === 'DELETE' && w.path.endsWith(`/items/${tagged.id}/labels/${label.id}`)), 'the label was not taken off at once');
   assert.ok(written.some((w) => w.method === 'PUT' && w.path.endsWith(`/items/${tagged.id}/labels/${label.id}`)), 'Undo did not put it back');
   await settle(page);
@@ -119,12 +149,13 @@ test('chromium: 1280 px — a label taken off an entry and a label deleted from 
   // The labels are a section of the settings page (design-system.md §11.8).
   await openSettings(page, COLLECTION.name);
   await page.getByRole('link', { name: 'Labels' }).click();
+  back = answered(page, 'POST', `/labels/${label.id}:restore`);
   await undoAfterEightSeconds(page, async () => {
     // A label's delete is behind its row's ⋯ (page-system §9.6).
     await page.getByRole('button', { name: `More for ${label.name}` }).click();
     await page.getByRole('menuitem', { name: `Delete ${label.name}` }).click();
   }, `${label.name} is deleted.`);
-  await page.waitForTimeout(300);
+  await back;
   assert.ok(written.some((w) => w.method === 'DELETE' && w.path.endsWith(`/labels/${label.id}`)), 'the label was not deleted at once');
   assert.ok(written.some((w) => w.method === 'POST' && w.path.endsWith(`/labels/${label.id}:restore`)), 'Undo sent no :restore');
   assert.deepEqual(failures, []);
@@ -140,8 +171,9 @@ test('chromium: 1280 px — *Settings → Labels* lists a deleted label with the
   await openSettings(page, COLLECTION.name);
   await page.getByRole('link', { name: 'Labels' }).click();
   await page.getByRole('heading', { name: 'Deleted labels' }).waitFor({ timeout: 5_000 });
+  const back = answered(page, 'POST', `/labels/${gone.id}:restore`);
   await page.getByRole('button', { name: `Bring ${gone.name} back` }).click();
-  await page.waitForTimeout(300);
+  await back;
   assert.ok(written.some((w) => w.method === 'POST' && w.path.endsWith(`/labels/${gone.id}:restore`)), 'Bring back sent no :restore');
   assert.deepEqual(failures, []);
 });
@@ -160,11 +192,12 @@ test('chromium: 1280 px — a selection moved to the trash comes back as one ato
   await page.locator(`[data-row="${parent.id}"] a`).first().click({ modifiers: ['ControlOrMeta'] });
   await page.getByRole('combobox', { name: 'Do this' }).selectOption({ label: 'Move to the trash' });
   // UC-WRK-08 check 2: the bulk trash asks nothing and offers Undo.
+  const restored = answered(page, 'POST', '/items:bulk', (body) => body?.operations?.[0]?.op === 'RESTORE_ITEM');
   await undoAfterEightSeconds(page, async () => {
     await page.getByRole('button', { name: 'Apply' }).click();
     assert.equal(await page.getByRole('dialog').count(), 0, 'the trash asked first');
   }, '2 entries are in the trash.');
-  await page.waitForTimeout(300);
+  await restored;
   const bulks = written.filter((w) => w.method === 'POST' && w.path.endsWith('/items:bulk'));
   const back = bulks.at(-1)?.body;
   assert.equal(back?.atomic, true, 'the way back is not all or nothing');
