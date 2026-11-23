@@ -32,10 +32,10 @@ func signInPictureGone() error {
 // Picture answers the workspace the picture is read in.
 func (p SignInPictures) Picture(ctx context.Context, host string, mediaID shared.ID) (shared.ID, error) {
 	rules := p.Rules
-	if !rules.addressedByHost(host) || mediaID.IsZero() {
+	if mediaID.IsZero() {
 		return "", signInPictureGone()
 	}
-	tenantID := rules.resolveTenant(ctx, host, "")
+	tenantID := rules.addressedTenant(ctx, host)
 	if tenantID.IsZero() {
 		return "", signInPictureGone()
 	}
@@ -43,7 +43,7 @@ func (p SignInPictures) Picture(ctx context.Context, host string, mediaID shared
 	if err != nil {
 		return "", err
 	}
-	if !rules.signInCard(host, tenantID, resolved).Draws(mediaID) {
+	if !rules.signInCard(ctx, GetSignInRulesCommand{Host: host}, tenantID, resolved).Draws(mediaID) {
 		return "", signInPictureGone()
 	}
 	err = rules.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID}, func(ctx context.Context) error {

@@ -344,7 +344,7 @@ func (h GetSignInRules) Execute(
 	return SignInRules{
 		WorkspaceHost:    strings.TrimSpace(cmd.Host),
 		WorkspaceName:    resolved.Workspace.DisplayName,
-		Card:             h.signInCard(cmd.Host, tenantID, resolved),
+		Card:             h.signInCard(ctx, cmd, tenantID, resolved),
 		Methods:          methods,
 		Providers:        providers,
 		Password:         passwordRulesView(resolved, cmd.HasAccount),
@@ -355,23 +355,22 @@ func (h GetSignInRules) Execute(
 }
 
 // signInCard is what the card draws of the workspace's own name and logo. Only where the address
-// itself names the workspace - in single mode the one there is: the installation's own address keeps
-// the product's mark, header or not, and a picture is served only at the address that names its
-// workspace (T-34).
-func (h GetSignInRules) signInCard(host string, tenantID shared.ID, resolved ResolvedPolicy) domain.Branding {
-	if tenantID.IsZero() || !h.addressedByHost(host) {
+// itself names the workspace - in single mode the one there is: an address that needs the header to
+// name one keeps the product's mark, whatever the configuration, and a picture is served only at the
+// address that names its workspace (T-34).
+func (h GetSignInRules) signInCard(
+	ctx context.Context, cmd GetSignInRulesCommand, tenantID shared.ID, resolved ResolvedPolicy,
+) domain.Branding {
+	if tenantID.IsZero() || cmd.TenantHeader != "" && h.addressedTenant(ctx, cmd.Host) != tenantID {
 		return domain.Branding{Header: domain.HeaderProduct}
 	}
 	return resolved.Workspace.Branding.SignInCard(resolved.Effective.Policy.OwnBranding)
 }
 
-// addressedByHost reports whether the host, rather than the header, names the workspace.
-func (h GetSignInRules) addressedByHost(host string) bool {
-	if !h.Multi {
-		return true
-	}
-	at := domain.RequestHost(host)
-	return at != "" && at != domain.RequestHost(h.InstallationHost)
+// addressedTenant is the workspace the address alone names, never a header: zero at the
+// installation's own address and at a host no workspace serves.
+func (h GetSignInRules) addressedTenant(ctx context.Context, host string) shared.ID {
+	return h.resolveTenant(ctx, host, "")
 }
 
 // hasSignInNames asks the workspace's own rows, under its own scope. A host without a workspace

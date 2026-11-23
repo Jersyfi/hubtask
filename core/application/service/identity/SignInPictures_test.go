@@ -204,6 +204,30 @@ func TestTheRulesAtAWorkspacesAddressCarryItsOwnLookAndNoOther(t *testing.T) {
 	}
 }
 
+// T-34, "never a header", whatever the configuration: an installation that did not state its own
+// address treats every host no workspace serves as its own, where the header names the workspace for
+// signing in - but the card there still shows the product's mark, and the address that does name a
+// workspace still shows that workspace's look.
+func TestWithoutAnInstallationAddressAHeaderStillNamesNoLook(t *testing.T) {
+	i := newInstallation()
+	i.rules.InstallationHost = ""
+	i.pictures.Rules.InstallationHost = ""
+
+	for _, header := range []string{choir.String(), bakery.String()} {
+		out := i.card(t, "anything.example.net", header)
+		if out["workspace_header"] != nil || out["workspace_pictures"] != nil {
+			t.Errorf("an unserved host with the header %s carries %v and %v",
+				header, out["workspace_header"], out["workspace_pictures"])
+		}
+	}
+	if _, err := i.pictures.Picture(t.Context(), "anything.example.net", choirLogo); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("the picture at an unserved host answered %v, want the one 404", err)
+	}
+	if out := i.card(t, "choir.tasks.example.org", ""); out["workspace_header"] != "LOGO" {
+		t.Errorf("the choir's own address shows %v", out["workspace_header"])
+	}
+}
+
 // The workspace's name draws its symbol beside it, and the answer reaches the contract's document.
 func TestTheWorkspacesNameDrawsItsSymbolOnTheCard(t *testing.T) {
 	i := newInstallation()
