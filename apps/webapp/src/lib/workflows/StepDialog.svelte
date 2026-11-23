@@ -16,8 +16,8 @@
 
   import { chooseSeveral } from '../forms/chooseSeveral.ts';
   import {
-    APPROVAL_RULES, CHECK_MESSAGE_CODES, addApprovalLevel, addStep, changeApproval, changeApprovalLevel, changeStep, removeApprovalLevel,
-    statusLabel, stepLabel, toggleApproval, type ApprovalLevel,
+    APPROVAL_RULES, CHECK_MESSAGE_CODES, addApprovalLevel, addStep, changeApproval, changeApprovalLevel, changeStep, notOffered, removeApprovalLevel,
+    statusLabel, stepLabel, toggleApproval, whoWhenEmpty, type ApprovalLevel,
   } from '../data/workflows.ts';
   import { accounts } from '../data/accounts.svelte.ts';
   import { groups } from '../data/groups.svelte.ts';
@@ -115,6 +115,28 @@
 
   const roleOptions = $derived(ROLES.map((role) => ({ value: role, label: t(`app.people.role.${role.toLowerCase()}`) })));
   const groupOptions = $derived(groups.all.map((group) => ({ value: group.id, label: group.name })));
+
+  /**
+   * What the step named when the dialog opened and the list does not offer - a workspace's own role
+   * key, a group no longer in the workspace - stays an option until the dialog closes: the closed
+   * field never hides a limit, and unticking one does not pull it from under the pointer. Groups
+   * only once the workspace's are read, or every group would read as gone.
+   */
+  const openedWho = $derived(shape.steps.find((each) => each.key === key)?.who);
+  const whoRoleOptions = $derived([
+    ...roleOptions,
+    ...notOffered(openedWho?.roles, ROLES).map((role) => ({ value: role, label: role, hint: t('app.workflow_designer.who_not_offered') })),
+  ]);
+  const whoGroupOptions = $derived([
+    ...groupOptions,
+    ...(groups.state.status === 'ready'
+      ? notOffered(openedWho?.groups, groups.all.map((group) => group.id)).map((id) => ({
+          value: id,
+          label: t('app.workflow_designer.who_group_gone'),
+          hint: t('app.workflow_designer.who_not_offered'),
+        }))
+      : []),
+  ]);
 
   /**
    * Roles and groups are one choice on screen and two lists in the step; only the list that
@@ -219,13 +241,13 @@
           label={t('app.workflow_designer.who')}
           aria-labelledby={`step-who-${step.key}`}
           groups={[
-            { label: t('app.workflow_designer.who_roles'), options: roleOptions },
-            { label: t('app.workflow_designer.who_groups'), options: groupOptions },
+            { label: t('app.workflow_designer.who_roles'), options: whoRoleOptions },
+            { label: t('app.workflow_designer.who_groups'), options: whoGroupOptions },
           ]}
           selected={[...(step.who?.roles ?? []), ...(step.who?.groups ?? [])]}
           onChange={(next) => chooseWho(step, next)}
           {...chooseSeveral()}
-          emptyLabel={(step.who?.person_fields?.length ?? 0) > 0 ? t('app.workflow_designer.who_fields_only') : t('app.workflow_designer.who_anyone')}
+          emptyLabel={t(whoWhenEmpty(step.who))}
         />
         <div data-step-approval={step.key}>
           <Switch

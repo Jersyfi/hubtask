@@ -240,6 +240,26 @@ export function changeStep(shape: WorkflowShape, key: string, change: Partial<Wo
   return { ...shape, steps: shape.steps.map((step) => (step.key === key ? { ...step, ...change, key: step.key } : step)) };
 }
 
+/**
+ * What an empty *Who may take it* says, as a message code. "Anyone" only where the step limits
+ * nobody - roles, person fields, groups and condition all empty, as the server's `StepWho.IsOpen`
+ * reads it; otherwise what limits it. Roles or groups named but not drawn yet are "some people".
+ */
+export function whoWhenEmpty(who: WorkflowStep['who']): string {
+  const fields = (who?.person_fields?.length ?? 0) > 0;
+  const condition = (who?.condition ?? '').trim() !== '';
+  if ((who?.roles?.length ?? 0) > 0 || (who?.groups?.length ?? 0) > 0) return 'app.workflow_designer.who_limited';
+  if (fields && condition) return 'app.workflow_designer.who_fields_condition';
+  if (fields) return 'app.workflow_designer.who_fields_only';
+  if (condition) return 'app.workflow_designer.who_condition_only';
+  return 'app.workflow_designer.who_anyone';
+}
+
+/** The stored values a list does not offer, in their stored order: kept on screen, not dropped unseen. */
+export function notOffered(stored: readonly string[] | undefined, offered: readonly string[]): readonly string[] {
+  return (stored ?? []).filter((value) => !offered.includes(value));
+}
+
 /** Removes one step. */
 export function removeStep(shape: WorkflowShape, key: string): WorkflowShape {
   return { ...shape, steps: shape.steps.filter((step) => step.key !== key) };

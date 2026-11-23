@@ -8,7 +8,7 @@ import type { WorkflowList, WorkflowShape } from '@hubtask/sync-engine';
 
 import {
   addApprovalLevel, addStatus, addStep, changeApproval, changeStatus, changesBetween, moveStatusTo, changeApprovalLevel, checkMessage, completes, layout, moveStatus, removeApprovalLevel,
-  removeStatus, shippedCopy, standing, startingDraft, stepsFrom, toggleApproval, workflowChoices, workflowCopyKey, workflowFor, workflowsAtHub, boardShapeIn, workflowsIn,
+  notOffered, removeStatus, shippedCopy, standing, startingDraft, stepsFrom, toggleApproval, workflowChoices, workflowCopyKey, workflowFor, workflowsAtHub, boardShapeIn, workflowsIn, whoWhenEmpty,
 } from './workflows.ts';
 
 const shape: WorkflowShape = {
@@ -195,4 +195,19 @@ test('a status moves to the place a block is dropped at, and stays inside the li
   assert.deepEqual(moveStatusTo(shape, 'done', 0).statuses.map((status) => status.key), ['done', 'todo', 'in_progress']);
   assert.deepEqual(moveStatusTo(shape, 'todo', 9).statuses.map((status) => status.key), ['in_progress', 'done', 'todo']);
   assert.equal(moveStatusTo(shape, 'missing', 0), shape);
+});
+
+test('an empty who says anyone only where the step limits nobody, as the server reads it', () => {
+  assert.equal(whoWhenEmpty(undefined), 'app.workflow_designer.who_anyone');
+  assert.equal(whoWhenEmpty({ condition: '  ' }), 'app.workflow_designer.who_anyone');
+  assert.equal(whoWhenEmpty({ condition: 'priority = 1' }), 'app.workflow_designer.who_condition_only');
+  assert.equal(whoWhenEmpty({ person_fields: ['assignee'] }), 'app.workflow_designer.who_fields_only');
+  assert.equal(whoWhenEmpty({ person_fields: ['assignee'], condition: 'priority = 1' }), 'app.workflow_designer.who_fields_condition');
+  assert.equal(whoWhenEmpty({ roles: ['planner_custom'] as never }), 'app.workflow_designer.who_limited');
+  assert.equal(whoWhenEmpty({ groups: ['g1'] }), 'app.workflow_designer.who_limited');
+});
+
+test('a stored value the list does not offer is kept, in its stored order', () => {
+  assert.deepEqual(notOffered(['planner', 'OWNER', 'auditor'], ['OWNER', 'ADMIN']), ['planner', 'auditor']);
+  assert.deepEqual(notOffered(undefined, ['OWNER']), []);
 });

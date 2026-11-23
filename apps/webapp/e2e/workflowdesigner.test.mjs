@@ -14,7 +14,7 @@ import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, MANIFEST, PAGE, PERMISSIONS, forgetUnstubbed, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
-import { chipsOf, focused } from './several.mjs';
+import { chipsOf, describedBy, focused, valueOf } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -144,5 +144,75 @@ for (const locale of ['en', 'de']) {
     const step = (await sent).postDataJSON().shape.steps.find((each) => each.key === 'start');
     assert.deepEqual(step?.from, ['new', 'resolved']);
     assert.deepEqual(step?.who, { roles: ['OWNER', 'MEMBER'], groups: [GROUPS[1].id] });
+  });
+}
+
+// An empty *Who may take it* is true of the step (`StepWho.IsOpen`): "anyone" only where roles,
+// person fields, groups and condition are all empty. A role key or a group the list does not
+// offer stays on the closed field, named as no longer offered; a condition alone says that it
+// limits the step.
+const LIMITED = {
+  ...shape,
+  steps: [
+    { key: 'start', from: ['new'], to: 'in_progress', who: { roles: ['planner_custom'], groups: ['01a0e2e0-0000-7000-8000-0000000012ff'] } },
+    { key: 'resolve', from: [], to: 'resolved', who: { condition: 'priority = 1' } },
+  ],
+};
+for (const locale of ['en', 'de']) {
+  test(`chromium: 1280 px - a step limited by what the list does not offer says what limits it (${locale})`, async (t) => {
+    const browser = await sharedChromium(t);
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    t.after(() => context.close());
+    forgetUnstubbed();
+    const flow = { ...FROM_TEMPLATE, published: LIMITED };
+    await context.route('**/api/v1/**', async (route) => {
+      const url = new URL(route.request().url());
+      const path = url.pathname.replace(/^.*\/api\/v1/, '');
+      if (path === '/accounts/me') return route.fulfill({ json: { ...ACCOUNT, locale } });
+      if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: PERMISSIONS.OWNER } });
+      if (path === '/memberships') {
+        const rows = url.searchParams.get('scope_type') === 'TENANT' ? [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role: 'OWNER' }] : [];
+        return route.fulfill({ json: { ...PAGE, data: rows, grantable_roles: [] } });
+      }
+      if (path === '/groups') return route.fulfill({ json: { ...PAGE, data: GROUPS } });
+      if (path === '/workflows') return route.fulfill({ json: { data: [SHIPPED, flow], scheme: [] } });
+      return stub(route);
+    });
+    await context.addInitScript(() => {
+      sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+      sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+    });
+    const page = await context.newPage();
+    const words = locale === 'de'
+      ? { who: 'Wer ihn gehen darf', gone: 'Nicht mehr angeboten', group: 'Eine Gruppe, die nicht mehr angeboten wird', condition: 'Alle, die den Eintrag ändern dürfen, wenn die Bedingung unter Erweitert gilt', label: 'Und nur, wenn das gilt', cancel: 'Abbrechen' }
+      : { who: 'Who may take it', gone: 'No longer offered', group: 'A group no longer offered', condition: 'Anyone who may change the entry, when the condition under Advanced holds', label: 'And only when this holds', cancel: 'Cancel' };
+
+    await page.goto(`${served.origin}/administration/workflows/${flow.key}`);
+    await page.getByText('In progress').first().waitFor({ timeout: 15_000 });
+    if (locale === 'de') await page.waitForFunction(() => document.documentElement.lang === 'de', null, { timeout: 15_000 });
+    const dialog = page.locator('dialog[open]');
+
+    // A workspace's own role key and a group no longer in the workspace stay on the closed field.
+    await page.locator('button.press').filter({ hasText: 'In progress' }).last().click();
+    await dialog.locator('[data-step-dialog="start"]').waitFor({ timeout: 5_000 });
+    const who = dialog.getByRole('button', { name: new RegExp(`^${words.who}`, 'u') });
+    await who.locator('.chips:not(.measure) .chip').nth(1).waitFor({ timeout: 5_000 }).catch(() => {});
+    assert.deepEqual(await chipsOf(who), ['planner_custom', words.group], 'a limit the list does not offer vanished from the field');
+    await who.click();
+    const list = page.getByRole('listbox', { name: words.who });
+    await list.waitFor({ timeout: 5_000 });
+    const custom = list.getByRole('option', { name: 'planner_custom', exact: true });
+    assert.equal(await custom.getAttribute('aria-selected'), 'true');
+    assert.equal(await describedBy(custom), words.gone);
+    await page.keyboard.press('Escape');
+    await list.waitFor({ state: 'detached', timeout: 5_000 });
+    await dialog.getByRole('button', { name: words.cancel, exact: true }).last().click();
+    await dialog.waitFor({ state: 'detached', timeout: 5_000 });
+
+    // A condition alone limits the step: the empty field says so, and its label says it holds as well.
+    await page.locator('button.press').filter({ hasText: 'Resolved' }).last().click();
+    await dialog.locator('[data-step-dialog="resolve"]').waitFor({ timeout: 5_000 });
+    const limited = dialog.getByRole('button', { name: new RegExp(`^${words.who}`, 'u') });
+    assert.equal(await valueOf(limited), words.condition, 'a step limited by its condition says anyone');
   });
 }
