@@ -238,6 +238,9 @@ chips - a summary, not buttons, cut after two lines with the count of the rest -
 sentence ("All except Amount"), or its empty text. The open list is a multi-selectable listbox:
 groups by their heading, a line under an option that describes it and is never part of its name,
 and from eight options a filter, *All* and *None* (which act on what the filter shows) and a count.
+It is as tall as its rows up to one height, `layout.rail`, in the popover and the sheet alike;
+past it the filter stays at the top and *All*, *None* and the count at the foot, and only the
+options scroll.
 An option with a `disabledReason` cannot change: ticked it is locked on, drawn with a lock and
 first among the chips; unticked it is refused; either way it stays focusable and its reason is a
 line in the list. The whole control locked still opens, read-only. At a phone's width the list is

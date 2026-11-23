@@ -5,9 +5,10 @@
 // walked in the built workbench as workbench-fields.test.mjs walks it, under the same
 // `style-src 'self'`. It holds the keyboard of the closed field and of the open list, the option
 // that is locked on and cannot be cleared, the refused option and the read-only control, the
-// filter, focus never under the list's stuck filter and foot, the visible ticks, the bottom sheet
-// at a phone's width with *Done*, and `Escape` closing one layer at a time inside a dialog - at
-// both widths. The call sites' checks (UC-WRK-32,
+// filter, focus never under the list's filter and foot, the visible ticks, the bottom sheet at a
+// phone's width with *Done*, and `Escape` closing one layer at a time inside a dialog - at both
+// widths. And the open list's one maximum height: the filter and the foot stand still while only
+// the options scroll, and a short list is as short as its rows. The call sites' checks (UC-WRK-32,
 // UC-WRK-23) are walked where a screen uses it.
 
 import { test } from 'node:test';
@@ -59,9 +60,9 @@ async function story(page, origin, name) {
 }
 
 /**
- * Where the focused option is covered (design-system.md §10, 2.4.7 and 2.4.11): its box and its
- * ring against every stuck region of the open list - the filter and the foot - and the corners
- * of its top and bottom edges against what the page draws there, which also finds a stuck region's cover.
+ * Where the focused option is covered or cut off (design-system.md §10, 2.4.7 and 2.4.11): its box
+ * and its ring against every stuck region of the open list and against the edges of the region that
+ * scrolls it, and the corners of its top and bottom edges against what the page draws there.
  */
 async function focusCover(page) {
   return page.evaluate(() => {
@@ -75,6 +76,12 @@ async function focusCover(page) {
       if (getComputedStyle(stuck).position !== 'sticky') continue;
       const over = stuck.getBoundingClientRect();
       if (reach.top < over.bottom - 0.5 && reach.bottom > over.top + 0.5) covers.push(`${stuck.className} ${Math.round(over.top)}-${Math.round(over.bottom)}`);
+    }
+    for (let at = node.parentElement; at; at = at.parentElement) {
+      if (at.scrollHeight <= at.clientHeight || !/auto|scroll/.test(getComputedStyle(at).overflowY)) continue;
+      const frame = at.getBoundingClientRect();
+      if (reach.top < frame.top - 0.5 || reach.bottom > frame.bottom + 0.5) covers.push(`the edge of ${at.className} ${Math.round(frame.top)}-${Math.round(frame.bottom)}`);
+      break;
     }
     for (const [x, y] of [[box.left + box.width / 2, box.top + 1], [box.left + box.width / 2, box.bottom - 1]]) {
       const hit = document.elementFromPoint(x, y);
@@ -103,7 +110,7 @@ async function walkClear(page, what) {
       if (seen.covers.length > 0) hidden.push(`${key} ${seen.name} (${seen.at}) under ${seen.covers.join(', ')}`);
     }
   }
-  assert.deepEqual(hidden, [], `${what}: a focused option lies under a stuck region`);
+  assert.deepEqual(hidden, [], `${what}: a focused option lies under a stuck region or past its region's edge`);
 }
 
 /** Every line of a text, from its top to its bottom, is the text itself and not something drawn over it. */
@@ -125,7 +132,92 @@ async function linesCovered(page, locator) {
   });
 }
 
+/**
+ * The open list's parts: how tall it is against the one maximum, where its filter and its foot
+ * stand, and every box between the listbox and its surface that scrolls or could.
+ */
+async function openFrame(page) {
+  return list(page).evaluate((listbox) => {
+    const region = listbox.parentElement;
+    const panel = region.parentElement;
+    const surface = listbox.closest('[role="dialog"], dialog');
+    const filter = panel.querySelector('input');
+    const all = [...panel.querySelectorAll('button')].find((each) => each.textContent.trim() === 'All');
+    const top = (node) => (node ? Math.round(node.getBoundingClientRect().top) : null);
+    const scrolling = [];
+    for (let at = listbox; at && at !== surface.parentElement; at = at.parentElement) {
+      const isScroller = /auto|scroll/.test(getComputedStyle(at).overflowY);
+      if (isScroller && at.scrollHeight > at.clientHeight + 1) scrolling.push(at === region ? 'options' : `${at.tagName.toLowerCase()}.${at.className}`);
+    }
+    const end = [...listbox.querySelectorAll('[role="option"]')].at(-1).getBoundingClientRect();
+    const box = region.getBoundingClientRect();
+    return {
+      height: panel.getBoundingClientRect().height,
+      max: Number.parseFloat(getComputedStyle(document.querySelector('.host')).getPropertyValue('--layout-rail')),
+      filter: top(filter),
+      foot: top(all),
+      isFilterInside: filter !== null && region.contains(filter),
+      isFootInside: all !== undefined && region.contains(all),
+      scrolling,
+      scrollTop: region.scrollTop,
+      isLastInView: end.top >= box.top - 0.5 && end.bottom <= box.bottom + 0.5,
+    };
+  });
+}
+
+/** Many options at the list's most: the filter and the foot stay put while the options scroll to their end. */
+async function holdsMaximum(page, what) {
+  await settled(page);
+  const opened = await openFrame(page);
+  assert.ok(Math.abs(opened.height - opened.max) <= 1, `${what}: the open list is ${opened.height} high, not its maximum ${opened.max}`);
+  assert.deepEqual(opened.scrolling, ['options'], `${what}: not only the options scroll`);
+  assert.equal(opened.isFilterInside, false, `${what}: the filter scrolls with the options`);
+  assert.equal(opened.isFootInside, false, `${what}: All and None scroll with the options`);
+  await page.keyboard.press('End');
+  await settled(page);
+  const ended = await openFrame(page);
+  assert.ok(ended.scrollTop > 0, `${what}: End did not scroll the options`);
+  assert.equal(ended.isLastInView, true, `${what}: End left the last option out of view`);
+  assert.equal(ended.filter, opened.filter, `${what}: the filter moved as the options scrolled`);
+  assert.equal(ended.foot, opened.foot, `${what}: All and None moved as the options scrolled`);
+  assert.ok(Math.abs(ended.height - opened.height) <= 1, `${what}: the list changed its height as it scrolled`);
+}
+
+/** Three options: shorter than the maximum, and nothing scrolls. */
+async function shortList(page, what) {
+  await settled(page);
+  const opened = await openFrame(page);
+  assert.ok(opened.height < opened.max - 1, `${what}: three options take ${opened.height}, the maximum is ${opened.max}`);
+  assert.deepEqual(opened.scrolling, [], `${what}: something scrolls with three options`);
+}
+
 for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
+  test(`MultiSelect's open list stops at one height and scrolls only its options, in ${engine}`, { timeout: 2 * 60_000 }, async () => {
+    assert.ok(existsSync(join(WORKBENCH, 'index.html')), 'no built workbench: run `make workbench-build` first');
+    const server = await serve(WORKBENCH, { headers: { 'content-security-policy': "style-src 'self'" } });
+    const browser = await ENGINES[engine].launch().catch(async (error) => { await server.close(); throw error; });
+    try {
+      for (const [width, height] of [[1280, 800], [390, 844]]) {
+        const page = await browser.newPage({ viewport: { width, height } });
+        await story(page, server.origin, 'some');
+        await field(page).click();
+        await list(page).waitFor();
+        await holdsMaximum(page, `Fifteen at ${width}×${height}`);
+        await page.keyboard.press('Escape');
+        await list(page).waitFor({ state: 'detached' });
+
+        await story(page, server.origin, 'few');
+        await field(page).click();
+        await list(page).waitFor();
+        await shortList(page, `Three at ${width}×${height}`);
+        await page.close();
+      }
+    } finally {
+      await browser.close();
+      await server.close();
+    }
+  });
+
   test(`MultiSelect is operable by keyboard, keeps a locked option and becomes a sheet, in ${engine}`, { timeout: 5 * 60_000 }, async () => {
     assert.ok(existsSync(join(WORKBENCH, 'index.html')), 'no built workbench: run `make workbench-build` first');
     const server = await serve(WORKBENCH, { headers: { 'content-security-policy': "style-src 'self'" } });
@@ -278,8 +370,8 @@ for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
       await page.keyboard.press('Escape');
 
       // --- the filter: label and hint, groups left out, a sentence for no match ---------------
-      // At a height where the list scrolls under its stuck filter and foot: the arrows never leave
-      // focus under them.
+      // At a height where the options scroll between the filter and the foot: the arrows never
+      // leave focus out of view or its ring cut off.
       await page.setViewportSize({ width: 1280, height: 720 });
       await story(page, server.origin, 'grouped');
       await field(page).click();
@@ -400,7 +492,8 @@ for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
         assert.equal((await focused(page)).isField, true, `${close} after a press that did not focus the field left focus elsewhere`);
       }
 
-      // The sheet scrolls under its stuck filter and foot too, and the read-only reason stays clear.
+      // The sheet's options scroll between the filter and the foot too, and the read-only reason
+      // stays clear.
       await story(page, server.origin, 'grouped');
       await field(page).click();
       await list(page).waitFor();

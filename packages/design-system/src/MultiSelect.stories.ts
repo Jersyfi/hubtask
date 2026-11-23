@@ -88,6 +88,13 @@ export const inline: Story = {
   args: { mode: 'inline' },
 };
 
+export const few: Story = {
+  name: 'Three, as a field',
+  about:
+    'Three options drawn as the field (`presentation="field"`): the open list is as short as its three rows - no filter, no *All* or *None*, nothing scrolls. With many options it stops at its one maximum height, and only the options scroll between the filter and the foot.',
+  args: { mode: 'few' },
+};
+
 export const dense: Story = {
   name: 'Ticks in a setting row',
   about:
