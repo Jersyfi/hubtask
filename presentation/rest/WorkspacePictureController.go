@@ -23,6 +23,11 @@ type SignInPictureReader interface {
 	Picture(ctx context.Context, host string, mediaID shared.ID) (shared.ID, error)
 }
 
+// workspacePictureCache keeps a picture short and revalidated, not for the life of its address: a
+// removed, replaced, switched-off or infected picture is shown from a cache for five minutes at most
+// (T-34).
+const workspacePictureCache = "public, max-age=300"
+
 // workspacePictureGone is every refusal of the route, the same whatever the reason (T-34).
 func workspacePictureGone() error {
 	return shared.ErrNotFound.WithDetail("media.not_found")
@@ -31,7 +36,9 @@ func workspacePictureGone() error {
 // GetWorkspacePicture answers GET /auth/workspace-pictures/{mediaId}: a picture the sign-in card at
 // this address draws, streamed as the raster image it was stored as - never a rendering path, never
 // a redirect to the object store, which the page's img-src would refuse (T-11, T-34).
-func (c *MediaDoor) GetWorkspacePicture(w http.ResponseWriter, r *http.Request, mediaID openapi.MediaId) {
+func (c *MediaDoor) GetWorkspacePicture(
+	w http.ResponseWriter, r *http.Request, mediaID openapi.MediaId, params openapi.GetWorkspacePictureParams,
+) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	if c.SignIn == nil || c.Content == nil {
 		WriteProblem(w, errNotWired, requestID)
@@ -41,6 +48,16 @@ func (c *MediaDoor) GetWorkspacePicture(w http.ResponseWriter, r *http.Request, 
 	tenant, err := c.SignIn.Picture(r.Context(), r.Host, id)
 	if err != nil {
 		WriteProblem(w, err, requestID)
+		return
+	}
+	// A media object's bytes never change under its identifier, so the identifier is the tag. Asked
+	// only after the application admitted the picture again: a removed one answers 404, not 304.
+	tag := `"` + id.String() + `"`
+	header := w.Header()
+	if params.IfNoneMatch != nil && noneMatchHolds(*params.IfNoneMatch, tag) {
+		header.Set("ETag", tag)
+		header.Set("Cache-Control", workspacePictureCache)
+		w.WriteHeader(http.StatusNotModified)
 		return
 	}
 	served, err := c.Content.Send(r.Context(), usecasemedia.Grant{TenantID: tenant, MediaID: id})
@@ -57,15 +74,13 @@ func (c *MediaDoor) GetWorkspacePicture(w http.ResponseWriter, r *http.Request, 
 		WriteProblem(w, workspacePictureGone(), requestID)
 		return
 	}
-	header := w.Header()
 	header.Set("Content-Type", served.Content.ContentType)
 	header.Set("Content-Length", strconv.FormatInt(served.Content.Size, 10))
 	header.Set("Content-Disposition", "inline")
 	header.Set("Content-Security-Policy", "sandbox; default-src 'none'")
 	header.Set("X-Content-Type-Options", "nosniff")
-	// The address is the picture's identifier, which a new picture replaces: a copy kept as long as
-	// the address stands is never a stale one.
-	header.Set("Cache-Control", "public, max-age=31536000, immutable")
+	header.Set("ETag", tag)
+	header.Set("Cache-Control", workspacePictureCache)
 	header.Set("Referrer-Policy", "no-referrer")
 	header.Set("X-Robots-Tag", "noindex, nofollow")
 	w.WriteHeader(http.StatusOK)

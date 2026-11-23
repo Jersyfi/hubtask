@@ -42,7 +42,9 @@ for that party, not a loophole.
 * **Before sign-in, at the workspace's own address only.** The sign-in rules carry the choice and
   the pictures it draws, and one public read serves exactly those pictures, streamed by the
   application as the image they were stored as, under an address that changes with the picture.
-  Only where the address itself names the workspace: the installation's own address, a header
+  A cache keeps a picture five minutes and then asks again with its tag; not for the life of the
+  address, which would keep a removed, replaced, switched-off or infected picture for as long, so
+  such a picture can be shown from a cache for at most five minutes. Only where the address itself names the workspace: the installation's own address, a header
   naming a workspace included, shows the product's mark, so the read tells nobody more than the
   rules at that address already do (`security.md` T-34).
 * **Other devices learn of it through the workspace's `setting` record** (decided 2026-11-23, O3).

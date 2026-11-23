@@ -2291,8 +2291,8 @@ export class HubtaskClient {
 
   /** A picture the sign-in card draws
    * Public: sent without a bearer where the client holds none. */
-  getWorkspacePicture(mediaId: string, options: CallOptions = {}): Promise<Response> {
-    return this.call("GET", "/auth/workspace-pictures/{mediaId}", { "mediaId": mediaId }, undefined, {  }, undefined, "none", undefined, "raw", options.signal);
+  getWorkspacePicture(mediaId: string, options: CallOptions & { readonly ifNoneMatch?: string } = {}): Promise<Response> {
+    return this.call("GET", "/auth/workspace-pictures/{mediaId}", { "mediaId": mediaId }, undefined, { "If-None-Match": options.ifNoneMatch }, undefined, "none", undefined, "raw", options.signal);
   }
 
   /** Begin TOTP enrolment

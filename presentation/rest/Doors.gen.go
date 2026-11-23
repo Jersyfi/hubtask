@@ -2846,12 +2846,12 @@ func (c *RestController) GetWorkItem(w http.ResponseWriter, r *http.Request, ite
 }
 
 // GetWorkspacePicture answers GET /auth/workspace-pictures/{mediaId} by the adapter in Media, which holds the connection.
-func (c *RestController) GetWorkspacePicture(w http.ResponseWriter, r *http.Request, mediaId openapi.MediaId) {
+func (c *RestController) GetWorkspacePicture(w http.ResponseWriter, r *http.Request, mediaId openapi.MediaId, params openapi.GetWorkspacePictureParams) {
 	if c.Media == nil {
-		c.pending.GetWorkspacePicture(w, r, mediaId)
+		c.pending.GetWorkspacePicture(w, r, mediaId, params)
 		return
 	}
-	c.Media.GetWorkspacePicture(w, r, mediaId)
+	c.Media.GetWorkspacePicture(w, r, mediaId, params)
 }
 
 // GiveConsent answers POST /privacy/consents:give by the generated mapping.

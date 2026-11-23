@@ -29874,6 +29874,12 @@ type CreateAccessTokenParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// GetWorkspacePictureParams defines parameters for GetWorkspacePicture.
+type GetWorkspacePictureParams struct {
+	// IfNoneMatch The `ETag` of the picture the client holds. Where the sign-in card still draws that picture, the server answers `304` without a body.
+	IfNoneMatch *string `json:"If-None-Match,omitempty"`
+}
+
 // StartInboundRunJSONBody defines parameters for StartInboundRun.
 type StartInboundRunJSONBody map[string]interface{}
 
@@ -37310,10 +37316,10 @@ type ClientInterface interface {
 
 	// GetWorkspacePicture A picture the sign-in card draws
 	//
-	// The bytes of one picture `GET /auth/sign-in-rules` names in `workspace_pictures`, for a browser without a session to draw: only a picture of the workspace the address the request arrived at answers, only while the sign-in card shows it, and only as the raster image type it was stored as. Anything else - another workspace's picture, one that was replaced or removed, the installation's own address, a workspace that shows the product's name - is the same 404. A picture's identifier changes when the picture changes, so the answer may be cached for as long as the address stands.
+	// The bytes of one picture `GET /auth/sign-in-rules` names in `workspace_pictures`, for a browser without a session to draw: only a picture of the workspace the address the request arrived at answers, only while the sign-in card shows it, and only as the raster image type it was stored as. Anything else - another workspace's picture, one that was replaced or removed, the installation's own address, a workspace that shows the product's name - is the same 404, never stored. The picture may be kept for five minutes (`Cache-Control: public, max-age=300`); after that a client asks again with its copy's `ETag` in `If-None-Match`, and the answer is `304` without a body only while the sign-in card still draws the picture. A removed, replaced or switched-off picture can therefore be shown from a cache for at most five minutes.
 	//
 	// Corresponds with GET /auth/workspace-pictures/{mediaId} (the `GetWorkspacePicture` operationId).
-	GetWorkspacePicture(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetWorkspacePicture(ctx context.Context, mediaId MediaId, params *GetWorkspacePictureParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// StartInboundRunWithBody Start a rule from outside
 	//
@@ -52340,11 +52346,11 @@ func (c *Client) RevokeAccessToken(ctx context.Context, tokenId TokenId, reqEdit
 
 // GetWorkspacePicture A picture the sign-in card draws
 //
-// The bytes of one picture `GET /auth/sign-in-rules` names in `workspace_pictures`, for a browser without a session to draw: only a picture of the workspace the address the request arrived at answers, only while the sign-in card shows it, and only as the raster image type it was stored as. Anything else - another workspace's picture, one that was replaced or removed, the installation's own address, a workspace that shows the product's name - is the same 404. A picture's identifier changes when the picture changes, so the answer may be cached for as long as the address stands.
+// The bytes of one picture `GET /auth/sign-in-rules` names in `workspace_pictures`, for a browser without a session to draw: only a picture of the workspace the address the request arrived at answers, only while the sign-in card shows it, and only as the raster image type it was stored as. Anything else - another workspace's picture, one that was replaced or removed, the installation's own address, a workspace that shows the product's name - is the same 404, never stored. The picture may be kept for five minutes (`Cache-Control: public, max-age=300`); after that a client asks again with its copy's `ETag` in `If-None-Match`, and the answer is `304` without a body only while the sign-in card still draws the picture. A removed, replaced or switched-off picture can therefore be shown from a cache for at most five minutes.
 //
 // Corresponds with GET /auth/workspace-pictures/{mediaId} (the `GetWorkspacePicture` operationId).
-func (c *Client) GetWorkspacePicture(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetWorkspacePictureRequest(c.Server, mediaId)
+func (c *Client) GetWorkspacePicture(ctx context.Context, mediaId MediaId, params *GetWorkspacePictureParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetWorkspacePictureRequest(c.Server, mediaId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -80236,7 +80242,7 @@ func NewRevokeAccessTokenRequest(server string, tokenId TokenId) (*http.Request,
 }
 
 // NewGetWorkspacePictureRequest constructs an http.Request for the GetWorkspacePicture method
-func NewGetWorkspacePictureRequest(server string, mediaId MediaId) (*http.Request, error) {
+func NewGetWorkspacePictureRequest(server string, mediaId MediaId, params *GetWorkspacePictureParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -80264,6 +80270,21 @@ func NewGetWorkspacePictureRequest(server string, mediaId MediaId) (*http.Reques
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfNoneMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-None-Match", *params.IfNoneMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-None-Match", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -117558,12 +117579,12 @@ type ClientWithResponsesInterface interface {
 
 	// GetWorkspacePictureWithResponse A picture the sign-in card draws
 	//
-	// The bytes of one picture `GET /auth/sign-in-rules` names in `workspace_pictures`, for a browser without a session to draw: only a picture of the workspace the address the request arrived at answers, only while the sign-in card shows it, and only as the raster image type it was stored as. Anything else - another workspace's picture, one that was replaced or removed, the installation's own address, a workspace that shows the product's name - is the same 404. A picture's identifier changes when the picture changes, so the answer may be cached for as long as the address stands.
+	// The bytes of one picture `GET /auth/sign-in-rules` names in `workspace_pictures`, for a browser without a session to draw: only a picture of the workspace the address the request arrived at answers, only while the sign-in card shows it, and only as the raster image type it was stored as. Anything else - another workspace's picture, one that was replaced or removed, the installation's own address, a workspace that shows the product's name - is the same 404, never stored. The picture may be kept for five minutes (`Cache-Control: public, max-age=300`); after that a client asks again with its copy's `ETag` in `If-None-Match`, and the answer is `304` without a body only while the sign-in card still draws the picture. A removed, replaced or switched-off picture can therefore be shown from a cache for at most five minutes.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /auth/workspace-pictures/{mediaId} (the `GetWorkspacePicture` operationId).
-	GetWorkspacePictureWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*GetWorkspacePictureResult, error)
+	GetWorkspacePictureWithResponse(ctx context.Context, mediaId MediaId, params *GetWorkspacePictureParams, reqEditors ...RequestEditorFn) (*GetWorkspacePictureResult, error)
 
 	// StartInboundRunWithBodyWithResponse Start a rule from outside
 	//
@@ -136945,11 +136966,25 @@ func (r RevokeAccessTokenResult) ContentType() string {
 	return ""
 }
 
+// GetWorkspacePictureResult200Headers the declared response headers of an HTTP 200 response for GetWorkspacePicture
+type GetWorkspacePictureResult200Headers struct {
+	ETag *string
+}
+
+// GetWorkspacePictureResult304Headers the declared response headers of an HTTP 304 response for GetWorkspacePicture
+type GetWorkspacePictureResult304Headers struct {
+	ETag *string
+}
+
 type GetWorkspacePictureResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
 	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *GetWorkspacePictureResult200Headers
+	// Headers304 the parsed response headers for an HTTP 304 response
+	Headers304 *GetWorkspacePictureResult304Headers
 }
 
 // GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
@@ -176709,13 +176744,13 @@ func (c *ClientWithResponses) RevokeAccessTokenWithResponse(ctx context.Context,
 
 // GetWorkspacePictureWithResponse A picture the sign-in card draws
 //
-// The bytes of one picture `GET /auth/sign-in-rules` names in `workspace_pictures`, for a browser without a session to draw: only a picture of the workspace the address the request arrived at answers, only while the sign-in card shows it, and only as the raster image type it was stored as. Anything else - another workspace's picture, one that was replaced or removed, the installation's own address, a workspace that shows the product's name - is the same 404. A picture's identifier changes when the picture changes, so the answer may be cached for as long as the address stands.
+// The bytes of one picture `GET /auth/sign-in-rules` names in `workspace_pictures`, for a browser without a session to draw: only a picture of the workspace the address the request arrived at answers, only while the sign-in card shows it, and only as the raster image type it was stored as. Anything else - another workspace's picture, one that was replaced or removed, the installation's own address, a workspace that shows the product's name - is the same 404, never stored. The picture may be kept for five minutes (`Cache-Control: public, max-age=300`); after that a client asks again with its copy's `ETag` in `If-None-Match`, and the answer is `304` without a body only while the sign-in card still draws the picture. A removed, replaced or switched-off picture can therefore be shown from a cache for at most five minutes.
 //
 // Returns a wrapper object for the known response body format(s).
 //
 // Corresponds with GET /auth/workspace-pictures/{mediaId} (the `GetWorkspacePicture` operationId).
-func (c *ClientWithResponses) GetWorkspacePictureWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*GetWorkspacePictureResult, error) {
-	rsp, err := c.GetWorkspacePicture(ctx, mediaId, reqEditors...)
+func (c *ClientWithResponses) GetWorkspacePictureWithResponse(ctx context.Context, mediaId MediaId, params *GetWorkspacePictureParams, reqEditors ...RequestEditorFn) (*GetWorkspacePictureResult, error) {
+	rsp, err := c.GetWorkspacePicture(ctx, mediaId, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -199480,6 +199515,9 @@ func ParseGetWorkspacePictureResult(rsp *http.Response) (*GetWorkspacePictureRes
 	}
 
 	switch {
+	case rsp.StatusCode == 304:
+		break // No content-type
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -199487,6 +199525,29 @@ func ParseGetWorkspacePictureResult(rsp *http.Response) (*GetWorkspacePictureRes
 		}
 		response.ApplicationproblemJSON4XX = &dest
 
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers GetWorkspacePictureResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
+	case rsp.StatusCode == 304:
+		var headers GetWorkspacePictureResult304Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers304 = &headers
 	}
 
 	return response, nil

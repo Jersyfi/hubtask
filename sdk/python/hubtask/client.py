@@ -1821,9 +1821,9 @@ class Client:
         """What a sign-in screen may know before anybody has signed in"""
         return self._call("GET", "/auth/sign-in-rules", {}, None, {}, None, "none", None, "json")
 
-    def get_workspace_picture(self, media_id: str) -> bytes:
+    def get_workspace_picture(self, media_id: str, *, if_none_match: str | None = None) -> bytes:
         """A picture the sign-in card draws"""
-        return self._call("GET", "/auth/workspace-pictures/{mediaId}", {"mediaId": media_id}, None, {}, None, "none", None, "raw")
+        return self._call("GET", "/auth/workspace-pictures/{mediaId}", {"mediaId": media_id}, None, {"If-None-Match": if_none_match}, None, "none", None, "raw")
 
     def enroll_totp(self, body: "TotpEnrollmentStart") -> "TotpEnrollment":
         """Begin TOTP enrolment"""

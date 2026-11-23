@@ -44,17 +44,26 @@ func pictureDoor(reader *cardPictures, content *mediaContent) *RestController {
 
 func getPicture(t *testing.T, controller *RestController, host string, id shared.ID) *httptest.ResponseRecorder {
 	t.Helper()
+	return revalidatePicture(t, controller, host, id, "")
+}
+
+// revalidatePicture asks for the picture as a browser holding a copy does, with its tag.
+func revalidatePicture(t *testing.T, controller *RestController, host string, id shared.ID, held string) *httptest.ResponseRecorder {
+	t.Helper()
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet,
 		APIBasePath+"/auth/workspace-pictures/"+id.String(), nil)
 	request.Host = host
+	if held != "" {
+		request.Header.Set("If-None-Match", held)
+	}
 	recorder := httptest.NewRecorder()
 	controller.Routes().ServeHTTP(recorder, request)
 	return recorder
 }
 
 // UC-INS-22 check 8: the picture the card at the workspace's address draws is streamed as the image
-// it was stored as, read in the workspace the application answered, never sniffed into markup and
-// kept as long as its address stands.
+// it was stored as, read in the workspace the application answered, never sniffed into markup, and
+// kept by a cache for five minutes at most before it asks again.
 func TestTheCardsPictureIsStreamedAsTheImageItWasStoredAs(t *testing.T) {
 	reader := &cardPictures{host: "choir.example.org"}
 	content := &mediaContent{served: usecasemedia.Served{Content: storage.Object{
@@ -74,7 +83,8 @@ func TestTheCardsPictureIsStreamedAsTheImageItWasStoredAs(t *testing.T) {
 		"Content-Disposition":     "inline",
 		"X-Content-Type-Options":  "nosniff",
 		"Content-Security-Policy": "sandbox; default-src 'none'",
-		"Cache-Control":           "public, max-age=31536000, immutable",
+		"Cache-Control":           "public, max-age=300",
+		"ETag":                    `"` + cardPicture.String() + `"`,
 	} {
 		if got := answer.Header().Get(name); got != want {
 			t.Errorf("%s = %q, want %q", name, got, want)
@@ -109,6 +119,43 @@ func TestEveryRefusedPictureIsTheSame404(t *testing.T) {
 	gone := getPicture(t, door, "choir.example.org", cardPicture)
 	if gone.Code != http.StatusNotFound || strings.Contains(gone.Body.String(), cardPicture.String()) {
 		t.Errorf("bytes that are gone answered %d %s", gone.Code, gone.Body)
+	}
+}
+
+// UC-INS-22 check 8: a copy held under the picture's tag is confirmed with a 304 and no byte read -
+// but only after the application admitted the picture again, so a removed, replaced or switched-off
+// picture answers the 404, never a 304 that would keep the copy alive.
+func TestAHeldPictureIsConfirmedOnlyWhileTheCardStillDrawsIt(t *testing.T) {
+	reader := &cardPictures{host: "choir.example.org"}
+	content := &mediaContent{served: usecasemedia.Served{Content: storage.Object{
+		Content: io.NopCloser(strings.NewReader("PNG")), Size: 3, ContentType: "image/png",
+	}}}
+	door := pictureDoor(reader, content)
+	tag := `"` + cardPicture.String() + `"`
+
+	held := revalidatePicture(t, door, "choir.example.org", cardPicture, tag)
+	if held.Code != http.StatusNotModified || held.Body.Len() != 0 {
+		t.Fatalf("a held copy answered %d %q, want 304 without a body", held.Code, held.Body)
+	}
+	if held.Header().Get("ETag") != tag || held.Header().Get("Cache-Control") != "public, max-age=300" {
+		t.Errorf("the 304 carries ETag %q, Cache-Control %q", held.Header().Get("ETag"), held.Header().Get("Cache-Control"))
+	}
+	if content.grant != (usecasemedia.Grant{}) {
+		t.Errorf("a confirmed copy read the bytes: %+v", content.grant)
+	}
+	if len(reader.asked) != 1 {
+		t.Errorf("the application was asked %d times, want once", len(reader.asked))
+	}
+
+	if other := revalidatePicture(t, door, "choir.example.org", cardPicture, `"another"`); other.Code != http.StatusOK {
+		t.Errorf("another tag answered %d, want the picture", other.Code)
+	}
+
+	reader.host = "nobody.example.org"
+	gone := revalidatePicture(t, door, "choir.example.org", cardPicture, tag)
+	if gone.Code != http.StatusNotFound || gone.Header().Get("Cache-Control") != "no-store" || gone.Header().Get("ETag") != "" {
+		t.Errorf("a picture no longer drawn answered %d, Cache-Control %q, ETag %q",
+			gone.Code, gone.Header().Get("Cache-Control"), gone.Header().Get("ETag"))
 	}
 }
 

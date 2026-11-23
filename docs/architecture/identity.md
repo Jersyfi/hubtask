@@ -181,7 +181,8 @@ reaches a hash only when the password is next set.
 * At an address that names a workspace the rules also carry what the card shows of the workspace's
   own name and logo (`workspace_header`, `workspace_pictures`, §18), and
   `GET /auth/workspace-pictures/{mediaId}` serves those pictures and no other, streamed as the image
-  they were stored as and cacheable by their identifier. The installation's own address - with a
+  they were stored as, kept by a cache for five minutes and then revalidated by their tag, so a
+  removed picture is shown from a cache for at most five minutes. The installation's own address - with a
   header naming a workspace too - and a workspace that shows the product's name carry neither;
   every other picture is one `404` ([security.md](./security.md) T-34).
 * Each rule is a message code with parameters (`auth.password_rule.*`); a refused password carries
