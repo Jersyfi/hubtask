@@ -69,7 +69,9 @@ async function openDefaults(browser, { manifest = MULTI, isEnforced = false, wid
     }
     if (path.startsWith('/admin/presets/') && method === 'PATCH') {
       const target = stored.get(path.endsWith(CRAFT.id) ? CRAFT.id : PRACTICE.id);
-      const next = { ...target, ...request.postDataJSON(), version: target.version + 1 };
+      // The server answers a preset named by its kind with that kind's settings, never the kind itself.
+      const { preset, ...change } = request.postDataJSON();
+      const next = { ...target, ...change, ...(preset ? { settings: PRESET_SETTINGS[preset] } : {}), version: target.version + 1 };
       if (next.is_default) for (const [id, other] of stored) if (id !== next.id) stored.set(id, { ...other, is_default: false });
       stored.set(next.id, next);
       return route.fulfill({ json: next });
