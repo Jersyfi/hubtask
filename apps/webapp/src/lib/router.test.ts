@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { Router, isOwnAddress, normalisePath, queryOf, resolve, type Route } from './router.ts';
+import { Router, isOwnAddress, normalisePath, queryOf, resolve, type Resolution, type Route } from './router.ts';
 
 const routes: Route[] = [
   { name: 'home', pattern: '/' },
@@ -157,6 +157,21 @@ function sessionHistory(start: string) {
   return { history, at: () => at, path: () => entries[at]?.path };
 }
 const settle = () => new Promise((done) => setTimeout(done, 5));
+/**
+ * The next screen the router applies. Stepping over a step takes two `popstate`s, two tasks, and a
+ * slow run delivers the second after any fixed wait.
+ */
+function applied(router: Router): Promise<Resolution> {
+  return new Promise((done) => {
+    let subscribing = true;
+    const stop = router.subscribe((resolution) => {
+      if (subscribing) return;
+      stop();
+      done(resolution);
+    });
+    subscribing = false;
+  });
+}
 
 test('a held step is closed by back, and the screen under it stays where it was', async () => {
   const session = sessionHistory('/hubs');
@@ -229,7 +244,8 @@ test('a reload on a held step drops its entry, so the first back leaves the scre
   stop();
 });
 
-test('a step left open by a navigation is stepped over by back, which lands on the screen under it', async () => {
+// The bound only ends a run whose screen never follows; the test waits on the screen, not on it.
+test('a step left open by a navigation is stepped over by back, which lands on the screen under it', { timeout: 2000 }, async () => {
   const session = sessionHistory('/hubs');
   const router = new Router(routes, '/hubs', {});
   const stop = router.start();
@@ -239,14 +255,16 @@ test('a step left open by a navigation is stepped over by back, which lands on t
   const seen: string[] = [];
   router.subscribe((resolution) => seen.push(resolution.path));
 
+  let landed = applied(router);
   session.history.back();
-  await settle();
+  await landed;
   assert.equal(session.path(), '/containers/new-hub');
   assert.deepEqual(seen, ['/containers/other', '/containers/new-hub'], 'the address went back, the screen stayed');
   assert.equal(router.move, 'pop');
 
+  landed = applied(router);
   session.history.back();
-  await settle();
+  await landed;
   assert.deepEqual(seen, ['/containers/other', '/containers/new-hub', '/hubs']);
   stop();
 });
