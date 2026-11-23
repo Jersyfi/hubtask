@@ -253,7 +253,9 @@ export class Router {
     const onPopState = (event: PopStateEvent) => {
       if (this.#ownBacks > 0) {
         this.#ownBacks -= 1;
-        return;
+        // A step's own release lands on its screen's address; stepping over a step a navigation
+        // left behind lands on another screen, which is applied like any *back*.
+        if (addressOf(window.location.pathname + window.location.search) === this.#address()) return;
       }
       const held = this.#held;
       if (held) {

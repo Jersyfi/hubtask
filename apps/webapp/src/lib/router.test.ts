@@ -228,3 +228,25 @@ test('a reload on a held step drops its entry, so the first back leaves the scre
   assert.deepEqual(seen, ['/containers/new-hub', '/hubs'], 'the first back after the reload did not leave the screen');
   stop();
 });
+
+test('a step left open by a navigation is stepped over by back, which lands on the screen under it', async () => {
+  const session = sessionHistory('/hubs');
+  const router = new Router(routes, '/hubs', {});
+  const stop = router.start();
+  router.navigate('/containers/new-hub');
+  router.hold(() => assert.fail('a step of a screen left behind was closed'));
+  router.navigate('/containers/other');
+  const seen: string[] = [];
+  router.subscribe((resolution) => seen.push(resolution.path));
+
+  session.history.back();
+  await settle();
+  assert.equal(session.path(), '/containers/new-hub');
+  assert.deepEqual(seen, ['/containers/other', '/containers/new-hub'], 'the address went back, the screen stayed');
+  assert.equal(router.move, 'pop');
+
+  session.history.back();
+  await settle();
+  assert.deepEqual(seen, ['/containers/other', '/containers/new-hub', '/hubs']);
+  stop();
+});
