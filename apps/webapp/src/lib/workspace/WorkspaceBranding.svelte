@@ -10,7 +10,8 @@
   // is chosen, before the server has it - the row beside it says that it is still going.
   //
   // **Where a level above switched it off**, the group is one row: no control, and who decided,
-  // as *Private hubs allowed* says it (check 11). An "off" above cannot be switched on here.
+  // as *Private hubs allowed* says it (check 11). An "off" above cannot be switched on here; one this
+  // workspace set is switched on again under *Sign-in → Own logo and name*, and the row links there.
 
   import { untrack } from 'svelte';
 
@@ -141,14 +142,17 @@
   <div class="group-label">{t('app.branding.group')}</div>
   {#if isLocked}
     <!-- Who decided is said once, by the chip, as *Private hubs allowed* says it; its details say
-         whom to ask. -->
+         whom to ask. Where this workspace switched it off, the row points to its switch. -->
     <div class="locked" data-branding-locked={origin}>
       <SettingRow label={t('app.branding.own')} help={t('app.branding.locked_hint')}>
         {#snippet source()}
           {#if allowedBy}<ValueSource source={allowedBy.source} lock={allowedBy.lock} value={t('app.branding.locked_value')} />{/if}
         {/snippet}
         {#snippet control()}
-          <span>{t('app.branding.locked_value')}</span>
+          <span class="locked-value">
+            <span>{t('app.branding.locked_value')}</span>
+            {#if origin === 'WORKSPACE'}<a href="/administration/sign-in/own-branding">{t('app.branding.switch_on_at')}</a>{/if}
+          </span>
         {/snippet}
       </SettingRow>
     </div>
@@ -221,6 +225,8 @@
     font-weight: var(--fw-semibold);
     text-transform: uppercase;
   }
+
+  .locked-value { display: flex; flex-direction: column; gap: var(--sp-050); }
 
   .preview-head { margin: 0; padding: var(--sp-150) var(--sp-250) 0; font-weight: var(--fw-medium); }
 

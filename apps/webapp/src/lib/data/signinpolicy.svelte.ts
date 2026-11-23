@@ -106,8 +106,9 @@ export interface SignInPolicy {
    */
   readonly private_hubs?: Setting<boolean>;
   /**
-   * Whether the workspace may show its own name and logo (ADR-0112). Off is the stricter value; the
-   * workspace's settings draw no switch for it, only who switched it off. Absent from an older server.
+   * Whether the workspace may show its own name and logo (ADR-0112). Off is the stricter value;
+   * drawn on *Sign-in → Own logo and name*, and *Name and look* says who switched it off. Absent
+   * from an older server.
    */
   readonly own_branding?: Setting<boolean>;
   /** When everybody was last asked for a new password, or `null`. Set by the action, never typed. */

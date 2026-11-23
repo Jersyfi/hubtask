@@ -10,7 +10,8 @@
 // the preview of both surfaces; chooses what the header shows and saves it with the section; a
 // refused file is said at its picture; removing the last picture under "the logo alone" returns the
 // header to the product's name; a lock from the installation or a plan leaves no control and names
-// who set it; somebody who may not rename the workspace is not shown the group.
+// who set it; switched off by the workspace itself, it points to *Sign-in → Own logo and name*,
+// whose switch turns it on again; somebody who may not rename the workspace is not shown the group.
 // Against a stubbed API, Chromium only.
 
 import { test } from 'node:test';
@@ -155,7 +156,17 @@ async function open(browser, {
       state.branding = { ...state.branding, header: body.header };
       return route.fulfill({ json: state.branding });
     }
-    if (path === '/tenant' && method === 'PATCH') sent.push(['PATCH /tenant', request.postDataJSON()]);
+    if (path === '/tenant' && method === 'PATCH') {
+      const body = request.postDataJSON();
+      sent.push(['PATCH /tenant', body]);
+      // The workspace's own level of the switch: what the server answers is the rule in force.
+      const switched = body.sign_in_policy?.own_branding;
+      if (typeof switched === 'boolean') {
+        own = { ...own, value: switched, source: 'WORKSPACE' };
+        state.branding = { ...state.branding, allowed: switched };
+        return route.fulfill({ json: { ...WORKSPACE, display_name: name, branding: state.branding, sign_in_policy: { ...SIGN_IN_POLICY, own_branding: own } } });
+      }
+    }
     return stub(route);
   });
   await context.addInitScript(() => {
@@ -395,12 +406,66 @@ for (const [lock, words, level] of [['INSTANCE', 'Locked by the installation', '
     assert.ok(said.includes(words), said);
     assert.equal(said.split(level).length - 1, 1, `the level is said more than once: ${said}`);
     assert.match(said, /Not allowed/);
+    assert.equal(await locked.getByRole('link').count(), 0, 'a lock from above points to a switch');
     assert.equal(await locked.locator('[data-source]').getAttribute('data-source'), `${lock}-locked`);
     assert.equal(await group(page).locator('input').count(), 0, 'a control is offered under a lock');
     assert.equal(await group(page).getByRole('button', { name: /Choose|Replace|Remove/ }).count(), 0);
     assert.deepEqual(failures, []);
   });
 }
+
+// Switched off at the workspace's own level (through the API, hubctl or MCP): the group names this
+// workspace and points to the one row that switches it on again, *Sign-in → Own logo and name*, a
+// switch drawn as *Private hubs allowed* is (ADR-0112). Pressed there, it is on at once.
+for (const [width, height] of [[1280, 900], [390, 844]]) {
+  test(`chromium: ${width} px — switched off in this workspace, the group points to Sign-in, where the switch turns it on again`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { page, sent, failures, close } = await open(browser, {
+      width, height,
+      held: { ...NONE, allowed: false },
+      own: { value: false, installation: true, lock: null, source: 'WORKSPACE', installation_source: 'DEFAULT' },
+    });
+    t.after(close);
+    const locked = page.locator('[data-branding-locked="WORKSPACE"]');
+    await locked.waitFor({ timeout: 15_000 });
+    const said = await locked.innerText();
+    assert.match(said, /Set here/, said);
+    assert.equal(await locked.locator('[data-source]').getAttribute('data-source'), 'WORKSPACE');
+    await locked.getByRole('link', { name: 'Switch it on under Sign-in → Own logo and name' }).click();
+    await page.waitForURL('**/administration/sign-in/own-branding', { timeout: 10_000 });
+
+    const toggle = page.getByRole('switch', { name: 'This workspace may show its own logo and name' });
+    await toggle.waitFor({ timeout: 10_000 });
+    assert.equal(await toggle.isChecked(), false);
+    assert.equal(await toggle.isDisabled(), false, 'the workspace\'s own off cannot be switched on');
+    await toggle.click();
+    await page.getByText('Saved: whether this workspace shows its own logo and name.').first().waitFor({ timeout: 10_000 });
+    assert.deepEqual(sent.filter(([what]) => what === 'PATCH /tenant'), [['PATCH /tenant', { sign_in_policy: { own_branding: true } }]]);
+    assert.equal(await toggle.isChecked(), true);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    assert.equal(overflow, 0, 'the page scrolls sideways');
+    assert.deepEqual(failures, []);
+  });
+}
+
+// The same switch, locked by the installation, stays on the screen off and switched off, as
+// *Private hubs allowed* does under a lock.
+test('chromium: 1280 px — Sign-in → Own logo and name under the installation\'s lock: off, not offered, the chip names it', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, sent, failures, close } = await open(browser, {
+    path: '/administration/sign-in/own-branding',
+    held: { ...NONE, allowed: false },
+    own: { value: false, installation: false, lock: 'INSTANCE', source: 'INSTANCE', installation_source: 'INSTANCE' },
+  });
+  t.after(close);
+  const row = page.locator('[data-policy-switch="own_branding"]');
+  await row.waitFor({ timeout: 15_000 });
+  const toggle = row.getByRole('switch', { name: 'This workspace may show its own logo and name' });
+  assert.equal(await toggle.isDisabled(), true, 'a lock from above is offered');
+  assert.equal(await row.locator('[data-source]').getAttribute('data-source'), 'INSTANCE-locked');
+  assert.equal(sent.filter(([what]) => what === 'PATCH /tenant').length, 0);
+  assert.deepEqual(failures, []);
+});
 
 test('chromium: 1280 px — somebody who may not rename the workspace is not shown the group', async (t) => {
   const browser = await sharedChromium(t);

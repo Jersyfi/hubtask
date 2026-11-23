@@ -115,7 +115,7 @@
   {#snippet intro()}
     <Stack gap="200">
       <p class="quiet">{t('app.private_hubs.intro')}</p>
-      <PolicySwitch key="private_hubs" label={t('app.private_hubs.allowed')} hint={t('app.private_hubs.allowed_hint')} offAbove={t('app.private_hubs.allowed_off_above')} saved={t('app.private_hubs.allowed_saved')} />
+      <PolicySwitch key="private_hubs" label={t('app.private_hubs.allowed')} hint={t('app.private_hubs.allowed_hint')} offAbove={t('app.signin_settings.off_above')} saved={t('app.private_hubs.allowed_saved')} />
     </Stack>
   {/snippet}
   {#snippet filters()}
