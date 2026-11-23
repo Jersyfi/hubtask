@@ -265,7 +265,10 @@ corner that fills with the tick when chosen, and doubles the chosen edge inward;
 square mark, a summary cut after two lines and its products as neutral pills, and the start from
 nothing (`isBlank`) is dashed until it is chosen. `groups` are families: each a fieldset with its
 legend inside the one radio group, so the arrows walk and choose across them and Tab comes in on the
-chosen tile; a value whose tile a filter leaves out stays chosen. **A gallery that is a choice is
+chosen tile; a value whose tile a filter leaves out stays chosen; a chosen tile keeps its brand edge
+under the pointer, and a tile measures by its border. Where a heading above a search and a filter
+already asks the question, `isLabelHidden` keeps the legend as the group's name and draws it
+nowhere. **A gallery that is a choice is
 `ChoiceCards`; a gallery whose card carries its own act** (*Take*, *Import*) **is `TemplateCard`.**
 
 `CodeField` is **one** native input drawn as its places — never one box per digit, which breaks
@@ -415,7 +418,7 @@ the rows and fields under it say nothing about it.
 | `SyncStatus` + `ConflictResolver` | `SyncStatus` is the connection mark (§11.6), fed by `engine.queue()` and the stream's state, with **no sentence of its own**. Pressed, it lists every waiting change as *what* and *where* and every refused one with its reason and a dismiss — never swallowed ([`offline-sync.md`](../architecture/offline-sync.md) §9). Losing the server is announced once through a `status` region; a moving count is not. `ConflictResolver` handles a `CONFLICT` on the notes: both versions as text — theirs in place, mine already a system comment it links to — and two ways out: keep theirs, or write mine again as an ordinary `PATCH`. **Never a merge, never an automatic retry** ([ADR-0021](../adr/ADR-0021-offline-sync.md)). It opens from the mark's list and from the entry's strip. A title or description somebody else changed while the reader was editing it online is no conflict record: the entry asks before it overwrites, with a `Dialog` in its alert mode (§11, the entry screen) |
 | `Celebration` | §7's slot: `tier` 1–3, one asset per tier, no taller than `--motion-celebration-area`, moving no further than `--motion-celebration-travel`. **Never blocking**: `inert`, off the tree, unmounted by the caller on `onDone`, its one sentence a `status` region. Under reduced motion every tier is rule 6's colour change. Assets may change; tiers, tokens and triggers may not |
 | `Tour` + `CoachMark` | §8's pattern: a spotlight on one element of the real interface, positioned by CSS (`spotlightTo` in `anchor.ts`), the overlay of rule 2 being the cut-out's shadow; the element stays interactive. `CoachMark` is a caption, one body line, the count, and *next*, *back*, *skip*; a non-modal `dialog` — focus moves to it, `Escape` skips, the tab order is its controls and the element. The steps are the client's (`apps/webapp/src/lib/tour.ts`) |
-| `TemplateCard` + `TemplateGallery` | A template as a person chooses it ([`user-experience.md`](../architecture/user-experience.md) §5.2): mark, name, one sentence, the products it switches on as chips, a quiet note of where it stands (*In use*, *Update available*), *Preview* folded (`details`, what taking it creates, in words), the caller's act — never its key or version as the subtitle. Where the template draws something (a board), a small drawing of it stands in place of the mark; in a gallery that is a choice the chosen card has a thicker brand edge and its act is pressed, and `isCompact` tightens it inside a dialog. The gallery is one family as a named list of cards that wraps to the width; every create dialog and the catalogue draw it |
+| `TemplateCard` + `TemplateGallery` | A template as a person chooses it ([`user-experience.md`](../architecture/user-experience.md) §5.2): mark, name, one sentence, the products it switches on as chips, a quiet note of where it stands (*In use*, *Update available*), *Preview* folded (`details`, what taking it creates, in words), the caller's act — never its key or version as the subtitle. Where the template draws something (a board), a small drawing of it stands in place of the mark; `isCompact` tightens it inside a dialog. The gallery is one family as a named list of cards that wraps to the width; the catalogue, the starter and a product's templates draw it. A gallery that is a choice - the starts on *Create hub* - is `ChoiceCards` instead |
 | `AISuggestion` | Separable through `ai.*` (§1), gone without residue when AI is off. One component for every kind: the heading names the kind as a proposal, the payload is the caller's slot in the product's editor for its shape, accept and dismiss are the caller's buttons, the provenance one collapsed line ([`voice-and-tone.md`](./voice-and-tone.md) §7). `pending` is the job running, `stale` the target moved. It arrives in the `attach` role, in opacity alone |
 
 **The automation rule editor is the web client's own**, in `apps/webapp/src/lib/automation/`
@@ -1095,7 +1098,8 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
   `BlockList`s, the draft bar. `OverviewPage` — what needs a look: `SummaryCard`s in a `Grid`,
   at most one raised focal card. `LogPage` — what happened: a `ListPage` with the time range first
   and rows grouped by day. `CreatePage` — creating something larger than a dialog, at the
-  content's full width. `WorkPage` and `DetailPage` — the work surfaces and one object read and
+  content's full width; `isFilled` takes the region a filled page gets, the head edge to edge over
+  a hairline and two panes beneath it that scroll on their own (*Create hub*, ADR-0111). `WorkPage` and `DetailPage` — the work surfaces and one object read and
   edited in place, as built. `StandalonePage` — outside the frame (`card`, `public`). Every kind
   works at the five widths with the same functions; only what is visible at once changes
   (PS-18). The content has two levels of containment at most, the canvas and one region (§6).
@@ -1435,6 +1439,14 @@ archived container leaves the tree.
 **The trash (`/trash`)** is the other row of the `keeping` band.
 
 ### 11.8 The screen patterns
+
+**Create hub** is a create page of its own, `/hubs/new` ([ADR-0111](../adr/ADR-0111-creating-a-hub-is-a-page.md),
+[`user-experience.md`](../architecture/user-experience.md) §5.2): `CreatePage` filled, the details
+at `layout.pane.width` - mark and name, *Private* as a bordered box with its switch and sentence,
+colour and symbol open (`LookFields`: round swatches, square symbols, "none" dashed), description,
+the start's summary - beside the starts: a heading, a search, the families as pills that are one
+radio group with their counts, the count as a status, and the tiles as `ChoiceCards`, *Empty hub*
+first. A collection keeps *Dialog M*.
 
 **A container screen.** `PageHeader` with one primary action:
 

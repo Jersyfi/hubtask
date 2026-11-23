@@ -538,14 +538,29 @@ Every product home and every hub tool has one anatomy (mockup: `shell.html`, *Pr
   has no primary (`apps/webapp/build/create.test.js`); a list's own add says so with
   `data-list-add`, and an empty state's first act counts as inside it. Adding an entry stays capture
   (design-system §11.8, *One add*).
-* **One create dialog anatomy**: the title field first, the template gallery (with *Blank* as
-  one card) where templates exist, the place chips (*In:*), and the one primary. As built, it is one
+* **One create dialog anatomy**, with one exception, the hub: the title field first, the template
+  gallery (with *Blank* as one card) where templates exist, the place chips (*In:*), and the one
+  primary. As built, it is one
   composition, `lib/product/CreateDialog.svelte` (the title field, the gallery, the product's own
   fields, the *In:* chip listing the hubs where the product is on and the reader may write, the
   one primary beside *Cancel*), filled by pages (Blank, the hub's own templates, Hubtask's pages
   and spaces as cards), whiteboards, objects and sprints; an entry's is capture's
   dialog with its place chip (design-system §11.8). A product home's act opens it at the place
   holding most of the product.
+* **Creating a hub is a page, `/hubs/new`** (ADR-0111): a name, *Private*, a look and thirty
+  templates in eight families do not fit a dialog without burying *Private* screens below the
+  name. The hub's details stand in one column - its mark and name, *Private* right under the name,
+  colour, symbol, description, and a summary of the chosen start that says what it sets up - beside
+  the choice of how the hub starts: a search, the families as a single-choice filter with counts,
+  and the starts as one radio group of tiles (`ChoiceCards`, a tick in the corner), *Empty hub*
+  first, pinned, chosen when the page opens and never filtered away. From `expanded` each column
+  scrolls on its own and the head with *Create hub* stays; from `medium` the details are a block of
+  two columns above the starts, whose tools stick. Every door to it - the navigation, the palette,
+  the empty start view, a product's home, a product's page while it is off, *Administration →
+  Products* - navigates there, carrying a template chosen before (`?template=`) and the product it
+  was opened from (`?product=`, where a hub made without a template lands); *Cancel* goes back. A
+  reader who may make only a private hub of their own gets no switch and no template, and the page
+  says why. A collection keeps its dialog.
 * **Creating a hub shows the template gallery**, grouped by family, the four presets as its
   *Simple* family. Choosing runs the single server-side apply of §3.2 at the hub. Where the
   template needs a workspace part the reader may not take, the card says *Ask an administrator to
