@@ -51,11 +51,9 @@ func (p SignInPictures) Picture(ctx context.Context, host string, mediaID shared
 		if err != nil {
 			return err
 		}
-		if object.DeletedAt != nil {
-			return signInPictureGone()
-		}
 		if object.WorkspaceLogo() != nil {
-			// Set as a raster picture and judged so; anything else is never served from here.
+			// A READY, unmarked raster picture of the workspace, judged again; anything else is never
+			// served from here.
 			return signInPictureGone()
 		}
 		return nil
