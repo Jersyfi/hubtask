@@ -10,6 +10,7 @@
   import { untrack } from 'svelte';
 
   import { actor } from '../data/account.svelte.ts';
+  import { emergencyNotices } from '../data/emergencynotices.svelte.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
   import { onboarding } from '../onboarding/onboarding.svelte.ts';
@@ -37,7 +38,8 @@
   $effect(() => {
     const account = actor.account;
     // The starter first (user-experience.md §3.1): the tour then walks what it made.
-    if (!account || startedFor === account.id || tour.isOpen || !onboarding.tourMayStart) return;
+    // Nor over the emergency notice, which waits for the tour as the tour waits for it.
+    if (!account || startedFor === account.id || tour.isOpen || !onboarding.tourMayStart || emergencyNotices.isShown) return;
     // A tab loaded anew in the middle of the tour goes on where it was, whatever the screen.
     const resumesAt = tour.resumesAt();
     if ((resumesAt === undefined && !startsAt(path)) || !tour.shouldStart()) return;

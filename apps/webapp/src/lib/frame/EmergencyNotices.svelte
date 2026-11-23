@@ -1,19 +1,26 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The frame's notice that one of the reader's private hubs was opened through the emergency access
-  // (ADR-0073 §4): on the start view only (`emergencyplacement.ts`), from the record written when
-  // it was opened, for thirty days. It is how a person without a mailbox is told at all; the hub
-  // itself says it too.
+  // When the frame tells the reader that a private hub of theirs was opened through the emergency
+  // access (ADR-0073 §4, UC-ID-16 check 11): once the app has opened, on whatever view it opened
+  // at, and only at a moment nothing else holds them (`mayInterrupt`). Several notices are one
+  // dialog. Closed without confirming, they wait for the next opening of the app; confirmed, the
+  // bar's mark and the hub's row carry them. No view draws a banner for them.
+  //
+  // A notice that arrives while the app is open waits for the same kind of moment and is shown then.
 
   import { untrack } from 'svelte';
 
-  import { Banner } from '@hubtask/design-system/components';
+  import { layers } from '@hubtask/design-system/components';
+  import type { EmergencyNotice } from '@hubtask/sync-engine';
 
-  import { accounts } from '../data/accounts.svelte.ts';
+  import { actor } from '../data/account.svelte.ts';
   import { emergencyNotices } from '../data/emergencynotices.svelte.ts';
-  import { formatDateTime } from '../i18n/datetime.ts';
-  import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { workspace } from '../data/workspace.svelte.ts';
+  import { onboarding } from '../onboarding/onboarding.svelte.ts';
+  import { productTour } from '../product/producttour.svelte.ts';
+  import { tour } from '../tour.svelte.ts';
+  import { mayInterrupt } from './emergencynotice.ts';
 
   interface Props {
     onnavigate: (path: string) => void;
@@ -22,35 +29,82 @@
   const { onnavigate }: Props = $props();
 
   $effect(() => untrack(() => emergencyNotices.open()));
+
+  /** The notices on the screen, as they were when the dialog opened. */
+  let shown = $state<readonly EmergencyNotice[] | undefined>(undefined);
   $effect(() => {
-    accounts.resolve(emergencyNotices.notices.map((each) => each.opened_by));
+    emergencyNotices.isShown = shown !== undefined;
   });
 
-  const at = (iso: string) => formatDateTime(iso, messages.locale);
+  /**
+   * Moved by what can end a moment the notice waits for - a layer closing, the focus leaving a
+   * field - since neither the register of layers nor the focus is reactive.
+   */
+  let moved = $state(0);
+  /** The field the person typed into; the focus leaving it ends the typing. */
+  let typedIn: EventTarget | null = null;
+
+  const isWaiting = $derived(emergencyNotices.waiting.length > 0 && shown === undefined);
+
+  // Typing is followed from the start: what was typed before a notice arrived is typing too.
+  $effect(() => {
+    const typed = (event: Event) => (typedIn = event.target);
+    const left = (event: Event) => {
+      if (event.target === typedIn) typedIn = null;
+    };
+    document.addEventListener('input', typed, true);
+    document.addEventListener('focusout', left, true);
+    return () => {
+      document.removeEventListener('input', typed, true);
+      document.removeEventListener('focusout', left, true);
+    };
+  });
+
+  $effect(() => {
+    if (!isWaiting) return;
+    // A task later: a focus that leaves a field the screen is just removing does so in the middle
+    // of a render, where no state may change.
+    const move = () => queueMicrotask(() => moved++);
+    const events = ['focusout', 'close', 'toggle', 'pointerup', 'keyup'];
+    for (const name of events) document.addEventListener(name, move, true);
+    return () => {
+      for (const name of events) document.removeEventListener(name, move, true);
+    };
+  });
+
+  function moment() {
+    const read = workspace.state.status;
+    return {
+      waiting: emergencyNotices.waiting.length,
+      isSettled: actor.account !== undefined && (read === 'ready' || read === 'failed'),
+      isLayerOpen: layers.size > 0 || document.querySelector('dialog[open]') !== null,
+      isTyping: typedIn !== null && typedIn === document.activeElement,
+      isTourOpen: tour.isOpen || productTour.isOpen,
+      isStarterOpen: onboarding.starterIsOpen,
+    };
+  }
+
+  $effect(() => {
+    void moved;
+    if (!isWaiting || !mayInterrupt(moment())) return;
+    // A task later, and asked again: a layer the same change opens - the starter, once the
+    // workspace answered - is open by then, and the notice waits for it instead of covering it.
+    const later = setTimeout(() => {
+      if (shown === undefined && mayInterrupt(moment())) shown = emergencyNotices.waiting;
+    }, 0);
+    return () => clearTimeout(later);
+  });
 </script>
 
-{#each emergencyNotices.notices as notice (notice.id)}
-  <div class="notice" data-emergency-notice="frame">
-    <Banner tone="warning">
-      {t('app.private_hubs.notice_frame', {
-        name: accounts.nameOf(notice.opened_by) ?? t('app.private_hubs.somebody'),
-        when: at(notice.opened_at), until: at(notice.ends_at), reason: notice.reason,
-      })}
-      {#snippet action()}
-        <a
-          href={`/hubs/${notice.hub_id}`}
-          onclick={(event) => {
-            event.preventDefault();
-            onnavigate(`/hubs/${notice.hub_id}`);
-          }}
-        >
-          {t('app.private_hubs.notice_open_hub')}
-        </a>
-      {/snippet}
-    </Banner>
-  </div>
-{/each}
-
-<style>
-  .notice { margin-block-end: var(--sp-200); }
-</style>
+{#if shown}
+  {#await import('./EmergencyNoticeDialog.svelte') then { default: NoticeDialog }}
+    <NoticeDialog
+      notices={shown}
+      {onnavigate}
+      onclose={() => {
+        if (shown) emergencyNotices.seen(shown.map((each) => each.id));
+        shown = undefined;
+      }}
+    />
+  {/await}
+{/if}

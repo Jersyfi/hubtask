@@ -49,7 +49,6 @@
   import ToastStack from './ToastStack.svelte';
   import ViewAsBanner from './ViewAsBanner.svelte';
   import EmergencyNotices from './EmergencyNotices.svelte';
-  import { isFrameEmergencyNoticeShown } from './emergencyplacement.ts';
   import AppUpdateBanner from './AppUpdateBanner.svelte';
   import { appUpdate } from './appupdate.svelte.ts';
   import TourGuide from './TourGuide.svelte';
@@ -821,7 +820,7 @@
           workspaces={phoneWorkspaces} onworkspace={(host) => deviceList.open(host)} onchoose={chooseAccount} />
       {/snippet}
       {#snippet marks()}
-        <NoticeMark />
+        <NoticeMark onnavigate={go} />
         <SyncLine />
       {/snippet}
       {#snippet connection()}<SyncLine />{/snippet}
@@ -864,7 +863,7 @@
            the reader may read one and it says something is wrong (ADR-0065 decision 4). It was two
            banners above the head of every page; now it is a mark that says nothing until it is
            pressed, and nothing at all when there is nothing to say. -->
-      <NoticeMark />
+      <NoticeMark onnavigate={go} />
       <SyncLine />
       <!-- Drawn as soon as there is a session, not once the account has arrived: signing out has
            to be reachable while the server is away, and the name is "You" until it is known. -->
@@ -932,9 +931,10 @@
       ontouchstart={swipeStart} ontouchend={swipeEnd} ontouchcancel={() => (swipe = null)}>
       <div class="content">
         <!-- One banner zone (ux-inventory.md §E1): what the frame has to say to the person - the
-             app's update, the recovery codes, an emergency access, the AI notice, a step-up that
-             held - stands in one place above the page head, in this order, rather than wherever
-             each was added.
+             app's update, the recovery codes, the view as another person, a changed address, the
+             AI notice, a step-up that held - stands in one place above the page head, in this
+             order, rather than wherever each was added. An emergency access is not among them: it is told once in a
+             dialog, then carried by the bar's mark and the hub's row (ADR-0073 §4).
              Empty, it takes no room: each banner carries its own space below. -->
         <div class="banners" data-banners>
           <!-- A newer release of the installed app, or its refusal (UC-SYN-07 checks 5 and 6):
@@ -971,10 +971,6 @@
           {/if}
           <!-- The session shows the app as another person (UC-ID-29). -->
           <ViewAsBanner />
-          <!-- A private hub of the reader's was opened through the emergency access (ADR-0073 §4). -->
-          {#if isFrameEmergencyNoticeShown(route.name)}
-            <EmergencyNotices onnavigate={go} />
-          {/if}
           {#if addressNotices.notice}
             <div class="confirmed" data-address-notice>
               <Banner tone="info">
@@ -1085,6 +1081,9 @@
   {#if session.isSignedIn && !isOutside}
     <TourGuide path={route.path} {onnavigate} />
     <ProductTourGuide routeName={route.name} routeTab={route.query['tab']} {onnavigate} />
+    <!-- A private hub of the reader's was opened through the emergency access: told once, in a
+         dialog, at a moment nothing else holds the reader (ADR-0073 §4). -->
+    <EmergencyNotices onnavigate={go} />
   {/if}
 
   <!-- The application's one live region, and it is in the frame because two of them compete: a
