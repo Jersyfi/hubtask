@@ -17,6 +17,7 @@ import { sharedChromium } from './browser.mjs';
 import { serve } from './serve.mjs';
 import { ACCOUNT, COLLECTION, DEFAULT_STRUCTURE, HUB, ITEMS, OTHER, PAGE, WORKSPACE } from './fixture.mjs';
 import { ids, productWalk } from './productwalk.mjs';
+import { chipsOf, focused, pick, valueOf } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -510,3 +511,62 @@ test('chromium: service desk - a ticket\'s rail names its triage and deadlines i
   assert.deepEqual((await acts.getByRole('menuitem').allInnerTexts()).map((text) => text.trim()), ['Bearbeiten', 'Entfernen']);
   await page.keyboard.press('Escape');
 });
+
+// A policy's entry types (design-system.md §4): six types are one field named "Entry types".
+// Opened by the keyboard on the first type, Space ticks, Escape closes the list and leaves the
+// dialog open with focus on the field, and the policy is saved with the types chosen. In English
+// and in German.
+const SIX = ['request', 'incident', 'change', 'problem', 'question', 'outage'];
+for (const locale of ['en', 'de']) {
+  test(`chromium: service desk - a policy's six entry types are one field, chosen by the keyboard (${locale})`, async (t) => {
+    const browser = await sharedChromium(t);
+    const backend = deskBackend();
+    const answer = (method, path, query, body) => {
+      if (path === '/accounts/me' && method === 'GET') return { json: { ...ACCOUNT, locale } };
+      if (path === '/entry-types' && method === 'GET') {
+        return { json: { data: SIX.map((key, at) => ({ key, level: 'TASK', name: key[0].toUpperCase() + key.slice(1), system: false, position: at + 1, archived: false })) } };
+      }
+      return backend(method, path, query, body);
+    };
+    const walk = await productWalk(browser, { modules: ['SERVICE_DESK', 'WORKFLOWS'], answer });
+    t.after(walk.close);
+    const { page } = walk;
+    const words = locale === 'de'
+      ? { tab: 'SLA-Richtlinien', add: 'Richtlinie hinzufügen', name: 'Name', types: 'Eintragstypen', empty: 'Nichts gewählt' }
+      : { tab: 'SLA policies', add: 'Add the policy', name: 'Name', types: 'Entry types', empty: 'Nothing chosen' };
+
+    await page.goto(`${served.origin}/desk/settings`);
+    if (locale === 'de') await page.waitForFunction(() => document.documentElement.lang === 'de', null, { timeout: 15_000 });
+    await page.getByRole('link', { name: words.tab }).first().click({ timeout: 15_000 });
+    await page.getByRole('button', { name: words.add }).click();
+    const dialog = page.getByRole('dialog');
+    const policyForm = dialog.locator('form');
+    await policyForm.getByLabel(words.name).first().fill('Standard');
+
+    const types = policyForm.getByRole('button', { name: new RegExp(`^${words.types}`, 'u') });
+    await types.waitFor({ timeout: 5_000 }).catch(() => {});
+    assert.equal(await types.count(), 1, 'six entry types are not one field');
+    assert.equal(await types.getAttribute('aria-haspopup'), 'listbox');
+    assert.equal(await valueOf(types), words.empty);
+
+    await types.focus();
+    await page.keyboard.press('Enter');
+    const list = page.getByRole('listbox', { name: words.types });
+    await list.waitFor({ timeout: 5_000 });
+    assert.equal(await focused(page), 'option "Request"', 'Enter did not land on the first type');
+    await page.keyboard.press('Space');
+    await page.keyboard.press('End');
+    assert.equal(await focused(page), 'option "Outage"');
+    await page.keyboard.press('Space');
+    await page.keyboard.press('Escape');
+    await list.waitFor({ state: 'detached', timeout: 5_000 });
+    assert.equal(await dialog.isVisible(), true, 'Escape closed the dialog, not only the list');
+    assert.match(await focused(page), new RegExp(`^button "${words.types} `, 'u'), 'closing the list left focus elsewhere');
+    assert.deepEqual(await chipsOf(types), ['Request', 'Outage']);
+    assert.deepEqual(await pick(page, types, ['Change']), ['Request', 'Change', 'Outage']);
+
+    await policyForm.getByRole('button', { name: words.add }).click();
+    await page.getByRole('main').getByText('Standard').first().waitFor({ timeout: 5_000 });
+    assert.deepEqual(backend.policies[0]?.entry_types, ['request', 'outage', 'change']);
+  });
+}

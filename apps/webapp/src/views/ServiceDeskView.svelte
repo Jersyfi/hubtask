@@ -14,8 +14,25 @@
 
   import { untrack } from 'svelte';
   import {
-    EmptyState, Badge, Button, Checkbox, CheckboxGroup, DataTable, Dialog, Disclosure, Inline, Input, Select, SettingsLayout, Skeleton, Stack, Switch, Textarea,
-    type DataColumn, type DataRowMenu, type SectionLink,
+    Badge,
+    Button,
+    Checkbox,
+    DataTable,
+    Dialog,
+    Disclosure,
+    EmptyState,
+    Inline,
+    Input,
+    MultiSelect,
+    Select,
+    SettingsLayout,
+    Skeleton,
+    Stack,
+    Switch,
+    Textarea,
+    type DataColumn,
+    type DataRowMenu,
+    type SectionLink,
   } from '@hubtask/design-system/components';
   import DurationInput from '../lib/forms/DurationInput.svelte';
   import ZonePicker from '../lib/forms/ZonePicker.svelte';
@@ -34,6 +51,7 @@
   import { resource } from '../lib/data/resource.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
+  import { chooseSeveral } from '../lib/forms/chooseSeveral.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { deviceZone } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -395,13 +413,13 @@
             <form onsubmit={(event) => void savePolicy(event)}>
             <Stack gap="100">
               <Input label={t('app.desk.name')} bind:value={policy.name} required />
-              <CheckboxGroup label={t('app.desk.types')} hint={t('app.desk.types_pick_hint')} options={typeOptions}
-                selected={wordsOf(policy.types)} onChange={(chosen) => (policy.types = textOf(chosen))} />
+              <MultiSelect label={t('app.desk.types')} hint={t('app.desk.types_pick_hint')} options={typeOptions}
+                selected={wordsOf(policy.types)} onChange={(chosen) => (policy.types = textOf(chosen))} {...chooseSeveral()} />
               <Select label={t('app.desk.policy_group')} hint={t('app.desk.policy_group_hint')} options={groupOptions} bind:value={policy.group} />
               {#if !policy.group}
                 {#if organisationOptions.length > 0}
-                  <CheckboxGroup label={t('app.desk.policy_organisations')} hint={t('app.desk.policy_organisations_pick_hint')} options={organisationOptions}
-                    selected={wordsOf(policy.organisations)} onChange={(chosen) => (policy.organisations = textOf(chosen))} />
+                  <MultiSelect label={t('app.desk.policy_organisations')} hint={t('app.desk.policy_organisations_pick_hint')} options={organisationOptions}
+                    selected={wordsOf(policy.organisations)} onChange={(chosen) => (policy.organisations = textOf(chosen))} {...chooseSeveral()} />
                 {/if}
               {/if}
               <div class="fields">
@@ -434,8 +452,8 @@
                 {/each}</div>{/if}
 
               </div>
-              <CheckboxGroup label={t('app.desk.pauses')} hint={t('app.desk.pauses_pick_hint')} options={statusOptions}
-                selected={wordsOf(policy.pauses)} onChange={(chosen) => (policy.pauses = textOf(chosen))} />
+              <MultiSelect label={t('app.desk.pauses')} hint={t('app.desk.pauses_pick_hint')} options={statusOptions}
+                selected={wordsOf(policy.pauses)} onChange={(chosen) => (policy.pauses = textOf(chosen))} {...chooseSeveral()} />
               <Disclosure label={t('app.desk.advanced')}>
               <div class="fields">
                 <Input label={t('app.desk.warn')} type="number" min="1" max="99" bind:value={policy.warn} />
