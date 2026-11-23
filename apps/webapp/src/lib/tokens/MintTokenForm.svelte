@@ -8,11 +8,12 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, CheckboxGroup, Input, Radio, Stack } from '@hubtask/design-system/components';
+  import { Button, Input, MultiSelect, Radio, Stack } from '@hubtask/design-system/components';
 
   import FailureNote from '../frame/FailureNote.svelte';
   import type { MintedToken } from '../data/tokens.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
+  import { chooseSeveral } from '../forms/chooseSeveral.ts';
   import { focusFirst, isComplete, without } from '../forms/missing.ts';
   import { NO_INSTALLATION, TokenDraft } from './draft.svelte.ts';
   import { scopeWord } from './tokenwords.ts';
@@ -85,7 +86,7 @@
       </Stack>
     {:else}
       <!-- Nothing said in advance when none is ticked: *Create token* says it if it is pressed so. -->
-      <CheckboxGroup
+      <MultiSelect
         label={t('app.tokens.scopes')}
         hint={t('app.tokens.scopes_hint')}
         options={draft.scopes.map((scope) => ({ value: scope, label: scopeWord(scope), hint: scopeWord(scope) === scope ? undefined : scope }))}
@@ -95,6 +96,7 @@
           draft.chosen = [...next];
           draft.missing = without(draft.missing, 'scopes');
         }}
+        {...chooseSeveral()}
       />
     {/if}
 

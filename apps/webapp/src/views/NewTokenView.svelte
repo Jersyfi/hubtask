@@ -13,11 +13,11 @@
 
   import {
     Checkbox,
-    CheckboxGroup,
     CreatePage,
     FormLayout,
     FormSection,
     Input,
+    MultiSelect,
     OneTimeSecret,
     Radio,
     SettingRow,
@@ -30,6 +30,7 @@
   import { page } from '../lib/frame/page.svelte.ts';
   import type { MintedToken } from '../lib/data/tokens.svelte.ts';
   import { t } from '../lib/i18n/i18n.svelte.ts';
+  import { chooseSeveral } from '../lib/forms/chooseSeveral.ts';
   import { focusFirst, isComplete, without } from '../lib/forms/missing.ts';
   import { profileTrail } from '../lib/profile/profilehead.ts';
   import { NO_INSTALLATION, TokenDraft } from '../lib/tokens/draft.svelte.ts';
@@ -201,7 +202,7 @@
                reference, and the one place a key is read (PS-15). -->
           <FormSection title={t('app.tokens.details_title')} description={t('app.tokens.details_hint')} isFolded>
             <div class="details">
-              <CheckboxGroup
+              <MultiSelect
                 label={t('app.tokens.scopes')}
                 options={draft.scopes.map((scope) => ({ value: scope, label: scopeWord(scope), hint: scopeWord(scope) === scope ? undefined : scope }))}
                 selected={draft.chosen}
@@ -209,6 +210,7 @@
                   draft.chosen = [...next];
                   draft.missing = without(draft.missing, 'scopes');
                 }}
+                {...chooseSeveral()}
               />
             </div>
           </FormSection>

@@ -15,6 +15,7 @@ import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, MANIFEST, OWNER_GRANTS, PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { chipsOf, focused, pick, valueOf } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -24,8 +25,8 @@ test.after(() => served.close());
 const SERVICE = { id: '01a0e2e0-0000-7000-8000-0000000000f1', kind: 'SERVICE', display_name: 'Shop platform', status: 'ACTIVE' };
 const OWNER = { role: 'OWNER', permissions: ['READ', 'WRITE_ITEMS', 'STRUCTURE', 'MANAGE_MEMBERS', 'DELETE_CONTAINER'] };
 
-async function open(browser, { timezoneId, operator = true, serviceRole = undefined } = {}) {
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, ...(timezoneId ? { timezoneId } : {}) });
+async function open(browser, { timezoneId, operator = true, serviceRole = undefined, scopes = ['account:read', 'admin:provisioning', 'admin:tenants'], width = 1280 } = {}) {
+  const context = await browser.newContext({ viewport: { width, height: 900 }, ...(timezoneId ? { timezoneId } : {}) });
   const mints = [];
   const proofs = [];
   await context.route('**/api/v1/**', async (route) => {
@@ -34,7 +35,7 @@ async function open(browser, { timezoneId, operator = true, serviceRole = undefi
     if (path === '/meta/capabilities') {
       // The reader is in the operator register unless a walk says otherwise: minting
       // `admin:tenants` asks the register as well as the proof.
-      return route.fulfill({ json: { ...MANIFEST, roles: [OWNER], token_scopes: ['account:read', 'admin:provisioning', 'admin:tenants'], instance: { reachable: operator } } });
+      return route.fulfill({ json: { ...MANIFEST, roles: [OWNER], token_scopes: scopes, instance: { reachable: operator } } });
     }
     if (path === '/accounts/me') return route.fulfill({ json: { ...ACCOUNT, has_password: true, has_second_factor: false } });
     if (path === '/auth/service-accounts' && request.method() === 'GET') return route.fulfill({ json: [SERVICE] });
@@ -243,4 +244,68 @@ test('chromium: an administrator is offered no token for a service account that 
       await section.screenshot({ path: join(process.env.EVIDENCE, `service-account-${serviceRole.toLowerCase()}.png`) });
     }
   }
+});
+
+// More than five scopes are one field (design-system.md §4), on a person's own page at both widths
+// and in a service account's dialog: one stop named "Scopes", opened by the keyboard on the first
+// scope, Space ticks, Escape closes the list onto the field (in the dialog the dialog stays), the
+// field names the choice, and the token is minted with it.
+const SEVEN = ['items:read', 'items:write', 'containers:read', 'containers:write', 'comments:write', 'media:read', 'media:write'];
+for (const width of [1280, 390]) {
+  test(`chromium: a token's seven scopes are one field, chosen by the keyboard, at ${width}`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { page, mints, close } = await open(browser, { operator: false, scopes: SEVEN, width });
+    t.after(close);
+
+    await page.goto(`${served.origin}/profile/tokens/new`);
+    const main = page.locator('main');
+    await main.getByRole('button', { name: /^Details/ }).click({ timeout: 10_000 });
+    const field = main.getByRole('button', { name: /^Scopes/u });
+    await field.waitFor({ timeout: 5_000 }).catch(() => {});
+    assert.equal(await field.count(), 1, 'the scopes are not one field');
+    assert.equal(await field.getAttribute('aria-haspopup'), 'listbox');
+    assert.equal(await main.getByRole('group', { name: 'Scopes', exact: true }).count(), 0, 'the scopes are still a group of ticks');
+    assert.equal(await valueOf(field), 'Nothing chosen');
+
+    await field.focus();
+    await page.keyboard.press('Enter');
+    const list = page.getByRole('listbox', { name: 'Scopes' });
+    await list.waitFor({ timeout: 5_000 });
+    assert.equal(await focused(page), 'option "Read your entries"', 'Enter did not land on the first scope');
+    await page.keyboard.press('Space');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await focused(page), 'option "See your hubs and collections"');
+    await page.keyboard.press('Space');
+    await page.keyboard.press('Escape');
+    await list.waitFor({ state: 'detached', timeout: 5_000 });
+    assert.match(await focused(page), /^button "Scopes /u, 'closing the list left focus elsewhere');
+    assert.deepEqual(await chipsOf(field), ['Read your entries', 'See your hubs and collections']);
+
+    await page.getByLabel(/^What it is for/).fill('Nightly export');
+    await page.getByLabel(/^Expires/).fill(new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10));
+    await page.getByRole('button', { name: 'Create the token' }).click();
+    await page.getByText('Your new token').first().waitFor({ timeout: 15_000 });
+    assert.deepEqual(mints.at(-1).body.scopes, ['items:read', 'containers:read']);
+  });
+}
+
+test('chromium: a service account\'s token takes its scopes from one field inside the dialog', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, mints, close } = await open(browser, { operator: false, scopes: SEVEN });
+  t.after(close);
+
+  const section = await serviceTokenDialog(page);
+  const field = section.getByRole('button', { name: /^Scopes/u });
+  await field.waitFor({ timeout: 10_000 });
+  assert.equal(await field.getAttribute('aria-haspopup'), 'listbox', 'the scopes are not one field');
+  assert.deepEqual(await pick(page, field, ['Read your entries', 'Write and edit comments']), ['Read your entries', 'Write and edit comments']);
+  assert.equal(await section.isVisible(), true, 'Escape closed the dialog, not only the list');
+  assert.match(await focused(page), /^button "Scopes /u);
+  await section.getByLabel(/^What it is for/).fill('Shop sync');
+  await section.getByLabel(/^Expires/).fill(new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10));
+  await section.getByRole('button', { name: 'Create the token' }).click();
+  await page.getByText('Your new token').first().waitFor({ timeout: 15_000 });
+  assert.equal(mints.at(-1).body.account_id, SERVICE.id);
+  assert.deepEqual(mints.at(-1).body.scopes, ['items:read', 'comments:write']);
 });
