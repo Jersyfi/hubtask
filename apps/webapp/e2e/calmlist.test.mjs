@@ -53,17 +53,24 @@ async function sent(written, method, suffix) {
   return find();
 }
 
-/** A finger drawn sideways over a row, through the browser's own touch input. */
+/**
+ * A finger drawn sideways over a row, through the browser's own touch input. The events leave
+ * together, each stamped a frame after the one before: sent one round trip apart, a loaded
+ * runner's moves came more than a hold apart, and the row read a slow drag rather than a swipe.
+ */
 async function swipe(page, context, locator, direction) {
   const box = await locator.boundingBox();
   const y = box.y + box.height / 2;
   const from = box.x + box.width / 2;
   const cdp = await context.newCDPSession(page);
-  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: from, y }] });
-  for (let step = 1; step <= 8; step += 1) {
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: from + direction * step * 18, y }] });
-  }
-  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  const start = Date.now() / 1000;
+  const at = (step) => start + step * 0.016;
+  const touch = (type, touchPoints, step) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints, timestamp: at(step) });
+  await Promise.all([
+    touch('touchStart', [{ x: from, y }], 0),
+    ...Array.from({ length: 8 }, (_, index) => touch('touchMove', [{ x: from + direction * (index + 1) * 18, y }], index + 1)),
+    touch('touchEnd', [], 9),
+  ]);
   await cdp.detach();
 }
 
