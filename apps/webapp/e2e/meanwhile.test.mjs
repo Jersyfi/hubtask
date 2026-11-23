@@ -59,7 +59,7 @@ async function openEntry(browser, width, address = `/items/${ENTRY.id}`) {
   const isNamed = new Promise((resolve) => (named = resolve));
   const state = {
     entry: ENTRY, sent: [], log: [], history: [], comments: [], pushed: [], isOffline: false, theirsAway: undefined, isNamed,
-    refusePatches: 0, refuseRead: false, patchHeld: undefined, olderRefused: false, commentsRefused: false,
+    refusePatches: 0, stalePatches: 0, refuseRead: false, patchHeld: undefined, olderRefused: false, commentsRefused: false,
   };
   let delivered = 0;
   await context.unroute('**/api/v1/**');
@@ -103,6 +103,11 @@ async function openEntry(browser, width, address = `/items/${ENTRY.id}`) {
     if (path === `/items/${ENTRY.id}` && method === 'PATCH') {
       if (state.patchHeld) await state.patchHeld;
       const ifMatch = request.headers()['if-match'];
+      // `stalePatches`: somebody else's write lands just before each of that many.
+      if (state.stalePatches > 0) {
+        state.stalePatches -= 1;
+        state.entry = { ...state.entry, version: state.entry.version + 1 };
+      }
       if (ifMatch && ifMatch !== `"${state.entry.version}"`) {
         return route.fulfill({
           status: 409, contentType: 'application/problem+json',
@@ -476,6 +481,75 @@ test('chromium: 1280 px — an entry in the pane with an unanswered warning: clo
     .catch(async () => assert.fail(`closing the pane dropped the unsaved text: ${new URL(page.url()).search}`));
   assert.deepEqual(writes(state), []);
 });
+
+test('chromium: 1280 px — a description edited again while its save is on its way is saved after it (UC-SYN-02 check 10)', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, context, failures, state } = await openEntry(browser, 1280);
+  t.after(() => context.close());
+
+  const notes = page.getByRole('textbox', { name: 'Notes' });
+  const leave = () => page.locator('[data-tour="entry"]').getByRole('button', { name: 'Edit title' }).focus();
+  let release;
+  state.patchHeld = new Promise((resolve) => (release = resolve));
+  const first = page.waitForRequest((request) => request.method() === 'PATCH', { timeout: 10_000 });
+  await notes.fill('Measure the wall.');
+  await leave();
+  await first;
+  await notes.fill('Measure the wall twice.');
+  await leave();
+  const second = page.waitForResponse((response) => response.request().method() === 'PATCH' && response.request().postDataJSON()?.notes === 'Measure the wall twice.', { timeout: 10_000 });
+  release();
+  await second.catch(() => assert.fail(`the second edit was not saved: ${JSON.stringify(writes(state))}`));
+  assert.deepEqual(writes(state).map((each) => each.body), [{ notes: 'Measure the wall.' }, { notes: 'Measure the wall twice.' }]);
+  assert.equal(state.entry.notes, 'Measure the wall twice.');
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: 1280 px — a save refused as stale twice says so, keeps the text and holds the way out (UC-SYN-02 check 10)', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, context, state } = await openEntry(browser, 1280);
+  t.after(() => context.close());
+
+  state.stalePatches = 2;
+  const notes = page.getByRole('textbox', { name: 'Notes' });
+  await notes.fill(MINE);
+  await page.locator('[data-tour="entry"]').getByRole('button', { name: 'Edit title' }).focus();
+  await page.getByText('Someone else changed that entry in the meantime. Read it again and reapply.').first().waitFor({ timeout: 10_000 })
+    .catch(async () => assert.fail(`the second stale refusal is not said: ${JSON.stringify(writes(state))}`));
+  assert.equal(writes(state).length, 2, 'the save was not tried exactly twice');
+  await notes.filter({ hasText: MINE }).waitFor({ timeout: 5_000 });
+  await page.locator('aside.sidenav').getByRole('link', { name: 'Today' }).click();
+  await page.getByRole('dialog', { name: 'Leave without saving?' }).waitFor({ timeout: 5_000 })
+    .catch(() => assert.fail('leaving dropped the unsaved text without asking'));
+});
+
+for (const width of [1280, 390]) {
+  test(`chromium: ${width} px — a title warning closed, then the saved title entered: the reader's title is let go (UC-SYN-02 check 10)`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { page, context, failures, state, changeElsewhere } = await openEntry(browser, width);
+    t.after(() => context.close());
+
+    const editTitle = page.locator('[data-tour="entry"]').getByRole('button', { name: 'Edit title' });
+    await editTitle.click();
+    const field = page.getByRole('textbox', { name: 'Title', exact: true });
+    await field.fill('Order the tiles, kitchen only');
+    await changeElsewhere({ title: 'Order the tiles, bathroom first' });
+    await field.press('Enter');
+    const dialog = await warningAbout(page, 'title', 'Order the tiles, bathroom first', 'Order the tiles, kitchen only');
+    await page.keyboard.press('Escape');
+    await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
+
+    await editTitle.click();
+    await field.fill('Order the tiles, bathroom first');
+    await field.press('Enter');
+    await editTitle.click();
+    assert.equal(await field.inputValue(), 'Order the tiles, bathroom first', 'the field reopened with the title the reader let go');
+    await field.press('Escape');
+    assert.equal(await page.getByRole('alertdialog').count(), 0, 'the saved title was asked about');
+    assert.deepEqual(writes(state), [], 'something was written');
+    assert.deepEqual(failures, []);
+  });
+}
 
 /**
  * The kept version at its address: marked, holding the focus, headed as a kept version that names
