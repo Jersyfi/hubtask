@@ -564,7 +564,8 @@ nobody pays a press for the gallery. Every door to it - the navigation, the pale
   Products* - navigates there, carrying a template chosen before (`?template=`) and the product it
   was opened from (`?product=`, where a hub made without a template lands); *Cancel* goes back. A
   reader who may make only a private hub of their own gets no switch and no template, and the page
-  says why. A collection keeps its dialog.
+  says why. A collection keeps its dialog; its kinds are one choice of the same tiles, with its
+  hub's kind - *Like its hub* - first and chosen when the dialog opens.
 * **Creating a hub shows the template gallery**, grouped by family, the four presets as its
   *Simple* family. Choosing runs the single server-side apply of §3.2 at the hub. Where the
   template needs a workspace part the reader may not take, the card says *Ask an administrator to

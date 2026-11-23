@@ -1455,7 +1455,8 @@ first. Below `medium` the details are the page, *Colour and symbol* a `Disclosur
 summary's *Choose a template* (*Change* once one is chosen) opens the starts as a second step: a
 `Dialog` L with `isStep` - ‹, the title, *Done* -, the search across the width, the families one
 row that scrolls sideways, one tile per row; its address is the page's, and back closes it. A
-collection keeps *Dialog M*.
+collection keeps *Dialog M*: its name, its kinds as the same tiles - *Like its hub* first and
+chosen, then the presets, *Scrum*, *Desk* -, colour and symbol open, the description folded.
 
 **A container screen.** `PageHeader` with one primary action:
 

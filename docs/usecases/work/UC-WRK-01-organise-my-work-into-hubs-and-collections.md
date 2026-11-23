@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-08, P-10, P-12]
 state: partial
 tasks: [A-07, B-06, F2-04, F2-08, F10-01, F10-03]
-checked_by: [test/integration/create_container_test.go, test/integration/container_test.go, test/integration/container_lifecycle_test.go, apps/webapp/e2e/container.test.mjs, apps/webapp/e2e/archive.test.mjs, apps/webapp/e2e/entrybyrole.test.mjs, apps/webapp/e2e/createhub.test.mjs, apps/webapp/src/lib/workspace/createHub.test.ts, apps/webapp/e2e/treerank.test.mjs]
+checked_by: [test/integration/create_container_test.go, test/integration/container_test.go, test/integration/container_lifecycle_test.go, apps/webapp/e2e/container.test.mjs, apps/webapp/e2e/archive.test.mjs, apps/webapp/e2e/entrybyrole.test.mjs, apps/webapp/e2e/createhub.test.mjs, apps/webapp/src/lib/workspace/createHub.test.ts, apps/webapp/src/lib/workspace/createCollection.test.ts, apps/webapp/e2e/treerank.test.mjs]
 ---
 
 # Organise my work into hubs and collections
@@ -55,6 +55,8 @@ member or a child works *inside* the collections they are given.
     hub is made.
 11. Below 600 px the page holds the hub's details and *Create hub*; the starts open as a second
     step only when the person asks for them.
+12. *Create collection* offers its kinds as one choice with *Like its hub* chosen when the dialog
+    opens; the chosen kind is marked by its edge and a tick.
 
 ## Where it ends
 

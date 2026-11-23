@@ -16,7 +16,7 @@ import { sharedChromium } from './browser.mjs';
 
 import { pressArea } from './press.mjs';
 import { serve } from './serve.mjs';
-import { BUCKETS, COLLECTION, HUB, ITEMS, LABELS, MANIFEST, PAGE, signedIn, openSettings, viewBar, chooseView, newInHead, openNewCollection } from './fixture.mjs';
+import { BUCKETS, COLLECTION, HUB, ITEMS, LABELS, MANIFEST, PAGE, signedIn, openSettings, viewBar, chooseView, newInHead, openNewCollection, kindChoice } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -426,5 +426,126 @@ test('chromium: 375 px — while picking, a press on a row\'s label chip lands o
     await target.evaluate((element) => element.removeAttribute('data-pressed-probe'));
     assert.ok(area.width >= 44 && area.height >= 44, `a press on a label chip lands on ${marker} of ${JSON.stringify(area)}`);
   }
+  assert.deepEqual(failures, []);
+});
+
+// UC-WRK-01 check 12: *Create collection* offers its kinds as one choice, *Like its hub* chosen
+// when the dialog opens, the chosen kind marked by its edge and a tick - the hub page's tile.
+
+/** Opens the hub, answers the collection's creation with `made`, and opens the dialog. */
+async function openCreateCollection(browser, width, height, made) {
+  const { page, failures, context } = await signedIn(browser, width, height, width < 600 ? { hasTouch: true } : {});
+  const sent = [];
+  await page.route('**/api/v1/containers', (route, request) => {
+    if (request.method() !== 'POST') return route.fallback();
+    sent.push(request.postDataJSON());
+    return route.fulfill({ status: 201, json: made });
+  });
+  await page.goto(`${served.origin}/hubs/${HUB.id}`);
+  await page.getByRole('heading', { name: HUB.name, level: 1 }).waitFor({ timeout: 15_000 });
+  await openNewCollection(page);
+  const dialog = page.locator('dialog[open]');
+  await kindChoice(dialog, 'Like its hub').waitFor({ timeout: 10_000 });
+  // The kinds are data: wait for the presets the installation answers.
+  await kindChoice(dialog, 'Scrum').waitFor({ timeout: 10_000 });
+  return { page, failures, dialog, sent, close: () => context.close() };
+}
+
+/** What the focused element is: its type and the start of its label's words. */
+const focused = (page) => page.evaluate(() => {
+  const element = document.activeElement;
+  const label = element?.closest('label')?.textContent?.trim() ?? '';
+  return `${element?.getAttribute('type') ?? element?.tagName}:${label.slice(0, 24)}`;
+});
+
+test('chromium: 1280 px — Create collection: Like its hub chosen at opening, a kind chosen by the keyboard, the chosen tile ticked, Desk refused with its reason (UC-WRK-01 check 12)', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, dialog, sent, close } = await openCreateCollection(browser, 1280, 800, COLLECTION);
+  t.after(close);
+
+  // One radio group, the hub's own structure first and chosen.
+  const kinds = dialog.getByRole('radiogroup', { name: 'How much structure' });
+  const names = await kinds.getByRole('radio').evaluateAll((radios) => radios.map((radio) => radio.closest('label')?.querySelector('.title')?.textContent?.trim()));
+  assert.deepEqual(names, ['Like its hub', 'List', 'Tasks', 'Project', 'Flow', 'Scrum', 'Desk']);
+  assert.equal(await kindChoice(dialog, 'Like its hub').isChecked(), true, 'Like its hub is not chosen at opening');
+  assert.equal(await kinds.getByRole('radio', { checked: true }).count(), 1);
+
+  // Without a portal type in the hub, Desk cannot be chosen and its reason is its description.
+  const desk = kindChoice(dialog, 'Desk');
+  assert.equal(await desk.isDisabled(), true, 'a desk without a portal type can be chosen');
+  const reason = await desk.evaluate((radio) => (radio.getAttribute('aria-describedby') ?? '').split(' ').map((id) => document.getElementById(id)?.textContent ?? '').join(' '));
+  assert.match(reason, /Needs a portal type in the hub/u);
+
+  // The focus starts in the name; Tab enters the kinds at the chosen one; the arrows walk and
+  // choose, and pass over the refused Desk.
+  assert.match(await focused(page), /^text:Name:/u, 'the focus does not start in the name');
+  await page.keyboard.press('Tab');
+  assert.match(await focused(page), /^radio:Like its hub/u, 'Tab does not enter the kinds at the chosen one');
+  await page.keyboard.press('ArrowRight');
+  assert.equal(await kindChoice(dialog, 'List').isChecked(), true, 'an arrow does not choose');
+  assert.equal(await kindChoice(dialog, 'Like its hub').isChecked(), false, 'two kinds chosen at once');
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowLeft');
+  assert.match(await focused(page), /^radio:Scrum/u, 'the arrows do not pass over the refused Desk');
+  for (let press = 0; press < 3; press += 1) await page.keyboard.press('ArrowLeft');
+  assert.equal(await kindChoice(dialog, 'Tasks').isChecked(), true);
+
+  // The chosen tile: its edge doubled and the tick filled in the edge's colour; another one not.
+  const tile = (name) => kindChoice(dialog, name).locator('xpath=ancestor::label[1]');
+  const handle = await tile('Tasks').elementHandle();
+  await page.waitForFunction((element) => getComputedStyle(element.querySelector('.tick')).backgroundColor === getComputedStyle(element).borderTopColor, handle, { timeout: 5_000 });
+  const look = (name) => tile(name).evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { edge: style.borderTopColor, shadow: style.boxShadow, tick: getComputedStyle(element.querySelector('.tick')).backgroundColor };
+  });
+  const chosen = await look('Tasks');
+  const other = await look('List');
+  assert.notEqual(chosen.shadow, 'none', 'the chosen edge is not doubled');
+  assert.equal(chosen.tick, chosen.edge, 'the tick is not filled in the edge\'s colour');
+  assert.equal(other.shadow, 'none', 'a kind not chosen is drawn as chosen');
+  assert.notEqual(other.tick, chosen.tick, 'a kind not chosen is ticked');
+
+  // The look stands open; choosing a colour keeps the focus in the dialog.
+  await dialog.getByRole('radio', { name: 'Teal' }).check();
+  assert.notEqual(await page.evaluate(() => document.activeElement?.tagName), 'BODY', 'the focus fell to the page');
+
+  // Enter in the name creates: one request with the kind chosen, then the collection's page.
+  await dialog.getByRole('textbox', { name: 'Name' }).fill(COLLECTION.name);
+  await page.keyboard.press('Enter');
+  await page.waitForURL(new RegExp(`/collections/${COLLECTION.id}$`, 'u'), { timeout: 10_000 });
+  await page.getByRole('heading', { name: COLLECTION.name, level: 1 }).waitFor({ timeout: 15_000 });
+  assert.equal(sent.length, 1);
+  assert.deepEqual(sent[0], { type: 'COLLECTION', parent_id: HUB.id, name: COLLECTION.name, description: null, icon: null, color_token: 'teal', preset: 'TASKS' });
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: 390 px — Create collection is the whole screen, one tile per row, Like its hub chosen; Create without a name marks the field (UC-WRK-01 check 12)', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, dialog, sent, close } = await openCreateCollection(browser, 390, 844, COLLECTION);
+  t.after(close);
+
+  // *Dialog M* below `medium`: the whole screen, the primary in its bar - once it has risen.
+  await page.waitForFunction(() => {
+    const box = document.querySelector('dialog[open]')?.getBoundingClientRect();
+    return box?.x === 0 && box.y === 0 && box.width === innerWidth && box.height === innerHeight;
+  }, null, { timeout: 5_000 }).catch(() => assert.fail('the dialog is not the whole screen'));
+  const tiles = await dialog.getByRole('radiogroup', { name: 'How much structure' }).locator('label').evaluateAll((labels) => labels.map((label) => Math.round(label.getBoundingClientRect().x)));
+  assert.equal(new Set(tiles).size, 1, `the tiles are not one per row: ${tiles}`);
+  assert.equal(await kindChoice(dialog, 'Like its hub').isChecked(), true, 'Like its hub is not chosen at opening');
+  assert.equal(await kindChoice(dialog, 'Desk').isDisabled(), true);
+  assert.equal(await page.evaluate(() => document.scrollingElement.scrollWidth), 390, 'the page scrolls sideways');
+
+  // A kind chosen by a press; Create without a name marks the name and puts the focus there.
+  await kindChoice(dialog, 'Flow').check();
+  await dialog.getByRole('button', { name: 'Create', exact: true }).first().click();
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-invalid') === 'true', null, { timeout: 5_000 });
+  assert.match(await dialog.innerText(), /Give it a name first\./u);
+  assert.equal(sent.length, 0, 'a collection was sent without a name');
+  await page.keyboard.type('Garden');
+  await dialog.getByRole('button', { name: 'Create', exact: true }).first().click();
+  await page.waitForURL(new RegExp(`/collections/${COLLECTION.id}$`, 'u'), { timeout: 10_000 });
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].preset, 'FLOW');
+  assert.equal(sent[0].name, 'Garden');
   assert.deepEqual(failures, []);
 });
