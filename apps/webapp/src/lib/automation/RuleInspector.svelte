@@ -8,9 +8,10 @@
   // one copy the view holds. The server's refusals arrive by pointer and are shown at the field
   // they name, as the old form showed them.
 
-  import { Button, Callout, Checkbox, Input, Select, Stack, Textarea } from '@hubtask/design-system/components';
+  import { Button, Callout, Input, MultiSelect, Select, Textarea } from '@hubtask/design-system/components';
   import type { QueryKey } from '@hubtask/query';
   import QueryStrip from '../entries/QueryStrip.svelte';
+  import { chooseSeveral } from '../forms/chooseSeveral.ts';
   import FrequencyPicker from '../forms/FrequencyPicker.svelte';
   import ZonePicker from '../forms/ZonePicker.svelte';
 
@@ -266,24 +267,14 @@
         }}
       />
       {#if draft.trigger.event_type?.includes('.updated.')}
-        <Stack gap="050">
-          <span class="label">{t('app.flow.changed_fields')}</span>
-          <span class="hint">{t('app.flow.changed_fields_hint')}</span>
-          {#each CHANGED_FIELDS as field (field)}
-            <Checkbox
-              label={field.replace(/_/g, ' ')}
-              checked={draft.trigger.changed_fields?.includes(field) ?? false}
-              onchange={(event: Event) => {
-                const checked = (event.currentTarget as HTMLInputElement).checked;
-                onupdate((current) => {
-                  const present = current.trigger.changed_fields ?? [];
-                  const changed_fields = checked ? [...present, field] : present.filter((each) => each !== field);
-                  return { ...current, trigger: { ...current.trigger, changed_fields } };
-                });
-              }}
-            />
-          {/each}
-        </Stack>
+        <MultiSelect
+          label={t('app.flow.changed_fields')}
+          hint={t('app.flow.changed_fields_hint')}
+          options={CHANGED_FIELDS.map((field) => ({ value: field, label: field.replace(/_/g, ' ') }))}
+          selected={draft.trigger.changed_fields ?? []}
+          onChange={(changed_fields) => onupdate((current) => ({ ...current, trigger: { ...current.trigger, changed_fields: [...changed_fields] } }))}
+          {...chooseSeveral()}
+        />
       {/if}
     {:else if draft.trigger.kind === 'SCHEDULE'}
       <FrequencyPicker
@@ -491,8 +482,6 @@
   .quiet { margin: 0; font-size: var(--fs-075); color: var(--text-secondary); }
 
   .label { font-size: var(--fs-075); font-weight: var(--fw-medium); }
-
-  .hint { font-size: var(--fs-075); color: var(--text-subtle); }
 
   .mono { font-family: var(--font-mono); }
 

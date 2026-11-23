@@ -16,6 +16,7 @@ import { sharedChromium } from './browser.mjs';
 
 import { PERMISSIONS, fallback, unstubbedSoFar } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { chipsOf, describedBy, focused } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -1072,4 +1073,54 @@ test('chromium: the trigger chooses its entries with one query line, names resol
   assert.ok(patch, 'the write carries for which entries');
   assert.match(patch.entries, /is: open/u);
   assert.ok(patch.entries.includes(COLLECTION.id) && !patch.entries.includes('Q4 campaign'), `the name went as its identifier: ${patch.entries}`);
+});
+
+// The fields an update waits for are one field of eight (design-system.md §4): named by its
+// question and described by what none means, it opens from the keyboard on the first option, Space
+// ticks, Escape closes the list onto the field, and the save carries the fields in the order ticked.
+test('chromium: the fields an update waits for are one field, chosen by the keyboard and saved', async (t) => {
+  const browser = await sharedChromium(t);
+  const written = [];
+  const UPDATED = 'de.hubtask.work.item.updated.v1';
+  const context = await browser.newContext({ viewport: { width: 1400, height: 1200 } });
+  t.after(() => context.close());
+  await context.route('**/api/v1/**', stubFor(written));
+  await context.route('**/api/v1/meta/capabilities', (route) => route.fulfill({ json: { ...MANIFEST, event_types: [...MANIFEST.event_types, UPDATED] } }));
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/rules/${RULE.id}`);
+  await page.locator('[data-card="2"]').waitFor();
+  await page.locator('[data-card="trigger"]').click();
+  const inspector = page.locator('aside.inspector');
+  await inspector.getByLabel('Which event').selectOption(UPDATED);
+
+  const field = inspector.getByRole('button', { name: /^Only when one of these changed/u });
+  await field.waitFor({ timeout: 5_000 });
+  assert.equal(await field.getAttribute('aria-haspopup'), 'listbox', 'the changed fields are not one field');
+  assert.equal(await describedBy(field), 'None means: on every change, a rename included.');
+  assert.equal((await field.locator('.value').textContent()).trim(), 'Nothing chosen');
+  assert.equal(await inspector.locator('input[type="checkbox"]').count(), 0, 'the ticks are still drawn');
+
+  await field.focus();
+  await page.keyboard.press('Enter');
+  const list = page.getByRole('listbox', { name: 'Only when one of these changed' });
+  await list.waitFor({ timeout: 5_000 });
+  assert.equal(await focused(page), 'option "title"', 'Enter did not land on the first option');
+  await page.keyboard.press('Space');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  assert.equal(await focused(page), 'option "due at"');
+  await page.keyboard.press('Space');
+  assert.equal(await list.getByRole('option', { name: 'due at' }).getAttribute('aria-selected'), 'true');
+  await page.keyboard.press('Escape');
+  await list.waitFor({ state: 'detached', timeout: 5_000 });
+  assert.match(await focused(page), /^button "Only when one of these changed /u, 'closing the list left focus elsewhere');
+  assert.deepEqual(await chipsOf(field), ['title', 'due at']);
+
+  const sent = page.waitForRequest((request) => request.method() === 'PATCH' && request.url().endsWith(`/automation/rules/${RULE.id}`));
+  await page.getByRole('button', { name: 'Save the rule' }).click();
+  assert.deepEqual((await sent).postDataJSON().trigger, { kind: 'EVENT', event_type: UPDATED, changed_fields: ['title', 'due_at'] });
 });
