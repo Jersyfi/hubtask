@@ -27,8 +27,10 @@ for that party, not a loophole.
   reference inside the settings document: it would have no key and no count, and the
   reconciliation would remove the picture. Not three keys on the workspace's row: a restore writes
   that row before the media, so the keys could not be restored.
-* **Raster only.** A PNG, JPEG, GIF or WebP image judged from its bytes, at most 5 MB, as a desk's
-  logo and a person's picture are. No SVG: a browser may execute one (`security.md` T-11).
+* **Raster only.** A PNG, JPEG, GIF or WebP image judged from its bytes, at most 5 MB, judged when
+  it is set and at every read. A list of its own, not the inline list a desk's logo and a person's
+  picture use, which also holds the video and audio a browser plays. No SVG: a browser may execute
+  one (`security.md` T-11).
 * **Allowed by default, lockable above.** *The workspace may show its own name and logo* is the
   sign-in rule's switch `own_branding`, levelled as *Private hubs allowed* is: on by default, off
   the stricter value, the installation and a plan switch it off and lock it. Off refuses every

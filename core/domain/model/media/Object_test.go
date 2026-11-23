@@ -252,7 +252,8 @@ func TestOnlyAConfirmedImageStagedAsADeskLogoIsALogo(t *testing.T) {
 
 // A workspace's own picture is drawn in every member's header and on the sign-in card (UC-INS-22
 // check 2): at most 5 MB whatever the installation allows, and only a confirmed PNG, JPEG, GIF or
-// WebP - the judged type, so a file that claimed to be a PNG and was sniffed as an SVG is refused.
+// WebP - the judged type, so a file that claimed to be a PNG and was sniffed as an SVG is refused,
+// and a video or a sound, which a browser plays inline, is no picture either.
 func TestOnlyAConfirmedRasterImageStagedAsAWorkspaceLogoIsOne(t *testing.T) {
 	input := staging()
 	input.Usage, input.ClaimedType = media.UsageWorkspaceLogo, "image/png"
@@ -277,16 +278,28 @@ func TestOnlyAConfirmedRasterImageStagedAsAWorkspaceLogoIsOne(t *testing.T) {
 	svg.ContentType = "image/svg+xml"
 	pdf := ready
 	pdf.ContentType = "application/pdf"
-	cases := []struct {
+	type judged struct {
 		name   string
 		object media.Object
 		want   string
-	}{
+	}
+	cases := []judged{
 		{"a confirmed WebP", ready, ""},
 		{"one not confirmed yet", pending, "media.not_ready"},
 		{"one staged as a desk's logo", desk, "media.usage_mismatch"},
 		{"an SVG, which a browser may execute", svg, "media.workspace_logo_not_an_image"},
 		{"a document", pdf, "media.workspace_logo_not_an_image"},
+	}
+	for _, raster := range []string{"image/png", "image/jpeg", "image/gif", "image/webp"} {
+		object := ready
+		object.ContentType = raster
+		cases = append(cases, judged{"a confirmed " + raster, object, ""})
+	}
+	// Inline is not enough: a browser plays these without executing anything, but none is a picture.
+	for _, played := range []string{"video/mp4", "video/webm", "audio/mpeg", "audio/wav", "audio/ogg", "text/html"} {
+		object := ready
+		object.ContentType = played
+		cases = append(cases, judged{"a file of type " + played, object, "media.workspace_logo_not_an_image"})
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

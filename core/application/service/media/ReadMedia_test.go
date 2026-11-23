@@ -292,7 +292,8 @@ func TestAPictureNobodyShowsIsOnlyItsUploaders(t *testing.T) {
 }
 
 // UC-INS-22 check 1: every member reads the pictures the workspace shows, as the header draws them for
-// everybody; a workspace picture nothing shows is its uploader's alone.
+// everybody; a workspace picture nothing shows is its uploader's alone, and one that is no raster
+// image is no member's.
 func TestEveryMemberReadsThePicturesTheWorkspaceShows(t *testing.T) {
 	handler, records, permission, _ := readingHarness()
 	picture := ready(strangerA)
@@ -309,6 +310,16 @@ func TestEveryMemberReadsThePicturesTheWorkspaceShows(t *testing.T) {
 	}
 	if len(permission.asked) != 0 {
 		t.Errorf("the authorisation service was asked %v", permission.asked)
+	}
+
+	// Shown or not, what is no PNG, JPEG, GIF or WebP is no workspace's picture to a member.
+	for _, family := range []string{"video/mp4", "audio/mpeg", "image/svg+xml", "application/pdf", "text/html"} {
+		played := picture
+		played.ContentType = family
+		records.stored[mintedID] = played
+		if _, err := handler.Execute(t.Context(), actor(mediaRead), MediaQuery{MediaID: mintedID}); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("a workspace picture stored as %s answered a member %v, want not found", family, err)
+		}
 	}
 }
 

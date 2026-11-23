@@ -161,7 +161,7 @@ func TestTheThreePicturesAreStoredAnsweredAndTrailedByIdentifierAlone(t *testing
 }
 
 // UC-INS-22 check 2: what is not a workspace's picture is refused with the stated code, and
-// nothing is written - a document, an SVG, a picture staged for something else, one not yet
+// nothing is written - a document, an SVG, a video, a sound, markup, a picture staged for something else, one not yet
 // confirmed, and one somebody else uploaded, which answers as missing.
 func TestAFileThatIsNoWorkspacePictureIsRefusedWithItsCode(t *testing.T) {
 	stranger := shared.ID("01936f2a-7c1e-7000-8000-0000000000e9")
@@ -174,6 +174,12 @@ func TestAFileThatIsNoWorkspacePictureIsRefusedWithItsCode(t *testing.T) {
 	pending := logoPicture(shared.ID("01936f2a-7c1e-7000-8000-0000000000f4"), account)
 	pending.Status = media.StatusPending
 	theirs := logoPicture(shared.ID("01936f2a-7c1e-7000-8000-0000000000f5"), stranger)
+	video := logoPicture(shared.ID("01936f2a-7c1e-7000-8000-0000000000f6"), account)
+	video.ContentType = "video/mp4"
+	sound := logoPicture(shared.ID("01936f2a-7c1e-7000-8000-0000000000f7"), account)
+	sound.ContentType = "audio/mpeg"
+	page := logoPicture(shared.ID("01936f2a-7c1e-7000-8000-0000000000f8"), account)
+	page.ContentType = "text/html"
 
 	cases := []struct {
 		name   string
@@ -182,6 +188,9 @@ func TestAFileThatIsNoWorkspacePictureIsRefusedWithItsCode(t *testing.T) {
 	}{
 		{"a document", pdf, "media.workspace_logo_not_an_image"},
 		{"an SVG", svg, "media.workspace_logo_not_an_image"},
+		{"a video, which a browser plays inline", video, "media.workspace_logo_not_an_image"},
+		{"a sound, which a browser plays inline", sound, "media.workspace_logo_not_an_image"},
+		{"a page of markup", page, "media.workspace_logo_not_an_image"},
 		{"a person's picture", avatar, "media.usage_mismatch"},
 		{"an upload not confirmed", pending, "media.not_ready"},
 		{"somebody else's upload", theirs, "media.not_found"},

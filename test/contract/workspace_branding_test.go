@@ -8,6 +8,7 @@ package contract
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -57,8 +58,8 @@ func (u uploads) Find(_ context.Context, id shared.ID) (media.Object, error) {
 func (u uploads) AdjustRefCount(context.Context, shared.ID, int) error { return nil }
 
 // UC-INS-22 checks 1, 2 and 3 at the REST door: a picture is set and taken away, the choice is set,
-// each answer is the contract's WorkspaceBranding, and the workspace's own answer carries it; an SVG
-// is refused with its code, and a body naming a key the operation does not declare is refused.
+// each answer is the contract's WorkspaceBranding, and the workspace's own answer carries it; an SVG,
+// a video, a sound, a document and markup are refused with their code, and a body naming a key the operation does not declare is refused.
 func TestAWorkspacesBrandingAtTheRestDoor(t *testing.T) {
 	spec := contractSpec(t)
 	tenant := shared.MustParseID("0192f000-0000-7000-8000-00000000000a")
@@ -78,13 +79,21 @@ func TestAWorkspacesBrandingAtTheRestDoor(t *testing.T) {
 	}
 	drawing := picture
 	drawing.ID, drawing.ContentType = svg, "image/svg+xml"
+	stored := map[shared.ID]media.Object{logo: picture, svg: drawing}
+	// Each family a browser renders or plays that is no PNG, JPEG, GIF or WebP.
+	refused := map[string]shared.ID{"image/svg+xml": svg}
+	for i, family := range []string{"video/mp4", "audio/mpeg", "application/pdf", "text/html"} {
+		other := picture
+		other.ID, other.ContentType = shared.MustParseID(fmt.Sprintf("0192f000-0000-7000-8000-0000000000b%d", i)), family
+		stored[other.ID], refused[family] = other, other.ID
+	}
 	writer := identity.WorkspaceWriter{
 		Workspaces: workspace, Authorizer: permitted{}, Audit: &kept{},
 		UnitOfWork: directly{}, Clock: portclock.Fixed(time.Date(2026, 11, 23, 9, 0, 0, 0, time.UTC)),
 	}
 	brander := identity.WorkspaceBrander{
 		Writer: writer, Branding: workspace,
-		Objects: uploads{stored: map[shared.ID]media.Object{logo: picture, svg: drawing}},
+		Objects: uploads{stored: stored},
 	}
 	registry, err := catalogue.NewRegistry(nil,
 		identity.ReadWorkspace{Writer: writer}.Descriptor(),
@@ -165,10 +174,12 @@ func TestAWorkspacesBrandingAtTheRestDoor(t *testing.T) {
 		t.Errorf("removing the last picture answered %v", removed)
 	}
 
-	status, raw = call(http.MethodPut, "/tenant/branding/SYMBOL", `{"media_id":"`+svg.String()+`"}`)
-	if status != http.StatusUnprocessableEntity && status != http.StatusBadRequest ||
-		!strings.Contains(string(raw), "media.workspace_logo_not_an_image") {
-		t.Errorf("an SVG answered %d %s", status, raw)
+	for family, id := range refused {
+		status, raw = call(http.MethodPut, "/tenant/branding/SYMBOL", `{"media_id":"`+id.String()+`"}`)
+		if status != http.StatusUnprocessableEntity && status != http.StatusBadRequest ||
+			!strings.Contains(string(raw), "media.workspace_logo_not_an_image") {
+			t.Errorf("a file stored as %s answered %d %s", family, status, raw)
+		}
 	}
 	status, raw = call(http.MethodPut, "/tenant/branding/SYMBOL", `{"media_id":"`+logo.String()+`","file_name":"x.png"}`)
 	if status < 400 || status >= 500 {

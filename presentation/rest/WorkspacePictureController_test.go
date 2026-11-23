@@ -112,6 +112,26 @@ func TestEveryRefusedPictureIsTheSame404(t *testing.T) {
 	}
 }
 
+// UC-INS-22 check 2 at the public door: bytes stored as anything but a PNG, JPEG, GIF or WebP are
+// the same 404 and no byte of them is sent, whatever the application answered.
+func TestThePublicReadSendsNothingButARasterPicture(t *testing.T) {
+	for _, family := range []string{"video/mp4", "audio/mpeg", "image/svg+xml", "application/pdf", "text/html"} {
+		t.Run(family, func(t *testing.T) {
+			reader := &cardPictures{host: "choir.example.org"}
+			content := &mediaContent{served: usecasemedia.Served{Content: storage.Object{
+				Content: io.NopCloser(strings.NewReader("BYTES")), Size: 5, ContentType: family,
+			}}}
+			answer := getPicture(t, pictureDoor(reader, content), "choir.example.org", cardPicture)
+			if answer.Code != http.StatusNotFound || strings.Contains(answer.Body.String(), "BYTES") {
+				t.Errorf("answered %d %q, want the one 404", answer.Code, answer.Body)
+			}
+			if got := answer.Header().Get("Cache-Control"); got != "no-store" {
+				t.Errorf("the refusal's Cache-Control = %q, want no-store", got)
+			}
+		})
+	}
+}
+
 // A public route still verifies a presented bearer (known-traps.md): a revoked token sent to the
 // picture's route is refused as on every public route, and none sent is served anonymously.
 func TestThePicturesRouteIsPublicAndStillVerifiesABearer(t *testing.T) {

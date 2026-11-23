@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	usecasemedia "github.com/Jersyfi/hubtask/core/application/service/media"
+	"github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
@@ -51,6 +52,11 @@ func (c *MediaDoor) GetWorkspacePicture(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	defer func() { _ = served.Content.Content.Close() }()
+	if !media.IsWorkspacePictureType(served.Content.ContentType) {
+		// The type the bytes are sent as, judged once more where they leave (T-34).
+		WriteProblem(w, workspacePictureGone(), requestID)
+		return
+	}
 	header := w.Header()
 	header.Set("Content-Type", served.Content.ContentType)
 	header.Set("Content-Length", strconv.FormatInt(served.Content.Size, 10))

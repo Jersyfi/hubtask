@@ -261,10 +261,12 @@ func TestThePublicReadServesOnlyWhatTheCardAtThatAddressDraws(t *testing.T) {
 	marked.DeletedAt = &at
 	i.media.stored[choirDark] = marked
 	refused("a picture marked for removal", "choir.tasks.example.org", choirDark)
-	markup := pictureOf(choir, choirDark)
-	markup.ContentType = "image/svg+xml"
-	i.media.stored[choirDark] = markup
-	refused("a picture that is markup", "choir.tasks.example.org", choirDark)
+	for _, family := range []string{"image/svg+xml", "video/mp4", "audio/mpeg", "application/pdf", "text/html"} {
+		stored := pictureOf(choir, choirDark)
+		stored.ContentType = family
+		i.media.stored[choirDark] = stored
+		refused("a picture stored as "+family, "choir.tasks.example.org", choirDark)
+	}
 
 	i.instance.level.Policy.Patch = domain.PolicyPatch{OwnBranding: boolOf(false)}
 	refused("the bakery's logo switched off above", "bakery.tasks.example.org", bakeryLogo)

@@ -283,11 +283,35 @@ func (o Object) Emblem() error {
 	return o.drawable(UsageDeskLogo, "media.logo_not_an_image")
 }
 
+// workspacePictureTypes is what a workspace's picture is (ADR-0112, "Raster only"): a list of its
+// own, not the inline list, which also holds what a browser plays - a video or a sound is inert, but
+// no picture to put in a header or on a public card.
+var workspacePictureTypes = map[string]bool{
+	"image/png":  true,
+	"image/jpeg": true,
+	"image/gif":  true,
+	"image/webp": true,
+}
+
+// IsWorkspacePictureType answers whether a stored type is one a workspace's picture may have.
+func IsWorkspacePictureType(contentType string) bool {
+	return workspacePictureTypes[essence(contentType)]
+}
+
 // WorkspaceLogo answers whether the object may be one of a workspace's own pictures, by
-// Portrayable's rules: every member's browser draws it, and the sign-in card before anybody signs
-// in. An SVG is refused here, for T-11's reason.
+// Portrayable's rules and narrower: every member's browser draws it, and the sign-in card before
+// anybody signs in. Only a PNG, JPEG, GIF or WebP by its stored type is one (T-11, T-34).
 func (o Object) WorkspaceLogo() error {
-	return o.drawable(UsageWorkspaceLogo, "media.workspace_logo_not_an_image")
+	const notAnImage = "media.workspace_logo_not_an_image"
+	if err := o.drawable(UsageWorkspaceLogo, notAnImage); err != nil {
+		return err
+	}
+	if !IsWorkspacePictureType(o.ContentType) {
+		return shared.ErrValidation.
+			WithDetail(notAnImage).
+			WithFields(shared.FieldError{Path: "/media_id", Code: notAnImage})
+	}
+	return nil
 }
 
 func (o Object) drawable(usage Usage, notAnImage string) error {
