@@ -10,7 +10,7 @@ import { test } from 'node:test';
 import type { SettingDefinition } from '@hubtask/sync-engine';
 
 import { isNamed } from './catalogue.ts';
-import { boundsWords, choiceWords, countFrom, editorOf, lockedWords, shownValue, toggled } from './control.ts';
+import { boundsWords, choiceWords, countFrom, editorOf, inCatalogueOrder, lockedWords, shownValue } from './control.ts';
 
 const writers: SettingDefinition['writers'] = [{ level: 'WORKSPACE', permission: 'APPROVE_TIME' }];
 const holdsAll = () => true;
@@ -47,8 +47,10 @@ test('a count\'s bounds are said as its hint', () => {
 });
 
 test('a list of choices keeps the catalogue\'s order when one is switched on', () => {
-  assert.deepEqual(toggled(['PASSWORD', 'OIDC', 'PASSKEY'], ['PASSKEY'], 'PASSWORD', true), ['PASSWORD', 'PASSKEY']);
-  assert.deepEqual(toggled(['PASSWORD', 'OIDC', 'PASSKEY'], ['PASSWORD', 'PASSKEY'], 'PASSKEY', false), ['PASSWORD']);
+  // MultiSelect puts a newly ticked value at the end; what is written keeps the catalogue's order.
+  assert.deepEqual(inCatalogueOrder(['PASSWORD', 'OIDC', 'PASSKEY'], ['PASSKEY', 'PASSWORD']), ['PASSWORD', 'PASSKEY']);
+  assert.deepEqual(inCatalogueOrder(['PASSWORD', 'OIDC', 'PASSKEY'], ['PASSWORD']), ['PASSWORD']);
+  assert.deepEqual(inCatalogueOrder(['PASSWORD', 'OIDC', 'PASSKEY'], ['PASSWORD', 'SMS']), ['PASSWORD']);
 });
 
 test('the value in force is said in the words of its choices', () => {

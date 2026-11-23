@@ -17,6 +17,7 @@ import { sharedChromium } from './browser.mjs';
 
 import { stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { describedBy } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -188,7 +189,12 @@ test('chromium: an undecided value is saved as its kind, every kind from its own
   assert.equal(await digits.getAttribute('min'), '0');
   await digits.fill('2');
   await form.getByRole('combobox', { name: 'Check against known breaches' }).selectOption('true');
-  await form.getByRole('checkbox', { name: 'Password' }).check();
+  // A list of choices is the design system's ticks, named by its row and described as undecided
+  // until one is ticked.
+  const ways = form.getByRole('group', { name: 'Ways to sign in', exact: true });
+  assert.equal(await describedBy(ways), 'Each workspace decides');
+  await ways.getByRole('checkbox', { name: 'Password' }).check();
+  assert.equal(await describedBy(ways), '', 'a decided list still says each workspace decides');
   await inArea(page, 'Legal information');
   await form.getByRole('textbox', { name: 'Accessibility' }).fill('https://provider.example/a11y');
   // The statement's lock: a link is replaced by a workspace's own, or not.

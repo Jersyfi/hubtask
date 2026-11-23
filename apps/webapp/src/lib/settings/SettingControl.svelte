@@ -10,14 +10,15 @@
   // and the version check stay the area's (P-18). What is drawn comes from the declaration, so the
   // same setting looks the same on every screen that draws it.
 
-  import { Checkbox, Input, Radio, Select, SettingRow, Switch } from '@hubtask/design-system/components';
+  import { Input, MultiSelect, Radio, Select, SettingRow, Switch } from '@hubtask/design-system/components';
   import type { SettingDefinition } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../data/capability.svelte.ts';
+  import { chooseSeveral } from '../forms/chooseSeveral.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { languageName } from '../i18n/locale.ts';
   import ValueSource from '../workspace/ValueSource.svelte';
-  import { boundsWords, choiceWords, countFrom, editorOf, lockedWords, nameWords, shownValue, toggled, type Cell, type Words } from './control.ts';
+  import { boundsWords, choiceWords, countFrom, editorOf, inCatalogueOrder, lockedWords, nameWords, shownValue, type Cell, type Words } from './control.ts';
 
   type Level = SettingDefinition['levels'][number];
 
@@ -124,18 +125,16 @@
           {error}
         />
       {:else if editor === 'choices'}
-        <div class="choices" role="group" aria-labelledby={nameId}>
-          {#each options as option (option.value)}
-            <Checkbox
-              label={option.label}
-              hint={option.hint}
-              checked={chosen.includes(option.value)}
-              disabledReason={reason}
-              onchange={(event) => onchange(toggled(definition.options ?? [], chosen, option.value, (event.currentTarget as HTMLInputElement).checked))}
-            />
-          {/each}
-          {#if error}<p class="refusal" role="alert">{error}</p>{/if}
-        </div>
+        <MultiSelect
+          {label}
+          aria-labelledby={nameId}
+          {options}
+          selected={chosen}
+          onChange={(next) => onchange(inCatalogueOrder(definition.options ?? [], next))}
+          disabledReason={reason}
+          {error}
+          {...chooseSeveral()}
+        />
       {:else if editor === 'locale' && locales.length > 0}
         <Select
           {label}
@@ -183,8 +182,4 @@
 <style>
   /* Wrapped for `data-setting`, so the rows' hairline is drawn here (as `SettingRow` draws it). */
   :global(.setting-control + .setting-control > .setting-row > .setting-line:first-child) { border-block-start: var(--bw-hairline) solid var(--border-subtle); }
-
-  .choices { display: grid; gap: var(--sp-050); }
-
-  .refusal { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
 </style>
