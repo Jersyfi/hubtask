@@ -166,7 +166,7 @@
       {#each plan.changes ?? [] as change (change.path)}<li>{changeText(change)}</li>{/each}
     </ul>
     {#if mustAcknowledge}
-      <Checkbox label={t('app.changes.acknowledge')} checked={acknowledged}
+      <Checkbox label={t('app.changes.acknowledge')} checked={acknowledged} data-acknowledge
         onchange={(event: Event) => (acknowledged = (event.currentTarget as HTMLInputElement).checked)} />
     {/if}
   {/if}

@@ -306,6 +306,49 @@ test('chromium: a template the workspace already took, pressed at once after it 
   }
 });
 
+// Enter in the name is the primary's path: it waits for the plan being read, and where the plan
+// asks for the acknowledgement it asks for it - focus on the box - and sends nothing until it is
+// given. The plan answers when the walk releases it, after Enter was pressed.
+test('chromium: Enter in the name while the plan is read waits for it, then asks the acknowledgement first', async (t) => {
+  const browser = await sharedChromium(t);
+  let asked;
+  const arrived = new Promise((resolve) => (asked = resolve));
+  let release;
+  const held = new Promise((resolve) => (release = resolve));
+  const { page, failures, context, made, events } = await as(browser, {
+    planOf: (key) => ({ ...planned(key), flags: { hides_data: true, changes_permissions: false } }),
+    planHeld: () => {
+      asked();
+      return held;
+    },
+  });
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/hubs/new`);
+  await main(page).getByRole('radio', { name: /^Kanban team/u }).check();
+  await arrived;
+  // The choice has rested and its plan is out: the primary waits, saying why.
+  await page.waitForFunction((element) => element.getAttribute('aria-disabled') === 'true', await primary(page).elementHandle(), { timeout: 5_000 });
+  await nameField(page).focus();
+  await page.keyboard.press('Enter');
+  // While the plan is out the primary says why it waits, and nothing was made.
+  assert.equal(await primary(page).getAttribute('aria-disabled'), 'true');
+  release();
+  const box = main(page).getByRole('checkbox', { name: /^I have seen that this hides data/u });
+  await box.waitFor({ timeout: 5_000 });
+  await page.waitForFunction(() => document.activeElement?.closest('[data-starter-plan]') !== null && document.activeElement?.getAttribute('type') === 'checkbox', null, { timeout: 5_000 });
+  assert.deepEqual(made, [], 'Enter made the hub before the acknowledgement');
+  assert.deepEqual(events, ['plan:kanban_team']);
+
+  await page.keyboard.press('Space');
+  await nameField(page).focus();
+  await page.keyboard.press('Enter');
+  await page.waitForURL((url) => !url.pathname.endsWith('/hubs/new'), { timeout: 10_000 });
+  assert.deepEqual(events, ['plan:kanban_team', 'made:/containers:from-template'], 'the hub was asked for before its plan was read');
+  assert.equal(made[0].body.acknowledge, true, `the body was ${JSON.stringify(made[0].body)}`);
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: a missing name and a taken name land on the name field, which takes the focus', async (t) => {
   const browser = await sharedChromium(t);
   const { page, failures, context, made } = await as(browser, { taken: 'House' });

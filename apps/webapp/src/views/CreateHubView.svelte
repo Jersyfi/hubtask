@@ -260,6 +260,8 @@
   });
 
   const focusName = () => queueMicrotask(() => nameField?.querySelector<HTMLInputElement>('input')?.focus());
+  let detailsPane = $state<HTMLElement | null>(null);
+  const focusAcknowledge = () => detailsPane?.querySelector<HTMLInputElement>('[data-acknowledge]')?.focus();
 
   async function create(): Promise<void> {
     if (isSaving) return;
@@ -273,11 +275,16 @@
     isNameFailure = false;
     try {
       const template = chosenTemplate;
-      if (template && !isRested) {
-        // Pressed before the choice rested: its plan is asked now and read before the hub is made.
+      if (template) {
+        // However it was pressed - the primary, Enter in the name - the plan is read before the hub
+        // is made, and a plan that asks for the acknowledgement asks for it first.
         await planRead(template.key);
+        await tick();
+        if (mustAcknowledge && !acknowledged) {
+          focusAcknowledge();
+          return;
+        }
       }
-      if (template && (mustAcknowledge && !acknowledged)) return;
       const request = hubRequest({
         start,
         name,
@@ -384,13 +391,13 @@
       expandLabel: t('app.workspace.hub_new_trail_expand'),
       trail: [{ id: 'hubs', label: t('app.nav.hubs') }, { id: 'new', label: t('app.workspace.create_hub') }],
     },
-    primary: { label: t('app.workspace.create_hub'), opener: 'create-hub', onclick: create, disabledReason: isSaving ? t('app.workspace.creating') : primaryReason },
+    primary: { label: t('app.workspace.create_hub'), opener: 'create-hub', onclick: create, disabledReason: primaryReason ?? (isSaving ? t('app.workspace.creating') : undefined) },
     secondary: [{ label: t('app.workspace.cancel'), isQuiet: true, onclick: oncancel }],
   }}
   close={{ label: t('app.workspace.cancel'), onclose: oncancel }}
 >
   <div class="panes" data-create-hub>
-    <section class="details" aria-label={t('app.workspace.hub_details')} data-private={isPrivateHub ? '' : undefined}>
+    <section class="details" aria-label={t('app.workspace.hub_details')} data-private={isPrivateHub ? '' : undefined} bind:this={detailsPane}>
       {#if failure && !isNameFailure}
         <p class="failure" role="alert">{failure.message}</p>
       {:else if planFailure}
