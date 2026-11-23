@@ -40,7 +40,8 @@
   // `isAlert` makes it the APG Alert Dialog: a question about a consequence - *Switch Workflows
   // off?* - that interrupts on purpose. It is announced as `alertdialog` with its body as its
   // description, and the focus starts on the safe answer the caller places first in the foot,
-  // never in a field and never on the destructive primary (`safeAnswer` in focus.ts).
+  // never in a field and never on the destructive primary (`safeAnswer` in focus.ts). A click
+  // beside it does not close it: what interrupts on purpose is answered, or closed by ✕ or Escape.
   //
   // `onDismiss` is asked before the close control, Escape or the backdrop close it. Answering
   // `false` keeps it open, and the caller then opens its *Discard changes?* Dialog S - the one
@@ -71,7 +72,8 @@
     isOpen?: boolean;
     /**
      * The name of the close control. Present means the dialog can be abandoned without answering -
-     * so it also gets a backdrop that closes on a click. Absent means the actions are the way out.
+     * so it also gets a backdrop that closes on a click, unless it is an alert. Absent means the
+     * actions are the way out.
      */
     dismissLabel?: string;
     /** Ran when it closes, however it closed. */
@@ -267,7 +269,7 @@
     if (!event.currentTarget.open) close();
   }}
   onclick={(event) => {
-    if (dismissLabel !== undefined && event.target === node) dismiss();
+    if (dismissLabel !== undefined && !isAlert && event.target === node) dismiss();
   }}
 >
   <div class="panel">

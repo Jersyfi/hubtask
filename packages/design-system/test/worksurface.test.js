@@ -343,6 +343,11 @@ test('an alert dialog’s focus starts on the safe answer, never the destructive
   assert.equal(safeAnswer([], control('dismiss', { shown: false })), undefined);
 });
 
+test('an alert dialog is not closed by a click beside it: it is answered, or closed by ✕ or Escape', () => {
+  const dialog = source('Dialog.svelte');
+  assert.match(dialog, /if \(dismissLabel !== undefined && !isAlert && event\.target === node\) dismiss\(\);/);
+});
+
 test('an alert dialog is announced as one and described by its body', () => {
   const dialog = source('Dialog.svelte');
   assert.match(dialog, /role=\{isAlert \? 'alertdialog' : undefined\}\s+aria-describedby=\{isAlert \? bodyId : undefined\}/);
