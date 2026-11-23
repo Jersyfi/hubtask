@@ -69,6 +69,9 @@ type settingsDocument struct {
 	// AiArrivalProposals is written whatever its value, `ai_sources`' reason: switching it off has
 	// to write false into the merge rather than leave true standing. An absent key reads false.
 	AiArrivalProposals bool `json:"ai_arrival_proposals"`
+	// HeaderShows is what the header shows (UC-INS-22), written by WorkspaceBrandingRepository alone
+	// and omitted here, so that the workspace's own write merges past it.
+	HeaderShows string `json:"header_shows,omitempty"`
 }
 
 // policyDocument is the stored patch, flat - the same shape the contract patches, so that the wire
@@ -238,7 +241,13 @@ func (WorkspaceSettingsRepository) Find(ctx context.Context) (identity.Workspace
 		}
 	}
 
+	branding, err := brandingOf(ctx, queries, settings.HeaderShows)
+	if err != nil {
+		return identity.Workspace{}, err
+	}
+
 	return identity.Workspace{
+		Branding: branding,
 		Tenant: identity.Tenant{
 			ID: id, Slug: row.Slug, DisplayName: row.DisplayName,
 			Status:        identity.TenantStatus(row.Status),
