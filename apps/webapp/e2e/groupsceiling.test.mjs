@@ -156,7 +156,7 @@ for (const [width, locale] of [[1280, 'en'], [390, 'de']]) {
       if (path === `/groups/${HELPERS.id}` && request.method() === 'PATCH') {
         patches.push(request.postDataJSON());
         members = request.postDataJSON().members;
-        return route.fulfill({ json: { ...HELPERS, members, members_changeable: true, version: 2 } });
+        return route.fulfill({ json: { ...HELPERS, version: 2 } });
       }
       if (path === `/groups/${HELPERS.id}`) return route.fulfill({ json: { ...HELPERS, members, members_changeable: true } });
       return stub(route);
@@ -310,7 +310,7 @@ test('chromium: 1280 px - the people to add go by name, two of one name told apa
     if (path === `/groups/${HELPERS.id}` && request.method() === 'PATCH') {
       patches.push(request.postDataJSON());
       members = request.postDataJSON().members;
-      return route.fulfill({ json: { ...HELPERS, members, members_changeable: true, version: 2 } });
+      return route.fulfill({ json: { ...HELPERS, version: 2 } });
     }
     if (path === `/groups/${HELPERS.id}`) return route.fulfill({ json: { ...HELPERS, members, members_changeable: true } });
     return stub(route);
