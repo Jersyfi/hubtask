@@ -101,7 +101,10 @@ row is a real failure — except `make tools`: when the failing step in every re
 and the error names a `sum.golang.org` tile, re-run up to three times, then call it an outage. Two `make verify` runs in parallel worktrees, or a
 walk's Docker stack beside the web app's engine tests, load the machine into timeouts: run them one
 after another and read a wall of timeouts as load first. `gh run rerun --failed` is refused while
-the run is still going.
+the run is still going. A walk that fails now and then is a witness before it is a flake: before
+changing it, do by hand what a person does at that step, at several pauses. The navigation rail's
+walk failed one run in fifteen under load because the app read a 300 ms delay as 0.3 ms — a person
+lost every click; a walk that pressed from the keyboard instead would have hidden it.
 
 Why no gate: a flake is a test that is right most of the time, so a gate would refuse good changes;
 each one stays listed until its test is made deterministic.
