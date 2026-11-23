@@ -15,7 +15,7 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Button, CheckboxGroup, Dialog, Disclosure, Input, Stack } from '@hubtask/design-system/components';
+  import { Button, Dialog, Disclosure, Input, MultiSelect, Stack } from '@hubtask/design-system/components';
   import type { AccessExplanation, CustomRole } from '@hubtask/sync-engine';
 
   import FailureNote from '../frame/FailureNote.svelte';
@@ -27,6 +27,7 @@
   import { customFields } from '../data/customfields.svelte.ts';
   import { chosen, keyFrom, offers, ROLE_KEY, roles, type Offer } from '../data/roles.svelte.ts';
   import { workflows } from '../data/workflows.svelte.ts';
+  import { chooseSeveral } from '../forms/chooseSeveral.ts';
   import { check, focusFirst, isComplete, type Missing } from '../forms/missing.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { permissionLabel } from './rolewords.ts';
@@ -184,7 +185,7 @@
       {/if}
       <p class="quiet small">{t('app.roles.offered_hint')}</p>
       {#each areas as area (area.group)}
-        <CheckboxGroup
+        <MultiSelect
           label={areaLabel(area.group)}
           options={area.offers.map((offer) => ({
             value: offer.permission,
@@ -196,6 +197,7 @@
             const others = checked.filter((permission) => !area.offers.some((offer) => offer.permission === permission));
             checked = [...others, ...next];
           }}
+          {...chooseSeveral()}
         />
       {/each}
       {#if missing.permissions && chosen(offered, new Set(checked), carried).length === 0}
