@@ -11,9 +11,10 @@
   // *Done* hands the copy back, *Cancel* drops it, and nothing is sent from here - the page saves
   // the draft. *Add step* opens the dialog on a copy with the new step in it.
   import { untrack } from 'svelte';
-  import { Button, Checkbox, Dialog, Disclosure, IconButton, Inline, Input, Select, Stack, Switch } from '@hubtask/design-system/components';
+  import { Button, Dialog, Disclosure, IconButton, Inline, Input, MultiSelect, Select, Stack, Switch } from '@hubtask/design-system/components';
   import type { WorkflowShape, WorkflowStep } from '@hubtask/sync-engine';
 
+  import { chooseSeveral } from '../forms/chooseSeveral.ts';
   import {
     APPROVAL_RULES, CHECK_MESSAGE_CODES, addApprovalLevel, addStep, changeApproval, changeApprovalLevel, changeStep, removeApprovalLevel,
     statusLabel, stepLabel, toggleApproval, type ApprovalLevel,
@@ -112,21 +113,27 @@
     if (working) edit(changeStep(working, each.key, next));
   }
 
-  function toggleFrom(each: WorkflowStep, status: string, on: boolean) {
-    if (!working) return;
-    const from = new Set(each.from ?? []);
-    if (on) from.add(status);
-    else from.delete(status);
-    change(each, { from: working.statuses.map((one) => one.key).filter((one) => from.has(one)) });
-  }
+  const roleOptions = $derived(ROLES.map((role) => ({ value: role, label: t(`app.people.role.${role.toLowerCase()}`) })));
+  const groupOptions = $derived(groups.all.map((group) => ({ value: group.id, label: group.name })));
 
-  function toggleRole(each: WorkflowStep, role: string, on: boolean) {
-    const roles = new Set<string>(each.who?.roles ?? []);
-    if (on) roles.add(role);
-    else roles.delete(role);
-    // The shipped roles in their order, then the workspace's own keys the step already names.
-    const ordered = [...ROLES.filter((one) => roles.has(one)), ...[...roles].filter((one) => !(ROLES as readonly string[]).includes(one))];
-    change(each, { who: { ...each.who, roles: ordered as never } });
+  /**
+   * Roles and groups are one choice on screen and two lists in the step; only the list that
+   * changed is written, so a step that named no groups still names none.
+   */
+  function chooseWho(each: WorkflowStep, next: readonly string[]) {
+    const groupIds = new Set([...groups.all.map((group) => group.id), ...(each.who?.groups ?? [])]);
+    const chosenGroups = next.filter((value) => groupIds.has(value));
+    const roles = new Set(next.filter((value) => !groupIds.has(value)));
+    const rolesBefore = each.who?.roles ?? [];
+    const groupsBefore = each.who?.groups ?? [];
+    let who = { ...each.who };
+    if (roles.size !== rolesBefore.length || rolesBefore.some((role) => !roles.has(role))) {
+      // The shipped roles in their order, then the workspace's own keys the step already names.
+      const ordered = [...ROLES.filter((one) => roles.has(one)), ...[...roles].filter((one) => !(ROLES as readonly string[]).includes(one))];
+      who = { ...who, roles: ordered as never };
+    }
+    if (chosenGroups.length !== groupsBefore.length || chosenGroups.some((group, at) => group !== groupsBefore[at])) who = { ...who, groups: chosenGroups };
+    change(each, { who });
   }
 
   function changeCheck(each: WorkflowStep, index: number, next: { holds?: string; message?: string | null; messages?: Record<string, string>; message_code?: (typeof CHECK_MESSAGE_CODES)[number] | null }) {
@@ -196,31 +203,29 @@
           />
           <Select label={t('app.workflow_designer.step_to')} options={statusOptions} value={step.to} onchange={(event: Event) => change(step, { to: valueOf(event) })} />
         </div>
-        <fieldset class="set">
-          <legend>{t('app.workflow_designer.step_from')}</legend>
-          <div class="choices">
-            {#each shapeNow.statuses.filter((status) => status.key !== step.to) as status (status.key)}
-              <Checkbox label={statusLabel(status, t)} checked={step.from?.includes(status.key) ?? false} onchange={(event: Event) => toggleFrom(step, status.key, checked(event))} />
-            {/each}
-          </div>
-          <p class="quiet">{t('app.workflow_designer.step_from_hint')}</p>
-        </fieldset>
+        <MultiSelect
+          label={t('app.workflow_designer.step_from')}
+          hint={t('app.workflow_designer.step_from_hint')}
+          options={shapeNow.statuses.filter((status) => status.key !== step.to).map((status) => ({ value: status.key, label: statusLabel(status, t) }))}
+          selected={step.from ?? []}
+          onChange={(next) => change(step, { from: shapeNow.statuses.map((one) => one.key).filter((one) => next.includes(one)) })}
+          {...chooseSeveral()}
+        />
       </section>
 
       <section class="group">
-        <h3 class="heading">{t('app.workflow_designer.who')}</h3>
-        <div class="choices" role="group" aria-label={t('app.workflow_designer.who')}>
-          {#each ROLES as role (role)}
-            <Checkbox label={t(`app.people.role.${role.toLowerCase()}`)} checked={step.who?.roles?.includes(role) ?? false} onchange={(event: Event) => toggleRole(step, role, checked(event))} />
-          {/each}
-          {#each groups.all as group (group.id)}
-            <Checkbox
-              label={group.name}
-              checked={step.who?.groups?.includes(group.id) ?? false}
-              onchange={(event: Event) => change(step, { who: { ...step.who, groups: toggleIn(step.who?.groups, group.id, checked(event)) } })}
-            />
-          {/each}
-        </div>
+        <h3 class="heading" id={`step-who-${step.key}`}>{t('app.workflow_designer.who')}</h3>
+        <MultiSelect
+          label={t('app.workflow_designer.who')}
+          aria-labelledby={`step-who-${step.key}`}
+          groups={[
+            { label: t('app.workflow_designer.who_roles'), options: roleOptions },
+            { label: t('app.workflow_designer.who_groups'), options: groupOptions },
+          ]}
+          selected={[...(step.who?.roles ?? []), ...(step.who?.groups ?? [])]}
+          onChange={(next) => chooseWho(step, next)}
+          {...chooseSeveral()}
+        />
         <div data-step-approval={step.key}>
           <Switch
             label={t('app.approvals.step_waits')}
@@ -260,20 +265,22 @@
                 <Button tone="subtle" size="sm" icon="plus" onclick={() => addPerson(step, index, level)}>{t('app.approvals.add')}</Button>
               </div>
               {#if groups.all.length > 0}
-                <div class="choices" role="group" aria-label={t('app.approvals.groups')}>
-                  {#each groups.all as group (group.id)}
-                    <Checkbox label={group.name} checked={level.groups?.includes(group.id) ?? false}
-                      onchange={(event: Event) => edit(changeApprovalLevel(shapeNow, step.key, index, { groups: toggleIn(level.groups, group.id, checked(event)) }))} />
-                  {/each}
-                </div>
+                <MultiSelect
+                  label={t('app.approvals.groups')}
+                  options={groupOptions}
+                  selected={level.groups ?? []}
+                  onChange={(next) => edit(changeApprovalLevel(shapeNow, step.key, index, { groups: [...next] }))}
+                  {...chooseSeveral()}
+                />
               {/if}
               {#if level.rule === 'ANY' || level.rule === 'N_OF'}
-                <div class="choices" role="group" aria-label={t('app.approvals.roles')}>
-                  {#each ROLES as role (role)}
-                    <Checkbox label={t(`app.people.role.${role.toLowerCase()}`)} checked={level.roles?.includes(role) ?? false}
-                      onchange={(event: Event) => edit(changeApprovalLevel(shapeNow, step.key, index, { roles: toggleIn(level.roles, role, checked(event)) }))} />
-                  {/each}
-                </div>
+                <MultiSelect
+                  label={t('app.approvals.roles')}
+                  options={roleOptions}
+                  selected={level.roles ?? []}
+                  onChange={(next) => edit(changeApprovalLevel(shapeNow, step.key, index, { roles: [...next] }))}
+                  {...chooseSeveral()}
+                />
               {/if}
               <Input label={t('app.approvals.person_fields')} hint={t('app.workflow_designer.person_fields_hint')} value={joined(level.person_fields)}
                 onchange={(event: Event) => edit(changeApprovalLevel(shapeNow, step.key, index, { person_fields: words(valueOf(event)) }))} />
