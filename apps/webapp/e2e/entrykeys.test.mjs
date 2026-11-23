@@ -42,7 +42,7 @@ test('a row, a card and the panel draw the key with the prefix, or the handle wh
       // The key is a field of the list; the board's cards draw what the list's fields say.
       // Fields are chosen in the View panel (E-21), not a menu of their own.
       await page.locator('[data-opener="view"]').click();
-      await page.locator('[data-view-panel] [data-view-field="key"]').getByRole('checkbox').check();
+      await page.locator('[data-view-panel]').getByRole('group', { name: 'Fields', exact: true }).getByRole('checkbox', { name: 'Key', exact: true }).check();
       await page.keyboard.press('Escape');
       await page.locator(`[data-field="key"] [data-entry-key]`).getByText(key, { exact: true }).first().waitFor({ timeout: 15_000 });
       await chooseView(page, 'Board');

@@ -118,9 +118,14 @@ test('chromium 1280: one panel holds layout, the query line, order, fields, boar
   // Order, then the fields with the custom one.
   await panel.getByLabel('Sort by').selectOption('title');
   await panel.getByRole('group', { name: 'Direction' }).getByRole('button', { name: 'Descending' }).click();
-  const room = panel.locator('[data-view-field="cf.room"]');
+  // The fields are the design system's ticks, one group named by the section's heading; a field
+  // added since the panel was new says so under its name, not in it.
+  const shown = panel.getByRole('group', { name: 'Fields', exact: true });
+  assert.equal(await shown.count(), 1, 'the fields are not one group named by their heading');
+  const room = shown.getByRole('checkbox', { name: 'Room', exact: true });
   assert.equal(await room.count(), 1, 'the custom field is not offered as a column');
-  await room.getByRole('checkbox').check();
+  assert.equal(await room.evaluate((box) => document.getElementById(box.getAttribute('aria-describedby') ?? '')?.textContent?.trim()), 'new');
+  await room.check();
   const head = page.locator('.fields-head .col-head[data-field="cf.room"]');
   await head.waitFor({ state: 'attached', timeout: 5_000 });
   assert.equal((await head.textContent()).trim(), 'Room');
@@ -145,6 +150,7 @@ test('chromium 1280: one panel holds layout, the query line, order, fields, boar
   assert.equal(saved[0].scope_type, 'HUB');
   assert.equal(saved[0].sharing, 'SCOPE');
   assert.equal(saved[0].layout, 'KANBAN');
+  assert.ok(saved[0].visible_fields.includes('cf.room'), `the field shown was not saved: ${saved[0].visible_fields}`);
   assert.deepEqual(saved[0].query.sort?.[0], { field: 'title', dir: 'DESC' });
   assert.deepEqual(failures, []);
 });
@@ -165,7 +171,7 @@ test('chromium 1280: the panel stands beside the list, which stays usable and sh
   assert.ok(list && pane && list.x + list.width <= pane.x + 1, `the list lies under the panel: ${JSON.stringify({ list, pane })}`);
 
   // A change shows at once in the list beside it, and the list still takes a press.
-  await panel.locator('[data-view-field="cf.room"]').getByRole('checkbox').check();
+  await panel.getByRole('group', { name: 'Fields', exact: true }).getByRole('checkbox', { name: 'Room', exact: true }).check();
   await page.locator('.fields-head .col-head[data-field="cf.room"]').waitFor({ state: 'attached', timeout: 5_000 });
   await page.locator('[data-row]').first().getByRole('checkbox').first().focus();
   assert.ok(await side.isVisible(), 'the panel closed when the list took focus');
