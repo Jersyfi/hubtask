@@ -154,57 +154,64 @@ test('a full space opens on its home page: the path on top, the title once, the 
   }
 });
 
-// A page put in the trash from its menu leaves for the hub's pages, and nothing asks for it again:
-// a read or a save - of a title or of words still waiting - after the delete would find a page that is gone and leave the reader on it.
-test('a page put in the trash from its menu leaves for the space and is not asked for again', async () => {
-  const browser = await chromium.launch();
-  try {
-    const ONLY = row(3, 'How we deploy');
-    const rows = [HOME, ONLY];
-    const { page, failures, close } = await opened(browser, rows, 1440);
-    const asked = [];
-    page.on('request', (request) => {
-      const path = new URL(request.url()).pathname.replace('/api/v1', '');
-      if (path.startsWith(`/pages/${ONLY.id}`)) asked.push({ method: request.method(), path });
+// A page put in the trash from its menu leaves for the hub's *All contents*, and nothing asks for it
+// again: a read or a save - of a title or of words still waiting - after the delete would find a
+// page that is gone and leave the reader on a page that says so. The space's home page is the
+// hardest case: the space's own address would open it again.
+for (const width of [1280, 390]) {
+  for (const which of ['another page', 'the home page']) {
+    test(`${width} px: ${which} put in the trash from its menu leaves for All contents and is not asked for again`, async () => {
+      const browser = await chromium.launch();
+      try {
+        const ONLY = row(3, 'How we deploy');
+        const rows = [HOME, ONLY];
+        const gone = which === 'the home page' ? HOME : ONLY;
+        const { page, failures, close } = await opened(browser, rows, width);
+        const asked = [];
+        page.on('request', (request) => {
+          const path = new URL(request.url()).pathname.replace('/api/v1', '');
+          if (path.startsWith(`/pages/${gone.id}`)) asked.push({ method: request.method(), path });
+        });
+        await page.context().route(`**/api/v1/pages/${gone.id}`, (route) => {
+          if (route.request().method() !== 'DELETE') return route.fallback();
+          rows.splice(rows.indexOf(gone), 1);
+          return route.fulfill({ json: { trashed: 1 } });
+        });
+        await page.context().routeWebSocket(/\/realtime\/documents\/page\//, (ws) => {
+          ws.onMessage(() => {});
+          ws.send(Buffer.from([0, 1, 2, 0, 0]));
+          ws.send(Buffer.from([0, 0, 1, 0]));
+        });
+        await page.goto(`${served.origin}/pages/${gone.id}`);
+        // A title saved, and words typed whose save still waits when the page goes.
+        const title = page.getByLabel('Title', { exact: true });
+        await title.fill(`${gone.title} now`, { timeout: 15_000 });
+        const renamed = page.waitForResponse((response) => response.request().method() === 'PATCH');
+        await title.press('Enter');
+        await renamed;
+        await page.locator('[contenteditable="true"]').first().click();
+        await page.keyboard.type('Words still waiting to be saved');
+        const head = page.locator('[data-page-head]');
+        await head.getByRole('button', { name: 'More for this page' }).click({ timeout: 15_000 });
+        const passed = [];
+        page.on('framenavigated', (frame) => frame === page.mainFrame() && passed.push(new URL(frame.url()).pathname));
+        await page.getByRole('menuitem', { name: 'Put in the trash' }).click();
+        await page.getByText('1 page went into the trash.').first().waitFor({ timeout: 10_000 });
+        await page.waitForURL(`**/hubs/${HUB.id}/contents?kind=pages`, { timeout: 10_000 });
+        await page.getByRole('heading', { name: 'All contents' }).first().waitFor({ timeout: 10_000 });
+        assert.ok(!passed.includes(`/pages/${gone.id}`), `the trashed page was opened again: ${passed.join(' → ')}`);
+        assert.equal(await page.getByText('There is no such page.').count(), 0, 'a page that is gone was shown as not found');
+        const deleted = asked.findIndex((each) => each.method === 'DELETE');
+        assert.ok(deleted >= 0, 'the delete left the browser');
+        assert.deepEqual(asked.slice(deleted + 1), [], 'the trashed page was asked for after its delete');
+        assert.deepEqual(failures, []);
+        await close();
+      } finally {
+        await browser.close();
+      }
     });
-    await page.context().route(`**/api/v1/pages/${ONLY.id}`, (route) => {
-      if (route.request().method() !== 'DELETE') return route.fallback();
-      rows.splice(rows.indexOf(ONLY), 1);
-      return route.fulfill({ json: { trashed: 1 } });
-    });
-    await page.context().routeWebSocket(/\/realtime\/documents\/page\//, (ws) => {
-      ws.onMessage(() => {});
-      ws.send(Buffer.from([0, 1, 2, 0, 0]));
-      ws.send(Buffer.from([0, 0, 1, 0]));
-    });
-    await page.goto(`${served.origin}/pages/${ONLY.id}`);
-    // A title saved, and words typed whose save still waits when the page goes.
-    const title = page.getByLabel('Title', { exact: true });
-    await title.fill('How we deploy now', { timeout: 15_000 });
-    const renamed = page.waitForResponse((response) => response.request().method() === 'PATCH');
-    await title.press('Enter');
-    await renamed;
-    await page.locator('[contenteditable="true"]').first().click();
-    await page.keyboard.type('Words still waiting to be saved');
-    const head = page.locator('[data-page-head]');
-    await head.getByRole('button', { name: 'More for this page' }).click({ timeout: 15_000 });
-    // The space's address lasts a moment: a space opens on its home page and replaces its own
-    // address, so the walk waits where the reader lands and finds the space among the addresses passed.
-    const passed = [];
-    page.on('framenavigated', (frame) => frame === page.mainFrame() && passed.push(new URL(frame.url()).pathname));
-    await page.getByRole('menuitem', { name: 'Put in the trash' }).click();
-    await page.waitForURL(`**/pages/${HOME.id}`, { timeout: 10_000 });
-    assert.ok(passed.includes(`/hubs/${HUB.id}/pages`), `the page left for the space, not by ${passed.join(' → ')}`);
-    await page.getByText('1 page went into the trash.').first().waitFor({ timeout: 10_000 });
-    const deleted = asked.findIndex((each) => each.method === 'DELETE');
-    assert.ok(deleted >= 0, 'the delete left the browser');
-    assert.deepEqual(asked.slice(deleted + 1), [], 'the trashed page was asked for after its delete');
-    assert.deepEqual(failures, []);
-    await close();
-  } finally {
-    await browser.close();
   }
-});
+}
 
 // One anatomy (UX-2): the hub's Pages tab carries the head every hub tab carries - the trail to the
 // hub and the tab's title above the tab strip, with the new page as its primary - on the space and

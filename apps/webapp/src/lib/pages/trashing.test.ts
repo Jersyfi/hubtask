@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import { oneTrashAtATime, trashAndLeave } from './trashing.ts';
 
-test('a trashed page leaves for its hub overview, though the delete took the page away', async () => {
+test("a trashed page leaves for its hub's pages among All contents, though the delete took the page away", async () => {
   // The screen's page is derived from the read: once the delete invalidates it, it is gone.
   let isDeleted = false;
   const page = { get hub_id(): string { return isDeleted ? (undefined as never) : 'hub-1'; } };
@@ -15,9 +15,15 @@ test('a trashed page leaves for its hub overview, though the delete took the pag
     drop: () => happened.push(isDeleted ? 'drop after delete' : 'drop'),
     trash: async () => { happened.push('delete'); isDeleted = true; return { trashed: 1 }; },
     leave: (path) => happened.push(`leave ${path}`),
-  });
+  }, 'pages');
   assert.deepEqual(answer, { trashed: 1 });
-  assert.deepEqual(happened, ['drop', 'delete', 'leave /hubs/hub-1/pages']);
+  assert.deepEqual(happened, ['drop', 'delete', 'leave /hubs/hub-1/contents?kind=pages']);
+});
+
+test("a trashed post leaves for its hub's All contents, unnarrowed: a post is not among them", async () => {
+  const left: string[] = [];
+  await trashAndLeave({ hub_id: 'hub-1' }, { drop: () => {}, trash: async () => ({ trashed: 1 }), leave: (path) => left.push(path) });
+  assert.deepEqual(left, ['/hubs/hub-1/contents']);
 });
 
 test('a refused delete stays on the page', async () => {

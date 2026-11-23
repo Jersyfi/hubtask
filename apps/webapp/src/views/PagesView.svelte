@@ -315,7 +315,7 @@
         return answer;
       },
       leave: onnavigate,
-    });
+    }, post ? undefined : 'pages');
   });
 
   async function copy() {
