@@ -5647,6 +5647,8 @@
   "app.templates.needs_modules_body": "Switching it on shows its screens to everyone in the workspace; nothing else changes until you apply the template.",
   "app.templates.needs_modules_body_hub": "Switching it on turns it on in this hub; no other hub changes, and nothing else does until you apply the template.",
   "app.templates.needs_modules_body_hub_workspace": "Switching it on turns it on for the whole workspace as well: it shows its screens to everyone in the workspace, and hubs made from now on have it. Of the hubs that exist, only this one gets it; nothing else changes until you apply the template.",
+  "app.templates.needs_modules_body_collection": "Switching it on turns it on in this collection's hub; no other hub changes, and nothing else does until you apply the template.",
+  "app.templates.needs_modules_body_collection_workspace": "Switching it on turns it on for the whole workspace as well: it shows its screens to everyone in the workspace, and hubs made from now on have it. Of the hubs that exist, only this collection's hub gets it; nothing else changes until you apply the template.",
   "app.templates.needs_modules_ask": "Ask an administrator of this workspace to switch it on, then use the template.",
   "app.templates.switch_on_and_use": "Switch on {modules} and use this template",
   "app.templates.refused_item": "{section}: {reason}",

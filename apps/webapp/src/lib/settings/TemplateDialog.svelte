@@ -16,7 +16,10 @@
   import TemplateCreates from './TemplateCreates.svelte';
   import PlanReach from './PlanReach.svelte';
   import { config, needsAcknowledge } from '../data/config.svelte.ts';
-  import { holdsHere } from '../data/capability.svelte.ts';
+  import { actor } from '../data/account.svelte.ts';
+  import { holds, holdsHere, roleOrder } from '../data/capability.svelte.ts';
+  import { containers } from '../data/containers.svelte.ts';
+  import { people } from '../data/people.svelte.ts';
   import { answersOf, asksWorkspaceFirst, changeWords, modulesToSwitchOn, offerOf, offersSamples, refusalWords, startsWithWorkspace, takenFirst } from '../data/configtemplates.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { modules, switchOnFor } from '../data/modules.svelte.ts';
@@ -45,6 +48,17 @@
   }
 
   let { template, hubId, collectionId, isPreviewOnly = false, onnavigate, onClose, pending = $bindable() }: Props = $props();
+
+  /**
+   * The hub whose products the place needs: the hub, or the collection's hub - a collection's
+   * screens are drawn for its hub's products, so the apply and the switch name that hub.
+   */
+  const placeHub = $derived(hubId ?? (collectionId ? (containers.find(collectionId)?.parent_id ?? undefined) : undefined));
+  // A collection's settings are shaped by whoever may shape the collection; the hub's switch asks
+  // STRUCTURE on the hub, which a hub's own reader holds by opening its templates.
+  const mayShapeHub = $derived(
+    hubId !== undefined || (placeHub !== undefined && holds(people.roleOf({ hubId: placeHub }, actor.account?.id, roleOrder()) ?? undefined, 'STRUCTURE').status === 'permitted'),
+  );
 
   /** Hubtask's templates are named by their key, in the reader's language. */
   const nameOf = (each: ConfigTemplate) =>
@@ -180,8 +194,9 @@
     dialogFailure = undefined;
     try {
       // The workspace's part switches its products on for the workspace and in no existing hub
-      // but those named (ADR-0109): the hub it is taken for is named, or its own part is refused.
-      await config.applyTemplate(plan, acknowledged, isWorkspaceFirst && hubId ? [hubId] : []);
+      // but those named (ADR-0109): the hub it is taken for - or the collection's hub - is named,
+      // or the place's own part is refused.
+      await config.applyTemplate(plan, acknowledged, isWorkspaceFirst && placeHub ? [placeHub] : []);
       if (isWorkspaceFirst) {
         // The workspace's part is in force: the place's own is planned now, the answers kept.
         isWorkspaceFirst = false;
@@ -206,22 +221,23 @@
   /**
    * A template refused only because modules are off is one switch away: named in words, and offered
    * to switch on where the reader may change the workspace's shape - never a code or a path. For a
-   * hub it is switched on in that hub (UC-INS-21 check 13): at the hub where the workspace has it
-   * on - which whoever opened the hub's templates may, since only they see them - else at the
-   * workspace naming the hub.
+   * hub, or a collection's hub, it is switched on in that hub (UC-INS-21 check 13): at the hub where
+   * the workspace has it on - which whoever opened the hub's templates may, since only they see
+   * them - else at the workspace naming the hub.
    */
   const needed = $derived(plan ? modulesToSwitchOn(plan.refusals) : []);
   const neededNames = $derived(new Intl.ListFormat(messages.locale, { type: 'conjunction' })
     .format(needed.map((key) => t(`app.modules.name_${key.toLowerCase()}`))));
-  const switches = $derived(needed.map((key) => ({ key, ...switchOnFor(key, hubId, manifest.value?.modules_on) })));
-  const maySwitch = $derived(holdsHere('STRUCTURE') === true || (switches.length > 0 && switches.every((each) => each.hubId !== undefined)));
+  const switches = $derived(needed.map((key) => ({ key, ...switchOnFor(key, placeHub, manifest.value?.modules_on) })));
+  const maySwitch = $derived(holdsHere('STRUCTURE') === true || (mayShapeHub && switches.length > 0 && switches.every((each) => each.hubId !== undefined)));
   // Where the workspace has a product off, the press switches it on at the workspace as well
   // (ADR-0109): the banner says so rather than "in this hub" alone.
   const isWorkspaceSwitched = $derived(switches.some((each) => each.hubId === undefined));
   const switchWords = $derived(
     !maySwitch ? 'app.templates.needs_modules_ask'
-      : !hubId ? 'app.templates.needs_modules_body'
-        : isWorkspaceSwitched ? 'app.templates.needs_modules_body_hub_workspace' : 'app.templates.needs_modules_body_hub',
+      : !placeHub ? 'app.templates.needs_modules_body'
+        : hubId ? (isWorkspaceSwitched ? 'app.templates.needs_modules_body_hub_workspace' : 'app.templates.needs_modules_body_hub')
+          : isWorkspaceSwitched ? 'app.templates.needs_modules_body_collection_workspace' : 'app.templates.needs_modules_body_collection',
   );
 
   async function switchOnAndUse() {
