@@ -370,6 +370,58 @@ test('a snapshot is a POST that reads ndjson as it arrives, and ends on the curs
   ]);
 });
 
+// A reader that stops at the cursor line and cancels the body ends a finished answer as a cancelled
+// request whenever the body's end has not yet arrived - a browser records it as aborted. So the
+// rest is read to its end, and only the idle deadline cancels a body that never ends.
+test('a snapshot read to its cursor line lets its answer end, and the idle deadline ends one that does not', async () => {
+  const answered = (idleTimeoutMs: number) => {
+    let push: (text: string) => void = () => {};
+    let end: () => void = () => {};
+    let cancelled = false;
+    let onCancel: () => void = () => {};
+    const whenCancelled = new Promise<void>((resolve) => { onCancel = resolve; });
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        push = (text) => controller.enqueue(new TextEncoder().encode(text));
+        end = () => { if (!cancelled) controller.close(); };
+      },
+      cancel() {
+        cancelled = true;
+        onCancel();
+      },
+    });
+    const { fetch, calls } = recordingFetch(() => new Response(body, { status: 200 }));
+    const transport = new FetchTransport({ baseUrl: '/api/v1', fetch });
+    return { transport, calls, push, end: () => end(), cancelled: () => cancelled, whenCancelled, options: { connectTimeoutMs: 1000, idleTimeoutMs } };
+  };
+  // As the engine reads it: up to the cursor, and no further.
+  const cursorOf = async (lines: AsyncIterable<{ kind: string; cursor?: string }>) => {
+    for await (const line of lines) if (line.kind === 'cursor') return line.cursor;
+    return undefined;
+  };
+
+  const ending = answered(1000);
+  const lines = await ending.transport.snapshot('/sync:snapshot', {}, ending.options);
+  ending.push('{"op":"UPSERT","entity":"item","entity_id":"i-1"}\n{"cursor":"c-9"}\n');
+  assert.equal(await cursorOf(lines), 'c-9');
+  ending.end();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(ending.cancelled(), false, 'an answer that ends was cancelled after its cursor line');
+  assert.equal(ending.calls[0]?.init.signal?.aborted, false, 'the request was aborted after its cursor line');
+
+  const silent = answered(20);
+  const held = await silent.transport.snapshot('/sync:snapshot', {}, silent.options);
+  silent.push('{"cursor":"c-10"}\n');
+  assert.equal(await cursorOf(held), 'c-10', 'the cursor waits for the end of the answer');
+  // Bounded, so a drain without a deadline fails here instead of holding the run.
+  const timedOut = Symbol('timed out');
+  let bound;
+  const outcome = await Promise.race([silent.whenCancelled, new Promise((resolve) => (bound = setTimeout(resolve, 1000, timedOut)))]);
+  clearTimeout(bound);
+  assert.notEqual(outcome, timedOut, 'an answer that never ends was not cancelled by the idle deadline');
+  assert.ok(silent.cancelled());
+});
+
 test('a snapshot cut short before its cursor line simply ends, and a refusal is a problem', async () => {
   const { body, write, close } = feed();
   const { fetch } = recordingFetch(() => new Response(body, { status: 200 }));

@@ -523,20 +523,11 @@ function retryAfterOf(headers: Headers): number | undefined {
 }
 
 /**
- * The event-stream framing (WHATWG "Server-sent events" §9.2), read from the body as it arrives.
- *
- * A line is a field and a value; a blank line dispatches what was collected; a line starting with
- * a colon is a comment, which is what the heartbeat is. `id` is remembered per event so the engine
- * can resume from it; `retry` is passed on as the server's suggestion. The idle deadline is armed
- * between chunks: a heartbeat arrives well inside it, and silence for longer is a proxy that
- * dropped the connection without saying so - the iteration ends, and the engine reconnects.
- */
-/**
  * The lines of an ndjson body, as `SnapshotLine`s. A line that is not JSON is skipped rather than
  * thrown, for the reason an unreadable stream frame is: the ninety-nine lines behind it are the
  * workspace. The cursor line is the one whose only meaning is its `cursor` - hubctl reads it the
- * same way (`cmd/hubctl/Sync.go`) - and the reader stops there, because the server writes nothing
- * after it.
+ * same way (`cmd/hubctl/Sync.go`) - and the lines end there, because the server writes nothing
+ * after it; the answer's own end is let arrive (`drain`), under the idle deadline.
  */
 async function* readLines(
   body: ReadableStream<Uint8Array>, controller: AbortController, idleTimeoutMs: number,
@@ -549,6 +540,28 @@ async function* readLines(
   controller.signal.addEventListener('abort', cancel, { once: true });
   let idle = setTimeout(() => controller.abort(), idleTimeoutMs);
   let buffered = '';
+  let atCursor = false;
+
+  const end = (cancelling: boolean) => {
+    clearTimeout(idle);
+    controller.signal.removeEventListener('abort', cancel);
+    release();
+    if (cancelling) cancel();
+  };
+  // After the cursor the reader stops, and the answer is let end: cancelled before its end had
+  // arrived, a finished answer is a cancelled request in the browser. The idle deadline still ends
+  // an answer that never does.
+  const drain = async () => {
+    try {
+      for (;;) {
+        if ((await reader.read()).done) return end(false);
+        clearTimeout(idle);
+        idle = setTimeout(() => controller.abort(), idleTimeoutMs);
+      }
+    } catch {
+      end(true);
+    }
+  };
 
   const lineOf = (text: string): SnapshotLine | undefined => {
     if (text.trim() === '') return undefined;
@@ -590,18 +603,26 @@ async function* readLines(
         newline = buffered.indexOf('\n');
         const line = lineOf(text);
         if (!line) continue;
+        if (line.kind === 'cursor') atCursor = true;
         yield line;
-        if (line.kind === 'cursor') return;
+        if (atCursor) return;
       }
     }
   } finally {
-    clearTimeout(idle);
-    controller.signal.removeEventListener('abort', cancel);
-    release();
-    cancel();
+    if (atCursor) void drain();
+    else end(true);
   }
 }
 
+/**
+ * The event-stream framing (WHATWG "Server-sent events" §9.2), read from the body as it arrives.
+ *
+ * A line is a field and a value; a blank line dispatches what was collected; a line starting with
+ * a colon is a comment, which is what the heartbeat is. `id` is remembered per event so the engine
+ * can resume from it; `retry` is passed on as the server's suggestion. The idle deadline is armed
+ * between chunks: a heartbeat arrives well inside it, and silence for longer is a proxy that
+ * dropped the connection without saying so - the iteration ends, and the engine reconnects.
+ */
 async function* readEvents(
   body: ReadableStream<Uint8Array>, controller: AbortController, idleTimeoutMs: number,
   release: () => void,
