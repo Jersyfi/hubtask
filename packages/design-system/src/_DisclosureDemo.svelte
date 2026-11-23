@@ -5,16 +5,19 @@
   // support: the two places a person meets a fold.
   import Banner from './Banner.svelte';
   import Disclosure from './Disclosure.svelte';
+  import Icon from './Icon.svelte';
   import Stack from './Stack.svelte';
   import Switch from './Switch.svelte';
 
-  const { open = false, isRow = false }: { open?: boolean; isRow?: boolean } = $props();
+  const { open = false, isRow = false, hasValue = false }: { open?: boolean; isRow?: boolean; hasValue?: boolean } = $props();
   let calendar = $state(false);
 </script>
 
+{#snippet chosen()}<Icon name="heart" size="sm" /><span>Heart</span>{/snippet}
+
 {#if isRow}
   <Stack gap="200">
-    <Disclosure label="Colour and symbol" tone="row" isOpen={open}>
+    <Disclosure label="Colour and symbol" tone="row" isOpen={open} value={hasValue ? chosen : undefined}>
       <Switch label="A colour of its own" />
       <Switch label="A symbol of its own" />
     </Disclosure>

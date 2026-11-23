@@ -52,3 +52,9 @@ test('a disclosure that is a row of a form stands the column’s width at a thum
   assert.match(row, /border: var\(--bw-hairline\) solid var\(--border-subtle\);/, 'the row has no edge');
   assert.match(style, /\[data-tone='row'\] \.chevron \{ order: 1; \}/, 'the chevron is not at the row’s end');
 });
+
+test('a row of a form shows what is chosen at its end, before the chevron', () => {
+  const source = read('Disclosure.svelte');
+  assert.match(source, /\{#if value\}<span class="value">\{@render value\(\)\}<\/span>\{\/if\}\s*<\/button>/, 'the value is not drawn in the row, after its label');
+  assert.match(source, /\[data-tone='row'\] \.value \{[^}]*margin-inline-start: auto;/, 'the value does not stand at the row’s end');
+});

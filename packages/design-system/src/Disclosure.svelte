@@ -18,14 +18,16 @@
     isOpen?: boolean;
     /**
      * `quiet` sits in running text (a refusal's details); `section` heads a settings block; `row` is
-     * a field of a form on a phone, folded to one bordered row the column's width - a place's
-     * colour and symbol, previewed beside its name while closed.
+     * a field of a form, folded to one bordered row the column's width - a place's colour and
+     * symbol, its `value` at the row's end while closed.
      */
     tone?: 'section' | 'quiet' | 'row';
+    /** What is chosen inside, at a row's end beside the chevron: seen while the row is closed. */
+    value?: Snippet;
     children: Snippet;
   }
 
-  let { label, description, isOpen = $bindable(false), tone = 'section', children }: Props = $props();
+  let { label, description, isOpen = $bindable(false), tone = 'section', value, children }: Props = $props();
 
   const instanceId = $props.id();
   const regionId = `disclosure-${instanceId}`;
@@ -36,6 +38,7 @@
     <span class="chevron" aria-hidden="true"><Icon name="chevron-right" /></span>
     <span class="label">{label}</span>
     {#if description}<span class="description">{description}</span>{/if}
+    {#if value}<span class="value">{@render value()}</span>{/if}
   </button>
   <div id={regionId} class="region" role="region" aria-label={label} hidden={!isOpen}>
     {#if isOpen}<div class="content" in:reveal>{@render children()}</div>{/if}
@@ -94,6 +97,7 @@
   }
 
   [data-tone='row'] .chevron { order: 1; }
+  [data-tone='row'] .value { display: inline-flex; align-items: center; gap: var(--sp-050); margin-inline-start: auto; }
 
   /* A thumb's target (§7): the toggle is layout.target tall where the pointer is coarse. */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */

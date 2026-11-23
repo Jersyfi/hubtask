@@ -345,7 +345,8 @@ needed later on the same page ([`user-experience.md`](../architecture/user-exper
 `aria-expanded`, a quiet line of what is inside, the content arriving in the `reveal` role and
 absent while closed. `tone="row"` folds a field of a form on a phone to one bordered row the
 column's width, as tall as `layout.target`, the chevron at its end (*Colour and symbol* on *Create
-hub*, and in the *Create collection* dialog at every width).
+hub*, and in the *Create collection* dialog at every width); its `value` - what is chosen inside,
+the place's mark there - stands before the chevron, so the choice is seen while the row is closed.
 
 **`SideNav` is one component with two drawings; a second tree is never built.** A row is mark ·
 label · twist: the mark at one inline position for every level, the indent on the label, the twist
