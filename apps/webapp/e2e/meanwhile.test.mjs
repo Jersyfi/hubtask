@@ -60,6 +60,7 @@ async function openEntry(browser, width, address = `/items/${ENTRY.id}`) {
   const state = {
     entry: ENTRY, sent: [], log: [], history: [], comments: [], pushed: [], isOffline: false, theirsAway: undefined, isNamed,
     refusePatches: 0, stalePatches: 0, refuseRead: false, patchHeld: undefined, olderRefused: false, commentsRefused: false,
+    quiet: false, quieted: undefined,
   };
   let delivered = 0;
   await context.unroute('**/api/v1/**');
@@ -90,6 +91,12 @@ async function openEntry(browser, width, address = `/items/${ENTRY.id}`) {
       });
     }
     if (path === '/stream') {
+      // Quiet: answered once more, asking not to be opened again for an hour, so that no
+      // catch-up reads the entry behind the walk's back.
+      if (state.quiet) {
+        state.quieted?.();
+        return route.fulfill({ status: 200, contentType: 'text/event-stream', body: 'retry: 3600000\n\n' });
+      }
       const news = state.log.slice(delivered);
       delivered = state.log.length;
       const frames = news.map((each, i) => `id: c-${delivered - news.length + i + 1}\ndata: ${JSON.stringify(each)}\n\n`).join('');
@@ -745,10 +752,16 @@ async function conflictWhileAway(page, context, state) {
   await page.waitForFunction(() => document.querySelector('.trigger')?.getAttribute('aria-label')?.includes('1 change is waiting to be sent'), null, { timeout: 5_000 })
     .catch(() => assert.fail('the notes were not kept as a waiting change'));
   state.theirsAway = THEIRS;
+  // The answered push makes the entry stale, and its read follows the strip: a walk that went on
+  // before that read was answered could have it refused, and the entry it was resolving vanish.
+  const theirs = `"${state.entry.version + 1}"`;
+  const reread = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith(`/api/v1/items/${ENTRY.id}`)
+    && response.request().method() === 'GET' && response.headers().etag === theirs, { timeout: 15_000 });
   state.isOffline = false;
   await context.setOffline(false);
   const strip = page.getByText('The notes were changed by somebody else while you were away.');
   await strip.waitFor({ timeout: 15_000 });
+  await reread;
   return strip;
 }
 
@@ -786,10 +799,18 @@ test('chromium: 1280 px — offline, write mine again while the entry cannot be 
   t.after(() => context.close());
 
   const strip = await conflictWhileAway(page, context, state);
-  state.refuseRead = true;
+  // The stream asks to be opened again four times a second, and each catch-up may read the entry
+  // again: refused, such a read takes the entry and its conflict from the screen. Only the read
+  // the press sends is to be refused, so the stream is quietened first.
+  const quieted = new Promise((resolve) => { state.quieted = resolve; });
+  state.quiet = true;
+  await quieted;
   const before = writes(state).length;
   await page.getByRole('button', { name: 'Show both versions' }).click();
-  await page.getByRole('dialog', { name: 'Two versions of the notes' }).getByRole('button', { name: 'Write mine again' }).click();
+  const versions = page.getByRole('dialog', { name: 'Two versions of the notes' });
+  await versions.waitFor({ timeout: 10_000 });
+  state.refuseRead = true;
+  await versions.getByRole('button', { name: 'Write mine again' }).click();
   await page.getByText('Too many requests. Please try again in a moment.').first().waitFor({ timeout: 10_000 })
     .catch(async () => assert.fail(`the failure is not said: ${await page.locator('main').innerText()}`));
   assert.deepEqual(writes(state).slice(before), [], 'the notes were written without the entry’s current version');
