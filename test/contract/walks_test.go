@@ -34,7 +34,8 @@ func TestTheWalkJudgeNamesEachWayOutOfTheContract(t *testing.T) {
 	full := `{"status":"ok","version":"0.1.0","dependencies":[]}`
 	elsewhere := health(200, full)
 	elsewhere.Path = "/meta/horoscope/01a0e2e0-0000-7000-8000-000000000001/7"
-	stream, lines, plainJSON := "text/event-stream", "application/x-ndjson; charset=utf-8", "application/json"
+	stream, lines, plainJSON, png := "text/event-stream", "application/x-ndjson; charset=utf-8", "application/json", "image/png"
+	picture := "/auth/workspace-pictures/01a0e2e0-0000-7000-8000-000000000001"
 
 	cases := []struct {
 		name   string
@@ -57,6 +58,9 @@ func TestTheWalkJudgeNamesEachWayOutOfTheContract(t *testing.T) {
 		{"a problem as plain JSON is judged as the problem", health(403, `{"oops":true}`), "body-mismatch GET /meta/health 403"},
 		{"a declared media type that is not JSON", walkAnswer{Method: "POST", Path: "/sync:snapshot", Status: 200, ContentType: &lines, Body: &full}, ""},
 		{"no media type at all", walkAnswer{Method: "GET", Path: "/meta/health", Status: 200, Body: &full}, ""},
+		// A response declaring a range (`image/*`) admits each type inside it, as OpenAPI says - and no other.
+		{"a type inside a declared range", walkAnswer{Method: "GET", Path: picture, Status: 200, ContentType: &png}, ""},
+		{"a type outside a declared range", walkAnswer{Method: "GET", Path: picture, Status: 200, ContentType: &stream}, "content-type-undeclared GET /auth/workspace-pictures/{mediaId} 200"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
