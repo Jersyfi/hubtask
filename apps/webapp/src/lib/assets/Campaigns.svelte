@@ -10,7 +10,7 @@
   // reminding and closing need WRITE_ITEMS and are not drawn without it.
 
   import { untrack } from 'svelte';
-  import { Badge, Button, CheckboxGroup, Dialog, Input, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, Button, Dialog, Input, MultiSelect, Spinner, Stack } from '@hubtask/design-system/components';
   import FailureNote from '../frame/FailureNote.svelte';
   import type { CiCampaign, CiCampaignDetail, CiCampaignList, CiClass } from '@hubtask/sync-engine';
 
@@ -24,6 +24,7 @@
   import { toast } from '../frame/toasts.svelte.ts';
   import { formatDateTime, formatPlainDay } from '../i18n/datetime.ts';
   import { todayIn } from '../i18n/zone.ts';
+  import { chooseSeveral } from '../forms/chooseSeveral.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -235,7 +236,7 @@
   <Dialog size="m" bind:isOpen={isStartOpen} title={t('app.campaigns.start')} dismissLabel={t('app.assets.cancel')} primary={{ label: t('app.campaigns.start'), isBusy: isStarting, disabledReason: missing[0] ? t(missing[0]) : undefined, onclick: () => void start() }}>
     <Stack gap="150">
       <Input label={t('app.campaigns.name')} bind:value={draft.name} maxlength={200} isRequired />
-      <CheckboxGroup label={t('app.campaigns.classes')} hint={t('app.campaigns.classes_hint')} options={classChecks} selected={draft.classes} onChange={(next) => (draft.classes = [...next])} />
+      <MultiSelect label={t('app.campaigns.classes')} hint={t('app.campaigns.classes_hint')} options={classChecks} selected={draft.classes} onChange={(next) => (draft.classes = [...next])} {...chooseSeveral()} />
       <Input label={t('app.campaigns.due_by')} hint={t('app.campaigns.due_by_hint')} type="date" bind:value={draft.dueBy} />
       <Input label={t('app.campaigns.due_on')} type="date" bind:value={draft.dueOn} isRequired />
       <Input label={t('app.campaigns.months')} hint={t('app.campaigns.months_hint')} inputmode="numeric" bind:value={draft.months} />
