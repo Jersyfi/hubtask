@@ -162,6 +162,10 @@ async function opened(browser, { width = 1280, isPhone = false, modulesOn = ['KN
     // The page that holds a post's words: the same reader and editor as a page.
     const words = /^\/pages\/([^/]+)$/.exec(path);
     const held = words ? kept.get(words[1]) : undefined;
+    if (held && method === 'DELETE') {
+      kept.delete(held.page_id);
+      return route.fulfill({ json: { trashed: 1 } });
+    }
     if (held) {
       if (method === 'PATCH') bodies.set(held.page_id, request.postDataJSON().body);
       return route.fulfill({ json: {
@@ -723,6 +727,43 @@ test("a writer of the hub takes back another person's reply (UC-DOC-18/3)", asyn
 
 // UC-DOC-18 check 5: Today's *New for you* lists the published posts the person has not read, each
 // opening on its post.
+// A post is a page: its writer puts it in the trash from the page's menu. It leaves for the hub's
+// All contents - a point to go on from, not the post saying it is gone - and is gone at once from
+// every list that showed it: the hub's posts and, on a desktop, the hub column's section.
+for (const [width, isPhone] of [[1280, false], [390, true]]) {
+  test(`${width} px: a post put in the trash leaves for All contents and is gone from its lists at once`, async () => {
+    const browser = await chromium.launch();
+    try {
+      const { page, failures, written, close } = await opened(browser, { width, isPhone, writer: true });
+      const GONE = 'Mine from last week';
+      const list = page.getByRole('main');
+      await page.goto(`${served.origin}/hubs/${HUB.id}/posts`);
+      await list.getByRole('link', { name: new RegExp(GONE, 'u') }).first().click({ timeout: 15_000 });
+      await page.waitForURL(`**/posts/${id(3)}`, { timeout: 10_000 });
+      const part = postsPart(page.locator('aside.sidenav'));
+      if (!isPhone) await part.getByRole('treeitem', { name: new RegExp(`^${GONE}\\b`, 'u') }).waitFor({ timeout: 10_000 });
+      await page.locator('[data-page-head]').getByRole('button', { name: 'More for this page' }).click({ timeout: 15_000 });
+      await page.getByRole('menuitem', { name: 'Put in the trash' }).click();
+      await page.getByText('1 page went into the trash.').first().waitFor({ timeout: 10_000 });
+      assert.equal(sentTo(written, 'DELETE', `/pages/${id(3)}`).length, 1, 'the delete left the browser');
+      await page.waitForURL(`**/hubs/${HUB.id}/contents`, { timeout: 10_000 });
+      await page.getByRole('heading', { name: 'All contents' }).first().waitFor({ timeout: 10_000 });
+      if (!isPhone) {
+        await part.getByRole('treeitem', { name: /^Monday release\b/u }).waitFor({ timeout: 10_000 });
+        await part.getByRole('treeitem', { name: new RegExp(`^${GONE}\\b`, 'u') }).waitFor({ state: 'detached', timeout: 10_000 });
+      }
+      // Back to the hub's posts within the app, as a person goes: what was read before is not read anew by itself.
+      await page.evaluate((to) => { history.pushState({}, '', to); dispatchEvent(new PopStateEvent('popstate')); }, `/hubs/${HUB.id}/posts`);
+      await list.getByRole('link', { name: /Monday release/u }).first().waitFor({ timeout: 10_000 });
+      assert.equal(await list.getByRole('link', { name: new RegExp(GONE, 'u') }).count(), 0, 'the trashed post is still listed');
+      assert.deepEqual(failures, []);
+      await close();
+    } finally {
+      await browser.close();
+    }
+  });
+}
+
 test("Today's New for you lists the posts not read yet (UC-DOC-18/5)", async () => {
   const browser = await chromium.launch();
   try {

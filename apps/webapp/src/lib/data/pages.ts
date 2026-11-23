@@ -9,6 +9,8 @@
 
 import type { Page, PageSubpage } from '@hubtask/sync-engine';
 
+import { hubPostsPath, unreadPostsPath } from './posts.ts';
+
 export type Translate = (code: string, params?: Record<string, string>) => string;
 
 /** One page in the tree, with the pages under it in their order. */
@@ -251,9 +253,11 @@ export function changedFrom(choice: ChangedWithin, now: Date): string | undefine
  * What putting a page in the trash makes stale. A screen that leaves the page invalidates only what
  * lists it: `/pages/{id}` is a prefix of its labels, comments and backlinks, which the screen still
  * showing it would read again and find gone. Any other caller re-reads the page too, so a screen
- * that stays on it learns that it went.
+ * that stays on it learns that it went. A post's page is listed among the hub's posts and *New for
+ * you* instead - `/posts` alone would be a prefix of the post itself, so it is named whole.
  */
-export function trashInvalidates(page: Pick<Page, 'id' | 'hub_id'>, leaving: boolean): string[] {
-  const lists = [`/hubs/${page.hub_id}/pages`, '/trash'];
-  return leaving ? lists : [`/pages/${page.id}`, `/hubs/${page.hub_id}/pages`, `/pages/${page.id}/versions`];
+export function trashInvalidates(page: Pick<Page, 'id' | 'hub_id'>, leaving: boolean, isPost = false): string[] {
+  const posts = isPost ? (['ALL', 'UNREAD', 'MINE', 'SCHEDULED'] as const).map((filter) => hubPostsPath(page.hub_id, filter)).concat(`${unreadPostsPath}$`) : [];
+  const lists = [`/hubs/${page.hub_id}/pages`, '/trash', ...posts];
+  return leaving ? lists : [`/pages/${page.id}`, `/hubs/${page.hub_id}/pages`, `/pages/${page.id}/versions`, ...posts];
 }
