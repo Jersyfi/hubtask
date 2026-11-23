@@ -364,8 +364,11 @@ for (const width of [905, 1280]) {
     assert.equal(await top.getByRole('link', { name: 'Inbox' }).count(), 1, `${width}: the rail's rows lost their names`);
 
     // A hub pressed in the rail goes to the hub, and the rail then holds that hub's level - its
-    // mark and its tools - so nothing is unreachable while the navigation is folded.
-    await aside.getByRole('link', { name: HUB.name, exact: true }).click();
+    // mark and its tools - so nothing is unreachable while the navigation is folded. Pressed by
+    // the keyboard: a pointer on its way to the mark is a hover, and 300 ms of it open the peek,
+    // which draws the whole sidebar and has no rail mark left to press.
+    await aside.getByRole('link', { name: HUB.name, exact: true }).focus();
+    await page.keyboard.press('Enter');
     await page.waitForFunction((id) => location.pathname === `/hubs/${id}`, HUB.id, { timeout: 5_000 })
       .catch(() => assert.fail(`${width}: a hub pressed in the rail did not open the hub`));
     // Away from the rail, so its peek (a hover of 300 ms) does not unfold it.
