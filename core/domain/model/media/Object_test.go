@@ -250,6 +250,53 @@ func TestOnlyAConfirmedImageStagedAsADeskLogoIsALogo(t *testing.T) {
 	}
 }
 
+// A workspace's own picture is drawn in every member's header and on the sign-in card (UC-INS-22
+// check 2): at most 5 MB whatever the installation allows, and only a confirmed PNG, JPEG, GIF or
+// WebP - the judged type, so a file that claimed to be a PNG and was sniffed as an SVG is refused.
+func TestOnlyAConfirmedRasterImageStagedAsAWorkspaceLogoIsOne(t *testing.T) {
+	input := staging()
+	input.Usage, input.ClaimedType = media.UsageWorkspaceLogo, "image/png"
+	input.DeclaredSize, input.SizeLimit = media.MaxAvatarBytes+1, 100<<20
+	if _, err := media.NewPendingObject(input); detailOf(err) != "media.too_large" {
+		t.Errorf("a workspace logo past the picture's bound was staged: %v", err)
+	}
+	input.DeclaredSize = media.MaxAvatarBytes
+	if _, err := media.NewPendingObject(input); err != nil {
+		t.Errorf("a workspace logo of 5 MB was refused: %v", err)
+	}
+	if usage, err := media.ParseUsage("WORKSPACE_LOGO"); err != nil || usage != media.UsageWorkspaceLogo {
+		t.Errorf("WORKSPACE_LOGO parsed as %q, %v", usage, err)
+	}
+
+	ready := media.Object{Usage: media.UsageWorkspaceLogo, Status: media.StatusReady, ContentType: "image/webp"}
+	pending := ready
+	pending.Status = media.StatusPending
+	desk := ready
+	desk.Usage = media.UsageDeskLogo
+	svg := ready
+	svg.ContentType = "image/svg+xml"
+	pdf := ready
+	pdf.ContentType = "application/pdf"
+	cases := []struct {
+		name   string
+		object media.Object
+		want   string
+	}{
+		{"a confirmed WebP", ready, ""},
+		{"one not confirmed yet", pending, "media.not_ready"},
+		{"one staged as a desk's logo", desk, "media.usage_mismatch"},
+		{"an SVG, which a browser may execute", svg, "media.workspace_logo_not_an_image"},
+		{"a document", pdf, "media.workspace_logo_not_an_image"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := detailOf(tc.object.WorkspaceLogo()); got != tc.want {
+				t.Errorf("answered %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func detailOf(err error) string {
 	if err == nil {
 		return ""

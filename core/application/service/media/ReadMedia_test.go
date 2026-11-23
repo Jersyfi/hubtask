@@ -291,6 +291,27 @@ func TestAPictureNobodyShowsIsOnlyItsUploaders(t *testing.T) {
 	}
 }
 
+// UC-INS-22 check 1: every member reads the pictures the workspace shows, as the header draws them for
+// everybody; a workspace picture nothing shows is its uploader's alone.
+func TestEveryMemberReadsThePicturesTheWorkspaceShows(t *testing.T) {
+	handler, records, permission, _ := readingHarness()
+	picture := ready(strangerA)
+	picture.Usage = domain.UsageWorkspaceLogo
+	records.stored[mintedID] = picture
+
+	if _, err := handler.Execute(t.Context(), actor(mediaRead), MediaQuery{MediaID: mintedID}); !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("a workspace picture nothing shows answered %v, want not found", err)
+	}
+	records.workspace[mintedID] = true
+	viewed, err := handler.Execute(t.Context(), actor(mediaRead), MediaQuery{MediaID: mintedID})
+	if err != nil || viewed.Download.URL == "" {
+		t.Fatalf("the workspace's logo was refused to a member: %v", err)
+	}
+	if len(permission.asked) != 0 {
+		t.Errorf("the authorisation service was asked %v", permission.asked)
+	}
+}
+
 func TestReadingNeedsTheReadScope(t *testing.T) {
 	handler, records, _, _ := readingHarness()
 	records.stored[mintedID] = ready(accountID)

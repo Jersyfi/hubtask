@@ -118,6 +118,10 @@ type Objects interface {
 	// readable by every member, as the name beside it is.
 	ServesAvatar(ctx context.Context, mediaID shared.ID) (bool, error)
 
+	// ServesWorkspace answers whether the workspace shows the object as one of its own pictures -
+	// which makes it readable by every member, as the header that draws it is.
+	ServesWorkspace(ctx context.Context, mediaID shared.ID) (bool, error)
+
 	// ServedDesks returns the live collections that show the object as their desk's logo, bounded,
 	// for the authorisation question: whoever may raise a request there may read it.
 	ServedDesks(ctx context.Context, mediaID shared.ID) ([]shared.ID, error)

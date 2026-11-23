@@ -399,6 +399,25 @@ func (r MediaRepository) ReferencingPages(ctx context.Context, mediaID shared.ID
 	return pages, nil
 }
 
+// ServesWorkspace answers whether the workspace shows the object as one of its own pictures.
+func (r MediaRepository) ServesWorkspace(ctx context.Context, mediaID shared.ID) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(mediaID)
+	if err != nil {
+		return false, err
+	}
+	serves, err := queries.MediaServesWorkspace(ctx, id)
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("asking whether %s is a workspace's picture: %w", mediaID, err))
+	}
+	return serves, nil
+}
+
 // ServesAvatar answers whether some account shows the object as its picture.
 func (r MediaRepository) ServesAvatar(ctx context.Context, mediaID shared.ID) (bool, error) {
 	queries, err := queriesFrom(ctx)

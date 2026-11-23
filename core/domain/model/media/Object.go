@@ -62,6 +62,10 @@ const (
 	// UsageDeskLogo is a desk's own logo (PUT /containers/{id}/desk-logo): drawn on the portal for
 	// every requester of the service, so it is bounded and judged as a picture of oneself is.
 	UsageDeskLogo Usage = "DESK_LOGO"
+	// UsageWorkspaceLogo is one of a workspace's own pictures (PUT /tenant/branding/{picture}):
+	// drawn in the header for every member and on the sign-in card, so it is bounded and judged as
+	// a desk's logo is.
+	UsageWorkspaceLogo Usage = "WORKSPACE_LOGO"
 )
 
 // MaxAvatarBytes is the most a picture of oneself may be, whatever the installation allows for an
@@ -70,7 +74,13 @@ const MaxAvatarBytes int64 = 5_000_000
 
 func knownUsage(usage Usage) bool {
 	return usage == UsageCover || usage == UsageAttachment || usage == UsageImport ||
-		usage == UsageAvatar || usage == UsageDeskLogo
+		usage == UsageAvatar || usage == UsageDeskLogo || usage == UsageWorkspaceLogo
+}
+
+// drawnSmall reports whether a usage is a picture drawn for others beside a name or in a bar, and
+// so bounded by MaxAvatarBytes whatever the installation allows for an attachment.
+func drawnSmall(usage Usage) bool {
+	return usage == UsageAvatar || usage == UsageDeskLogo || usage == UsageWorkspaceLogo
 }
 
 // ParseUsage reads a submitted usage.
@@ -152,7 +162,7 @@ func NewPendingObject(input NewObjectInput) (Object, error) {
 	if input.SizeLimit > 0 && input.DeclaredSize > input.SizeLimit {
 		return Object{}, TooLarge(input.SizeLimit)
 	}
-	if (input.Usage == UsageAvatar || input.Usage == UsageDeskLogo) && input.DeclaredSize > MaxAvatarBytes {
+	if drawnSmall(input.Usage) && input.DeclaredSize > MaxAvatarBytes {
 		return Object{}, TooLarge(MaxAvatarBytes)
 	}
 	fileName, err := validFileName(input.FileName, input.Text)
@@ -271,6 +281,13 @@ func (o Object) Portrayable() error {
 // requester's browser draws it.
 func (o Object) Emblem() error {
 	return o.drawable(UsageDeskLogo, "media.logo_not_an_image")
+}
+
+// WorkspaceLogo answers whether the object may be one of a workspace's own pictures, by
+// Portrayable's rules: every member's browser draws it, and the sign-in card before anybody signs
+// in. An SVG is refused here, for T-11's reason.
+func (o Object) WorkspaceLogo() error {
+	return o.drawable(UsageWorkspaceLogo, "media.workspace_logo_not_an_image")
 }
 
 func (o Object) drawable(usage Usage, notAnImage string) error {
