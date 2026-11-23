@@ -173,6 +173,37 @@ test('chromium: 1280 px — the list, the board, the timeline, the subtree and s
   assert.deepEqual(search.failures, []);
 });
 
+test('chromium: 1280 px — a menu longer than its room stays where it was scrolled to, and its last item acts', async (t) => {
+  const browser = await sharedChromium(t);
+  const list = await open(browser, `/collections/${COLLECTION.id}`);
+  t.after(() => list.context.close());
+  await list.page.locator(`[data-row="${DATED.id}"] a`).first().waitFor({ timeout: 15_000 });
+  await reveal(list.page.getByRole('button', { name: `Actions for ${DATED.title}`, exact: true }).first());
+  const trash = list.page.getByRole('menuitem', { name: 'Move to the trash' });
+  // Scrolled to as a wheel or a press does, then read again three frames later: the engine lays
+  // the overlay out again after its scroll, and the item must still be where it was brought.
+  const stand = await trash.evaluate((item) => new Promise((done) => {
+    let scroller = item.parentElement;
+    while (scroller && scroller.scrollHeight <= scroller.clientHeight) scroller = scroller.parentElement;
+    const isLong = scroller !== null && scroller !== document.documentElement;
+    item.scrollIntoView({ block: 'nearest' });
+    const brought = item.getBoundingClientRect().top;
+    requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => {
+      const box = item.getBoundingClientRect();
+      done({ isLong, brought: Math.round(brought), after: Math.round(box.top), isInView: box.bottom <= innerHeight });
+    })));
+  }));
+  assert.ok(stand.isLong, 'the menu fits its room here, so nothing scrolls');
+  assert.equal(stand.after, stand.brought, 'the item scrolled to slid away');
+  assert.ok(stand.isInView, 'the item scrolled to is past the viewport');
+  // A press where the item stands is the item's.
+  const box = await trash.boundingBox();
+  await list.page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  assert.ok(await sent(list.written, 'DELETE', `/items/${DATED.id}`), 'the trash sent no DELETE');
+  await list.page.getByText(`${DATED.title} is in the trash.`).first().waitFor({ timeout: 5_000 });
+  assert.deepEqual(list.failures, []);
+});
+
 test('chromium: 1280 px — the entry\'s own page carries the same menu in its head, without Open (UC-WRK-28 check 2)', async (t) => {
   const browser = await sharedChromium(t);
   const entry = await open(browser, `/items/${DATED.id}`);
