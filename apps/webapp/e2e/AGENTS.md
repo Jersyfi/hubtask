@@ -18,7 +18,7 @@ in [`docs/evidence/README.md`](../../../docs/evidence/README.md), "How to walk".
 * **No suite that does not say what it proves.** The comment at the top of a suite names the use
   case checks its walks prove, in a form the documentation gate reads: `UC-ID-12 check 4`,
   `UC-ID-12/4` or `UC-WRK-32 checks 2, 3 and 6`. A suite that proves no use case check says what
-  it holds instead, in a line of that comment that starts `// No use case check:`. The 56 suites
+  it holds instead, in a line of that comment that starts `// No use case check:`. The 55 suites
   that do neither are listed under `no_check_cited` in `bounds.json`; a suite that is not listed
   fails without one of the two.
   `[partial: ci:node; open: a citation below the top comment counts too, whether the walk proves the check it cites, a suite added to the list]`

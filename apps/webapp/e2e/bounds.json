@@ -172,7 +172,6 @@
     "settingsshell.test.mjs",
     "stackedtable.test.mjs",
     "templatecatalogue.test.mjs",
-    "templatemodules.test.mjs",
     "tourclick.test.mjs",
     "tourrelease.test.mjs",
     "tourstarter.test.mjs",

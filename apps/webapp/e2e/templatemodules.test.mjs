@@ -3,9 +3,12 @@
 
 // A template a fresh workspace cannot take because its modules are off (UC-CFG-01): the dialog
 // names the module in words, offers its owner to switch it on, plans again and applies - and
-// shows neither a message code nor a key path.
+// shows neither a message code nor a key path. A template taken for an existing hub switches its
+// products on in that hub (UC-INS-21 check 13): the workspace's part names the hub with its
+// switch, and a product the hub still lacks is switched on there, not at the workspace again.
 //
-// Chromium only; what the server decides is its own tests'.
+// Chromium only; what the server decides is its own tests' (config/ModuleSwitch_test.go names
+// the hub in the apply's switch).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -14,7 +17,8 @@ import { join, dirname } from 'node:path';
 
 import { sharedChromium } from './browser.mjs';
 
-import { ACCOUNT, DEFAULT_STRUCTURE, MANIFEST, PAGE, PERMISSIONS, PRESETS, WORKSPACE, forgetUnstubbed, stub } from './fixture.mjs';
+import { ACCOUNT, DEFAULT_STRUCTURE, HUB, MANIFEST, PAGE, PERMISSIONS, PRESETS, WORKSPACE, forgetUnstubbed, stub } from './fixture.mjs';
+import { productWalk } from './productwalk.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -159,3 +163,108 @@ test('chromium: a group question makes its group in place and answers with it', 
   assert.equal(plans.at(-1)?.answers?.first_group, GROUP.id, 'the plan was not asked again with the new group');
   assert.deepEqual(failures, []);
 });
+
+const PROJECT = { ...SCRUM, key: 'classic_project', name: 'Classic project', provenance: 'classic_project@1' };
+const GARDEN = { ...HUB, id: '01a0e2e0-0000-7000-8000-00000014b0a1', name: 'Garden', order_key: 'a1' };
+
+/**
+ * Plans at the workspace and in its two hubs, kept as the server keeps them (ADR-0109): on at the
+ * workspace changes no existing hub but those its switch names - `hub_ids`, or an apply's
+ * `module_hub_ids` - and a hub's plan is refused while that hub has Plans off.
+ */
+function hubTemplate({ workspaceOn, hubOff, workspaceTook }) {
+  const on = workspaceOn ? ['PLANNING'] : [];
+  const own = new Map(hubOff ? [[HUB.id, false]] : []);
+  const hubs = [HUB, GARDEN];
+  let took = workspaceTook;
+  const hubHas = (id) => on.includes('PLANNING') && (own.get(id) ?? true);
+  const switchWorkspace = (named = []) => {
+    if (!on.includes('PLANNING')) {
+      for (const hub of hubs) if (!own.has(hub.id)) own.set(hub.id, false);
+      on.push('PLANNING');
+    }
+    for (const id of named) own.set(id, true);
+  };
+  const answer = (method, path, query, body) => {
+    if (path === '/containers' && method === 'GET') return { json: { ...PAGE, data: query.get('type') === 'HUB' ? hubs : [] } };
+    if (path === '/config/templates' && method === 'GET') return { json: { data: [{ ...PROJECT, workspace_first: !took }] } };
+    if (path === `/hubs/${HUB.id}/sample-entries` && method === 'GET') return { json: { samples: [] } };
+    if (path === `/config/templates/${PROJECT.key}:plan` && method === 'POST') {
+      const hubId = body?.hub_id ?? null;
+      const refusals = hubId && !hubHas(hubId) ? [{ path: '/modules', code: 'module.off', params: { module: 'PLANNING' } }] : [];
+      return { json: refusals.length > 0 ? { ...refused, template: PROJECT.key, hub_id: hubId, refusals } : { ...planned, template: PROJECT.key, hub_id: hubId } };
+    }
+    if (path === '/config:apply' && method === 'POST') {
+      if (!body.hub_id) {
+        took = true;
+        switchWorkspace(body.module_hub_ids);
+      }
+      return { json: { version: 2, applied: true } };
+    }
+    if (path === '/tenant/modules/PLANNING' && method === 'PUT') {
+      if (body.hub_id) {
+        if (!on.includes('PLANNING')) return { status: 403, json: { code: 'forbidden', detail_code: 'setting.not_allowed', status: 403, request_id: 'req_e2e' } };
+        own.set(body.hub_id, true);
+      } else {
+        switchWorkspace(body.hub_ids);
+      }
+      return { json: { modules: [{ module: 'PLANNING', on: true, source: body.hub_id ? 'HUB' : 'WORKSPACE' }] } };
+    }
+    return undefined;
+  };
+  return { on, answer, hubHas };
+}
+
+async function openForHub(browser, t, state) {
+  const shared = hubTemplate(state);
+  const walk = await productWalk(browser, { modules: shared.on, answer: shared.answer });
+  t.after(walk.close);
+  await walk.page.goto(`${served.origin}/hubs/${HUB.id}/settings/template?template=${PROJECT.key}`);
+  const dialog = walk.page.getByRole('dialog', { name: 'Classic project' });
+  await dialog.waitFor({ timeout: 15_000 });
+  return { ...walk, dialog, hubHas: shared.hubHas, switches: () => walk.written.filter((each) => each.method === 'PUT').map((each) => ({ path: each.path, body: each.body })) };
+}
+
+test('chromium: a template taken for a hub names that hub in the workspace part\'s switch, so the hub takes its part (UC-INS-21 check 13)', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, dialog, written, hubHas, switches, errors } = await openForHub(browser, t, { workspaceOn: false, hubOff: false, workspaceTook: false });
+
+  await dialog.locator('[data-template-workspace-first]').waitFor({ timeout: 10_000 });
+  await dialog.getByRole('button', { name: 'Take template' }).click();
+  await dialog.locator('[data-template-workspace-first]').waitFor({ state: 'detached', timeout: 10_000 });
+  await dialog.getByText('Adds the workflow “scrum”').waitFor({ timeout: 10_000 });
+  const applies = () => written.filter((each) => each.path === '/config:apply').map((each) => each.body);
+  assert.deepEqual(applies()[0].module_hub_ids, [HUB.id], 'the workspace part left without the hub it was taken for');
+  assert.equal(applies()[0].hub_id, undefined);
+  assert.equal(await dialog.locator('[data-template-needs-modules]').count(), 0, 'the hub was left without the product its template switches on');
+  await dialog.getByRole('button', { name: 'Take template' }).click();
+  await dialog.waitFor({ state: 'hidden', timeout: 10_000 });
+  assert.deepEqual(applies().map((each) => each.hub_id ?? ''), ['', HUB.id]);
+  assert.equal(applies()[1].module_hub_ids, undefined, 'the hub\'s own part names hubs');
+  assert.deepEqual(switches(), [], 'a switch was sent beside the apply');
+  assert.equal(hubHas(HUB.id), true);
+  assert.equal(hubHas(GARDEN.id), false, 'a hub nobody chose was switched on');
+  await page.getByText('Classic project is in use.').first().waitFor({ timeout: 5_000 });
+  assert.deepEqual(errors(), []);
+});
+
+for (const [workspaceOn, expected, words] of [
+  [true, { hub_id: HUB.id }, 'on at the workspace and off in the hub: the hub\'s own switch'],
+  [false, { hub_ids: [HUB.id] }, 'off at the workspace: the workspace\'s switch naming the hub'],
+]) {
+  test(`chromium: a hub's template that needs a product the hub lacks switches it on in that hub - ${words} (UC-INS-21 check 13)`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { dialog, hubHas, switches, errors } = await openForHub(browser, t, { workspaceOn, hubOff: workspaceOn, workspaceTook: true });
+    const garden = hubHas(GARDEN.id);
+
+    await dialog.locator('[data-template-needs-modules]').waitFor({ timeout: 10_000 });
+    await dialog.getByRole('button', { name: 'Switch on Plans and use this template' }).click();
+    await dialog.getByText('Adds the workflow “scrum”').waitFor({ timeout: 10_000 });
+    assert.deepEqual(switches(), [{ path: '/tenant/modules/PLANNING', body: { switch: 'ON', ...expected } }]);
+    assert.equal(hubHas(HUB.id), true, 'the hub still lacks the product');
+    assert.equal(hubHas(GARDEN.id), garden, 'a hub nobody chose changed');
+    await dialog.getByRole('button', { name: 'Take template' }).click();
+    await dialog.waitFor({ state: 'hidden', timeout: 10_000 });
+    assert.deepEqual(errors(), []);
+  });
+}

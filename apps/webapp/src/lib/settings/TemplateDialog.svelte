@@ -18,7 +18,8 @@
   import { config, needsAcknowledge } from '../data/config.svelte.ts';
   import { holdsHere } from '../data/capability.svelte.ts';
   import { answersOf, asksWorkspaceFirst, changeWords, modulesToSwitchOn, offerOf, offersSamples, refusalWords, startsWithWorkspace, takenFirst } from '../data/configtemplates.ts';
-  import { modules } from '../data/modules.svelte.ts';
+  import { manifest } from '../data/capabilities.svelte.ts';
+  import { modules, switchOnFor } from '../data/modules.svelte.ts';
   import { groups as workspaceGroups } from '../data/groups.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -178,7 +179,9 @@
     busy = 'apply';
     dialogFailure = undefined;
     try {
-      await config.applyTemplate(plan, acknowledged);
+      // The workspace's part switches its products on for the workspace and in no existing hub
+      // but those named (ADR-0109): the hub it is taken for is named, or its own part is refused.
+      await config.applyTemplate(plan, acknowledged, isWorkspaceFirst && hubId ? [hubId] : []);
       if (isWorkspaceFirst) {
         // The workspace's part is in force: the place's own is planned now, the answers kept.
         isWorkspaceFirst = false;
@@ -202,17 +205,21 @@
 
   /**
    * A template refused only because modules are off is one switch away: named in words, and offered
-   * to switch on where the reader may change the workspace's shape - never a code or a path.
+   * to switch on where the reader may change the workspace's shape - never a code or a path. For a
+   * hub it is switched on in that hub (UC-INS-21 check 13): at the hub where the workspace has it
+   * on - which whoever opened the hub's templates may, since only they see them - else at the
+   * workspace naming the hub.
    */
   const needed = $derived(plan ? modulesToSwitchOn(plan.refusals) : []);
   const neededNames = $derived(new Intl.ListFormat(messages.locale, { type: 'conjunction' })
     .format(needed.map((key) => t(`app.modules.name_${key.toLowerCase()}`))));
-  const maySwitch = $derived(holdsHere('STRUCTURE') === true);
+  const switches = $derived(needed.map((key) => ({ key, ...switchOnFor(key, hubId, manifest.value?.modules_on) })));
+  const maySwitch = $derived(holdsHere('STRUCTURE') === true || (switches.length > 0 && switches.every((each) => each.hubId !== undefined)));
 
   async function switchOnAndUse() {
     busy = 'modules';
     try {
-      for (const key of needed) await modules.switch(key as Parameters<typeof modules.switch>[0], 'ON');
+      for (const each of switches) await modules.switch(each.key as Parameters<typeof modules.switch>[0], 'ON', each.hubId, each.inHubs);
       await replan();
     } catch (error) {
       dialogFailure = renderProblem(error as never, messages).message;
@@ -340,7 +347,7 @@
             {#if needed.length > 0}
               <Banner tone="info" title={t('app.templates.needs_modules_title')}>
                 <p class="quiet" data-template-needs-modules>{t('app.templates.needs_module', { module: neededNames })}
-                  {maySwitch ? t('app.templates.needs_modules_body') : t('app.templates.needs_modules_ask')}</p>
+                  {maySwitch ? t(hubId ? 'app.templates.needs_modules_body_hub' : 'app.templates.needs_modules_body') : t('app.templates.needs_modules_ask')}</p>
               </Banner>
             {:else if plan.refusals.length > 0}
               <FailureNote problem={t('app.templates.refused')}>

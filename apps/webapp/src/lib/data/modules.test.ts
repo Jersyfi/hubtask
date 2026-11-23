@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 import type { ModuleState } from '@hubtask/sync-engine';
 
-import { asksFirst, asksWhichHubs, hubsOffered, isOfferSettled, isSetHere, modulesHere, moduleCodes, offReach, switchBody, unavailableBecause } from './modules.ts';
+import { asksFirst, asksWhichHubs, hubsOffered, isOfferSettled, isSetHere, modulesHere, moduleCodes, offReach, switchBody, switchOnFor, unavailableBecause } from './modules.ts';
 
 const state = (over: Partial<ModuleState>): ModuleState => ({ module: 'PLANNING', on: false, source: 'DEFAULT', ...over });
 
@@ -80,6 +80,14 @@ test('a switch sends the hubs chosen with a workspace switch-on only, and none u
   assert.deepEqual(switchBody('OFF', undefined, ['a']), { switch: 'OFF' });
   assert.deepEqual(switchBody('INHERIT', undefined, ['a']), { switch: 'INHERIT' });
   assert.deepEqual(switchBody('ON', 'h', ['a']), { switch: 'ON', hub_id: 'h' });
+});
+
+test('a template taken for a hub switches a missing product on in that hub, never at the workspace alone (UC-INS-21 check 13)', () => {
+  assert.deepEqual(switchOnFor('PLANNING', 'h', ['PLANNING']), { hubId: 'h', inHubs: [] });
+  assert.deepEqual(switchOnFor('PLANNING', 'h', []), { inHubs: ['h'] });
+  assert.deepEqual(switchOnFor('PLANNING', 'h', undefined), { inHubs: ['h'] });
+  assert.deepEqual(switchOnFor('PLANNING', undefined, ['PLANNING']), { inHubs: [] });
+  assert.deepEqual(switchOnFor('PLANNING', undefined, []), { inHubs: [] });
 });
 
 test('only a value set here is handed back to the level above', () => {
