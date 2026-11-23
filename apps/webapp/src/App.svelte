@@ -769,6 +769,7 @@
       product: route.query['product'],
       oncancel: () => (router.move === 'push' ? history.back() : router.navigate('/')),
       onland: (path: string) => router.replace(path),
+      onstep: (onback: () => void) => router.hold(onback),
     }} />
   {:else if PLACE_ROUTES.includes(route.name ?? '') && isSettingsRoute(route.name)}
     <!-- A place's settings are their own page kind (page-system §9.6); keyed on the id, as the place is. -->

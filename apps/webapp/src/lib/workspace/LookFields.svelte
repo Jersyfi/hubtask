@@ -135,4 +135,10 @@
   .swatch[data-token='red'] { background: var(--label-red-bg); }
   .swatch[data-token='magenta'] { background: var(--label-magenta-bg); }
   .swatch[data-token='violet'] { background: var(--label-violet-bg); }
+
+  /* Under a thumb the swatch grows; a symbol's square grows with the density by itself. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width < 600px) {
+    .swatch { inline-size: calc(var(--sp-400) + var(--sp-050)); block-size: calc(var(--sp-400) + var(--sp-050)); }
+  }
 </style>

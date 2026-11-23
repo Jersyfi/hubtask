@@ -72,4 +72,3 @@ member or a child works *inside* the collections they are given.
 ## Today
 
 * Check 7: not met — a person whose memberships reach no hub sees the "no hubs yet, create one" empty state, because the client cannot tell an empty workspace from one narrowed to nothing.
-* Check 11: not met — below 600 px the page shows the details and the starts in one column; the second step is tracked in #1865.

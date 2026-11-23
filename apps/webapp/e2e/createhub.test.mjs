@@ -12,8 +12,11 @@
 // * whoever may shape the workspace gets *Private* only where the workspace allows private hubs;
 //   anybody else gets a private hub of their own and no template, and nobody else the page at all.
 //
+// * below 600 px the page is the hub's details and *Create hub* at the thumb; the starts are a
+//   second step that opens only when asked for and that back closes (UC-WRK-01 check 11).
+//
 // The whole path by keyboard, a missing and a taken name, the page in German, the details as two
-// columns at 768, and leaving with something typed. Chromium only.
+// columns at 768, the phone in German, and leaving with something typed. Chromium only.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -58,8 +61,8 @@ const planned = (key) => ({
  * own as `offered` says; `allowed` is the workspace's *Private hubs allowed* as `/tenant` answers
  * it. Records what is made and every plan asked; `taken` refuses a name as the server does.
  */
-async function as(browser, { permissions = PERMISSIONS.OWNER, offered = true, allowed = true, width = 1280, height = 800, locale = 'en', taken } = {}) {
-  const { page, failures, context } = await signedIn(browser, width, height);
+async function as(browser, { permissions = PERMISSIONS.OWNER, offered = true, allowed = true, width = 1280, height = 800, locale = 'en', taken, hasTouch } = {}) {
+  const { page, failures, context } = await signedIn(browser, width, height, { hasTouch });
   const made = [];
   const plans = [];
   const hubs = [];
@@ -424,6 +427,170 @@ test('chromium: 768 px - the details are a block of two columns above the starts
   assert.ok(colour.x > name.x + name.width, 'the look does not stand beside the name');
   assert.ok(Math.abs(colour.y - name.y) < 24, 'the look does not start on the name\'s line');
   assert.ok(empty.y > description.y + description.height, 'the starts are not under the details');
+  assert.deepEqual(failures, []);
+});
+
+/** Which element has the focus, as a walk reads it: its type, its name, whether it is in the step. */
+const focused = (page) => page.evaluate(() => {
+  const element = document.activeElement;
+  const label = element && 'labels' in element ? element.labels?.[0]?.textContent : undefined;
+  return {
+    tag: element?.tagName ?? 'NONE',
+    type: element?.getAttribute('type') ?? '',
+    name: (element?.getAttribute('aria-label') ?? label ?? element?.textContent ?? '').trim(),
+    expanded: element?.getAttribute('aria-expanded') ?? null,
+    inStep: Boolean(element?.closest('dialog[open]')),
+  };
+});
+
+// UC-WRK-01 check 11 at a phone's width and height.
+test('chromium: 390 × 844 - the details are the page, Create hub stands at the thumb, the starts are a second step', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, context, made } = await as(browser, { width: 390, height: 844, hasTouch: true });
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/hubs/new`);
+  await nameField(page).waitFor({ timeout: 10_000 });
+  // The page is the screen: its own bar with ✕ and the title, neither bar of the frame.
+  assert.equal(await page.locator('[data-phone-bar]').count(), 0, 'the frame draws its bar over the page');
+  assert.equal(await page.getByRole('navigation', { name: 'Sections' }).count(), 0, 'the frame draws its bottom bar under the page');
+  assert.equal(await main(page).getByRole('button', { name: 'Cancel', exact: true }).count(), 1, 'there is no ✕');
+
+  // At opening: the details and the primary on the screen, the starts not on it at all.
+  const create = primary(page);
+  await create.waitFor({ timeout: 10_000 });
+  const thumb = await create.boundingBox();
+  assert.ok(thumb.y + thumb.height <= 844 && thumb.y >= 844 - 100, `Create hub is not at the thumb: ${JSON.stringify(thumb)}`);
+  assert.ok(thumb.width >= 390 - 2 * 24, `Create hub is not across the width: ${JSON.stringify(thumb)}`);
+  for (const part of [nameField(page), main(page).getByRole('switch', { name: 'Private' }), main(page).getByRole('textbox', { name: 'Description' })]) {
+    const box = await part.boundingBox();
+    assert.ok(box && box.y >= 0 && box.y + box.height <= thumb.y, `a detail is not above Create hub: ${JSON.stringify(box)}`);
+  }
+  assert.equal(await page.getByRole('radio', { name: /^Kanban team/u }).count(), 0, 'the starts are on the page');
+  assert.equal(await page.getByRole('searchbox', { name: 'Search templates' }).count(), 0, 'the search is on the page');
+  assert.equal(await page.evaluate(() => document.scrollingElement.scrollWidth <= window.innerWidth), true, 'the page scrolls sideways');
+  // The look is one closed row; the mark beside the name keeps it in view.
+  const look = main(page).getByRole('button', { name: 'Colour and symbol' });
+  assert.equal(await look.getAttribute('aria-expanded'), 'false');
+  assert.equal(await main(page).getByRole('radio', { name: 'No colour' }).count(), 0, 'the colours are open');
+  await look.click();
+  assert.equal(await look.getAttribute('aria-expanded'), 'true');
+  await main(page).getByRole('radio', { name: 'Heart' }).check();
+  await look.click();
+
+  // The second step: a layer over the page, the address unchanged, the focus in its search.
+  await main(page).getByRole('button', { name: 'Choose a template', exact: true }).click();
+  const step = page.getByRole('dialog', { name: 'Choose a template' });
+  await step.waitFor({ timeout: 5_000 });
+  assert.match(page.url(), /\/hubs\/new$/u, 'the step changed the address');
+  await page.waitForFunction(() => document.activeElement?.getAttribute('type') === 'search', null, { timeout: 5_000 });
+  assert.equal((await focused(page)).inStep, true, 'the search is not in the step');
+  assert.equal(await step.getByRole('radio', { name: /^Empty hub/u, checked: true }).count(), 1, 'Empty hub is not chosen');
+  // Its families are one row that scrolls sideways; its tiles one per row.
+  const families = step.getByRole('radiogroup', { name: 'Families' });
+  assert.equal(await families.evaluate((row) => row.scrollWidth > row.clientWidth && getComputedStyle(row).flexWrap === 'nowrap'), true, 'the families are not one row');
+  const columns = await step.locator('label.card').evaluateAll((cards) => cards.slice(0, 3).map((card) => Math.round(card.getBoundingClientRect().x)));
+  assert.equal(new Set(columns).size, 1, `the tiles are not one per row: ${columns}`);
+
+  // A tile chosen keeps the step open and the focus on the tile.
+  await step.getByRole('radio', { name: /^Kanban team/u }).check();
+  assert.equal(await step.isVisible(), true, 'choosing a tile closed the step');
+  const onTile = await focused(page);
+  assert.equal(onTile.type, 'radio', `the focus left the tile: ${JSON.stringify(onTile)}`);
+  assert.equal(onTile.inStep, true);
+  // While it is open the page under it is out of reach: Tab goes round the step, and past its last
+  // control to the browser's own (the document's body here), never to a control of the page.
+  for (let press = 0; press < 6; press += 1) {
+    await page.keyboard.press('Tab');
+    const at = await focused(page);
+    assert.ok(at.inStep || at.tag === 'BODY', `the focus reached the page under the step: ${JSON.stringify({ ...at, name: at.name.slice(0, 40) })}`);
+  }
+  await step.getByRole('radio', { name: /^Kanban team/u }).focus();
+
+  // Done returns, the summary names the template, the focus is back on the button that opened it.
+  await step.getByRole('button', { name: 'Done', exact: true }).click();
+  await step.waitFor({ state: 'hidden', timeout: 5_000 });
+  assert.match(await main(page).locator('[data-hub-summary]').innerText(), /Kanban team/u);
+  const returned = await focused(page);
+  assert.equal(returned.name, 'Change', `the focus did not come back to the button: ${JSON.stringify(returned)}`);
+  assert.equal(await nameField(page).inputValue(), 'Kanban team', 'the template did not name the hub');
+
+  // Back - the system's gesture - closes the step and keeps the page; Escape does too.
+  await main(page).getByRole('button', { name: 'Change', exact: true }).click();
+  await step.waitFor({ timeout: 5_000 });
+  await page.goBack();
+  await step.waitFor({ state: 'hidden', timeout: 5_000 });
+  assert.match(page.url(), /\/hubs\/new$/u, 'back left the page');
+  assert.equal(await nameField(page).inputValue(), 'Kanban team', 'back lost what was typed');
+  assert.equal((await focused(page)).name, 'Change', 'back did not give the focus back');
+  await main(page).getByRole('button', { name: 'Change', exact: true }).click();
+  await step.waitFor({ timeout: 5_000 });
+  await page.keyboard.press('Escape');
+  await step.waitFor({ state: 'hidden', timeout: 5_000 });
+  assert.equal((await focused(page)).name, 'Change', 'Escape did not give the focus back');
+
+  // Create without a name lands on the name.
+  await nameField(page).fill('');
+  await create.click();
+  await main(page).getByText('Give it a name first.').waitFor({ timeout: 5_000 });
+  assert.equal(await nameField(page).getAttribute('aria-invalid'), 'true');
+  assert.equal(await nameField(page).evaluate((element) => element === document.activeElement), true, 'the focus did not move to the name');
+  assert.equal(made.length, 0);
+
+  // Named, it is made from the template in one request, and the page lands in the hub.
+  await nameField(page).fill('Release train');
+  await create.click();
+  await page.waitForURL((url) => !url.pathname.endsWith('/hubs/new'), { timeout: 10_000 });
+  assert.equal(made.length, 1);
+  assert.equal(made[0].path, '/containers:from-template');
+  assert.equal(made[0].body.template, 'kanban_team', `the body was ${JSON.stringify(made[0].body)}`);
+  assert.equal(made[0].body.name, 'Release train');
+  assert.equal(made[0].body.icon, 'heart', `the body was ${JSON.stringify(made[0].body)}`);
+  assert.deepEqual(failures, []);
+});
+
+// UC-WRK-01 check 11 by keyboard: the draft's order, ✕ before the name, Create hub last.
+test('chromium: 390 × 844 - Tab walks the details in the draft\'s order, from ✕ to Create hub', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, context } = await as(browser, { width: 390, height: 844 });
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/hubs/new`);
+  await nameField(page).waitFor({ timeout: 10_000 });
+  await page.waitForFunction(() => document.activeElement?.getAttribute('type') === 'text', null, { timeout: 5_000 });
+  await page.keyboard.press('Shift+Tab');
+  assert.equal((await focused(page)).name, 'Cancel', 'before the name is not ✕');
+  await page.keyboard.press('Tab');
+  const order = [];
+  for (let press = 0; press < 5; press += 1) {
+    await page.keyboard.press('Tab');
+    const at = await focused(page);
+    order.push(at.expanded === null ? at.name : `${at.name} (${at.expanded})`);
+  }
+  assert.deepEqual(order, ['Private', 'Colour and symbol (false)', 'Description', 'Choose a template', 'Create hub']);
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: the phone in German', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, context } = await as(browser, { width: 390, height: 844, locale: 'de' });
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/hubs/new`);
+  await page.waitForFunction(() => document.documentElement.lang === 'de', null, { timeout: 15_000 });
+  await main(page).getByRole('heading', { level: 1, name: 'Hub anlegen' }).waitFor({ timeout: 10_000 });
+  assert.equal(await main(page).getByRole('button', { name: 'Abbrechen', exact: true }).count(), 1);
+  assert.equal(await main(page).getByRole('button', { name: 'Farbe und Symbol' }).getAttribute('aria-expanded'), 'false');
+  await main(page).getByRole('button', { name: 'Vorlage wählen', exact: true }).click();
+  const step = page.getByRole('dialog', { name: 'Vorlage wählen' });
+  await step.waitFor({ timeout: 5_000 });
+  assert.equal(await step.getByRole('button', { name: 'Zurück zu den Angaben', exact: true }).count(), 1);
+  assert.equal(await step.getByRole('searchbox', { name: 'Vorlagen durchsuchen' }).count(), 1);
+  await step.getByRole('radio', { name: /^Kanban-Team/u }).check();
+  await step.getByRole('button', { name: 'Fertig', exact: true }).click();
+  await step.waitFor({ state: 'hidden', timeout: 5_000 });
+  assert.equal(await main(page).getByRole('button', { name: 'Ändern', exact: true }).count(), 1);
+  assert.equal(await main(page).getByRole('button', { name: 'Hub anlegen', exact: true }).count(), 1);
   assert.deepEqual(failures, []);
 });
 

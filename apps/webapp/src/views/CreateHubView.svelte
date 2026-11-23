@@ -17,10 +17,16 @@
   // Choosing by the arrow keys chooses at each press. What a template sets up is read from the
   // catalogue at once; the plan is asked once the choice has rested, and always before the hub is
   // made, so walking the tiles asks the server once and not per tile.
+  //
+  // Below `medium` the page is the phone's whole screen (`CreatePage`): the details are the page,
+  // the look a closed row, and the starts an optional second step - most hubs are name → create,
+  // so nobody pays a press for the gallery. The step is a full-screen layer, not a route: the
+  // address stays, a tile chosen there is chosen at once, and *Done*, ‹, Escape and the system's
+  // back close it.
 
   import { tick, untrack } from 'svelte';
 
-  import { Button, ChoiceCards, CreatePage, Icon, Input, SearchField, Switch, Textarea, type ChoiceCardGroup } from '@hubtask/design-system/components';
+  import { Button, ChoiceCards, CreatePage, Dialog, Disclosure, Icon, Input, SearchField, Switch, Textarea, type ChoiceCardGroup } from '@hubtask/design-system/components';
   import type { LabelToken } from '@hubtask/design-system';
   import type { ConfigTemplate, ConfigTemplateList, TransportError } from '@hubtask/sync-engine';
 
@@ -32,6 +38,7 @@
   import { workspace } from '../lib/data/workspace.svelte.ts';
   import { leaveGuard } from '../lib/frame/leave.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { hubScreenOf } from '../lib/product/home.ts';
@@ -62,12 +69,27 @@
     oncancel: () => void;
     /** Goes to the new hub, replacing this address. */
     onland: (path: string) => void;
+    /** Holds the phone's second step in the session history: back calls `onback`; the release takes it out. */
+    onstep?: (onback: () => void) => () => void;
   }
 
-  const { template: asked, product, oncancel, onland }: Props = $props();
+  const { template: asked, product, oncancel, onland, onstep }: Props = $props();
 
-  // The page is one screen: what scrolls is inside it (`page.fill`).
+  // The page is one screen: what scrolls is inside it (`page.fill`); on a phone, the whole screen.
   $effect(() => page.fill());
+  $effect(() => page.takeScreen());
+
+  const isPhone = $derived(viewport.isCompact);
+  let isLookOpen = $state(false);
+  let isStepOpen = $state(false);
+  // The step is the phone's: wider, the starts stand beside or under the details.
+  $effect(() => {
+    if (!isPhone) isStepOpen = false;
+  });
+  $effect(() => {
+    if (!isStepOpen || !onstep) return;
+    return untrack(() => onstep(() => (isStepOpen = false)));
+  });
 
   const creation = $derived(hubCreationHere());
   const isPrivateOnly = $derived(creation === 'private');
@@ -305,6 +327,47 @@
   </dl>
 {/snippet}
 
+{#snippet startTools(hasHeading: boolean)}
+  <div class="tools">
+    <div class="tools-top">
+      {#if hasHeading}<h2 id="{uid}-start">{t('app.workspace.hub_start_title')}</h2>{/if}
+      {#if families.length > 0}
+        <div class="search">
+          <SearchField label={t('app.workspace.hub_search')} isLabelHidden clearLabel={t('app.workspace.hub_search_clear')} placeholder={t('app.workspace.hub_search')} bind:value={query} autocomplete="off" />
+        </div>
+      {/if}
+    </div>
+    {#if families.length > 0}
+      <div class="families" role="radiogroup" aria-label={t('app.workspace.hub_families')} data-family-filter>
+        {#each [{ family: 'all' as const, count: starts.length }, ...counts] as each (each.family)}
+          <label class="family">
+            <input type="radio" name="{uid}-family" value={each.family} checked={family === each.family} onchange={() => (family = each.family)} />
+            {each.family === 'all' ? t('app.workspace.hub_family_all') : familyName(each.family)}
+            <small>{each.count}</small>
+          </label>
+        {/each}
+      </div>
+      <p class="count" hidden={isFiltered}>{t('app.workspace.hub_count_all', { count: starts.length, families: counts.length })}</p>
+      <p class="count" role="status" hidden={!isFiltered}>{isFiltered ? t('app.workspace.hub_count_found', { count: shown.count }) : ''}</p>
+    {:else if isPrivateOnly}
+      <p class="count">{t('app.workspace.hub_templates_need_structure')}</p>
+    {/if}
+  </div>
+{/snippet}
+
+{#snippet startTiles()}
+  <div class="scroll">
+    <ChoiceCards label={t('app.workspace.hub_start_title')} isLabelHidden options={[empty]} {groups} mark="tick" layout="grid"
+      bind:value={() => start, (next) => choose(next)} />
+    {#if isFiltered && shown.count === 0}
+      <p class="no-match">
+        {query.trim() === '' ? t('app.workspace.hub_no_match_family') : t('app.workspace.hub_no_match', { query: query.trim() })}
+        <Button size="sm" tone="secondary" onclick={() => { query = ''; family = 'all'; }}>{t('app.workspace.hub_reset_search')}</Button>
+      </p>
+    {/if}
+  </div>
+{/snippet}
+
 <CreatePage
   isFilled
   head={{
@@ -366,7 +429,12 @@
         <p class="private-only a-priv">{t('app.workspace.private_hint')}</p>
       {/if}
 
-      <div class="look a-look"><LookFields bind:symbol bind:colour /></div>
+      {#if isPhone}
+        <!-- Closed until opened: the mark beside the name keeps the choice in view meanwhile. -->
+        <div class="a-look"><Disclosure label={t('app.workspace.hub_look')} tone="row" bind:isOpen={isLookOpen}><LookFields bind:symbol bind:colour /></Disclosure></div>
+      {:else}
+        <div class="look a-look"><LookFields bind:symbol bind:colour /></div>
+      {/if}
 
       <div class="a-desc"><Textarea label={t('app.workspace.description')} bind:value={description} rows={2} /></div>
 
@@ -374,6 +442,12 @@
         <div class="summary-head">
           <span class="summary-mark" aria-hidden="true"><Icon name={start === EMPTY_HUB ? 'plus' : (chosenStart?.icon ?? 'layout-template')} /></span>
           <span class="summary-name"><small>{kindWord}</small><strong>{start === EMPTY_HUB ? t('app.workspace.hub_empty') : chosenStart?.label}</strong></span>
+          {#if isPhone}
+            <!-- One element whatever it says, so the focus given back on closing the step finds it. -->
+            <Button size="sm" tone="secondary" aria-haspopup="dialog" onclick={() => (isStepOpen = true)} data-hub-step-open>
+              {start === EMPTY_HUB ? t('app.workspace.hub_template_open') : t('app.workspace.hub_template_change')}
+            </Button>
+          {/if}
         </div>
         <p class="summary-line">{start === EMPTY_HUB ? t('app.workspace.hub_empty_long') : chosenStart?.summary}</p>
         {#if chosenTemplate}
@@ -383,43 +457,20 @@
       </div>
     </section>
 
-    <section class="start" aria-labelledby="{uid}-start" data-hub-gallery>
-      <div class="tools">
-        <div class="tools-top">
-          <h2 id="{uid}-start">{t('app.workspace.hub_start_title')}</h2>
-          {#if families.length > 0}
-            <div class="search">
-              <SearchField label={t('app.workspace.hub_search')} isLabelHidden clearLabel={t('app.workspace.hub_search_clear')} placeholder={t('app.workspace.hub_search')} bind:value={query} autocomplete="off" />
-            </div>
-          {/if}
+    {#if isPhone}
+      <Dialog bind:isOpen={isStepOpen} size="l" isStep title={t('app.workspace.hub_template_open')} dismissLabel={t('app.workspace.hub_template_back')}
+        primary={{ label: t('app.workspace.hub_template_done'), onclick: () => (isStepOpen = false) }}>
+        <div class="start" data-hub-gallery data-hub-step>
+          {@render startTools(false)}
+          {@render startTiles()}
         </div>
-        {#if families.length > 0}
-          <div class="families" role="radiogroup" aria-label={t('app.workspace.hub_families')} data-family-filter>
-            {#each [{ family: 'all' as const, count: starts.length }, ...counts] as each (each.family)}
-              <label class="family">
-                <input type="radio" name="{uid}-family" value={each.family} checked={family === each.family} onchange={() => (family = each.family)} />
-                {each.family === 'all' ? t('app.workspace.hub_family_all') : familyName(each.family)}
-                <small>{each.count}</small>
-              </label>
-            {/each}
-          </div>
-          <p class="count" hidden={isFiltered}>{t('app.workspace.hub_count_all', { count: starts.length, families: counts.length })}</p>
-          <p class="count" role="status" hidden={!isFiltered}>{isFiltered ? t('app.workspace.hub_count_found', { count: shown.count }) : ''}</p>
-        {:else if isPrivateOnly}
-          <p class="count">{t('app.workspace.hub_templates_need_structure')}</p>
-        {/if}
-      </div>
-      <div class="scroll">
-        <ChoiceCards label={t('app.workspace.hub_start_title')} isLabelHidden options={[empty]} {groups} mark="tick" layout="grid"
-          bind:value={() => start, (next) => choose(next)} />
-        {#if isFiltered && shown.count === 0}
-          <p class="no-match">
-            {query.trim() === '' ? t('app.workspace.hub_no_match_family') : t('app.workspace.hub_no_match', { query: query.trim() })}
-            <Button size="sm" tone="secondary" onclick={() => { query = ''; family = 'all'; }}>{t('app.workspace.hub_reset_search')}</Button>
-          </p>
-        {/if}
-      </div>
-    </section>
+      </Dialog>
+    {:else}
+      <section class="start" aria-labelledby="{uid}-start" data-hub-gallery>
+        {@render startTools(true)}
+        {@render startTiles()}
+      </section>
+    {/if}
   </div>
 </CreatePage>
 
@@ -449,7 +500,8 @@
   .name-row { display: flex; align-items: flex-end; gap: var(--sp-150); }
   .name-row > :global(:last-child) { flex: 1; min-inline-size: 0; }
   .name-row > .mark { position: relative; display: inline-flex; flex: none; }
-  .name { display: grid; gap: var(--sp-050); }
+  /* One column no wider than the details: a field's own width never pushes the row past them. */
+  .name { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-050); }
   .name-label { color: var(--text-secondary); font-size: var(--fs-090); font-weight: var(--fw-medium); }
   .name-error { display: flex; align-items: center; gap: var(--sp-050); margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
 
@@ -497,7 +549,7 @@
     background: var(--bg-canvas);
   }
 
-  .summary-head { display: flex; align-items: center; gap: var(--sp-100); }
+  .summary-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
 
   .summary-mark {
     display: grid;
@@ -588,11 +640,26 @@
     .scroll { overflow: visible; }
   }
 
-  /* Below 600, until the phone's own layout: the same parts in one column. */
+  /* Below 600 the details are the page, one column; the starts are the second step, a full-screen
+     layer whose tools stay while its tiles scroll, the families one row that scrolls sideways. */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (width < 600px) {
-    .details { display: flex; align-items: stretch; padding: var(--sp-200); }
-    .tools { padding: var(--sp-150) var(--sp-200); }
-    .scroll { padding: 0 var(--sp-200) var(--sp-300); }
+    /* The details fill the screen down to the foot's bar, one surface as far as the primary. */
+    .panes { display: flex; flex-direction: column; }
+    .details { display: flex; flex: 1 0 auto; align-items: stretch; padding: var(--sp-200); border-block-end: 0; }
+
+    .start { display: grid; flex: 1 1 auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: var(--sp-200); min-block-size: 0; }
+    .tools { position: static; padding: 0; background: none; }
+    .search { flex: 1 1 100%; min-inline-size: 0; }
+
+    .families {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      margin-inline: calc(var(--sp-200) * -1);
+      padding: var(--sp-025) var(--sp-200);
+    }
+
+    /* The tiles scroll here, their focus rings inside the edge. */
+    .scroll { overflow: auto; margin-inline: calc(var(--sp-050) * -1); padding: var(--sp-050) var(--sp-050) var(--sp-300); }
   }
 </style>
