@@ -3,7 +3,9 @@
 
 // How much structure a collection has (UC-WRK-23 checks 1, 3, 4, 6, 7, 9, 10) and switching it without
 // loss (UC-WRK-24 checks 1, 2, 4, 6, 7), walked over the shared
-// fixture's structure hub as three readers:
+// fixture's structure hub as three readers; the structure's choices are `MultiSelect`, its always-on
+// and locked options saying why (UC-WRK-32 check 1) and a save without a view marking the views
+// and moving focus there (UC-WRK-32 check 3):
 //
 // * the owner opens a *List* collection and meets no board, no timeline, no twist and on an entry
 //   no date, person, label, notes or child; the Structure panel names where each setting comes
@@ -126,6 +128,23 @@ async function toSection(page, section) {
     const advanced = page.locator('[data-structure-panel]').getByRole('button', { name: /^Names of the levels and what each carries/u });
     if ((await advanced.getAttribute('aria-expanded')) === 'false') await advanced.click();
   }
+}
+
+/** What a control's `aria-describedby` says, as a reader hears it after the name. */
+function describedBy(control) {
+  return control.evaluate((node) =>
+    (node.getAttribute('aria-describedby') ?? '').split(' ').filter(Boolean).map((id) => document.getElementById(id)?.textContent?.trim() ?? '').join(' '),
+  );
+}
+
+/** The element that has focus, as `role "name"` - never the page's body. */
+function focused(page) {
+  return page.evaluate(() => {
+    const node = document.activeElement;
+    if (!node || node === document.body) return 'BODY';
+    const label = node.getAttribute('aria-labelledby')?.split(' ').map((id) => document.getElementById(id)?.textContent?.trim() ?? '').join(' ');
+    return `${node.getAttribute('role') ?? node.tagName.toLowerCase()} "${(label ?? node.getAttribute('aria-label') ?? node.textContent ?? '').replace(/\s+/gu, ' ').trim()}"`;
+  });
 }
 
 async function openPanel(page, name, section = 'Templates and presets') {
@@ -429,10 +448,19 @@ test('chromium: an administrator - a lock shows its value and who set it, and ca
   assert.ok((await page.locator('[role="tooltip"]:visible, [popover]:popover-open').allTextContents()).join(' ').includes(`Locked by ${OTHER.display_name}`));
   await board.press('Space');
   assert.ok(await board.isChecked(), 'the locked box changed');
-  // One field of one level: the task's dates.
+  // One field of one level: the task's dates, locked inside the field's list with its reason.
   await toSection(page, 'Types & forms');
-  const dates = panel.locator('[data-setting="fields"]').getByRole('checkbox', { name: 'Dates' }).first();
+  const field = panel.locator('[data-setting="fields"]').getByRole('button', { name: /^What Task carries/u });
+  assert.equal((await field.locator('.value').textContent()).trim(), 'All 15 fields', 'the closed field does not say all are on');
+  await field.click();
+  const list = page.getByRole('listbox', { name: 'What Task carries' });
+  await list.waitFor({ timeout: 5_000 });
+  const dates = list.getByRole('option', { name: 'Dates', exact: true });
   assert.equal(await dates.getAttribute('aria-disabled'), 'true');
+  assert.equal(await dates.getAttribute('aria-selected'), 'true');
+  assert.match(await describedBy(dates), new RegExp(`Locked by ${OTHER.display_name}`, 'u'));
+  await page.keyboard.press('Escape');
+  await list.waitFor({ state: 'detached', timeout: 5_000 });
   // The chip names who set the lock.
   await toSection(page, 'Views');
   await views.locator('.head button').first().click();
@@ -633,3 +661,137 @@ for (const place of [
     assert.deepEqual(failures, []);
   });
 }
+
+/** The settings section at its address, with *Types & forms*' fold open. */
+async function openSectionAt(page, collection, section, fold = /^Names of the levels and what each carries/u) {
+  await page.goto(`${served.origin}/collections/${collection.id}/settings/${section}`);
+  await page.locator('[data-structure-panel]').waitFor({ timeout: 15_000 });
+  if (section !== 'types') return;
+  const advanced = page.locator('[data-structure-panel]').getByRole('button', { name: fold });
+  if ((await advanced.getAttribute('aria-expanded')) === 'false') await advanced.click();
+}
+
+/** The chips the closed field draws, in their order. */
+const chipsOf = (field) => field.locator('.chips:not(.measure) .chip').allTextContents();
+
+// What a level carries is one field (design-system.md §4; UC-WRK-32 checks 1 and 3): one stop named
+// by its row, Enter opens the grouped list on the first chosen option, Space toggles and the save
+// bar counts it, the always-on *Done or open* stays and says why, Escape closes onto the field. At
+// a phone's width the list is the sheet and *Done* closes it. *None* leaves the locked one alone.
+for (const width of [1280, 390]) {
+  test(`chromium: ${width} px - what a level carries is one field: named, grouped, by the keyboard`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { context, page, failures } = await as(browser, 'OWNER', width);
+    t.after(() => context.close());
+
+    await openSectionAt(page, SHAPES.list, 'types');
+    // The list's one level is named "item"; the field is named by its row and says what is chosen.
+    const field = page.locator('[data-setting="fields"]').getByRole('button', { name: /^What item carries/u });
+    await field.waitFor({ timeout: 5_000 });
+    assert.equal(await field.getAttribute('aria-haspopup'), 'listbox');
+    assert.match(await field.evaluate((node) => node.getAttribute('aria-labelledby').split(' ').map((id) => document.getElementById(id)?.textContent?.trim()).join(' ')), /^What item carries Done or open, History,? and Custom fields$/u);
+    assert.deepEqual(await chipsOf(field), ['Done or open', 'History', 'Custom fields']);
+    assert.equal(await page.locator('[data-setting="fields"] input[type="checkbox"]').count(), 0, 'the ticks are still drawn');
+
+    await field.focus();
+    await page.keyboard.press('Enter');
+    const list = page.getByRole('listbox', { name: 'What item carries' });
+    await list.waitFor({ timeout: 5_000 });
+    if (width === 390) await page.getByRole('dialog', { name: 'What item carries' }).waitFor({ timeout: 5_000 });
+    assert.deepEqual(
+      await list.getByRole('group').evaluateAll((groups) => groups.map((group) => document.getElementById(group.getAttribute('aria-labelledby'))?.textContent)),
+      ['Status and time', 'People', 'Content', 'Extensions'],
+    );
+    assert.equal(await focused(page), 'option "Done or open"', 'Enter did not land on the first chosen option');
+    // The always-on option: ticked, locked, and its reason said.
+    const always = list.getByRole('option', { name: 'Done or open' });
+    assert.equal(await always.getAttribute('aria-disabled'), 'true');
+    assert.equal(await describedBy(always), 'Every entry can be done.');
+    await page.keyboard.press('Space');
+    assert.equal(await always.getAttribute('aria-selected'), 'true', 'Done or open was cleared');
+    assert.equal(await focused(page), 'option "Done or open"');
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await focused(page), 'option "Dates"');
+    await page.keyboard.press('Space');
+    assert.equal(await list.getByRole('option', { name: 'Dates' }).getAttribute('aria-selected'), 'true');
+    const bar = page.getByRole('region', { name: 'Unsaved changes' });
+    await bar.getByText('1 change').waitFor({ timeout: 5_000 });
+    assert.equal(await focused(page), 'option "Dates"', 'the toggle moved focus');
+
+    if (width === 390) await page.getByRole('dialog', { name: 'What item carries' }).getByRole('button', { name: 'Done', exact: true }).click();
+    else await page.keyboard.press('Escape');
+    await list.waitFor({ state: 'detached', timeout: 5_000 });
+    assert.match(await focused(page), /^button "What item carries /u, 'closing left focus elsewhere');
+    assert.deepEqual(await chipsOf(field), ['Done or open', 'Dates', 'History', 'Custom fields']);
+
+    // *None* clears what can change; the always-on option stays, and the save sends it alone.
+    await field.click();
+    await list.waitFor({ timeout: 5_000 });
+    await page.getByRole('button', { name: 'None', exact: true }).click();
+    assert.deepEqual(await list.locator('[aria-selected="true"] .name > span:first-child').allTextContents(), ['Done or open']);
+    assert.notEqual(await focused(page), 'BODY');
+    if (width === 390) await page.getByRole('button', { name: 'Done', exact: true }).click();
+    else await page.keyboard.press('Escape');
+    await list.waitFor({ state: 'detached', timeout: 5_000 });
+    assert.match(await focused(page), /^button "What item carries /u);
+    assert.deepEqual(await chipsOf(field), ['Done or open']);
+    const sent = page.waitForRequest((request) => request.method() === 'PATCH' && request.url().endsWith('/structure'));
+    await bar.getByRole('button', { name: 'Save', exact: true }).click();
+    assert.deepEqual((await sent).postDataJSON().settings.fields, { TASK: { capabilities: ['COMPLETION'] } });
+    assert.deepEqual(failures, []);
+  });
+}
+
+// A view must be offered (UC-WRK-32 check 3): the views are ticks named "(required)"; clearing the
+// last one and saving marks the group, says the error as its description and moves focus to it.
+for (const width of [1280, 390]) {
+  test(`chromium: ${width} px - no view offered: Save marks the views, says why and moves focus there`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { context, page, failures, written } = await as(browser, 'OWNER', width);
+    t.after(() => context.close());
+
+    await openSectionAt(page, SHAPES.list, 'views');
+    const views = page.locator('[data-setting="views"]').getByRole('group', { name: 'Views offered (required)' });
+    await views.waitFor({ timeout: 5_000 });
+    const boxes = views.getByRole('checkbox');
+    const only = boxes.and(page.locator(':checked'));
+    assert.equal(await only.count(), 1, 'the list offers more than one view');
+    await only.click();
+    await page.getByRole('region', { name: 'Unsaved changes' }).getByRole('button', { name: 'Save', exact: true }).click();
+    await page.locator('[data-setting="views"] [role="group"][data-invalid]').waitFor({ timeout: 5_000 });
+    assert.equal(await describedBy(views), 'Offer at least one view.');
+    await page.waitForFunction(() => document.activeElement?.getAttribute('aria-invalid') === 'true', null, { timeout: 5_000 }).catch(() => assert.fail('focus did not move to the views'));
+    assert.equal(await page.evaluate(() => document.activeElement?.closest('[data-setting]')?.getAttribute('data-setting')), 'views');
+    assert.deepEqual(written, [], 'a structure without a view was sent');
+    assert.deepEqual(failures, []);
+  });
+}
+
+// The same field in German at a phone's width: its name, the sentence the closed field says with
+// every field on, its groups, and nothing running past the screen.
+test('chromium: 390 px - in German the field says "Alle 15 Felder" and its groups, within the screen', async (t) => {
+  const browser = await sharedChromium(t);
+  const { context, page, failures } = await as(browser, 'ADMIN', 390);
+  t.after(() => context.close());
+  await context.route('**/api/v1/accounts/me', (route) => (route.request().method() === 'GET' ? route.fulfill({ json: { ...ACCOUNT, locale: 'de' } }) : route.fallback()));
+
+  await openSectionAt(page, SHAPES.locked, 'types', /^Namen der Ebenen und was jede trägt/u);
+  await page.waitForFunction(() => document.documentElement.lang === 'de', null, { timeout: 15_000 });
+  const field = page.locator('[data-setting="fields"]').getByRole('button', { name: /^Was Aufgabe trägt/u });
+  await field.waitFor({ timeout: 5_000 });
+  assert.equal((await field.locator('.value').textContent()).trim(), 'Alle 15 Felder');
+  const box = await field.boundingBox();
+  assert.ok(box && box.x >= 0 && box.x + box.width <= 390, `the field stands at ${box?.x}-${(box?.x ?? 0) + (box?.width ?? 0)}`);
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'the page widened');
+  await field.click();
+  const sheet = page.getByRole('dialog', { name: 'Was Aufgabe trägt' });
+  await sheet.waitFor({ timeout: 5_000 });
+  assert.deepEqual(
+    await sheet.getByRole('listbox').getByRole('group').evaluateAll((groups) => groups.map((group) => document.getElementById(group.getAttribute('aria-labelledby'))?.textContent)),
+    ['Status und Zeit', 'Personen', 'Inhalt', 'Erweiterungen'],
+  );
+  await sheet.getByRole('button', { name: 'Fertig', exact: true }).click();
+  await sheet.waitFor({ state: 'detached', timeout: 5_000 });
+  assert.match(await focused(page), /^button "Was Aufgabe trägt /u);
+  assert.deepEqual(failures, []);
+});

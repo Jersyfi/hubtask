@@ -1484,7 +1484,11 @@ Rules*, its working hours, code and chat, and *People*. *General* is the edit di
 place. The structure's preset and settings are spread over *Templates and presets* (the preset), *Types &
 forms* (levels, fields, entry types), *Workflow* (completion, a hub's workflows), *Views* (views,
 what counts, capture, success) and *Rules* (the automation behaviours, above a collection's rules),
-held by one draft and one save bar: each setting with its `SourceChip`, a reset where the value is
+held by one draft and one save bar. What each level carries is a `MultiSelect` field in four groups
+(*Status and time*, *People*, *Content*, *Extensions*; a capability they do not name is an
+extension) whose closed field says "All 15 fields" or "All except Amount" with at most two off and
+the chips otherwise; the levels, the views offered, capture and the automation behaviours are its
+inline ticks, the views required. Each setting has its `SourceChip`, a reset where the value is
 set here, and a lock drawn as the chip's lock with the controls still readable and unavailable,
 their reason naming who set it (§4, cases 2 and 6). When the settings change elsewhere while the
 draft holds a change of the reader's, a warning `Banner` above the section's rows says so and names

@@ -18,9 +18,10 @@
   // join it without a second panel. *Save as preset* (UC-WRK-30 check 1) sits beside the preset
   // picker and saves what is in force, not the draft.
 
-  import { untrack, type Snippet } from 'svelte';
+  import { tick, untrack, type Snippet } from 'svelte';
 
-  import { Banner, Button, Checkbox, DataTable, Input, SaveBar, Select, SettingRow, SettingsLayout, SettingsSection, SourceChip } from '@hubtask/design-system/components';
+  import { Banner, Button, Checkbox, DataTable, Input, MultiSelect, SaveBar, Select, SettingRow, SettingsLayout, SettingsSection, SourceChip } from '@hubtask/design-system/components';
+  import type { ChoiceGroup, ChoiceOption, MultiSelectPresentation } from '@hubtask/design-system/components';
   import type { DataColumn, PageHead, SectionLink } from '@hubtask/design-system/components';
   import type { Container, CustomFieldDefinition, EffectiveStructure, EntryType, StructureChange, StructurePreview, StructureSettings, Workflow } from '@hubtask/sync-engine';
 
@@ -40,6 +41,7 @@
   import { reachOf } from '../settings/reach.ts';
   import SavePresetDialog from './SavePresetDialog.svelte';
   import UnusedColumnsHint from './UnusedColumnsHint.svelte';
+  import { fieldGroups, fieldsSummary } from './fieldGroups.ts';
   import { GROUP_CODES, STRUCTURE_GROUPS, groupOf, isGroup, orderSections, sectionOf, type StructureGroup } from './placeSections.ts';
   import { DRAWABLE } from '../entries/layouts.ts';
   import { toast } from '../frame/toasts.svelte.ts';
@@ -383,9 +385,7 @@
       return {
         value: type,
         label: typeName(type),
-        disabledReason:
-          lockReason('levels') ??
-          (refusal === 'top' ? t('app.structure.level_top') : refusal === 'parent' ? t('app.structure.level_needs_parent') : undefined),
+        disabledReason: refusal === 'top' ? t('app.structure.level_top') : refusal === 'parent' ? t('app.structure.level_needs_parent') : undefined,
       };
     }),
   );
@@ -409,15 +409,13 @@
     return own ?? offered;
   }
 
-  function fieldOptions(type: string) {
+  /** What a level may carry, one option each; the whole setting's lock is the field's own. */
+  function fieldOptions(type: string): ChoiceOption[] {
     const offered = manifest.value?.item_types?.find((entry) => entry.type === type)?.capabilities ?? [];
     return offered.map((capability) => ({
       value: capability,
       label: t(`app.structure.field.${capability}`),
-      disabledReason:
-        capability === 'COMPLETION'
-          ? t('app.structure.field_always')
-          : (lockReason('fields') ?? lockReason(`fields.${type}.${capability}`)),
+      disabledReason: capability === 'COMPLETION' ? t('app.structure.field_always') : lockReason(`fields.${type}.${capability}`),
     }));
   }
 
@@ -445,7 +443,7 @@
   const viewOptions = $derived(
     ((manifest.value?.view_layouts ?? []) as readonly string[])
       .filter((layout) => DRAWABLE.includes(layout))
-      .map((layout) => ({ value: layout, label: t(`app.view.${layout}`), disabledReason: lockReason('views') })),
+      .map((layout) => ({ value: layout, label: t(`app.view.${layout}`) })),
   );
 
   function chooseViews(selected: readonly string[]) {
@@ -534,6 +532,7 @@
     if (isSaving || !change) return;
     isFieldMissing = !isComplete(figure, values.counts?.field_key ?? undefined);
     isViewMissing = (values.views?.offered ?? []).length === 0;
+    if (isViewMissing) void focusMissingView();
     if (isFieldMissing || isViewMissing) return;
     isSaving = true;
     failure = undefined;
@@ -555,6 +554,15 @@
     } finally {
       isSaving = false;
     }
+  }
+
+  /**
+   * A save that finds no view offered marks them and moves focus to the first box (UC-WRK-32
+   * check 3): the box names the error, the group says it as its description.
+   */
+  async function focusMissingView() {
+    await tick();
+    document.querySelector<HTMLElement>('[data-setting="views"] [aria-invalid="true"]')?.focus();
   }
 
   async function confirmNarrowing(choice: 'HIDE' | 'FLATTEN') {
@@ -660,22 +668,33 @@
   ]);
 </script>
 
-<!-- A tick per option inside a setting's row: the row's name labels the group (PS-11). -->
-{#snippet ticks(nameId: string, options: readonly { value: string; label: string; disabledReason?: string }[], selected: readonly string[], onchange: (selected: readonly string[]) => void)}
-  <div class="ticks" role="group" aria-labelledby={nameId}>
-    {#each options as option (option.value)}
-      <Checkbox
-        label={option.label}
-        density="sm"
-        disabledReason={option.disabledReason}
-        checked={selected.includes(option.value)}
-        onchange={(event: Event) => {
-          const on = (event.currentTarget as HTMLInputElement).checked;
-          onchange(on ? [...selected, option.value] : selected.filter((each) => each !== option.value));
-        }}
-      />
-    {/each}
-  </div>
+<!-- Several of a setting's options, named by the row (PS-11; design-system.md §4): a level's
+     fields as the field, every other list as ticks. A lock of the whole setting is the control's. -->
+{#snippet choices(nameId: string, setting: SettingName, presentation: MultiSelectPresentation, list: { options?: readonly ChoiceOption[]; groups?: readonly ChoiceGroup[] }, selected: readonly string[], onchange: (selected: readonly string[]) => void, extra: { label?: string; error?: string; isRequired?: boolean; summary?: (chosen: readonly ChoiceOption[], total: number) => string | undefined } = {})}
+  <MultiSelect
+    label={extra.label ?? titleOf(setting)}
+    aria-labelledby={nameId}
+    {presentation}
+    size="sm"
+    options={list.options}
+    groups={list.groups}
+    {selected}
+    onChange={onchange}
+    disabledReason={lockReason(setting)}
+    error={extra.error}
+    isRequired={extra.isRequired}
+    requiredLabel={t('app.choose_several.required')}
+    summary={extra.summary}
+    emptyLabel={t('app.choose_several.empty')}
+    filterLabel={t('app.choose_several.filter')}
+    clearLabel={t('app.choose_several.clear')}
+    noMatchLabel={t('app.choose_several.no_match')}
+    allLabel={t('app.choose_several.all')}
+    noneLabel={t('app.choose_several.none')}
+    doneLabel={t('app.choose_several.done')}
+    countLabel={(chosen, total) => t('app.choose_several.count', { chosen, total })}
+    locale={messages.locale}
+  />
 {/snippet}
 
 <!-- Where a setting's value comes from, its lock and its reset beside it: the row's source (PS-11). -->
@@ -750,8 +769,17 @@
         fieldWidth="full"
       >
         {#snippet control(nameId)}
-          <span class="acts">
-            {@render ticks(nameId, fieldOptions(type), carried(type), (selected) => chooseFields(type, selected))}
+          {@const options = fieldOptions(type)}
+          <span class="stack">
+            {@render choices(
+              nameId,
+              'fields',
+              'field',
+              { groups: fieldGroups(options, (group) => t(`app.structure.field_group.${group}`)) },
+              carried(type),
+              (selected) => chooseFields(type, selected),
+              { label: t('app.structure.fields_of', { level: levelName(type) }), summary: (chosen) => fieldsSummary(chosen, options, t, messages.locale) },
+            )}
             {#if !isHub}
               <Button size="sm" tone="secondary" disabledReason={categoriesWait} onclick={() => (categoriesOf = type)}>{t('app.structure.categories_of', { level: levelName(type) })}</Button>
             {/if}
@@ -843,18 +871,19 @@
                 {#snippet source()}{@render chipFor(setting)}{/snippet}
                 {#snippet control(nameId)}
                   <span class="acts">
-                    {@render ticks(nameId, levelOptions, offeredTypes, chooseLevels)}
+                    {@render choices(nameId, 'levels', 'inline', { options: levelOptions }, offeredTypes, chooseLevels)}
                   </span>
                 {/snippet}
               </SettingRow>
             {:else if setting === 'views'}
-              <SettingRow label={t('app.structure.views_offered')} fieldWidth="lg" lockReason={lockReason('views')}>
+              <SettingRow label={t('app.structure.views_offered')} fieldWidth="lg" isRequired lockReason={lockReason('views')}>
                 {#snippet source()}{@render chipFor(setting)}{/snippet}
                 {#snippet control(nameId)}
-                  <span class="acts">
-                    {@render ticks(nameId, viewOptions, (values.views?.offered ?? []) as readonly string[], chooseViews)}
-                  </span>
-                  {#if isViewMissing}<p class="failure" role="alert">{t('app.structure.views_missing')}</p>{/if}
+                  <!-- The error is the group's description and every box's error message (§4, case 3). -->
+                  {@render choices(nameId, 'views', 'inline', { options: viewOptions }, (values.views?.offered ?? []) as readonly string[], chooseViews, {
+                    isRequired: true,
+                    error: isViewMissing ? t('app.structure.views_missing') : undefined,
+                  })}
                 {/snippet}
               </SettingRow>
               <SettingRow label={t('app.structure.views_default')} fieldWidth="sm">
@@ -929,9 +958,11 @@
                 {#snippet source()}{@render chipFor(setting)}{/snippet}
                 {#snippet control(nameId)}
                   <span class="acts">
-                    {@render ticks(
+                    {@render choices(
                       nameId,
-                      CAPTURE.map((token) => ({ value: token, label: t(`app.structure.capture.${token}`), disabledReason: lockReason('capture') })),
+                      'capture',
+                      'inline',
+                      { options: CAPTURE.map((token) => ({ value: token, label: t(`app.structure.capture.${token}`) })) },
                       (values.capture ?? []) as readonly string[],
                       (selected) => draft && (draft = setValue(draft, 'capture', CAPTURE.filter((token) => selected.includes(token)))),
                     )}
@@ -962,9 +993,11 @@
                 {#snippet source()}{@render chipFor(setting)}{/snippet}
                 {#snippet control(nameId)}
                   <span class="acts">
-                    {@render ticks(
+                    {@render choices(
                       nameId,
-                      AUTOMATION.map((behaviour) => ({ value: behaviour, label: t(`app.structure.automation.${behaviour}`), disabledReason: lockReason('automation') })),
+                      'automation',
+                      'inline',
+                      { options: AUTOMATION.map((behaviour) => ({ value: behaviour, label: t(`app.structure.automation.${behaviour}`) })) },
                       (values.automation ?? []) as readonly string[],
                       (selected) => draft && (draft = setValue(draft, 'automation', AUTOMATION.filter((behaviour) => selected.includes(behaviour)))),
                     )}
@@ -1116,7 +1149,9 @@
 <style>
   .structure { min-inline-size: 0; }
   .panel { display: contents; }
-  .ticks { display: flex; flex-wrap: wrap; gap: var(--sp-050) var(--sp-200); }
+  /* The fields' field across the row's control, the categories below it. */
+  .stack { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-150); inline-size: 100%; min-inline-size: 0; }
+  .stack > :global(.multiselect) { align-self: stretch; }
   .acts { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-150); min-inline-size: 0; }
   .head { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
   .hint { margin: 0; color: var(--text-secondary); max-inline-size: 64ch; }
