@@ -37,10 +37,14 @@
     const hidden = containers.hubs.filter((hub) => hub.private === true).map((hub) => hub.id);
     untrack(() => hidden.forEach((id) => people.open({ hubId: id })));
   });
-  /** Whether the reader may shape a private hub, by the role held on it; `undefined` while that is out. */
+  /**
+   * Whether the reader may shape a private hub, by the role held on it; `undefined` while that is
+   * out. A read that failed decides it as not: the hub is not offered rather than the question
+   * never asked.
+   */
   const shapesPrivate = (hub: { readonly id: string }): boolean | undefined => {
     const role = people.roleOf({ hubId: hub.id }, actor.account?.id, roleOrder());
-    if (role === undefined) return undefined;
+    if (role === undefined) return people.hasUnansweredAlong({ hubId: hub.id }) ? false : undefined;
     return role !== null && holds(role, 'STRUCTURE').status === 'permitted';
   };
   // The hubs offered: those the reader may shape (check 13) among the hub list, which is one page -

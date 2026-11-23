@@ -332,3 +332,35 @@ test('chromium: a product\'s page while it is off switches on at once where no h
   await control.waitFor({ state: 'detached', timeout: 10_000 });
   assert.deepEqual(walk.errors(), []);
 });
+
+// A private hub counts only by the role held on it, read from its memberships. Where that read
+// fails, the hub is not offered and the question still comes with the hubs that are decided -
+// never a switch that waits for an answer that does not come (UC-INS-21 check 13).
+test('chromium: a private hub whose memberships fail to read is left out, and the question still comes (UC-INS-21 check 13)', async (t) => {
+  const browser = await sharedChromium(t);
+  const secret = { ...GARDEN, name: 'Secret', private: true };
+  const shared = plansOff([HUB, secret]);
+  const walk = await productWalk(browser, {
+    modules: shared.on,
+    answer: (method, path, query, body) => {
+      if (path === '/memberships' && method === 'GET' && query.get('scope_id') === secret.id) {
+        return { status: 429, contentType: 'application/problem+json', json: { title: 'Too many requests', status: 429, code: 'rate_limited' } };
+      }
+      return shared.answer(method, path, query, body);
+    },
+  });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/plans`);
+  const control = page.getByRole('button', { name: 'Switch Plans on' });
+  await control.waitFor({ timeout: 10_000 });
+  await control.click();
+  const dialog = page.getByRole('dialog', { name: 'Switch Plans on' });
+  await dialog.waitFor({ timeout: 5_000 });
+  await dialog.getByRole('button', { name: /^Switch on in which existing hubs\?/u }).click();
+  const list = page.getByRole('listbox');
+  await list.waitFor({ timeout: 5_000 });
+  assert.deepEqual(await optionNames(list), ['House'], 'a private hub whose role is unknown was offered');
+  assert.deepEqual(sentSwitches(walk), []);
+});
