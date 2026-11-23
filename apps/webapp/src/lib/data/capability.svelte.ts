@@ -104,6 +104,17 @@ export const holds = (role: string | undefined, permission: string): Verdict =>
 export const holdsHere = (permission: string): boolean | undefined =>
   holdsOnWorkspace(manifest.value, permission);
 
+/**
+ * Whether the reader may read the workspace's set-up (`/tenant`): READ there, or the auditor's
+ * READ_CONFIGURATION. A guest of one hub may not, and is not made to ask; `undefined` while unknown.
+ */
+export function mayReadWorkspace(): boolean | undefined {
+  const read = holdsHere('READ');
+  const configuration = holdsHere('READ_CONFIGURATION');
+  if (read === true || configuration === true) return true;
+  return read === undefined || configuration === undefined ? undefined : false;
+}
+
 /** Whether the reader may do what asks this permission on the workspace, as a gate's verdict. */
 export const mayHere = (permission: string): Verdict => workspaceVerdict(manifest.value, permission);
 

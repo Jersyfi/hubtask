@@ -12,9 +12,12 @@
   // `group` role takes no `aria-invalid` (the reason `Radio` gives), so the group is marked
   // `data-invalid` and described by the error, and each box is `aria-invalid` as well - the box is
   // what a form moves focus to, and what a screen reader announces as it arrives.
+  //
+  // The boxes are `MultiSelect`'s inline ticks (ADR-0110), so a few answers look and behave alike
+  // whichever of the two draws them.
 
-  import Checkbox from './Checkbox.svelte';
   import type { Disableable } from './control.ts';
+  import Ticks from './_Ticks.svelte';
 
   export interface CheckboxOption {
     readonly value: string;
@@ -45,28 +48,13 @@
   const errorId = $derived(error ? `${uid}-error` : undefined);
   const describedBy = $derived([errorId, hintId].filter(Boolean).join(' ') || undefined);
 
-  function toggle(value: string, isOn: boolean): void {
-    const next = isOn ? [...selected.filter((held) => held !== value), value] : selected.filter((held) => held !== value);
-    onChange?.(next);
-  }
 </script>
 
 <fieldset class="group" data-invalid={error ? '' : undefined} aria-describedby={describedBy}>
   <legend class="legend">{label}</legend>
   {#if hint}<p id={hintId} class="message">{hint}</p>{/if}
 
-  <div class="options">
-    {#each options as option (option.value)}
-      <Checkbox
-        label={option.label}
-        hint={option.hint}
-        disabledReason={option.disabledReason ?? disabledReason}
-        aria-invalid={error ? 'true' : undefined}
-        aria-errormessage={errorId}
-        bind:checked={() => selected.includes(option.value), (isOn: boolean) => toggle(option.value, isOn)}
-      />
-    {/each}
-  </div>
+  <Ticks {options} {selected} onChange={(next) => onChange?.(next)} {disabledReason} {errorId} />
 
   {#if error}
     <!-- Rule 3: the sentence is the signal; the border of each box is only its echo. -->
@@ -92,8 +80,6 @@
     font-weight: var(--fw-medium);
     text-align: start;
   }
-
-  .options { display: flex; flex-wrap: wrap; gap: var(--sp-100) var(--sp-200); }
 
   .message {
     max-width: 60ch;

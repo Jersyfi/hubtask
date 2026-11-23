@@ -12,10 +12,11 @@
   // back to where the pane was opened from.
   //
   // It holds no query of its own: `setup` is the caller's, and the caller turns it into the read.
-  import { Button, Checkbox, Drawer, Icon, Input, QueryLine, Select, Sheet, Switch, lineText, type QueryToken } from '@hubtask/design-system/components';
+  import { Button, Drawer, Icon, Input, MultiSelect, QueryLine, Select, Sheet, Switch, lineText, type QueryToken } from '@hubtask/design-system/components';
   import { createCatalogue, type CountedValue, type QueryKey } from '@hubtask/query';
   import type { IconName } from '@hubtask/design-system/icons';
 
+  import { chooseSeveral } from '../forms/chooseSeveral.ts';
   import { t } from '../i18n/i18n.svelte.ts';
   import { viewport } from '../frame/viewport.svelte.ts';
   import type { ViewSetup } from '../data/viewquery.ts';
@@ -131,6 +132,12 @@
     }
     isNameMissing = false;
     onsave(name.trim(), scope, sharing);
+  }
+
+  /** A field shown goes to its place among the offered ones; one hidden leaves the rest as they were. */
+  function chooseFields(next: readonly string[]) {
+    const isAdded = next.length > setup.fields.length;
+    setup = { ...setup, fields: isAdded ? fields.map((field) => field.value).filter((field) => next.includes(field)) : setup.fields.filter((field) => next.includes(field)) };
   }
 
   const isList = $derived(setup.layout.startsWith('LIST_'));
@@ -260,17 +267,15 @@
     {#if isList && shows('fields')}
       <section aria-labelledby="viewcfg-fields">
         <h3 id="viewcfg-fields">{t('app.viewcfg.fields')}</h3>
-        <ul class="fields">
-          {#each fields as each (each.value)}
-            <li data-view-field={each.value}>
-              <Checkbox label={each.label} checked={setup.fields.includes(each.value)} onchange={(event) => {
-                const on = (event.currentTarget as HTMLInputElement).checked;
-                setup = { ...setup, fields: on ? fields.map((field) => field.value).filter((field) => field === each.value || setup.fields.includes(field)) : setup.fields.filter((field) => field !== each.value) };
-              }} />
-              {#if each.isNew}<span class="new">{t('app.viewcfg.new')}</span>{/if}
-            </li>
-          {/each}
-        </ul>
+        <MultiSelect
+          label={t('app.viewcfg.fields')}
+          aria-labelledby="viewcfg-fields"
+          presentation="inline"
+          options={fields.map((each) => ({ value: each.value, label: each.label, hint: each.isNew ? t('app.viewcfg.new') : undefined }))}
+          selected={setup.fields}
+          onChange={chooseFields}
+          {...chooseSeveral()}
+        />
       </section>
     {/if}
 
@@ -353,8 +358,6 @@
   .chip { min-block-size: var(--layout-target); padding-inline: var(--sp-150); font-size: var(--fs-075); color: var(--text-primary); background: var(--bg-surface); border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-md); cursor: pointer; }
   .chip[aria-pressed='true'] { color: var(--text-brand); border-color: var(--accent-primary); background: var(--accent-primary-subtle); }
   .sort { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-100); }
-  .fields { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-050); }
-  .fields li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); }
   .new { font-weight: var(--fw-semibold); font-size: var(--fs-065); color: var(--text-brand); background: var(--accent-primary-subtle); border-radius: var(--r-full); padding-inline: var(--sp-100); }
   .as-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); margin: 0; font-size: var(--fs-075); color: var(--text-secondary); }
   .as-line code { font-family: var(--font-mono); font-size: var(--fs-075); color: var(--text-primary); background: var(--bg-surface-sunken); border-radius: var(--r-sm); padding-inline: var(--sp-050); overflow-wrap: anywhere; }

@@ -15,6 +15,7 @@ import { chromium } from 'playwright';
 
 import { ACCOUNT, HUB, signedIn, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { chipsOf, focused, pick } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -431,6 +432,167 @@ test('a page takes a cover over its width, picked in tabs, the title under it (U
     await page.locator('[data-page-cover-remove]').click();
     await page.locator('[data-page-cover-add]').waitFor({ timeout: 10_000 });
     assert.equal(covers().at(-1), null);
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
+// Restricting a page (design-system.md §4): the hub's readers are one field named by its question,
+// the reader themself chosen and locked first. Opened by the keyboard, Space ticks, Escape closes
+// the list onto the field, and *Restrict* sends the reader and the people chosen. At 1280 in
+// English and at 390 in German.
+const READERS = ['Ada Kern', 'Ben Ott', 'Clara Ruiz', 'Dana Wolf', 'Emil Haas', 'Frida Lang'].map((name, at) => ({
+  id: `01a0e2e0-0000-7000-8000-0000000002${String(at).padStart(2, '0')}`, display_name: name, status: 'ACTIVE', kind: 'HUMAN',
+}));
+for (const [width, locale] of [[1280, 'en'], [390, 'de']]) {
+  test(`the readers a page is restricted to are one field, the reader locked in it, at ${width} (${locale})`, async () => {
+    const browser = await chromium.launch();
+    try {
+      const { page, failures, written, close } = await opened(browser, FULL, width);
+      await page.context().route('**/api/v1/**', async (route) => {
+        const url = new URL(route.request().url());
+        const path = url.pathname.replace('/api/v1', '');
+        if (path === '/accounts/me') return route.fulfill({ json: { ...ACCOUNT, locale } });
+        if (path === '/memberships') {
+          const scope = url.searchParams.get('scope_type') ?? 'TENANT';
+          const rows = scope === 'TENANT' ? [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role: 'OWNER' }, ...READERS.map((each) => ({ id: `m-${each.id}`, scope_type: 'TENANT', account_id: each.id, role: 'MEMBER' }))] : [];
+          return route.fulfill({ json: { data: rows, page: { next_cursor: null, has_more: false }, grantable_roles: [] } });
+        }
+        const reader = READERS.find((each) => path === `/accounts/${each.id}`);
+        if (reader) return route.fulfill({ json: { ...ACCOUNT, ...reader } });
+        if (path === `/pages/${HOME.id}:restrict`) {
+          written.push({ method: 'POST', path, body: route.request().postDataJSON() });
+          return route.fulfill({ json: { ...HOME, restricted: true } });
+        }
+        return route.fallback();
+      });
+      const words = locale === 'de'
+        ? { share: 'Teilen', restrict: 'Auf weniger Personen einschränken', who: 'Wer diese Seite lesen darf', you: `${ACCOUNT.display_name} (du)`, save: 'Einschränken', done: 'Die Seite ist eingeschränkt.' }
+        : { share: 'Share', restrict: 'Restrict to fewer people', who: 'Who may read this page', you: `${ACCOUNT.display_name} (you)`, save: 'Restrict', done: 'The page is restricted.' };
+      await page.goto(`${served.origin}/pages/${HOME.id}`);
+      if (locale === 'de') await page.waitForFunction(() => document.documentElement.lang === 'de', null, { timeout: 15_000 });
+      await page.locator('[data-page-share]').click({ timeout: 15_000 });
+      await page.getByRole('button', { name: words.restrict }).click({ timeout: 10_000 });
+
+      const field = page.getByRole('button', { name: new RegExp(`^${words.who}`, 'u') });
+      await field.waitFor({ timeout: 5_000 }).catch(() => {});
+      assert.equal(await field.count(), 1, 'the readers are not one field');
+      assert.equal(await field.getAttribute('aria-haspopup'), 'listbox');
+      assert.deepEqual(await chipsOf(field), [words.you], 'the reader is not the one chosen');
+
+      await field.focus();
+      await page.keyboard.press('Enter');
+      const list = page.getByRole('listbox', { name: words.who });
+      await list.waitFor({ timeout: 5_000 });
+      assert.equal(await focused(page), `option "${words.you}"`, 'the list does not open on the chosen reader');
+      assert.equal(await list.getByRole('option', { name: words.you }).getAttribute('aria-disabled'), 'true', 'the reader can take themself out');
+      await page.keyboard.press('ArrowDown');
+      assert.equal(await focused(page), 'option "Ada Kern"');
+      await page.keyboard.press('Space');
+      await page.keyboard.press('Escape');
+      await list.waitFor({ state: 'detached', timeout: 5_000 });
+      assert.match(await focused(page), new RegExp(`^button "${words.who} `, 'u'), 'closing the list left focus elsewhere');
+      assert.deepEqual(await pick(page, field, ['Dana Wolf']), [words.you, 'Ada Kern', 'Dana Wolf']);
+
+      await page.getByRole('button', { name: words.save, exact: true }).click();
+      await page.getByText(words.done).first().waitFor({ timeout: 5_000 });
+      const sent = written.find((write) => write.path === `/pages/${HOME.id}:restrict`);
+      assert.deepEqual(sent?.body, { account_ids: [ACCOUNT.id, READERS[0].id, READERS[3].id] });
+      assert.deepEqual(failures, []);
+      await close();
+    } finally {
+      await browser.close();
+    }
+  });
+}
+
+// The readers come from the hub's people: one field even for two (design-system.md §4), so the
+// panel does not change its look as the hub grows.
+test('the two readers a page may be restricted to are one field, not ticks, at 1280 (en)', async () => {
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, close } = await opened(browser, FULL, 1280);
+    await page.context().route('**/api/v1/**', async (route) => {
+      const url = new URL(route.request().url());
+      const path = url.pathname.replace('/api/v1', '');
+      if (path === '/memberships') {
+        const scope = url.searchParams.get('scope_type') ?? 'TENANT';
+        const rows = scope === 'TENANT' ? [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role: 'OWNER' }, { id: 'm1', scope_type: 'TENANT', account_id: READERS[0].id, role: 'MEMBER' }] : [];
+        return route.fulfill({ json: { data: rows, page: { next_cursor: null, has_more: false }, grantable_roles: [] } });
+      }
+      if (path === `/accounts/${READERS[0].id}`) return route.fulfill({ json: { ...ACCOUNT, ...READERS[0] } });
+      return route.fallback();
+    });
+    await page.goto(`${served.origin}/pages/${HOME.id}`);
+    await page.locator('[data-page-share]').click({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Restrict to fewer people' }).click({ timeout: 10_000 });
+    const field = page.getByRole('button', { name: /^Who may read this page/u });
+    await field.waitFor({ timeout: 5_000 });
+    assert.equal(await field.getAttribute('aria-haspopup'), 'listbox');
+    assert.equal(await page.getByRole('group', { name: 'Who may read this page' }).count(), 0, 'the readers are ticks');
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
+// Many readers (design-system.md §4): the reader stays first and locked, the others go by name,
+// each with the address the people list shows beside it, so two of one name are told apart; the
+// filter finds an address, and the one chosen by it is the one the page is restricted to.
+const NAMESAKES = [['Zoe Lind', 'zoe@example.com'], ['Ada Kern', 'ada@north.example'], ['Ben Ott', null], ['Ada Kern', 'ada.kern@south.example'], ['Emil Haas', null], ['Frida Lang', null], ['Greta Sommer', null]]
+  .map(([name, email], at) => ({ id: `01a0e2e0-0000-7000-8000-0000000004${String(at).padStart(2, '0')}`, display_name: name, email }));
+test('the readers go by name, two of one name told apart by their address, at 1280 (en)', async () => {
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, written, close } = await opened(browser, FULL, 1280);
+    await page.context().route('**/api/v1/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      const path = url.pathname.replace('/api/v1', '');
+      if (path === '/memberships') {
+        const scope = url.searchParams.get('scope_type') ?? 'TENANT';
+        const rows = scope === 'TENANT' ? [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role: 'OWNER' }, ...NAMESAKES.map((each) => ({ id: `m-${each.id}`, scope_type: 'TENANT', account_id: each.id, role: 'MEMBER' }))] : [];
+        return route.fulfill({ json: { data: rows, page: { next_cursor: null, has_more: false }, grantable_roles: [] } });
+      }
+      if (path === '/accounts:sign-in-details') {
+        const ids = request.postDataJSON().ids;
+        return route.fulfill({ json: { data: NAMESAKES.filter((each) => ids.includes(each.id)).map((each) => ({ account_id: each.id, email: each.email, authenticator_app: false })) } });
+      }
+      const reader = NAMESAKES.find((each) => path === `/accounts/${each.id}`);
+      if (reader) return route.fulfill({ json: { id: reader.id, kind: 'USER', display_name: reader.display_name, status: 'ACTIVE' } });
+      if (path === `/pages/${HOME.id}:restrict`) {
+        written.push({ method: 'POST', path, body: request.postDataJSON() });
+        return route.fulfill({ json: { ...HOME, restricted: true } });
+      }
+      return route.fallback();
+    });
+    await page.goto(`${served.origin}/pages/${HOME.id}`);
+    await page.locator('[data-page-share]').click({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Restrict to fewer people' }).click({ timeout: 10_000 });
+    const field = page.getByRole('button', { name: /^Who may read this page/u });
+    await field.click();
+    const list = page.getByRole('listbox', { name: 'Who may read this page' });
+    await list.waitFor({ timeout: 5_000 });
+    const lines = () => list.getByRole('option').evaluateAll((options) => options.map((option) => [
+      document.getElementById(option.getAttribute('aria-labelledby'))?.textContent?.trim(),
+      (option.getAttribute('aria-describedby') ?? '').split(' ').filter(Boolean).map((id) => document.getElementById(id)?.textContent?.trim()).filter((line) => line.includes('@')).join(' '),
+    ]));
+    await page.waitForFunction(() => [...document.querySelectorAll('[role="listbox"] [role="option"]')].filter((option) => option.textContent.includes('@')).length >= 3, null, { timeout: 5_000 });
+    assert.deepEqual(await lines(), [
+      [`${ACCOUNT.display_name} (you)`, ''], ['Ada Kern', 'ada.kern@south.example'], ['Ada Kern', 'ada@north.example'], ['Ben Ott', ''], ['Emil Haas', ''],
+      ['Frida Lang', ''], ['Greta Sommer', ''], ['Zoe Lind', 'zoe@example.com'],
+    ], 'the readers are not the reader first and then by name, or two of one name cannot be told apart');
+    await page.getByRole('searchbox', { name: 'Filter the list' }).fill('south');
+    await list.getByRole('option', { name: 'Ada Kern', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await list.waitFor({ state: 'detached', timeout: 5_000 });
+    await page.getByRole('button', { name: 'Restrict', exact: true }).click();
+    await page.getByText('The page is restricted.').first().waitFor({ timeout: 5_000 });
+    const sent = written.find((write) => write.path === `/pages/${HOME.id}:restrict`);
+    assert.deepEqual(sent?.body, { account_ids: [ACCOUNT.id, NAMESAKES[3].id] }, 'the Ada of the address chosen is not the one sent');
     assert.deepEqual(failures, []);
     await close();
   } finally {

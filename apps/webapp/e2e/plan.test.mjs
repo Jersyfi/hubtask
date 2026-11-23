@@ -15,6 +15,7 @@ import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { COLLECTION, MANIFEST, ITEMS, signedIn, stub } from './fixture.mjs';
+import { describedBy } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -324,6 +325,27 @@ test('chromium: 1280 px — the Gantt and the light timeline are one tab, and th
   assert.equal((await page.locator('[data-plan-view-open]').first().textContent()).trim(), 'View · 1');
   await page.locator('[data-plan-view-open]').first().click();
   const panel = page.locator('[data-plan-view-panel]');
+  // The six outline columns are ticks (design-system.md §4: on a phone the panel is a sheet, and a
+  // field would open a second sheet over it), one group named by the section's heading; Slip says
+  // it needs a baseline, and Space ticks from the keyboard. A column ticked after the last one
+  // still takes its own place: Slack, ticked after Slip, is saved and drawn before it.
+  const columns = panel.getByRole('group', { name: 'Columns on the left' });
+  assert.equal(await panel.getByRole('button', { name: /^Columns on the left/u }).count(), 0, 'the columns open a list of their own');
+  const ticked = async () => {
+    const on = [];
+    for (const name of ['Start', 'End', 'Working days', 'Assignee', 'Slack', 'Slip (days)']) if (await columns.getByRole('checkbox', { name, exact: true }).isChecked()) on.push(name);
+    return on;
+  };
+  assert.deepEqual(await ticked(), ['Start', 'End', 'Working days', 'Assignee']);
+  const slip = columns.getByRole('checkbox', { name: 'Slip (days)', exact: true });
+  assert.equal(await describedBy(slip), 'with a baseline');
+  await slip.focus();
+  await page.keyboard.press('Space');
+  assert.equal(await slip.isChecked(), true);
+  assert.deepEqual(await ticked(), ['Start', 'End', 'Working days', 'Assignee', 'Slip (days)']);
+  await columns.getByRole('checkbox', { name: 'Slack', exact: true }).focus();
+  await page.keyboard.press('Space');
+  assert.deepEqual(await ticked(), ['Start', 'End', 'Working days', 'Assignee', 'Slack', 'Slip (days)']);
   await panel.getByLabel('Name').fill('Light');
   await panel.locator('[data-plan-view-save]').click();
   await page.waitForTimeout(300);
@@ -331,6 +353,12 @@ test('chromium: 1280 px — the Gantt and the light timeline are one tab, and th
   assert.equal(saved?.body?.layout, 'TIMELINE');
   assert.equal(saved?.body?.name, 'Light');
   assert.equal(saved?.body?.grouping?.plan?.presentation, 'timeline', `saved ${JSON.stringify(saved?.body)}`);
+  assert.deepEqual(saved?.body?.visible_fields, ['start', 'finish', 'duration', 'assignee', 'float', 'slip'], `saved ${JSON.stringify(saved?.body)}`);
+  // Drawn as saved: the Gantt's outline columns in the same order (Slip only beside a baseline).
+  await page.locator('[data-plan-presentation="gantt"]').click();
+  await page.locator('.timeline [data-row] [data-column="float"]').first().waitFor({ timeout: 5_000 });
+  const drawn = await page.locator('.timeline [data-row]').first().evaluate((row) => [...row.querySelectorAll('[data-column]')].map((cell) => cell.dataset.column));
+  assert.deepEqual(drawn.filter((each) => each !== 'slip'), ['start', 'finish', 'duration', 'assignee', 'float'], `drawn ${JSON.stringify(drawn)}`);
 
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
@@ -538,6 +566,25 @@ test('chromium: 1280 px — the plan\'s query line says the release by name over
 
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
+});
+
+// At a phone's width the view panel is a sheet: its columns are ticks inside it, and ticking one
+// opens no second sheet over it (design-system.md §4).
+test('chromium: 390 px — the plan view\'s columns are ticks inside the panel\'s sheet', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, close } = await plan(browser, 390);
+  t.after(close);
+  await page.locator('[data-plan-view-open]').first().click({ timeout: 15_000 });
+  const columns = page.getByRole('group', { name: 'Columns on the left' });
+  await columns.waitFor({ timeout: 5_000 });
+  const float = columns.getByRole('checkbox', { name: 'Slack', exact: true });
+  await float.scrollIntoViewIfNeeded();
+  await float.focus();
+  await page.keyboard.press('Space');
+  assert.equal(await float.isChecked(), true);
+  const modals = await page.evaluate(() => [...document.querySelectorAll('dialog[open]')].filter((each) => each.matches(':modal')).length);
+  assert.equal(modals, 1, 'a second sheet opened over the panel');
+  assert.deepEqual(failures, []);
 });
 
 test('chromium: 390 px — a dependency\'s menu is a sheet at the foot; adding one is the whole screen (D-1)', async (t) => {

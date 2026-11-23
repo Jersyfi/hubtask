@@ -83,6 +83,9 @@ class ActiveMessages {
    * once it is loaded - on the first code the translation lacks, not up front. A load that lands
    * after the locale moved on is dropped - the reader changed their mind faster than the network,
    * and the later choice wins.
+   *
+   * The document says the new locale once its words are drawn, not before: a page whose `lang`
+   * says `de` over English sentences is read aloud in the wrong voice (`applyDocumentLocale`).
    */
   adopt(
     preferences: LocalePreferences,
@@ -92,8 +95,9 @@ class ActiveMessages {
     const locale = resolveLocale(preferences, supported);
     this.#locale = locale;
     this.#direction = directionOf(locale, supported);
-    applyDocumentLocale(root, locale, this.#direction);
-    this.#ready = this.#follow(locale);
+    this.#ready = this.#follow(locale).finally(() => {
+      if (this.#locale === locale) applyDocumentLocale(root, locale, this.#direction);
+    });
     return locale;
   }
 

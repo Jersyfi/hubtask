@@ -86,6 +86,43 @@ func TestSignInChangesAreOneCallCarryingTheProof(t *testing.T) {
 	}
 }
 
+// configuration.md §1: of the workspace's own name and logo the document carries the switch, as it
+// carries private hubs, and applies it through the workspace's own patch; the pictures and the
+// header's choice, which name media objects, are not in it.
+func TestTheOwnBrandingSwitchTravelsAndTheLookDoesNot(t *testing.T) {
+	f := newFixture()
+	signedInWorkspace(f)
+	policy := f.world.workspace["sign_in_policy"].(map[string]any)
+	policy["own_branding"] = map[string]any{"value": false, "source": "WORKSPACE", "lock": nil}
+	policy["private_hubs"] = map[string]any{"value": false, "source": "WORKSPACE", "lock": nil}
+	f.world.workspace["branding"] = map[string]any{"header": "LOGO", "symbol_media_id": "01936f2a-7c1e-7000-8000-0000000000d3"}
+
+	settings := invoke(t, ExportConfig{f.desk}.Descriptor(), person, nil)["document"].(map[string]any)["settings"].(map[string]any)
+	for _, key := range []string{"sign_in.own_branding", "sign_in.private_hubs"} {
+		if block, held := settings[key].(map[string]any); !held || block["value"] != false {
+			t.Errorf("%s = %v, want the workspace's off", key, settings[key])
+		}
+	}
+	for key := range settings {
+		if key == "sign_in.header_shows" || key == "sign_in.branding" || key == "branding" {
+			t.Errorf("the look is in the document as %s", key)
+		}
+	}
+
+	desired := map[string]any{"settings": map[string]any{"sign_in.own_branding": map[string]any{"value": true}}}
+	plan := invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{"document": desired})
+	invoke(t, ApplyConfig{f.desk}.Descriptor(), person, usecase.Input{
+		"document": desired, "plan_hash": plan["plan_hash"], "step_up_token": "proof",
+	})
+	calls := f.world.inputs["UpdateWorkspace"]
+	if len(calls) != 1 {
+		t.Fatalf("UpdateWorkspace ran %d times, want once", len(calls))
+	}
+	if patch, _ := calls[0]["sign_in_policy"].(map[string]any); patch["own_branding"] != true {
+		t.Errorf("the switch reached the workspace as %v", calls[0]["sign_in_policy"])
+	}
+}
+
 func TestASignInSwitchIsNotHandedBackAndAnUnknownSettingIsRefused(t *testing.T) {
 	f := newFixture()
 	signedInWorkspace(f)

@@ -56,11 +56,16 @@ test('chromium: the manifest never answers — the entry says so, and the bar ca
   const browser = await sharedChromium(t);
 
   // The read fails until the walk says otherwise, which is what the retry is measured against.
+  // The engine reads it again on its own once its first synchronisation is answered, which a
+  // loaded runner can bring to the moment of the press: a read that arrives while the walk
+  // presses waits until the press is made, so that only *Try again* can be what brings it.
   let answers = false;
+  let pressing;
   const context = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
   t.after(() => context.close());
-  await context.route('**/api/v1/**', (route) => {
+  await context.route('**/api/v1/**', async (route) => {
     if (new URL(route.request().url()).pathname.endsWith('/api/v1/meta/capabilities')) {
+      await pressing;
       return answers ? route.fulfill({ json: MANIFEST }) : route.fulfill(problem(503, 'errors.service_unavailable'));
     }
     return stub(route);
@@ -95,6 +100,18 @@ test('chromium: the manifest never answers — the entry says so, and the bar ca
   assert.equal(await reason.count(), 1, 'the reason the server gave is not shown');
   assert.notEqual((await reason.innerText()).trim(), '', 'the reason the server gave is empty');
 
+  // The home link does not stand empty: without the manifest nobody knows whether this reader may
+  // read `/tenant`, so the look every member may read is asked, and the product's mark is drawn (G8).
+  const home = page.getByRole('banner', { name: 'Application bar' }).locator('a.home');
+  await home.locator('.waiting').waitFor({ state: 'detached', timeout: 5_000 })
+    .catch(() => assert.fail('the home link stays an empty box while the manifest is unread'));
+  assert.equal(await home.locator('svg').first().isVisible(), true, 'the home link draws no mark');
+  assert.equal(
+    await page.getByRole('banner', { name: 'Application bar' }).getByRole('link', { name: 'Hubtask', exact: true }).count(),
+    1,
+    'the home link has no name',
+  );
+
   // The mark in the bar carries the dot: there is something to read, without a count.
   const mark = markOf(page);
   assert.equal(await mark.locator('.dot').count(), 1, 'the bar does not say there is something to read');
@@ -109,8 +126,11 @@ test('chromium: the manifest never answers — the entry says so, and the bar ca
   const surface = page.getByRole('dialog', { name: /This installation could not be read/ });
   await surface.waitFor({ timeout: 5_000 });
   assert.equal(await surface.getByText('This installation could not be read', { exact: false }).count(), 1);
+  let pressed;
+  pressing = new Promise((resolve) => { pressed = resolve; });
   answers = true;
   await surface.getByRole('button', { name: 'Try again' }).click();
+  pressed();
 
   // No reload. The rows arrive because the manifest did - the set ones in Details, the empty
   // ones under the rail's folded More fields.

@@ -10,7 +10,7 @@
   import Switch from './Switch.svelte';
   import Refused from './_RefusedDemo.svelte';
 
-  const { content = 'full' }: { content?: 'full' | 'empty' | 'refused' } = $props();
+  const { content = 'full' }: { content?: 'full' | 'empty' | 'refused' | 'filled' } = $props();
   const isEmpty = $derived(content === 'empty');
 
   const scopes = [
@@ -21,6 +21,30 @@
   ];
 </script>
 
+{#if content === 'filled'}
+  <!-- The region the frame gives a filled page has a height: the demo gives it one. -->
+  <div class="region">
+    <CreatePage
+      isFilled
+      head={{
+        title: 'Create hub',
+        breadcrumb: { trail: [{ id: 'hubs', label: 'Hubs', href: '#hubs' }, { id: 'new', label: 'Create hub' }], label: 'Where you are', expandLabel: 'Show every level' },
+        primary: { label: 'Create hub', onclick: () => {} },
+        secondary: [{ label: 'Cancel', isQuiet: true, onclick: () => {} }],
+      }}
+      close={{ label: 'Cancel', onclose: () => {} }}
+    >
+      <div class="panes">
+        <section class="pane details" aria-label="Details">
+          {#each Array.from({ length: 12 }, (_, at) => at + 1) as at (at)}<Input label={`Detail ${at}`} />{/each}
+        </section>
+        <section class="pane start" aria-label="Start">
+          {#each Array.from({ length: 30 }, (_, at) => at + 1) as at (at)}<p>Template {at}</p>{/each}
+        </section>
+      </div>
+    </CreatePage>
+  </div>
+{:else}
 <CreatePage
   head={{
     title: 'New access token',
@@ -56,4 +80,14 @@
   </FormLayout>
 </CreatePage>
 
+{/if}
+
 {#snippet refused()}<Refused what="how to create a token" />{/snippet}
+
+<style>
+  .region { display: flex; flex-direction: column; block-size: calc(var(--layout-dialog-l) - var(--sp-1000)); border: var(--bw-hairline) solid var(--border-subtle); }
+  .panes { display: grid; grid-template-columns: var(--layout-pane-width) minmax(0, 1fr); min-block-size: 0; block-size: 100%; }
+  .pane { display: grid; align-content: start; gap: var(--sp-200); min-block-size: 0; overflow: auto; padding: var(--sp-300); }
+  .details { background: var(--bg-surface); border-inline-end: var(--bw-hairline) solid var(--border-subtle); }
+  .start p { margin: 0; }
+</style>

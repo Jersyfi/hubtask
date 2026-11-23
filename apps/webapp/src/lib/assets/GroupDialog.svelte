@@ -8,12 +8,13 @@
   //
   // **A group is a filter, never a list of objects** (UC-AST-11, *Where it ends*).
   import { untrack } from 'svelte';
-  import { Button, CheckboxGroup, Dialog, Input, Select, Stack, Textarea, type SelectOption } from '@hubtask/design-system/components';
+  import { Button, Dialog, Input, MultiSelect, Select, Stack, Textarea, type SelectOption } from '@hubtask/design-system/components';
   import FailureNote from '../frame/FailureNote.svelte';
   import type { CiClass, CiGroup, CiGroupFilter } from '@hubtask/sync-engine';
 
   import { CI_STAGES, classWord, cmdb, groupDefine, groupDraft, groupMissing, instantiable, type GroupDraft, type Words } from '../data/cmdb.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
+  import { FROM_DATA, chooseSeveral } from '../forms/chooseSeveral.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -75,8 +76,8 @@
       {#if note}<p class="note" data-group-note>{note}</p>{/if}
       {#if !editing}<Input label={t('app.cmdb_admin.key')} hint={t('app.cmdb_admin.key_hint')} bind:value={draft.key} maxlength={63} isRequired />{/if}
       <Input label={t('app.ci_groups.name')} bind:value={draft.name} maxlength={200} isRequired />
-      <CheckboxGroup label={t('app.ci_groups.classes')} hint={t('app.ci_groups.classes_hint')} options={classChecks} selected={draft.classes} onChange={(next) => (draft.classes = [...next])} />
-      <CheckboxGroup label={t('app.ci_groups.stages')} options={stageChecks} selected={draft.stages} onChange={(next) => (draft.stages = [...next] as GroupDraft['stages'])} />
+      <MultiSelect label={t('app.ci_groups.classes')} presentation={FROM_DATA} hint={t('app.ci_groups.classes_hint')} options={classChecks} selected={draft.classes} onChange={(next) => (draft.classes = [...next])} {...chooseSeveral()} />
+      <MultiSelect label={t('app.ci_groups.stages')} options={stageChecks} selected={draft.stages} onChange={(next) => (draft.stages = [...next] as GroupDraft['stages'])} {...chooseSeveral()} />
       <Input label={t('app.ci_groups.name_has')} bind:value={draft.nameHas} maxlength={200} />
       <Textarea label={t('app.ci_groups.conditions')} hint={t('app.ci_groups.conditions_hint')} rows={3} bind:value={draft.conditions} />
       {#if keptText}<p class="meta" data-group-kept>{t('app.inventory.group_kept', { conditions: keptText })}</p>{/if}

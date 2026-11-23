@@ -146,6 +146,10 @@ export class Router {
   #move: Move = 'replace';
   #entry = '';
   #entries = 0;
+  /** The step of the current screen that *back* closes, while one is open (`hold`). */
+  #held: { readonly onback: () => void } | undefined;
+  /** The *back*s this router went itself, whose `popstate` moves nothing. */
+  #ownBacks = 0;
 
   /**
    * `fullLoad` may take a navigation as a full page load instead - a newer release to load
@@ -192,6 +196,8 @@ export class Router {
     if (addressOf(path) === this.#address()) return;
     if (this.#admits && !this.#admits(path)) return;
     if (this.#fullLoad?.(path)) return;
+    // A step goes with its screen: its release must not go *back* from the next one.
+    this.#held = undefined;
     this.#entry = this.#newEntry();
     history.pushState({ entry: this.#entry }, '', path);
     this.#apply(path, 'push');
@@ -203,8 +209,26 @@ export class Router {
    */
   replace(path: string): void {
     if (addressOf(path) === this.#address()) return;
+    this.#held = undefined;
     history.replaceState({ entry: this.#entry }, '', path);
     this.#apply(path, 'replace');
+  }
+
+  /**
+   * Holds a step of the current screen in the session history: a layer over it that *back* closes
+   * - the phone's second step of creating a hub. The address stays; *back* calls `onback` instead
+   * of moving, and the release - the step closed another way - takes its entry out again.
+   */
+  hold(onback: () => void): () => void {
+    const held = { onback };
+    this.#held = held;
+    history.pushState({ entry: this.#entry, isHeld: true }, '', this.#address());
+    return () => {
+      if (this.#held !== held) return;
+      this.#held = undefined;
+      this.#ownBacks += 1;
+      history.back();
+    };
   }
 
   #newEntry(): string {
@@ -227,6 +251,24 @@ export class Router {
     this.#entry = typeof kept === 'string' ? kept : this.#newEntry();
     if (kept !== this.#entry) history.replaceState({ ...(history.state ?? {}), entry: this.#entry }, '');
     const onPopState = (event: PopStateEvent) => {
+      if (this.#ownBacks > 0) {
+        this.#ownBacks -= 1;
+        // A step's own release lands on its screen's address; stepping over a step a navigation
+        // left behind lands on another screen, which is applied like any *back*.
+        if (addressOf(window.location.pathname + window.location.search) === this.#address()) return;
+      }
+      const held = this.#held;
+      if (held) {
+        this.#held = undefined;
+        held.onback();
+        return;
+      }
+      // *Forward* into a step that has closed: there is nothing to show there, so back out of it.
+      if ((event.state as { isHeld?: unknown } | null)?.isHeld === true) {
+        this.#ownBacks += 1;
+        history.back();
+        return;
+      }
       const path = window.location.pathname + window.location.search;
       // The browser has already moved the address; a held move puts it back, so the address and
       // the screen agree while the reader decides.
@@ -250,6 +292,12 @@ export class Router {
     };
     window.addEventListener('popstate', onPopState);
     document.addEventListener('click', onClick);
+    // A load - a reload - on a held step's entry: no step is open, so the entry holds nothing, and
+    // the first back would stay on the same address. Stepping back off it drops it.
+    if ((history.state as { isHeld?: unknown } | null)?.isHeld === true) {
+      this.#ownBacks += 1;
+      history.back();
+    }
     return () => {
       window.removeEventListener('popstate', onPopState);
       document.removeEventListener('click', onClick);

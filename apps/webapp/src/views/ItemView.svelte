@@ -94,7 +94,7 @@
   import { commentsPath } from '../lib/data/comments.svelte.ts';
   import { addressedComment } from '../lib/data/comments.ts';
   import { engine } from '../lib/data/engine.ts';
-  import { entryEditOf, inlineWriteOf, type EntryDraft, type EntryEdit, type TextField } from '../lib/data/edits.ts';
+  import { entryEditOf, entryShown, inlineWriteOf, type EntryDraft, type EntryEdit, type TextField } from '../lib/data/edits.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { labels } from '../lib/data/labels.svelte.ts';
   import { attachmentsPath, media } from '../lib/data/media.svelte.ts';
@@ -202,7 +202,9 @@
   const entry = resource<WorkItem>(untrack(() => itemPath(id)));
   const history = resource<ActivityPage>(untrack(() => activityPath(id)));
 
-  const item = $derived(entry.state.status === 'ready' ? entry.state.data : undefined);
+  /** What the reader's last edit in place answered, held until a read of it lands (`entryShown`). */
+  let written = $state<WorkItem | undefined>(undefined);
+  const item = $derived(entryShown(entry.state.status === 'ready' ? entry.state.data : undefined, written));
 
 
   // The bar carries the title on a phone (ADR-0061 decision 2); on every width the head's `h1`
@@ -1251,7 +1253,7 @@
     writeFailure = undefined;
     isTitleFailure = false;
     try {
-      await items.update(id, edit, version);
+      written = await items.update(id, edit, version);
       announcer.say(t('app.entries.saved_announced'));
       return 'written';
     } catch (error) {
@@ -1358,7 +1360,7 @@
     overwriteFailure = undefined;
     const id = item.id;
     try {
-      await items.update(id, edit, item.version);
+      written = await items.update(id, edit, item.version);
     } catch (error) {
       overwriteFailure = renderProblem(error as never, messages);
       announcer.say(t('app.sync.meanwhile.not_written'));

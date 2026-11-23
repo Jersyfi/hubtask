@@ -3,7 +3,7 @@
 <script lang="ts">
   // One key of the installation's defaults, edited with the control of its kind (UC-INS-09 checks
   // 1 to 3): a count is a number field within the product's bounds, a flag and a choice are
-  // choices in words, a list of choices is a set of checkboxes, a link an address, a language and
+  // choices in words, a list of choices is `MultiSelect`, a link an address, a language and
   // a zone the lists the workspace's own screen offers.
   //
   // **Every control can say "not decided"**, because that is a value of the level: the key is the
@@ -13,9 +13,10 @@
   // may make a rule stricter, raise a limit, use its own link. A key without a value has nothing to
   // lock, and a language, a zone and a week start are defaults that are never locked.
 
-  import { Checkbox, Input, Select } from '@hubtask/design-system/components';
+  import { Input, MultiSelect, Select } from '@hubtask/design-system/components';
   import type { InstanceSetting } from '@hubtask/sync-engine';
 
+  import { chooseSeveral } from '../forms/chooseSeveral.ts';
   import { formatBytes } from '../i18n/bytes.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { languageName } from '../i18n/locale.ts';
@@ -63,8 +64,9 @@
 
   const chosen = $derived(decided && Array.isArray(current?.value) ? (current?.value as string[]) : []);
 
-  function toggle(option: string, on: boolean): void {
-    const next = (declared.options ?? []).map(String).filter((each) => (each === option ? on : chosen.includes(each)));
+  /** In the declaration's order, whatever order they were ticked in; none chosen is undecided. */
+  function choose(selected: readonly string[]): void {
+    const next = (declared.options ?? []).map(String).filter((each) => selected.includes(each));
     put(next.length === 0 ? undefined : next);
   }
 
@@ -122,18 +124,16 @@
       {error}
     />
   {:else if declared.kind === 'CHOICES'}
-    <fieldset class="choices">
-      <legend>{label}</legend>
-      <p class="hint">{decided ? '' : undecided}</p>
-      {#each choices as choice (choice.value)}
-        <Checkbox
-          label={choice.label}
-          checked={chosen.includes(choice.value)}
-          onchange={(event) => toggle(choice.value, (event.currentTarget as HTMLInputElement).checked)}
-        />
-      {/each}
-      {#if error}<p class="refusal" role="alert">{error}</p>{/if}
-    </fieldset>
+    <MultiSelect
+      {label}
+      {...named}
+      options={choices}
+      selected={chosen}
+      onChange={choose}
+      hint={decided ? undefined : undecided}
+      {error}
+      {...chooseSeveral()}
+    />
   {:else if declared.kind === 'LOCALE' && locales.length > 0}
     <Select
       {label}
@@ -201,17 +201,4 @@
 
   /* In a setting row the row draws the line between settings and names the value. */
   .value[data-in-row] { padding-block-end: 0; border-block-end: 0; grid-template-columns: minmax(0, 1fr); }
-
-  .choices { margin: 0; padding: 0; border: 0; display: grid; gap: var(--sp-050); }
-
-  .choices legend {
-    padding: 0;
-    color: var(--text-primary);
-    font-size: var(--fs-075);
-    font-weight: var(--fw-medium);
-  }
-
-  .hint { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
-
-  .refusal { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
 </style>

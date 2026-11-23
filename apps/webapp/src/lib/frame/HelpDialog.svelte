@@ -12,6 +12,7 @@
   import { accounts } from '../data/accounts.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { people } from '../data/people.svelte.ts';
+  import { mayReadWorkspace } from '../data/capability.svelte.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { SHORTCUTS, type Scope } from '../shortcuts.ts';
   import { recentReferences, supportDetails } from '../support.ts';
@@ -39,9 +40,10 @@
   const docs = $derived(manifest.value?.legal?.docs_url);
   const supportWord = $derived(support?.startsWith('mailto:') ? support.slice('mailto:'.length) : support);
 
-  // The workspace's short name, read while the dialog is open; a reader the read refuses copies a dash.
+  // The workspace's short name, read while the dialog is open where the reader may read it; any
+  // other reader copies a dash.
   $effect(() => {
-    if (!isOpen) return;
+    if (!isOpen || mayReadWorkspace() !== true) return;
     return untrack(() => workspace.open());
   });
 

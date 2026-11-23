@@ -1807,6 +1807,19 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"workspace_picture": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportWorkspacePictures(ctx, sqlc.ExportWorkspacePicturesParams{
+				AfterID: cursorText(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportWorkspacePicturesRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"item_attachment": {
 		delta: false,
 		keys:  2,
@@ -2028,6 +2041,20 @@ var exporters = map[string]exporter{
 				Batch:   page.Batch,
 			})
 			return convert(rows, func(r sqlc.ExportPrivateHubAccessesRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
+	"private_hub_access_acknowledgement": {
+		delta: false,
+		keys:  2,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportPrivateHubAccessAcknowledgements(ctx, sqlc.ExportPrivateHubAccessAcknowledgementsParams{
+				AfterID:     cursorUUID(page.After, 0),
+				AfterSecond: cursorUUID(page.After, 1),
+				Batch:       page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportPrivateHubAccessAcknowledgementsRow) exportRow {
 				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
 			}), err
 		},

@@ -182,6 +182,12 @@ func (pending) SetUpInstallation(w http.ResponseWriter, r *http.Request) { notAv
 // The sign-in surface of ADR-0068.
 func (pending) GetSignInRules(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+func (pending) GetWorkspacePicture(
+	w http.ResponseWriter, r *http.Request, _ openapi.MediaId, _ openapi.GetWorkspacePictureParams,
+) {
+	notAvailable(w, r)
+}
+
 func (pending) ChangePassword(w http.ResponseWriter, r *http.Request, _ openapi.ChangePasswordParams) {
 	notAvailable(w, r)
 }
@@ -1655,6 +1661,10 @@ func (pending) ListEmergencyNotices(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
+func (pending) AcknowledgeEmergencyNotice(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
 // ListOwnIdentities is overridden by RestController, for the reason given at CreateContainer.
 func (pending) ListOwnIdentities(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
@@ -2372,6 +2382,22 @@ func (pending) SetDeskLogo(w http.ResponseWriter, r *http.Request, _ openapi.Con
 }
 
 func (pending) RemoveDeskLogo(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadWorkspaceLook(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) SetWorkspaceHeader(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) SetWorkspacePicture(w http.ResponseWriter, r *http.Request, _ openapi.WorkspacePicture) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveWorkspacePicture(w http.ResponseWriter, r *http.Request, _ openapi.WorkspacePicture) {
 	notAvailable(w, r)
 }
 

@@ -32,7 +32,7 @@
       <p class="kicker">In practice</p>
       <h2>What was built rather than reviewed</h2>
     </div>
-    <ul class="ticks ticks-2">
+    <ul class="site-ticks ticks-2">
       <li>
         <strong>Contrast is measured, not eyeballed</strong>
         Every colour pair the design system declares is measured in both light and dark on every
@@ -109,7 +109,7 @@
       </div>
       <div>
         <h3>Known exceptions</h3>
-        <ul class="ticks">
+        <ul class="site-ticks">
           <li>
             <strong>Screen readers, 16 September 2026.</strong> Not yet walked with VoiceOver, NVDA
             or Orca (see the status). The structure a reader consumes — names, roles, states,

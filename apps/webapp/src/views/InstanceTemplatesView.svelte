@@ -9,7 +9,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, CheckboxGroup, DataTable, Dialog, EmptyState, FilterBar, Input, ListPage, Select, Spinner, Stack, type DataColumn, type MenuItem } from '@hubtask/design-system/components';
+  import { Button, DataTable, Dialog, EmptyState, FilterBar, Input, ListPage, MultiSelect, Select, Spinner, Stack, type DataColumn, type MenuItem } from '@hubtask/design-system/components';
   import type { InstallationPreset } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
@@ -19,6 +19,7 @@
   import { instance } from '../lib/data/instance.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
+  import { chooseSeveral } from '../lib/forms/chooseSeveral.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { installationTrail } from '../lib/instance/trail.ts';
   import { matchesSearch } from '../lib/page/list.ts';
@@ -299,12 +300,13 @@
     />
     {#if chosenDefault}
       <div data-installation-preset-locks>
-        <CheckboxGroup
+        <MultiSelect
           label={t('app.instance.presets_locks_label', { name: chosenDefault.name })}
           hint={t('app.instance.presets_locks_hint')}
           options={lockOptions}
           selected={lockedSettings}
           onChange={chooseLocks}
+          {...chooseSeveral()}
         />
         {#if capabilityLocks.length > 0}
           <p class="quiet">{t('app.instance.presets_field_locks', { count: String(capabilityLocks.length) })}</p>

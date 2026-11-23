@@ -460,6 +460,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `container.deleted` | TrashContainer | `container` | NOTICE | Every time |
 | `container.emergency_access_opened` | OpenPrivateHub | `container` | NOTICE | Every time |
 | `container.emergency_accesses_read` | ListPrivateHubAccesses | `container` | INFO | When refused |
+| `container.emergency_notice_acknowledged` | AcknowledgeEmergencyNotice | `container` | INFO | The first time |
 | `container.emergency_notices_read` | ListEmergencyNotices | `account` | INFO | When refused |
 | `container.moved` | MoveContainer | `container` | INFO | Every time |
 | `container.moved` | PreviewContainerMove | `container` |  | When refused |
@@ -1400,7 +1401,11 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `workspace.changed` | UpdateWorkspace | `workspace` | NOTICE | Every time |
 | `workspace.device_list_entry_read` | IssueDeviceListEntry | `workspace` | INFO | When refused |
+| `workspace.header_changed` | SetWorkspaceHeader | `workspace` | NOTICE | Every time |
+| `workspace.picture_removed` | RemoveWorkspacePicture | `workspace` | NOTICE | Every time |
+| `workspace.picture_set` | SetWorkspacePicture | `workspace` | NOTICE | Every time |
 | `workspace.read` | ReadWorkspace | `workspace` | INFO | When refused |
+| `workspace.read` | ReadWorkspaceLook | `workspace` | INFO | When refused |
 | `workspace.starter_closed` | ApplyStarter | `workspace` | INFO | Every time |
 | `workspace.starter_closed` | CloseStarter | `workspace` | INFO | Every time |
 | `workspace.structure_previewed` | PreviewWorkspaceStructure | `workspace` | INFO | When refused |

@@ -6,13 +6,38 @@
   import Inline from './Inline.svelte';
   import Popover from './Popover.svelte';
   import Stack from './Stack.svelte';
+  import { setCloseLabel } from './media.ts';
 
-  const { mode = 'filter' }: { mode?: 'filter' | 'nested' } = $props();
+  const { mode = 'filter' }: { mode?: 'filter' | 'nested' | 'sheet' } = $props();
 
   let open = $state(false);
+  let sheetOpen = $state(false);
+
+  // What the application sets once in its language; a popover becomes a sheet only with it.
+  $effect(() => {
+    if (mode !== 'sheet') return;
+    setCloseLabel('Close');
+    return () => setCloseLabel(undefined);
+  });
 </script>
 
-{#if mode === 'nested'}
+{#if mode === 'sheet'}
+  <!-- At a phone's width the popover is a bottom sheet, and `sheetActions` is its foot: a list's
+       *Done*. Wider, it is the anchored popover and the foot is not drawn. -->
+  <Popover label="Labels" bind:isOpen={sheetOpen}>
+    {#snippet trigger(props)}
+      <Button icon="tag" {...props}>Labels</Button>
+    {/snippet}
+    {#snippet sheetActions()}
+      <Button tone="primary" onclick={() => (sheetOpen = false)}>Done</Button>
+    {/snippet}
+    <Stack gap="150">
+      <Checkbox label="Urgent" />
+      <Checkbox label="Waiting" />
+      <Checkbox label="Customer" />
+    </Stack>
+  </Popover>
+{:else if mode === 'nested'}
   <!-- Two layers, which is where the register earns its keep: `Escape` closes the popover and
        leaves the one underneath open (design-system.md §6). -->
   <Popover label="Filter">

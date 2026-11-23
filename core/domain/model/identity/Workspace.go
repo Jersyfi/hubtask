@@ -29,6 +29,9 @@ type Workspace struct {
 	PasswordOpening PasswordOpening
 	UpdatedAt       time.Time
 	Version         int
+	// Branding is the workspace's own pictures and what its header shows (ADR-0112). Read with the
+	// row and written by its own use cases, never through the workspace's PATCH.
+	Branding Branding
 	// Plan is the plan the workspace is on, as far as the sign-in rule and the legal links need it
 	// (multi-tenancy.md §4.2). The zero value is no plan. Read with the row, never written through
 	// it: a workspace is moved by the control plane alone.

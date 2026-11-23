@@ -236,6 +236,8 @@ export type AccountSummary = components['schemas']['AccountSummary'];
 /** A private hub as an administrator sees it: whose and how big, never its name (ADR-0073 §3). */
 export type PrivateHubSummary = components['schemas']['PrivateHubSummary'];
 export type PrivateHubAccess = components['schemas']['PrivateHubAccess'];
+/** An access a person was told of, with when that person confirmed it (`null` until then). */
+export type EmergencyNotice = components['schemas']['EmergencyNotice'];
 /** A session's view as another person (UC-ID-29): read only, online only. */
 export type ViewAs = components['schemas']['ViewAs'];
 /** The suite's modules at a place, each on or off with where that comes from (UC-INS-21). */
@@ -540,6 +542,14 @@ export type StructureChange = components['schemas']['StructureChange'];
 export type StructurePreview = components['schemas']['StructurePreview'];
 export type WorkspaceStructure = components['schemas']['WorkspaceStructure'];
 export type WorkspaceStructureChange = components['schemas']['WorkspaceStructureChange'];
+/** The workspace's own name and logo as stored, and whether it may show them now (ADR-0112). */
+export type WorkspaceBranding = components['schemas']['WorkspaceBranding'];
+export type WorkspaceHeader = components['schemas']['WorkspaceHeader'];
+/** The workspace's name and look as every member reads them (ADR-0112). */
+export type WorkspaceLook = components['schemas']['WorkspaceLook'];
+export type WorkspacePicture = components['schemas']['WorkspacePicture'];
+/** The pictures the sign-in card draws at a workspace's own address. */
+export type SignInPictures = components['schemas']['SignInPictures'];
 /**
  * What counts in a collection, counted by the server on the collection's read for the reader
  * (domain-model.md §2): numbers and dates, which the client phrases. Never in a change record, so a

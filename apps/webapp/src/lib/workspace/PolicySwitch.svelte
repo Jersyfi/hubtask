@@ -1,18 +1,15 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // *Private hubs allowed* (ADR-0073 §6, UC-ID-16 check 7): one switch, with where its value came
-  // from and whether a level above locked it.
-  //
-  // **Here rather than on *Sign-in*.** It is stored and resolved with the sign-in rule's switches -
-  // the installation's and the plan's default and lock are that rule's - but it is not a way in, and
-  // the one place a person looks for whether private hubs may be made is the page that lists them.
-  // It stands in that list page's intro, flat on the canvas: the in-place rung of page-system §5.1.
+  // One switch of the sign-in rule that is not a way in - *Private hubs allowed* (ADR-0073 §6,
+  // UC-ID-16 check 7) and *Own logo and name* (ADR-0112, levelled as the first): one switch, with
+  // where its value came from and whether a level above locked it. Each is drawn where a person looks
+  // for it, flat on the canvas: the in-place rung of page-system §5.1.
   //
   // **It acts at once, behind the step-up**, as every switch of the rule does: one row is not a
-  // form. It shows its work in place and says it landed as a passing message. Off stops new private
-  // hubs only; the sentence under the switch says so, because the question a person has before
-  // switching is whether the hubs already there open up. They do not.
+  // form. It shows its work in place and says it landed as a passing message. The hint under the
+  // switch says what off does to what is already there, because that is the question a person has
+  // before switching.
   //
   // **What a level above decided is not offered.** A lock keeps the switch's value and switches the
   // control off with the reason; the chip beside it says whose value it is and whom to ask
@@ -27,9 +24,22 @@
   import { t } from '../i18n/i18n.svelte.ts';
   import ValueSource from './ValueSource.svelte';
 
+  interface Props {
+    /** The switch of the rule, as `sign_in_policy` names it. */
+    key: 'private_hubs' | 'own_branding';
+    label: string;
+    hint: string;
+    /** Why it cannot be switched on here where a level above switched it off without a lock. */
+    offAbove: string;
+    /** The passing message once it landed. */
+    saved: string;
+  }
+
+  const { key, label, hint, offAbove, saved }: Props = $props();
+
   $effect(() => untrack(() => signInPolicy.open()));
 
-  const setting = $derived(signInPolicy.policy?.private_hubs);
+  const setting = $derived(signInPolicy.policy?.[key]);
   let refusal = $state<string | undefined>(undefined);
   let isSaving = $state(false);
 
@@ -41,8 +51,7 @@
 
   const disabledReason = $derived.by(() => {
     if (!setting) return undefined;
-    return lockedBecause(setting.lock)
-      ?? (setting.installation ? undefined : t('app.private_hubs.allowed_off_above'));
+    return lockedBecause(setting.lock) ?? (setting.installation ? undefined : offAbove);
   });
 
   async function change(event: Event) {
@@ -51,24 +60,24 @@
     const next = control.checked;
     refusal = undefined;
     isSaving = true;
-    const problem = await signInPolicy.saveAtOnce({ private_hubs: next });
+    const problem = await signInPolicy.saveAtOnce({ [key]: next });
     isSaving = false;
     if (problem) {
-      refusal = problem.fields.get('/sign_in_policy/private_hubs') ?? problem.message;
+      refusal = problem.fields.get(`/sign_in_policy/${key}`) ?? problem.message;
       // The read is what is in force; the control goes back to it.
       control.checked = !next;
       return;
     }
-    toast.show({ text: t('app.private_hubs.allowed_saved'), tone: 'success' });
+    toast.show({ text: saved, tone: 'success' });
   }
 </script>
 
 {#if setting}
-  <div class="allowed" data-private-hubs-allowed>
+  <div class="allowed" data-policy-switch={key}>
     <Stack gap="100">
       <Switch
-        label={t('app.private_hubs.allowed')}
-        hint={t('app.private_hubs.allowed_hint')}
+        {label}
+        {hint}
         checked={setting.value}
         onchange={change}
         isBusy={isSaving}

@@ -61,6 +61,8 @@ type objects struct {
 	referenced map[shared.ID]bool
 	// avatars are the objects some account shows as its picture.
 	avatars map[shared.ID]bool
+	// workspace are the objects the workspace shows as one of its own pictures.
+	workspace map[shared.ID]bool
 	// boards are the hubs of the boards drawing each object.
 	boards map[shared.ID][]shared.ID
 	// pagesHolding are the pages holding each object.
@@ -81,6 +83,7 @@ func newObjects() *objects {
 		refs:       map[shared.ID][]repository.ItemRef{},
 		referenced: map[shared.ID]bool{},
 		avatars:    map[shared.ID]bool{},
+		workspace:  map[shared.ID]bool{},
 		pages:      map[shared.ID]repository.ObjectPage{},
 		asked:      map[shared.ID]workrepo.Page{},
 	}
@@ -174,6 +177,10 @@ func (o *objects) ServedDesks(_ context.Context, id shared.ID) ([]shared.ID, err
 
 func (o *objects) ServesAvatar(_ context.Context, id shared.ID) (bool, error) {
 	return o.avatars[id], nil
+}
+
+func (o *objects) ServesWorkspace(_ context.Context, id shared.ID) (bool, error) {
+	return o.workspace[id], nil
 }
 
 func (o *objects) ListForItem(

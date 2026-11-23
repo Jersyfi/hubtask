@@ -358,7 +358,8 @@ test('chromium: a line is saved as a group, and a line a group cannot hold says 
   await page.locator('[data-save-group]').click();
   await dialog.waitFor({ timeout: 5_000 });
   assert.equal(await dialog.locator('[data-group-note]').count(), 0);
-  assert.equal(await dialog.getByRole('checkbox', { name: 'Laptop' }).isChecked(), true);
+  // The object types come from the inventory's data: one field, Laptop chosen (design-system.md §4).
+  assert.deepEqual(await dialog.getByRole('button', { name: /^Object types/u }).locator('.chips:not(.measure) .chip').allTextContents(), ['Laptop']);
   assert.match(await dialog.locator('[data-group-kept]').innerText(), /Owner: nobody/);
   await dialog.getByLabel('Key', { exact: false }).first().fill('laptops_unowned');
   await dialog.getByRole('textbox', { name: /^Name/ }).fill('Laptops without an owner');

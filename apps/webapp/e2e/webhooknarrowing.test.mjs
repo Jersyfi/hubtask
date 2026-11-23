@@ -15,6 +15,7 @@ import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { COLLECTION, HUB, MANIFEST, signedIn, stub } from './fixture.mjs';
+import { chipsOf, describedBy, focused } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -102,6 +103,70 @@ test('chromium: a subscription takes a condition and a scope, and says both back
   });
   assert.deepEqual(failures, []);
 });
+
+// The events one by one are one field over the manifest's types in their groups (design-system.md
+// §4): it opens on its named groups, a press ticks, Escape closes the list and the dialog keeps the
+// address typed, and the subscription sends the types in the order ticked.
+const EVENTS = ['created', 'updated', 'completed', 'overdue'].map((name) => `de.hubtask.work.item.${name}.v1`)
+  .concat(['created', 'renamed', 'archived'].map((name) => `de.hubtask.work.container.${name}.v1`));
+for (const width of [1280, 390]) {
+  test(`chromium: ${width} px - the events one by one are one field in their groups, and the dialog keeps what was entered`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { page, failures, context } = await signedIn(browser, width, 900);
+    t.after(() => context.close());
+    let sent;
+    // The subscriptions as the server holds them after the write, not before (e2e/AGENTS.md).
+    const stored = [];
+    await context.unroute('**/api/v1/**');
+    await context.route('**/api/v1/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (url.pathname.endsWith('/meta/capabilities')) return route.fulfill({ json: { ...MANIFEST, event_types: EVENTS } });
+      if (url.pathname.endsWith('/integrations/webhooks') && request.method() === 'POST') {
+        sent = request.postDataJSON();
+        const made = { ...SUBSCRIPTION, ...sent, id: '01a0e2e0-0000-7000-8000-000000001803' };
+        stored.push(made);
+        return route.fulfill({ status: 201, json: { ...made, secret: 'whsec_e2e' } });
+      }
+      if (url.pathname.endsWith('/integrations/webhooks')) return route.fulfill({ json: stored });
+      return stub(route);
+    });
+
+    await page.goto(`${served.origin}/administration/webhooks`);
+    await page.getByRole('button', { name: 'Add a webhook' }).first().click();
+    const dialog = page.getByRole('dialog', { name: 'Add a webhook' });
+    await dialog.getByLabel('Where to deliver').fill('https://example.org/hooks/each');
+    await dialog.getByRole('button', { name: /^Advanced/ }).click();
+    const field = dialog.getByRole('button', { name: /^Events one by one/u });
+    assert.equal(await field.getAttribute('aria-haspopup'), 'listbox', 'the events one by one are not one field');
+    assert.match(await describedBy(field), /^These are the events this installation emits\./u);
+    await field.focus();
+    await page.keyboard.press('Enter');
+    const list = page.getByRole('listbox', { name: 'Events one by one' });
+    await list.waitFor({ timeout: 5_000 });
+    assert.deepEqual(
+      await list.getByRole('group').evaluateAll((groups) => groups.map((group) => document.getElementById(group.getAttribute('aria-labelledby'))?.textContent)),
+      ['Entries', 'Hubs and collections'],
+    );
+    await list.getByRole('option', { name: 'An entry is overdue', exact: true }).click();
+    await list.getByRole('option', { name: 'A hub or collection is archived', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await list.waitFor({ state: 'detached', timeout: 5_000 });
+    assert.ok(await dialog.isVisible(), 'Escape on the list closed the dialog');
+    assert.match(await focused(page), /^button "Events one by one /u, 'closing the list left focus elsewhere');
+    assert.equal(await dialog.getByLabel('Where to deliver').inputValue(), 'https://example.org/hooks/each');
+    assert.deepEqual(await chipsOf(field), ['An entry is overdue', 'A hub or collection is archived']);
+
+    const posted = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith('/integrations/webhooks'), { timeout: 5_000 });
+    await dialog.getByRole('button', { name: 'Subscribe', exact: true }).last().click();
+    await posted;
+    assert.deepEqual(sent.event_types, [EVENTS[3], EVENTS[6]]);
+    // The screen after the write: the page read again lists the subscription with its address.
+    await page.reload();
+    await page.getByRole('main').getByText('https://example.org/hooks/each').first().waitFor({ timeout: 10_000 });
+    assert.deepEqual(failures, []);
+  });
+}
 
 // The column counts a connection switched off after failures on the *Webhooks* row, on every
 // screen of the administration, before the webhooks are opened (user-experience.md §7.10).

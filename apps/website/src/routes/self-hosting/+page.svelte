@@ -102,7 +102,7 @@ docker compose -f deploy/docker/compose.yaml up -d
       </div>
       <div>
         <h4>Two details that matter at three in the morning</h4>
-        <ul class="ticks">
+        <ul class="site-ticks">
           <li>
             <strong>No trust on first use over SFTP</strong>
             A target names the host’s public key or its fingerprint, or it is refused. There is no

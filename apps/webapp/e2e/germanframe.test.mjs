@@ -153,3 +153,31 @@ test('chromium: 1280 px — the installation asks for its proof once and reads n
   await page.getByRole('button', { name: 'Nachweisen und weiter' }).waitFor({ timeout: 5_000 });
   assert.deepEqual(failures, []);
 });
+
+// The document's `lang` is what a screen reader picks its voice from: it turns German when the
+// German words are drawn, never while their catalogue is still on its way.
+test('chromium: 1280 px — the document says German once its words are German, not before', async (t) => {
+  const browser = await sharedChromium(t);
+  const { context, page, failures } = await german(browser);
+  t.after(() => context.close());
+  let release;
+  const held = new Promise((resolve) => { release = resolve; });
+  let asked;
+  const chunkAsked = new Promise((resolve) => { asked = resolve; });
+  await context.route(/\/assets\/de-[^/]*\.js$/, async (route) => {
+    asked();
+    await held;
+    return route.fallback();
+  });
+
+  await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
+  await chunkAsked;
+  const level = page.locator('aside.sidenav').getByRole('region', { name: HUB.name });
+  await level.getByRole('button', { name: 'All hubs' }).waitFor({ timeout: 15_000 });
+  assert.equal(await page.evaluate(() => document.documentElement.lang), 'en', 'the document says German over English words');
+
+  release();
+  await isGerman(page);
+  assert.equal(await level.getByRole('button', { name: 'Alle Hubs' }).count(), 1, 'the document said German before its words were');
+  assert.deepEqual(failures, []);
+});

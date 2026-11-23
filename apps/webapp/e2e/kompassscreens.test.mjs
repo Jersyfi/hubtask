@@ -266,11 +266,11 @@ test('UC-WRK-36 check 18: a new collection offers the Desk kind where the hub ha
   await openNewCollection(page);
   const dialog = page.locator('dialog[open]');
   await kindChoice(dialog, 'Desk').waitFor({ timeout: 10_000 });
-  const card = dialog.locator('[data-collection-kind="desk"]');
-  assert.ok((await card.textContent()).includes('Requests through the portal'), 'the desk card says what it is for');
+  const words = await kindChoice(dialog, 'Desk').evaluate((radio) => radio.closest('label')?.textContent ?? '');
+  assert.ok(words.includes('Requests through the portal'), 'the desk tile says what it is for');
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/live-newcoll.png` });
   await dialog.getByRole('textbox', { name: 'Name' }).fill('Help');
-  await kindChoice(dialog, 'Desk').click();
+  await kindChoice(dialog, 'Desk').check();
   // The dialog's primary is its own button at its foot (page-system §5.1), named for what it does.
   await dialog.getByRole('button', { name: 'Create', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('dialog[open]') === null, null, { timeout: 10_000 });
@@ -294,8 +294,8 @@ test('UC-WRK-36 check 18: without a portal type in the hub the Desk kind says wh
   await openNewCollection(page);
   const dialog = page.locator('dialog[open]');
   await kindChoice(dialog, 'Desk').waitFor({ timeout: 10_000 });
-  assert.ok((await dialog.locator('[data-collection-kind="desk"]').textContent()).includes('Needs a portal type in the hub'));
-  assert.equal(await kindChoice(dialog, 'Desk').getAttribute('aria-disabled'), 'true', 'a desk without a portal type can be chosen');
+  assert.ok((await kindChoice(dialog, 'Desk').evaluate((radio) => radio.closest('label')?.textContent ?? '')).includes('Needs a portal type in the hub'));
+  assert.equal(await kindChoice(dialog, 'Desk').isDisabled(), true, 'a desk without a portal type can be chosen');
   assert.deepEqual(failures, []);
 });
 
@@ -319,7 +319,7 @@ test('a new collection of the kind Scrum starts from Project and opens on its sp
   await dialog.getByRole('heading', { name: `New collection in ${PD.name}` }).waitFor({ timeout: 10_000 });
   await kindChoice(dialog, 'Scrum').waitFor({ timeout: 10_000 });
   await dialog.getByRole('textbox', { name: 'Name' }).fill('Platform');
-  await kindChoice(dialog, 'Scrum').click();
+  await kindChoice(dialog, 'Scrum').check();
   await dialog.getByRole('button', { name: 'Create', exact: true }).click();
   await at(page, `/collections/${MADE.id}/sprint`);
   assert.equal(written[0]?.preset, 'PROJECT', 'Scrum starts from Project');

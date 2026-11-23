@@ -266,6 +266,7 @@ var signInPaths = map[identity.PolicySwitch][]string{
 	identity.SwitchSessionIdleMinutes: {"session", "idle_minutes"},
 	identity.SwitchManagedAccounts:    {"managed_accounts"},
 	identity.SwitchPrivateHubs:        {"private_hubs"},
+	identity.SwitchOwnBranding:        {"own_branding"},
 }
 
 func signInPath(name identity.PolicySwitch) ([]string, bool) {

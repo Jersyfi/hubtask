@@ -17,6 +17,13 @@ export const idle: Story = {
     'The native input is transparent and on top, never hidden: hiding it would take the keyboard and the screen reader with it. The drop target is an **addition** — a person who cannot drag can always press, and the button is the path that always exists.',
 };
 
+export const touch: Story = {
+  name: 'On a touch screen, the button alone',
+  about:
+    'Where the pointer is coarse - a phone, a tablet - nothing can be dropped, so the drop words are not drawn and the button stands alone; the target keeps its place. Open this state with the browser\'s device emulation on a touch device to see it; with a mouse it looks as *Choose a file, by button or by drop*.',
+  args: { mode: 'idle' },
+};
+
 export const chosen: Story = {
   name: 'A file is held, and its size is stated',
   about:

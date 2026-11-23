@@ -8,7 +8,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, CheckboxGroup, Dialog, Disclosure, Input, Select, Stack, Textarea, type SelectOption } from '@hubtask/design-system/components';
+  import { Banner, Button, Dialog, Disclosure, Input, MultiSelect, Select, Stack, Textarea, type SelectOption } from '@hubtask/design-system/components';
   import type { Agent, AgentModel, AgentWrite } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
@@ -16,6 +16,7 @@
   import { SHIPPED_ROLES, agents, draftOf, scopeChoices, scopeWordCode, scopesFrom, scopesTicked, type AgentDraft } from '../data/agents.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { people } from '../data/people.svelte.ts';
+  import { byCatalogue, chooseSeveral } from '../forms/chooseSeveral.ts';
   import FailureNote from '../frame/FailureNote.svelte';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -141,12 +142,14 @@
             <Select label={t('app.agents.model')} options={modelOptions} bind:value={draft.model} />
           </div>
           {#if scopeOptions.length > 0}
-            <CheckboxGroup
+            <MultiSelect
               label={t('app.agents.scopes')}
               hint={t('app.agents.scopes_pick_hint')}
+              presentation={byCatalogue(scopeChoices(manifest.value?.token_scopes ?? [], []).length)}
               options={scopeOptions}
               selected={scopesFrom(draft.scopes)}
               onChange={(next) => { if (draft) draft.scopes = scopesTicked(draft.scopes, scopeOffered, next); }}
+              {...chooseSeveral()}
             />
           {/if}
           <Disclosure tone="quiet" label={t('app.agents.scopes_advanced')} isOpen={scopeOptions.length === 0}>

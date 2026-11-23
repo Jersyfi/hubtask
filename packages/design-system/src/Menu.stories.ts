@@ -37,3 +37,10 @@ export const foot: Story = {
     'Set the width to compact or the window to a phone, and open the menu on the last row: neither the room above its button nor the room below holds all fifteen items. The menu opens towards the larger room, shrinks to it and scrolls inside, so every item is reachable without scrolling the page.',
   args: { mode: 'foot' },
 };
+
+export const inDialog: Story = {
+  name: 'Inside a dialog, on a phone',
+  about:
+    'Set the window to a phone and open the step: the dialog fills the screen, and its ⋯ menu opens as a bottom sheet over it. Escape closes the sheet only; the dialog stays with what was typed, and a second Escape closes it.',
+  args: { mode: 'dialog' },
+};

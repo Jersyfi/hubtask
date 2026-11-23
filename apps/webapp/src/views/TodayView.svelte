@@ -81,7 +81,7 @@
   import { capture } from '../lib/capture/capture.svelte.ts';
   import { mayCaptureHere } from '../lib/capture/places.svelte.ts';
   import ContainerMark from '../lib/workspace/ContainerMark.svelte';
-  import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
+  import { createHubPath } from '../lib/workspace/createHub.ts';
   import StarterDialog from '../lib/workspace/StarterDialog.svelte';
   import { workspace } from '../lib/data/workspace.svelte.ts';
   import EntryPlace from '../lib/workspace/EntryPlace.svelte';
@@ -93,7 +93,6 @@
   const { onnavigate }: Props = $props();
   // A requester holding nothing else never stands here: the frame sends them to their portal (PO-2).
 
-  let isCreatingHub = $state(false);
   // The empty workspace's one action: a shared hub with STRUCTURE on the workspace, a private one
   // of one's own where the manifest offers it, nothing otherwise (UC-WRK-01 check 6, UC-ID-16
   // check 1). Not the head's: a workspace with hubs creates them in the navigation (ux-inventory
@@ -348,15 +347,13 @@
       if (next.status === 'ready' && Array.isArray(next.data?.data)) catalogue = next.data.data;
     }));
   });
-  let tryingWith = $state<string | undefined>(undefined);
   function tryProduct(product: { readonly module: string; readonly path: string }): void {
     const template = creation === 'shared' || creation === 'private' ? tryTemplateOf(catalogue, product.module) : undefined;
     if (!template) {
       onnavigate?.(product.path);
       return;
     }
-    tryingWith = template.key;
-    isCreatingHub = true;
+    onnavigate?.(createHubPath({ template: template.key }));
   }
   const hasCompany = $derived(people.along({}).filter((membership) => membership.scope_type === 'TENANT').length > 1);
 
@@ -1052,7 +1049,7 @@
     <EmptyState kind="unused" title={t('app.workspace.no_hubs')} icon="hub">
       {#snippet action()}
         {#if createLabel}
-          <Button icon="plus" onclick={() => { tryingWith = undefined; isCreatingHub = true; }}>{createLabel}</Button>
+          <Button icon="plus" onclick={() => onnavigate?.(createHubPath())}>{createLabel}</Button>
         {/if}
       {/snippet}
     </EmptyState>
@@ -1107,8 +1104,6 @@
 <EntryActions bind:this={actions} onopen={(id) => onnavigate?.(`/items/${id}`)} {onnavigate} />
 
 <StarterDialog bind:isChoosing onstarted={(path) => onnavigate?.(path)} />
-<CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" isPrivateOnly={creation === 'private'} template={tryingWith}
-  oncreated={(id, landing) => { tryingWith = undefined; onnavigate?.(landing ?? `/hubs/${id}`); }} />
 
 <style>
   .news { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-150); }

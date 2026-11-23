@@ -18,14 +18,14 @@ in [`docs/evidence/README.md`](../../../docs/evidence/README.md), "How to walk".
 * **No suite that does not say what it proves.** The comment at the top of a suite names the use
   case checks its walks prove, in a form the documentation gate reads: `UC-ID-12 check 4`,
   `UC-ID-12/4` or `UC-WRK-32 checks 2, 3 and 6`. A suite that proves no use case check says what
-  it holds instead, in a line of that comment that starts `// No use case check:`. The 56 suites
+  it holds instead, in a line of that comment that starts `// No use case check:`. The 55 suites
   that do neither are listed under `no_check_cited` in `bounds.json`; a suite that is not listed
   fails without one of the two.
   `[partial: ci:node; open: a citation below the top comment counts too, whether the walk proves the check it cites, a suite added to the list]`
 * **No fixed wait.** A walk waits for what the person would see — an element, a text, a request
   that left — never for a number of milliseconds: a fixed wait is too short on a slow machine and
   wasted time on a fast one. It is written in two ways, and `bounds.json` lists how many of each
-  a file still has: under `fixed_waits` Playwright's `waitForTimeout`, 355 in all, and under
+  a file still has: under `fixed_waits` Playwright's `waitForTimeout`, 339 in all, and under
   `timer_waits` a timer (`setTimeout`), 37 in all. A file may have fewer and never more, and a
   file that is not listed has none. The timers include a stub that answers late on purpose and a
   loop that asks again until a request has left; the count does not tell them from a plain wait.

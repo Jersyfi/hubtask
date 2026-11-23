@@ -21,6 +21,8 @@
 <script lang="ts">
   // The board templates (user-experience.md §5.2, §7.2) in two looks. As a gallery that is a choice
   // (`gallery`): pressing a card only chooses it, nothing lands until the dialog's own act (SC 3.2.2).
+  // `TemplateCard` rather than `ChoiceCards`, the named exception of design-system.md §4: the cards
+  // are told apart by their drawings, and a `ChoiceCards` tile has no place for one.
   // As tiles (`tiles`, scenes whome and wnew): each card is one button whose press is the act -
   // the sheet of a new board and the home's row, where choosing and starting are one thing.
 

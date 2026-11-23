@@ -165,6 +165,13 @@ func bodySchema(declared *response, mediaType string) (node *schema, allowed boo
 		}
 		return nil, true
 	}
+	// A declared range (`image/*`) admits each type inside it, as OpenAPI's media type ranges do;
+	// what it admits is never JSON, so there is no schema to hold the body to.
+	if kind, _, found := strings.Cut(mediaType, "/"); found {
+		if _, ok := declared.Content[kind+"/*"]; ok {
+			return nil, true
+		}
+	}
 	if mediaType != "" && !isJSON(mediaType) {
 		return nil, false
 	}

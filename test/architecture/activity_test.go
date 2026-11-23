@@ -35,7 +35,7 @@ var workManagementTargets = map[string]bool{
 // exempting a use case takes two edits in two places rather than one line nobody reviews - the
 // reason travels with the use case, and the decision travels through this gate.
 var exemptUseCases = []string{
-	"ArchiveContainer", "AutoAssignWorkItem", "BulkUpdateWorkItems", "ClearEntryEstimate", "CreateBucket",
+	"AcknowledgeEmergencyNotice", "ArchiveContainer", "AutoAssignWorkItem", "BulkUpdateWorkItems", "ClearEntryEstimate", "CreateBucket",
 	"CreateContainer", "CreateHubFromTemplate", "CreateLabel",
 	"DeleteBucket", "DeleteComment", "DeleteLabel", "DropItemOnColumn", "EditComment", "EmptyTrash", "GiveKudos",
 	"MergeWorkItems",

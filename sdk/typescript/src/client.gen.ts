@@ -2289,6 +2289,12 @@ export class HubtaskClient {
     return this.call("GET", "/auth/sign-in-rules", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** A picture the sign-in card draws
+   * Public: sent without a bearer where the client holds none. */
+  getWorkspacePicture(mediaId: string, options: CallOptions & { readonly ifNoneMatch?: string } = {}): Promise<Response> {
+    return this.call("GET", "/auth/workspace-pictures/{mediaId}", { "mediaId": mediaId }, undefined, { "If-None-Match": options.ifNoneMatch }, undefined, "none", undefined, "raw", options.signal);
+  }
+
   /** Begin TOTP enrolment
    * Public: sent without a bearer where the client holds none. */
   enrollTotp(body: NonNullable<operations["enrollTotp"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["enrollTotp"]['responses'][201]['content']["application/json"]> {
@@ -2820,6 +2826,11 @@ export class HubtaskClient {
     return this.call("GET", "/accounts/me/emergency-notices", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Confirm an emergency access the caller was told of */
+  acknowledgeEmergencyNotice(accessId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("POST", "/accounts/me/emergency-notices/{accessId}:acknowledge", { "accessId": accessId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** The change of the workspace's address the caller still has to be told of */
   listAddressNotices(options: CallOptions = {}): Promise<operations["listAddressNotices"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/accounts/me/address-notices", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
@@ -2833,6 +2844,26 @@ export class HubtaskClient {
   /** This workspace's entry for the device's list of workspaces */
   issueDeviceListEntry(options: CallOptions = {}): Promise<operations["issueDeviceListEntry"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/tenant/device-list-entry", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** The workspace's name and look, as every member sees them */
+  readWorkspaceLook(options: CallOptions = {}): Promise<operations["readWorkspaceLook"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/tenant/look", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Choose what the header shows */
+  setWorkspaceHeader(body: NonNullable<operations["setWorkspaceHeader"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setWorkspaceHeader"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/tenant/branding", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Give the workspace a logo or a symbol */
+  setWorkspacePicture(picture: string, body: NonNullable<operations["setWorkspacePicture"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setWorkspacePicture"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/tenant/branding/{picture}", { "picture": picture }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Take a logo or the symbol away */
+  removeWorkspacePicture(picture: string, options: CallOptions = {}): Promise<operations["removeWorkspacePicture"]['responses'][200]['content']["application/json"]> {
+    return this.call("DELETE", "/tenant/branding/{picture}", { "picture": picture }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** The workspace's owner sets up an own domain */

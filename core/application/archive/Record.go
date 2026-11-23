@@ -502,6 +502,14 @@ var entities = []Entity{
 	// Not duplicable: a medium is its bytes, addressed by their checksum, and a second row for
 	// the same bytes is a second reference count to keep honest for no gain.
 	{Name: "media_objects", Table: "media_object", Whole: true, Keys: []string{"id"}},
+	// A workspace's own pictures (UC-INS-22): a row is the picture, named by which of the three it
+	// is, and goes with its medium. Whole: three rows at most and no change stamp. Not duplicable:
+	// the workspace has one of each.
+	{
+		Name: "workspace_pictures", Table: "workspace_picture", Whole: true, Later: true,
+		Keys:       []string{"picture"},
+		References: []Reference{{Field: "media_id", Table: "media_object"}},
+	},
 	{
 		Name: "item_attachments", Table: "item_attachment", Whole: true, Duplicable: true,
 		Keys: []string{"item_id", "media_id"},
@@ -554,6 +562,18 @@ var entities = []Entity{
 		References: []Reference{
 			{Field: "hub_id", Table: "container"},
 			{Field: "opened_by", Table: "account"},
+		},
+	},
+	// A member's confirmation that they read the notice of an access (UC-ID-16 check 10): the proof
+	// that they were told, so a restore that brought the access back without it would ask again.
+	// Whole: a row carries no change stamp and goes with its access or its account by cascade. Not
+	// duplicable, as its access is not.
+	{
+		Name: "private_hub_access_acknowledgements", Table: "private_hub_access_acknowledgement",
+		Whole: true, Later: true, Keys: []string{"access_id", "account_id"},
+		References: []Reference{
+			{Field: "access_id", Table: "private_hub_access"},
+			{Field: "account_id", Table: "account"},
 		},
 	},
 	// When a collection or hub was last left with nothing open (UC-WRK-29 check 4). Archived

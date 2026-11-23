@@ -27,6 +27,8 @@
  * password - the same normalisation the domain applies before it hashes.
  */
 
+import type { SignInPictures, WorkspaceHeader } from '@hubtask/sync-engine';
+
 /** One switch of the password half of the policy, as the contract answers it. */
 export interface PasswordRules {
   readonly min_length: number;
@@ -87,6 +89,10 @@ export interface SignInRules {
   readonly password_fallback?: boolean;
   /** True while the workspace has a managed account: the first field takes a sign-in name too. */
   readonly sign_in_names?: boolean;
+  /** What the card shows, at the workspace's own address only; absent means the product's name (ADR-0112). */
+  readonly workspace_header?: WorkspaceHeader;
+  /** The pictures that choice draws, each served by the public read under its identifier. */
+  readonly workspace_pictures?: SignInPictures;
 }
 
 /** Who is setting the password, for the rules that are about them rather than about the string. */

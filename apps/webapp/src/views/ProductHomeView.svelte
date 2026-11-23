@@ -9,7 +9,7 @@
   import { untrack } from 'svelte';
   import { Badge, Button, Dialog, EmptyState, Icon, ListRow, PageHeader, ProductBand, Select, Skeleton, Stack, StateLozenge, UnreadDot, ViewBar, Widget, WorkPage, type ViewLink } from '@hubtask/design-system/components';
 
-  import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
+  import { createHubPath } from '../lib/workspace/createHub.ts';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import PlanImport from '../lib/planning/PlanImport.svelte';
   import { markOf } from '../lib/workspace/look.ts';
@@ -400,7 +400,11 @@
 
   const creation = $derived(hubCreationHere());
   const mayCreateHub = $derived(creation === 'shared' || creation === 'private');
-  let isCreatingHub = $state(false);
+  /**
+   * *Create hub* is a page of its own (ADR-0111): a hub made from a template opens where its main
+   * product is, any other on this product's screen in it.
+   */
+  const createHubFrom = (template?: string) => onnavigate(createHubPath({ template, product: module }));
 
   // The first visit's templates (user-experience.md §4): the catalogue's that switch this product
   // on, read only where the reader may make the hub one starts, and only while there is none.
@@ -434,17 +438,15 @@
       if (next.status === 'ready' && Array.isArray(next.data?.data)) catalogue = next.data.data;
     }));
   });
-  /** The template the new hub is to take, chosen on the empty home. */
-  let startingFrom = $state<string | undefined>(undefined);
   const templateName = (template: ConfigTemplate): string =>
     template.origin === 'HUBTASK' ? t(`app.structure.preset.${template.key.toUpperCase()}`) : template.name;
   const starts = $derived(isFirstVisit ? productTemplates(catalogue, module).map((template) => ({
     label: templateName(template),
     description: template.origin === 'HUBTASK' && messages.has(`app.templates.summary.${template.key.toUpperCase()}`) ? t(`app.templates.summary.${template.key.toUpperCase()}`) : undefined,
     icon: row?.icon,
-    onclick: () => { startingFrom = template.key; isCreatingHub = true; },
+    onclick: () => createHubFrom(template.key),
   })) : []);
-  const createHub = $derived(mayCreateHub ? { label: t('app.workspace.create_hub'), onclick: () => { startingFrom = undefined; isCreatingHub = true; } } : undefined);
+  const createHub = $derived(mayCreateHub ? { label: t('app.workspace.create_hub'), onclick: () => createHubFrom() } : undefined);
   // The home's create act (UX-2): the product's own words, opening the create dialog on the place's
   // screen of it - the place holding most of the product, the others in its menu. Without a hub the empty state's *Create hub* is it.
   const createAct = $derived(createOf(module));
@@ -504,7 +506,7 @@
       ? { label: t('app.product_home.import_plan'), onclick: () => { importInto = createPlaces[0]?.id; isImportingPlan = true; } }
       : undefined,
   );
-  const startEmpty = $derived(firstCreate && starts.length > 0 ? { label: t('app.product_empty.start_empty'), onclick: () => { startingFrom = undefined; isCreatingHub = true; } } : undefined);
+  const startEmpty = $derived(firstCreate && starts.length > 0 ? { label: t('app.product_empty.start_empty'), onclick: () => createHubFrom() } : undefined);
   // The band of a product with its own colour (work-surface E-1): its tile and two or three figures,
   // each a word with its number, and none while the reads are out (P-11).
   const BANDS: Partial<Record<string, { product: 'plans' | 'assets' | 'pages' | 'whiteboards'; icon: 'calendar' | 'shield' | 'book-open' | 'layout-template' }>> = {
@@ -551,12 +553,6 @@
   });
   /** *For you* is never empty (E-4): where nothing runs and nothing is due, it says so and leads on. */
   const isPlanQuiet = $derived(module === 'PLANNING' && currentTab === 'foryou' && !isReading && !isUnusedHere && hubsWith.length > 0 && running.length === 0 && upcoming.length === 0);
-
-  /** A hub made from a template opens where its main product is; any other on the product's screen. */
-  function created(id: string, landing?: string): void {
-    startingFrom = undefined;
-    onnavigate(landing ?? hubScreenOf(module, id) ?? `/hubs/${id}`);
-  }
 </script>
 
 {#snippet postRows(rows: readonly PostList['data'][number][], isNew: boolean)}
@@ -1035,9 +1031,6 @@
   </Dialog>
 {/if}
 
-{#if isCreatingHub && mayCreateHub}
-  <CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" isPrivateOnly={creation === 'private'} template={startingFrom} oncreated={created} />
-{/if}
 
 <style>
   /* Boards are visual, so they are cards (§5.1), as many to a row as fit. */

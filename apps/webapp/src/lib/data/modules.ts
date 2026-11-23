@@ -61,7 +61,7 @@ export function isOfferSettled<H extends { readonly private?: boolean }>(
  * Whether switching on asks in which existing hubs (check 13): at the workspace, and only where
  * there is a hub to choose - without one the switch goes through at once (check 2).
  */
-export function asksWhichHubs(state: ModuleState, next: boolean, place: ModulePlace, offered: readonly unknown[]): boolean {
+export function asksWhichHubs(state: Pick<ModuleState, 'on'>, next: boolean, place: ModulePlace, offered: readonly unknown[]): boolean {
   return place === 'WORKSPACE' && next && !state.on && offered.length > 0;
 }
 
@@ -71,13 +71,23 @@ export function switchBody(to: ModuleSwitch['switch'], hubId?: string, chosen: r
   return to === 'ON' && chosen.length > 0 ? { switch: to, hub_ids: [...chosen] } : { switch: to };
 }
 
+/**
+ * Where a template taken for a hub switches on a product that hub still lacks (check 13): at the
+ * hub where the workspace has it on, else at the workspace naming that hub - switched on at the
+ * workspace alone it would stay off in the hub. Without a hub, at the workspace.
+ */
+export function switchOnFor(module: string, hubId: string | undefined, workspaceOn: readonly string[] | undefined): { readonly hubId?: string; readonly inHubs: readonly string[] } {
+  if (!hubId) return { inHubs: [] };
+  return (workspaceOn ?? []).includes(module) ? { hubId, inHubs: [] } : { inHubs: [hubId] };
+}
+
 /** Whether this place decided the module itself, so that it may leave it to the level above. */
 export function isSetHere(state: ModuleState, place: ModulePlace): boolean {
   return state.source === place && state.locked_by === undefined;
 }
 
 /** The message code of a module's name and of the sentence beneath it. */
-export function moduleCodes(state: ModuleState): { readonly name: string; readonly hint: string } {
+export function moduleCodes(state: Pick<ModuleState, 'module'>): { readonly name: string; readonly hint: string } {
   const key = state.module.toLowerCase();
   return { name: `app.modules.name_${key}`, hint: `app.modules.hint_${key}` };
 }

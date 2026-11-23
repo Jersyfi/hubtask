@@ -8,7 +8,7 @@
   // only its hash is kept.
 
   import { untrack } from 'svelte';
-  import { Badge, Button, Checkbox, CheckboxGroup, Dialog, Inline, Input, Select, Stack } from '@hubtask/design-system/components';
+  import { Badge, Button, Checkbox, Dialog, Inline, Input, MultiSelect, Select, Stack } from '@hubtask/design-system/components';
   import type { PageAccess, PageLanguageVariants, PageList, PageRead } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
@@ -18,7 +18,10 @@
   import { people } from '../data/people.svelte.ts';
   import { resource } from '../data/resource.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
+  import { FROM_DATA, chooseSeveral } from '../forms/chooseSeveral.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { Addresses } from '../people/addresses.svelte.ts';
+  import { personOptions } from '../people/personOptions.ts';
   import { renderProblem } from '../problem.ts';
 
   interface Props {
@@ -53,12 +56,21 @@
   let chosen = $state<readonly string[]>([]);
   const self = $derived(actor.account?.id ?? '');
   const hubReaders = $derived(people.candidates({ hubId }));
+  // The reader first and locked; the others by name, each with the address the people list shows
+  // beside it, so that two of one name are told apart and the filter finds an address.
+  const addresses = new Addresses();
+  $effect(() => {
+    if (isChoosing) addresses.read(hubReaders);
+  });
   const readerOptions = $derived(
-    [...new Set([self, ...hubReaders])].filter(Boolean).map((id) => ({
-      value: id,
-      label: id === self ? t('app.pages.access_you', { name: nameOf(id) }) : nameOf(id),
-      ...(id === self ? { disabledReason: t('app.pages.access_you_stay') } : {}),
-    })),
+    personOptions(
+      [self, ...hubReaders].filter(Boolean),
+      { nameOf, addressOf: (id) => addresses.of(id), locale: messages.locale },
+      {
+        first: self,
+        extra: (id) => (id === self ? { label: t('app.pages.access_you', { name: nameOf(id) }), disabledReason: t('app.pages.access_you_stay') } : {}),
+      },
+    ),
   );
 
   function startRestrict() {
@@ -184,7 +196,7 @@
 
       {#if page.writable}
         {#if isChoosing}
-          <CheckboxGroup label={t('app.pages.access_who')} options={readerOptions} selected={chosen} onChange={(next) => (chosen = next)} />
+          <MultiSelect label={t('app.pages.access_who')} presentation={FROM_DATA} options={readerOptions} selected={chosen} onChange={(next) => (chosen = next)} {...chooseSeveral()} />
           <Inline gap="100">
             <Button size="sm" tone="primary" onclick={restrict}>{t('app.pages.access_restrict_save')}</Button>
             <Button size="sm" tone="subtle" onclick={() => (isChoosing = false)}>{t('app.pages.cancel')}</Button>

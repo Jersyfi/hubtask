@@ -197,6 +197,11 @@ type SignInPolicy struct {
 	// three levels, the lock and the screen's source are the rule's, and a second place for them
 	// would be a second answer.
 	PrivateHubs bool
+	// OwnBranding is whether the workspace may show its own name and logo in place of the product's
+	// name (ADR-0112). On by default; off is the stricter value, and it refuses changes to them -
+	// what is stored stays and a client shows the product's name. A switch of this rule for
+	// PrivateHubs' reason.
+	OwnBranding bool
 	// RotationFrom is the moment "require a new password from everyone" was pressed. A password
 	// set before it meets PASSWORD_CHANGE at the next sign-in and a session opened before it is
 	// refused on its next request - which is the whole of the enforcement, with no job and no
@@ -222,6 +227,7 @@ func DefaultSignInPolicy() SignInPolicy {
 		Sessions:        SessionPolicy{MaxDays: CeilingSessionMaxDays},
 		ManagedAccounts: true,
 		PrivateHubs:     true,
+		OwnBranding:     true,
 	}
 }
 
@@ -254,6 +260,7 @@ const (
 
 	SwitchManagedAccounts PolicySwitch = "managed_accounts"
 	SwitchPrivateHubs     PolicySwitch = "private_hubs"
+	SwitchOwnBranding     PolicySwitch = "own_branding"
 
 	SwitchRotationFrom PolicySwitch = "rotation_from"
 )
@@ -268,7 +275,7 @@ func PolicySwitches() []PolicySwitch {
 		SwitchMinAgeHours,
 		SwitchMfaRequiredFor, SwitchMethods,
 		SwitchSessionMaxDays, SwitchSessionIdleMinutes,
-		SwitchManagedAccounts, SwitchPrivateHubs,
+		SwitchManagedAccounts, SwitchPrivateHubs, SwitchOwnBranding,
 		SwitchRotationFrom,
 	}
 }
@@ -320,6 +327,7 @@ type PolicyPatch struct {
 
 	ManagedAccounts *bool
 	PrivateHubs     *bool
+	OwnBranding     *bool
 
 	RotationFrom *time.Time
 }
@@ -382,6 +390,8 @@ func (p PolicyPatch) carries(name PolicySwitch) bool {
 		return p.ManagedAccounts != nil
 	case SwitchPrivateHubs:
 		return p.PrivateHubs != nil
+	case SwitchOwnBranding:
+		return p.OwnBranding != nil
 	case SwitchRotationFrom:
 		return p.RotationFrom != nil
 	}
@@ -443,6 +453,8 @@ func (p PolicyPatch) take(name PolicySwitch, other PolicyPatch) PolicyPatch {
 		p.ManagedAccounts = other.ManagedAccounts
 	case SwitchPrivateHubs:
 		p.PrivateHubs = other.PrivateHubs
+	case SwitchOwnBranding:
+		p.OwnBranding = other.OwnBranding
 	case SwitchRotationFrom:
 		p.RotationFrom = other.RotationFrom
 	}
@@ -591,6 +603,8 @@ func applySwitch(policy SignInPolicy, name PolicySwitch, patch PolicyPatch) Sign
 		policy.ManagedAccounts = *patch.ManagedAccounts
 	case SwitchPrivateHubs:
 		policy.PrivateHubs = *patch.PrivateHubs
+	case SwitchOwnBranding:
+		policy.OwnBranding = *patch.OwnBranding
 	case SwitchRotationFrom:
 		policy.RotationFrom = patch.RotationFrom.UTC()
 	}
@@ -729,6 +743,9 @@ func tightens(name PolicySwitch, inForce SignInPolicy, proposed PolicyPatch) boo
 		// Fewer hubs closed to the workspace's roles is stricter: off may follow on, never on
 		// follow off.
 		return !*proposed.PrivateHubs || inForce.PrivateHubs
+	case SwitchOwnBranding:
+		// The product's name shown everywhere is stricter: off may follow on, never on follow off.
+		return !*proposed.OwnBranding || inForce.OwnBranding
 	case SwitchRotationFrom:
 		// A moment only ever moves forward: rewinding it would let a workspace un-require a
 		// rotation it already asked for, and the sessions it ended are already gone.
@@ -871,6 +888,8 @@ func SwitchText(policy SignInPolicy, name PolicySwitch) string {
 		return boolText(policy.ManagedAccounts)
 	case SwitchPrivateHubs:
 		return boolText(policy.PrivateHubs)
+	case SwitchOwnBranding:
+		return boolText(policy.OwnBranding)
 	case SwitchRotationFrom:
 		if policy.RotationFrom.IsZero() {
 			return ""

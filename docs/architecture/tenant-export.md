@@ -142,6 +142,7 @@ re-mints identities must rewrite exactly these).
 | 15 | `comments` | `comment` | `id` | `item_id`→work_items, `parent_comment_id`→comments |
 | 16 | `activity_entries` | `activity_entry` | `id` | `item_id`→work_items |
 | 17 | `media_objects` | `media_object` | `id` | — (`blobs` points into `media/`, §7) |
+| 153 | `workspace_pictures` | `workspace_picture` | `picture` | `media_id`→media_objects (the workspace's logo for light, its logo for dark and its symbol, migration 0449; one whose medium is not restored is skipped; what the header shows travels in the tenant's `settings`) |
 | 18 | `item_attachments` | `item_attachment` | `item_id/media_id` | `item_id`→work_items, `media_id`→media_objects |
 | 19 | `recurrence_rules` | `recurrence_rule` | `id` | `source_item_id`→work_items |
 | 20 | `reminders` | `reminder` | `id` | `item_id`→work_items |
@@ -157,6 +158,7 @@ re-mints identities must rewrite exactly these).
 | 30 | `consent_records` | `consent_record` | `id` | `account_id`→accounts |
 | 31 | `legal_holds` | `legal_hold` | `id` | — |
 | 32 | `private_hub_accesses` | `private_hub_access` | `id` | `hub_id`→containers, `opened_by`→accounts (an access whose hub is not restored is skipped) |
+| 152 | `private_hub_access_acknowledgements` | `private_hub_access_acknowledgement` | `access_id/account_id` | `access_id`→private_hub_accesses, `account_id`→accounts (a member's confirmation that they read the notice of an access, migration 0448; one whose access or account is not restored is skipped) |
 | 33 | `container_milestones` | `container_milestone` | `container_id` | `container_id`→containers (when a collection or hub was last finished; a milestone whose container is not restored is skipped) |
 | 34 | `set_elements` | `set_element` | `item_id/set_name/element_id` | `item_id`→work_items |
 | 35 | `structure_presets` | `structure_preset` | `id` | `owner_id`→accounts (the workspace's presets and each person's own; an own preset whose account is not restored is skipped) |
@@ -407,7 +409,7 @@ expected to keep sign-ins working. The export is handed outwards.
 * `format_version` is currently **1**, shared with the backup archive
   ([versioning-release.md](./versioning-release.md)): additive fields do not bump it, a change a
   version-1 reader would misread does.
-* A file version 1 gained later (§6: `private_hub_accesses`, `container_milestones`, `structure_presets`) is additive
+* A file version 1 gained later (§6: `private_hub_accesses`, `private_hub_access_acknowledgements`, `container_milestones`, `structure_presets`, `workspace_pictures`) is additive
   too: every archive written since carries it, and one written before reads as holding none of its
   rows.
 * A section is a file one archive carries beyond §6's entities, named in its manifest like any

@@ -60,6 +60,8 @@ var subjectColumns = map[string][]string{
 	"legal_hold":       {"placed_by", "released_by"},
 	// The emergency accesses they opened, with the reason they wrote (ADR-0073 §4).
 	"private_hub_access": {"opened_by"},
+	// Their confirmations that they read the notice of an access (UC-ID-16 check 10).
+	"private_hub_access_acknowledgement": {"account_id"},
 	// The workspace's own roles they hold, and their own settings: a person's level of the settings
 	// catalogue is the one whose scope is their account.
 	"custom_role_grant": {"account_id"},
@@ -197,6 +199,7 @@ var notThePersons = map[string]string{
 	"auto_assign_policy":      "how a collection hands work out, which is a rule rather than a person",
 	"account_group":           "a team is the workspace's structure; the person's membership of one is in the map above",
 	"item_attachment":         "which file hangs off which entry - the file itself is in media_objects, filtered by who uploaded it",
+	"workspace_picture":       "which file the workspace shows as its logo or symbol - the file itself is in media_objects, filtered by who uploaded it",
 	"set_element":             "the ordering of a set, which names no person",
 	"recurrence_rule":         "how a series repeats",
 	"reminder":                "a reminder names its recipients in an array rather than a column; a person's own reminders arrive with the entry they are on",

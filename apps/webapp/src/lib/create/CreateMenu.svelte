@@ -21,7 +21,7 @@
   import { AT_ONCE, LETTERS, TILES, kindOfLetter, kindsHere, lastHere, type CreateKind } from './kinds.ts';
   import { capture } from '../capture/capture.svelte.ts';
   import { mayCaptureHere } from '../capture/places.svelte.ts';
-  import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
+  import CreateCollectionDialog from '../workspace/CreateCollectionDialog.svelte';
   import { actor } from '../data/account.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { holds, roleOrder } from '../data/capability.svelte.ts';
@@ -312,7 +312,7 @@
 {/if}
 
 {#if isCreatingCollection && collectionHub}
-  <CreateContainerDialog bind:isOpen={isCreatingCollection} type="COLLECTION" parentId={collectionHub} oncreated={(id, landing) => onnavigate(landing ?? `/collections/${id}`)} />
+  <CreateCollectionDialog bind:isOpen={isCreatingCollection} parentId={collectionHub} oncreated={(id, landing) => onnavigate(landing ?? `/collections/${id}`)} />
 {/if}
 
 <style>

@@ -29,7 +29,10 @@ too. One mechanism serves all three.
 * **Contents:** every catalogue setting and every building block (the building blocks of `domain-model.md`) — never content
   (entries, comments, pages' text; templates' sample entries and the titles of templates' pages
   excepted and marked), never a secret
-  (a sealed secret is referenced by name).
+  (a sealed secret is referenced by name). Of a workspace's own name and logo the document carries
+  the switch `sign_in.own_branding`, as `private_hubs`; neither the pictures nor what the header
+  shows - they name media objects no second workspace holds, and the workspace's name is not in the
+  document either.
 * **Stable keys, not identifiers.** Blocks are named by keys (`types.incident`,
   `workflows.service_standard.steps.resolve`); the server maps keys to identifiers, so a document
   applies to a second workspace unchanged. A rule's `entries`, its *for which entries* line
@@ -256,7 +259,15 @@ A hub made from a hub template (`CreateHubFromTemplate`, `POST /containers:from-
 in one transaction, the template's workspace part where the workspace has not taken the template
 (one it took stays at its version: making a hub is no upgrade), then the hub, then the hub part,
 each as `ApplyConfig` applies it; a refused part leaves no hub, and a template without a hub part is
-`config.template_not_for_hubs`.
+`config.template_not_for_hubs`. With `private` the hub is private from its first row, its creator
+granted `OWNER` before the first collection and the hub part are taken (both ask at the hub, which
+only its members reach; identity.md §22). `private` never lowers what the operation asks: `STRUCTURE`
+on the workspace as for a shared hub, then what a private hub asks - a person, never a service
+account, and *Private hubs allowed* (`containers.private_hubs_off`) - all before the transaction. A
+private hub takes every part a shared one takes: no section of a hub's document grants a role or
+holds a group, and its views, rules, samples and pages read and act through the authoriser, so they
+reach only the hub's members; a rule acts for its `run_as`, who reaches nothing in the hub without a
+role there (automation.md §2.0).
 
 A **collection part** (`collection_document`, migration 0317) holds the collection sections of a
 hub's document (§1: `collection_structure`, `collection_tolerance`, `collection_views`,

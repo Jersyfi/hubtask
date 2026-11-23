@@ -111,7 +111,7 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0062](./ADR-0062-cached-tool-binaries.md) | The pinned tools are cached as binaries, and a stamp says what a cache holds | accepted | CI, supply chain, tooling |
 | [0063](./ADR-0063-navigation-and-the-working-surface.md) | The navigation, the status place, and how a screen is worked | accepted | Design system, client, product |
 | [0064](./ADR-0064-the-workspace-wide-read.md) | The one read that may ask the whole workspace a narrowed question | accepted | API, domain, search |
-| [0065](./ADR-0065-the-second-walk-of-the-shell.md) | Sections, and where a statement about the application lives | accepted | Design system, client, product |
+| [0065](./ADR-0065-the-second-walk-of-the-shell.md) | Sections, and where a statement about the application lives | accepted (superseded in part by 0107, 0113) | Design system, client, product |
 | [0066](./ADR-0066-search-is-one-question.md) | Search is one question, and the document holds every word form | accepted | Search, database, client |
 | [0067](./ADR-0067-s3-test-fixture.md) | The S3-compatible server the tests run against is SeaweedFS, in one place | accepted | Testing, supply chain |
 | [0068](./ADR-0068-sign-in-policy-and-the-password-lifetime.md) | The sign-in rule: three levels, a lock, and the password over its lifetime | accepted | Security, domain, client |
@@ -119,7 +119,7 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0070](./ADR-0070-the-instance-layer.md) | The instance layer: operators, instance settings, and the elevated session | accepted | Security, multi-tenancy, operations |
 | [0071](./ADR-0071-provider-admission.md) | Who a sign-in provider admits: the directory, not the text of an address | accepted | Security, identity, multi-tenancy |
 | [0072](./ADR-0072-ai-at-the-installation-level.md) | AI at the installation level: an offered model, and who may bring their own | accepted | AI, multi-tenancy, data protection |
-| [0073](./ADR-0073-private-hubs.md) | A private hub narrows what the workspace's roles reach | accepted | Authorization, domain, data protection |
+| [0073](./ADR-0073-private-hubs.md) | A private hub narrows what the workspace's roles reach | accepted (superseded in part by 0113) | Authorization, domain, data protection |
 | [0074](./ADR-0074-managed-accounts.md) | Managed accounts: a sign-in name, a start password, and who may renew it | accepted | Identity, security |
 | [0075](./ADR-0075-step-up-with-what-the-account-holds.md) | A step-up proves the account with whatever it holds | accepted | Identity, security |
 | [0076](./ADR-0076-withdrawing-an-offered-provider.md) | Withdrawing an offered sign-in provider: a count, a notice, and a way back in | accepted | Identity, multi-tenancy |
@@ -156,3 +156,7 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0107](./ADR-0107-the-application-does-not-state-its-maturity-stage.md) | The application does not state its maturity stage | accepted | Release, clients |
 | [0108](./ADR-0108-a-module-switch-and-a-board-comment-are-change-records.md) | A module switch and a board comment are change records | accepted | Synchronisation, clients |
 | [0109](./ADR-0109-a-product-switched-on-at-the-workspace-is-offered-to-hubs.md) | A product switched on at the workspace is offered to hubs, not switched on in them | accepted | Domain, application, API |
+| [0110](./ADR-0110-one-multi-select-two-presentations.md) | One multi-select, two presentations | accepted | Design system, clients |
+| [0111](./ADR-0111-creating-a-hub-is-a-page.md) | Creating a hub is a page | accepted | Clients, design system |
+| [0112](./ADR-0112-a-workspace-shows-its-own-name-and-logo.md) | A workspace shows its own name and logo | accepted | Identity, media, API |
+| [0113](./ADR-0113-an-emergency-notice-is-told-once-and-confirmed.md) | An emergency notice is told once and confirmed, not drawn as a banner | accepted | Identity, design system, clients |

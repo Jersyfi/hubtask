@@ -75,7 +75,7 @@
   import { buckets } from '../lib/data/buckets.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
-  import { changeRefusalCode, holds, mayDo, offerIn, roleOrder } from '../lib/data/capability.svelte.ts';
+  import { changeRefusalCode, holds, mayDo, mayReadWorkspace, offerIn, roleOrder } from '../lib/data/capability.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { entryTypesOffered, typesShown } from '../lib/data/entrytypes.ts';
   import { entryTypes } from '../lib/data/entrytypes.svelte.ts';
@@ -96,7 +96,7 @@
   import { suggestions } from '../lib/data/suggestions.svelte.ts';
   import { isPending } from '../lib/data/suggestions.ts';
   import { byItem } from '../lib/data/bulk.ts';
-  import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
+  import CreateCollectionDialog from '../lib/workspace/CreateCollectionDialog.svelte';
   import PositionDialog from '../lib/workspace/PositionDialog.svelte';
   import BoardLevelDialog from '../lib/entries/BoardLevelDialog.svelte';
   import type { LevelSwitch } from '../lib/entries/boardlevel.ts';
@@ -767,7 +767,10 @@
    * accept (P-05, `privacyAction`). The role on the workspace is read on its own path - along a
    * private hub it is not in force, and it is exactly what decides the right to create hubs.
    */
-  $effect(() => untrack(() => workspace.open()));
+  $effect(() => {
+    if (mayReadWorkspace() !== true) return;
+    return untrack(() => workspace.open());
+  });
   const workspaceRole = $derived(
     people
       .along({})
@@ -1783,9 +1786,8 @@
 {/if}
 
 {#if container?.type === 'HUB'}
-  <CreateContainerDialog
+  <CreateCollectionDialog
     bind:isOpen={isCreatingCollection}
-    type="COLLECTION"
     parentId={container.id}
     oncreated={(collectionId, landing) => onnavigate(landing ?? `/collections/${collectionId}`)}
   />

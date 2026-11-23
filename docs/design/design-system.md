@@ -219,20 +219,59 @@ attributes selected by a stylesheet, never as an inline `style`:
 [ADR-0028](../adr/ADR-0028-embedded-web-ui.md)'s `style-src 'self'` has no `'unsafe-inline'`, so a
 `style="gap: …"` is refused — silently, in production only. Every component inherits that.
 
-### Wave 1 — nothing works without these (≈ 24)
-Icon · Button · IconButton · Input · CodeField · Textarea · Select · Checkbox · CheckboxGroup · Radio · ChoiceCards · Switch ·
+### Wave 1 — nothing works without these (≈ 25)
+Icon · Button · IconButton · Input · CodeField · Textarea · Select · Checkbox · CheckboxGroup · MultiSelect · Radio · ChoiceCards · Switch ·
 Tooltip · Menu · Popover · Dialog · Toast · Banner · Avatar · AvatarGroup · Badge · Spinner ·
 ProgressBar · Kbd
 
 `CheckboxGroup` is the fieldset `Radio` is, for several answers: a question that needs at least one
 is wrong as a group, so its error is said once under the group and every box is `aria-invalid`,
-which is where a form moves focus (case 3 below).
+which is where a form moves focus (case 3 below). Its boxes are `MultiSelect`'s inline ticks, so the
+two look and behave alike.
+
+`MultiSelect` is several of many, one option list in two presentations
+([ADR-0110](../adr/ADR-0110-one-multi-select-two-presentations.md)). `inline` is visible ticks that
+wrap, for up to five options; `field` is one closed button that says what is chosen and opens a
+checklist, for six or more; `presentation="auto"` decides by the count, and a screen forces one
+where the rules at the end of this paragraph say so. The closed field shows the chosen as
+chips - a summary, not buttons, cut after two lines with the count of the rest - or the caller's
+sentence ("All except Amount"), or its empty text. The open list is a multi-selectable listbox:
+groups by their heading, a line under an option that describes it and is never part of its name,
+and from eight options a filter, *All* and *None* (which act on what the filter shows) and a count.
+An option with a `disabledReason` cannot change: ticked it is locked on, drawn with a lock and
+first among the chips; unticked it is refused; either way it stays focusable and its reason is a
+line in the list. The whole control locked still opens, read-only. At a phone's width the list is
+the `Popover`'s bottom sheet, rows a thumb's height, with *Done*. `size="md"` draws the ticks as
+`CheckboxGroup` does, `size="sm"` as a setting row's denser ones. **Which of the two a screen
+uses:** a form's question with a few fixed answers whose fieldset and legend a reader should hear
+stays `CheckboxGroup`; a setting or a list of answers whose length the data decides is
+`MultiSelect`. The people an entry is assigned to keep `AssigneeControl`, and its labels
+`LabelPicker`; choosing members or readers from a list of people is `MultiSelect`, by name, each
+person's address as the line where the reader may read it. A choice inside a panel that is itself
+a sheet on a phone is drawn inline: a field there would open a second sheet over it. No place
+changes its look as data grows or by who opens it: a list that comes from data - people, groups,
+roles, statuses, entry types, hubs, restricted fields, workflow steps - is always the field, also
+for two options; a fixed catalogue follows `auto` by its full size, never by how many of it the
+reader is offered. One press emits one
+change; *All*, *None* and Ctrl+A emit one change with the whole list.
 
 `ChoiceCards` is `Radio` for a choice whose answers each need a sentence: native radios of one name
 inside their cards' labels — the whole card pressed, the arrow keys walking and choosing, a reader
 hearing a named radio group — each card a title, one line and an optional mark; the chosen one
-marked by its edge, its surface and the filled dot. A switch-off's *convert or pause* and a start's
-template tiles are its cases.
+marked by its edge, its surface and the filled dot. A switch-off's *convert or pause* is its stack.
+A start's template tiles are its grid: `layout="grid"` fills the width with tiles no narrower than
+`layout.gallery.card`, one per row on a phone; `mark="tick"` puts an empty ring in the top end
+corner that fills with the tick when chosen, and doubles the chosen edge inward; a tile carries a
+square mark, a summary cut after two lines and its products as neutral pills, and the start from
+nothing (`isBlank`) is dashed until it is chosen. `groups` are families: each a fieldset with its
+legend inside the one radio group, so the arrows walk and choose across them and Tab comes in on the
+chosen tile; a value whose tile a filter leaves out stays chosen; a chosen tile keeps its brand edge
+under the pointer, and a tile measures by its border. Where a heading above a search and a filter
+already asks the question, `isLabelHidden` keeps the legend as the group's name and draws it
+nowhere. **A gallery that is a choice is
+`ChoiceCards`; a gallery whose card carries its own act** (*Take*, *Import*) **is `TemplateCard`.**
+One choice stays `TemplateCard`: a board's templates in a dialog, told apart by their drawings, for
+which a `ChoiceCards` tile has no place (the `TemplateCard` row says how it is drawn).
 
 `CodeField` is **one** native input drawn as its places — never one box per digit, which breaks
 pasting and `Backspace` and makes a screen reader announce six fields. Six places or eight, the group
@@ -250,8 +289,8 @@ trigger on close; a `Menu` is operable with arrows, `Home`, `End` and type-ahead
 layer at a time, which is why `Dialog` refuses the platform's `cancel` and asks the register; a
 `Dialog` with `isAlert` is the APG Alert Dialog — a consequence that interrupts on purpose,
 announced as `alertdialog` and described by its body, the focus starting on the safe answer the
-caller places first in the foot, never on the destructive primary; a
-`Toast` is announced without taking focus.
+caller places first in the foot, never on the destructive primary, and a click beside it does not
+close it (✕ and Escape do); a `Toast` is announced without taking focus.
 
 **Status emphasis is a prop of `Badge`, not a tone**: `emphasis: 'subtle' | 'bold'`, subtle by
 default (rule 3). `Banner`, `Callout` and `Toast` take the surface and the border of their tone;
@@ -306,7 +345,10 @@ Drawer · SearchField · ReadOnlyNotice · SaveBar · Disclosure
 needed later on the same page ([`user-experience.md`](../architecture/user-experience.md) UX-4):
 *Advanced* in a settings block, *Details for support* under a refusal; a button with
 `aria-expanded`, a quiet line of what is inside, the content arriving in the `reveal` role and
-absent while closed.
+absent while closed. `tone="row"` folds a field of a form on a phone to one bordered row the
+column's width, as tall as `layout.target`, the chevron at its end (*Colour and symbol* on *Create
+hub*, and in the *Create collection* dialog at every width); its `value` - what is chosen inside,
+the place's mark there - stands before the chevron, so the choice is seen while the row is closed.
 
 **`SideNav` is one component with two drawings; a second tree is never built.** A row is mark ·
 label · twist: the mark at one inline position for every level, the indent on the label, the twist
@@ -366,7 +408,7 @@ the rows and fields under it say nothing about it.
 | `SourceChip` | Where a value comes from, beside its name — *Set here*, *Default*, *Plan*, *Installation* — the order P-07 resolves; a lock a mark and a word. Pressed, a `Popover` with the value, its source and whom to ask. It knows no levels: the source and the lock are the application's answer |
 | `PlanSummary` | A plan in words ([`user-experience.md`](../architecture/user-experience.md) §5.4): what an act would do — or did — one resolved sentence a change, each with its kind (*add*, *keep*, *change*, *remove*, *refuse*) as a mark beside it, never a colour alone; an empty plan is a sentence, and `reach` the one line under the list. A list, not a live region: the caller announces the plan once. It knows no plan and no key |
 | `CommentThread` | Nested, with "removed" as its own state; a system note (a kept version) drawn as a quiet row with its heading, and an addressed comment marked and focused |
-| `UploadField` | Moves no bytes: it hands the caller a `File` and renders the progress the caller reports. The native file input stays in the accessibility tree and the drop target is an addition; the size limit is handed in and **announced**. Variant `button` draws the button alone, for a toolbar, and `icon` the paperclip alone with its words as the name, for a bar of icon buttons; no screen draws a native file input of its own (`apps/webapp/build/forms.test.js`) |
+| `UploadField` | Moves no bytes: it hands the caller a `File` and renders the progress the caller reports. The native file input stays in the accessibility tree and the drop target is an addition, offered only where the pointer is fine - a finger drops nothing; the size limit is handed in and **announced**. Variant `button` draws the button alone, for a toolbar, and `icon` the paperclip alone with its words as the name, for a bar of icon buttons; no screen draws a native file input of its own (`apps/webapp/build/forms.test.js`) |
 | `ActivityFeed` | `verb` is an i18n code the component **never sees** — every sentence arrives resolved. An ordered list with a real `<time datetime>`; a step with no change set is a shorter sentence |
 | `Timeline` | A **schedule**: dated gridlines at the caller's `scale` (day · week · month · quarter · year), **today marked across every row**, a **span** where `start_at` and `due_at` exist and a **point** where only the due does; what it cannot place it **trays** beside the axis. The window opens where the work is. **A drag names columns, never dates.** A bar moves both ends, an end moves one, a trayed entry carried onto the axis asks for its first dates, and the span **redraws where it would land**. A bar one column wide has **no** end handles; a handle's target is the whole cell. The alternative to every drag is the row, which opens the date editor (§10, 2.5.7 and 2.5.8). One cell per column, a span *marks* its cells, because `style-src 'self'` refuses an inline `grid-column`. **A dependency is an arrow** from the end of the bar waited for to the start of the waiting one, measured off the two bars, dashed and tinted where the waiting entry starts too early, and said in words under the axis. **As a Gantt chart** (UC-PLN-02) a row is a milestone (a diamond), a summary (a thin, darker bar) or critical (tinted and **hatched in the surface's colour**, at 3:1 against a normal bar, and *critical* in the row's name through `criticalLabel`), may carry a **baseline** as a thin lane under its bar, is indented by its depth, and a dependency is **drawn by dragging** from the knob after a bar's end onto the waiting row; the keyboard path to the same link is the caller's table. The row under the pointer or the focus draws and says **its dependencies more strongly**, and its title is described by their words. With `resizeLabel` a **grip** between the titles and the axis sets the title column to one of four token steps, by the arrow keys or by carrying it |
 | `ViewSwitcher` | A **radio group**, not a tab strip. List, board and timeline, with "show what is inside" a toggle within list; `LIST_COLLAPSED` and `LIST_EXPANDED` stay the stored values. A layout the manifest reports and the client cannot draw is shown **with the reason**. Switching keeps the selection (§11.9) |
@@ -381,7 +423,7 @@ the rows and fields under it say nothing about it.
 | `SyncStatus` + `ConflictResolver` | `SyncStatus` is the connection mark (§11.6), fed by `engine.queue()` and the stream's state, with **no sentence of its own**. Pressed, it lists every waiting change as *what* and *where* and every refused one with its reason and a dismiss — never swallowed ([`offline-sync.md`](../architecture/offline-sync.md) §9). Losing the server is announced once through a `status` region; a moving count is not. `ConflictResolver` handles a `CONFLICT` on the notes: both versions as text — theirs in place, mine already a system comment it links to — and two ways out: keep theirs, or write mine again as an ordinary `PATCH`. **Never a merge, never an automatic retry** ([ADR-0021](../adr/ADR-0021-offline-sync.md)). It opens from the mark's list and from the entry's strip. A title or description somebody else changed while the reader was editing it online is no conflict record: the entry asks before it overwrites, with a `Dialog` in its alert mode (§11, the entry screen) |
 | `Celebration` | §7's slot: `tier` 1–3, one asset per tier, no taller than `--motion-celebration-area`, moving no further than `--motion-celebration-travel`. **Never blocking**: `inert`, off the tree, unmounted by the caller on `onDone`, its one sentence a `status` region. Under reduced motion every tier is rule 6's colour change. Assets may change; tiers, tokens and triggers may not |
 | `Tour` + `CoachMark` | §8's pattern: a spotlight on one element of the real interface, positioned by CSS (`spotlightTo` in `anchor.ts`), the overlay of rule 2 being the cut-out's shadow; the element stays interactive. `CoachMark` is a caption, one body line, the count, and *next*, *back*, *skip*; a non-modal `dialog` — focus moves to it, `Escape` skips, the tab order is its controls and the element. The steps are the client's (`apps/webapp/src/lib/tour.ts`) |
-| `TemplateCard` + `TemplateGallery` | A template as a person chooses it ([`user-experience.md`](../architecture/user-experience.md) §5.2): mark, name, one sentence, the products it switches on as chips, a quiet note of where it stands (*In use*, *Update available*), *Preview* folded (`details`, what taking it creates, in words), the caller's act — never its key or version as the subtitle. Where the template draws something (a board), a small drawing of it stands in place of the mark; in a gallery that is a choice the chosen card has a thicker brand edge and its act is pressed, and `isCompact` tightens it inside a dialog. The gallery is one family as a named list of cards that wraps to the width; every create dialog and the catalogue draw it |
+| `TemplateCard` + `TemplateGallery` | A template as a person chooses it ([`user-experience.md`](../architecture/user-experience.md) §5.2): mark, name, one sentence, the products it switches on as chips, a quiet note of where it stands (*In use*, *Update available*), *Preview* folded (`details`, what taking it creates, in words), the caller's act — never its key or version as the subtitle. Where the template draws something (a board), a small drawing of it stands in place of the mark; `isCompact` tightens it inside a dialog. The gallery is one family as a named list of cards that wraps to the width; the catalogue, the starter and a product's templates draw it. A gallery that is a choice - the starts on *Create hub* - is `ChoiceCards` instead, except a board's templates in a dialog, whose drawings a tile cannot hold: there the chosen card (`isChosen`) has a thicker brand edge and its *Choose* is pressed, and nothing lands until the dialog's own act |
 | `AISuggestion` | Separable through `ai.*` (§1), gone without residue when AI is off. One component for every kind: the heading names the kind as a proposal, the payload is the caller's slot in the product's editor for its shape, accept and dismiss are the caller's buttons, the provenance one collapsed line ([`voice-and-tone.md`](./voice-and-tone.md) §7). `pending` is the job running, `stale` the target moved. It arrives in the `attach` role, in opacity alone |
 
 **The automation rule editor is the web client's own**, in `apps/webapp/src/lib/automation/`
@@ -427,8 +469,10 @@ the mark the bar carries; how the product uses them is §11.
   An optional mark and count per link.
 * **The sidebar's pieces** ([`backlog/navigation/README.md`](../backlog/navigation/README.md) §2,
   [ADR-0100](../adr/ADR-0100-a-hub-level-in-the-navigation-and-one-content-tree.md)) — **`NavItem`**
-  (a row: twist, mark or `ProductTile`, name, figure, and ⋯ and ＋ in the figure's cell on hover and
-  focus; current with the brand bar and `aria-current`), **`NavGroup`** (a section head that sticks,
+  (a row: twist, mark or `ProductTile` - or a mark the caller draws where it is data, such as the current
+  workspace's symbol -, name, one badge, figure, and ⋯ and ＋ in the figure's cell on
+  hover and focus; current with the brand bar and `aria-current`; the badge is named, and its
+  `warning` tone - on its surface - is an extra while what it says is happening now), **`NavGroup`** (a section head that sticks,
   with ＋ and ⋯, *n more* and a filter past its bound; its head stands on the plane it is drawn on,
   `--nav-plane`, the raised panel of a flyout or a drawer), **`NavFlyout`** (*Recent*, the hub quick
   switch, which drops from the hub's head through `anchor`), **`NavLevel`** (the workspace or the hub level, sliding in), **`ProductTile`** (a
@@ -471,7 +515,9 @@ Every routed view renders exactly one page kind; the kinds take compositions in 
 * **L2 `Sheet`** — the bottom sheet of a phone: grabber, title, a body or a list of `items`,
   actions; as tall as what it holds and at most 85 % of the screen, beyond that the body
   scrolls under a fixed head; every sheet has its grabber; a pull down, ✕ or Escape closes it; the
-  `overlay` rank of `layers.ts`. **`Dialog`** gains `size` (`s` · `m` · `l`, `layout.dialog.*`):
+  `overlay` rank of `layers.ts`, except the sheet a `Popover` or a `Menu` becomes on a phone, which
+  keeps the `popover` rank (`layer`), so that Escape closes it before a dialog it was opened from
+  (ADR-0110). **`Dialog`** gains `size` (`s` · `m` · `l`, `layout.dialog.*`):
   head and foot fixed, the body scrolls; below `medium` an `m` or `l` is full screen with ✕ at
   the start and the `primary` in its bar; `onDismiss` lets the caller ask *Discard changes?*.
   Without `size` a dialog keeps its earlier look.
@@ -1059,7 +1105,11 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
   `BlockList`s, the draft bar. `OverviewPage` — what needs a look: `SummaryCard`s in a `Grid`,
   at most one raised focal card. `LogPage` — what happened: a `ListPage` with the time range first
   and rows grouped by day. `CreatePage` — creating something larger than a dialog, at the
-  content's full width. `WorkPage` and `DetailPage` — the work surfaces and one object read and
+  content's full width; `isFilled` takes the region a filled page gets, the head edge to edge over
+  a hairline and two panes beneath it that scroll on their own (*Create hub*, ADR-0111); below
+`medium` it is the phone's whole screen - ✕ and the title in one bar, the primary across the width
+in a bar at the foot, above the safe area and the on-screen keyboard - and the frame draws neither
+of its own bars beside it (`page.takeScreen`). `WorkPage` and `DetailPage` — the work surfaces and one object read and
   edited in place, as built. `StandalonePage` — outside the frame (`card`, `public`). Every kind
   works at the five widths with the same functions; only what is visible at once changes
   (PS-18). The content has two levels of containment at most, the canvas and one region (§6).
@@ -1077,7 +1127,8 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
   hands its folded menu into the bar's menu slot. The `h1` stays in the content for the reader, not
   drawn twice. The frame never derives titles from routes.
 * **A notice about the page** — a refused write, a check's findings — is drawn by `PageHeader`. **If
-  it would say the same on every screen, it belongs to the bar** (§11.6).
+  it would say the same on every screen, it belongs to the bar** (§11.6) — the reader's emergency
+  notices too, after the dialog that told them once.
 * **Width of content.** The reading measure belongs to running text, and `app.css` gives it every
   paragraph. A form keeps a column wide enough for its fields. A table, a list of rows, a matrix and
   a card take the region.
@@ -1092,8 +1143,8 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
 | Width | Start | Middle | End |
 |---|---|---|---|
 | `compact` | on a tab's root the avatar; deeper *‹ the level above* (a section: ☰, opening its `NavDrawer`) | the page's title | on a root the notice mark · the connection mark; deeper ☆ · the page menu; every control 44 px |
-| `medium` | ☰ | the mark and the wordmark · a field's look that opens the palette in a dialog (*Search or run a command*, `⌘K`), shrinking with the bar, with *＋* (*Capture*, `Q`, its mark alone) beside it | the notice mark · the connection mark · the account menu |
-| ≥ `expanded` | the rail toggle | the mark and the wordmark · the palette's field (*Search or run a command*, `⌘K`) with *＋ Capture* (`Q`) beside it | the notice mark · the connection mark · the account menu |
+| `medium` | ☰ | the home link's mark (below) · a field's look that opens the palette in a dialog (*Search or run a command*, `⌘K`), shrinking with the bar, with *＋* (*Capture*, `Q`, its mark alone) beside it | the notice mark · the connection mark · the account menu |
+| ≥ `expanded` | the rail toggle | the home link's mark (below) · the palette's field (*Search or run a command*, `⌘K`) with *＋ Capture* (`Q`) beside it | the notice mark · the connection mark · the account menu |
 
 * **No page action in the bar** ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md),
   [ADR-0065](../adr/ADR-0065-the-second-walk-of-the-shell.md)). Its only page control is the page's
@@ -1114,6 +1165,21 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
 * **One control size.** The rail toggle, the notice mark, the connection mark and the avatar are
   the same square with the same hover shape (§13, G2).
 * The two marks are §11.6. Nothing else moves into the bar beyond *Capture*.
+* **The home link shows what the workspace chose** (UC-INS-22,
+  [ADR-0112](../adr/ADR-0112-a-workspace-shows-its-own-name-and-logo.md)), drawn by `WorkspaceMark`
+  in the web app: the product's mark and wordmark (the default), the workspace's square symbol -
+  or two letters - with its name, or its logo alone. The box is fixed: a logo 32 px high
+  (`space.400`) and at most `layout.field.sm` wide, contained and never stretched; the symbol 24 px
+  beside the name; the name in the display face at `fontSize.300`, at most `layout.list.title`
+  wide, then an ellipsis with the whole name as its tooltip. The link has one name - the product's,
+  or the workspace's - and the picture beside a visible name is decorative. A picture is drawn as an
+  avatar is; one still asked for keeps its box, and one that fails to load falls back by the
+  choice's rule (the other theme's logo, the symbol, the product), never to a broken image. Both
+  themes' drawings stand and the document's theme hides one, so a theme switch shows the other with
+  nothing to load. Switched off above, the product's mark, whatever is stored. On `compact` the bar
+  keeps the page's title; the workspace is named in the account sheet, its own row carrying its
+  symbol. The sign-in card at the workspace's own address draws the same mark by the same choice,
+  and the product's name and version stay on the about page (*… runs on hubtask · Version*).
 
 ### 11.3 One navigation list
 
@@ -1339,16 +1405,42 @@ the reason. **At most one action per state**: *Try again* while not connected, *
 refusal (with *Dismiss* beside it), *Resolve* for a conflict. **Connected means the stream was
 accepted**, not that a record arrived.
 
+**An act that needs the server, offline**, is said in one shape: the act's control is unavailable
+with the reason "*The act* needs a connection.", and where the act is a form or a group - a create
+page or dialog, the emergency notice, *Logo and app bar* - the same sentence stands once as a quiet
+line where the form's refusals go. Never a warning callout: being offline is a state the product
+is built for.
+
 **The notice mark** (`apps/webapp/src/lib/frame/NoticeMark.svelte`) is drawn signed in or not,
-whenever there is something wrong to say:
+whenever there is something wrong to say, and while the reader has an emergency notice of the last
+thirty days:
 
 | What | The mark | Pressed |
 |---|---|---|
 | The health report says something is wrong | The mark with a `status.warning` dot | The report's own words, per component |
 | The manifest could not be read | The mark with a dot | That it could not, and the way to ask again |
 | Both | The dot | Both, the report first |
+| A private hub of the reader's was opened through the emergency access, unconfirmed | `shield` with the dot, on the `status.warning` surface | *Emergency access to your private hubs*: each notice with its hub as a link, who, when, until when, the reason in two lines, and *Acknowledged* |
+| Only confirmed notices of the last thirty days | `shield`, quiet: no dot, no tint | The same section, each notice marked confirmed |
+| A notice and a fault | The triangle with the dot | The reader's section first, then the fault's |
 
-With neither, no mark is drawn. The product's maturity stage is not stated in the application, only
+With none of these, no mark is drawn. The mark's name says what it holds ("…: one notice not yet
+acknowledged", "…: notices of the last 30 days"); the dot is not the only sign. On a phone the mark
+stands on the roots, as the bar's marks do.
+
+**The emergency notice** (ADR-0073 §4, UC-ID-16 check 11) is told **once, when the app opens**, on
+whatever view it opens at: a `Dialog` S with `isAlert` (an M with several notices from `medium` up;
+on a phone the centred card for any number), titled with what happened, its body who, which hub,
+when, until when and why, its foot *Open the hub* first - where the focus starts - and
+*Acknowledged*. It waits for a moment nothing else holds the reader: no layer open, nothing being
+typed, neither the starter nor a tour on screen. ✕ and Escape close it without confirming, and it
+asks again at the next opening; a click beside it does not close it. A refused confirmation keeps
+it open and says so; offline the confirmation is unavailable and says why. Nothing is queued: a
+confirmation is the proof the reader read it. Afterwards the mark above and the hub's row carry it:
+for thirty days the hub's badge is `shield` in the lock's place, named "Private · opened through
+the emergency access, until …" while the hour runs (on the `status.warning` surface, an extra) and
+"… on …" afterwards. The folded rail and the hub level's head stay unmarked; the hub's own notice
+is on its page. **No view draws a banner for it.** The product's maturity stage is not stated in the application, only
 in the release notes ([ADR-0107](../adr/ADR-0107-the-application-does-not-state-its-maturity-stage.md),
 [`versioning-release.md`](../architecture/versioning-release.md) §5). No banner above a page states
 the health report.
@@ -1399,6 +1491,23 @@ archived container leaves the tree.
 **The trash (`/trash`)** is the other row of the `keeping` band.
 
 ### 11.8 The screen patterns
+
+**Create hub** is a create page of its own, `/hubs/new` ([ADR-0111](../adr/ADR-0111-creating-a-hub-is-a-page.md),
+[`user-experience.md`](../architecture/user-experience.md) §5.2): `CreatePage` filled, the details
+at `layout.pane.width` - mark and name, *Private* as a bordered box with its switch and sentence,
+colour and symbol open (`LookFields`: round swatches, square symbols, "none" dashed), description,
+the start's summary - beside the starts: a heading, a search, the families as pills that are one
+radio group with their counts, the count as a status, and the tiles as `ChoiceCards`, *Empty hub*
+first. Below `medium` the details are the page, *Colour and symbol* a `Disclosure` row, and the
+summary's *Choose a template* (*Change* once one is chosen) opens the starts as a second step: a
+`Dialog` L with `isStep` - ‹, the title, *Done* -, the search across the width, the families one
+row that scrolls sideways, one tile per row; its address is the page's, and back closes it. A
+collection keeps *Dialog M*: its name, its kinds as the same tiles - *Like its hub* first and
+chosen, then the presets, *Scrum*, *Desk* -, *Colour and symbol* one closed `Disclosure` row at
+every width, as on a phone's create-hub page, and the description open under it - the dialog's
+one `Disclosure` is the look. It is the one *Dialog M* whose body may scroll at 1280×800 (decision
+#1865): its kinds are data and grow by a row with every two saved presets, so no fixed size holds
+them; its head with the name and its foot with *Create* stay in view while the body scrolls.
 
 **A container screen.** `PageHeader` with one primary action:
 
@@ -1455,7 +1564,12 @@ Rules*, its working hours, code and chat, and *People*. *General* is the edit di
 place. The structure's preset and settings are spread over *Templates and presets* (the preset), *Types &
 forms* (levels, fields, entry types), *Workflow* (completion, a hub's workflows), *Views* (views,
 what counts, capture, success) and *Rules* (the automation behaviours, above a collection's rules),
-held by one draft and one save bar: each setting with its `SourceChip`, a reset where the value is
+held by one draft and one save bar. What each level carries is a `MultiSelect` field in four groups
+(*Status and time*, *People*, *Content*, *Extensions*; a capability they do not name is an
+extension) whose closed field says "All 15 fields" or "All except Amount" with at most two off and
+the chips otherwise - an Activity's five as well, so that the rows of one table share one look;
+the levels, the views offered, capture and the automation behaviours are its
+inline ticks, the views required. Each setting has its `SourceChip`, a reset where the value is
 set here, and a lock drawn as the chip's lock with the controls still readable and unavailable,
 their reason naming who set it (§4, cases 2 and 6). When the settings change elsewhere while the
 draft holds a change of the reader's, a warning `Banner` above the section's rows says so and names
@@ -1472,6 +1586,20 @@ also reachable where it is used — templates from capture's modes, people from 
 opening the same dialog. In the toolbar is the one *Views* menu: the saved views that apply here, each opened by its row with its query and layout, then saving what is
 on screen, renaming, sharing or deleting a view, exporting the list as it is filtered, and the
 calendar subscriptions; the page menu carries none of them.
+
+**A workspace's own logo** (UC-INS-22). Its group under the name, *Logo and app bar*, draws the
+app bar twice, each inside its own `data-theme` so a light and a dark surface stand side by side
+whatever the reader's theme; then the choice as `Radio` - *Logo only* unavailable with its reason
+until a logo or the symbol exists -; then one row per picture: an `UploadField` target while there
+is none, otherwise the picture on its surface beside *Replace* (`UploadField` `button`) and
+*Remove*. A stored picture is a stored picture whatever its bytes do: while they are read its box
+stands empty and the line says it is loading; where they cannot be read here - no connection, a
+file storage that refuses them or does not let the browser read them - the box holds the image
+glyph, the line says that it is stored and why it cannot be shown, and the preview falls back past
+it by G8 with a sentence under the pair saying so. A file the browser names as another type or past the limit is refused at its row before it
+leaves, the server's refusal is said there too, and the focus moves to that row's upload. A line under
+the picture says whether it reads on its surface - a heuristic on the picture's opaque pixels; it
+warns and never blocks.
 
 **Presets** (UC-WRK-30). Wherever a preset is offered — *Create collection*, *Create hub*, the
 *Templates and presets* section's picker, a hub's *Edit* — each is marked with where it comes from: Hubtask's,
@@ -1581,13 +1709,15 @@ a form split beside it, and an administered object has no side panel: a task tak
 that fits what it holds. *In place* — one value that is the row's or the head's state. *Popover* —
 one to three values from a short set, saved at once (a bottom `Sheet` on a phone). *Dialog S* — a
 confirmation or one field. *Dialog M* — two to six fields in one group, at most one picker list of
-eight visible rows and one *Advanced* fold, no scrolling at 1280×800. *Dialog L* — seven to twelve
+eight visible rows and one *Advanced* fold, no scrolling at 1280×800 (one exception, *Create
+collection*, §11.8). *Dialog L* — seven to twelve
 fields in at most three titled groups, or one list to choose from with search, or a preview
 beside a short form. *Create page* — more, or steps, or a table, or anything a person may leave
 and come back to. *Record page* — an existing object with lists of its own, opened by its row,
 whose head's *Edit* is a Dialog M of its own fields. A dialog holds no table, no tabs, no second
 dialog except *Discard changes?* and at most one `Disclosure`; M and L are full screen below
-`medium`, with ✕ at the start and the primary in its bar. A dialog is for doing, a page for
+`medium`, with ✕ at the start and the primary in its bar; one that is a step of the page under it
+(`isStep`: a choice made there is the page's at once) has *‹* named in words instead of ✕. A dialog is for doing, a page for
 having. A row carries one quiet verb and a ⋯ menu, destructive acts only there, in a Dialog S or
 a `DangerZone` (PS-6); a long list continues at its foot and says what is shown — *Showing 50 of
 1 240* where the endpoint counts (`page.total`, `api-guidelines.md` §4), *Show more* by the
@@ -1735,6 +1865,10 @@ another device ([`backlog/navigation/README.md`](../backlog/navigation/README.md
   two container types, the bucket, the jumble, the capability, and the relationships a general set
   has no word for. Where Lucide already says a noun well — a label `tag`, a comment
   `message-square`, a reminder `bell` — nothing is drawn.
+* **A workspace's own symbol is data, not an icon**: a picture the workspace uploaded, drawn in a
+  fixed square box (`WorkspaceSymbol`) with two letters where there is none or it fails to load,
+  decorative wherever a name stands beside it - the switcher's row, a navigation row's mark
+  (`NavItem`'s `mark`), the header beside the name (§11.2).
 * **An automation building block is drawn with its kind's icon from one table, falling back to its
   group's icon** (`apps/webapp/src/lib/automation/words.ts`), the same in the panel, the `+` popover
   and the card. Every icon that table names is declared in `build/icons.js`.

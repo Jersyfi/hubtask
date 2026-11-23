@@ -1431,8 +1431,12 @@ type EmergencyAccesses interface {
 	Members(ctx context.Context, hubID shared.ID) ([]shared.ID, error)
 
 	// NoticesFor answers the accesses the recipient was told of, opened at or after `since`,
-	// newest first, whatever the mail about them did.
-	NoticesFor(ctx context.Context, recipientID shared.ID, since time.Time) ([]work.EmergencyAccess, error)
+	// newest first, whatever the mail about them did, each with the recipient's own confirmation.
+	NoticesFor(ctx context.Context, recipientID shared.ID, since time.Time) ([]work.EmergencyNotice, error)
+
+	// Acknowledge writes the account's confirmation of the access at `at` unless one is there, and
+	// answers whether it wrote one. Whether the account was told is the caller's to ask first.
+	Acknowledge(ctx context.Context, accessID, accountID shared.ID, at time.Time) (bool, error)
 
 	// Find answers one access with the name of its hub, for the mail that tells of it.
 	Find(ctx context.Context, id shared.ID) (work.EmergencyAccess, string, error)

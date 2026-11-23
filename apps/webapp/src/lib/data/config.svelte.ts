@@ -137,9 +137,11 @@ class Config {
 
   /**
    * Applies a template's plan by its hash, recording the template's provenance: a hub's plan to
-   * that hub's own document, a collection's as that collection's.
+   * that hub's own document, a collection's as that collection's. `moduleHubIds` go with the
+   * workspace's plan only: the existing hubs its modules are switched on in as well - the hub a
+   * template is taken for (UC-INS-21 check 13).
    */
-  async applyTemplate(plan: ConfigTemplatePlan, acknowledge: boolean): Promise<ConfigApplyResult> {
+  async applyTemplate(plan: ConfigTemplatePlan, acknowledge: boolean, moduleHubIds: readonly string[] = []): Promise<ConfigApplyResult> {
     const hubId = plan.hub_id ?? undefined;
     const collectionId = plan.collection_id ?? undefined;
     const invalidates = [...TOUCHED, ...(hubId ? hubTouched(hubId) : []), ...(collectionId ? collectionTouched(collectionId) : [])];
@@ -147,7 +149,8 @@ class Config {
       document: plan.document, mode: plan.mode, plan_hash: plan.plan_hash ?? '', template: plan.template, acknowledge,
       ...(hubId ? { hub_id: hubId } : {}),
       ...(collectionId ? { collection_id: collectionId } : {}),
-    }, { idempotencyKey: INTENT, invalidates });
+      ...(!hubId && !collectionId && moduleHubIds.length > 0 ? { module_hub_ids: [...moduleHubIds] } : {}),
+    }, { idempotencyKey: INTENT, invalidates: [...invalidates, ...moduleHubIds.flatMap((id) => hubTouched(id))] });
   }
 
   /** Reads the sandbox and the plan of promoting it. **From `untrack`**. */

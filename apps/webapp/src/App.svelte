@@ -32,14 +32,17 @@
   import { isOutsider, isOutsiderRoute, portalStart } from './lib/portal/portal.ts';
   import { lastPortal } from './lib/portal/lastportal.svelte.ts';
   import { manifest } from './lib/data/capabilities.svelte.ts';
-  import ModuleOff from './lib/frame/ModuleOff.svelte';
   import { PRODUCT_HOMES, isProductHome, offModuleOf } from './lib/frame/moduleroute.ts';
-  import { holdsHere, reachesAdministrationArea } from './lib/data/capability.svelte.ts';
+  import { holdsHere, hubCreationHere, reachesAdministrationArea } from './lib/data/capability.svelte.ts';
   import { live } from './lib/data/live.svelte.ts';
   import { viewAs } from './lib/data/viewas.svelte.ts';
   import { platform } from './lib/platform/index.ts';
   import { session } from './lib/session.svelte.ts';
   import { precacheByReach } from './lib/frame/precache.ts';
+  import { page } from './lib/frame/page.svelte.ts';
+  import { tab } from './lib/frame/tab.svelte.ts';
+  import { tabTitleOf } from './lib/frame/tabtitle.ts';
+  import { signInRules } from './lib/data/signinrules.svelte.ts';
   import { loadFrame, partLoaders, ruleViews, workViews } from './lib/frame/parts.ts';
   import { onceEach } from './lib/frame/once.ts';
   import { connectorReturnOf } from './lib/data/connectorreturn.ts';
@@ -67,6 +70,8 @@
   const views = onceEach({
     ...workViews,
     AgentsView: () => import('./views/AgentsView.svelte'),
+    CreateHubView: () => import('./views/CreateHubView.svelte'),
+    ModuleOff: () => import('./lib/frame/ModuleOff.svelte'),
     AgentsSettingsView: () => import('./views/AgentsSettingsView.svelte'),
     CmdbView: () => import('./views/CmdbView.svelte'),
     ServiceDeskView: () => import('./views/ServiceDeskView.svelte'),
@@ -265,13 +270,18 @@
       deviceListHome: deviceList.isHome,
     }),
   );
+  /** *Create hub* is reached by whoever may make a hub, shared or their own private one (ADR-0111). */
+  const hubReach = (creation: ReturnType<typeof hubCreationHere>): boolean | undefined =>
+    creation === undefined ? undefined : creation !== 'none';
   const offModule = $derived(offModuleOf(route.name ?? '', manifest.value?.modules_on));
   const reach = $derived(
     route.area === 'administration'
       ? reachesAdministrationArea()
       : route.name === 'jumble'
         ? holdsHere('READ')
-        : true,
+        : route.name === 'hub-new'
+          ? hubReach(hubCreationHere())
+          : true,
   );
 
   /**
@@ -381,6 +391,14 @@
   });
   const precache = precacheByReach(views, partLoaders());
   $effect(() => precache({ signedIn: session.isSignedIn, administration: reachesAdministrationArea() }));
+
+  // The tab's title, written here and nowhere else (UC-INS-22 check 9): the page's title and the
+  // workspace - the frame's while signed in, the sign-in rules' at a workspace's own address before
+  // that, none at the installation's own address.
+  $effect(() => {
+    const named = session.isSignedIn ? tab.workspace : deviceList.isHome ? undefined : signInRules.workspaceName;
+    document.title = tabTitleOf(page.title, named);
+  });
   $effect(() => {
     const accountId = liveAccountId;
     if (!accountId) return;
@@ -488,7 +506,7 @@
   {:else if reach === false}
     {@render nothingHere()}
   {:else if offModule}
-    <ModuleOff module={offModule} isProduct={route.name !== null && isProductHome(route.name)} onnavigate={(path) => router.navigate(path)} />
+    <LazyView load={views.ModuleOff} props={{ module: offModule, isProduct: route.name !== null && isProductHome(route.name), onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'home'}
     <LazyView load={views.TodayView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'installation'}
@@ -754,6 +772,17 @@
         }}
       />
     {/key}
+  {:else if route.name === 'hub-new'}
+    <!-- *Create hub* (ADR-0111): Cancel goes back where the person came from, a link from inside
+         the app; typed or reloaded, to the start view. The new hub replaces this address, so back
+         from it goes where the person was before. -->
+    <LazyView load={views.CreateHubView} props={{
+      template: route.query['template'],
+      product: route.query['product'],
+      oncancel: () => (router.move === 'push' ? history.back() : router.navigate('/')),
+      onland: (path: string) => router.replace(path),
+      onstep: (onback: () => void) => router.hold(onback),
+    }} />
   {:else if PLACE_ROUTES.includes(route.name ?? '') && isSettingsRoute(route.name)}
     <!-- A place's settings are their own page kind (page-system §9.6); keyed on the id, as the place is. -->
     {#key route.params.id}

@@ -6,7 +6,7 @@
   // the workspace's own; the shipped *manual* is read, never changed (P-05: without STRUCTURE the
   // page lists the sources and offers no control).
   import {
-    CheckboxGroup, DataTable, Dialog, EmptyState, FilterBar, Input, ListPage, Select, Spinner, Stack, Switch, Button,
+    DataTable, Dialog, EmptyState, FilterBar, Input, ListPage, MultiSelect, Select, Spinner, Stack, Switch, Button,
     type DataColumn, type DataRowMenu, type SelectOption,
   } from '@hubtask/design-system/components';
   import type { CiClass, CiClassList, CiSource, CiSourceDefine, CiSourceList } from '@hubtask/sync-engine';
@@ -16,6 +16,7 @@
   import { resource } from '../lib/data/resource.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
+  import { FROM_DATA, chooseSeveral } from '../lib/forms/chooseSeveral.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { matchesSearch } from '../lib/page/list.ts';
   import ProductTabs from '../lib/product/ProductTabs.svelte';
@@ -152,7 +153,7 @@
       <Select label={t('app.cmdb_admin.source_kind_label')} options={sourceKinds} bind:value={sourceDraft.kind} />
       <Input label={t('app.cmdb_admin.rank_label')} hint={t('app.cmdb_admin.rank_hint')} inputmode="numeric" bind:value={sourceDraft.rank} />
       <Switch label={t('app.cmdb_admin.may_create')} bind:checked={sourceDraft.mayCreate} />
-      <CheckboxGroup label={t('app.cmdb_admin.source_classes')} hint={t('app.cmdb_admin.source_classes_hint')} options={classChecks} selected={sourceDraft.classes} onChange={(next) => { if (sourceDraft) sourceDraft.classes = [...next]; }} />
+      <MultiSelect label={t('app.cmdb_admin.source_classes')} presentation={FROM_DATA} hint={t('app.cmdb_admin.source_classes_hint')} options={classChecks} selected={sourceDraft.classes} onChange={(next) => { if (sourceDraft) sourceDraft.classes = [...next]; }} {...chooseSeveral()} />
       {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
     </Stack>
     {#snippet actions()}

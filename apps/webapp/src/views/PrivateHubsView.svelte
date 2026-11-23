@@ -23,7 +23,7 @@
 
   import { Button, DataTable, EmptyState, FilterBar, ListPage, Radio, Spinner, Stack, type DataColumn, type Filter } from '@hubtask/design-system/components';
 
-  import PrivateHubsAllowed from '../lib/workspace/PrivateHubsAllowed.svelte';
+  import PolicySwitch from '../lib/workspace/PolicySwitch.svelte';
   import EmergencyAccessDialog from '../lib/workspace/EmergencyAccessDialog.svelte';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { adminTrail } from '../lib/administration/trail.ts';
@@ -115,7 +115,7 @@
   {#snippet intro()}
     <Stack gap="200">
       <p class="quiet">{t('app.private_hubs.intro')}</p>
-      <PrivateHubsAllowed />
+      <PolicySwitch key="private_hubs" label={t('app.private_hubs.allowed')} hint={t('app.private_hubs.allowed_hint')} offAbove={t('app.signin_settings.off_above')} saved={t('app.private_hubs.allowed_saved')} />
     </Stack>
   {/snippet}
   {#snippet filters()}

@@ -423,8 +423,10 @@ func TestTheOperationsAPlanCanLeaveOutAreExactlyThese(t *testing.T) {
 // of their own entries in it (UC-WRK-34). The twelve of a workspace's address are decided inside: a
 // change, an own domain and its main address by the owner's role or the operator's register, the
 // notices and the device's list are a person's own (UC-INS-15, UC-INS-19, UC-ID-25). The deadlines a
-// handler kept are their own entries' (UC-SVC-02 check 15).
-const undeclaredPermissionsAtMost = 219
+// handler kept are their own entries' (UC-SVC-02 check 15). Confirming the notice of an emergency
+// access is a person's own, decided by the record that told them (UC-ID-16 check 10). The workspace's name and
+// look are any member's, as the names behind identifiers are (UC-INS-22 checks 5 and 9).
+const undeclaredPermissionsAtMost = 221
 
 func TestTheDeclaredPermissionsOnlyGrow(t *testing.T) {
 	undeclared := 0

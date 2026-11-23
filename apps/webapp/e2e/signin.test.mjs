@@ -58,7 +58,7 @@ function stubFor({ answer, onCheck, rules = RULES }) {
     if (path.endsWith('/api/v1/meta/capabilities')) {
       return route.fulfill({ json: { product_version: 'e2e', api_version: 'v1', tenancy_mode: 'multi', item_types: [], view_layouts: [], supported_locales: [{ locale: 'en', direction: 'ltr' }], roles: [], limits: {}, features: { sign_in_rules: true } } });
     }
-    return route.fulfill({ status: 404, json: { code: 'errors.not_found' } });
+    return route.fulfill({ status: 404, contentType: 'application/problem+json', body: JSON.stringify({ status: 404, code: 'errors.not_found' }) });
   };
 }
 

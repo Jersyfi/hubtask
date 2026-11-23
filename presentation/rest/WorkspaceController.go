@@ -54,6 +54,12 @@ func workspaceResponse(out usecase.Output) openapi.Workspace {
 	if policy, held := out["sign_in_policy"].(usecase.Output); held {
 		answer.SignInPolicy = signInPolicyResponse(policy)
 	}
+	if branding, held := out["branding"]; held {
+		var answered openapi.WorkspaceBranding
+		if throughJSON(branding, &answered) == nil {
+			answer.Branding = &answered
+		}
+	}
 	if structure, held := out["structure"]; held {
 		var answered openapi.WorkspaceStructure
 		if throughJSON(structure, &answered) == nil {
@@ -267,6 +273,10 @@ func signInPolicyResponse(out usecase.Output) *openapi.SignInPolicy {
 	if _, held := out["private_hubs"].(usecase.Output); held {
 		allowed := flag(out, "private_hubs")
 		answer.PrivateHubs = &allowed
+	}
+	if _, held := out["own_branding"].(usecase.Output); held {
+		allowed := flag(out, "own_branding")
+		answer.OwnBranding = &allowed
 	}
 	if moment, held := out["rotation_from"].(time.Time); held && !moment.IsZero() {
 		answer.RotationFrom = &moment

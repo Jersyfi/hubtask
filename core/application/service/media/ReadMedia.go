@@ -193,6 +193,16 @@ func (h GetMedia) read(
 			}
 			return nil
 		}
+		if found.Usage == media.UsageWorkspaceLogo {
+			// Whoever is in the workspace, as for a person's picture: the header draws it for
+			// every member, and the transaction's tenant bounds the question. Only a raster picture
+			// is one, judged again at every read (T-34).
+			if !media.IsWorkspacePictureType(found.ContentType) {
+				return nil
+			}
+			served.portrait, err = h.Objects.ServesWorkspace(ctx, mediaID)
+			return err
+		}
 		if found.Usage == media.UsageAvatar {
 			// Whoever is in the workspace: the transaction's tenant already bounds the question,
 			// so a picture of another workspace's member does not resolve here.

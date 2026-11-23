@@ -7,6 +7,7 @@
  * is this tab's.
  */
 
+import { mayReadWorkspace } from '../data/capability.svelte.ts';
 import { workspace } from '../data/workspace.svelte.ts';
 import { tourMayStart } from './order.ts';
 
@@ -26,7 +27,9 @@ class Coordinator {
   /** Whether the base tour may start now; a workspace that cannot be read offers no starter. */
   get tourMayStart(): boolean {
     const read = workspace.state;
-    const starterOffered = read.status === 'ready' ? read.data.starter_offered === true : read.status === 'failed' ? false : undefined;
+    // A reader who may not read the workspace is offered no starter and does not ask for it.
+    const starterOffered =
+      read.status === 'ready' ? read.data.starter_offered === true : read.status === 'failed' || mayReadWorkspace() === false ? false : undefined;
     return tourMayStart({ starterOffered, starterOpen: this.#starterOpen });
   }
 }

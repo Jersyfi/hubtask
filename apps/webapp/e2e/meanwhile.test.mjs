@@ -49,7 +49,7 @@ const keptComment = (id, body, device = 'another-device') => ({
 /**
  * The entry as the backend holds it, its history, the requests the reader's client sent, and the
  * change log. `refusePatches` makes it refuse that many writes, `refuseRead` the entry's read; a
- * write is answered only once `patchHeld` settles. A write against an older version than the one
+ * write is answered only once `patchHeld` settles, a read of the entry once `readHeld` settles. A write against an older version than the one
  * held is refused as the server refuses it (`version_conflict`, `ensureExpectedVersion`).
  */
 async function openEntry(browser, width, address = `/items/${ENTRY.id}`) {
@@ -59,7 +59,8 @@ async function openEntry(browser, width, address = `/items/${ENTRY.id}`) {
   const isNamed = new Promise((resolve) => (named = resolve));
   const state = {
     entry: ENTRY, sent: [], log: [], history: [], comments: [], pushed: [], isOffline: false, theirsAway: undefined, isNamed,
-    refusePatches: 0, stalePatches: 0, refuseRead: false, patchHeld: undefined, olderRefused: false, commentsRefused: false,
+    refusePatches: 0, stalePatches: 0, refuseRead: false, patchHeld: undefined, readHeld: undefined, olderRefused: false, commentsRefused: false,
+    quiet: false, quieted: undefined,
   };
   let delivered = 0;
   await context.unroute('**/api/v1/**');
@@ -90,6 +91,12 @@ async function openEntry(browser, width, address = `/items/${ENTRY.id}`) {
       });
     }
     if (path === '/stream') {
+      // Quiet: answered once more, asking not to be opened again for an hour, so that no
+      // catch-up reads the entry behind the walk's back.
+      if (state.quiet) {
+        state.quieted?.();
+        return route.fulfill({ status: 200, contentType: 'text/event-stream', body: 'retry: 3600000\n\n' });
+      }
       const news = state.log.slice(delivered);
       delivered = state.log.length;
       const frames = news.map((each, i) => `id: c-${delivered - news.length + i + 1}\ndata: ${JSON.stringify(each)}\n\n`).join('');
@@ -98,6 +105,7 @@ async function openEntry(browser, width, address = `/items/${ENTRY.id}`) {
     const record = method !== 'GET' ? { method, path, body: request.postDataJSON(), ifMatch: request.headers()['if-match'], status: 200 } : undefined;
     if (record) state.sent.push(record);
     if (path === `/items/${ENTRY.id}` && method === 'GET') {
+      if (state.readHeld) await state.readHeld;
       if (state.refuseRead) return route.fulfill(problem(429, 'rate_limited'));
       return route.fulfill({ json: state.entry, headers: { ETag: `"${state.entry.version}"` } });
     }
@@ -532,6 +540,40 @@ test('chromium: 1280 px — a description edited again while its save is on its 
   assert.deepEqual(failures, []);
 });
 
+test('chromium: 1280 px — a saved description is not drawn back to the text before it while the entry is read again (UC-SYN-02 check 10)', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, context, failures, state } = await openEntry(browser, 1280);
+  t.after(() => context.close());
+
+  const notes = page.getByRole('textbox', { name: 'Notes' });
+  await notes.filter({ hasText: ENTRY.notes }).waitFor({ timeout: 10_000 });
+  // Every text the editor draws, in order: a frame of the older text is one the reader saw.
+  await notes.evaluate((element) => {
+    window.notesDrawn = [];
+    new MutationObserver(() => {
+      const text = element.textContent.trim();
+      if (window.notesDrawn.at(-1) !== text) window.notesDrawn.push(text);
+    }).observe(element, { subtree: true, childList: true, characterData: true });
+  });
+  let release;
+  state.readHeld = new Promise((resolve) => (release = resolve));
+  const isEntryRead = (request) => request.method() === 'GET' && new URL(request.url()).pathname.endsWith(`/items/${ENTRY.id}`);
+  const reread = page.waitForRequest(isEntryRead, { timeout: 10_000 });
+  await notes.fill('Measure the wall.');
+  await page.locator('[data-tour="entry"]').getByRole('button', { name: 'Edit title' }).focus();
+  await reread;
+  await page.getByRole('status').filter({ hasText: 'Saved.' }).first().waitFor({ timeout: 10_000 });
+  const whileRead = (await notes.textContent())?.trim();
+  const landed = page.waitForResponse((response) => isEntryRead(response.request()), { timeout: 10_000 });
+  release();
+  await landed;
+  await notes.filter({ hasText: 'Measure the wall.' }).waitFor({ timeout: 5_000 });
+  assert.deepEqual(writes(state).map((each) => each.body), [{ notes: 'Measure the wall.' }]);
+  assert.equal(whileRead, 'Measure the wall.', 'the read before the save was drawn while the entry was read again');
+  assert.deepEqual(await page.evaluate(() => window.notesDrawn), ['Measure the wall.']);
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: 1280 px — a save refused as stale twice says so, keeps the text and holds the way out (UC-SYN-02 check 10)', async (t) => {
   const browser = await sharedChromium(t);
   const { page, context, state } = await openEntry(browser, 1280);
@@ -745,10 +787,16 @@ async function conflictWhileAway(page, context, state) {
   await page.waitForFunction(() => document.querySelector('.trigger')?.getAttribute('aria-label')?.includes('1 change is waiting to be sent'), null, { timeout: 5_000 })
     .catch(() => assert.fail('the notes were not kept as a waiting change'));
   state.theirsAway = THEIRS;
+  // The answered push makes the entry stale, and its read follows the strip: a walk that went on
+  // before that read was answered could have it refused, and the entry it was resolving vanish.
+  const theirs = `"${state.entry.version + 1}"`;
+  const reread = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith(`/api/v1/items/${ENTRY.id}`)
+    && response.request().method() === 'GET' && response.headers().etag === theirs, { timeout: 15_000 });
   state.isOffline = false;
   await context.setOffline(false);
   const strip = page.getByText('The notes were changed by somebody else while you were away.');
   await strip.waitFor({ timeout: 15_000 });
+  await reread;
   return strip;
 }
 
@@ -786,10 +834,18 @@ test('chromium: 1280 px — offline, write mine again while the entry cannot be 
   t.after(() => context.close());
 
   const strip = await conflictWhileAway(page, context, state);
-  state.refuseRead = true;
+  // The stream asks to be opened again four times a second, and each catch-up may read the entry
+  // again: refused, such a read takes the entry and its conflict from the screen. Only the read
+  // the press sends is to be refused, so the stream is quietened first.
+  const quieted = new Promise((resolve) => { state.quieted = resolve; });
+  state.quiet = true;
+  await quieted;
   const before = writes(state).length;
   await page.getByRole('button', { name: 'Show both versions' }).click();
-  await page.getByRole('dialog', { name: 'Two versions of the notes' }).getByRole('button', { name: 'Write mine again' }).click();
+  const versions = page.getByRole('dialog', { name: 'Two versions of the notes' });
+  await versions.waitFor({ timeout: 10_000 });
+  state.refuseRead = true;
+  await versions.getByRole('button', { name: 'Write mine again' }).click();
   await page.getByText('Too many requests. Please try again in a moment.').first().waitFor({ timeout: 10_000 })
     .catch(async () => assert.fail(`the failure is not said: ${await page.locator('main').innerText()}`));
   assert.deepEqual(writes(state).slice(before), [], 'the notes were written without the entry’s current version');

@@ -5,11 +5,12 @@
   // on a class's record page draw the same one. Only what the class itself declares is edited, not
   // what it inherits; its refusal is said inside it, which keeps what was typed
   // (user-experience.md §5.10).
-  import { Button, Checkbox, CheckboxGroup, Dialog, IconButton, Input, Select, Stack, Switch, Textarea, type SelectOption } from '@hubtask/design-system/components';
+  import { Button, Checkbox, Dialog, IconButton, Input, MultiSelect, Select, Stack, Switch, Textarea, type SelectOption } from '@hubtask/design-system/components';
   import { untrack } from 'svelte';
   import type { CiAttribute, CiClass, CiRelationType } from '@hubtask/sync-engine';
   import FailureNote from '../frame/FailureNote.svelte';
   import { toast } from '../frame/toasts.svelte.ts';
+  import { FROM_DATA, chooseSeveral } from '../forms/chooseSeveral.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import { classDefine, classDraft, classWord, cmdb, keyIsWellFormed, relationWord, type ClassDraft, type Words } from '../data/cmdb.svelte.ts';
@@ -91,7 +92,7 @@
         <legend>{t('app.cmdb_admin.required')}</legend>
         {#each classDraftState.required as needed, index (index)}
           <div class="line">
-            <CheckboxGroup label={t('app.cmdb_admin.required_types')} options={typeKeys.map((each) => ({ value: each.value, label: each.label }))} selected={needed.types} onChange={(next) => (needed.types = [...next])} />
+            <MultiSelect label={t('app.cmdb_admin.required_types')} presentation={FROM_DATA} options={typeKeys.map((each) => ({ value: each.value, label: each.label }))} selected={needed.types} onChange={(next) => (needed.types = [...next])} {...chooseSeveral()} />
             <Checkbox label={t('app.cmdb_admin.outgoing')} bind:checked={needed.outgoing} />
             <IconButton icon="x" size="sm" tone="subtle" label={t('app.cmdb_admin.remove')} onclick={() => classDraftState?.required.splice(index, 1)} />
           </div>

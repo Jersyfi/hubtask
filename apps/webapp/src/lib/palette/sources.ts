@@ -37,7 +37,7 @@ export type Target =
   | { readonly kind: 'search'; readonly line: string }
   | { readonly kind: 'open'; readonly containerId: string; readonly layout?: string; readonly add?: boolean }
   /** The one create dialog, for a hub or for a collection in `parentId`. */
-  | { readonly kind: 'create'; readonly type: 'HUB' | 'COLLECTION'; readonly parentId?: string; readonly isPrivateOnly?: boolean }
+  | { readonly kind: 'create'; readonly type: 'COLLECTION'; readonly parentId: string }
   | { readonly kind: 'capture' }
   /** A settings screen, opened at one of its rows: the element marked `data-setting` with `row`. */
   | { readonly kind: 'setting'; readonly path: string; readonly row: string };

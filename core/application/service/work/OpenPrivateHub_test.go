@@ -26,6 +26,9 @@ import (
 type accessStore struct {
 	members  []shared.ID
 	accesses []domain.EmergencyAccess
+	// told is who each access was told to, by its identifier; nil tells everybody of every one.
+	told         map[shared.ID][]shared.ID
+	acknowledged map[[2]shared.ID]time.Time
 }
 
 func (a *accessStore) Insert(_ context.Context, access domain.EmergencyAccess) error {
@@ -54,8 +57,29 @@ func (a *accessStore) List(_ context.Context, hub shared.ID, _ int) ([]domain.Em
 
 func (a *accessStore) Members(context.Context, shared.ID) ([]shared.ID, error) { return a.members, nil }
 
-func (a *accessStore) NoticesFor(context.Context, shared.ID, time.Time) ([]domain.EmergencyAccess, error) {
-	return a.accesses, nil
+// NoticesFor answers the accesses opened since the moment that the recipient was told of - every
+// one where the store names no recipients - each with the recipient's own confirmation.
+func (a *accessStore) NoticesFor(_ context.Context, recipient shared.ID, since time.Time) ([]domain.EmergencyNotice, error) {
+	var out []domain.EmergencyNotice
+	for _, access := range a.accesses {
+		if access.OpenedAt.Before(since) || (a.told != nil && !slices.Contains(a.told[access.ID], recipient)) {
+			continue
+		}
+		out = append(out, domain.EmergencyNotice{Access: access, AcknowledgedAt: a.acknowledged[[2]shared.ID{access.ID, recipient}]})
+	}
+	return out, nil
+}
+
+func (a *accessStore) Acknowledge(_ context.Context, access, account shared.ID, at time.Time) (bool, error) {
+	key := [2]shared.ID{access, account}
+	if _, held := a.acknowledged[key]; held {
+		return false, nil
+	}
+	if a.acknowledged == nil {
+		a.acknowledged = map[[2]shared.ID]time.Time{}
+	}
+	a.acknowledged[key] = at
+	return true, nil
 }
 
 func (a *accessStore) Find(_ context.Context, id shared.ID) (domain.EmergencyAccess, string, error) {

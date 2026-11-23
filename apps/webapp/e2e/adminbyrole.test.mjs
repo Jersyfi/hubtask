@@ -20,8 +20,9 @@ import { join, dirname } from 'node:path';
 
 import { sharedChromium } from './browser.mjs';
 
-import { MANIFEST, PERMISSIONS, stub } from './fixture.mjs';
+import { ACCOUNT, MANIFEST, PERMISSIONS, ROLE_CATALOGUE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { chipsOf, describedBy, focused, pick, valueOf } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -180,3 +181,134 @@ for (const screen of OWNERS_ONLY) {
     assert.deepEqual(admin.failures, []);
   });
 }
+
+// A new role's permissions, area by area (design-system.md §4): an area of six is one field named
+// by the area, an area of two stays ticks. Opened from the keyboard on its first permission, Space
+// ticks, Escape closes the list and leaves the dialog open with focus on the field; the role is
+// defined with what was ticked in both areas. In English and in German.
+const AREAS = { READ: 'content', WRITE_ITEMS: 'content', STRUCTURE: 'content', AUTOMATION: 'content', DELETE_CONTAINER: 'content', READ_CONFIGURATION: 'content', MANAGE_MEMBERS: 'people', AUDIT_READ: 'people' };
+for (const locale of ['en', 'de']) {
+  test(`chromium: a new role's permissions are a field for an area of six and ticks for two (${locale})`, async (t) => {
+    const browser = await sharedChromium(t);
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    t.after(() => context.close());
+    const created = [];
+    await context.route('**/api/v1/**', async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/u, '');
+      if (path === '/accounts/me') return route.fulfill({ json: { ...ACCOUNT, locale } });
+      if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: PERMISSIONS.OWNER } });
+      if (path === '/roles' && request.method() === 'GET') {
+        return route.fulfill({ json: { ...ROLE_CATALOGUE, catalogue: ROLE_CATALOGUE.catalogue.map((entry) => ({ ...entry, group: AREAS[entry.permission] ?? 'content' })) } });
+      }
+      if (path === '/roles' && request.method() === 'POST') {
+        const body = request.postDataJSON();
+        created.push(body);
+        return route.fulfill({ status: 201, json: { id: '01a0e2e0-0000-7000-8000-0000000029c2', key: body.key, name: body.name, permissions: body.permissions, version: 1, created_at: '2026-11-23T09:00:00Z', updated_at: '2026-11-23T09:00:00Z' } });
+      }
+      if (path === '/access/explain') {
+        return route.fulfill({ json: { account_id: ACCOUNT.id, scope_type: 'TENANT', roles: ['OWNER'], permissions: PERMISSIONS.OWNER, sources: [] } });
+      }
+      return stub(route);
+    });
+    await context.addInitScript(() => {
+      sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+      sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+    });
+    const page = await context.newPage();
+    const words = locale === 'de'
+      ? { new: 'Neue Rolle', content: 'Inhalte', people: 'Personen', read: 'Lesen', structure: 'Struktur', write: 'Einträge schreiben', members: 'Leute', empty: 'Nichts gewählt', name: 'Name', create: 'Rolle festlegen' }
+      : { new: 'New role', content: 'Content', people: 'People', read: 'Read', structure: 'Structure', write: 'Write entries', members: 'People', empty: 'Nothing chosen', name: 'Name', create: 'Define the role' };
+    await page.goto(`${served.origin}/administration/people?tab=roles`);
+    if (locale === 'de') await page.waitForFunction(() => document.documentElement.lang === 'de', null, { timeout: 15_000 });
+    await page.getByRole('button', { name: words.new, exact: true }).first().click({ timeout: 15_000 });
+    const dialog = page.getByRole('dialog', { name: words.new });
+    await dialog.waitFor({ timeout: 5_000 });
+
+    const content = dialog.getByRole('button', { name: new RegExp(`^${words.content}`, 'u') });
+    await content.waitFor({ timeout: 5_000 }).catch(() => {});
+    assert.equal(await content.count(), 1, 'an area of six permissions is not one field');
+    assert.equal(await content.getAttribute('aria-haspopup'), 'listbox');
+    assert.equal(await valueOf(content), words.empty);
+    const people = dialog.getByRole('group', { name: words.people, exact: true });
+    assert.equal(await people.getByRole('checkbox').count(), 2, 'an area of two is not ticks');
+
+    await content.focus();
+    await page.keyboard.press('Enter');
+    const list = page.getByRole('listbox', { name: words.content });
+    await list.waitFor({ timeout: 5_000 });
+    assert.equal(await focused(page), `option "${words.read}"`, 'Enter did not land on the first permission');
+    await page.keyboard.press('Space');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Space');
+    await page.keyboard.press('Escape');
+    await list.waitFor({ state: 'detached', timeout: 5_000 });
+    assert.equal(await dialog.isVisible(), true, 'Escape closed the dialog, not only the list');
+    assert.match(await focused(page), new RegExp(`^button "${words.content} `, 'u'), 'closing the list left focus elsewhere');
+    assert.deepEqual(await chipsOf(content), [words.read, words.write]);
+    assert.deepEqual(await pick(page, content, [words.structure]), [words.read, words.write, words.structure]);
+    await people.getByRole('checkbox', { name: words.members, exact: true }).check();
+
+    await dialog.getByLabel(new RegExp(`^${words.name}`, 'u')).first().fill('Planner');
+    await dialog.getByRole('button', { name: words.create }).click();
+    await dialog.waitFor({ state: 'detached', timeout: 5_000 });
+    assert.equal(created.length, 1, 'no role was defined');
+    assert.deepEqual([...created[0].permissions].sort(), ['MANAGE_MEMBERS', 'READ', 'STRUCTURE', 'WRITE_ITEMS']);
+    assert.equal(created[0].name, 'Planner');
+  });
+}
+
+/** The role dialog opened by a reader who holds `role` on the workspace. */
+async function roleDialog(browser, role) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/u, '');
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: PERMISSIONS[role] } });
+    if (path === '/roles' && request.method() === 'GET') {
+      return route.fulfill({ json: { ...ROLE_CATALOGUE, catalogue: ROLE_CATALOGUE.catalogue.map((entry) => ({ ...entry, group: AREAS[entry.permission] ?? 'content' })) } });
+    }
+    if (path === '/access/explain') {
+      return route.fulfill({ json: { account_id: ACCOUNT.id, scope_type: 'TENANT', roles: [role], permissions: PERMISSIONS[role], sources: [] } });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/people?tab=roles`);
+  await page.getByRole('button', { name: 'New role', exact: true }).first().click({ timeout: 15_000 });
+  const dialog = page.getByRole('dialog', { name: 'New role' });
+  await dialog.waitFor({ timeout: 5_000 });
+  await dialog.getByRole('button', { name: /^Content/u }).or(dialog.getByRole('group', { name: 'Content', exact: true })).first().waitFor({ timeout: 5_000 });
+  return { page, dialog, close: () => context.close() };
+}
+
+// One look per area, the same for every reader (design-system.md §4): *Content* goes by its six
+// in the catalogue, so an administrator, who holds five of them, sees the field an owner sees.
+for (const role of ['OWNER', 'ADMIN']) {
+  test(`chromium: a role's areas look the same for an ${role === 'OWNER' ? 'owner' : 'administrator'}`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { dialog, close } = await roleDialog(browser, role);
+    t.after(close);
+    assert.equal(await dialog.getByRole('button', { name: /^Content/u }).getAttribute('aria-haspopup'), 'listbox', 'Content is not one field');
+    assert.equal(await dialog.getByRole('group', { name: 'People', exact: true }).getByRole('checkbox').count(), 2, 'People are not ticks');
+  });
+}
+
+// A role defined without a permission (design-system.md §4, case 3): the error stands on the first
+// area's control, which is marked and described by it, and focus moves there, as in a token's form.
+test('chromium: a role without a permission marks the first area and takes focus there', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, dialog, close } = await roleDialog(browser, 'OWNER');
+  t.after(close);
+  await dialog.getByLabel(/^Name/u).first().fill('Planner');
+  await dialog.getByRole('button', { name: 'Define the role' }).click();
+  const content = dialog.getByRole('button', { name: /^Content/u });
+  await page.waitForFunction(() => document.querySelector('dialog[open] .multiselect[data-invalid]') !== null, null, { timeout: 5_000 }).catch(() => {});
+  assert.equal(await content.evaluate((node) => node.closest('.multiselect')?.hasAttribute('data-invalid')), true, 'the area is not marked');
+  assert.match(await describedBy(content), /Choose at least one permission\./u);
+  assert.match(await focused(page), /^button "Content /u, 'focus did not move to the area');
+});

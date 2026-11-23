@@ -14,8 +14,8 @@
 
   interface Props {
     look: Look;
-    /** `md` for a page head, `sm` beside a line of text, `xs` on a trail's small type. */
-    size?: 'xs' | 'sm' | 'md';
+    /** `lg` beside the name it is chosen for, `md` for a page head, `sm` beside a line of text, `xs` on a trail's small type. */
+    size?: 'xs' | 'sm' | 'md' | 'lg';
     /** Whether a place without a colour stands on the default tile, as the navigation draws it on a trail and a card; elsewhere no colour stays none (UC-WRK-33). */
     hasDefaultTile?: boolean;
   }
@@ -26,7 +26,7 @@
 </script>
 
 <span class="mark" data-size={size} data-token={colour} aria-hidden="true">
-  <Icon name={markOf(look)} size={size === 'xs' ? 'sm' : size} />
+  <Icon name={markOf(look)} size={size === 'xs' ? 'sm' : size === 'lg' ? 'md' : size} />
 </span>
 
 <style>
@@ -45,6 +45,7 @@
   .mark[data-size='xs'] :global(svg) { inline-size: var(--sp-150); block-size: var(--sp-150); }
   .mark[data-size='sm'] { inline-size: var(--sp-250); block-size: var(--sp-250); }
   .mark[data-size='md'] { inline-size: var(--sp-400); block-size: var(--sp-400); border-radius: var(--r-md); }
+  .mark[data-size='lg'] { inline-size: var(--layout-target); block-size: var(--layout-target); border-radius: var(--r-lg); }
 
   .mark[data-token] { background: var(--mark-bg); color: var(--mark-fg); }
 

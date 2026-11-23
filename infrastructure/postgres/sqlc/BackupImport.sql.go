@@ -1347,6 +1347,18 @@ func (q *Queries) ClearPrivateHubAccess(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearPrivateHubAccessAcknowledgement = `-- name: ClearPrivateHubAccessAcknowledgement :execrows
+DELETE FROM private_hub_access_acknowledgement
+`
+
+func (q *Queries) ClearPrivateHubAccessAcknowledgement(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPrivateHubAccessAcknowledgement)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearPublicForm = `-- name: ClearPublicForm :execrows
 DELETE FROM public_form
 `
@@ -1845,6 +1857,18 @@ DELETE FROM workflow_scheme
 
 func (q *Queries) ClearWorkflowScheme(ctx context.Context) (int64, error) {
 	result, err := q.db.Exec(ctx, clearWorkflowScheme)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearWorkspacePicture = `-- name: ClearWorkspacePicture :execrows
+DELETE FROM workspace_picture
+`
+
+func (q *Queries) ClearWorkspacePicture(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearWorkspacePicture)
 	if err != nil {
 		return 0, err
 	}
@@ -3175,6 +3199,17 @@ func (q *Queries) HoldsPrivateHubAccess(ctx context.Context, payload []byte) (bo
 	return held, err
 }
 
+const holdsPrivateHubAccessAcknowledgement = `-- name: HoldsPrivateHubAccessAcknowledgement :one
+SELECT EXISTS (SELECT 1 FROM private_hub_access_acknowledgement WHERE access_id = ($1::jsonb->>'access_id')::uuid AND account_id = ($1::jsonb->>'account_id')::uuid) AS held
+`
+
+func (q *Queries) HoldsPrivateHubAccessAcknowledgement(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPrivateHubAccessAcknowledgement, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
 const holdsPublicForm = `-- name: HoldsPublicForm :one
 SELECT EXISTS (
   SELECT 1 FROM public_form WHERE collection_id = ($1::jsonb->>'collection_id')::uuid
@@ -3689,6 +3724,17 @@ SELECT EXISTS (
 
 func (q *Queries) HoldsWorkflowScheme(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsWorkflowScheme, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsWorkspacePicture = `-- name: HoldsWorkspacePicture :one
+SELECT EXISTS (SELECT 1 FROM workspace_picture WHERE picture = $1::jsonb->>'picture') AS held
+`
+
+func (q *Queries) HoldsWorkspacePicture(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsWorkspacePicture, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -7474,6 +7520,44 @@ func (q *Queries) ImportPrivateHubAccess(ctx context.Context, arg ImportPrivateH
 	return result.RowsAffected(), nil
 }
 
+const importPrivateHubAccessAcknowledgement = `-- name: ImportPrivateHubAccessAcknowledgement :execrows
+INSERT INTO private_hub_access_acknowledgement (
+  tenant_id,
+  access_id,
+  account_id,
+  acknowledged_at
+)
+SELECT
+  r.tenant_id,
+  r.access_id,
+  r.account_id,
+  r.acknowledged_at
+FROM jsonb_populate_record(
+  NULL::private_hub_access_acknowledgement,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+WHERE EXISTS (SELECT 1 FROM private_hub_access x WHERE x.id = r.access_id)
+  AND EXISTS (SELECT 1 FROM account a WHERE a.id = r.account_id)
+ON CONFLICT (tenant_id, access_id, account_id) DO UPDATE SET
+  acknowledged_at = EXCLUDED.acknowledged_at
+WHERE $2::boolean
+`
+
+type ImportPrivateHubAccessAcknowledgementParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+// A confirmation whose access or account the restore did not bring back confirms nothing, and is
+// skipped rather than refused by the foreign key.
+func (q *Queries) ImportPrivateHubAccessAcknowledgement(ctx context.Context, arg ImportPrivateHubAccessAcknowledgementParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importPrivateHubAccessAcknowledgement, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const importPublicForm = `-- name: ImportPublicForm :execrows
 INSERT INTO public_form (tenant_id, collection_id, token_hash, created_by, created_at)
 SELECT r.tenant_id, r.collection_id, r.token_hash, r.created_by, r.created_at
@@ -9147,6 +9231,41 @@ type ImportWorkflowSchemeParams struct {
 
 func (q *Queries) ImportWorkflowScheme(ctx context.Context, arg ImportWorkflowSchemeParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importWorkflowScheme, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importWorkspacePicture = `-- name: ImportWorkspacePicture :execrows
+INSERT INTO workspace_picture (
+  tenant_id,
+  picture,
+  media_id
+)
+SELECT
+  r.tenant_id,
+  r.picture,
+  r.media_id
+FROM jsonb_populate_record(
+  NULL::workspace_picture,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+WHERE EXISTS (SELECT 1 FROM media_object m WHERE m.id = r.media_id)
+ON CONFLICT (tenant_id, picture) DO UPDATE SET
+  media_id = EXCLUDED.media_id
+WHERE $2::boolean
+`
+
+type ImportWorkspacePictureParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+// A picture whose medium the restore did not bring back shows nothing, and is skipped rather than
+// refused by the foreign key.
+func (q *Queries) ImportWorkspacePicture(ctx context.Context, arg ImportWorkspacePictureParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importWorkspacePicture, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

@@ -216,6 +216,7 @@ async function views() {
     ['profile-section', await load('ProfileView'), { section: 'language' }],
     ['tokens', await load('MyTokensView'), {}],
     ['token-new', await load('NewTokenView'), {}],
+    ['hub-new', await load('CreateHubView'), { oncancel: noop, onland: noop }],
     ['token', await load('TokenView'), { id: 'x' }],
     ['appearance', await load('AppearanceView'), {}],
     ['notifications', await load('NotificationsView'), {}],

@@ -7,7 +7,7 @@
   // workspace has not taken it, since the hub part can only be planned once the hub exists. The
   // starter and *Create hub* ask the same, so they share this.
 
-  import { untrack } from 'svelte';
+  import { untrack, type Snippet } from 'svelte';
 
   import { Button, Checkbox, Input, Select, Spinner } from '@hubtask/design-system/components';
   import type { ConfigTemplate, ConfigTemplatePlan, TransportError } from '@hubtask/sync-engine';
@@ -19,6 +19,7 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import TemplateCreates from '../settings/TemplateCreates.svelte';
+  import { createsOf } from './hubGallery.ts';
 
   interface Props {
     template: ConfigTemplate;
@@ -34,12 +35,17 @@
     mustAcknowledge?: boolean;
     /** Out: a refusal of the plan or of making a group, in words. */
     failure?: string;
+    /**
+     * What it sets up in the caller's own words, in place of the parts by name: *Create hub*'s
+     * summary says each part by its kind and number, first, and then the samples and the questions.
+     */
+    creates?: Snippet;
   }
 
   let {
     template, plansWorkspace, samplesOffered,
     answers = $bindable(), withSamples = $bindable(), acknowledged = $bindable(),
-    isPlanning = $bindable(false), mustAcknowledge = $bindable(false), failure = $bindable(),
+    isPlanning = $bindable(false), mustAcknowledge = $bindable(false), failure = $bindable(), creates,
   }: Props = $props();
 
   let plan = $state<ConfigTemplatePlan>();
@@ -75,6 +81,7 @@
     mustAcknowledge = plan?.flags ? needsAcknowledge(plan.flags) : false;
   });
 
+  const sampleCount = $derived(createsOf(template).find((each) => each.part === 'samples')?.names.length ?? 0);
   const asksGroup = $derived(template.questions?.some((question) => question.kind === 'GROUP') ?? false);
   $effect(() => {
     if (!asksGroup) return;
@@ -111,6 +118,7 @@
   }
 </script>
 
+{#snippet questionsPart()}
 {#if template.questions && template.questions.length > 0}
   <div class="questions" data-template-questions>
     <p class="hint">{t('app.templates.questions_about')}</p>
@@ -142,13 +150,19 @@
     {/each}
   </div>
 {/if}
+{/snippet}
+{#snippet samplesPart()}
 {#if samplesOffered}
-  <Checkbox label={t('app.templates.samples')} hint={t('app.templates.samples_hint')} checked={withSamples} data-template-samples
+  <!-- In a summary the tick says how many sample entries come, as the summary counts every part. -->
+  <Checkbox label={creates ? t('app.templates.samples_count', { count: sampleCount }) : t('app.templates.samples')}
+    hint={creates ? undefined : t('app.templates.samples_hint')} checked={withSamples} data-template-samples
     onchange={(event: Event) => (withSamples = (event.currentTarget as HTMLInputElement).checked)} />
 {/if}
-<section class="plan" aria-label={t('app.starter.plan')} data-starter-plan>
+{/snippet}
+{#snippet planPart()}
+<section class="plan" aria-label={t('app.starter.plan')} data-starter-plan data-summary={creates ? '' : undefined}>
   <h3>{t('app.starter.plan')}</h3>
-  <TemplateCreates {template} />
+  {#if creates}{@render creates()}{:else}<TemplateCreates {template} />{/if}
   {#if isPlanning}
     <Spinner label={t('app.starter.plan_reading')} />
   {:else if plan && (plan.refusals ?? []).length === 0}
@@ -156,11 +170,22 @@
       {#each plan.changes ?? [] as change (change.path)}<li>{changeText(change)}</li>{/each}
     </ul>
     {#if mustAcknowledge}
-      <Checkbox label={t('app.changes.acknowledge')} checked={acknowledged}
+      <Checkbox label={t('app.changes.acknowledge')} checked={acknowledged} data-acknowledge
         onchange={(event: Event) => (acknowledged = (event.currentTarget as HTMLInputElement).checked)} />
     {/if}
   {/if}
 </section>
+{/snippet}
+
+{#if creates}
+  {@render planPart()}
+  {@render samplesPart()}
+  {@render questionsPart()}
+{:else}
+  {@render questionsPart()}
+  {@render samplesPart()}
+  {@render planPart()}
+{/if}
 
 <style>
   .hint { margin: 0; color: var(--text-subtle); font-size: var(--fs-075); max-width: 64ch; }
@@ -168,5 +193,7 @@
   .create-group { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }
   .plan { display: grid; gap: var(--sp-100); }
   .plan h3 { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
+  /* In a summary the heading is a small title over the list, as its other parts are. */
+  .plan[data-summary] h3 { font-size: var(--fs-075); color: var(--text-secondary); }
   .changes { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); color: var(--text-secondary); font-size: var(--fs-075); }
 </style>

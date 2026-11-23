@@ -6,6 +6,7 @@ package setting_test
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
@@ -123,6 +124,40 @@ func TestAModuleAndWhatItNeedsAreOneRecord(t *testing.T) {
 		if row := switchOf(t, log.recorded[0].Payload, key); row["on"] != true {
 			t.Errorf("%s is %v in the record", key, row)
 		}
+	}
+}
+
+// UC-INS-22 check 7: a change of the workspace's name or look writes the workspace's one `setting`
+// record - under no container, so every member's device receives it - carrying what a switch's
+// record carries, the switches as they stand, and nothing else (ADR-0108, ADR-0112).
+func TestTheWorkspacesLookIsAnnouncedAsItsSwitchesRecord(t *testing.T) {
+	ctx := context.Background()
+	modules, _, _ := fixture()
+	log := &changes{}
+	modules.Changes, modules.HLC = log, hlc{}
+
+	if err := modules.AnnounceWorkspace(ctx, actor()); err != nil {
+		t.Fatal(err)
+	}
+	if len(log.recorded) != 1 {
+		t.Fatalf("announcing recorded %d changes, want 1", len(log.recorded))
+	}
+	announced := log.recorded[0]
+	if announced.Entity != settingservice.Entity || announced.Op != changelog.Upsert || announced.EntityID != tenant ||
+		!announced.ContainerID.IsZero() || announced.TenantID != tenant || announced.ActorID != lena {
+		t.Errorf("the workspace's record is %+v", announced)
+	}
+	want, err := modules.Records(ctx, actor(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(announced.Payload, want[tenant]) {
+		t.Errorf("the record carries %v, want the switches' record %v", announced.Payload, want[tenant])
+	}
+
+	modules.Changes = nil
+	if err := modules.AnnounceWorkspace(ctx, actor()); err != nil || len(log.recorded) != 1 {
+		t.Errorf("without a change log it answered %v and recorded %d", err, len(log.recorded))
 	}
 }
 

@@ -30,6 +30,18 @@ type Workspaces interface {
 	Update(ctx context.Context, changed identity.Workspace, expectedVersion int, now time.Time) (bool, error)
 }
 
+// WorkspaceBranding is the workspace's own pictures and what its header shows (migration 0449),
+// on the workspace's row and bound to the transaction's workspace as Workspaces is. Read with the
+// workspace by Workspaces.Find; this port is the write.
+type WorkspaceBranding interface {
+	// Lock reads the branding and holds the row until the transaction ends, so that two changes to
+	// two pictures cannot each write the other's back as it was.
+	Lock(ctx context.Context) (identity.Branding, error)
+	// Set writes the three pictures and the choice together. A picture that is not a media object
+	// of this workspace is refused as not found.
+	Set(ctx context.Context, branding identity.Branding, now time.Time) error
+}
+
 // TenantHosts is the hosts a workspace answers at (migration 0104).
 //
 // Bound to the transaction's workspace. Finding a workspace *by* host crosses the boundary and is

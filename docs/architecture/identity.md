@@ -178,6 +178,13 @@ reaches a hash only when the password is next set.
 * `GET /auth/sign-in-rules` is public like sign-in (workspace as in §3): the methods, the providers,
   what a password must meet and the legal links — nothing a guesser could use (no expiry, history
   depth, timeouts or lists).
+* At an address that names a workspace the rules also carry what the card shows of the workspace's
+  own name and logo (`workspace_header`, `workspace_pictures`, §18), and
+  `GET /auth/workspace-pictures/{mediaId}` serves those pictures and no other, streamed as the image
+  they were stored as, kept by a cache for five minutes and then revalidated by their tag, so a
+  removed picture is shown from a cache for at most five minutes. The installation's own address - with a
+  header naming a workspace too - and a workspace that shows the product's name carry neither;
+  every other picture is one `404` ([security.md](./security.md) T-34).
 * Each rule is a message code with parameters (`auth.password_rule.*`); a refused password carries
   one per violated rule in `field_errors[]`.
 * `POST /auth/password:check` answers, as rule ids, what only the server knows — lists, breach
@@ -840,6 +847,17 @@ product bounds (§5.2)  →  the installation's default and lock  →  the plan'
   count of a mandated provider includes every live workspace on such a plan; the installation's own
   list names only its own lock (`installation_lock`), so a removal the count refuses is explained by
   the count, not by that column.
+* *The workspace may show its own name and logo* is the switch `own_branding`, on by default, off
+  the stricter value, with the installation's and the plan's default and lock
+  ([ADR-0112](../adr/ADR-0112-a-workspace-shows-its-own-name-and-logo.md)). Off refuses every
+  change to the workspace's three pictures and its header's choice with `workspace.branding_off`
+  (403), its parameter `origin` the level that switched it off, and a client shows the product's
+  name; what is stored stays. The pictures and the choice themselves are the workspace's, set
+  under STRUCTURE (`PUT /tenant/branding`, `PUT`/`DELETE /tenant/branding/{picture}`). Every
+  member - a role on one hub is enough - reads the name and the look the header shows through
+  `GET /tenant/look`: the name, the choice and the picture identifiers, the product's name and
+  none where the switch is off. The workspace's set-up (`GET /tenant`) stays a READ at the
+  workspace.
 * **Never a switch:** exporting, deleting or asking about one's own data, language, time zone,
   accessibility. Rate limits, the lockout curve, the key ring, and a workspace's name, colour and
   start page have no installation level; language and time zone may be defaulted there, never locked.
@@ -927,6 +945,7 @@ built the path, and resolves every role in the product (`test/architecture`,
 | Act | Who | Answer otherwise |
 |---|---|---|
 | Create a private hub (`private: true`) | a person (`USER`) holding any role anywhere in the workspace, with `containers:write`; no `STRUCTURE`. The creator is granted `OWNER` on it in the same transaction, audited as `membership.granted` | `access.not_permitted` 403 for a service account or somebody holding nothing; `containers.private_only_hubs` 422 on a collection |
+| Create a private hub from a template (`POST /containers:from-template`, `private: true`) | a person holding `STRUCTURE` on the workspace, as for a shared hub from a template - holding only the right above does not suffice; then as above. All asked before the transaction ([configuration.md](./configuration.md) §6) | `access.not_permitted` 403; `containers.private_hubs_off` 403 |
 | Make an existing hub private | `STRUCTURE` on the workspace **and** `OWNER` held on the hub itself | `access.not_permitted` 403; not found for a hub the actor cannot see |
 | Share it again | `OWNER` held on the hub itself | the same |
 | Anything in a private hub the actor holds nothing in | nobody | `containers.not_found` / `items.not_found` 404, as for a hub that is not there (T-04) |
@@ -975,8 +994,20 @@ refused before the hub is looked up (`access.not_permitted`).
   `notification.emergency_access`, which a process of the previous release has no handler for, so
   it is never sent with another category's words during a rollout. Every member is also told in
   the app from their own record, whatever the mail did - `GET /accounts/me/emergency-notices`, the
-  last 30 days, on the start view (not in every view: a work view keeps its layout) - which is how a managed account without a mailbox is told; the hub
-  lists its accesses to whoever reads it (`GET /private-hubs/{hubId}/accesses`).
+  last 30 days - which is how a managed account without a mailbox is told: once, when the app
+  opens, in a dialog the member confirms; afterwards behind the bar's mark and on the hub's row in
+  the navigation, and no view draws a banner for it (`design-system.md` §11.6). The hub lists its
+  accesses to whoever reads it (`GET /private-hubs/{hubId}/accesses`).
+* **The member confirms it once** (UC-ID-16 check 10, `AcknowledgeEmergencyNotice`,
+  `POST /accounts/me/emergency-notices/{accessId}:acknowledge`). A person confirms an access they
+  were told of by that record, within the same 30 days; anybody else - the owner who opened it, a
+  member of another hub, a service account - is answered not found
+  (`containers.emergency_access_not_found`), never forbidden. The confirmation is one row per member
+  and access (`private_hub_access_acknowledgement`), gone with the access and with the account, and
+  the trail's entry `container.emergency_notice_acknowledged` names the hub and the access, never
+  the reason. A second confirmation writes neither. The member's notices answer it as
+  `acknowledged_at`; only the member reads it. The hub's list of accesses (`PrivateHubAccess`) does
+  not say who confirmed: the owner who opened the hub learns it from the trail alone.
 * **What it opens, and for whom.** While it runs, the authoriser judges a path through the hub as
   shared for the opener alone, and only while they still hold `OWNER` on the workspace. It counts
   only for a person present: a request through the REST API marks its actor so

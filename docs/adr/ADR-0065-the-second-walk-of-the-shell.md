@@ -1,6 +1,6 @@
 # ADR-0065 — Sections, and where a statement about the application lives
 
-**Status:** accepted (the stage row of decision 4 superseded by [ADR-0107](./ADR-0107-the-application-does-not-state-its-maturity-stage.md)) · **Date:** 2026-09-23 · **Accepted:** 2026-09-23
+**Status:** accepted (the stage row of decision 4 superseded by [ADR-0107](./ADR-0107-the-application-does-not-state-its-maturity-stage.md); what decision 4 lets into the bar widened to the emergency notices by [ADR-0113](./ADR-0113-an-emergency-notice-is-told-once-and-confirmed.md)) · **Date:** 2026-09-23 · **Accepted:** 2026-09-23
 
 **Rule lives in:** [design-system.md](../design/design-system.md) §11
 

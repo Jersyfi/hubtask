@@ -49,7 +49,6 @@
   import ToastStack from './ToastStack.svelte';
   import ViewAsBanner from './ViewAsBanner.svelte';
   import EmergencyNotices from './EmergencyNotices.svelte';
-  import { isFrameEmergencyNoticeShown } from './emergencyplacement.ts';
   import AppUpdateBanner from './AppUpdateBanner.svelte';
   import { appUpdate } from './appupdate.svelte.ts';
   import TourGuide from './TourGuide.svelte';
@@ -85,7 +84,7 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { platform } from '../platform/index.ts';
   import { webAppAddress, webAppHost } from '../webApp.ts';
-  import { holdsHere, reachesAdministrationArea } from '../data/capability.svelte.ts';
+  import { holdsHere, mayReadWorkspace, reachesAdministrationArea } from '../data/capability.svelte.ts';
   import { BUNDLED, messages, naming, t } from '../i18n/i18n.svelte.ts';
   import { localesToResolve } from '../i18n/locale.ts';
   import { namingLocale } from '../i18n/naming.ts';
@@ -104,6 +103,9 @@
   import { aiAnsweringOf, aiColumnFigure } from '../data/aianswering.ts';
   import type { CalendarPushList } from '@hubtask/sync-engine';
   import { workspace } from '../data/workspace.svelte.ts';
+  import { workspaceLook } from '../data/workspacelook.svelte.ts';
+  import WorkspaceMark from '../workspace/WorkspaceMark.svelte';
+  import { tab } from './tab.svelte.ts';
   import { aiObjection } from '../data/aiobjection.svelte.ts';
   import { addressNotices } from '../data/addressnotices.svelte.ts';
   import type { Resolution } from '../router.ts';
@@ -274,9 +276,9 @@
   });
 
   // The language a name made here is stored in (`naming.ts`): the account's, else the workspace's
-  // default, so the workspace is read for a reader whose account sets none.
+  // default, so the workspace is read for a reader whose account sets none and who may read it.
   $effect(() => {
-    if (!session.isSignedIn || actor.locale) return;
+    if (!session.isSignedIn || actor.locale || mayReadWorkspace() !== true) return;
     return untrack(() => workspace.open());
   });
   $effect(() => {
@@ -296,6 +298,21 @@
   // Whoever holds READ nowhere gets the portal's frame alone (PO-2, E-13): no sidebar, Today,
   // search over Hubtask or *Erstellen*. Decided by what the server answers on the account.
   const isOutside = $derived(session.isSignedIn && isOutsider(actor.hasNoAccess, actor.portals));
+  // The workspace's name and look in the header, the switcher and the tab (UC-INS-22 checks 5, 6
+  // and 9), a read every member may make. The portal's frame draws neither, so an outsider is not
+  // asked for it. Whoever may read `/tenant` takes it from there: one read, not two. A manifest
+  // that could not be read leaves that unknown, so the look every member may read is asked
+  // rather than the home link standing empty.
+  $effect(() => {
+    if (!session.isSignedIn || isOutside) return;
+    const may = mayReadWorkspace();
+    if (may === undefined && manifest.state.status !== 'failed') return;
+    const fromWorkspace = may === true;
+    return untrack(() => (fromWorkspace ? workspaceLook.openFromWorkspace() : workspaceLook.open()));
+  });
+  $effect(() => tab.name(isOutside ? undefined : workspaceLook.name));
+  const shownLook = $derived(workspaceLook.shown);
+  const shownPictures = $derived(workspaceLook.sourcesOf(shownLook.ids));
   // The global shortcuts, while somebody is signed in: `⌘K`/`Ctrl K` and `/` open the palette from
   // every framed page (UC-WRK-27 check 1). Which press is which is `lib/shortcuts.ts`'s.
   $effect(() => {
@@ -447,7 +464,8 @@
   // the way back stands only in the bar (the navigation concept §9).
   let carried = $state<PageBack | undefined>(undefined);
   const phoneBack = $derived.by(() => {
-    if (!isPhone) return undefined;
+    // A page that takes the whole screen has no *‹ the level above*: its ✕ is the way out.
+    if (!isPhone || page.takesScreen) return undefined;
     if (carried) return { label: carried.label, path: route.path };
     if (page.ascent) return page.ascent;
     // An entry's way up is its collection, where the screen has named it.
@@ -527,8 +545,8 @@
         : { id: tab.id, label: t(tab.code), icon: tab.icon, href: tab.path, count: tab.id === 'inbox' ? jumble.of('NEW').length || undefined : undefined },
     ),
   );
-  /** Hidden where the screen is the work's own canvas: a whiteboard (§9). */
-  const isBottomBarShown = $derived(route.name !== 'whiteboard' && !page.isWriting);
+  /** Hidden where the screen is the work's own canvas - a whiteboard (§9) - or a page's whole screen. */
+  const isBottomBarShown = $derived(route.name !== 'whiteboard' && !page.isWriting && !page.takesScreen);
   function choosePhoneTab(id: string) {
     if (id === 'capture') return create.summon();
     // Search opens the palette, the bar having no field to type in: its *All results* and *Open
@@ -751,7 +769,7 @@
 
 </script>
 
-<div class="frame" data-density={viewport.isSpacious ? 'spacious' : undefined} data-filled={page.fills ? '' : undefined} data-bottombar={session.isSignedIn && (!isPhone || isBottomBarShown) ? '' : undefined}>
+<div class="frame" data-density={viewport.isSpacious ? 'spacious' : undefined} data-filled={page.fills ? page.boundFrom : undefined} data-bottombar={session.isSignedIn && (!isPhone || isBottomBarShown) ? '' : undefined}>
   <!-- The first stop on every page (2.4.1): the frame puts many stops between its top and the
        first control of the content, and this is the one that skips them.
        Hidden until it takes focus, so nobody with a pointer ever sees it. The click is handled
@@ -811,14 +829,16 @@
   {/snippet}
   {#if isOutside}
     <PortalFrameBar {route} {isPhone} onnavigate={go} account={outsiderAccount} />
+  {:else if isPhone && page.takesScreen}
+    <!-- A page that is the phone's whole screen draws its own bar: ✕ and its title (`page.svelte.ts`). -->
   {:else if isPhone}
     <PhoneBar label={t('app.nav.bar')} title={page.title} back={phoneBack} onback={back} star={phoneStar} menu={page.menu}>
       {#snippet account()}
         <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet bind:isSheetOpen={isAccountOpen} {elsewhere}
-          workspaces={phoneWorkspaces} onworkspace={(host) => deviceList.open(host)} onchoose={chooseAccount} />
+          workspaces={phoneWorkspaces} hereSymbol={shownPictures.SYMBOL} onworkspace={(host) => deviceList.open(host)} onchoose={chooseAccount} />
       {/snippet}
       {#snippet marks()}
-        <NoticeMark />
+        <NoticeMark onnavigate={go} />
         <SyncLine />
       {/snippet}
       {#snippet connection()}<SyncLine />{/snippet}
@@ -835,8 +855,15 @@
         : { kind: 'rail', label: isRail ? t('app.nav.expand') : t('app.nav.collapse'), isExpanded: !isRail, onToggle: toggleRail }}
   >
     {#snippet brand()}
-      <!-- A name rather than a message: the product is called Hubtask in every language. -->
-      <a class="home" href="/"><Logo size="md" wordmark="Hubtask" /></a>
+      <!-- One link, one name: the product's or the workspace's, as the workspace chose (G8). -->
+      <a class="home" href="/">
+        {#if session.isSignedIn && !isOutside}
+          <WorkspaceMark name={workspaceLook.name} header={shownLook.header} pictures={shownPictures} isKnown={workspaceLook.isRead} />
+        {:else}
+          <!-- A name rather than a message: the product is called Hubtask in every language. -->
+          <Logo size="md" wordmark="Hubtask" />
+        {/if}
+      </a>
     {/snippet}
     {#snippet menu()}
       <!-- The page's own menu, at the end of the compact bar (ADR-0061 decision 1's table). The
@@ -861,7 +888,7 @@
            the reader may read one and it says something is wrong (ADR-0065 decision 4). It was two
            banners above the head of every page; now it is a mark that says nothing until it is
            pressed, and nothing at all when there is nothing to say. -->
-      <NoticeMark />
+      <NoticeMark onnavigate={go} />
       <SyncLine />
       <!-- Drawn as soon as there is a session, not once the account has arrived: signing out has
            to be reachable while the server is away, and the name is "You" until it is known. -->
@@ -925,13 +952,14 @@
     {/if}
     <!-- `tabindex="-1"` so that the skip link has somewhere to land; a landmark is not a control,
          so it draws no ring when it does. -->
-    <main id="main" tabindex="-1" data-filled={page.fills ? '' : undefined} bind:this={mainElement}
+    <main id="main" tabindex="-1" data-filled={page.fills ? page.boundFrom : undefined} bind:this={mainElement}
       ontouchstart={swipeStart} ontouchend={swipeEnd} ontouchcancel={() => (swipe = null)}>
       <div class="content">
         <!-- One banner zone (ux-inventory.md §E1): what the frame has to say to the person - the
-             app's update, the recovery codes, an emergency access, the AI notice, a step-up that
-             held - stands in one place above the page head, in this order, rather than wherever
-             each was added.
+             app's update, the recovery codes, the view as another person, a changed address, the
+             AI notice, a step-up that held - stands in one place above the page head, in this
+             order, rather than wherever each was added. An emergency access is not among them: it is told once in a
+             dialog, then carried by the bar's mark and the hub's row (ADR-0073 §4).
              Empty, it takes no room: each banner carries its own space below. -->
         <div class="banners" data-banners>
           <!-- A newer release of the installed app, or its refusal (UC-SYN-07 checks 5 and 6):
@@ -968,10 +996,6 @@
           {/if}
           <!-- The session shows the app as another person (UC-ID-29). -->
           <ViewAsBanner />
-          <!-- A private hub of the reader's was opened through the emergency access (ADR-0073 §4). -->
-          {#if isFrameEmergencyNoticeShown(route.name)}
-            <EmergencyNotices onnavigate={go} />
-          {/if}
           {#if addressNotices.notice}
             <div class="confirmed" data-address-notice>
               <Banner tone="info">
@@ -1082,6 +1106,9 @@
   {#if session.isSignedIn && !isOutside}
     <TourGuide path={route.path} {onnavigate} />
     <ProductTourGuide routeName={route.name} routeTab={route.query['tab']} {onnavigate} />
+    <!-- A private hub of the reader's was opened through the emergency access: told once, in a
+         dialog, at a moment nothing else holds the reader (ADR-0073 §4). -->
+    <EmergencyNotices onnavigate={go} />
   {/if}
 
   <!-- The application's one live region, and it is in the frame because two of them compete: a
@@ -1154,8 +1181,11 @@
 
   .seek-word { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-inline-size: 0; }
 
+  /* The mark's box decides the link's: the focus ring fits it, and a long name is cut inside it. */
   .home {
     display: inline-flex;
+    align-items: center;
+    min-inline-size: 0;
     color: var(--text-primary);
     text-decoration: none;
   }
@@ -1234,7 +1264,8 @@
      window by the height of everything above it. `min-block-size: 0` down the flex chain, or the
      automatic minimum size lets the region grow with its content anyway. Below that the page
      scrolls as every page does: the details are a sheet there, and a bar that scrolls away
-     leaves the canvas the screen. */
+     leaves the canvas the screen. A page whose head holds its primary - *Create hub* - is bounded
+     from `medium` (`page.fill('medium')`), so the head stays while its content scrolls. */
   /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
   @media (width >= 905px) {
     .frame[data-filled] { box-sizing: border-box; block-size: 100dvh; min-block-size: 0; }
@@ -1244,6 +1275,17 @@
     main[data-filled] { min-block-size: 0; overflow: hidden; }
 
     main[data-filled] .content { block-size: 100%; }
+  }
+
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width >= 600px) {
+    .frame[data-filled='medium'] { box-sizing: border-box; block-size: 100dvh; min-block-size: 0; }
+
+    .frame[data-filled='medium'] .body { min-block-size: 0; }
+
+    main[data-filled='medium'] { min-block-size: 0; overflow: hidden; }
+
+    main[data-filled='medium'] .content { block-size: 100%; }
   }
 
   main:focus { outline: none; }

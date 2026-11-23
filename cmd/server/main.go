@@ -2018,6 +2018,13 @@ func run() error {
 		// A switch reaches the other devices as a change record (offline-sync.md §3.1).
 		Changes: changes, HLC: hybrid,
 	}
+	// A change of the workspace's name or look reaches the other devices as the same record
+	// (ADR-0112).
+	workspaceWriter.Announce = modules
+	// The workspace's own name and logo (ADR-0112), under the workspace's permission and rule.
+	workspaceBrander := identity.WorkspaceBrander{
+		Writer: workspaceWriter, Branding: postgres.WorkspaceBrandingRepository{}, Objects: mediaObjects,
+	}
 	// The configuration document (F-6): read and written through the registry it is part of, so
 	// every block it changes goes through the use case every other door reaches.
 	configCatalogue := &deferredCatalogue{}
@@ -2486,6 +2493,27 @@ func run() error {
 		Wopi: postgres.WopiRepository{}, Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		Server: officeServer,
+	}
+	// What a sign-in card may know before anybody signed in, and - through the same resolution - the
+	// pictures it draws (UC-INS-22 check 8).
+	signInRules := identity.GetSignInRules{
+		Resolver: signInPolicyResolver, Tenants: signInStore,
+		InstallationHost: baseHostOf(cfg.BaseURL),
+		Providers:        postgres.NewIdentityProviderRepository(),
+		// Which of the installation's providers this workspace took: an offered one is not a
+		// button until somebody here switched it on.
+		Workspaces: postgres.NewWorkspaceSettingsRepository(),
+		// Whether the card asks for a sign-in name too (ADR-0074 §3).
+		Managed: postgres.NewAccountRepository(),
+		// Where a passkey ceremony can finish (identity.md §23.3).
+		Party: &identity.PasskeyParty{
+			Workspaces: postgres.NewWorkspaceSettingsRepository(), Hosts: postgres.NewTenantHostRepository(),
+			Installation: passkeyInstallationOf(cfg.BaseURL, cfg.Tenancy == envport.TenancyMulti),
+			Domains:      domains,
+		},
+		// The moment an offer is read at: a withdrawn provider is not a button (ADR-0076 §2).
+		Clock:      clockadapter.System{},
+		UnitOfWork: unitOfWork, Multi: cfg.Tenancy == envport.TenancyMulti,
 	}
 	useCases, err := usecase.NewRegistry(
 		// Every act of a registered agent passes its governance first (UC-AGT-02).
@@ -3135,25 +3163,7 @@ func run() error {
 			Journal: postgres.NewInstanceJournal(cursors), UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
-		identity.GetSignInRules{
-			Resolver: signInPolicyResolver, Tenants: signInStore,
-			InstallationHost: baseHostOf(cfg.BaseURL),
-			Providers:        postgres.NewIdentityProviderRepository(),
-			// Which of the installation's providers this workspace took: an offered one is not a
-			// button until somebody here switched it on.
-			Workspaces: postgres.NewWorkspaceSettingsRepository(),
-			// Whether the card asks for a sign-in name too (ADR-0074 §3).
-			Managed: postgres.NewAccountRepository(),
-			// Where a passkey ceremony can finish (identity.md §23.3).
-			Party: &identity.PasskeyParty{
-				Workspaces: postgres.NewWorkspaceSettingsRepository(), Hosts: postgres.NewTenantHostRepository(),
-				Installation: passkeyInstallationOf(cfg.BaseURL, cfg.Tenancy == envport.TenancyMulti),
-				Domains:      domains,
-			},
-			// The moment an offer is read at: a withdrawn provider is not a button (ADR-0076 §2).
-			Clock:      clockadapter.System{},
-			UnitOfWork: unitOfWork, Multi: cfg.Tenancy == envport.TenancyMulti,
-		}.Descriptor(),
+		signInRules.Descriptor(),
 		identity.SignIn{Writer: sessionWriter}.Descriptor(),
 		identity.RefreshSession{Writer: sessionWriter}.Descriptor(),
 		identity.ListSessions{Writer: sessionWriter}.Descriptor(),
@@ -3199,7 +3209,11 @@ func run() error {
 		identity.ListOauthGrants{Writer: oauthWriter}.Descriptor(),
 		identity.RevokeOauthGrant{Writer: oauthWriter}.Descriptor(),
 		identity.ReadWorkspace{Writer: workspaceWriter}.Descriptor(),
+		identity.ReadWorkspaceLook{Writer: workspaceWriter}.Descriptor(),
 		identity.UpdateWorkspace{Writer: workspaceWriter}.Descriptor(),
+		identity.SetWorkspaceHeader{Brander: workspaceBrander}.Descriptor(),
+		identity.SetWorkspacePicture{Brander: workspaceBrander}.Descriptor(),
+		identity.RemoveWorkspacePicture{Brander: workspaceBrander}.Descriptor(),
 		identity.ConfigureIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
 		identity.ShowLdapDirectory{Directories: ldapDirectories}.Descriptor(),
 		identity.ConfigureLdapDirectory{Directories: ldapDirectories}.Descriptor(),
@@ -3534,6 +3548,10 @@ func run() error {
 		}.Descriptor(),
 		work.ListEmergencyNotices{
 			Accesses: postgres.NewEmergencyAccessRepository(), UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		work.AcknowledgeEmergencyNotice{
+			Accesses: postgres.NewEmergencyAccessRepository(), Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{},
 		}.Descriptor(),
 		work.OpenPrivateHub{
 			Accesses: postgres.NewEmergencyAccessRepository(), Hubs: postgres.NewHubLockRepository(),
@@ -4177,6 +4195,8 @@ func run() error {
 				UnitOfWork: unitOfWork, Config: cfg,
 			},
 			Tokens: mediaTokens, Clock: clockadapter.System{},
+			// The pictures a sign-in card draws, before anybody signed in (UC-INS-22 check 8).
+			SignIn: identity.SignInPictures{Rules: signInRules, Objects: mediaObjects},
 		}
 		samlMetadata, err := samladapter.Metadata(samlMetadataURL, samlACSURL)
 		if err != nil {

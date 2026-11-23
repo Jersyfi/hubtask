@@ -20,6 +20,7 @@ import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, HUB, MANIFEST, PAGE, signedIn, stub } from './fixture.mjs';
+import { chipsOf, focused, pick, valueOf } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -66,7 +67,7 @@ const ASSET = {
   assigned_to: null, request_id: null, state: 'IN_STOCK', disposal: null, updated_at: '2026-10-01T08:00:00Z', version: 1,
 };
 
-async function open(browser, { width = 1280, height = 900, path, full = true, role = 'OWNER', scheme = 'light', classes = [SERVER_CLASS], types = [], modulesOn }) {
+async function open(browser, { width = 1280, height = 900, path, full = true, role = 'OWNER', scheme = 'light', classes = [SERVER_CLASS], types = [], modulesOn, locale }) {
   const { page, context, failures } = await signedIn(browser, width, height);
   await page.emulateMedia({ colorScheme: scheme });
   await context.unroute('**/api/v1/**');
@@ -74,6 +75,7 @@ async function open(browser, { width = 1280, height = 900, path, full = true, ro
     const request = route.request();
     const url = new URL(request.url());
     const at = url.pathname.replace('/api/v1', '');
+    if (locale && at === '/accounts/me') return route.fulfill({ json: { ...ACCOUNT, locale } });
     if (role !== 'OWNER') {
       if (at === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: ['READ'] } });
       if (at === '/memberships') {
@@ -378,3 +380,62 @@ test('chromium: a class opens its record page, changed from its head and archive
   assert.equal(await page.locator('.danger-zone').count(), 0, 'a shipped class can be archived');
   assert.deepEqual(failures, []);
 });
+
+// A saved group's stages (design-system.md §4): the seven stages are one field named "Stages", the
+// object types a short list of ticks. Opened by the keyboard on the first stage, Space ticks,
+// Escape closes the list and leaves the dialog open with focus on the field, and the group is
+// saved with the stages chosen. In English and in German.
+for (const locale of ['en', 'de']) {
+  test(`chromium: a saved group's seven stages are one field, chosen by the keyboard (${locale})`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { page, context, failures } = await open(browser, { path: `/hubs/${HUB.id}/assets`, locale });
+    t.after(() => context.close());
+    const puts = [];
+    await context.route(`**/api/v1/hubs/${HUB.id}/ci-groups/*`, (route) => {
+      if (route.request().method() !== 'PUT') return route.fallback();
+      const body = route.request().postDataJSON();
+      puts.push({ key: decodeURIComponent(new URL(route.request().url()).pathname.split('/').pop()), body });
+      return route.fulfill({ json: { id: '01a0e2e0-0000-7000-8000-0000000029c1', hub_id: HUB.id, key: puts.at(-1).key, name: body.name, filter: body.filter ?? {}, service_id: body.service_id ?? null, version: 1, updated_at: '2026-11-23T09:00:00Z' } });
+    });
+    const words = locale === 'de'
+      ? { more: 'Weitere Wege ins Inventar', new: 'Neue Gruppe', key: 'Schlüssel', name: 'Name', stages: 'Phasen', types: 'Objekttypen', empty: 'Nichts gewählt', planned: 'Geplant', ordered: 'Bestellt', inUse: 'In Betrieb', save: 'Speichern', saved: 'Die Gruppe ist gespeichert.' }
+      : { more: 'More ways to add to the inventory', new: 'New group', key: 'Key', name: 'Name', stages: 'Stages', types: 'Object types', empty: 'Nothing chosen', planned: 'Planned', ordered: 'Ordered', inUse: 'In use', save: 'Save', saved: 'The group is saved.' };
+    if (locale === 'de') await page.waitForFunction(() => document.documentElement.lang === 'de', null, { timeout: 15_000 });
+    await page.locator('[data-assets-figure]').waitFor({ timeout: 20_000 });
+    await page.getByRole('button', { name: words.more }).click();
+    await page.getByRole('menuitem', { name: words.new }).click();
+    const dialog = page.getByRole('dialog', { name: words.new });
+    await dialog.waitFor({ timeout: 5_000 });
+
+    const stages = dialog.getByRole('button', { name: new RegExp(`^${words.stages}`, 'u') });
+    await stages.waitFor({ timeout: 5_000 }).catch(() => {});
+    assert.equal(await stages.count(), 1, 'the seven stages are not one field');
+    assert.equal(await stages.getAttribute('aria-haspopup'), 'listbox');
+    assert.equal(await valueOf(stages), words.empty);
+    // The object types come from the inventory's data: one field even for one (design-system.md §4).
+    assert.equal(await dialog.getByRole('button', { name: new RegExp(`^${words.types}`, 'u') }).getAttribute('aria-haspopup'), 'listbox', 'one object type is not one field');
+
+    await stages.focus();
+    await page.keyboard.press('Enter');
+    const list = page.getByRole('listbox', { name: words.stages });
+    await list.waitFor({ timeout: 5_000 });
+    assert.equal(await focused(page), `option "${words.planned}"`, 'Enter did not land on the first stage');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Space');
+    await page.keyboard.press('Escape');
+    await list.waitFor({ state: 'detached', timeout: 5_000 });
+    assert.equal(await dialog.isVisible(), true, 'Escape closed the dialog, not only the list');
+    assert.match(await focused(page), new RegExp(`^button "${words.stages} `, 'u'), 'closing the list left focus elsewhere');
+    assert.deepEqual(await pick(page, stages, [words.inUse]), [words.ordered, words.inUse]);
+    assert.deepEqual(await chipsOf(stages), [words.ordered, words.inUse]);
+
+    await dialog.getByLabel(new RegExp(`^${words.key}`, 'u')).fill('running');
+    await dialog.getByLabel(new RegExp(`^${words.name}`, 'u')).first().fill('Running');
+    await dialog.getByRole('button', { name: words.save }).click();
+    await page.getByText(words.saved).first().waitFor({ timeout: 5_000 });
+    assert.equal(puts.length, 1, 'the group was not saved');
+    assert.equal(puts[0].key, 'running');
+    assert.deepEqual(puts[0].body.filter, { stages: ['ORDERED', 'IN_USE'] });
+    assert.deepEqual(failures, []);
+  });
+}

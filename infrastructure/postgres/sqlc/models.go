@@ -2854,6 +2854,13 @@ type PrivateHubAccess struct {
 	EndsAt   pgtype.Timestamptz
 }
 
+type PrivateHubAccessAcknowledgement struct {
+	TenantID       pgtype.UUID
+	AccessID       pgtype.UUID
+	AccountID      pgtype.UUID
+	AcknowledgedAt pgtype.Timestamptz
+}
+
 type PublicForm struct {
 	TenantID     pgtype.UUID
 	CollectionID pgtype.UUID
@@ -3760,4 +3767,10 @@ type WorkflowScheme struct {
 	EntryType   string
 	WorkflowKey string
 	CreatedAt   pgtype.Timestamptz
+}
+
+type WorkspacePicture struct {
+	TenantID pgtype.UUID
+	Picture  string
+	MediaID  pgtype.UUID
 }

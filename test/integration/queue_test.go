@@ -220,7 +220,7 @@ func TestADeadLetterKeepsTheContextAnOperatorNeeds(t *testing.T) {
 		Kind: testKind, TenantID: tenantA, DedupeKey: freshID(t).String(), RunAt: now, MaxAttempts: 1,
 	})
 
-	job := onlyClaimOf(t, claim(ctx, t, now, time.Minute, 10), testKind)
+	job := onlyClaimOf(t, claimOf(ctx, t, now, time.Minute, 10, testKind), testKind)
 	if err := systemWrite(ctx, t, func(ctx context.Context) error {
 		return jobQueue(t).Fail(ctx, queue.Failure{Job: job, Code: "outbox.subscriber_failed"})
 	}); err != nil {
@@ -249,7 +249,7 @@ func TestAFailureWithAttemptsLeftReturnsToTheQueue(t *testing.T) {
 	now := queueClock.Now()
 	enqueue(ctx, t, queue.Request{Kind: testKind, DedupeKey: freshID(t).String(), RunAt: now, MaxAttempts: 5})
 
-	job := onlyClaimOf(t, claim(ctx, t, now, time.Minute, 10), testKind)
+	job := onlyClaimOf(t, claimOf(ctx, t, now, time.Minute, 10, testKind), testKind)
 	retryAt := now.Add(90 * time.Second)
 	if err := systemWrite(ctx, t, func(ctx context.Context) error {
 		return jobQueue(t).Fail(ctx, queue.Failure{Job: job, Code: "dependency.unavailable", RetryAt: retryAt})
@@ -442,7 +442,9 @@ func TestAFloodingTenantDoesNotMonopoliseTheClaim(t *testing.T) {
 		})
 	}
 
-	claimed := claim(ctx, t, time.Now().UTC(), time.Minute, 10)
+	// Its own kind alone: the package's other tests leave due jobs of their own tenants behind, and
+	// with enough of them their first-place rows fill a batch of ten before either tenant here.
+	claimed := claimOf(ctx, t, time.Now().UTC(), time.Minute, 10, queue.Kind("test.fairness"))
 	if len(claimed) != 10 {
 		t.Fatalf("claimed %d, want the full batch", len(claimed))
 	}
@@ -450,12 +452,8 @@ func TestAFloodingTenantDoesNotMonopoliseTheClaim(t *testing.T) {
 	for _, job := range claimed {
 		counts[job.TenantID]++
 	}
-	// Round-robin: both make progress and neither claims the whole pool. The assertions are
-	// deliberately about the property rather than exact shares - the suite's other tests leave
-	// their own tenants' due jobs behind, and those share the batch too (each with their own
-	// first-place rows), which is the fairness working, not the test flaking. What must hold
-	// whatever the crowd: the flooder's twenty-job head start buys it no more than one round's
-	// head start over the modest tenant, and both are in the batch.
+	// Round-robin: both make progress and neither claims the whole pool; the flooder's twenty-job
+	// head start buys it no more than one round's head start over the modest tenant.
 	if counts[modest] < 1 {
 		t.Errorf("the modest tenant got nothing (flooder %d) - age alone decided", counts[flooder])
 	}
@@ -470,6 +468,10 @@ func TestAFloodingTenantDoesNotMonopoliseTheClaim(t *testing.T) {
 	if counts[flooder] > counts[modest]+1 && counts[modest] != 3 {
 		t.Errorf("the flooder took %d while the modest tenant still had work (%d of 3 claimed)",
 			counts[flooder], counts[modest])
+	}
+	// Two tenants alone in the batch: three rounds give the modest tenant all of its three.
+	if counts[modest] != 3 || counts[flooder] != 7 {
+		t.Errorf("shares %d and %d, want the modest tenant's 3 and the flooder's 7", counts[modest], counts[flooder])
 	}
 }
 

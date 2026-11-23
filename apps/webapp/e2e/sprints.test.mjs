@@ -15,6 +15,7 @@ import { join, dirname } from 'node:path';
 import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
+import { chipsOf } from './several.mjs';
 import { BUCKETS, COLLECTION, HUB, ITEMS, signedIn, stub } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -379,10 +380,16 @@ test('chromium: 1280 px — a release takes an entry of the hub and goes out wit
   // *Add entries* offers the entries of every collection not in the release yet (scene planrel 4).
   await page.locator('[data-release-add]').click();
   const adding = page.getByRole('dialog', { name: 'Add entries' });
-  const offered = adding.getByRole('list', { name: 'Entries to add' });
+  // The entries come from data: one field (design-system.md §4), each entry's collection its line.
+  const field = adding.getByRole('button', { name: /^Entries to add/u });
+  await field.click({ timeout: 5_000 });
+  const offered = page.getByRole('listbox', { name: 'Entries to add' });
   await offered.waitFor({ timeout: 5_000 });
-  assert.equal(await offered.getByText(ITEMS[0].title, { exact: true }).count(), 0, 'an entry already in the release is offered again');
-  await adding.getByLabel(ITEMS[1].title, { exact: true }).check();
+  assert.equal(await offered.getByRole('option', { name: ITEMS[0].title, exact: true }).count(), 0, 'an entry already in the release is offered again');
+  await offered.getByRole('option', { name: ITEMS[1].title, exact: true }).click();
+  await page.keyboard.press('Escape');
+  await offered.waitFor({ state: 'detached', timeout: 5_000 });
+  assert.deepEqual(await chipsOf(field), [ITEMS[1].title]);
   await adding.getByRole('button', { name: 'Add 1 to the release' }).click();
   await settle(page);
   assert.deepEqual(wrote(written, 'POST', `/releases/${COMING.id}/entries`)?.body, { item_ids: [ITEMS[1].id] });

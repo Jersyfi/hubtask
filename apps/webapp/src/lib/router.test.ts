@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { isOwnAddress, normalisePath, queryOf, resolve, type Route } from './router.ts';
+import { Router, isOwnAddress, normalisePath, queryOf, resolve, type Route } from './router.ts';
 
 const routes: Route[] = [
   { name: 'home', pattern: '/' },
@@ -112,4 +112,141 @@ test('a link of the shell at tauri://localhost stays in the application, though 
   assert.ok(!isOwnAddress(new URL('https://localhost/hubs/7'), shell));
   assert.ok(!isOwnAddress(new URL('tauri://elsewhere/hubs/7'), shell));
   assert.ok(!isOwnAddress(new URL('https://hub.example.org:8443/x'), { protocol: 'https:', host: 'hub.example.org' }));
+});
+
+/**
+ * A session history as the browser keeps it, enough for the stateful half: entries with their
+ * state and address, `back` answered by a `popstate` a task later.
+ */
+function sessionHistory(start: string) {
+  const entries: { state: unknown; path: string }[] = [{ state: null, path: start }];
+  let at = 0;
+  const events = new EventTarget();
+  const location = { pathname: start, search: '' };
+  const move = (to: number) => {
+    at = to;
+    const [pathname = '/', search = ''] = (entries[at]?.path ?? '/').split(/(?=\?)/u);
+    location.pathname = pathname;
+    location.search = search;
+  };
+  const history = {
+    get state() { return entries[at]?.state ?? null; },
+    get length() { return entries.length; },
+    pushState(state: unknown, _title: string, path: string) { entries.splice(at + 1); entries.push({ state, path }); move(at + 1); },
+    replaceState(state: unknown, _title: string, path?: string) { entries[at] = { state, path: path ?? entries[at]?.path ?? '/' }; },
+    back() {
+      setTimeout(() => {
+        if (at === 0) return;
+        move(at - 1);
+        events.dispatchEvent(Object.assign(new Event('popstate'), { state: entries[at]?.state ?? null }));
+      }, 0);
+    },
+    forward() {
+      setTimeout(() => {
+        if (at >= entries.length - 1) return;
+        move(at + 1);
+        events.dispatchEvent(Object.assign(new Event('popstate'), { state: entries[at]?.state ?? null }));
+      }, 0);
+    },
+  };
+  Object.assign(globalThis, {
+    history,
+    window: { location, addEventListener: events.addEventListener.bind(events), removeEventListener: events.removeEventListener.bind(events) },
+    document: { addEventListener: () => {}, removeEventListener: () => {} },
+  });
+  return { history, at: () => at, path: () => entries[at]?.path };
+}
+const settle = () => new Promise((done) => setTimeout(done, 5));
+
+test('a held step is closed by back, and the screen under it stays where it was', async () => {
+  const session = sessionHistory('/hubs');
+  const router = new Router(routes, '/hubs', {});
+  const stop = router.start();
+  router.navigate('/containers/new-hub');
+  const seen: string[] = [];
+  router.subscribe((resolution) => seen.push(resolution.path));
+  let closed = 0;
+  router.hold(() => (closed += 1));
+  assert.equal(session.path(), '/containers/new-hub', 'holding a step changed the address');
+
+  session.history.back();
+  await settle();
+  assert.equal(closed, 1, 'back did not close the step');
+  assert.deepEqual(seen, ['/containers/new-hub'], 'back moved the screen');
+  assert.equal(router.move, 'push', 'back over a step counted as a move of the screen');
+
+  session.history.back();
+  await settle();
+  assert.equal(closed, 1);
+  assert.deepEqual(seen, ['/containers/new-hub', '/hubs'], 'the next back did not leave the screen');
+  stop();
+});
+
+test('a step closed another way takes its entry out, so the next back leaves the screen', async () => {
+  const session = sessionHistory('/hubs');
+  const router = new Router(routes, '/hubs', {});
+  const stop = router.start();
+  router.navigate('/containers/new-hub');
+  const seen: string[] = [];
+  router.subscribe((resolution) => seen.push(resolution.path));
+  let closed = 0;
+  const release = router.hold(() => (closed += 1));
+  release();
+  release();
+  await settle();
+  assert.equal(closed, 0, 'its own release called back into the step');
+  assert.deepEqual(seen, ['/containers/new-hub'], 'the release moved the screen');
+
+  session.history.forward();
+  await settle();
+  assert.deepEqual(seen, ['/containers/new-hub'], 'forward into a closed step moved the screen');
+
+  session.history.back();
+  await settle();
+  assert.deepEqual(seen, ['/containers/new-hub', '/hubs'], 'back did not leave the screen');
+  stop();
+});
+
+test('a reload on a held step drops its entry, so the first back leaves the screen', async () => {
+  const session = sessionHistory('/hubs');
+  const before = new Router(routes, '/hubs', {});
+  const stopBefore = before.start();
+  before.navigate('/containers/new-hub');
+  before.hold(() => {});
+  stopBefore();
+
+  // The reload: a new router on the same history, standing on the held entry; no step is open.
+  const router = new Router(routes, '/containers/new-hub', {});
+  const stop = router.start();
+  await settle();
+  assert.equal((session.history.state as { isHeld?: boolean } | null)?.isHeld, undefined, 'the held entry outlived the reload');
+  const seen: string[] = [];
+  router.subscribe((resolution) => seen.push(resolution.path));
+
+  session.history.back();
+  await settle();
+  assert.deepEqual(seen, ['/containers/new-hub', '/hubs'], 'the first back after the reload did not leave the screen');
+  stop();
+});
+
+test('a step left open by a navigation is stepped over by back, which lands on the screen under it', async () => {
+  const session = sessionHistory('/hubs');
+  const router = new Router(routes, '/hubs', {});
+  const stop = router.start();
+  router.navigate('/containers/new-hub');
+  router.hold(() => assert.fail('a step of a screen left behind was closed'));
+  router.navigate('/containers/other');
+  const seen: string[] = [];
+  router.subscribe((resolution) => seen.push(resolution.path));
+
+  session.history.back();
+  await settle();
+  assert.equal(session.path(), '/containers/new-hub');
+  assert.deepEqual(seen, ['/containers/other', '/containers/new-hub'], 'the address went back, the screen stayed');
+  assert.equal(router.move, 'pop');
+
+  session.history.back();
+  await settle();
+  assert.deepEqual(seen, ['/containers/other', '/containers/new-hub', '/hubs']);
+  stop();
 });

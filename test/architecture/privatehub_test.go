@@ -123,6 +123,7 @@ var privateHubExemptions = map[string]string{
 	"ShowLdapDirectory":            noHub,
 	"ReadOauthClient":              noHub,
 	"ReadWorkspace":                noHub,
+	"ReadWorkspaceLook":            noHub,
 }
 
 // readerPackages are the packages whose readers UC-ID-16 check 2 is about.

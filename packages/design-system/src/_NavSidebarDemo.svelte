@@ -12,7 +12,7 @@
   import Toast from './Toast.svelte';
   import { applyPlacement, positionOf, type Placement } from './navtree.ts';
 
-  type Mode = 'workspace' | 'hub' | 'queue' | 'wiki' | 'drag' | 'rail' | 'empty' | 'narrow' | 'area';
+  type Mode = 'workspace' | 'hub' | 'queue' | 'wiki' | 'drag' | 'rail' | 'empty' | 'narrow' | 'area' | 'private' | 'mark';
   const { mode = 'hub' }: { mode?: Mode } = $props();
   let isMoreOpen = $state(true);
   const hide = (name: string) => ({ label: `Manage ${name}`, items: [{ id: 'hide', label: 'Hide from the sidebar', icon: 'eye-off' as const }], onselect: () => {} });
@@ -126,6 +126,26 @@
           <NavItem label="Backup" icon="cloud-upload" href="#backup" figure="no target" isFigureUrgent />
           <NavItem label="Audit" icon="file-text" href="#audit" />
         </NavGroup>
+      </NavLevel>
+    {:else if mode === 'private'}
+      <NavLevel levelKey="workspace" label="Workspace">
+        <NavGroup label="Hubs" collapseLabel="Fold Hubs">
+          <NavItem label="Household" icon="house" color="green" href="#hub" figure="›" />
+          <NavItem label="Private finances" icon="lock" color="violet" href="#hub" figure="›"
+            badge={{ icon: 'shield', tone: 'warning', label: 'Private · opened through the emergency access, until 10:12' }} />
+          <NavItem label="Health" icon="heart" color="teal" href="#hub" figure="›"
+            badge={{ icon: 'shield', label: 'Private · opened through the emergency access on 16 Nov 2026' }} />
+          <NavItem label="Travel fund" icon="lock" color="amber" href="#hub" figure="›" badge={{ icon: 'lock', label: 'Private' }} />
+        </NavGroup>
+      </NavLevel>
+    {:else if mode === 'mark'}
+      <NavLevel levelKey="workspace" label="Workspace">
+        <ul class="plain">
+          <NavItem label="Nordlicht Workshop" href="#here" isCurrent size="touch">
+            {#snippet mark()}<span class="own-mark">NW</span>{/snippet}
+          </NavItem>
+          <NavItem label="Sunny Hill Daycare" icon="hub" href="#there" size="touch" />
+        </ul>
       </NavLevel>
     {:else if mode === 'workspace'}
       <NavLevel levelKey={levelKey} label="Workspace">
@@ -317,6 +337,18 @@
 </script>
 
 <style>
+  /* Stands in for a picture that is data, as a workspace's symbol is. */
+  .own-mark {
+    display: inline-grid;
+    place-items: center;
+    inline-size: var(--layout-nav-mark);
+    block-size: var(--layout-nav-mark);
+    border-radius: var(--r-sm);
+    background: var(--bg-surface-sunken);
+    font-size: var(--fs-050);
+    font-weight: var(--fw-semibold);
+  }
+
   .frame {
     display: flex;
     gap: var(--sp-300);

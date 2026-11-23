@@ -104,7 +104,7 @@
         every agent follows it the same way.
       </p>
     </div>
-    <ol class="ticks">
+    <ol class="site-ticks">
       <li><strong>Read the schema</strong> (<code>hubtask://config/schema</code>) for the sections, their keys and the attributes each block takes.</li>
       <li><strong>Read the configuration in force</strong> (<code>hubtask://config/current</code>) and its hash; a withheld section is left out.</li>
       <li><strong>Explain</strong> what is unclear, key by key.</li>
@@ -122,7 +122,7 @@
       <p class="kicker">Safety</p>
       <h2>What an agent cannot do on its own</h2>
     </div>
-    <ul class="ticks ticks-2">
+    <ul class="site-ticks ticks-2">
       <li><strong>Apply without a person</strong> unless the workspace allows it: <code>settings.config.agent_apply</code> is <code>APPROVAL</code> by default, and a plan touching that setting always waits for a person.</li>
       <li><strong>Hide data or change permissions unseen</strong>: such a plan is flagged and is not applied without the flag acknowledged.</li>
       <li><strong>Change the sign-in rule</strong>: that needs a fresh proof only a person's session can give.</li>

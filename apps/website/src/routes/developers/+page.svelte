@@ -142,7 +142,7 @@ POST /api/v1/items:query
       </div>
       <div>
         <h4>What an agent gets</h4>
-        <ul class="ticks">
+        <ul class="site-ticks">
           <li><strong>Tools</strong> The use case catalogue, in snake case, with the preconditions and side effects the registry already knows.</li>
           <li><strong>Resources</strong> Hubs, items and views addressable as <code>hubtask://</code> URIs — a read that is already in the catalogue, reached by URI instead of by argument.</li>
           <li><strong>Prompts</strong> Prepared and versioned, from the same store the product’s own provider calls read.</li>
@@ -206,7 +206,7 @@ POST /api/v1/items:query
       <p class="kicker">Stability</p>
       <h2>What v1 promises</h2>
     </div>
-    <ul class="ticks ticks-2">
+    <ul class="site-ticks ticks-2">
       <li><strong>The contract is frozen at 1.0</strong> API v1 is stable from the first stable release, with a deprecation process that has been exercised rather than written down.</li>
       <li><strong>Event schemas are versioned</strong> and published, so a consumer is not reverse-engineering a payload.</li>
       <li><strong>Migrations are forward only</strong> and safe for a rolling update — expand, then contract, never a change to a migration that has run.</li>

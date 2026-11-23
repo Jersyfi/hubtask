@@ -1,6 +1,6 @@
 # ADR-0073 — A private hub narrows what the workspace's roles reach
 
-**Status:** accepted · **Date:** 2026-09-30 · **Accepted:** 2026-09-30
+**Status:** accepted (how a member is told in the app, §4, superseded by [ADR-0113](./ADR-0113-an-emergency-notice-is-told-once-and-confirmed.md)) · **Date:** 2026-09-30 · **Accepted:** 2026-09-30
 **Rule lives in:** [identity.md](../architecture/identity.md) §22, the emergency access and the
 setting included
 

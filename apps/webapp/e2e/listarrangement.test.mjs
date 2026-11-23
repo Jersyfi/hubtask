@@ -35,7 +35,7 @@ test('chromium: 1280 px - fields stand in columns, the panel groups by column, d
   const panel = page.locator('[data-view-panel]');
   await page.locator('[data-opener="view"]').click();
   await panel.waitFor({ timeout: 5_000 });
-  await panel.locator('[data-view-field="people"]').getByRole('checkbox').uncheck();
+  await panel.getByRole('group', { name: 'Fields', exact: true }).getByRole('checkbox', { name: 'People', exact: true }).uncheck();
   assert.equal(await page.locator('[data-row] .cell[data-field="people"]').count(), 0, 'the column stayed');
 
   // Grouped by column: one head per column with its count, the column-less last.

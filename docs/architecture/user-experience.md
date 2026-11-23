@@ -241,7 +241,10 @@ allowlist of brand words (*Hubtask*).
   switch asks nothing. The switch waits, drawn busy, until the hub list and the person's roles on
   its private hubs have answered, so that it never goes through unasked on a list still being
   read. The question offers the hubs of the hub list, which is one page: the first 200 hubs that
-  are not archived. A hub beyond it, and an archived one, is switched on in its own settings.
+  are not archived. A hub beyond it, and an archived one, is switched on in its own settings. A
+  product's page while it is off asks the same question from each of its ways to switch on, and a
+  template taken for an existing hub asks none: its products go on in that hub, at the hub where
+  the workspace has them on, else at the workspace naming the hub.
 * **At a hub**, the switch is free while the workspace has the product on, and locked with its
   reason while the workspace has it off - read from the workspace's set, whatever the hub stores
   itself. *Reset* beside "Set here" hands the hub back to the workspace.
@@ -538,14 +541,36 @@ Every product home and every hub tool has one anatomy (mockup: `shell.html`, *Pr
   has no primary (`apps/webapp/build/create.test.js`); a list's own add says so with
   `data-list-add`, and an empty state's first act counts as inside it. Adding an entry stays capture
   (design-system §11.8, *One add*).
-* **One create dialog anatomy**: the title field first, the template gallery (with *Blank* as
-  one card) where templates exist, the place chips (*In:*), and the one primary. As built, it is one
+* **One create dialog anatomy**, with one exception, the hub: the title field first, the template
+  gallery (with *Blank* as one card) where templates exist, the place chips (*In:*), and the one
+  primary. As built, it is one
   composition, `lib/product/CreateDialog.svelte` (the title field, the gallery, the product's own
   fields, the *In:* chip listing the hubs where the product is on and the reader may write, the
   one primary beside *Cancel*), filled by pages (Blank, the hub's own templates, Hubtask's pages
   and spaces as cards), whiteboards, objects and sprints; an entry's is capture's
   dialog with its place chip (design-system §11.8). A product home's act opens it at the place
   holding most of the product.
+* **Creating a hub is a page, `/hubs/new`** (ADR-0111): a name, *Private*, a look and thirty
+  templates in eight families do not fit a dialog without burying *Private* screens below the
+  name. The hub's details stand in one column - its mark and name, *Private* right under the name,
+  colour, symbol, description, and a summary of the chosen start that says what it sets up - beside
+  the choice of how the hub starts: a search, the families as a single-choice filter with counts,
+  and the starts as one radio group of tiles (`ChoiceCards`, a tick in the corner), *Empty hub*
+  first, pinned, chosen when the page opens and never filtered away. The head with *Create hub*
+  stays from `medium` up: from `expanded` each column scrolls on its own; from `medium` the details
+  are a block of two columns above the starts, one scroll under the head, and the starts' tools
+  stick. Below `medium` the details are the page and
+*Create hub* stands across the foot, at the thumb; the starts are a second step, opened only from
+the summary's *Choose a template*, a layer over the page that keeps its address - a tile chosen
+there is chosen at once, and *Done*, ‹, Escape and back close it. Most hubs are made empty, so
+nobody pays a press for the gallery. Every door to it - the navigation, the palette,
+  the empty start view, a product's home, a product's page while it is off, *Administration →
+  Products* - navigates there, carrying a template chosen before (`?template=`) and the product it
+  was opened from (`?product=`, where a hub made without a template lands); *Cancel* goes back. A
+  reader who may make only a private hub of their own gets no switch and no template, and the page
+  says why. A collection keeps its dialog; its kinds are one choice of the same tiles, with its
+  hub's kind - *Like its hub* - first and chosen when the dialog opens, and its colour and symbol
+  one closed row.
 * **Creating a hub shows the template gallery**, grouped by family, the four presets as its
   *Simple* family. Choosing runs the single server-side apply of §3.2 at the hub. Where the
   template needs a workspace part the reader may not take, the card says *Ask an administrator to
@@ -589,6 +614,23 @@ Every product home and every hub tool has one anatomy (mockup: `shell.html`, *Pr
   The desk's, the time's and the assets' settings, each its home's last tab, stand on it too - one
   section at a time, never a second row of tabs - and the home's head keeps its create act there.
   The inventory's object type tree shows its families, each deeper branch folded until opened.
+* **A workspace's own logo** (UC-INS-22, ADR-0112) is the group *Logo and app bar* inside *Workspace →
+  Name and look*, not a page of its own: a preview of the app bar on a light and a dark surface,
+  the choice of what it shows (saved with the section), then the logo for light, the logo for dark
+  and the square symbol, each set by choosing a file. Where the installation or a plan switched it
+  off, the group is one row with no control whose source chip names who did, once. Where the
+  workspace itself switched it off, the row links to *Sign-in → Own logo and name*: the workspace's
+  own level of `own_branding`, one switch acting at once and drawn as *Private hubs allowed* is,
+  with the installation's and the plan's lock. Every member then meets the choice
+  in the app bar's home link from `medium` up (`design-system.md` §11.2); on a phone the bar keeps
+  the page's title and the workspace's row in the account sheet carries its symbol, as the current
+  row of *Switch workspace* does - the other rows keep their letters, since the device's list holds
+  only address and name. The sign-in card at the workspace's own address draws the same mark; the
+  installation's own address draws the product's. The tab reads "{page} – {workspace}", the
+  workspace alone where the page names none, and "Hubtask" in its place where no workspace is known.
+  The about page keeps "{workspace} runs on hubtask · Version …" under every choice. Another device
+  follows a change when the workspace's `setting` record arrives, by reading the workspace's look
+  again - a read every member may make, a guest of one hub included (`GET /tenant/look`).
 * **Pickers, never keys.** A setting that names a type, a status, a group, a priority or a field
   is a picker fed by the workspace's own values, validated before saving; a duration is a
   `DurationInput` in minutes, hours or business days, converted on the client; a recurrence is a
@@ -1520,7 +1562,8 @@ workspace's — English*), so leaving it says what it means.
   plan are the starter's own fields (`workspace/TemplateTakeFields.svelte`). At an existing hub's
   (or collection's) *Templates*, where the workspace has not taken the template yet, the plan
   dialog shows the workspace's part first and, once applied, the place's own - two applies in one
-  dialog. Each card says its sentence (`app.templates.summary.*`, one per shipped template) and
+  dialog; at a hub the workspace's apply names that hub (`module_hub_ids`), so the products it
+  switches on are on there too. Each card says its sentence (`app.templates.summary.*`, one per shipped template) and
   folds its *Preview*. At a hub's or a collection's *Templates*, a template whose workspace part
   the workspace has not taken (the list's `workspace_first`) offers a reader who may not change
   the workspace no *Take*: its card says *Ask an administrator to add it* with the names of the

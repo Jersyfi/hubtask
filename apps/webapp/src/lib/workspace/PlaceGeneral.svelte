@@ -23,6 +23,7 @@
   import { leaveGuard } from '../frame/leave.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import ContainerMark from './ContainerMark.svelte';
   import LookFields from './LookFields.svelte';
   import { chosenColour, chosenSymbol, lookBody, type PlaceSymbol } from './look.ts';
 
@@ -203,14 +204,18 @@
     {#if failure}<FailureNote problem={failure} />{/if}
     <SettingRow label={t(isHub ? 'app.workspace.hub_name' : 'app.workspace.collection_name')} fieldWidth="md" isRequired isChanged={changed.name}>
       {#snippet control(nameId)}
-        <Input
-          label={t(isHub ? 'app.workspace.hub_name' : 'app.workspace.collection_name')}
-          isLabelHidden
-          aria-labelledby={nameId}
-          bind:value={values.name}
-          oninput={() => (isNameMissing = false)}
-          error={isNameMissing ? t('app.workspace.name_required') : failure?.fields.get('/name')}
-        />
+        <!-- The place's mark beside its name previews the look chosen below, before it is saved. -->
+        <div class="named">
+          <span class="mark" data-place-mark><ContainerMark look={{ type: container.type, icon: values.symbol ?? null, color_token: values.colour ?? null }} size="md" hasDefaultTile /></span>
+          <Input
+            label={t(isHub ? 'app.workspace.hub_name' : 'app.workspace.collection_name')}
+            isLabelHidden
+            aria-labelledby={nameId}
+            bind:value={values.name}
+            oninput={() => (isNameMissing = false)}
+            error={isNameMissing ? t('app.workspace.name_required') : failure?.fields.get('/name')}
+          />
+        </div>
       {/snippet}
     </SettingRow>
     <SettingRow label={t('app.workspace.description')} fieldWidth="lg" isChanged={changed.description}>
@@ -220,7 +225,7 @@
     </SettingRow>
     <SettingRow label={t('app.settings.look')} help={t('app.settings.look_hint')} fieldWidth="full" isChanged={changed.look}>
       {#snippet control()}
-        <LookFields type={container.type} bind:symbol={values.symbol} bind:colour={values.colour} />
+        <LookFields bind:symbol={values.symbol} bind:colour={values.colour} />
       {/snippet}
     </SettingRow>
     {#if presetOptions.length > 0}
@@ -285,6 +290,9 @@
 </form>
 
 <style>
+  .named { display: flex; align-items: center; gap: var(--sp-150); }
+  .named > :global(:last-child) { flex: 1; min-inline-size: 0; }
+  .mark { display: inline-flex; flex: none; }
   .way { display: inline-flex; align-items: center; gap: var(--sp-100); flex-wrap: wrap; min-inline-size: 0; }
   code { font-family: var(--font-mono); font-size: var(--fs-075); overflow-wrap: anywhere; }
 </style>

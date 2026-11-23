@@ -13,11 +13,11 @@
 
   import {
     Checkbox,
-    CheckboxGroup,
     CreatePage,
     FormLayout,
     FormSection,
     Input,
+    MultiSelect,
     OneTimeSecret,
     Radio,
     SettingRow,
@@ -30,6 +30,7 @@
   import { page } from '../lib/frame/page.svelte.ts';
   import type { MintedToken } from '../lib/data/tokens.svelte.ts';
   import { t } from '../lib/i18n/i18n.svelte.ts';
+  import { byCatalogue, chooseSeveral } from '../lib/forms/chooseSeveral.ts';
   import { focusFirst, isComplete, without } from '../lib/forms/missing.ts';
   import { profileTrail } from '../lib/profile/profilehead.ts';
   import { NO_INSTALLATION, TokenDraft } from '../lib/tokens/draft.svelte.ts';
@@ -201,7 +202,7 @@
                reference, and the one place a key is read (PS-15). -->
           <FormSection title={t('app.tokens.details_title')} description={t('app.tokens.details_hint')} isFolded>
             <div class="details">
-              <CheckboxGroup
+              <MultiSelect
                 label={t('app.tokens.scopes')}
                 options={draft.scopes.map((scope) => ({ value: scope, label: scopeWord(scope), hint: scopeWord(scope) === scope ? undefined : scope }))}
                 selected={draft.chosen}
@@ -209,6 +210,7 @@
                   draft.chosen = [...next];
                   draft.missing = without(draft.missing, 'scopes');
                 }}
+                {...chooseSeveral()}
               />
             </div>
           </FormSection>
@@ -223,11 +225,20 @@
   {#if parts.length > 0}
     <SettingRow label={t('app.tokens.configuration_parts')} help={t('app.tokens.configuration_parts_help')} fieldWidth="lg">
       {#snippet control(nameId)}
-        <div class="parts" role="group" aria-labelledby={nameId}>
-          {#each parts as part (part)}
-            <Checkbox label={scopeWord(part)} checked={draft.chosen.includes(part)} onchange={(event) => choose([part], (event.currentTarget as HTMLInputElement).checked)} />
-          {/each}
-        </div>
+        <!-- The installation's catalogue of parts, the same for every reader: its look goes by its
+             full size (design-system.md §4). -->
+        <MultiSelect
+          label={t('app.tokens.configuration_parts')}
+          aria-labelledby={nameId}
+          presentation={byCatalogue(parts.length)}
+          options={parts.map((part) => ({ value: part, label: scopeWord(part) }))}
+          selected={draft.chosen.filter((scope) => parts.includes(scope))}
+          onChange={(next) => {
+            draft.chosen = [...draft.chosen.filter((scope) => !parts.includes(scope)), ...next];
+            draft.missing = without(draft.missing, 'scopes');
+          }}
+          {...chooseSeveral()}
+        />
       {/snippet}
     </SettingRow>
   {/if}
@@ -241,8 +252,6 @@
   .failure { margin: 0; padding: var(--sp-150) var(--sp-250) 0; color: var(--text-danger); }
 
   .verbs { display: flex; flex-wrap: wrap; gap: var(--sp-100) var(--sp-250); }
-
-  .parts { display: grid; gap: var(--sp-100); }
 
   .details { padding-block: var(--sp-150); }
 </style>

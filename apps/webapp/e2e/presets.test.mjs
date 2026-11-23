@@ -26,6 +26,7 @@ import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, DEFAULT_STRUCTURE, MANIFEST, PAGE, PERMISSIONS, PRESETS, PRESET_SETTINGS, SHAPE_HUB, SHAPES, WORKSPACE, forgetUnstubbed, showStructures, stub, openSettings, openNewCollection, kindChoice } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { chipsOf, focused, openBeside } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -179,11 +180,11 @@ test("chromium: creating a collection offers every origin, marked, and sends a s
   for (const [name, origin] of [['List', "Hubtask's"], ['Craft order', "The installation's"], ['Weekly shop', "The workspace's"], ['Client project', 'Yours']]) {
     const choice = kindChoice(dialog, name);
     assert.equal(await choice.count(), 1, `${name} is not offered`);
-    const described = await choice.evaluate((button) => button.textContent ?? '');
+    const described = await choice.evaluate((radio) => radio.closest('label')?.textContent ?? '');
     assert.ok(described.includes(origin), `${name} is marked ${JSON.stringify(described)}, not ${origin}`);
   }
   await dialog.getByRole('textbox', { name: 'Name' }).fill('Acme');
-  await kindChoice(dialog, 'Client project').click();
+  await kindChoice(dialog, 'Client project').check();
   await dialog.getByRole('button', { name: 'Create', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('dialog[open]') === null, null, { timeout: 5_000 }).catch(() => {});
   const created = written.find((write) => write.path === '/containers');
@@ -254,9 +255,18 @@ test("chromium: Templates' Presets - rename, withdraw, the default kept; New hub
   assert.deepEqual(defaults, [{ default_preset_id: SHOP.id }, { default_preset: 'FLOW' }]);
 
   // Check 4: a lock, the whole set sent with the field's lock kept; the installation's is not the workspace's.
-  const locks = page.locator('[data-presets-locks]');
-  assert.equal(await locks.getByRole('checkbox', { name: 'Success' }).getAttribute('aria-disabled') === 'true' || await locks.getByRole('checkbox', { name: 'Success' }).isDisabled(), true, "the installation's lock can be lifted");
-  await locks.getByRole('checkbox', { name: 'Views' }).check();
+  // The nine settings are one field named by its row (design-system.md §4).
+  const locks = page.locator('[data-presets-locks]').getByRole('button', { name: /^Locks/u });
+  assert.equal(await locks.getAttribute('aria-haspopup'), 'listbox', 'the locks are not one field named by its row');
+  await locks.click();
+  const lockList = page.getByRole('listbox', { name: 'Locks' });
+  await lockList.waitFor({ timeout: 5_000 });
+  assert.equal(await lockList.getByRole('option', { name: 'Success', exact: true }).getAttribute('aria-disabled'), 'true', "the installation's lock can be lifted");
+  await lockList.getByRole('option', { name: 'Views', exact: true }).click();
+  await page.keyboard.press('Escape');
+  await lockList.waitFor({ state: 'detached', timeout: 5_000 });
+  assert.match(await focused(page), /^button "Locks /u, 'closing the list left focus elsewhere');
+  assert.ok((await chipsOf(locks)).includes('Views'), 'the field does not name the lock chosen');
   await save.click();
   await page.waitForTimeout(300);
   const locked = written.filter((write) => write.path === '/tenant/structure').at(-1);
@@ -291,3 +301,38 @@ test("chromium: a member reaches no Presets screen", async (t) => {
   assert.equal(await page.locator('[data-presets-saved]').count(), 0, 'a member is shown the workspace\'s presets to change');
   assert.ok(!written.some((write) => write.path.startsWith('/presets') || write.path === '/tenant/structure'));
 });
+
+// The locks' list opened where its row stands near the middle of a short screen (anchor.ts, the
+// shrunk fallback): at 1280×720 it covers neither the field nor runs past the viewport, End
+// focuses an option the reader sees, and the page does not scroll.
+test('chromium: 1280×720 - the locks open beside their field, inside the screen', async (t) => {
+  const browser = await sharedChromium(t);
+  const { context, page } = await as(browser, 'OWNER');
+  t.after(() => context.close());
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto(`${served.origin}/administration/workspace/new-hubs`);
+  const locks = page.locator('[data-presets-locks]').getByRole('button', { name: /^Locks/u });
+  await locks.waitFor({ timeout: 15_000 });
+  await locks.scrollIntoViewIfNeeded();
+  await locks.focus();
+  await page.keyboard.press('Enter');
+  await page.getByRole('listbox').waitFor({ timeout: 5_000 });
+  assert.deepEqual(await openBeside(page), { coversField: false, insideViewport: true, endFocusesVisibleOption: true, behindScrolled: 0 });
+});
+
+// The locks are named alike wherever the reader meets them: the field by its row, the list's
+// popover at 1280 and its sheet at 390 by the same words.
+for (const width of [1280, 390]) {
+  test(`chromium: ${width} px - the locks' list is called what their field is called`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { context, page } = await as(browser, 'OWNER', { width });
+    t.after(() => context.close());
+    await page.goto(`${served.origin}/administration/workspace/new-hubs`);
+    const locks = page.locator('[data-presets-locks]').getByRole('button', { name: /^Locks/u });
+    await locks.waitFor({ timeout: 15_000 });
+    await locks.scrollIntoViewIfNeeded();
+    await locks.click();
+    await page.getByRole('listbox').waitFor({ timeout: 5_000 });
+    assert.equal(await page.getByRole('dialog', { name: 'Locks', exact: true }).count(), 1, 'the list is called otherwise than its field');
+  });
+}

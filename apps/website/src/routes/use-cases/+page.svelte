@@ -53,7 +53,7 @@
       </div>
       <div>
         <h4>What matters here</h4>
-        <ul class="ticks">
+        <ul class="site-ticks">
           <li><strong>Nothing phones home</strong> No telemetry, no licence check, no font loaded from a foreign domain.</li>
           <li><strong>Backups you configure</strong> Your own target, your own schedule, encrypted, with a restore that has been drilled.</li>
           <li><strong>Export whenever</strong> CSV, JSON and ICS from any view; a full workspace export as a use case.</li>
@@ -92,7 +92,7 @@
       </div>
       <div>
         <h4>What matters here</h4>
-        <ul class="ticks">
+        <ul class="site-ticks">
           <li><strong>A hub per person or topic</strong> Membership on one hub reaches that hub and nothing above it.</li>
           <li><strong>Private hubs</strong> <span class="site-chip site-chip-amber">Planned</span> A hub another adult cannot open just because they are an administrator too, with an emergency access that tells every member at once.</li>
           <li><strong>Accounts without a mail address</strong> <span class="site-chip site-chip-amber">Planned</span> A child or a grandparent signs in with a name and a start password Hubtask makes, and changes it at the first sign-in.</li>
@@ -260,7 +260,7 @@
       </div>
       <div>
         <h4>What matters here</h4>
-        <ul class="ticks">
+        <ul class="site-ticks">
           <li><strong>A credential for the platform</strong> A service account provisions workspaces, not a token belonging to an employee. On the operator screen <span class="site-chip site-chip-amber">Planned</span>; through the API today.</li>
           <li><strong>Google and Microsoft sign-in</strong> Offered to every workspace by the installation, admitting only people who were invited.</li>
           <li><strong>Limits per workspace</strong> Visible before they hurt; a workspace at its limit is refused the next thing, never loses the last.</li>
@@ -301,7 +301,7 @@
       </div>
       <div>
         <h4>What matters here</h4>
-        <ul class="ticks">
+        <ul class="site-ticks">
           <li><strong>Each client configures itself</strong> Its own directory, legal texts and sign-in rules — within the defaults and locks you set for every workspace.</li>
           <li><strong>Providers you offer</strong> Sign-in providers configured once by the installation and switched on by each client, without seeing a secret.</li>
           <li><strong>Provisioning and suspension</strong> Creating, suspending and deleting a workspace are operations, not database surgery.</li>
@@ -345,7 +345,7 @@
       </div>
       <div>
         <h4>What matters here</h4>
-        <ul class="ticks">
+        <ul class="site-ticks">
           <li><strong>The installation as code</strong> One file, seeded or enforced, and the health report says which applies.</li>
           <li><strong>An operator register</strong> The people and machines who may run the installation, separate from every workspace’s administrators, with an hour of elevated access after a fresh proof.</li>
           <li><strong>Key rotation with a census</strong> Rotate the installation’s keys and see which secrets moved.</li>

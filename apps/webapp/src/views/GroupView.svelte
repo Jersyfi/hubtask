@@ -13,17 +13,16 @@
   // members, the members' heading says why. The roles listed are what the workspace's memberships
   // and its own roles' grants say the group holds - read, not changed, here.
 
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
 
   import {
     Button,
-    CheckboxGroup,
     DataTable,
     Dialog,
     EmptyState,
+    MultiSelect,
     RecordPage,
     RoleBadge,
-    SearchField,
     Spinner,
     Stack,
     type DataColumn,
@@ -38,9 +37,11 @@
   import EditGroupDialog from '../lib/people/EditGroupDialog.svelte';
   import { tabPath } from '../lib/people/peoplepage.ts';
   import { roleLabel } from '../lib/people/rolewords.ts';
+  import { Addresses } from '../lib/people/addresses.svelte.ts';
+  import { focusFirst } from '../lib/forms/missing.ts';
+  import { personOptions } from '../lib/people/personOptions.ts';
   import { DiscardGuard } from '../lib/page/discard.svelte.ts';
   import DiscardDialog from '../lib/page/DiscardDialog.svelte';
-  import { matchesSearch } from '../lib/page/list.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
@@ -49,6 +50,7 @@
   import { roles } from '../lib/data/roles.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
+  import { FROM_DATA, chooseSeveral } from '../lib/forms/chooseSeveral.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -123,24 +125,24 @@
     }
   }
 
-  // Add people: one list to pick from, with search - a Dialog L.
+  // Add people: one field to pick from, whose list filters itself - a Dialog L.
   let isAdding = $state(false);
-  let query = $state('');
   let picked = $state<readonly string[]>([]);
   let pickMissing = $state(false);
+  // By name, each with the address the people list shows beside it: a workspace of many has two of
+  // one name, and the list's filter finds an address as well.
+  const addresses = new Addresses();
+  const candidateIds = $derived(people.candidates({}).filter((accountId) => !members.includes(accountId)));
+  $effect(() => {
+    if (isAdding) addresses.read(candidateIds);
+  });
   const candidates = $derived(
-    people
-      .candidates({})
-      .filter((accountId) => !members.includes(accountId))
-      .map((accountId) => ({ value: accountId, label: nameFor(accountId) })),
+    personOptions(candidateIds, { nameOf: nameFor, addressOf: (id) => addresses.of(id), locale: messages.locale }),
   );
-  // The candidates are the people this workspace already holds; the search narrows those.
-  const offered = $derived(candidates.filter((option) => picked.includes(option.value) || matchesSearch(query, [option.label])));
   const addGuard = new DiscardGuard(() => picked.length > 0, () => closeAdding());
 
   function closeAdding(): void {
     isAdding = false;
-    query = '';
     picked = [];
     pickMissing = false;
   }
@@ -148,6 +150,9 @@
   async function addPicked(): Promise<void> {
     if (picked.length === 0) {
       pickMissing = true;
+      // The field the error stands on takes focus, as a form's missing answer does.
+      await tick();
+      focusFirst(document.querySelector('dialog[open]'));
       return;
     }
     const count = picked.length;
@@ -272,21 +277,23 @@
     bind:isOpen={isAdding}
     dismissLabel={t('app.groups.cancel')}
     onDismiss={addGuard.dismiss}
-    onClose={() => { query = ''; picked = []; pickMissing = false; }}
+    onClose={() => { picked = []; pickMissing = false; }}
     primary={{ label: t('app.groups.add_picked', { count: String(picked.length) }), isBusy: isWriting, busyLabel: t('app.groups.working'), onclick: () => void addPicked() }}
   >
     <Stack gap="150">
       {#if failure}<FailureNote problem={failure} />{/if}
-      <SearchField label={t('app.groups.search_people')} clearLabel={t('app.page.clear_search')} bind:value={query} />
       {#if candidates.length === 0}
         <p class="quiet">{t('app.groups.nobody_to_add')}</p>
       {:else}
-        <CheckboxGroup
+        <!-- The people this workspace already holds; the field's own filter narrows them. -->
+        <MultiSelect
           label={t('app.groups.add_member')}
-          options={offered}
+          presentation={FROM_DATA}
+          options={candidates}
           selected={picked}
           onChange={(next) => { picked = next; pickMissing = false; }}
           error={pickMissing ? t('app.groups.pick_first') : undefined}
+          {...chooseSeveral()}
         />
       {/if}
     </Stack>

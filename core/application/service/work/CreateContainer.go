@@ -184,7 +184,14 @@ func (h CreateContainer) create(
 	if err := h.authorize(ctx, actor, cmd); err != nil {
 		return domain.Container{}, nil, err
 	}
+	return h.createAuthorized(ctx, actor, cmd)
+}
 
+// createAuthorized is create once its caller has asked what the container needs, before the
+// transaction it may be part of: nothing in it refuses for a permission.
+func (h CreateContainer) createAuthorized(
+	ctx context.Context, actor appshared.ActorContext, cmd CreateContainerCommand,
+) (domain.Container, *domain.EffectiveStructure, error) {
 	var created domain.Container
 	var structure *domain.EffectiveStructure
 	err := h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {

@@ -145,12 +145,15 @@ test('chromium: a click anywhere on a board card opens it', { timeout: 60_000 },
     await chooseView(page, 'Board');
     const card = page.locator(`[data-card="${ITEMS[2].id}"]`);
     await card.waitFor({ timeout: 15_000 });
+    // Measured once the board has stopped moving: a loaded runner still lays it out after the
+    // card stands, and the point read from the first box lands elsewhere.
+    await card.click({ trial: true, timeout: 15_000 });
     const box = await card.boundingBox();
     // The card's padding above its title: its own surface, none of its controls.
     const hit = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('a, button') === null, [box.x + box.width / 2, box.y + 4]);
     assert.ok(hit, 'the point is the card, not one of its controls');
     await page.mouse.click(box.x + box.width / 2, box.y + 4);
-    await page.waitForTimeout(600);
+    await page.waitForURL((url) => url.href.includes(ITEMS[2].id), { timeout: 10_000 }).catch(() => undefined);
     assert.ok(page.url().includes(ITEMS[2].id), `after the click: ${page.url()}`);
   } finally {
     await close();

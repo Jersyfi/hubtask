@@ -53,7 +53,9 @@
   //
   // **One section per address, one save each** (page-system §7.3, PS-9, PS-10). *Passwords*,
   // *Second factor*, *Sessions*, *Ways and providers* - the list of ways, switched at once, with the
-  // providers' table under it -, *Directory* and *Accounts without mail*, each at
+  // providers' table under it -, *Directory*, *Accounts without mail* and *Own logo and name* - one
+  // switch acting at once, drawn as *Private hubs allowed* is (ADR-0112), the one place the
+  // workspace's own level of it is switched -, each at
   // `/administration/sign-in/<section>`; the list says each one's state. The legal links are not
   // about signing in at all and are the same rule's own page (`part: 'legal'`), so the filling, the
   // source chips and the save are not written twice. A section's save bar counts and sends its own
@@ -86,6 +88,7 @@
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import WorkspaceRefusal from '../lib/workspace/WorkspaceRefusal.svelte';
   import ValueSource from '../lib/workspace/ValueSource.svelte';
+  import PolicySwitch from '../lib/workspace/PolicySwitch.svelte';
   import WriteOnly from '../lib/workspace/WriteOnly.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -122,6 +125,7 @@
     ways: [],
     directory: [],
     'accounts-without-mail': ['managed_accounts'],
+    'own-branding': [],
     legal: ['imprint_url', 'privacy_url', 'terms_url', 'terms_version', 'accessibility_url', 'support_url', 'docs_url'],
   };
   /** The sections, in the list's order; *Accounts without mail* only where the server has it. */
@@ -132,6 +136,7 @@
     { id: 'ways', code: 'app.signin_settings.ways_and_providers' },
     { id: 'directory', code: 'app.signin_settings.directory' },
     { id: 'accounts-without-mail', code: 'app.signin_settings.managed_section' },
+    { id: 'own-branding', code: 'app.branding.own' },
   ] as const;
   /** The tabs of the older addresses, by the section each became. */
   const TAB_SECTIONS: Readonly<Record<string, string>> = { passwords: 'passwords', sessions: 'sessions', ways: 'ways', directory: 'directory' };
@@ -146,7 +151,11 @@
     signInPolicy.failure ? renderProblem(signInPolicy.failure, messages) : undefined,
   );
 
-  const sections = $derived(SECTIONS.filter((each) => each.id !== 'accounts-without-mail' || policy?.managed_accounts !== undefined));
+  /** A section whose switch an older server does not answer is not listed. */
+  const sections = $derived(SECTIONS.filter((each) =>
+    each.id === 'accounts-without-mail' ? policy?.managed_accounts !== undefined
+      : each.id === 'own-branding' ? policy?.own_branding !== undefined
+        : true));
   const isKnown = (id: string | undefined): boolean => id !== undefined && SECTIONS.some((each) => each.id === id);
   const current = $derived(part === 'legal' ? 'legal' : isKnown(section) ? (section as string) : 'passwords');
   /** At the screen's own address the list - with the first section beside it where there is room. */
@@ -265,6 +274,9 @@
     if (id === 'directory') {
       if (ldapDirectory.state.status !== 'ready' && !ldapDirectory.none) return {};
       return { status: ldapDirectory.directory?.enabled ? t('app.signin_settings.status_on') : t('app.signin_settings.status_off') };
+    }
+    if (id === 'own-branding') {
+      return { status: policy.own_branding?.value ? t('app.signin_settings.status_on') : t('app.signin_settings.status_off') };
     }
     if (id === 'accounts-without-mail') {
       return { status: policy.managed_accounts?.value ? t('app.signin_settings.status_on') : t('app.signin_settings.status_off') };
@@ -725,6 +737,19 @@
   {#if policy}
     {#if current === 'ways'}
       {@render ways()}
+    {:else if current === 'own-branding'}
+      <!-- One switch that acts at once, so outside the rules' form and its save, as the ways are. -->
+      <WorkspaceGate permission="STRUCTURE">
+        <SettingsSection title={t('app.branding.own')} status={statusOf('own-branding').status}>
+          <PolicySwitch
+            key="own_branding"
+            label={t('app.signin_settings.own_branding')}
+            hint={t('app.signin_settings.own_branding_hint')}
+            offAbove={t('app.signin_settings.off_above')}
+            saved={t('app.signin_settings.own_branding_saved')}
+          />
+        </SettingsSection>
+      </WorkspaceGate>
     {:else if current === 'directory'}
       <!-- The LDAP directory the people are synchronised from (UC-ID-31): its own saves. -->
       <LdapDirectoryPanel />
@@ -787,7 +812,7 @@
                       checked={Boolean(draft.managed_accounts)}
                       onchange={(event) => (draft.managed_accounts = (event.currentTarget as HTMLInputElement).checked)}
                       disabledReason={lockedBecause(managed.lock) ??
-                        (managed.installation ? undefined : t('app.signin_settings.managed_off_above'))}
+                        (managed.installation ? undefined : t('app.signin_settings.off_above'))}
                     />
                     {#if refusalOf('managed_accounts')}<p class="refusal" role="alert">{refusalOf('managed_accounts')}</p>{/if}
                   {/snippet}

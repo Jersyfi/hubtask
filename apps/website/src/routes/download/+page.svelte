@@ -50,7 +50,7 @@ helm upgrade --install hubtask ./k8s \
       </div>
       <div>
         <h4>What comes with it</h4>
-        <ul class="ticks">
+        <ul class="site-ticks">
           <li><strong>Multi-architecture</strong> amd64 and arm64 from the same tag, so a small ARM box is not a second-class citizen.</li>
           <li><strong>Signed, with an SBOM</strong> The release pipeline publishes a signature and a software bill of materials with the image.</li>
           <li><strong>The web interface included</strong> It ships inside the binary; there is no second thing to deploy.</li>

@@ -39,6 +39,12 @@ class People {
    * reader and not the same for the list of others.
    */
   #refused = $state<Record<string, true>>({});
+  /**
+   * The scopes whose read ended without a whole answer and without a refusal: a failed read, or
+   * one that stopped at a page that did not arrive. Their roles stay unknown (`roleOf`); a caller
+   * that must decide now reads this and decides without them (`hasUnansweredAlong`).
+   */
+  #unanswered = $state<Record<string, true>>({});
   /** What the server says the reader may grant at each scope it was asked about. */
   #grantable = $state<Record<string, readonly MembershipRole[]>>({});
   #complete = $state<Record<string, boolean>>({});
@@ -112,6 +118,15 @@ class People {
     });
     this.#resolveGroups(answers.flatMap((answer) => (Array.isArray(answer) ? answer : [])));
     return effectiveRole({ answers, accountId, groupMembers: this.#groups, order });
+  }
+
+  /**
+   * Whether a scope in force along a path was read and gave no whole answer - it failed other than
+   * by a refusal - so `roleOf` stays unknown there until a later read answers.
+   */
+  hasUnansweredAlong(path: Path): boolean {
+    const isPrivate = path.hubId ? containers.find(path.hubId)?.private === true : false;
+    return scopesInForce(path, isPrivate).some((scope) => this.#unanswered[membershipsPath(scope)] === true);
   }
 
   /** Who may be named on an entry at this path: the accounts, with the groups expanded. */
@@ -406,6 +421,10 @@ class People {
         this.#refused = { ...this.#refused, [path]: true };
         return;
       }
+      if (next.status === 'failed') {
+        this.#unanswered = { ...this.#unanswered, [path]: true };
+        return;
+      }
       if (next.status !== 'ready') return;
       this.#keep(path, next.data);
       void this.#readOn(path, next.data);
@@ -417,16 +436,20 @@ class People {
   async #readOn(path: string, first: MembershipPage): Promise<void> {
     if (this.#walking.has(path)) return;
     this.#walking.add(path);
+    let last: MembershipPage | undefined = first;
     try {
       await readWhole(first, async () => {
         const state = await engine.loadMore<MembershipPage>({ path });
-        return state.status === 'ready' ? state.data : undefined;
+        last = state.status === 'ready' ? state.data : undefined;
+        return last;
       });
     } catch {
       // A page that did not arrive leaves the scope incomplete: its roles stay unknown, never wrong.
+      last = undefined;
     } finally {
       this.#walking.delete(path);
     }
+    if (last?.page?.has_more !== false) this.#unanswered = { ...this.#unanswered, [path]: true };
   }
 
   /**
@@ -447,6 +470,10 @@ class People {
     if (this.#refused[path]) {
       const { [path]: _answered, ...rest } = this.#refused;
       this.#refused = rest;
+    }
+    if (this.#unanswered[path]) {
+      const { [path]: _answered, ...rest } = this.#unanswered;
+      this.#unanswered = rest;
     }
     this.#scopes = { ...this.#scopes, [path]: page.data ?? [] };
     // An answer without the list - a server older than the field - offers nothing rather than all.

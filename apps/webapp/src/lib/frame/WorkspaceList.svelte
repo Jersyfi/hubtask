@@ -12,6 +12,8 @@
   import { Badge, Button, IconButton, Menu } from '@hubtask/design-system/components';
 
   import { t } from '../i18n/i18n.svelte.ts';
+  import type { PictureSource } from '../workspace/branding.ts';
+  import WorkspaceSymbol from '../workspace/WorkspaceSymbol.svelte';
 
   /** A row: the browser's entry and whether it answers, or an installed app's workspace. */
   interface Row {
@@ -28,6 +30,11 @@
     rows: readonly Row[];
     /** The host this page is at, whose row is *This workspace*; nothing at the installation's address. */
     here?: string;
+    /**
+     * The symbol of the workspace this page is at, on its row only: the device's list holds each
+     * workspace's address and name, so the others keep their letters (UC-INS-22 check 6, O4).
+     */
+    hereSymbol?: PictureSource;
     /** The installation's own address: the arrow and the cross, no menu. */
     isHome?: boolean;
     onopen: (host: string) => void;
@@ -38,22 +45,14 @@
     forgetLabel?: string;
   }
 
-  const { rows, here, isHome = false, onopen, onforget, onsignin, forgetLabel }: Props = $props();
-
-  /** First and last word's first letter: a mark, not a picture, so no two workspaces look alike by colour. */
-  function initials(name: string): string {
-    const words = name.trim().split(/\s+/).filter(Boolean);
-    const first = [...(words[0] ?? '')][0] ?? '';
-    const last = words.length > 1 ? ([...(words[words.length - 1] ?? '')][0] ?? '') : '';
-    return `${first}${last}`.toUpperCase();
-  }
+  const { rows, here, hereSymbol, isHome = false, onopen, onforget, onsignin, forgetLabel }: Props = $props();
 </script>
 
 <ul class="list">
   {#each rows as row (row.entry)}
     {@const isGone = row.answers === false}
     <li class:gone={isGone}>
-      <span class="mark" aria-hidden="true">{initials(row.name)}</span>
+      <WorkspaceSymbol name={row.name} source={here !== undefined && row.host === here ? hereSymbol : undefined} size="lg" />
       <div class="grow">
         <span class="name">{row.name}</span>
         <span class="address">{row.host}</span>
@@ -118,19 +117,6 @@
   li:last-child { border-block-end: 0; }
 
   .grow { flex: 1; min-width: 0; }
-
-  .mark {
-    display: inline-grid;
-    place-items: center;
-    flex: none;
-    inline-size: var(--sp-400);
-    block-size: var(--sp-400);
-    border-radius: var(--r-md);
-    background: var(--bg-surface-sunken);
-    color: var(--text-secondary);
-    font-size: var(--fs-075);
-    font-weight: var(--fw-semibold);
-  }
 
   .name { display: block; font-weight: var(--fw-medium); overflow-wrap: anywhere; }
 

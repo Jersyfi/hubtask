@@ -20,7 +20,7 @@ export const confirm: Story = {
 export const alert: Story = {
   name: 'An alert: a consequence that interrupts',
   about:
-    '`isAlert` (APG Alert Dialog): announced as `alertdialog`, its body the description, and the focus starts on the safe answer placed first in the foot — *Keep it on* — rather than in the field below or on the destructive primary. On a phone’s full screen, where the foot goes, it starts on ✕.',
+    '`isAlert` (APG Alert Dialog): announced as `alertdialog`, its body the description, and the focus starts on the safe answer placed first in the foot — *Keep it on* — rather than in the field below or on the destructive primary. On a phone’s full screen, where the foot goes, it starts on ✕. A click beside it does not close it; ✕ and Escape do.',
   args: { mode: 'alert' },
 };
 
@@ -62,6 +62,13 @@ export const sizeL: Story = {
   name: 'Size L — a list to pick from',
   about: 'Dialog L (`layout.dialog.l`): one list with search. The head and the foot stay; only the body scrolls. Full screen below `medium`.',
   args: { size: 'l' },
+};
+
+export const step: Story = {
+  name: 'A step of the page — choose a template',
+  about:
+    '`isStep` (L): a choice made in it is the page’s at once, so choosing a tile keeps it open and its way out is ‹ back to the page, named in words, not ✕. Below `medium` it is the whole screen: ‹ at the start of its bar, the title, *Done* at the end. Opening puts the focus in the search; closing gives it back to the button.',
+  args: { size: 'step' },
 };
 
 export const discard: Story = {

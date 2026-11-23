@@ -27,6 +27,7 @@ func TestAnEntryWithoutAnObligationIsRecordedWhenRefused(t *testing.T) {
 		want  string
 	}{
 		{row{required: true}, "Every time"},
+		{row{required: true, firstTimeOnly: true}, "The first time"},
 		{row{required: false}, "When refused"},
 	} {
 		if got := recorded(c.entry); got != c.want {

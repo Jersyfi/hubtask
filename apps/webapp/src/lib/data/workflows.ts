@@ -240,6 +240,53 @@ export function changeStep(shape: WorkflowShape, key: string, change: Partial<Wo
   return { ...shape, steps: shape.steps.map((step) => (step.key === key ? { ...step, ...change, key: step.key } : step)) };
 }
 
+/**
+ * What an empty *Who may take it* says, as a message code. "Anyone" only where the step limits
+ * nobody - roles, person fields, groups and condition all empty, as the server's `StepWho.IsOpen`
+ * reads it; otherwise what limits it. Roles or groups named but not drawn yet are "some people".
+ */
+export function whoWhenEmpty(who: WorkflowStep['who']): string {
+  const fields = (who?.person_fields?.length ?? 0) > 0;
+  const condition = (who?.condition ?? '').trim() !== '';
+  if ((who?.roles?.length ?? 0) > 0 || (who?.groups?.length ?? 0) > 0) return 'app.workflow_designer.who_limited';
+  if (fields && condition) return 'app.workflow_designer.who_fields_condition';
+  if (fields) return 'app.workflow_designer.who_fields_only';
+  if (condition) return 'app.workflow_designer.who_condition_only';
+  return 'app.workflow_designer.who_anyone';
+}
+
+/** The stored values a list does not offer, in their stored order: kept on screen, not dropped unseen. */
+export function notOffered(stored: readonly string[] | undefined, offered: readonly string[]): readonly string[] {
+  return (stored ?? []).filter((value) => !offered.includes(value));
+}
+
+/**
+ * The step's limit after the one choice of roles and groups changed. A value is a group where the
+ * group list offers it - `offered.groups`, or a group the step named when the dialog opened
+ * (`offered.opened`) that the workspace no longer has - otherwise a role, so unticking and ticking a gone group again
+ * keeps it a group. Only the list that changed is written: a step that named no groups names none.
+ */
+export function chooseWho(
+  who: WorkflowStep['who'],
+  next: readonly string[],
+  offered: { readonly groups: readonly string[]; readonly opened: WorkflowStep['who']; readonly roles: readonly string[] },
+): WorkflowStep['who'] {
+  const groupIds = new Set([...offered.groups, ...(offered.opened?.groups ?? []), ...(who?.groups ?? [])]);
+  const shippedRoles = offered.roles;
+  const chosenGroups = next.filter((value) => groupIds.has(value));
+  const roles = new Set(next.filter((value) => !groupIds.has(value)));
+  const rolesBefore = who?.roles ?? [];
+  const groupsBefore = who?.groups ?? [];
+  let after = { ...who };
+  if (roles.size !== rolesBefore.length || rolesBefore.some((role) => !roles.has(role))) {
+    // The shipped roles in their order, then the workspace's own keys the step already names.
+    const ordered = [...shippedRoles.filter((one) => roles.has(one)), ...[...roles].filter((one) => !shippedRoles.includes(one))];
+    after = { ...after, roles: ordered as never };
+  }
+  if (chosenGroups.length !== groupsBefore.length || chosenGroups.some((group, at) => group !== groupsBefore[at])) after = { ...after, groups: chosenGroups };
+  return after;
+}
+
 /** Removes one step. */
 export function removeStep(shape: WorkflowShape, key: string): WorkflowShape {
   return { ...shape, steps: shape.steps.filter((step) => step.key !== key) };

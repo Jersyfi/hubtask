@@ -1,6 +1,8 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts" module>
+  import type { Snippet } from 'svelte';
+
   import type { IconName } from './icons/index.ts';
   import type { MenuItem } from './overlay.ts';
 
@@ -18,6 +20,12 @@
   export interface RowBadge {
     readonly icon: IconName;
     readonly label: string;
+    /**
+     * `warning` while what the mark says is happening now - a private hub open through the
+     * emergency access: on that tone's surface, an extra only - the icon and its name say it (§6
+     * rule 3).
+     */
+    readonly tone?: 'warning';
   }
 
   /** How the row stands in a drag (design-system.md §11.9): carried, a target, just landed. */
@@ -47,6 +55,11 @@
     href?: string;
     /** A plain mark, drawn in the secondary ink. */
     icon?: IconName;
+    /**
+     * A mark the caller draws in the mark's box instead of `icon`: a picture that is data, such as
+     * a workspace's own symbol. Decorative, as every mark of a row is; the label names the row.
+     */
+    mark?: Snippet;
     /** A label colour: the mark is drawn on its tile (`ProductTile`). */
     color?: string;
     /** The tree level, 0 at a part's top; the indent stops growing at the sixth. */
@@ -107,6 +120,7 @@
     label,
     href,
     icon,
+    mark,
     color,
     level = 0,
     twist,
@@ -250,12 +264,12 @@
     {/if}
   {/if}
   <span class="mark" aria-hidden="true">
-    {#if unreadLabel}<UnreadDot />{:else if icon && color}<ProductTile {icon} {color} />{:else if icon}<Icon name={icon} size="sm" />{/if}
+    {#if unreadLabel}<UnreadDot />{:else if mark}{@render mark()}{:else if icon && color}<ProductTile {icon} {color} />{:else if icon}<Icon name={icon} size="sm" />{/if}
   </span>
   {#if !isRail}
     <span class="name" title={label}>{label}{#if unreadLabel}<VisuallyHidden>{unreadLabel}</VisuallyHidden>{/if}</span>
     {#if badge}
-      <span class="badge" title={badge.label}><Icon name={badge.icon} label={badge.label} size="sm" /></span>
+      <span class="badge" data-tone={badge.tone} title={badge.label}><Icon name={badge.icon} label={badge.label} size="sm" /></span>
     {/if}
     {#if waitingLabel}
       <span class="badge waiting" title={waitingLabel}><Icon name="cloud-upload" label={waitingLabel} size="sm" /></span>
@@ -518,6 +532,9 @@
     inline-size: var(--layout-nav-actionglyph);
     block-size: var(--layout-nav-actionglyph);
   }
+
+  /* On its tone's surface, as every status is (§6 rule 3): the shape and the name say it first. */
+  .badge[data-tone='warning'] { border-radius: var(--r-sm); background: var(--status-warning-surface); color: var(--status-warning-accent); }
 
   .waiting { color: var(--text-secondary); }
 

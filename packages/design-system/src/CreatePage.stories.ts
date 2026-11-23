@@ -30,3 +30,10 @@ export const refused: Story = {
     'The head stays.',
   args: { content: 'refused' },
 };
+
+export const filled: Story = {
+  name: 'Create hub — two panes that scroll on their own',
+  about:
+    'A filled create page takes the region the frame gives it: the head stands edge to edge over a hairline, and the content takes the rest of the height, so the details and the start each scroll on their own while the head and its primary stay in view.',
+  args: { content: 'filled' },
+};

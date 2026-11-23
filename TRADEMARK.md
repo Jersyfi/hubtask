@@ -18,6 +18,8 @@ so that a user who downloads something called Hubtask knows where it came from.
   `hubtask-cli-completions`.
 * Reproduce the logo unmodified when referring to the project, at a size and placement that does
   not suggest endorsement.
+* Showing your own name and logo in your own installation is welcome; calling a changed
+  distribution by the product's name is not.
 
 ## What needs written permission
 

@@ -13,54 +13,55 @@ import (
 
 // restDoors is every operation answered by the generated mapping, by operationId.
 var restDoors = map[string]restDoor{
-	"acceptSuggestion":      {UseCase: "AcceptSuggestion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"acknowledgeAiPosition": {UseCase: "AcknowledgeAiPosition", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"activateAgent":         {UseCase: "ActivateAgent", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"addAgentCase":          {UseCase: "AddAgentCase", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"addComment":            {UseCase: "AddComment", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"addGoalSet":            {UseCase: "AddGoalSet", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"addHubTemplatePage":    {UseCase: "AddHubTemplatePage", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"addLabel":              {UseCase: "AddLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"addMember":             {UseCase: "AddMember", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"addOperator":           {UseCase: "AddOperator", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"addPageComment":        {UseCase: "AddPageComment", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"addPostReply":          {UseCase: "AddPostReply", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"addReleaseEntries":     {UseCase: "AddReleaseEntries", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"addSampleEntry":        {UseCase: "AddSampleEntry", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"addSprintEntries":      {UseCase: "AddSprintEntries", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"addWhiteboardComment":  {UseCase: "AddWhiteboardComment", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"affectEntryCi":         {UseCase: "AffectEntryCi", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"aggregateItems":        {UseCase: "AggregateItems", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Flatten: map[string]map[string]string{"scope": {"container_id": "scope_container_id", "include_descendants": "include_descendants", "item_id": "scope_item_id", "workspace": "scope_workspace"}}},
-	"aggregateView":         {UseCase: "AggregateView", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"agreeToTerms":          {UseCase: "AgreeToTerms", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"tenant_header"}},
-	"aiClassify":            {UseCase: "AiClassify", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"aiGenerateTemplate":    {UseCase: "AiGenerateTemplate", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"aiSuggestFields":       {UseCase: "AiSuggestFields", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"aiSummarize":           {UseCase: "AiSummarize", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"aiSummarizeContainer":  {UseCase: "AiSummarizeContainer", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"aiSummarizeThread":     {UseCase: "AiSummarizeThread", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"aiTranslate":           {UseCase: "AiTranslate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"applyConfig":           {UseCase: "ApplyConfig", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "base_hash", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
-	"applyPlanSchedule":     {UseCase: "ApplyPlanSchedule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"applyStarter":          {UseCase: "ApplyStarter", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/containers/{id}", NullClears: false, Integers: []string(nil)},
-	"approveAgent":          {UseCase: "ApproveAgent", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"approveTimesheet":      {UseCase: "ApproveTimesheet", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"archiveContainer":      {UseCase: "ArchiveContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"archiveWorkItem":       {UseCase: "ArchiveWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"askQuery":              {UseCase: "AskQuery", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"askWorkspace":          {UseCase: "AskWorkspace", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"assignWorkItem":        {UseCase: "AssignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"attachCiMedia":         {UseCase: "AttachCiMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"attachMedia":           {UseCase: "AttachMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"attachPageMedia":       {UseCase: "AttachPageMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"attachWhiteboardMedia": {UseCase: "AttachWhiteboardMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"attestCi":              {UseCase: "AttestCi", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"authorizeCalendarPush": {UseCase: "AuthorizeCalendarPush", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"authorizeMailbox":      {UseCase: "AuthorizeMailbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"port"}},
-	"authorizeOauthClient":  {UseCase: "AuthorizeOauthClient", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"autoAssignWorkItem":    {UseCase: "AutoAssignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"browseFileStore":       {UseCase: "BrowseFileStore", Status: 200, Query: []string{"folder"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"bulkUpdateWorkItems":   {UseCase: "BulkUpdateWorkItems", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Writer: (*RestController).bulkWriter, WriterMembers: []string(nil)},
+	"acceptSuggestion":           {UseCase: "AcceptSuggestion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"acknowledgeAiPosition":      {UseCase: "AcknowledgeAiPosition", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"acknowledgeEmergencyNotice": {UseCase: "AcknowledgeEmergencyNotice", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"activateAgent":              {UseCase: "ActivateAgent", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"addAgentCase":               {UseCase: "AddAgentCase", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"addComment":                 {UseCase: "AddComment", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"addGoalSet":                 {UseCase: "AddGoalSet", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"addHubTemplatePage":         {UseCase: "AddHubTemplatePage", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"addLabel":                   {UseCase: "AddLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"addMember":                  {UseCase: "AddMember", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"addOperator":                {UseCase: "AddOperator", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"addPageComment":             {UseCase: "AddPageComment", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"addPostReply":               {UseCase: "AddPostReply", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"addReleaseEntries":          {UseCase: "AddReleaseEntries", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"addSampleEntry":             {UseCase: "AddSampleEntry", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"addSprintEntries":           {UseCase: "AddSprintEntries", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"addWhiteboardComment":       {UseCase: "AddWhiteboardComment", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"affectEntryCi":              {UseCase: "AffectEntryCi", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"aggregateItems":             {UseCase: "AggregateItems", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Flatten: map[string]map[string]string{"scope": {"container_id": "scope_container_id", "include_descendants": "include_descendants", "item_id": "scope_item_id", "workspace": "scope_workspace"}}},
+	"aggregateView":              {UseCase: "AggregateView", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"agreeToTerms":               {UseCase: "AgreeToTerms", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"tenant_header"}},
+	"aiClassify":                 {UseCase: "AiClassify", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"aiGenerateTemplate":         {UseCase: "AiGenerateTemplate", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"aiSuggestFields":            {UseCase: "AiSuggestFields", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"aiSummarize":                {UseCase: "AiSummarize", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"aiSummarizeContainer":       {UseCase: "AiSummarizeContainer", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"aiSummarizeThread":          {UseCase: "AiSummarizeThread", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"aiTranslate":                {UseCase: "AiTranslate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"applyConfig":                {UseCase: "ApplyConfig", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "base_hash", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
+	"applyPlanSchedule":          {UseCase: "ApplyPlanSchedule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"applyStarter":               {UseCase: "ApplyStarter", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/containers/{id}", NullClears: false, Integers: []string(nil)},
+	"approveAgent":               {UseCase: "ApproveAgent", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"approveTimesheet":           {UseCase: "ApproveTimesheet", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"archiveContainer":           {UseCase: "ArchiveContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"archiveWorkItem":            {UseCase: "ArchiveWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"askQuery":                   {UseCase: "AskQuery", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"askWorkspace":               {UseCase: "AskWorkspace", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"assignWorkItem":             {UseCase: "AssignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"attachCiMedia":              {UseCase: "AttachCiMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"attachMedia":                {UseCase: "AttachMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"attachPageMedia":            {UseCase: "AttachPageMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"attachWhiteboardMedia":      {UseCase: "AttachWhiteboardMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"attestCi":                   {UseCase: "AttestCi", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"authorizeCalendarPush":      {UseCase: "AuthorizeCalendarPush", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"authorizeMailbox":           {UseCase: "AuthorizeMailbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"port"}},
+	"authorizeOauthClient":       {UseCase: "AuthorizeOauthClient", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"autoAssignWorkItem":         {UseCase: "AutoAssignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"browseFileStore":            {UseCase: "BrowseFileStore", Status: 200, Query: []string{"folder"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"bulkUpdateWorkItems":        {UseCase: "BulkUpdateWorkItems", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Writer: (*RestController).bulkWriter, WriterMembers: []string(nil)},
 	"cancelInstanceIdentityProviderWithdrawal": {UseCase: "CancelInstanceIdentityProviderWithdrawal", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"cancelJob":                         {UseCase: "CancelJob", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"cancelTenantDeletion":              {UseCase: "CancelTenantDeletion", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -598,6 +599,7 @@ var restDoors = map[string]restDoor{
 	"readWhiteboardVersion":             {UseCase: "ReadWhiteboardVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readWorkload":                      {UseCase: "ReadWorkload", Status: 200, Query: []string{"calendar", "from", "weeks", "zone"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"weeks"}},
 	"readWorkspace":                     {UseCase: "ReadWorkspace", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readWorkspaceLook":                 {UseCase: "ReadWorkspaceLook", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readWorkspaceTolerance":            {UseCase: "ReadWorkspaceTolerance", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"reapplyErasures":                   {UseCase: "ReapplyErasures", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"reconcileCis":                      {UseCase: "ReconcileCis", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -641,6 +643,7 @@ var restDoors = map[string]restDoor{
 	"removeSampleEntries":               {UseCase: "RemoveSampleEntries", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeSoftwareAlias":               {UseCase: "RemoveSoftwareAlias", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeSprintEntries":               {UseCase: "RemoveSprintEntries", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"removeWorkspacePicture":            {UseCase: "RemoveWorkspacePicture", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeWorkspaceSamples":            {UseCase: "RemoveWorkspaceSamples", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"renameContainer":                   {UseCase: "RenameContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil)},
 	"renameOwnPasskey":                  {UseCase: "RenameOwnPasskey", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -746,6 +749,8 @@ var restDoors = map[string]restDoor{
 	"setTimePolicy":                     {UseCase: "SetTimePolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"expected_version"}},
 	"setUpInstallation":                 {UseCase: "SetUpInstallation", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil), Request: []string{"user_agent", "remote_addr"}},
 	"setWorkflowScheme":                 {UseCase: "SetWorkflowScheme", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setWorkspaceHeader":                {UseCase: "SetWorkspaceHeader", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setWorkspacePicture":               {UseCase: "SetWorkspacePicture", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setWorkspaceStructure":             {UseCase: "SetWorkspaceStructure", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), NullTo: map[string]string{"default_preset": "clear_default_preset", "default_preset_id": "clear_default_preset"}},
 	"setWorkspaceTolerance":             {UseCase: "SetWorkspaceTolerance", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"time_tolerance_days"}},
 	"shareFileStoreItem":                {UseCase: "ShareFileStoreItem", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -865,6 +870,11 @@ func (c *RestController) AcceptSuggestion(w http.ResponseWriter, r *http.Request
 // AcknowledgeAiPosition answers POST /privacy/ai-objection:noticed by the generated mapping.
 func (c *RestController) AcknowledgeAiPosition(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["acknowledgeAiPosition"], usecase.Input{}, nil, nil, answerBy(ownAiPositionOf))
+}
+
+// AcknowledgeEmergencyNotice answers POST /accounts/me/emergency-notices/{accessId}:acknowledge by the generated mapping.
+func (c *RestController) AcknowledgeEmergencyNotice(w http.ResponseWriter, r *http.Request, accessId openapi_types.UUID) {
+	c.door(w, r, restDoors["acknowledgeEmergencyNotice"], usecase.Input{"access_id": accessId.String()}, nil, nil, nil)
 }
 
 // ActivateAgent answers POST /agents/{agentId}:activate by the generated mapping.
@@ -2836,6 +2846,15 @@ func (c *RestController) GetWorkItem(w http.ResponseWriter, r *http.Request, ite
 	c.door(w, r, restDoors["getWorkItem"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(workItemResponse))
 }
 
+// GetWorkspacePicture answers GET /auth/workspace-pictures/{mediaId} by the adapter in Media, which holds the connection.
+func (c *RestController) GetWorkspacePicture(w http.ResponseWriter, r *http.Request, mediaId openapi.MediaId, params openapi.GetWorkspacePictureParams) {
+	if c.Media == nil {
+		c.pending.GetWorkspacePicture(w, r, mediaId, params)
+		return
+	}
+	c.Media.GetWorkspacePicture(w, r, mediaId, params)
+}
+
 // GiveConsent answers POST /privacy/consents:give by the generated mapping.
 func (c *RestController) GiveConsent(w http.ResponseWriter, r *http.Request) {
 	var body openapi.GiveConsentJSONRequestBody
@@ -3256,7 +3275,7 @@ func (c *RestController) ListDeadLetters(w http.ResponseWriter, r *http.Request,
 
 // ListEmergencyNotices answers GET /accounts/me/emergency-notices by the generated mapping.
 func (c *RestController) ListEmergencyNotices(w http.ResponseWriter, r *http.Request) {
-	c.door(w, r, restDoors["listEmergencyNotices"], usecase.Input{}, nil, nil, answerRows(privateHubAccessResponse))
+	c.door(w, r, restDoors["listEmergencyNotices"], usecase.Input{}, nil, nil, answerRows(emergencyNoticeResponse))
 }
 
 // ListEntryCis answers GET /items/{itemId}/cis by the generated mapping.
@@ -4708,6 +4727,12 @@ func (c *RestController) ReadWorkspace(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["readWorkspace"], usecase.Input{}, nil, nil, answerBy(workspaceResponse))
 }
 
+// ReadWorkspaceLook answers GET /tenant/look by the generated mapping.
+func (c *RestController) ReadWorkspaceLook(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.WorkspaceLook
+	c.door(w, r, restDoors["readWorkspaceLook"], usecase.Input{}, nil, nil, &answer)
+}
+
 // ReadWorkspaceTolerance answers GET /plans:tolerance by the generated mapping.
 func (c *RestController) ReadWorkspaceTolerance(w http.ResponseWriter, r *http.Request) {
 	var answer openapi.WorkspaceTolerance
@@ -4963,6 +4988,12 @@ func (c *RestController) RemoveSprintEntries(w http.ResponseWriter, r *http.Requ
 	var body openapi.RemoveSprintEntriesJSONRequestBody
 	var answer openapi.Sprint
 	c.door(w, r, restDoors["removeSprintEntries"], usecase.Input{"sprint_id": sprintId.String()}, nil, &body, &answer)
+}
+
+// RemoveWorkspacePicture answers DELETE /tenant/branding/{picture} by the generated mapping.
+func (c *RestController) RemoveWorkspacePicture(w http.ResponseWriter, r *http.Request, picture openapi.WorkspacePicture) {
+	var answer openapi.WorkspaceBranding
+	c.door(w, r, restDoors["removeWorkspacePicture"], usecase.Input{"picture": string(picture)}, nil, nil, &answer)
 }
 
 // RemoveWorkspaceSamples answers POST /tenant/samples:remove by the generated mapping.
@@ -5635,6 +5666,20 @@ func (c *RestController) SetWorkflowScheme(w http.ResponseWriter, r *http.Reques
 	var body openapi.SetWorkflowSchemeJSONRequestBody
 	var answer openapi.WorkflowSchemeResult
 	c.door(w, r, restDoors["setWorkflowScheme"], usecase.Input{}, nil, &body, &answer)
+}
+
+// SetWorkspaceHeader answers PUT /tenant/branding by the generated mapping.
+func (c *RestController) SetWorkspaceHeader(w http.ResponseWriter, r *http.Request) {
+	var body openapi.SetWorkspaceHeaderJSONRequestBody
+	var answer openapi.WorkspaceBranding
+	c.door(w, r, restDoors["setWorkspaceHeader"], usecase.Input{}, nil, &body, &answer)
+}
+
+// SetWorkspacePicture answers PUT /tenant/branding/{picture} by the generated mapping.
+func (c *RestController) SetWorkspacePicture(w http.ResponseWriter, r *http.Request, picture openapi.WorkspacePicture) {
+	var body openapi.SetWorkspacePictureJSONRequestBody
+	var answer openapi.WorkspaceBranding
+	c.door(w, r, restDoors["setWorkspacePicture"], usecase.Input{"picture": string(picture)}, nil, &body, &answer)
 }
 
 // SetWorkspaceStructure answers PATCH /tenant/structure by the generated mapping.

@@ -8,7 +8,7 @@ export default {
   title: 'Wave 1 · Overlays/Popover',
   component: PopoverDemo,
   status: 'draft',
-  axes: ['theme', 'dir', 'text', 'motion', 'zoom'],
+  axes: ['theme', 'dir', 'text', 'motion', 'zoom', 'width'],
 } satisfies StoryMeta;
 
 export const filter: Story = {
@@ -22,4 +22,11 @@ export const nested: Story = {
   about:
     'Where the layer register earns its keep. With both open, Escape closes the inner one and leaves the outer one standing — one layer at a time, whatever order they were opened in (design-system.md §6).',
   args: { mode: 'nested' },
+};
+
+export const sheet: Story = {
+  name: 'A bottom sheet on a phone, with its foot',
+  about:
+    'Switch Width to Compact and open it: a popover that is not anchored becomes a bottom sheet named with its label, and `sheetActions` is drawn as the sheet\'s foot - a list\'s *Done*, which closes it and puts focus back on the trigger. At any other width it is the anchored popover and the foot is not drawn; it closes by Escape or a press outside.',
+  args: { mode: 'sheet' },
 };

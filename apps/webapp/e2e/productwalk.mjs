@@ -12,7 +12,8 @@ import { fold, record } from './scalewalk-errors.mjs';
 
 /**
  * A signed-in page whose `/api/v1` reads go to `answer(method, path, query, body)` first: an
- * object `{ status, json }` (or `{ status }` for no body) is the answer, undefined leaves the
+ * object `{ status, json }` (or `{ status }` for no body; `contentType` where it is not JSON's, as a
+ * problem's) is the answer, undefined leaves the
  * request to the fixture. `modules` are switched on in the manifest; `manifest` adds to it.
  */
 export async function productWalk(browser, { modules, answer, width = 1280, height = 900, manifest = {}, isMobile = false }) {
@@ -43,9 +44,9 @@ export async function productWalk(browser, { modules, answer, width = 1280, heig
     if (method !== 'GET') written.push({ method, path, body });
     const answered = answer(method, path, url.searchParams, body);
     if (answered) {
-      return answered.json === undefined
-        ? route.fulfill({ status: answered.status ?? 204, body: '' })
-        : route.fulfill({ status: answered.status ?? 200, json: answered.json });
+      if (answered.json === undefined) return route.fulfill({ status: answered.status ?? 204, body: '' });
+      if (answered.contentType) return route.fulfill({ status: answered.status ?? 200, contentType: answered.contentType, body: JSON.stringify(answered.json) });
+      return route.fulfill({ status: answered.status ?? 200, json: answered.json });
     }
     return stub(route);
   });

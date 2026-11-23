@@ -23,6 +23,7 @@ import type {
   TenantAddressChange,
   WorkspaceAddress,
   WorkspaceAddressChanged,
+  WorkspaceBranding,
   WorkspaceStructure,
   WorkspaceStructureChange,
 } from '@hubtask/sync-engine';
@@ -92,6 +93,8 @@ export interface Workspace {
   readonly starter_skipped?: boolean;
   /** The main address, and whether this reader may change it now (UC-INS-19 check 3). */
   readonly address?: WorkspaceAddress;
+  /** Its own logo, symbol and header choice, and whether it may show them (UC-INS-22). */
+  readonly branding?: WorkspaceBranding;
 }
 
 /** What may move. Every key optional, which is what merge-patch means. */

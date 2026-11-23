@@ -1842,6 +1842,36 @@ SELECT EXISTS (SELECT 1 FROM private_hub_access WHERE id = (sqlc.arg('payload'):
 -- name: ClearPrivateHubAccess :execrows
 DELETE FROM private_hub_access;
 
+-- name: ImportPrivateHubAccessAcknowledgement :execrows
+-- A confirmation whose access or account the restore did not bring back confirms nothing, and is
+-- skipped rather than refused by the foreign key.
+INSERT INTO private_hub_access_acknowledgement (
+  tenant_id,
+  access_id,
+  account_id,
+  acknowledged_at
+)
+SELECT
+  r.tenant_id,
+  r.access_id,
+  r.account_id,
+  r.acknowledged_at
+FROM jsonb_populate_record(
+  NULL::private_hub_access_acknowledgement,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+WHERE EXISTS (SELECT 1 FROM private_hub_access x WHERE x.id = r.access_id)
+  AND EXISTS (SELECT 1 FROM account a WHERE a.id = r.account_id)
+ON CONFLICT (tenant_id, access_id, account_id) DO UPDATE SET
+  acknowledged_at = EXCLUDED.acknowledged_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsPrivateHubAccessAcknowledgement :one
+SELECT EXISTS (SELECT 1 FROM private_hub_access_acknowledgement WHERE access_id = (sqlc.arg('payload')::jsonb->>'access_id')::uuid AND account_id = (sqlc.arg('payload')::jsonb->>'account_id')::uuid) AS held;
+
+-- name: ClearPrivateHubAccessAcknowledgement :execrows
+DELETE FROM private_hub_access_acknowledgement;
+
 -- name: ImportContainerMilestone :execrows
 -- With its moment and its container's identity, as a person saw it. A milestone whose container the
 -- restore did not bring back marks nothing, and is skipped rather than refused by the foreign key.
@@ -4456,3 +4486,30 @@ SELECT EXISTS (
 
 -- name: ClearMediaVersions :execrows
 DELETE FROM media_version;
+
+-- name: ImportWorkspacePicture :execrows
+-- A picture whose medium the restore did not bring back shows nothing, and is skipped rather than
+-- refused by the foreign key.
+INSERT INTO workspace_picture (
+  tenant_id,
+  picture,
+  media_id
+)
+SELECT
+  r.tenant_id,
+  r.picture,
+  r.media_id
+FROM jsonb_populate_record(
+  NULL::workspace_picture,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+WHERE EXISTS (SELECT 1 FROM media_object m WHERE m.id = r.media_id)
+ON CONFLICT (tenant_id, picture) DO UPDATE SET
+  media_id = EXCLUDED.media_id
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsWorkspacePicture :one
+SELECT EXISTS (SELECT 1 FROM workspace_picture WHERE picture = sqlc.arg('payload')::jsonb->>'picture') AS held;
+
+-- name: ClearWorkspacePicture :execrows
+DELETE FROM workspace_picture;

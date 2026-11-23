@@ -172,6 +172,32 @@ class DeskLogo(TypedDict, total=False):
     collection_id: Required[str]
     logo_media_id: Required[str | None]
 
+WorkspacePicture = Literal["LOGO_LIGHT", "LOGO_DARK", "SYMBOL"]
+
+WorkspaceHeader = Literal["PRODUCT", "WORKSPACE_NAME", "LOGO"]
+
+class WorkspacePictureInput(TypedDict, total=False):
+    media_id: Required[str]
+
+class WorkspaceHeaderInput(TypedDict, total=False):
+    header: Required["WorkspaceHeader"]
+
+class WorkspaceBranding(TypedDict, total=False):
+    """The workspace's own name and logo as stored. `allowed` is `sign_in_policy.own_branding` in force; where it is false a client shows the product's name, whatever is stored."""
+    header: Required["WorkspaceHeader"]
+    logo_light_media_id: Required[str | None]
+    logo_dark_media_id: Required[str | None]
+    symbol_media_id: Required[str | None]
+    allowed: Required[bool]
+
+class WorkspaceLook(TypedDict, total=False):
+    """The workspace's name and look as its members see them: the stored choice and pictures where the workspace may show its own name and logo, else `PRODUCT` and no pictures."""
+    display_name: Required[str]
+    header: Required["WorkspaceHeader"]
+    logo_light_media_id: Required[str | None]
+    logo_dark_media_id: Required[str | None]
+    symbol_media_id: Required[str | None]
+
 class AvatarInput(TypedDict, total=False):
     media_id: Required[str]
 
@@ -635,6 +661,16 @@ class PrivateHubAccess(TypedDict, total=False):
     opened_at: Required[str]
     ends_at: Required[str]
 
+class EmergencyNotice(TypedDict, total=False):
+    """An emergency access as the member who was told of it reads it: the access, and when this member confirmed it."""
+    id: Required[str]
+    hub_id: Required[str]
+    opened_by: Required[str | None]
+    reason: Required[str]
+    opened_at: Required[str]
+    ends_at: Required[str]
+    acknowledged_at: Required[str | None]
+
 class Workspace(TypedDict, total=False):
     """A workspace as the people inside it see it. `AdminTenant` is the same row as the installation operator sees it, across workspaces; this one is answered to a member and carries what a member may act on."""
     id: Required[str]
@@ -653,6 +689,7 @@ class Workspace(TypedDict, total=False):
     version: Required[int]
     private_hubs_offered: bool
     several_people: bool
+    branding: "WorkspaceBranding"
     sign_in_policy: "SignInPolicy"
     structure: "WorkspaceStructure"
     starter_offered: bool
@@ -772,6 +809,7 @@ class SignInPolicy(TypedDict, total=False):
     plan: str | None
     managed_accounts: "SignInPolicyFlag"
     private_hubs: "SignInPolicyFlag"
+    own_branding: "SignInPolicyFlag"
     rotation_from: Required[str | None]
 
 class PasswordPolicySettings(TypedDict, total=False):
@@ -851,6 +889,7 @@ class SignInPolicyChange(TypedDict, total=False):
     terms_version: str
     managed_accounts: bool
     private_hubs: bool
+    own_branding: bool
     rotation_from: Literal["now"]
 
 class IdentityProvider(TypedDict, total=False):
@@ -1196,12 +1235,20 @@ class SignInRules(TypedDict, total=False):
     """The least a sign-in screen needs, and deliberately no more."""
     workspace_host: Required[str]
     workspace_name: str
+    workspace_header: "WorkspaceHeader"
+    workspace_pictures: "SignInPictures"
     methods: Required[list["SignInMethod"]]
     providers: Required[list["ProviderSummary"]]
     password: Required["PasswordRules"]
     legal: Required["LegalLinks"]
     password_fallback: bool
     sign_in_names: bool
+
+class SignInPictures(TypedDict, total=False):
+    """The workspace's pictures the sign-in card draws, each by the identifier `GET /auth/workspace-pictures/{mediaId}` serves it under, at the address the rules were read at. With the workspace's name only the symbol is drawn beside it; with the logo alone the logo for the theme, the other theme's where only one exists, and the symbol where neither does. A picture the workspace does not have, or that choice does not draw, is absent."""
+    logo_light_media_id: str
+    logo_dark_media_id: str
+    symbol_media_id: str
 
 class MfaChallenge(TypedDict, total=False):
     """The second step a two-step sign-in owes. The pending credential is a row with the session machinery's discipline - short-lived, single-use, revoked by the clock - and it can do nothing but complete this sign-in."""
@@ -3852,6 +3899,7 @@ class HubFromTemplate(TypedDict, total=False):
     icon: str | None
     color_token: str | None
     template: Required[str]
+    private: bool
     answers: dict[str, Any]
     samples: bool
     acknowledge: bool
@@ -4846,7 +4894,7 @@ class MediaObject(TypedDict, total=False):
     content_type: Required[str]
     size: Required[int]
     checksum: str | None
-    usage: Required[Literal["COVER", "ATTACHMENT", "IMPORT", "AVATAR", "DESK_LOGO"]]
+    usage: Required[Literal["COVER", "ATTACHMENT", "IMPORT", "AVATAR", "DESK_LOGO", "WORKSPACE_LOGO"]]
     status: Required[Literal["PENDING", "READY", "PENDING_SCAN", "INFECTED", "UNSCANNABLE"]]
     ref_count: Required[int]
     created_by: Required[str]
@@ -4867,7 +4915,7 @@ class MediaUploadRequest(TypedDict, total=False):
     file_name: str | None
     content_type: str | None
     size: Required[int]
-    usage: Required[Literal["COVER", "ATTACHMENT", "IMPORT", "AVATAR", "DESK_LOGO"]]
+    usage: Required[Literal["COVER", "ATTACHMENT", "IMPORT", "AVATAR", "DESK_LOGO", "WORKSPACE_LOGO"]]
 
 class MediaPage(TypedDict, total=False):
     data: Required[list["MediaObject"]]

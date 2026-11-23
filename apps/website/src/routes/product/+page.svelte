@@ -159,7 +159,7 @@
       <p class="kicker">Time</p>
       <h2>Dates that survive a time zone change</h2>
     </div>
-    <ul class="ticks ticks-2">
+    <ul class="site-ticks ticks-2">
       <li>
         <strong>All-day and timed due dates</strong>
         A day is a day and a moment is a moment; they are different things and are stored
@@ -316,7 +316,7 @@
       <p class="kicker">In, out, and back</p>
       <h2>Nothing is stuck, nothing is lost</h2>
     </div>
-    <ul class="ticks ticks-2">
+    <ul class="site-ticks ticks-2">
       <li>
         <strong>Imports</strong>
         From a spreadsheet, Trello, Google Tasks or Microsoft To Do, with a report of what came in

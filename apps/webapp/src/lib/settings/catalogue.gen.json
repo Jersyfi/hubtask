@@ -522,6 +522,32 @@
       ]
     },
     {
+      "key": "sign_in.own_branding",
+      "kind": "FLAG",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "TIGHTEN",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
       "key": "sign_in.rotation_from",
       "kind": "STRUCTURE",
       "levels": [

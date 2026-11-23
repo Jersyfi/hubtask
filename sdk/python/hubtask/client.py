@@ -1821,6 +1821,10 @@ class Client:
         """What a sign-in screen may know before anybody has signed in"""
         return self._call("GET", "/auth/sign-in-rules", {}, None, {}, None, "none", None, "json")
 
+    def get_workspace_picture(self, media_id: str, *, if_none_match: str | None = None) -> bytes:
+        """A picture the sign-in card draws"""
+        return self._call("GET", "/auth/workspace-pictures/{mediaId}", {"mediaId": media_id}, None, {"If-None-Match": if_none_match}, None, "none", None, "raw")
+
     def enroll_totp(self, body: "TotpEnrollmentStart") -> "TotpEnrollment":
         """Begin TOTP enrolment"""
         return self._call("POST", "/auth/mfa/totp:enroll", {}, None, {}, body, "json", "application/json", "json")
@@ -2237,6 +2241,10 @@ class Client:
         """The emergency accesses the caller was told of in the last 30 days"""
         return self._call("GET", "/accounts/me/emergency-notices", {}, None, {}, None, "none", None, "json")
 
+    def acknowledge_emergency_notice(self, access_id: str) -> None:
+        """Confirm an emergency access the caller was told of"""
+        return self._call("POST", "/accounts/me/emergency-notices/{accessId}:acknowledge", {"accessId": access_id}, None, {}, None, "none", None, "void")
+
     def list_address_notices(self) -> dict[str, Any]:
         """The change of the workspace's address the caller still has to be told of"""
         return self._call("GET", "/accounts/me/address-notices", {}, None, {}, None, "none", None, "json")
@@ -2248,6 +2256,22 @@ class Client:
     def issue_device_list_entry(self) -> "DeviceListEntry":
         """This workspace's entry for the device's list of workspaces"""
         return self._call("GET", "/tenant/device-list-entry", {}, None, {}, None, "none", None, "json")
+
+    def read_workspace_look(self) -> "WorkspaceLook":
+        """The workspace's name and look, as every member sees them"""
+        return self._call("GET", "/tenant/look", {}, None, {}, None, "none", None, "json")
+
+    def set_workspace_header(self, body: "WorkspaceHeaderInput") -> "WorkspaceBranding":
+        """Choose what the header shows"""
+        return self._call("PUT", "/tenant/branding", {}, None, {}, body, "json", "application/json", "json")
+
+    def set_workspace_picture(self, picture: str, body: "WorkspacePictureInput") -> "WorkspaceBranding":
+        """Give the workspace a logo or a symbol"""
+        return self._call("PUT", "/tenant/branding/{picture}", {"picture": picture}, None, {}, body, "json", "application/json", "json")
+
+    def remove_workspace_picture(self, picture: str) -> "WorkspaceBranding":
+        """Take a logo or the symbol away"""
+        return self._call("DELETE", "/tenant/branding/{picture}", {"picture": picture}, None, {}, None, "none", None, "json")
 
     def set_up_own_domain(self, body: "OwnDomainSetUp") -> "OwnDomain":
         """The workspace's owner sets up an own domain"""

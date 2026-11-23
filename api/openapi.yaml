@@ -12018,6 +12018,55 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /auth/workspace-pictures/{mediaId}:
+    parameters:
+      - $ref: "#/components/parameters/MediaId"
+    get:
+      tags: [auth]
+      operationId: getWorkspacePicture
+      x-hubtask-rest: delegated
+      x-hubtask-rest-to: Media
+      security: []
+      summary: A picture the sign-in card draws
+      description: >
+        The bytes of one picture `GET /auth/sign-in-rules` names in `workspace_pictures`, for a
+        browser without a session to draw: only a picture of the workspace the address the request
+        arrived at answers, only while the sign-in card shows it, and only as the raster image type
+        it was stored as. Anything else - another workspace's picture, one that was replaced or
+        removed, the installation's own address, a workspace that shows the product's name - is the
+        same 404, never stored. The picture may be kept for five minutes (`Cache-Control: public,
+        max-age=300`); after that a client asks again with its copy's `ETag` in `If-None-Match`, and
+        the answer is `304` without a body only while the sign-in card still draws the picture. A
+        removed, replaced or switched-off picture can therefore be shown from a cache for at most
+        five minutes.
+      parameters:
+        - name: If-None-Match
+          in: header
+          required: false
+          description: >
+            The `ETag` of the picture the client holds. Where the sign-in card still draws that
+            picture, the server answers `304` without a body.
+          schema: { type: string }
+      responses:
+        "200":
+          description: The picture
+          headers:
+            ETag:
+              description: A strong tag that names this picture's bytes.
+              schema: { type: string }
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+        "304":
+          description: The picture the client holds is still the one the card draws; no body.
+          headers:
+            ETag:
+              schema: { type: string }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /auth/mfa/totp:enroll:
     post:
       tags: [auth]
@@ -15197,13 +15246,14 @@ paths:
       tags: [identity]
       operationId: listEmergencyNotices
       x-hubtask-rest: generated
-      x-hubtask-rest-answer: privateHubAccessResponse
+      x-hubtask-rest-answer: emergencyNoticeResponse
       summary: The emergency accesses the caller was told of in the last 30 days
       description: >
         Each time the workspace's owner opened a private hub the caller is a member of, within the
         last 30 days, whatever the mail about it did - so that a person without a mailbox, or one
-        whose mail did not arrive, is told in the app. Newest first. Not a list of notifications: it
-        answers this one kind of notice and nothing else.
+        whose mail did not arrive, is told in the app. Newest first, each with the moment the caller
+        confirmed it, or null. Not a list of notifications: it answers this one kind of notice and
+        nothing else.
       responses:
         "200":
           description: The notices
@@ -15212,7 +15262,30 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/PrivateHubAccess"
+                  $ref: "#/components/schemas/EmergencyNotice"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/me/emergency-notices/{accessId}:acknowledge:
+    parameters:
+      - name: accessId
+        in: path
+        required: true
+        description: The emergency access, as the caller's notices name it.
+        schema: { type: string, format: uuid }
+    post:
+      tags: [identity]
+      operationId: acknowledgeEmergencyNotice
+      x-hubtask-rest: generated
+      summary: Confirm an emergency access the caller was told of
+      description: >
+        Records that the caller read the notice of this emergency access. Confirming twice is
+        confirming once. Only a person confirms, and only an access they were told of within the
+        last 30 days; any other answers not found. The confirmation is in the workspace's trail
+        without the reason; the owner who opened the hub is not shown who confirmed.
+      responses:
+        "204":
+          description: Confirmed
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -15269,6 +15342,125 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DeviceListEntry"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /tenant/look:
+    get:
+      tags: [meta]
+      operationId: readWorkspaceLook
+      x-hubtask-rest: generated
+      summary: The workspace's name and look, as every member sees them
+      description: |
+        What the header, the switcher and the tab show of the workspace: its display name, what
+        the header shows and the pictures it may draw. Any member of the workspace reads it - a
+        role on one hub is enough -, so a member who may not read the workspace's set-up
+        (`GET /tenant`) still sees its name and look. Nothing else of the workspace is in it.
+
+        Where the installation, the plan or the workspace does not let it show its own name and
+        logo, it answers the product's name (`PRODUCT`) and no pictures, whatever is stored. Every
+        picture it names is readable by the same member (`GET /media/{mediaId}`).
+      responses:
+        "200":
+          description: The workspace's name and look
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceLook"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /tenant/branding:
+    put:
+      tags: [meta]
+      operationId: setWorkspaceHeader
+      x-hubtask-rest: generated
+      summary: Choose what the header shows
+      description: |
+        Chooses what the workspace's header and sign-in card show: the product's name (`PRODUCT`,
+        the default), the workspace's name (`WORKSPACE_NAME`) or its own logo alone (`LOGO`).
+        Needs the right that changes the workspace's name (STRUCTURE at the workspace). In the
+        workspace's trail as `workspace.header_changed`.
+
+        Refused with `workspace.logo_alone_needs_a_picture` for `LOGO` while the workspace has
+        no picture, and with `workspace.branding_off` where the installation, the plan or the
+        workspace does not let it show its own name and logo (`sign_in_policy.own_branding`),
+        the level as the parameter `origin`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkspaceHeaderInput"
+      responses:
+        "200":
+          description: The workspace's name and logo as they stand now
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceBranding"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /tenant/branding/{picture}:
+    parameters:
+      - name: picture
+        in: path
+        required: true
+        schema: { $ref: "#/components/schemas/WorkspacePicture" }
+    put:
+      tags: [meta]
+      operationId: setWorkspacePicture
+      x-hubtask-rest: generated
+      summary: Give the workspace a logo or a symbol
+      description: |
+        Makes an uploaded picture the workspace's logo for the light theme (`LOGO_LIGHT`), its
+        logo for the dark theme (`LOGO_DARK`) or its square symbol (`SYMBOL`). The picture is
+        staged and confirmed like any other upload (`POST /media` with usage `WORKSPACE_LOGO`,
+        the bytes, then `POST /media/{mediaId}:confirm`), and every member may read it. Needs the
+        right that changes the workspace's name (STRUCTURE at the workspace). In the workspace's
+        trail as `workspace.picture_set`, naming the media object and nothing in it.
+
+        Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch`
+        for one staged for something else, `media.workspace_logo_not_an_image` for bytes that
+        are not a PNG, JPEG, GIF or WebP image - an SVG among them -, `media.not_found` for an
+        object somebody else uploaded, and `workspace.branding_off` where the workspace may not
+        show its own name and logo, the level as `origin`. A picture already set is replaced;
+        the one it replaces is removed once nothing points at it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkspacePictureInput"
+      responses:
+        "200":
+          description: The workspace's name and logo as they stand now
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceBranding"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [meta]
+      operationId: removeWorkspacePicture
+      x-hubtask-rest: generated
+      summary: Take a logo or the symbol away
+      description: |
+        Takes one of the workspace's pictures away. Idempotent - a picture that is not there
+        answers as it stands. Removing the last picture while the header shows the logo alone
+        returns the header to the product's name in the same write. The picture itself is
+        removed once nothing points at it. Needs STRUCTURE at the workspace; in the trail as
+        `workspace.picture_removed`. Refused with `workspace.branding_off` where the workspace
+        may not show its own name and logo, the level as `origin`.
+      responses:
+        "200":
+          description: The workspace's name and logo as they stand now
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceBranding"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -19908,7 +20100,10 @@ paths:
         the modules it needs come on. A refused part refuses the whole: no hub is left. A template
         without a hub part is refused with `config.template_not_for_hubs`. Sent with an
         `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change
-        the workspace's shape. The answer is the hub.
+        the workspace's shape, with `private` too. A private hub is private from its first row,
+        its creator its owner, and takes every part a shared one takes: none of them gives anybody
+        a role in it, and its saved views and rules read and act only for those who reach it. The
+        answer is the hub.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -26932,6 +27127,82 @@ components:
           format: uuid
           description: The logo the portal shows; null for the collection's icon and colour.
 
+    WorkspacePicture:
+      type: string
+      enum: [LOGO_LIGHT, LOGO_DARK, SYMBOL]
+      description: >
+        One of the workspace's three pictures: the logo drawn on the light theme, the one drawn on
+        the dark theme, and the square symbol drawn where a logo does not fit.
+
+    WorkspaceHeader:
+      type: string
+      enum: [PRODUCT, WORKSPACE_NAME, LOGO]
+      description: >
+        What the header and the sign-in card show: the product's name, the workspace's name, or
+        the workspace's own logo alone.
+
+    WorkspacePictureInput:
+      type: object
+      required: [media_id]
+      properties:
+        media_id:
+          type: string
+          format: uuid
+          description: A confirmed media object the caller staged with usage `WORKSPACE_LOGO`.
+
+    WorkspaceHeaderInput:
+      type: object
+      required: [header]
+      properties:
+        header: { $ref: "#/components/schemas/WorkspaceHeader" }
+
+    WorkspaceBranding:
+      type: object
+      required: [header, logo_light_media_id, logo_dark_media_id, symbol_media_id, allowed]
+      description: >
+        The workspace's own name and logo as stored. `allowed` is
+        `sign_in_policy.own_branding` in force; where it is false a client shows the product's
+        name, whatever is stored.
+      properties:
+        header: { $ref: "#/components/schemas/WorkspaceHeader" }
+        logo_light_media_id:
+          type: [string, "null"]
+          format: uuid
+          description: The logo drawn on the light theme, or null.
+        logo_dark_media_id:
+          type: [string, "null"]
+          format: uuid
+          description: The logo drawn on the dark theme, or null.
+        symbol_media_id:
+          type: [string, "null"]
+          format: uuid
+          description: The square symbol, or null.
+        allowed:
+          type: boolean
+          description: Whether the workspace may show its own name and logo now.
+
+    WorkspaceLook:
+      type: object
+      required: [display_name, header, logo_light_media_id, logo_dark_media_id, symbol_media_id]
+      description: >
+        The workspace's name and look as its members see them: the stored choice and pictures
+        where the workspace may show its own name and logo, else `PRODUCT` and no pictures.
+      properties:
+        display_name: { type: string }
+        header: { $ref: "#/components/schemas/WorkspaceHeader" }
+        logo_light_media_id:
+          type: [string, "null"]
+          format: uuid
+          description: The logo drawn on the light theme, or null.
+        logo_dark_media_id:
+          type: [string, "null"]
+          format: uuid
+          description: The logo drawn on the dark theme, or null.
+        symbol_media_id:
+          type: [string, "null"]
+          format: uuid
+          description: The square symbol, or null.
+
     AvatarInput:
       type: object
       required: [media_id]
@@ -28409,6 +28680,27 @@ components:
         opened_at: { type: string, format: date-time }
         ends_at: { type: string, format: date-time }
 
+    EmergencyNotice:
+      type: object
+      description: >
+        An emergency access as the member who was told of it reads it: the access, and when this
+        member confirmed it.
+      required: [id, hub_id, opened_by, reason, opened_at, ends_at, acknowledged_at]
+      properties:
+        id: { type: string, format: uuid }
+        hub_id: { type: string, format: uuid }
+        opened_by:
+          type: [string, "null"]
+          format: uuid
+          description: The account that opened it; null once that account is gone.
+        reason: { type: string }
+        opened_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        acknowledged_at:
+          type: [string, "null"]
+          format: date-time
+          description: When the caller confirmed it; null until then.
+
     Workspace:
       type: object
       description: >
@@ -28487,6 +28779,13 @@ components:
           description: >
             Whether the workspace holds more than one person whose account is not anonymised -
             where private hubs, and the setting that allows them, mean something.
+        branding:
+          $ref: "#/components/schemas/WorkspaceBranding"
+          readOnly: true
+          description: >
+            What the header and the sign-in card show, and the workspace's own pictures. Written
+            through `PUT /tenant/branding` and `PUT /tenant/branding/{picture}`, never by the
+            `PATCH`.
         sign_in_policy:
           $ref: "#/components/schemas/SignInPolicy"
           description: >
@@ -28886,6 +29185,12 @@ components:
           description: >
             Whether people here may make private hubs. On by default; off is the stricter value. Off
             stops new ones only: every private hub already here stays private.
+        own_branding:
+          $ref: "#/components/schemas/SignInPolicyFlag"
+          description: >
+            Whether the workspace may show its own name and logo in place of the product's name.
+            On by default; off is the stricter value. Off refuses every change to the header's
+            choice and the pictures, and a client shows the product's name; what is stored stays.
         rotation_from:
           type: [string, "null"]
           format: date-time
@@ -29063,6 +29368,7 @@ components:
             control character.
         managed_accounts: { type: boolean }
         private_hubs: { type: boolean }
+        own_branding: { type: boolean }
         rotation_from:
           type: string
           enum: [now]
@@ -30024,7 +30330,7 @@ components:
           additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
           description: >
             The switches by name - the thirteen the password has, `mfa_required_for`, `methods`,
-            the two session bounds, `managed_accounts` and `private_hubs`. `rotation_from` is deliberately not among them: it is an event a
+            the two session bounds, `managed_accounts`, `private_hubs` and `own_branding`. `rotation_from` is deliberately not among them: it is an event a
             workspace raises for its own people, and an operator who wanted every account on the
             installation to change its password would be asking for a different feature with a
             different blast radius.
@@ -30368,6 +30674,16 @@ components:
           description: >
             The display name of the workspace this host answers, which is what the card names. Absent
             where no workspace answers the host.
+        workspace_header:
+          $ref: "#/components/schemas/WorkspaceHeader"
+          description: >
+            What the card shows in the product's mark's place: the workspace's name, or its own logo
+            alone. Absent where the card shows the product's name - no workspace answers the
+            address the request arrived at, the workspace chose the product's name, or it may not
+            show its own name and logo now.
+        workspace_pictures:
+          $ref: "#/components/schemas/SignInPictures"
+          description: Present with `workspace_header`; the pictures that choice draws.
         methods:
           type: array
           items: { $ref: "#/components/schemas/SignInMethod" }
@@ -30394,6 +30710,28 @@ components:
             True while this workspace has at least one managed account - a person who signs in with
             a sign-in name instead of an address - so the card's first field asks for either. False
             everywhere else, a host without a workspace included.
+
+    SignInPictures:
+      type: object
+      description: >
+        The workspace's pictures the sign-in card draws, each by the identifier
+        `GET /auth/workspace-pictures/{mediaId}` serves it under, at the address the rules were read
+        at. With the workspace's name only the symbol is drawn beside it; with the logo alone the
+        logo for the theme, the other theme's where only one exists, and the symbol where neither
+        does. A picture the workspace does not have, or that choice does not draw, is absent.
+      properties:
+        logo_light_media_id:
+          type: string
+          format: uuid
+          description: The logo drawn on the light theme.
+        logo_dark_media_id:
+          type: string
+          format: uuid
+          description: The logo drawn on the dark theme.
+        symbol_media_id:
+          type: string
+          format: uuid
+          description: The square symbol.
 
     MfaChallenge:
       type: object
@@ -36557,6 +36895,17 @@ components:
           minLength: 1
           maxLength: 100
           description: A template of the catalogue (`GET /config/templates`) with a hub part, by its key.
+        private:
+          type: boolean
+          default: false
+          description: >
+            Makes the new hub private: reached only by people holding a role on it or below it,
+            not by the workspace's owners and administrators; its creator becomes its owner. It
+            asks no less than a shared hub from a template does: without the right to change the
+            workspace's shape it is refused (`access.not_permitted`), even for somebody who may
+            create a private hub with `POST /containers`. Refused for a service account, and where
+            the workspace does not allow private hubs (`containers.private_hubs_off`); a refusal
+            leaves no hub.
         answers:
           type: object
           additionalProperties: { type: string }
@@ -39566,7 +39915,7 @@ components:
         checksum: { type: [string, "null"] }
         usage:
           type: string
-          enum: [COVER, ATTACHMENT, IMPORT, AVATAR, DESK_LOGO]
+          enum: [COVER, ATTACHMENT, IMPORT, AVATAR, DESK_LOGO, WORKSPACE_LOGO]
         status:
           type: string
           enum: [PENDING, READY, PENDING_SCAN, INFECTED, UNSCANNABLE]
@@ -39647,13 +39996,14 @@ components:
           description: The exact size in bytes. Bounded by the installation's upload limit.
         usage:
           type: string
-          enum: [COVER, ATTACHMENT, IMPORT, AVATAR, DESK_LOGO]
+          enum: [COVER, ATTACHMENT, IMPORT, AVATAR, DESK_LOGO, WORKSPACE_LOGO]
           description: >
             What the object is for. `IMPORT` stages a file for `POST /imports` and nothing
             else: an object staged as an import cannot become a cover or an attachment, and it is
             deleted when the import's job ends. `AVATAR` stages a picture for
-            `PUT /accounts/me/avatar`, at most 5 MB, and `DESK_LOGO` one for
-            `PUT /containers/{containerId}/desk-logo`, at most 5 MB as well.
+            `PUT /accounts/me/avatar`, at most 5 MB, `DESK_LOGO` one for
+            `PUT /containers/{containerId}/desk-logo`, and `WORKSPACE_LOGO` one for
+            `PUT /tenant/branding/{picture}`, each at most 5 MB as well.
 
     MediaPage:
       type: object

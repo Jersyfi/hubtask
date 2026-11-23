@@ -2195,7 +2195,7 @@ CREATE TABLE media_object (
   byte_size   bigint NOT NULL CHECK (byte_size >= 0),
   checksum    text,
   usage       text NOT NULL CONSTRAINT media_object_usage_check
-              CHECK (usage IN ('COVER', 'ATTACHMENT', 'IMPORT', 'EXPORT', 'AVATAR', 'DESK_LOGO')),
+              CHECK (usage IN ('COVER', 'ATTACHMENT', 'IMPORT', 'EXPORT', 'AVATAR', 'DESK_LOGO', 'WORKSPACE_LOGO')),
   ref_count   integer NOT NULL DEFAULT 0,
   -- NULL where nobody uploaded it: a mail attachment arrives over an intake that authenticates the
   -- tenant and no person, and an account here would be an uploader this system invented
@@ -2968,6 +2968,59 @@ CREATE TABLE private_hub_access (
     FOREIGN KEY (tenant_id, opened_by) REFERENCES account (tenant_id, id) ON DELETE SET NULL (opened_by)
 );
 CREATE INDEX private_hub_access_hub_idx ON private_hub_access (tenant_id, hub_id, opened_at DESC);
+
+-- A workspace's own pictures (migration 0449, UC-INS-22): a logo for light, one for dark and a square
+-- symbol, one row each, gone with the media object it names. What the header shows is the settings'
+-- `header_shows`.
+CREATE TABLE workspace_picture (
+  tenant_id uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  picture   text NOT NULL CONSTRAINT workspace_picture_picture_check
+            CHECK (picture IN ('LOGO_LIGHT', 'LOGO_DARK', 'SYMBOL')),
+  media_id  uuid NOT NULL,
+  PRIMARY KEY (tenant_id, picture),
+  CONSTRAINT workspace_picture_media_id_fkey
+    FOREIGN KEY (tenant_id, media_id) REFERENCES media_object (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX workspace_picture_media_idx ON workspace_picture (tenant_id, media_id);
+
+-- An object a picture names keeps a count of at least its pictures, no stamp and no mark, whichever
+-- release's reconciliation writes it (migration 0449): the previous one does not count a picture.
+CREATE OR REPLACE FUNCTION media_object_keeps_workspace_picture() RETURNS trigger LANGUAGE plpgsql AS
+$$
+DECLARE
+  pictures int;
+BEGIN
+  SELECT count(*) INTO pictures FROM workspace_picture w WHERE w.tenant_id = NEW.tenant_id AND w.media_id = NEW.id;
+  IF pictures > 0 THEN
+    NEW.ref_count := GREATEST(NEW.ref_count, pictures);
+    NEW.unreferenced_since := NULL;
+    IF OLD.deleted_at IS NULL THEN
+      NEW.deleted_at := NULL;
+    END IF;
+  END IF;
+  RETURN NEW;
+END
+$$;
+CREATE TRIGGER media_object_keeps_workspace_picture BEFORE UPDATE ON media_object
+  FOR EACH ROW
+  WHEN (NEW.ref_count < 1 OR NEW.unreferenced_since IS NOT NULL OR (NEW.deleted_at IS NOT NULL AND OLD.deleted_at IS NULL))
+  EXECUTE FUNCTION media_object_keeps_workspace_picture();
+
+-- A member's confirmation that they read the notice of an access (migration 0448, UC-ID-16 check 10):
+-- one row per member per access, identifiers and a moment; gone with the access and with the account.
+CREATE TABLE private_hub_access_acknowledgement (
+  tenant_id       uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  access_id       uuid NOT NULL,
+  account_id      uuid NOT NULL,
+  acknowledged_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, access_id, account_id),
+  CONSTRAINT private_hub_access_acknowledgement_access_id_fkey
+    FOREIGN KEY (tenant_id, access_id) REFERENCES private_hub_access (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT private_hub_access_acknowledgement_account_id_fkey
+    FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX private_hub_access_acknowledgement_account_idx
+  ON private_hub_access_acknowledgement (tenant_id, account_id);
 
 -- ============================== Notification ===============================
 
@@ -4038,6 +4091,7 @@ BEGIN
     'webhook_subscription','webhook_delivery','calendar_feed',
     'outbox_event','event_consumption','idempotency_key','usage_record',
     'notification','notification_preference','private_hub_access',
+    'private_hub_access_acknowledgement','workspace_picture',
     'audit_anchor','audit_pseudonym','retention_policy','data_subject_request','consent_record',
     'ai_objection_notice','address_change_notice','blocked_domain',
     'erasure_kept',

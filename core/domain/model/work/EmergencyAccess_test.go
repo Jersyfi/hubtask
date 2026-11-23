@@ -67,3 +67,27 @@ func TestARunningAccessNamesItsEnd(t *testing.T) {
 		t.Error("the switched-off refusal is not a 403")
 	}
 }
+
+// UC-ID-16 check 10: a notice is confirmed once it carries the member's moment; one the member was
+// not told of is not found, never forbidden.
+func TestANoticeIsConfirmedByTheMembersMoment(t *testing.T) {
+	at := time.Date(2026, 11, 23, 9, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name   string
+		notice work.EmergencyNotice
+		want   bool
+	}{
+		{name: "not yet", notice: work.EmergencyNotice{Access: work.EmergencyAccess{ID: "a"}}},
+		{name: "confirmed", notice: work.EmergencyNotice{Access: work.EmergencyAccess{ID: "a"}, AcknowledgedAt: at}, want: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.notice.Acknowledged(); got != tc.want {
+				t.Errorf("acknowledged %v, want %v", got, tc.want)
+			}
+		})
+	}
+	err := work.ErrEmergencyNoticeNotFound()
+	if !errors.Is(err, shared.ErrNotFound) || shared.AsError(err).DetailCode != "containers.emergency_access_not_found" {
+		t.Errorf("refusal %v, want not found", err)
+	}
+}

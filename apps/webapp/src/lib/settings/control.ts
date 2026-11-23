@@ -103,9 +103,9 @@ export function boundsWords(definition: Pick<SettingDefinition, 'minimum' | 'max
   return undefined;
 }
 
-/** A list of choices with one switched on or off, in the catalogue's order. */
-export function toggled(options: readonly string[], chosen: readonly string[], option: string, on: boolean): string[] {
-  return options.filter((each) => (each === option ? on : chosen.includes(each)));
+/** A list of choices in the catalogue's order, whatever order they were ticked in; a value it does not offer is dropped. */
+export function inCatalogueOrder(options: readonly string[], chosen: readonly string[]): string[] {
+  return options.filter((each) => chosen.includes(each));
 }
 
 /** The value in force said in words, for the source chip's opened details. */

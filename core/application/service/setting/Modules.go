@@ -451,6 +451,22 @@ func (m Modules) record(
 	return m.Changes.Record(ctx, change)
 }
 
+// AnnounceWorkspace records the workspace's switches as they stand, inside the caller's transaction,
+// when something else every member draws changed - the workspace's name or look (ADR-0112). The
+// record is the one a switch writes, with the same content and the same receivers (ADR-0108): a
+// device that receives it reads the workspace again.
+func (m Modules) AnnounceWorkspace(ctx context.Context, actor appshared.ActorContext) error {
+	if m.Changes == nil {
+		return nil
+	}
+	records, err := m.Records(ctx, actor, nil)
+	if err != nil {
+		return err
+	}
+	workspace := settingrepo.Place{Level: domain.LevelWorkspace, ScopeID: actor.TenantID}
+	return m.record(ctx, actor, actor.TenantID, workspace, records[actor.TenantID])
+}
+
 // announceHubs records the switches of each hub a workspace's switch wrote a value into, so that
 // the record a device holds of a hub is the hub's own decision from then on.
 func (m Modules) announceHubs(ctx context.Context, actor appshared.ActorContext, written ...[]shared.ID) error {

@@ -14,6 +14,7 @@ import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, MANIFEST, PAGE, PERMISSIONS, forgetUnstubbed, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { chipsOf, describedBy, focused, pick, valueOf } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -60,3 +61,214 @@ test('chromium: the designer opens a workflow a template brought', async (t) => 
   assert.equal(await page.getByText('This screen stopped working').count(), 0, 'the designer crashed');
   assert.deepEqual(failures.filter((failure) => /DataCloneError|could not be cloned/.test(failure)), []);
 });
+
+const GROUPS = [
+  { id: '01a0e2e0-0000-7000-8000-0000000012b1', name: 'Front desk', description: null, version: 1 },
+  { id: '01a0e2e0-0000-7000-8000-0000000012b2', name: 'Night shift', description: null, version: 1 },
+];
+
+// A step's several-of-many (design-system.md §4): where it leaves from is one field named by its
+// question; who may take it - five roles and the workspace's groups - is one field that opens a
+// grouped list. Escape closes the list and the dialog stays with what was chosen; the save sends
+// the roles in their order and the group, and leaves `from` as the ticks say.
+for (const locale of ['en', 'de']) {
+  test(`chromium: 1280 px - a step's statuses, roles and groups are chosen several of many, by the keyboard (${locale})`, async (t) => {
+    const browser = await sharedChromium(t);
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    t.after(() => context.close());
+    forgetUnstubbed();
+    let stored = FROM_TEMPLATE;
+    await context.route('**/api/v1/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      const path = url.pathname.replace(/^.*\/api\/v1/, '');
+      if (path === '/accounts/me') return route.fulfill({ json: { ...ACCOUNT, locale } });
+      if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: PERMISSIONS.OWNER } });
+      if (path === '/memberships') {
+        const rows = url.searchParams.get('scope_type') === 'TENANT' ? [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role: 'OWNER' }] : [];
+        return route.fulfill({ json: { ...PAGE, data: rows, grantable_roles: [] } });
+      }
+      if (path === '/groups') return route.fulfill({ json: { ...PAGE, data: GROUPS } });
+      // The workflow as the server holds it after the write, not the one before (e2e/AGENTS.md).
+      if (path === `/workflows/${FROM_TEMPLATE.key}` && request.method() === 'PATCH') {
+        stored = { ...stored, draft: request.postDataJSON().shape, version: stored.version + 1 };
+        return route.fulfill({ json: stored });
+      }
+      if (path === '/workflows') return route.fulfill({ json: { data: [SHIPPED, stored], scheme: [] } });
+      return stub(route);
+    });
+    await context.addInitScript(() => {
+      sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+      sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+    });
+    const page = await context.newPage();
+    const words = locale === 'de'
+      ? { from: 'Geht aus von', who: 'Wer ihn gehen darf', roles: 'Rollen', groups: 'Gruppen', member: 'Mitglied', owner: 'Eigentümer', done: 'Fertig', anyone: 'Alle, die den Eintrag ändern dürfen' }
+      : { from: 'Leaves from', who: 'Who may take it', roles: 'Roles', groups: 'Groups', member: 'Member', owner: 'Owner', done: 'Done', anyone: 'Anyone who may change the entry' };
+
+    await page.goto(`${served.origin}/administration/workflows/${FROM_TEMPLATE.key}`);
+    await page.getByText('In progress').first().waitFor({ timeout: 15_000 });
+    if (locale === 'de') await page.waitForFunction(() => document.documentElement.lang === 'de', null, { timeout: 15_000 });
+    await page.locator('button.press').filter({ hasText: 'In progress' }).last().click();
+    const dialog = page.locator('dialog[open]');
+    await dialog.locator('[data-step-dialog="start"]').waitFor({ timeout: 5_000 });
+
+    // Where it leaves from: the workflow's statuses come from data, so they are one field even for
+    // two (design-system.md §4), named by their question.
+    const from = dialog.getByRole('button', { name: new RegExp(`^${words.from}`, 'u') });
+    assert.equal(await from.getAttribute('aria-haspopup'), 'listbox', 'the statuses are not one field');
+    assert.deepEqual(await pick(page, from, ['Resolved']), ['New', 'Resolved']);
+
+    // Who may take it: one field, its list in two named groups.
+    const who = dialog.getByRole('button', { name: new RegExp(`^${words.who}`, 'u') });
+    assert.equal(await who.getAttribute('aria-haspopup'), 'listbox', 'who may take it is not one field');
+    // Nothing chosen limits nobody: the empty field says so, not "Nothing chosen".
+    assert.equal((await who.locator('.value').textContent()).trim(), words.anyone, 'the empty field does not say what it means');
+    await who.focus();
+    await page.keyboard.press('Enter');
+    const list = page.getByRole('listbox', { name: words.who });
+    await list.waitFor({ timeout: 5_000 });
+    assert.deepEqual(
+      await list.getByRole('group').evaluateAll((groups) => groups.map((group) => document.getElementById(group.getAttribute('aria-labelledby'))?.textContent)),
+      [words.roles, words.groups],
+    );
+    await list.getByRole('option', { name: words.member, exact: true }).click();
+    await list.getByRole('option', { name: words.owner, exact: true }).click();
+    await list.getByRole('option', { name: 'Night shift', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await list.waitFor({ state: 'detached', timeout: 5_000 });
+    assert.ok(await dialog.isVisible(), 'Escape on the list closed the dialog');
+    assert.match(await focused(page), new RegExp(`^button "${words.who} `, 'u'), 'closing the list left focus elsewhere');
+    assert.deepEqual(await chipsOf(who), [words.owner, words.member, 'Night shift']);
+
+    await dialog.getByRole('button', { name: words.done, exact: true }).click();
+    await dialog.waitFor({ state: 'detached', timeout: 5_000 });
+    const sent = page.waitForRequest((request) => request.method() === 'PATCH' && request.url().endsWith(`/workflows/${FROM_TEMPLATE.key}`));
+    await page.locator('[data-save-draft]').click();
+    const step = (await sent).postDataJSON().shape.steps.find((each) => each.key === 'start');
+    assert.deepEqual(step?.from, ['new', 'resolved']);
+    assert.deepEqual(step?.who, { roles: ['OWNER', 'MEMBER'], groups: [GROUPS[1].id] });
+
+    // The screen after the write: the page read again opens the step with what was saved.
+    await page.reload();
+    await page.getByText('In progress').first().waitFor({ timeout: 15_000 });
+    await page.locator('button.press').filter({ hasText: 'In progress' }).last().click();
+    await dialog.locator('[data-step-dialog="start"]').waitFor({ timeout: 5_000 });
+    const whoAgain = dialog.getByRole('button', { name: new RegExp(`^${words.who}`, 'u') });
+    await whoAgain.locator('.chips:not(.measure) .chip').nth(2).waitFor({ timeout: 5_000 });
+    assert.deepEqual(await chipsOf(whoAgain), [words.owner, words.member, 'Night shift'], 'the saved draft does not carry who may take the step');
+    assert.deepEqual(await chipsOf(dialog.getByRole('button', { name: new RegExp(`^${words.from}`, 'u') })), ['New', 'Resolved'], 'the saved draft does not carry where it leaves from');
+  });
+}
+
+// No place changes its look as data grows (design-system.md §4): with no group in the workspace
+// and three statuses, where a step leaves from and who may take it are still one field each; a
+// level's five roles, a fixed catalogue, are ticks.
+test('chromium: 1280 px - a step\'s lists from data are fields with few, a level\'s roles ticks', async (t) => {
+  const browser = await sharedChromium(t);
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  forgetUnstubbed();
+  const flow = { ...FROM_TEMPLATE, published: { ...shape, steps: [{ ...shape.steps[0], approval: { levels: [{ rule: 'ANY', roles: [], groups: [], people: [] }] } }, shape.steps[1]] } };
+  await context.route('**/api/v1/**', async (route) => {
+    const url = new URL(route.request().url());
+    const path = url.pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: PERMISSIONS.OWNER } });
+    if (path === '/memberships') {
+      const rows = url.searchParams.get('scope_type') === 'TENANT' ? [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role: 'OWNER' }] : [];
+      return route.fulfill({ json: { ...PAGE, data: rows, grantable_roles: [] } });
+    }
+    if (path === '/groups') return route.fulfill({ json: { ...PAGE, data: [] } });
+    if (path === '/workflows') return route.fulfill({ json: { data: [SHIPPED, flow], scheme: [] } });
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/workflows/${flow.key}`);
+  await page.getByText('In progress').first().waitFor({ timeout: 15_000 });
+  await page.locator('button.press').filter({ hasText: 'In progress' }).last().click();
+  const dialog = page.locator('dialog[open]');
+  await dialog.locator('[data-step-dialog="start"]').waitFor({ timeout: 5_000 });
+  assert.equal(await dialog.getByRole('button', { name: /^Leaves from/u }).getAttribute('aria-haspopup'), 'listbox', 'two statuses to leave from are not one field');
+  const who = dialog.getByRole('button', { name: /^Who may take it/u });
+  assert.equal(await who.getAttribute('aria-haspopup'), 'listbox', 'without groups, who may take it is not one field');
+  assert.equal(await valueOf(who), 'Anyone who may change the entry');
+  assert.equal(await dialog.getByRole('group', { name: 'Roles along the entry\'s path', exact: true }).getByRole('checkbox').count(), 5, 'a level\'s five roles are not ticks');
+});
+
+// An empty *Who may take it* is true of the step (`StepWho.IsOpen`): "anyone" only where roles,
+// person fields, groups and condition are all empty. A role key or a group the list does not
+// offer stays on the closed field, named as no longer offered; a condition alone says that it
+// limits the step, and the condition's label and hint say it must hold as well.
+const LIMITED = {
+  ...shape,
+  steps: [
+    { key: 'start', from: ['new'], to: 'in_progress', who: { roles: ['planner_custom'], groups: ['01a0e2e0-0000-7000-8000-0000000012ff'] } },
+    { key: 'resolve', from: [], to: 'resolved', who: { condition: 'priority = 1' } },
+  ],
+};
+for (const locale of ['en', 'de']) {
+  test(`chromium: 1280 px - a step limited by what the list does not offer says what limits it (${locale})`, async (t) => {
+    const browser = await sharedChromium(t);
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    t.after(() => context.close());
+    forgetUnstubbed();
+    const flow = { ...FROM_TEMPLATE, published: LIMITED };
+    await context.route('**/api/v1/**', async (route) => {
+      const url = new URL(route.request().url());
+      const path = url.pathname.replace(/^.*\/api\/v1/, '');
+      if (path === '/accounts/me') return route.fulfill({ json: { ...ACCOUNT, locale } });
+      if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: PERMISSIONS.OWNER } });
+      if (path === '/memberships') {
+        const rows = url.searchParams.get('scope_type') === 'TENANT' ? [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role: 'OWNER' }] : [];
+        return route.fulfill({ json: { ...PAGE, data: rows, grantable_roles: [] } });
+      }
+      if (path === '/groups') return route.fulfill({ json: { ...PAGE, data: GROUPS } });
+      if (path === '/workflows') return route.fulfill({ json: { data: [SHIPPED, flow], scheme: [] } });
+      return stub(route);
+    });
+    await context.addInitScript(() => {
+      sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+      sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+    });
+    const page = await context.newPage();
+    const words = locale === 'de'
+      ? { who: 'Wer ihn gehen darf', gone: 'Nicht mehr angeboten', group: 'Eine Gruppe, die nicht mehr angeboten wird', condition: 'Alle, die den Eintrag ändern dürfen, wenn die Bedingung unter Erweitert gilt', label: 'Und nur, wenn das gilt', hint: 'Sie muss zusätzlich zu „Wer ihn gehen darf“ gelten. Eine Bedingung in der Sprache der Automationsregeln.', cancel: 'Abbrechen' }
+      : { who: 'Who may take it', gone: 'No longer offered', group: 'A group no longer offered', condition: 'Anyone who may change the entry, when the condition under Advanced holds', label: 'And only when this holds', hint: 'It must hold as well as who may take it. A condition in the language automation rules use.', cancel: 'Cancel' };
+
+    await page.goto(`${served.origin}/administration/workflows/${flow.key}`);
+    await page.getByText('In progress').first().waitFor({ timeout: 15_000 });
+    if (locale === 'de') await page.waitForFunction(() => document.documentElement.lang === 'de', null, { timeout: 15_000 });
+    const dialog = page.locator('dialog[open]');
+
+    // A workspace's own role key and a group no longer in the workspace stay on the closed field.
+    await page.locator('button.press').filter({ hasText: 'In progress' }).last().click();
+    await dialog.locator('[data-step-dialog="start"]').waitFor({ timeout: 5_000 });
+    const who = dialog.getByRole('button', { name: new RegExp(`^${words.who}`, 'u') });
+    await who.locator('.chips:not(.measure) .chip').nth(1).waitFor({ timeout: 5_000 }).catch(() => {});
+    assert.deepEqual(await chipsOf(who), ['planner_custom', words.group], 'a limit the list does not offer vanished from the field');
+    await who.click();
+    const list = page.getByRole('listbox', { name: words.who });
+    await list.waitFor({ timeout: 5_000 });
+    const custom = list.getByRole('option', { name: 'planner_custom', exact: true });
+    assert.equal(await custom.getAttribute('aria-selected'), 'true');
+    assert.equal(await describedBy(custom), words.gone);
+    await page.keyboard.press('Escape');
+    await list.waitFor({ state: 'detached', timeout: 5_000 });
+    await dialog.getByRole('button', { name: words.cancel, exact: true }).last().click();
+    await dialog.waitFor({ state: 'detached', timeout: 5_000 });
+
+    // A condition alone limits the step: the empty field says so, and its label says it holds as well.
+    await page.locator('button.press').filter({ hasText: 'Resolved' }).last().click();
+    await dialog.locator('[data-step-dialog="resolve"]').waitFor({ timeout: 5_000 });
+    const limited = dialog.getByRole('button', { name: new RegExp(`^${words.who}`, 'u') });
+    assert.equal(await valueOf(limited), words.condition, 'a step limited by its condition says anyone');
+    // The server asks the condition besides who may take it (`WorkflowGate.allowed`), never instead.
+    const condition = dialog.getByRole('textbox', { name: words.label, exact: true });
+    assert.equal(await condition.inputValue(), 'priority = 1', 'the condition is not named as holding as well');
+    assert.equal(await describedBy(condition), words.hint);
+  });
+}
