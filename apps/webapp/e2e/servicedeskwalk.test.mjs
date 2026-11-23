@@ -468,6 +468,8 @@ test('chromium: service desk - a ticket\'s rail names its triage and deadlines i
   const { page } = walk;
 
   await page.goto(`${served.origin}/items/${REQUEST.id}`);
+  // The rail is drawn before the German words arrive; `lang` turns once they have.
+  await page.waitForFunction(() => document.documentElement.lang === 'de', null, { timeout: 15_000 });
   const triage = page.locator('[data-entry-triage]');
   await triage.getByText('Plattform-Team').waitFor({ timeout: 10_000 });
   const said = await triage.innerText();
