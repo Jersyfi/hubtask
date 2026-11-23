@@ -60,6 +60,12 @@ One table and nothing else:
 - **Medium:** another rule or guideline is broken, or a check is not proven.
 - **Low:** everything else.
 
+Each finding says how it is met in practice: the input, the caller, the server's behaviour or the
+run that reaches it, or a reproduction. A finding that names none is marked *theoretical* and is
+low, unless it touches a rule of "Rules that do not bend", tenant isolation, authorisation, a
+person's data or input from outside the process, which keep their severity. The builder may answer a theoretical finding in one line: where it was looked for and
+not found.
+
 Report only what you read in the code or ran. Where you could not check something, say so in a
 row of its own. A review without findings reports a table with the single row "none".
 
