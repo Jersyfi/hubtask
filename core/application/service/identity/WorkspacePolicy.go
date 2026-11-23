@@ -375,6 +375,8 @@ func signInPolicyOutput(resolved ResolvedPolicy) usecase.Output {
 			policy.ManagedAccounts, above.ManagedAccounts),
 		"private_hubs": setting(domain.SwitchPrivateHubs,
 			policy.PrivateHubs, above.PrivateHubs),
+		"own_branding": setting(domain.SwitchOwnBranding,
+			policy.OwnBranding, above.OwnBranding),
 		"rotation_from": nil,
 		"plan":          nil,
 	}
@@ -464,6 +466,7 @@ func policyPatchFrom(sent map[string]any) (WorkspacePolicyChange, error) {
 		{"breach_check", &change.Policy.BreachCheck},
 		{"managed_accounts", &change.Policy.ManagedAccounts},
 		{"private_hubs", &change.Policy.PrivateHubs},
+		{"own_branding", &change.Policy.OwnBranding},
 	} {
 		if *field.target, err = flag(field.key); err != nil {
 			return WorkspacePolicyChange{}, err

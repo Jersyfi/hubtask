@@ -4659,6 +4659,7 @@
   "app.instance.setting.sign_in.session_idle_minutes": "End an idle session after, in minutes",
   "app.instance.setting.sign_in.managed_accounts": "Accounts without a mail address allowed",
   "app.instance.setting.sign_in.private_hubs": "People may make private hubs",
+  "app.instance.setting.sign_in.own_branding": "Workspaces may show their own name and logo",
   "app.instance.setting.legal.imprint_url": "Imprint",
   "app.instance.setting.legal.privacy_url": "Privacy",
   "app.instance.setting.legal.terms_url": "Terms",

@@ -221,6 +221,8 @@ func switchValueOf(patch identity.PolicyPatch, name identity.PolicySwitch) (any,
 		return flag(patch.ManagedAccounts)
 	case identity.SwitchPrivateHubs:
 		return flag(patch.PrivateHubs)
+	case identity.SwitchOwnBranding:
+		return flag(patch.OwnBranding)
 	case identity.SwitchMfaRequiredFor:
 		if patch.MfaRequiredFor == nil {
 			return nil, false
@@ -526,6 +528,8 @@ func applySwitch(patch *identity.PolicyPatch, name identity.PolicySwitch, value 
 		patch.ManagedAccounts = flag()
 	case identity.SwitchPrivateHubs:
 		patch.PrivateHubs = flag()
+	case identity.SwitchOwnBranding:
+		patch.OwnBranding = flag()
 	case identity.SwitchMfaRequiredFor:
 		requirement := identity.MfaRequirement(wordOf(value))
 		patch.MfaRequiredFor = &requirement

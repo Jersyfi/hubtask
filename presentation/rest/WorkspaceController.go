@@ -268,6 +268,10 @@ func signInPolicyResponse(out usecase.Output) *openapi.SignInPolicy {
 		allowed := flag(out, "private_hubs")
 		answer.PrivateHubs = &allowed
 	}
+	if _, held := out["own_branding"].(usecase.Output); held {
+		allowed := flag(out, "own_branding")
+		answer.OwnBranding = &allowed
+	}
 	if moment, held := out["rotation_from"].(time.Time); held && !moment.IsZero() {
 		answer.RotationFrom = &moment
 	}

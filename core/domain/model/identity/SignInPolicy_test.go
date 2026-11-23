@@ -472,7 +472,7 @@ func TestEverySwitchIsAddressable(t *testing.T) {
 		MaxAgeDays: intOf(90), HistoryCount: intOf(5), MinAgeHours: intOf(1),
 		MfaRequiredFor: requirementOf(MfaForEveryone), Methods: methodsOf(MethodDirect),
 		SessionMaxDays: intOf(7), SessionIdleMinutes: intOf(30), ManagedAccounts: boolOf(false), PrivateHubs: boolOf(false),
-		RotationFrom: &moment,
+		OwnBranding: boolOf(false), RotationFrom: &moment,
 	}
 
 	decided := whole.Decided()
@@ -542,7 +542,7 @@ func TestEverySwitchMergesIntoItsOwnField(t *testing.T) {
 		MaxAgeDays: intOf(90), HistoryCount: intOf(5), MinAgeHours: intOf(6),
 		MfaRequiredFor: requirementOf(MfaForEveryone), Methods: methodsOf(MethodDirect),
 		SessionMaxDays: intOf(7), SessionIdleMinutes: intOf(30), ManagedAccounts: boolOf(false), PrivateHubs: boolOf(false),
-		RotationFrom: &moment,
+		OwnBranding: boolOf(false), RotationFrom: &moment,
 	}
 
 	merged := PolicyPatch{}.Merge(whole)
@@ -558,6 +558,7 @@ func TestEverySwitchMergesIntoItsOwnField(t *testing.T) {
 		SwitchBreachCheck: "true", SwitchMaxAgeDays: "90", SwitchHistoryCount: "5",
 		SwitchMinAgeHours: "6", SwitchMfaRequiredFor: "EVERYONE", SwitchMethods: "PASSWORD",
 		SwitchSessionMaxDays: "7", SwitchSessionIdleMinutes: "30", SwitchManagedAccounts: "false", SwitchPrivateHubs: "false",
+		SwitchOwnBranding: "false",
 	} {
 		if got := SwitchText(resolved.Policy, name); got != want {
 			t.Errorf("%s merged to %q, want %q", name, got, want)

@@ -69,6 +69,9 @@ one workspace, by person and place.
 | `sign_in.private_hubs` | INSTANCE | `admin:instance` | the installation's operators |
 | `sign_in.private_hubs` | PLAN | `admin:instance` | the installation's operators |
 | `sign_in.private_hubs` | WORKSPACE | `MANAGE_MEMBERS` | OWNER, ADMIN |
+| `sign_in.own_branding` | INSTANCE | `admin:instance` | the installation's operators |
+| `sign_in.own_branding` | PLAN | `admin:instance` | the installation's operators |
+| `sign_in.own_branding` | WORKSPACE | `MANAGE_MEMBERS` | OWNER, ADMIN |
 | `sign_in.rotation_from` | INSTANCE | `admin:instance` | the installation's operators |
 | `sign_in.rotation_from` | PLAN | `admin:instance` | the installation's operators |
 | `sign_in.rotation_from` | WORKSPACE | `MANAGE_MEMBERS` | OWNER, ADMIN |

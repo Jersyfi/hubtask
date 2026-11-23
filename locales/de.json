@@ -6135,6 +6135,7 @@
   "app.instance.setting.sign_in.session_idle_minutes": "Unbenutzte Sitzung beenden nach, in Minuten",
   "app.instance.setting.sign_in.managed_accounts": "Konten ohne E-Mail-Adresse erlaubt",
   "app.instance.setting.sign_in.private_hubs": "Personen dürfen private Hubs anlegen",
+  "app.instance.setting.sign_in.own_branding": "Arbeitsbereiche dürfen ihren eigenen Namen und ihr Logo zeigen",
   "app.instance.setting.legal.imprint_url": "Impressum",
   "app.instance.setting.legal.privacy_url": "Datenschutz",
   "app.instance.setting.legal.terms_url": "Nutzungsbedingungen",
