@@ -245,4 +245,14 @@
   .foot a { color: var(--text-brand); text-decoration: underline; }
 
   .more { padding: 0; border: 0; background: none; color: var(--text-brand); font: inherit; text-decoration: underline; cursor: pointer; }
+
+  /* Each a press of its own: at least 24 px everywhere (§10, 2.5.8), `layout.target` on a phone or
+     a coarse pointer, where the target reaches into the card's padding and the gap above it so the
+     card grows by little more than the text did. */
+  .foot a, .more { display: inline-flex; align-items: center; min-block-size: var(--sp-300); }
+
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .foot a, .more { min-block-size: var(--layout-target); margin-block: calc(-1 * var(--sp-100)); }
+  }
 </style>

@@ -650,6 +650,33 @@ test('chromium: 390 px - on a phone the notice is the centred card; the mark ope
   assert.deepEqual(failures, []);
 });
 
+// design-system.md §10 (2.5.8): each card's two presses are a target of their own - `layout.target`
+// on a phone with touch, and never under 24 px.
+for (const [width, height, hasTouch, least] of [[390, 844, true, 44], [1280, 860, false, 24]]) {
+  for (const colorScheme of ['light', 'dark']) {
+    test(`chromium: ${width} px, ${colorScheme}${hasTouch ? ', touch' : ''} - several notices: each card's Open the hub and Read the whole reason are at least ${least} px high (UC-ID-16 check 11)`, async (t) => {
+      const browser = await sharedChromium(t);
+      const { page, failures, context } = await signedIn(browser, width, height, { hasTouch });
+      t.after(() => context.close());
+      await page.emulateMedia({ colorScheme });
+      await notices(context, [told(HUB, 10 * MINUTE), told(FINANCES, 2 * 24 * 60 * MINUTE, { reason: LONG_REASON }), told(HEALTH, 6 * 24 * 60 * MINUTE)]);
+
+      await page.goto(`${served.origin}/`);
+      const dialog = noticeDialog(page);
+      await dialog.waitFor({ timeout: 10_000 });
+      // Measured once the dialog has finished opening: its entrance scales it.
+      await dialog.evaluate((element) => Promise.all(element.getAnimations({ subtree: true }).map((each) => each.finished)));
+      const presses = [...await dialog.getByRole('link', { name: 'Open the hub' }).all(), dialog.getByRole('button', { name: 'Read the whole reason' })];
+      assert.equal(presses.length, 4);
+      for (const press of presses) {
+        const box = await press.boundingBox();
+        assert.ok(box && box.height >= least, `${await press.textContent()}: ${JSON.stringify(box)}`);
+      }
+      assert.deepEqual(failures, []);
+    });
+  }
+}
+
 test('chromium: 1280 px - in German the notice, its answers, the mark and the hub row speak German (UC-ID-16 check 11)', async (t) => {
   const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 860);
