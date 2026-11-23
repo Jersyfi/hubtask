@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -18,6 +20,7 @@ import (
 	portclock "github.com/Jersyfi/hubtask/core/port/clock"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
+	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
 // confirmingRegistry is AcknowledgeEmergencyNotice and ListEmergencyNotices the way main.go builds
@@ -173,6 +176,34 @@ func TestConfirmationsStayInTheirWorkspaceAndGoWithTheirAccess(t *testing.T) {
 		t.Errorf("another workspace reads %+v", notices)
 	}
 
+	// The table's own policy, as the application role: the joins and the other tables' policies
+	// above hold the repository's reads, so only this proves 0448's tenant_isolation.
+	asTenant(ctx, t, tenantB, func(_ *sqlc.Queries, tx pgx.Tx) {
+		var seen int
+		if err := tx.QueryRow(ctx, `SELECT count(*) FROM private_hub_access_acknowledgement WHERE access_id = $1`,
+			accessID.String()).Scan(&seen); err != nil {
+			t.Fatalf("reading the table under another workspace: %v", err)
+		}
+		if seen != 0 {
+			t.Errorf("another workspace reads %d confirmations from the table", seen)
+		}
+		for _, statement := range []string{
+			`UPDATE private_hub_access_acknowledgement SET acknowledged_at = now() WHERE access_id = $1`,
+			`DELETE FROM private_hub_access_acknowledgement WHERE access_id = $1`,
+		} {
+			tag, err := tx.Exec(ctx, statement, accessID.String())
+			if err != nil {
+				t.Fatalf("%s: %v", statement, err)
+			}
+			if tag.RowsAffected() != 0 {
+				t.Errorf("another workspace changed %d confirmations: %s", tag.RowsAffected(), statement)
+			}
+		}
+	})
+	if notices := noticesIn(w.tenant); len(notices) != 1 || !notices[0].AcknowledgedAt.Equal(created.Add(time.Minute)) {
+		t.Errorf("after another workspace's writes: %+v, want the confirmation unchanged", notices)
+	}
+
 	// The member's account goes, and their confirmation with it.
 	if _, err := adminPool(ctx, t).Exec(ctx, `DELETE FROM account WHERE id = $1`, w.member.String()); err != nil {
 		t.Fatalf("deleting the member's account: %v", err)
@@ -187,6 +218,12 @@ func TestConfirmationsStayInTheirWorkspaceAndGoWithTheirAccess(t *testing.T) {
 		other.String(), w.tenant.String()); err != nil {
 		t.Fatalf("seeding: %v", err)
 	}
+	// Another workspace cannot write a row naming this one, whatever the keys would allow.
+	if insertedUnder(ctx, t, tenantB, `INSERT INTO private_hub_access_acknowledgement
+		  (tenant_id, access_id, account_id, acknowledged_at) VALUES ($1, $2, $3, now())`,
+		w.tenant.String(), accessID.String(), other.String()) {
+		t.Error("another workspace wrote a confirmation into this workspace")
+	}
 	if written, err := acknowledgeIn(w.tenant, other); err != nil || !written {
 		t.Fatalf("writing a second confirmation: %v, %v", written, err)
 	}
@@ -196,6 +233,24 @@ func TestConfirmationsStayInTheirWorkspaceAndGoWithTheirAccess(t *testing.T) {
 	if rows() != 0 {
 		t.Errorf("%d confirmations outlived their access", rows())
 	}
+}
+
+// insertedUnder runs one insert as the application role under a tenant's context and answers whether
+// it wrote; a refusal by the row policy is no write.
+func insertedUnder(ctx context.Context, t *testing.T, tenant shared.ID, statement string, args ...any) bool {
+	t.Helper()
+	tx, err := appPool(ctx, t).Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if _, err := tx.Exec(ctx, `SELECT set_config('app.tenant_id', $1, true)`, tenant.String()); err != nil {
+		t.Fatalf("setting the tenant context: %v", err)
+	}
+	if _, err := tx.Exec(ctx, statement, args...); err != nil {
+		return false
+	}
+	return tx.Commit(ctx) == nil
 }
 
 // The archive carries a member's confirmation with its access, and a restore writes it back; one
