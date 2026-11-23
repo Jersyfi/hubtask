@@ -7393,6 +7393,52 @@ func (q *Queries) ExportWorkflows(ctx context.Context, arg ExportWorkflowsParams
 	return items, nil
 }
 
+const exportWorkspacePictures = `-- name: ExportWorkspacePictures :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT w.picture AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(w) - 'tenant_id')::jsonb AS payload,
+         w.picture AS key_1
+  FROM workspace_picture w
+) s
+  WHERE s.key_1 > $1::text
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportWorkspacePicturesParams struct {
+	AfterID string
+	Batch   int32
+}
+
+type ExportWorkspacePicturesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+// Exported whole: three rows at most, and a picture is replaced rather than edited.
+func (q *Queries) ExportWorkspacePictures(ctx context.Context, arg ExportWorkspacePicturesParams) ([]ExportWorkspacePicturesRow, error) {
+	rows, err := q.db.Query(ctx, exportWorkspacePictures, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportWorkspacePicturesRow{}
+	for rows.Next() {
+		var i ExportWorkspacePicturesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const findMediaStorageKey = `-- name: FindMediaStorageKey :one
 SELECT storage_key, byte_size
 FROM media_object

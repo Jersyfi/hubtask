@@ -98,6 +98,8 @@ FROM (
     + (SELECT count(*) FROM account p WHERE p.avatar_media_id = o.id)
     -- A desk's logo, a trashed collection's included: it may come back.
     + (SELECT count(*) FROM container d WHERE d.logo_media_id = o.id)
+    -- The workspace's own pictures: one reference per picture that names it.
+    + (SELECT count(*) FROM workspace_picture w WHERE w.media_id = o.id)
     -- A board's pictures and files, trashed boards included: they may come back.
     + (SELECT count(*) FROM whiteboard_media b WHERE b.media_id = o.id)
     -- A page's pictures and files, trashed pages included, for the same reason.
@@ -186,6 +188,13 @@ LIMIT 50;
 -- read by every member, as the name beside it is.
 SELECT EXISTS (
   SELECT 1 FROM account WHERE avatar_media_id = sqlc.arg('media_id')::uuid AND deleted_at IS NULL
+)::boolean AS serves;
+
+-- name: MediaServesWorkspace :one
+-- Whether the workspace shows the object as one of its own pictures, for GetMedia's authorisation:
+-- the header draws it for every member, as a person's picture is drawn beside their name.
+SELECT EXISTS (
+  SELECT 1 FROM workspace_picture WHERE media_id = sqlc.arg('media_id')::uuid
 )::boolean AS serves;
 
 -- name: ListMediaServedDesks :many

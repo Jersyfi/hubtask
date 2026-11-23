@@ -334,6 +334,20 @@ FROM (
   ORDER BY s.key_1
   LIMIT sqlc.arg('batch')::int;
 
+-- name: ExportWorkspacePictures :many
+-- Exported whole: three rows at most, and a picture is replaced rather than edited.
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT w.picture AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(w) - 'tenant_id')::jsonb AS payload,
+         w.picture AS key_1
+  FROM workspace_picture w
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::text
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
 -- name: ExportItemAttachments :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

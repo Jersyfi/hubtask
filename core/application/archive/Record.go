@@ -502,6 +502,14 @@ var entities = []Entity{
 	// Not duplicable: a medium is its bytes, addressed by their checksum, and a second row for
 	// the same bytes is a second reference count to keep honest for no gain.
 	{Name: "media_objects", Table: "media_object", Whole: true, Keys: []string{"id"}},
+	// A workspace's own pictures (UC-INS-22): a row is the picture, named by which of the three it
+	// is, and goes with its medium. Whole: three rows at most and no change stamp. Not duplicable:
+	// the workspace has one of each.
+	{
+		Name: "workspace_pictures", Table: "workspace_picture", Whole: true, Later: true,
+		Keys:       []string{"picture"},
+		References: []Reference{{Field: "media_id", Table: "media_object"}},
+	},
 	{
 		Name: "item_attachments", Table: "item_attachment", Whole: true, Duplicable: true,
 		Keys: []string{"item_id", "media_id"},

@@ -4486,3 +4486,30 @@ SELECT EXISTS (
 
 -- name: ClearMediaVersions :execrows
 DELETE FROM media_version;
+
+-- name: ImportWorkspacePicture :execrows
+-- A picture whose medium the restore did not bring back shows nothing, and is skipped rather than
+-- refused by the foreign key.
+INSERT INTO workspace_picture (
+  tenant_id,
+  picture,
+  media_id
+)
+SELECT
+  r.tenant_id,
+  r.picture,
+  r.media_id
+FROM jsonb_populate_record(
+  NULL::workspace_picture,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+WHERE EXISTS (SELECT 1 FROM media_object m WHERE m.id = r.media_id)
+ON CONFLICT (tenant_id, picture) DO UPDATE SET
+  media_id = EXCLUDED.media_id
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsWorkspacePicture :one
+SELECT EXISTS (SELECT 1 FROM workspace_picture WHERE picture = sqlc.arg('payload')::jsonb->>'picture') AS held;
+
+-- name: ClearWorkspacePicture :execrows
+DELETE FROM workspace_picture;

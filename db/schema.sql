@@ -2195,7 +2195,7 @@ CREATE TABLE media_object (
   byte_size   bigint NOT NULL CHECK (byte_size >= 0),
   checksum    text,
   usage       text NOT NULL CONSTRAINT media_object_usage_check
-              CHECK (usage IN ('COVER', 'ATTACHMENT', 'IMPORT', 'EXPORT', 'AVATAR', 'DESK_LOGO')),
+              CHECK (usage IN ('COVER', 'ATTACHMENT', 'IMPORT', 'EXPORT', 'AVATAR', 'DESK_LOGO', 'WORKSPACE_LOGO')),
   ref_count   integer NOT NULL DEFAULT 0,
   -- NULL where nobody uploaded it: a mail attachment arrives over an intake that authenticates the
   -- tenant and no person, and an account here would be an uploader this system invented
@@ -2968,6 +2968,20 @@ CREATE TABLE private_hub_access (
     FOREIGN KEY (tenant_id, opened_by) REFERENCES account (tenant_id, id) ON DELETE SET NULL (opened_by)
 );
 CREATE INDEX private_hub_access_hub_idx ON private_hub_access (tenant_id, hub_id, opened_at DESC);
+
+-- A workspace's own pictures (migration 0449, UC-INS-22): a logo for light, one for dark and a square
+-- symbol, one row each, gone with the media object it names. What the header shows is the settings'
+-- `header_shows`.
+CREATE TABLE workspace_picture (
+  tenant_id uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  picture   text NOT NULL CONSTRAINT workspace_picture_picture_check
+            CHECK (picture IN ('LOGO_LIGHT', 'LOGO_DARK', 'SYMBOL')),
+  media_id  uuid NOT NULL,
+  PRIMARY KEY (tenant_id, picture),
+  CONSTRAINT workspace_picture_media_id_fkey
+    FOREIGN KEY (tenant_id, media_id) REFERENCES media_object (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX workspace_picture_media_idx ON workspace_picture (tenant_id, media_id);
 
 -- A member's confirmation that they read the notice of an access (migration 0448, UC-ID-16 check 10):
 -- one row per member per access, identifiers and a moment; gone with the access and with the account.
@@ -4054,7 +4068,7 @@ BEGIN
     'webhook_subscription','webhook_delivery','calendar_feed',
     'outbox_event','event_consumption','idempotency_key','usage_record',
     'notification','notification_preference','private_hub_access',
-    'private_hub_access_acknowledgement',
+    'private_hub_access_acknowledgement','workspace_picture',
     'audit_anchor','audit_pseudonym','retention_policy','data_subject_request','consent_record',
     'ai_objection_notice','address_change_notice','blocked_domain',
     'erasure_kept',

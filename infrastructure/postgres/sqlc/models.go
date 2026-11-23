@@ -3768,3 +3768,9 @@ type WorkflowScheme struct {
 	WorkflowKey string
 	CreatedAt   pgtype.Timestamptz
 }
+
+type WorkspacePicture struct {
+	TenantID pgtype.UUID
+	Picture  string
+	MediaID  pgtype.UUID
+}

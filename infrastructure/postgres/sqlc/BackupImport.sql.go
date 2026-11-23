@@ -1863,6 +1863,18 @@ func (q *Queries) ClearWorkflowScheme(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearWorkspacePicture = `-- name: ClearWorkspacePicture :execrows
+DELETE FROM workspace_picture
+`
+
+func (q *Queries) ClearWorkspacePicture(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearWorkspacePicture)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const holdsAccount = `-- name: HoldsAccount :one
 SELECT EXISTS (SELECT 1 FROM account WHERE id = ($1::jsonb->>'id')::uuid) AS held
 `
@@ -3712,6 +3724,17 @@ SELECT EXISTS (
 
 func (q *Queries) HoldsWorkflowScheme(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsWorkflowScheme, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsWorkspacePicture = `-- name: HoldsWorkspacePicture :one
+SELECT EXISTS (SELECT 1 FROM workspace_picture WHERE picture = $1::jsonb->>'picture') AS held
+`
+
+func (q *Queries) HoldsWorkspacePicture(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsWorkspacePicture, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -9208,6 +9231,41 @@ type ImportWorkflowSchemeParams struct {
 
 func (q *Queries) ImportWorkflowScheme(ctx context.Context, arg ImportWorkflowSchemeParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importWorkflowScheme, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importWorkspacePicture = `-- name: ImportWorkspacePicture :execrows
+INSERT INTO workspace_picture (
+  tenant_id,
+  picture,
+  media_id
+)
+SELECT
+  r.tenant_id,
+  r.picture,
+  r.media_id
+FROM jsonb_populate_record(
+  NULL::workspace_picture,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+WHERE EXISTS (SELECT 1 FROM media_object m WHERE m.id = r.media_id)
+ON CONFLICT (tenant_id, picture) DO UPDATE SET
+  media_id = EXCLUDED.media_id
+WHERE $2::boolean
+`
+
+type ImportWorkspacePictureParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+// A picture whose medium the restore did not bring back shows nothing, and is skipped rather than
+// refused by the foreign key.
+func (q *Queries) ImportWorkspacePicture(ctx context.Context, arg ImportWorkspacePictureParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importWorkspacePicture, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

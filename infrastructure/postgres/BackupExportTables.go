@@ -1807,6 +1807,19 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"workspace_picture": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportWorkspacePictures(ctx, sqlc.ExportWorkspacePicturesParams{
+				AfterID: cursorText(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportWorkspacePicturesRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"item_attachment": {
 		delta: false,
 		keys:  2,

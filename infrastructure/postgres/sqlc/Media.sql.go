@@ -878,6 +878,21 @@ func (q *Queries) MediaServesAvatar(ctx context.Context, mediaID pgtype.UUID) (b
 	return serves, err
 }
 
+const mediaServesWorkspace = `-- name: MediaServesWorkspace :one
+SELECT EXISTS (
+  SELECT 1 FROM workspace_picture WHERE media_id = $1::uuid
+)::boolean AS serves
+`
+
+// Whether the workspace shows the object as one of its own pictures, for GetMedia's authorisation:
+// the header draws it for every member, as a person's picture is drawn beside their name.
+func (q *Queries) MediaServesWorkspace(ctx context.Context, mediaID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, mediaServesWorkspace, mediaID)
+	var serves bool
+	err := row.Scan(&serves)
+	return serves, err
+}
+
 const nextMediaVersionNumber = `-- name: NextMediaVersionNumber :one
 SELECT COALESCE(max(number), 0)::int + 1 AS next FROM media_version WHERE media_id = $1
 `
@@ -907,6 +922,8 @@ FROM (
     + (SELECT count(*) FROM account p WHERE p.avatar_media_id = o.id)
     -- A desk's logo, a trashed collection's included: it may come back.
     + (SELECT count(*) FROM container d WHERE d.logo_media_id = o.id)
+    -- The workspace's own pictures: one reference per picture that names it.
+    + (SELECT count(*) FROM workspace_picture w WHERE w.media_id = o.id)
     -- A board's pictures and files, trashed boards included: they may come back.
     + (SELECT count(*) FROM whiteboard_media b WHERE b.media_id = o.id)
     -- A page's pictures and files, trashed pages included, for the same reason.
