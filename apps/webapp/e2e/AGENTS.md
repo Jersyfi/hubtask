@@ -25,7 +25,7 @@ in [`docs/evidence/README.md`](../../../docs/evidence/README.md), "How to walk".
 * **No fixed wait.** A walk waits for what the person would see — an element, a text, a request
   that left — never for a number of milliseconds: a fixed wait is too short on a slow machine and
   wasted time on a fast one. It is written in two ways, and `bounds.json` lists how many of each
-  a file still has: under `fixed_waits` Playwright's `waitForTimeout`, 355 in all, and under
+  a file still has: under `fixed_waits` Playwright's `waitForTimeout`, 339 in all, and under
   `timer_waits` a timer (`setTimeout`), 37 in all. A file may have fewer and never more, and a
   file that is not listed has none. The timers include a stub that answers late on purpose and a
   loop that asks again until a request has left; the count does not tell them from a plain wait.
