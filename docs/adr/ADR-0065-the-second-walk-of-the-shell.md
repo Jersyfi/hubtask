@@ -138,8 +138,9 @@ The stage is not dismissible any more, and that is a simplification rather than 
 in the way, so nothing has to be pushed out of it. The dismiss existed because the banner took a row
 of every page.
 
-Nothing else moves into the bar than these and the emergency notices of the last row. A notice about **the page** — a refused write, a check's findings —
-stays where `PageHeader` draws it, because it is about the page. The rule that tells them apart:
+Only what the table names moves into the bar: the stage, the health report and the emergency
+notices of its last row. A notice about **the page** — a refused write, a check's findings — stays
+where `PageHeader` draws it, because it is about the page. The rule that tells them apart:
 **if it would say the same thing on every screen, it belongs to the bar.**
 
 ### 5. The account menu ends with signing out, and a version is not a suffix
