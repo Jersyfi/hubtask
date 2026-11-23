@@ -519,6 +519,7 @@
     const pageRow = pageRows.find((each) => each.id === id);
     const board = boardRows.find((each) => each.id === id);
     // The open one is left for the hub's contents: the screen would read it again and find it gone.
+    // A reader who opened another meanwhile stays there.
     const leaving = act === 'trash' && id === currentContent;
     try {
       if (pageRow && act === 'archive') {
@@ -526,11 +527,11 @@
         offerMoved(t('app.nav.archived', { title: pageRow.title }), () => pagesStore.change(archived, { archived: false }).then(() => true, () => false));
       } else if (pageRow && act === 'trash') {
         const trashed = await pagesStore.trash(pageRow, { leaving });
-        if (leaving) onnavigate(contentsAfterTrash(pageRow.hub_id, 'pages'));
+        if (leaving && currentContent === id) onnavigate(contentsAfterTrash(pageRow.hub_id, 'pages'));
         offerMoved(t('app.pages.trashed', { count: trashed.trashed }), () => pagesStore.restore(pageRow.hub_id, pageRow.id).then(() => true, () => false));
       } else if (board && act === 'trash') {
         await whiteboards.trash(board, { leaving });
-        if (leaving) onnavigate(contentsAfterTrash(board.hub_id, 'whiteboards'));
+        if (leaving && currentContent === id) onnavigate(contentsAfterTrash(board.hub_id, 'whiteboards'));
         offerMoved(t('app.whiteboards.trashed', { title: board.title }), () => whiteboards.restore(board).then(() => true, () => false));
       }
     } catch (error) {
