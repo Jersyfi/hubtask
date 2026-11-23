@@ -145,8 +145,10 @@ export function pathsFor(record: ChangeRecord): readonly string[] {
       // A module switched at the workspace or a hub (the record's place): the switches themselves,
       // every place's own set - a hub's switch moves its collections', the workspace's every
       // hub's - and the manifest, whose `modules_on` every other screen asks. The names are
-      // `modules.switch`'s, so the switching client and every other one re-read the same.
-      return ['/tenant/modules', '/meta/capabilities', '/containers/*/modules'];
+      // `modules.switch`'s, so the switching client and every other one re-read the same. The
+      // workspace's own record - under no hub - is also its name or look changing (ADR-0112), so
+      // the workspace is read again and the header, the switcher and the tab follow.
+      return ['/tenant/modules', '/meta/capabilities', '/containers/*/modules', ...(container ? [] : ['/tenant$'])];
 
     case 'whiteboard_comment':
       // Filed under the board's hub; the record names the comment, not its board, so every board's

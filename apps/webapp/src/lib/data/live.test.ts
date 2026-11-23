@@ -73,11 +73,20 @@ test('a module switch makes the switches, every place\'s set and the manifest st
   // UC-INS-21 check 12: what the switching client invalidates itself (modules.switch), so a
   // product switched off leaves every other device's navigation without a reload.
   const names = ['/tenant/modules', '/meta/capabilities', '/containers/*/modules'];
-  assert.deepEqual(pathsFor(record({ entity: 'setting', entity_id: 't-1' })), names);
   assert.deepEqual(pathsFor(record({ entity: 'setting', entity_id: 'h-1', container_id: 'h-1' })), names);
   for (const read of ['/meta/capabilities', '/tenant/modules', '/tenant/modules?hub_id=h-1', '/containers/h-1/modules', '/containers/c-9/modules']) {
     assert.ok(names.some((name) => matchesPath(name, read)), read);
   }
+});
+
+test('the workspace\'s own record makes the workspace stale too, so its name and look follow', () => {
+  // UC-INS-22 check 7: a change of the name, a picture, the choice or the switch is the workspace's
+  // `setting` record under no hub (ADR-0112), and the header reads `/tenant` again on it.
+  const names = pathsFor(record({ entity: 'setting', entity_id: 't-1' }));
+  assert.deepEqual(names, ['/tenant/modules', '/meta/capabilities', '/containers/*/modules', '/tenant$']);
+  assert.ok(names.some((name) => matchesPath(name, '/tenant')));
+  // A hub's switch is not the workspace's: the workspace is not read again for it.
+  assert.equal(pathsFor(record({ entity: 'setting', entity_id: 'h-1', container_id: 'h-1' })).some((name) => matchesPath(name, '/tenant')), false);
 });
 
 test('a board comment makes the boards\' threads stale, and not the board', () => {

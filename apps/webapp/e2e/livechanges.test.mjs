@@ -4,7 +4,8 @@
 // Two signed-in clients of one workspace, one in-memory backend between them: what the first
 // writes reaches the second as a change record on its stream, and the second draws it without a
 // reload - a board's comment written and resolved (UC-CNV-09 check 6), and a product switched off
-// leaving the navigation (UC-INS-21 check 12). The stream is answered and closed with a short
+// leaving the navigation (UC-INS-21 check 12), the workspace's own name chosen for the header
+// reaching the other's header (UC-INS-22 check 7). The stream is answered and closed with a short
 // `retry`, so a client comes back for the records written since, the way it does after a drain.
 // Chromium only.
 
@@ -39,7 +40,10 @@ const EMPTY_DRAWING = Buffer.from([0, 1, ...varUint(2), 0, 0]);
 
 /** The workspace both clients see: its modules, the board's comments, and the change log. */
 function workspace(modulesOn) {
-  const state = { modulesOn: [...modulesOn], comments: [], log: [] };
+  const state = {
+    modulesOn: [...modulesOn], comments: [], log: [],
+    branding: { header: 'PRODUCT', logo_light_media_id: null, logo_dark_media_id: null, symbol_media_id: null, allowed: true },
+  };
   const record = (entity, id, container, payload) => state.log.push({ op: 'UPSERT', entity, entity_id: id, container_id: container, payload });
   const states = () => ['PLANNING', 'KNOWLEDGE', 'WHITEBOARD'].map((module) => ({ module, on: state.modulesOn.includes(module), source: 'WORKSPACE' }));
   let made = 0;
@@ -75,6 +79,13 @@ function workspace(modulesOn) {
         // The workspace's switches as a device holds them: keys and booleans, under no container.
         record('setting', WORKSPACE.id, null, { hub_id: null, modules: states().map(({ module, on: is }) => ({ module, on: is })) });
         return route.fulfill({ json: { modules: states() } });
+      }
+      if (path === '/tenant' && method === 'GET') return route.fulfill({ json: { ...WORKSPACE, branding: state.branding } });
+      if (path === '/tenant/branding' && method === 'PUT') {
+        state.branding = { ...state.branding, header: request.postDataJSON().header };
+        // The workspace's look changed: its switches' record, under no container (ADR-0112, O3).
+        record('setting', WORKSPACE.id, null, { hub_id: null, modules: states().map(({ module, on: is }) => ({ module, on: is })) });
+        return route.fulfill({ json: state.branding });
       }
       if (path === `/whiteboards/${BOARD_ID}`) return route.fulfill({ json: BOARD });
       if (path === `/hubs/${HUB.id}/whiteboards`) return route.fulfill({ json: { data: [BOARD] } });
@@ -162,6 +173,31 @@ test('chromium: a product switched off on one client leaves the other\'s navigat
 
   await pages.first().waitFor({ state: 'detached', timeout: 15_000 });
   assert.ok(await other.page.getByRole('treeitem', { name: 'Whiteboards', exact: true }).count() > 0, 'a product still on left the navigation too');
+  assert.equal(reloads, 0, 'the other client reloaded');
+  assert.deepEqual(shared.state.log.map((each) => [each.entity, each.container_id]), [['setting', null]]);
+  assert.deepEqual([...admin.failures, ...other.failures], []);
+});
+
+test('chromium: the header\'s choice saved on one client reaches the other\'s header without a reload (UC-INS-22 check 7)', async (t) => {
+  const browser = await sharedChromium(t);
+  const shared = workspace(MANIFEST.modules_on ?? []);
+  const admin = await shared.client(browser);
+  const other = await shared.client(browser);
+  t.after(() => Promise.all([admin.context.close(), other.context.close()]));
+
+  await other.page.goto(`${served.origin}/`);
+  const bar = other.page.getByRole('banner');
+  await bar.getByRole('link', { name: 'Hubtask', exact: true }).waitFor({ timeout: 15_000 });
+  let reloads = 0;
+  other.page.on('load', () => (reloads += 1));
+
+  await admin.page.goto(`${served.origin}/administration/workspace/name`);
+  await admin.page.getByRole('group', { name: 'What the header shows' }).getByRole('radio', { name: 'Workspace name' }).check({ timeout: 15_000 });
+  await admin.page.getByRole('button', { name: 'Save', exact: true }).click();
+
+  // The other device read the workspace again on its record: its own name, two letters beside it.
+  await bar.getByRole('link', { name: WORKSPACE.display_name, exact: true }).waitFor({ timeout: 15_000 });
+  assert.equal(await bar.getByRole('link', { name: 'Hubtask', exact: true }).count(), 0);
   assert.equal(reloads, 0, 'the other client reloaded');
   assert.deepEqual(shared.state.log.map((each) => [each.entity, each.container_id]), [['setting', null]]);
   assert.deepEqual([...admin.failures, ...other.failures], []);
