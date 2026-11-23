@@ -134,7 +134,8 @@
     if (!isEditing) return;
     isEditing = false;
     const next = draft.trim();
-    if (isSaved && next !== '' && next !== title) onrename?.(next, opened);
+    // With an unsaved title held, entering the saved one is a choice too: the caller lets the held one go.
+    if (isSaved && next !== '' && (next !== title || unsavedTitle !== undefined)) onrename?.(next, opened);
     queueMicrotask(() => editButton?.querySelector('button')?.focus());
   }
 
