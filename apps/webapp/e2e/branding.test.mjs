@@ -84,9 +84,9 @@ const OPEN = { value: true, installation: true, lock: null, source: 'DEFAULT', i
 async function open(browser, {
   width = 1280, height = 900, held = NONE, own = OPEN, permissions = PERMISSIONS.OWNER, refuse = {}, locale,
   path: at = '/administration/workspace/name', colorScheme = 'light', name = WORKSPACE.display_name, bytes = {}, broken = [],
-  blocked = [], slow = [], slowConfirm = false,
+  blocked = [], slow = [], slowConfirm = false, isTouch = false,
 } = {}) {
-  const context = await browser.newContext({ viewport: { width, height }, colorScheme });
+  const context = await browser.newContext({ viewport: { width, height }, colorScheme, ...(isTouch ? { hasTouch: true, isMobile: true } : {}) });
   const state = { branding: { ...held }, bytes: { ...bytes }, next: 0, contents: [] };
   const sent = [];
   // The bytes of a `slow` picture wait until the walk lets them go.
@@ -477,6 +477,20 @@ test('chromium: 1280 px — somebody who may not rename the workspace is not sho
   assert.equal(await page.locator('input[type="file"]').count(), 0);
   assert.deepEqual(failures, []);
 });
+
+// Nothing can be dropped where the pointer is a finger: `UploadField` offers the drop only where the
+// pointer is fine, and the button, the one way that always exists, everywhere.
+for (const isTouch of [false, true]) {
+  test(`chromium: ${isTouch ? '390 px, touch' : '1280 px, mouse'} — an empty picture row ${isTouch ? 'offers no drop' : 'offers the drop beside its button'}`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { page, failures, close } = await open(browser, isTouch ? { width: 390, height: 844, isTouch } : {});
+    t.after(close);
+    const empty = row(page, 'SYMBOL');
+    await empty.getByRole('button', { name: /Choose/ }).waitFor({ timeout: 15_000 });
+    assert.equal(await empty.getByText('…or drop it here').isVisible(), !isTouch);
+    assert.deepEqual(failures, []);
+  });
+}
 
 test('chromium: 390 px — the preview stacks its two surfaces, and every picture keeps its row', async (t) => {
   const browser = await sharedChromium(t);

@@ -280,6 +280,12 @@
 
   .drop { color: var(--text-subtle); font-size: var(--fs-075); }
 
+  /* A finger drops nothing: where the pointer is coarse the drop is not offered, and the button -
+     the way that always exists - stands alone. */
+  @media (pointer: coarse) {
+    .drop { display: none; }
+  }
+
   .chosen { display: flex; flex-wrap: wrap; gap: var(--sp-100); margin: 0; min-width: 0; }
 
   .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; unicode-bidi: isolate; }
