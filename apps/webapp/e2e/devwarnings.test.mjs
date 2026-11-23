@@ -27,7 +27,9 @@ async function warningsOn(page, path) {
   page.on('console', (message) => {
     if (message.type() === 'warning' && message.text().includes('[svelte]')) warnings.push(message.text().split('\n')[0]);
   });
-  await page.goto(`${origin}${path}`);
+  // Waited for by what the reader sees, not by the load event: the dev server compiles every
+  // module on first request, which on a loaded runner outlasts the load event's thirty seconds.
+  await page.goto(`${origin}${path}`, { waitUntil: 'commit' });
   await page.getByRole('main').or(page.getByRole('button', { name: /sign in/i })).first().waitFor({ timeout: 60_000 });
   await page.waitForTimeout(1_500);
   return warnings;
