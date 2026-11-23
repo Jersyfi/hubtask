@@ -34,7 +34,7 @@
   import { config } from '../lib/data/config.svelte.ts';
   import { answersOf, carriesSamples } from '../lib/data/configtemplates.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
-  import { presetName, presetOrigin, presets, presetValue } from '../lib/data/presets.svelte.ts';
+  import { presetMark, presetName, presetOrigin, presets, presetValue } from '../lib/data/presets.svelte.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
   import { leaveGuard } from '../lib/frame/leave.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -147,7 +147,6 @@
     each.origin === 'HUBTASK' ? t(`app.structure.preset.${each.key.toUpperCase()}`) : each.name;
   const familyName = (each: StartFamily): string => t(`app.workspace.hub_family.${each}`);
 
-  const PRESET_MARKS = { LIST: 'list', TASKS: 'square-check', PROJECT: 'columns-3', FLOW: 'columns-3' } as const;
   const families = $derived(offersCatalogue ? hubFamilies(catalogue) : []);
   const starts = $derived<Start[]>([
     ...presets.all.map((each) => ({
@@ -156,7 +155,7 @@
       label: presetName(each),
       summary: each.key ? t(`app.structure.preset_about.${each.key}`) : presetOrigin(each),
       chips: [],
-      icon: each.key ? PRESET_MARKS[each.key] : ('square-check' as const),
+      icon: presetMark(each),
     })),
     ...families.flatMap((group) => group.templates.map((each) => ({
       value: templateStart(each.key),

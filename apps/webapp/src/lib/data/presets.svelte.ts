@@ -11,6 +11,7 @@
  * A preset is chosen by one value, Hubtask's key or a saved preset's id (`presetChoice.ts`).
  */
 
+import type { IconName } from '@hubtask/design-system/components';
 import type { Preset, PresetCreate, PresetUpdate, ResourceState } from '@hubtask/sync-engine';
 
 import { t } from '../i18n/i18n.svelte.ts';
@@ -24,6 +25,11 @@ const PATH = '/presets';
 
 /** A preset's name: Hubtask's translated, a saved one's as a person gave it. */
 export const presetName = (preset: Preset): string => (preset.key ? t(`app.structure.preset.${preset.key}`) : (preset.name ?? ''));
+
+const MARKS = { LIST: 'list', TASKS: 'square-check', PROJECT: 'columns-3', FLOW: 'columns-3' } as const satisfies Record<string, IconName>;
+
+/** A preset's mark on a tile: Hubtask's by its key, a saved one's the checked square. */
+export const presetMark = (preset: Preset): IconName => (preset.key ? MARKS[preset.key] : 'square-check');
 
 /** Where a preset comes from, in words (UC-WRK-30 check 2). */
 export const presetOrigin = (preset: Preset): string => t(`app.structure.preset_origin.${preset.origin}`);
