@@ -49,7 +49,7 @@
 
   import FailureState from './FailureState.svelte';
   import ReplicaMark from './ReplicaMark.svelte';
-  import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
+  import CreateCollectionDialog from '../workspace/CreateCollectionDialog.svelte';
   import { createHubPath } from '../workspace/createHub.ts';
   import { DEFAULT_TILE, chosenSymbol, markOf } from '../workspace/look.ts';
   import { placeActions } from '../workspace/placeActions.ts';
@@ -1910,7 +1910,7 @@
   </Dialog>
 {/if}
 {#if collectionHubId}
-  <CreateContainerDialog bind:isOpen={isCreatingCollection} parentId={collectionHubId} oncreated={(id, landing) => onnavigate(landing ?? `/collections/${id}`)} />
+  <CreateCollectionDialog bind:isOpen={isCreatingCollection} parentId={collectionHubId} oncreated={(id, landing) => onnavigate(landing ?? `/collections/${id}`)} />
 {/if}
 
 <style>

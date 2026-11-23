@@ -96,7 +96,7 @@
   import { suggestions } from '../lib/data/suggestions.svelte.ts';
   import { isPending } from '../lib/data/suggestions.ts';
   import { byItem } from '../lib/data/bulk.ts';
-  import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
+  import CreateCollectionDialog from '../lib/workspace/CreateCollectionDialog.svelte';
   import PositionDialog from '../lib/workspace/PositionDialog.svelte';
   import BoardLevelDialog from '../lib/entries/BoardLevelDialog.svelte';
   import type { LevelSwitch } from '../lib/entries/boardlevel.ts';
@@ -1783,7 +1783,7 @@
 {/if}
 
 {#if container?.type === 'HUB'}
-  <CreateContainerDialog
+  <CreateCollectionDialog
     bind:isOpen={isCreatingCollection}
     parentId={container.id}
     oncreated={(collectionId, landing) => onnavigate(landing ?? `/collections/${collectionId}`)}

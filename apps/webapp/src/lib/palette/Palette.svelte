@@ -37,7 +37,7 @@
   import { catalogueOffers, type Place } from '../settings/catalogue.ts';
   import { settingsCatalogue } from '../data/settingsCatalogue.svelte.ts';
   import type { AccountAction } from '../navigation.ts';
-  import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
+  import CreateCollectionDialog from '../workspace/CreateCollectionDialog.svelte';
   import { capture } from '../capture/capture.svelte.ts';
   import { create } from '../create/create.svelte.ts';
   import { mayCaptureHere } from '../capture/places.svelte.ts';
@@ -909,7 +909,7 @@
 <!-- The create dialog, as the tree's *New* opens it, for a row that creates a collection. Outside
      both drawings: the palette has closed by the time it opens. A hub is a page of its own. -->
 {#if creating}
-  <CreateContainerDialog
+  <CreateCollectionDialog
     bind:isOpen={isCreating}
     parentId={creating.parentId}
     oncreated={(id, landing) => onnavigate(landing ?? `/collections/${id}`)}
