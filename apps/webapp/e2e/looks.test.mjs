@@ -153,6 +153,25 @@ test('chromium: 1280 px — editing changes the colour and the symbol, and "none
   assert.deepEqual(failures, []);
 });
 
+// The settings' General previews the pair: the place's mark beside its name follows the colour and
+// the symbol chosen below, before anything is saved.
+test('chromium: 1280 px — a place\'s General previews its colour and symbol beside the name', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, context, failures } = await at(browser, 1280, `/hubs/${LOOK_HUB.id}/settings/general`);
+  t.after(() => context.close());
+  const general = page.locator('[data-place-general]');
+  const name = general.getByRole('textbox', { name: 'Hub name' });
+  await name.waitFor({ timeout: 10_000 });
+  const mark = general.locator('[data-place-mark] [data-token]');
+  assert.equal(await mark.getAttribute('data-token', { timeout: 5_000 }), 'violet', 'the mark beside the name does not show the hub\'s colour');
+  const markBox = await general.locator('[data-place-mark]').boundingBox();
+  const nameBox = await name.boundingBox();
+  assert.ok(Math.abs(markBox.y + markBox.height / 2 - (nameBox.y + nameBox.height / 2)) < 12 && markBox.x + markBox.width <= nameBox.x, 'the mark does not stand beside the name');
+  await choose(general, 'Teal');
+  await page.waitForFunction(() => document.querySelector('[data-place-general] [data-place-mark] [data-token]')?.getAttribute('data-token') === 'teal', null, { timeout: 5_000 });
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: 1280 px — Today and search say where each entry lives, in the place’s colour', async (t) => {
   const browser = await sharedChromium(t);
   const { page, context, failures } = await at(browser, 1280, '/');

@@ -590,3 +590,23 @@ test('chromium: 1280 × 800 — Create collection refused for another reason tha
   assert.equal(await dialog.getByRole('textbox', { name: 'Name' }).getAttribute('aria-invalid'), null, 'the name is marked for a refusal that is not about it');
   assert.deepEqual(failures, []);
 });
+
+// The look folded to one row still shows what is chosen: the place's mark at the row's end, its
+// colour and symbol said in words, so the pair is seen without opening it again (UC-WRK-33).
+test('chromium: 1280 px — Create collection: the closed look row shows the colour and symbol chosen', async (t) => {
+  const browser = await sharedChromium(t);
+  const { failures, dialog, close } = await openCreateCollection(browser, 1280, 800, COLLECTION);
+  t.after(close);
+
+  const lookRow = dialog.getByRole('button', { name: /^Colour and symbol/u });
+  assert.equal(await lookRow.locator('[data-token]').count(), 0, 'a colour is shown before one is chosen');
+  await lookRow.click();
+  await dialog.getByRole('radio', { name: 'Teal' }).check();
+  await dialog.getByRole('radio', { name: 'Heart' }).check();
+  await lookRow.click();
+  assert.equal(await lookRow.getAttribute('aria-expanded'), 'false');
+  assert.equal(await lookRow.locator('[data-token]').getAttribute('data-token', { timeout: 5_000 }), 'teal', 'the closed row does not show the colour');
+  const name = await lookRow.evaluate((element) => element.textContent.replace(/\s+/gu, ' ').trim());
+  assert.match(name, /^Colour and symbol.*Teal.*Heart/u, `the row says ${name}`);
+  assert.deepEqual(failures, []);
+});

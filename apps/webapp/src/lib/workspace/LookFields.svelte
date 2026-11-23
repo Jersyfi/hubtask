@@ -10,7 +10,8 @@
   // draft). Every option has a name in words (rule 3): a colour is never told by its colour alone,
   // a symbol never by its shape alone. The chosen colour is ringed, the chosen symbol takes the
   // chosen surface and edge, as a chosen tile does; "none" is dashed, as the start from nothing is.
-  // The place's own mark beside its name previews the pair.
+  // The tiles do not preview the pair: the caller does, with the place's mark - beside the name on
+  // the create-hub page and in a place's *General*, at the closed row's end in *Create collection*.
   //
   // Here rather than in the design system: a picker of a place's look is this application's, and
   // the design system grows in the order of design-system.md §4, never as a side effect.

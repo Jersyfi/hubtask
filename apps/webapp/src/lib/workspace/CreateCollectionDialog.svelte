@@ -18,13 +18,14 @@
   // a place is told apart from the moment it exists. Neither is required - a place nobody chose for
   // keeps its type's mark.
 
-  import { ChoiceCards, Dialog, Disclosure, Icon, Stack, Textarea, type ChoiceCard } from '@hubtask/design-system/components';
+  import { ChoiceCards, Dialog, Disclosure, Icon, Stack, Textarea, VisuallyHidden, type ChoiceCard } from '@hubtask/design-system/components';
 
   import { containers } from '../data/containers.svelte.ts';
   import { presetMark, presetName, presetOrigin, presets, presetValue } from '../data/presets.svelte.ts';
   import { entryTypes } from '../data/entrytypes.svelte.ts';
   import { portalTypesOf } from '../portal/portal.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
+  import ContainerMark from './ContainerMark.svelte';
   import LookFields from './LookFields.svelte';
   import { DESK, LIKE_HUB, SCRUM, collectionRequest } from './createCollection.ts';
   import type { PlaceSymbol } from './look.ts';
@@ -148,6 +149,11 @@
   }
 </script>
 
+{#snippet chosenLook()}
+  <ContainerMark look={{ type: 'COLLECTION', icon: symbol ?? null, color_token: colour ?? null }} />
+  <VisuallyHidden>{[colour ? t(`app.colour.${colour}`) : undefined, symbol ? t(`app.symbol.${symbol}`) : undefined].filter(Boolean).join(', ')}</VisuallyHidden>
+{/snippet}
+
 <Dialog
   bind:isOpen
   {title}
@@ -178,8 +184,9 @@
       {#if nameError}<p class="name-error" id={nameErrorId}><Icon name="circle-x" size="sm" /><span>{nameError}</span></p>{/if}
     </div>
     <ChoiceCards label={t('app.structure.preset_at_creation')} options={kinds} mark="tick" layout="grid" bind:value={kind} />
-    <!-- The look folded to one row, as on a phone's create-hub page: the one fold *Dialog M* allows. -->
-    <Disclosure label={t('app.workspace.hub_look')} tone="row"><LookFields bind:symbol bind:colour /></Disclosure>
+    <!-- The look folded to one row, as on a phone's create-hub page: the one fold *Dialog M* allows.
+         Closed, the row shows the place's mark as chosen and says the pair in words. -->
+    <Disclosure label={t('app.workspace.hub_look')} tone="row" value={symbol || colour ? chosenLook : undefined}><LookFields bind:symbol bind:colour /></Disclosure>
     <!-- Open, because a dialog holds at most one `Disclosure` (design-system.md §11.8). -->
     <Textarea label={t('app.workspace.description')} bind:value={description} rows={2} />
     <!-- Everything that is not about the name is a sentence above the buttons rather than a field
