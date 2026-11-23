@@ -1206,8 +1206,8 @@
       asked = field && theirs !== undefined ? { field, theirs } : undefined;
     });
   });
-  // An unanswered warning holds a text that is not saved: leaving the entry would drop it unseen.
-  $effect(() => leaveGuard.hold(() => (meanwhileField ? 1 : 0)));
+  // An unanswered warning, or a refused save, holds a text that is not saved: leaving would drop it unseen.
+  $effect(() => leaveGuard.hold(() => (meanwhileField || (isInlineDirty && writeFailure) ? 1 : 0)));
 
   function heldNow(): EntryDraft | undefined {
     return item ? { title: item.title, notes: item.notes ?? '', language: item.content_language ?? '' } : undefined;
@@ -1240,10 +1240,10 @@
 
   /**
    * Writes what the decision sends. `stale`: the entry moved before the stream said so
-   * (`version_conflict`), and it has been read again for the decision to be taken anew; any other
-   * refusal is drawn and answered `refused`.
+   * (`version_conflict`), and it has been read again for the decision to be taken anew - unless it
+   * was the last try, when it is drawn as any other refusal is, answered `refused`.
    */
-  async function sendInline(id: string, edit: EntryEdit, version: number): Promise<'written' | 'stale' | 'refused'> {
+  async function sendInline(id: string, edit: EntryEdit, version: number, isLastTry = false): Promise<'written' | 'stale' | 'refused'> {
     writeFailure = undefined;
     isTitleFailure = false;
     try {
@@ -1253,7 +1253,7 @@
     } catch (error) {
       if ((error as { isVersionConflict?: boolean }).isVersionConflict) {
         await engine.refresh<WorkItem>({ path: itemPath(id) });
-        return 'stale';
+        if (!isLastTry) return 'stale';
       }
       const problem = error as { detailCode?: string };
       writeFailure = renderProblem(error as never, messages);
@@ -1290,7 +1290,7 @@
     // The reader's text stays until it is written: a refused save must not take it off the screen.
     const sent = mineOf(base);
     isSaving = true;
-    const answer = await sendInline(item.id, edit, item.version);
+    const answer = await sendInline(item.id, edit, item.version, isRetry);
     isSaving = false;
     if (answer === 'stale' && !isRetry) {
       void history.refresh();
