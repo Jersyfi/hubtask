@@ -15,7 +15,7 @@
   import { Button, Icon, UploadField } from '@hubtask/design-system/components';
   import type { WorkspaceHeader, WorkspacePicture } from '@hubtask/sync-engine';
 
-  import { branding, lookOf, type PictureLook } from '../data/branding.svelte.ts';
+  import { branding, lookOf, type PictureLook, type PictureRead } from '../data/branding.svelte.ts';
   import { media } from '../data/media.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { formatBytes } from '../i18n/bytes.ts';
@@ -34,8 +34,11 @@
     /** The row's name, for the upload's own label in the accessibility tree. */
     label: string;
     nameId: string;
-    /** The stored picture's look, where there is one. */
-    look?: PictureLook;
+    /**
+     * Where the stored picture stands, where there is one: its bytes being read, drawn, or not
+     * drawable here. Stored is stored - *Replace* and *Remove* stand whatever became of the bytes.
+     */
+    read?: PictureRead;
     /** Another picture drawn in this one's place (the light logo on dark), with what says so. */
     standIn?: { readonly look: PictureLook; readonly text: string };
     line?: PictureLine;
@@ -49,9 +52,9 @@
     onstage: (look: PictureLook | undefined) => void;
   }
 
-  const { picture, label, nameId, look, standIn, line, limit, header, isLast, disabledReason, onstage }: Props = $props();
+  const { picture, label, nameId, read, standIn, line, limit, header, isLast, disabledReason, onstage }: Props = $props();
 
-  const has = $derived(look !== undefined);
+  const has = $derived(read !== undefined);
   const surfaces = $derived<Surface[]>(picture === 'SYMBOL' ? ['light', 'dark'] : picture === 'LOGO_DARK' ? ['dark'] : ['light']);
   const kind = $derived(picture === 'SYMBOL' ? 'SYMBOL' : 'LOGO');
 
@@ -136,10 +139,14 @@
 </script>
 
 <div class="picture" role="group" aria-labelledby={nameId} data-picture={picture} bind:this={root}>
-  {#if has && look}
+  {#if has && read}
     <div class="has">
       {#each surfaces as surface (surface)}
-        <span class="thumb" data-theme={surface} data-square={picture === 'SYMBOL' ? '' : undefined}><img src={look.url} alt="" /></span>
+        <!-- The picture's box whatever its bytes do: a placeholder while they are read, the
+             picture's mark where they cannot be drawn here (the line below says why). -->
+        <span class="thumb" data-theme={surface} data-square={picture === 'SYMBOL' ? '' : undefined} data-read={read.status}>
+          {#if read.status === 'ready'}<img src={read.look.url} alt="" />{:else if read.status === 'reading'}<span class="pending"></span>{:else}<Icon name="image" size="sm" />{/if}
+        </span>
       {/each}
       <span class="upload" data-upload>
         <UploadField
@@ -219,6 +226,11 @@
   .thumb[data-square] { inline-size: var(--sp-600); }
 
   .thumb img { max-inline-size: 100%; max-block-size: 100%; object-fit: contain; }
+
+  .thumb[data-read='unreadable'] { color: var(--text-subtle); }
+
+  /* The bytes on their way: the box's inside, quiet; no motion, so nothing to reduce. */
+  .pending { inline-size: 100%; block-size: 100%; border-radius: var(--r-sm); background: var(--bg-recess); }
 
   .quiet { color: var(--text-subtle); font-size: var(--fs-075); }
 

@@ -189,3 +189,46 @@ export function contrastOf(pixels: ArrayLike<number>, surfaceHex: string): Verdi
   const ratio = (Math.max(average, surface) + 0.05) / (Math.min(average, surface) + 0.05);
   return ratio < HARD_BELOW ? 'hard' : 'reads';
 }
+
+/**
+ * Why a stored picture is not drawn here. `unreachable`: no answer came - offline, or the server
+ * could not be reached - and it is asked again once the connection is back. `blocked`: the record
+ * was read, but the browser got no answer for the bytes while the device is online, which is what
+ * a file storage on another address without a rule letting this page read it looks like.
+ * `refused`: the storage or the server answered that it does not hand the picture out. `unknown`:
+ * none of these.
+ */
+export type PictureFailure = 'unreachable' | 'blocked' | 'refused' | 'unknown';
+
+/** What failed: the picture's record (`GET /media/{id}`) or its bytes at the download address. */
+export type PictureStage = 'record' | 'bytes';
+
+/** A failure as the transport reports it: its kind and, where the server answered, its status. */
+export interface FailureShape {
+  readonly kind?: string;
+  readonly status?: number;
+}
+
+/** Which failure this is, from where it failed, what the transport said, and the device's network. */
+export function pictureFailureOf(stage: PictureStage, failure: FailureShape | undefined, isDeviceOffline: boolean): PictureFailure {
+  const noAnswer = failure?.kind === 'offline' || failure?.kind === 'timeout';
+  if (noAnswer && (stage === 'record' || isDeviceOffline)) return 'unreachable';
+  if (failure?.kind === 'offline') return 'blocked';
+  if (failure?.kind === 'problem' || (stage === 'record' && failure === undefined)) return 'refused';
+  return 'unknown';
+}
+
+/** A failure, and the connection's state when it happened. */
+export interface FailedRead {
+  readonly failure: PictureFailure;
+  readonly connection: string;
+}
+
+/**
+ * Whether a picture is asked for (again): never asked, or found unreachable while the stream was not
+ * live and it is live now - the connection is back. Every other failure stands for the session:
+ * asking again would answer the same, and one that failed while live would be asked on every render.
+ */
+export function mayAskAgain(failed: FailedRead | undefined, connection: string): boolean {
+  return failed === undefined || (failed.failure === 'unreachable' && failed.connection !== 'live' && connection === 'live');
+}

@@ -1584,7 +1584,11 @@ header twice, each bar inside its own `data-theme` so a light and a dark surface
 whatever the reader's theme; then the choice as `Radio` - *Logo only* unavailable with its reason
 until a logo or the symbol exists -; then one row per picture: an `UploadField` target while there
 is none, otherwise the picture on its surface beside *Replace* (`UploadField` `button`) and
-*Remove*. A file the browser names as another type or past the limit is refused at its row before it
+*Remove*. A stored picture is a stored picture whatever its bytes do: while they are read its box
+stands empty and the line says it is loading; where they cannot be read here - no connection, a
+file storage that refuses them or does not let the browser read them - the box holds the image
+glyph, the line says that it is stored and why it cannot be shown, and the preview falls back past
+it by G8 with a sentence under the pair saying so. A file the browser names as another type or past the limit is refused at its row before it
 leaves, the server's refusal is said there too, and the focus moves to that row's upload. A line under
 the picture says whether it reads on its surface - a heuristic on the picture's opaque pixels; it
 warns and never blocks.

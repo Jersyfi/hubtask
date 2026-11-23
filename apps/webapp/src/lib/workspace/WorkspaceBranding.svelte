@@ -18,7 +18,7 @@
   import { Radio, SettingRow } from '@hubtask/design-system/components';
   import type { WorkspaceBranding, WorkspaceHeader, WorkspacePicture } from '@hubtask/sync-engine';
 
-  import { branding as store, type PictureLook } from '../data/branding.svelte.ts';
+  import { branding as store, type PictureLook, type PictureRead } from '../data/branding.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { live } from '../data/live.svelte.ts';
   import { pictureLimitOf } from '../data/media.ts';
@@ -62,14 +62,26 @@
     const id = pictureOf(branding, picture);
     return id ? [[picture, id]] : [];
   })) as Partial<Record<WorkspacePicture, string>>);
+  /** Where each stored picture's bytes stand: being read, drawn, or unreadable and why. */
+  const reads = $derived(Object.fromEntries(PICTURES.flatMap((picture) => {
+    const read = store.read(stored[picture]);
+    return read ? [[picture, read]] : [];
+  })) as Partial<Record<WorkspacePicture, PictureRead>>);
   const looks = $derived(Object.fromEntries(PICTURES.flatMap((picture) => {
-    const look = staged[picture] ?? store.look(stored[picture]);
+    const read = reads[picture];
+    const look = staged[picture] ?? (read?.status === 'ready' ? read.look : undefined);
     return look ? [[picture, look]] : [];
   })) as Partial<Record<WorkspacePicture, PictureLook>>);
   /** What exists or is going: the preview's pictures and what the choice may offer. */
   const present = $derived({ ...stored, ...Object.fromEntries(Object.keys(staged).map((picture) => [picture, 'staged'])) } as Partial<Record<WorkspacePicture, string>>);
-  /** Each present picture's local address, `null` until its bytes are in. */
-  const sources = $derived(Object.fromEntries(PICTURES.flatMap((picture) => (present[picture] ? [[picture, looks[picture]?.url ?? null]] : []))) as Partial<Record<WorkspacePicture, PictureSource>>);
+  /** A stored picture that cannot be drawn here, and is not being replaced. */
+  const isUnreadable = (picture: WorkspacePicture) => !staged[picture] && reads[picture]?.status === 'unreadable';
+  /**
+   * Each present picture's local address, `null` until its bytes are in. One that cannot be drawn
+   * here is left out, so the preview falls back past it by G8 - and says so.
+   */
+  const sources = $derived(Object.fromEntries(PICTURES.flatMap((picture) => (present[picture] && !isUnreadable(picture) ? [[picture, looks[picture]?.url ?? null]] : []))) as Partial<Record<WorkspacePicture, PictureSource>>);
+  const isFallingBack = $derived(PICTURES.some(isUnreadable));
   const shown = $derived(header === 'LOGO' && !mayShowLogoAlone(present) ? 'PRODUCT' : header);
 
   const limit = $derived(pictureLimitOf(manifest.value));
@@ -95,6 +107,13 @@
     const lightOnDark = !looks.LOGO_DARK && looks.LOGO_LIGHT ? verdict('LOGO_LIGHT', 'dark') : undefined;
     const symbol = [verdict('SYMBOL', 'light'), verdict('SYMBOL', 'dark')] as const;
     const symbolHard = symbol[0] === 'hard' && symbol[1] === 'hard' ? 'both' : symbol[0] === 'hard' ? 'light' : symbol[1] === 'hard' ? 'dark' : undefined;
+    const status = Object.fromEntries(PICTURES.flatMap((picture): [WorkspacePicture, PictureLine][] => {
+      const read = reads[picture];
+      if (staged[picture] || !read || read.status === 'ready') return [];
+      return [[picture, read.status === 'reading'
+        ? { tone: 'quiet', text: t('app.branding.picture_reading') }
+        : { tone: 'hard', text: t(`app.branding.unreadable_${read.failure}`) }]];
+    }));
     return {
       ...(light ? { LOGO_LIGHT: { tone: light, text: t(light === 'reads' ? 'app.branding.reads_light' : 'app.branding.hard_logo_light') } } : {}),
       ...(dark ? { LOGO_DARK: { tone: dark, text: t(dark === 'reads' ? 'app.branding.reads_dark' : 'app.branding.hard_logo_dark') } } : {}),
@@ -102,6 +121,7 @@
       ...(symbolHard
         ? { SYMBOL: { tone: 'hard' as const, text: t(`app.branding.hard_symbol_${symbolHard}`) } }
         : symbol[0] && symbol[1] ? { SYMBOL: { tone: 'reads' as const, text: t('app.branding.reads_both') } } : {}),
+      ...status,
     };
   });
 
@@ -148,6 +168,7 @@
           <HeaderPreview {surface} header={shown} pictures={sources} {name} caption={t(`app.branding.preview_${surface}`)} />
         {/each}
       </div>
+      {#if isFallingBack}<p class="fallback" data-branding-fallback>{t('app.branding.preview_fallback')}</p>{/if}
     </div>
     <div class="row" data-branding-header>
       <SettingRow
@@ -180,7 +201,7 @@
               {picture}
               label={t(`app.branding.picture_${picture}`)}
               {nameId}
-              look={stored[picture] ? (store.look(stored[picture]) ?? undefined) : undefined}
+              read={reads[picture]}
               standIn={picture === 'LOGO_DARK' && !stored.LOGO_DARK && looks.LOGO_LIGHT ? { look: looks.LOGO_LIGHT, text: t('app.branding.light_applies') } : undefined}
               line={lines[picture]}
               {limit}
@@ -223,6 +244,8 @@
     clip-path: inset(50%);
     white-space: nowrap;
   }
+
+  .fallback { margin: 0; padding: 0 var(--sp-250) var(--sp-200); color: var(--text-subtle); font-size: var(--fs-075); }
 
   .offline { margin: 0; padding: var(--sp-100) var(--sp-250); color: var(--text-secondary); font-size: var(--fs-075); }
 

@@ -13,12 +13,18 @@
  * say whether a picture reads on a surface, and an image drawn from another origin cannot be read
  * back; so the bytes are received once and drawn from a local address. A picture just uploaded is
  * held from the file that was sent - the server has judged those very bytes.
+ *
+ * **A stored picture is known to be stored before its bytes arrive.** Its read says so - being
+ * read, ready, or unreadable and why - so the row offers *Replace* and *Remove* whatever became of
+ * the bytes; one that could not be reached is asked again once the connection is back.
  */
 
 import type { WorkspaceBranding, WorkspaceHeader, WorkspacePicture } from '@hubtask/sync-engine';
 
+import { mayAskAgain, pictureFailureOf, type FailedRead, type FailureShape, type PictureFailure, type PictureStage } from '../workspace/branding.ts';
 import { pixelsOf } from '../workspace/pixels.ts';
 import { engine } from './engine.ts';
+import { live } from './live.svelte.ts';
 import { AVATAR_LIMIT, transferTimeoutFor } from './media.ts';
 import { media } from './media.svelte.ts';
 import { workspacePath } from './workspace.svelte.ts';
@@ -31,6 +37,12 @@ export interface PictureLook {
   readonly pixels?: Uint8ClampedArray;
 }
 
+/** Where a stored picture's look stands: its bytes being read, drawn, or unreadable and why. */
+export type PictureRead =
+  | { readonly status: 'reading' }
+  | { readonly status: 'ready'; readonly look: PictureLook }
+  | { readonly status: 'unreadable'; readonly failure: PictureFailure };
+
 /** A local look of a file: what the setting draws while it is being sent, and after. */
 export async function lookOf(blob: Blob): Promise<PictureLook> {
   return { url: URL.createObjectURL(blob), pixels: await pixelsOf(blob) };
@@ -40,23 +52,28 @@ class BrandingStore {
   /** Looks already made, by media identifier. */
   #looks = $state<Record<string, PictureLook>>({});
   #asking = new Set<string>();
-  /** Refused or unreadable: asked once, never again, and drawn as nothing. */
-  #unknown = new Set<string>();
+  /** Why a picture could not be drawn, by media identifier; only an unreachable one is asked again. */
+  #failures = $state<Record<string, FailedRead>>({});
 
   /**
-   * The look of a stored picture, asking for its bytes when there is none yet. Safe on every
-   * render: a picture being asked for, or one refused, is not asked for again.
+   * Where a stored picture's look stands, asking for its bytes when there is none yet. Safe on
+   * every render: a picture being asked for, or one that failed, is not asked for again - unless it
+   * could not be reached and the connection is back (`mayAskAgain`).
    */
-  look(mediaId: string | undefined): PictureLook | undefined {
+  read(mediaId: string | undefined): PictureRead | undefined {
     if (!mediaId) return undefined;
     const held = this.#looks[mediaId];
-    if (held) return held;
-    if (!this.#asking.has(mediaId) && !this.#unknown.has(mediaId)) void this.#receive(mediaId);
-    return undefined;
+    if (held) return { status: 'ready', look: held };
+    const failed = this.#failures[mediaId];
+    if (!this.#asking.has(mediaId) && mayAskAgain(failed, live.state)) void this.#receive(mediaId);
+    if (failed && !this.#asking.has(mediaId)) return { status: 'unreadable', failure: failed.failure };
+    return { status: 'reading' };
   }
 
   /** Holds the look of a picture just set, made from the file that was sent. */
   hold(mediaId: string, look: PictureLook): void {
+    const { [mediaId]: _past, ...failures } = this.#failures;
+    this.#failures = failures;
     this.#looks = { ...this.#looks, [mediaId]: look };
   }
 
@@ -77,21 +94,27 @@ class BrandingStore {
 
   async #receive(mediaId: string): Promise<void> {
     this.#asking.add(mediaId);
+    let stage: PictureStage = 'record';
     try {
-      const url = await media.downloadUrl(mediaId, Date.now());
+      const { url, failure } = await media.downloadOf(mediaId, Date.now());
       if (!url) {
-        this.#unknown.add(mediaId);
+        this.#fail(mediaId, pictureFailureOf('record', failure, live.state === 'offline'));
         return;
       }
+      stage = 'bytes';
       const size = media.recordOf(mediaId)?.size ?? AVATAR_LIMIT;
       const bytes = await engine.receive({ url, timeoutMs: transferTimeoutFor(size) });
       this.hold(mediaId, await lookOf(bytes));
-    } catch {
-      // A picture that cannot be fetched is drawn as nothing; the row still offers to replace it.
-      this.#unknown.add(mediaId);
+    } catch (error) {
+      // The row still offers to replace or remove it, and says why it cannot be shown.
+      this.#fail(mediaId, pictureFailureOf(stage, error as FailureShape, live.state === 'offline'));
     } finally {
       this.#asking.delete(mediaId);
     }
+  }
+
+  #fail(mediaId: string, failure: PictureFailure): void {
+    this.#failures = { ...this.#failures, [mediaId]: { failure, connection: live.state } };
   }
 }
 

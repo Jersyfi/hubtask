@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { values } from '@hubtask/design-system';
 
 import {
-  cardLookOf, cardSourcesOf, contrastOf, drawingFor, initialsOf, isSameDrawing, markDrawings, mayShowLogoAlone, memberLookOf, pictureOf, refusalOf,
+  cardLookOf, cardSourcesOf, contrastOf, drawingFor, initialsOf, isSameDrawing, markDrawings, mayAskAgain, mayShowLogoAlone, memberLookOf, pictureFailureOf, pictureOf, refusalOf,
 } from './branding.ts';
 
 const LIGHT = values.light.bg.surface;
@@ -89,6 +89,39 @@ test('a member sees the look the server answers, and the product until it has an
   // Switched off above, the server answers the product and no picture (ADR-0112): drawn as it is.
   assert.deepEqual(memberLookOf({ ...look, header: 'PRODUCT', logo_light_media_id: null, symbol_media_id: null }), { header: 'PRODUCT', ids: {} });
   assert.deepEqual(memberLookOf(undefined), { header: 'PRODUCT', ids: {} });
+});
+
+// UC-INS-22 check 1: a stored picture that cannot be drawn says why, as far as the browser can tell.
+test('a stored picture that cannot be read is told apart by where and how its read failed', () => {
+  // No answer for the record, or for the bytes while the device is offline: asked again later.
+  assert.equal(pictureFailureOf('record', { kind: 'offline' }, false), 'unreachable');
+  assert.equal(pictureFailureOf('record', { kind: 'timeout' }, false), 'unreachable');
+  assert.equal(pictureFailureOf('bytes', { kind: 'offline' }, true), 'unreachable');
+  // The record read, no answer for the bytes on a device that is online: the storage blocks the page.
+  assert.equal(pictureFailureOf('bytes', { kind: 'offline' }, false), 'blocked');
+  // An answer that refuses: the storage's 404 or 403, or a record that names no download.
+  assert.equal(pictureFailureOf('bytes', { kind: 'problem', status: 404 }, false), 'refused');
+  assert.equal(pictureFailureOf('record', { kind: 'problem', status: 404 }, false), 'refused');
+  assert.equal(pictureFailureOf('record', undefined, false), 'refused');
+  // Bytes that arrived and could not be drawn.
+  assert.equal(pictureFailureOf('bytes', undefined, false), 'unknown');
+  assert.equal(pictureFailureOf('bytes', { kind: 'timeout' }, false), 'unknown');
+});
+
+// A picture whose read found no connection - an offline start among them - is asked again once the
+// connection is back, and only then; every other failure stands for the session.
+test('a picture that could not be reached is asked again when the connection returns, and only then', () => {
+  assert.equal(mayAskAgain(undefined, 'offline'), true, 'a picture never asked');
+  for (const at of ['offline', 'reconnecting', 'off', 'paused']) {
+    const failed = { failure: 'unreachable' as const, connection: at };
+    assert.equal(mayAskAgain(failed, at), false, `asked again while still ${at}`);
+    assert.equal(mayAskAgain(failed, 'live'), true, `not asked again when live after ${at}`);
+  }
+  // Failed while live: asking again would fail the same way on every render.
+  assert.equal(mayAskAgain({ failure: 'unreachable', connection: 'live' }, 'live'), false);
+  for (const failure of ['blocked', 'refused', 'unknown'] as const) {
+    assert.equal(mayAskAgain({ failure, connection: 'offline' }, 'live'), false, `${failure} asked again`);
+  }
 });
 
 test('the card draws what the rules at this address carry, and the product where they carry none', () => {

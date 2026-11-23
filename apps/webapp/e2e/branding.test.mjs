@@ -83,10 +83,14 @@ const OPEN = { value: true, installation: true, lock: null, source: 'DEFAULT', i
 async function open(browser, {
   width = 1280, height = 900, held = NONE, own = OPEN, permissions = PERMISSIONS.OWNER, refuse = {}, locale,
   path: at = '/administration/workspace/name', colorScheme = 'light', name = WORKSPACE.display_name, bytes = {}, broken = [],
+  blocked = [], slow = [],
 } = {}) {
   const context = await browser.newContext({ viewport: { width, height }, colorScheme });
   const state = { branding: { ...held }, bytes: { ...bytes }, next: 0, contents: [] };
   const sent = [];
+  // The bytes of a `slow` picture wait until the walk lets them go.
+  let release = () => {};
+  const gate = new Promise((resolve) => (release = resolve));
   const later = new Date(Date.now() + 5 * 60_000).toISOString();
   const record = (id, size) => ({ id, usage: 'WORKSPACE_LOGO', content_type: 'image/png', size, ref_count: 0, created_by: ACCOUNT.id, created_at: '2026-11-23T10:00:00Z' });
   const content = (id) => `${served.origin}/api/v1/media/${id}:content`;
@@ -115,6 +119,9 @@ async function open(browser, {
     }
     if (bytes) {
       state.contents.push(bytes[1]);
+      // A file storage on another address without a rule letting this page read it: no answer.
+      if (blocked.includes(bytes[1])) return route.abort('failed');
+      if (slow.includes(bytes[1])) await gate;
       // The object store refusing a picture: the mark falls back past it.
       if (broken.includes(bytes[1])) {
         return route.fulfill({ status: 404, contentType: 'application/problem+json', body: JSON.stringify({ status: 404, code: 'media.not_found' }) });
@@ -158,7 +165,7 @@ async function open(browser, {
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
   await page.goto(`${served.origin}${at}`);
-  return { page, sent, state, failures, close: () => context.close() };
+  return { page, sent, state, failures, release, close: () => context.close() };
 }
 
 /** The bar's home link by its one name: the product's or the workspace's. */
@@ -296,6 +303,59 @@ test('chromium: 1280 px — removing the last picture returns the header to the 
   // UC-INS-22 checks 4 and 5: the header itself shows the product's mark again, once the workspace is read again.
   await homeLink(page, 'Hubtask').waitFor({ timeout: 10_000 });
   assert.equal(await home(page).locator('img').count(), 0, 'a picture is still in the header');
+  assert.deepEqual(failures, []);
+});
+
+// UC-INS-22 check 1: a stored picture is the workspace's whatever became of its bytes. One the file
+// storage refuses and one it gives the browser no answer for keep their box, *Replace* and *Remove*,
+// and say why they cannot be shown; the preview falls back past them by G8 and says so.
+test('chromium: 1280 px — a stored picture that cannot be read keeps Replace and Remove, says why, and the preview falls back', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, close } = await open(browser, {
+    held: { ...NONE, header: 'LOGO', logo_light_media_id: IDS[0], logo_dark_media_id: IDS[1], symbol_media_id: IDS[2] },
+    bytes: { [IDS[0]]: NAVY, [IDS[1]]: PALE, [IDS[2]]: TEAL }, broken: [IDS[0]], blocked: [IDS[1]],
+  });
+  t.after(close);
+  await row(page, 'LOGO_LIGHT').getByText('the file storage does not hand it out').waitFor({ timeout: 15_000 });
+  await row(page, 'LOGO_DARK').getByText('the file storage does not let the browser read it').waitFor({ timeout: 15_000 });
+  for (const picture of ['LOGO_LIGHT', 'LOGO_DARK']) {
+    const said = await row(page, picture).innerText();
+    assert.match(said, /This picture is stored, but it cannot be shown here/);
+    assert.equal(await row(page, picture).getByRole('button', { name: 'Replace' }).count(), 1, `${picture} offers no Replace`);
+    assert.equal(await row(page, picture).getByRole('button', { name: 'Remove' }).count(), 1, `${picture} offers no Remove`);
+    assert.doesNotMatch(said, /Choose logo|drop it here/, `${picture} reads as empty`);
+  }
+  const choice = page.getByRole('group', { name: 'What the header shows' });
+  assert.equal(await choice.getByRole('radio', { name: 'Logo only' }).isChecked(), true);
+  // Both bars fall back past the two logos to the symbol, the one that can be drawn, and say so.
+  for (const surface of ['light', 'dark']) {
+    const drawn = page.locator(`[data-preview="${surface}"] img`);
+    await drawn.waitFor({ timeout: 10_000 });
+    assert.equal(await drawn.evaluate((image) => image.naturalWidth), 16, `the ${surface} preview draws no symbol`);
+  }
+  await page.getByText('A stored picture that cannot be shown here is left out of the preview').waitFor();
+  assert.deepEqual(failures, []);
+});
+
+// UC-INS-22 check 1: while a stored picture's bytes are on their way, its row already holds its box,
+// *Replace* and *Remove*, and says it is loading; the picture appears when they arrive.
+test('chromium: 1280 px — a stored picture being read keeps its box, Replace and Remove until it appears', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, release, close } = await open(browser, {
+    held: { ...NONE, header: 'WORKSPACE_NAME', symbol_media_id: IDS[2] }, bytes: { [IDS[2]]: TEAL }, slow: [IDS[2]],
+  });
+  t.after(close);
+  const symbol = row(page, 'SYMBOL');
+  await symbol.getByText('Loading the stored picture…').waitFor({ timeout: 15_000 });
+  assert.equal(await symbol.getByRole('button', { name: 'Replace' }).count(), 1);
+  assert.equal(await symbol.getByRole('button', { name: 'Remove' }).count(), 1);
+  assert.doesNotMatch(await symbol.innerText(), /Choose symbol|drop it here/);
+  assert.equal(await symbol.locator('img').count(), 0);
+
+  release();
+  await symbol.locator('img').first().waitFor({ timeout: 10_000 });
+  assert.equal(await symbol.getByText('Loading the stored picture…').count(), 0);
+  assert.equal(await page.locator('[data-branding-fallback]').count(), 0, 'a picture that arrived is called unreadable');
   assert.deepEqual(failures, []);
 });
 

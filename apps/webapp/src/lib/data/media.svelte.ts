@@ -21,7 +21,7 @@
  * when it is clicked, and a cover asks once and asks again when what it holds has expired.
  */
 
-import type { CiAttachments, CoverInput, ItemAttachments, MediaObject, MediaPage, WorkItem } from '@hubtask/sync-engine';
+import type { CiAttachments, CoverInput, ItemAttachments, MediaObject, MediaPage, TransportError, WorkItem } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { etagFor } from './etag.ts';
@@ -110,10 +110,16 @@ class Media {
    * link that answers a signature error.
    */
   async downloadUrl(mediaId: string, now: number): Promise<string | undefined> {
+    return (await this.downloadOf(mediaId, now)).url;
+  }
+
+  /** As `downloadUrl`, and where there is no address, the failure of the read where it failed. */
+  async downloadOf(mediaId: string, now: number): Promise<{ readonly url?: string; readonly failure?: TransportError }> {
     const state = await engine.refresh<MediaObject>({ path: mediaPath(mediaId) });
-    if (state.status !== 'ready') return undefined;
+    if (state.status === 'failed') return { failure: state.error };
+    if (state.status !== 'ready') return {};
     this.#records = { ...this.#records, [mediaId]: state.data };
-    return downloadUrlOf(state.data, now);
+    return { url: downloadUrlOf(state.data, now) };
   }
 
   /**
