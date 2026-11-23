@@ -5438,7 +5438,7 @@
   "app.workspace.hub_template_done": "Done",
   "app.workspace.hub_empty": "Empty hub",
   "app.workspace.hub_empty_about": "No template, with the workspace's default.",
-  "app.workspace.hub_empty_long": "No template. The hub starts with the preset the workspace chose for new hubs. You add collections afterwards.",
+  "app.workspace.hub_empty_long": "No template. The hub starts with the workspace's default. You add collections afterwards.",
   "app.workspace.hub_summary_start": "Start",
   "app.workspace.hub_summary_template": "Template",
   "app.workspace.hub_summary_preset": "Preset",

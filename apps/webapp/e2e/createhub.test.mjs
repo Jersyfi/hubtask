@@ -175,7 +175,9 @@ test('chromium: Empty hub is chosen at opening and stays offered whatever is sea
   await main(page).getByRole('radio', { name: /^Kanban team/u }).waitFor({ timeout: 10_000 });
   assert.equal(await empty.isChecked(), true, 'Empty hub is not chosen when the page opens');
   const summary = main(page).locator('[data-hub-summary]');
-  assert.match(await summary.innerText(), /Empty hub[\s\S]*No template\. The hub starts with the preset the workspace chose/u);
+  // The tile and the summary name the start one way: the workspace's default.
+  assert.match(await summary.innerText(), /Empty hub[\s\S]*No template\. The hub starts with the workspace's default\./u);
+  assert.match(await empty.evaluate((radio) => radio.closest('label')?.textContent ?? ''), /with the workspace's default\./u);
 
   // A search without a match: no template drawn, the sentence and the reset, Empty hub still there.
   const search = main(page).getByRole('searchbox', { name: 'Search templates' });

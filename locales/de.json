@@ -4628,7 +4628,7 @@
   "app.workspace.hub_template_done": "Fertig",
   "app.workspace.hub_empty": "Leerer Hub",
   "app.workspace.hub_empty_about": "Ohne Vorlage, mit der Vorgabe des Arbeitsbereichs.",
-  "app.workspace.hub_empty_long": "Ohne Vorlage. Der Hub beginnt mit der Voreinstellung, die der Arbeitsbereich für neue Hubs gewählt hat. Sammlungen legst du danach an.",
+  "app.workspace.hub_empty_long": "Ohne Vorlage. Der Hub beginnt mit der Vorgabe des Arbeitsbereichs. Sammlungen legst du danach an.",
   "app.workspace.hub_summary_start": "Start",
   "app.workspace.hub_summary_template": "Vorlage",
   "app.workspace.hub_summary_preset": "Voreinstellung",
