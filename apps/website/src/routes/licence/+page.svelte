@@ -62,7 +62,7 @@
       <p class="kicker">One edition</p>
       <h2>One code path. Nothing held back.</h2>
     </div>
-    <ul class="ticks ticks-2">
+    <ul class="site-ticks ticks-2">
       <li><strong>No licence key, no paid edition.</strong> Every feature is in the one image, for everybody.</li>
       <li><strong>The only limits are operational.</strong> Quotas let the operator of a shared installation keep one workspace from becoming everybody’s latency.</li>
       <li><strong>No telemetry without consent.</strong> Nothing phones home.</li>

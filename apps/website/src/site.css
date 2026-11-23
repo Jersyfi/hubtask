@@ -894,7 +894,7 @@ main {
 
 /* ── Lists ────────────────────────────────────────────────────────────────── */
 
-.ticks,
+.site-ticks,
 .site-plain {
   list-style: none;
   margin: var(--sp-400) 0 0;
@@ -908,14 +908,14 @@ main {
   gap: var(--sp-200) var(--sp-500);
 }
 
-.ticks li {
+.site-ticks li {
   position: relative;
   padding-inline-start: var(--sp-400);
   color: var(--text-secondary);
   font-size: var(--fs-100);
 }
 
-.ticks li::before {
+.site-ticks li::before {
   content: '';
   position: absolute;
   inset-inline-start: 0;
@@ -926,7 +926,7 @@ main {
   background: var(--accent-signature);
 }
 
-.ticks li strong {
+.site-ticks li strong {
   display: block;
 }
 

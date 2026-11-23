@@ -119,7 +119,7 @@
       </div>
       <div>
         <h4>What it is good for</h4>
-        <ul class="ticks">
+        <ul class="site-ticks">
           <li><strong>An auditor role</strong> Reads the trail and the configuration, and no work items at all.</li>
           <li><strong>Export to your SIEM</strong> The trail leaves the system in a form your tooling already reads.</li>
           <li><strong>Agent actions marked</strong> An action taken by an AI agent is recorded as one, so “what did the automation do” is answerable.</li>
