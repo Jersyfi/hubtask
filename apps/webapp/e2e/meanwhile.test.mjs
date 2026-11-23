@@ -519,6 +519,9 @@ test('chromium: 1280 px — a description edited again while its save is on its 
   await second.catch(() => assert.fail(`the second edit was not saved: ${JSON.stringify(writes(state))}`));
   assert.deepEqual(writes(state).map((each) => each.body), [{ notes: 'Measure the wall.' }, { notes: 'Measure the wall twice.' }]);
   assert.equal(state.entry.notes, 'Measure the wall twice.');
+  await notes.filter({ hasText: 'Measure the wall twice.' }).waitFor({ timeout: 5_000 })
+    .catch(async () => assert.fail(`the editor shows ${await notes.textContent()}`));
+  assert.equal((await notes.textContent())?.trim(), 'Measure the wall twice.');
   assert.deepEqual(failures, []);
 });
 
