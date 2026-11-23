@@ -157,3 +157,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0108](./ADR-0108-a-module-switch-and-a-board-comment-are-change-records.md) | A module switch and a board comment are change records | accepted | Synchronisation, clients |
 | [0109](./ADR-0109-a-product-switched-on-at-the-workspace-is-offered-to-hubs.md) | A product switched on at the workspace is offered to hubs, not switched on in them | accepted | Domain, application, API |
 | [0110](./ADR-0110-one-multi-select-two-presentations.md) | One multi-select, two presentations | accepted | Design system, clients |
+| [0112](./ADR-0112-a-workspace-shows-its-own-name-and-logo.md) | A workspace shows its own name and logo | accepted | Identity, media, API |

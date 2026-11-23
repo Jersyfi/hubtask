@@ -465,6 +465,12 @@ workspace may tighten it; closed, it applies and the workspace's control is show
 the reason and who set it — never hidden. The effective value is resolved on read along
 `product minimum → instance → plan → workspace`, so a change applies at once.
 
+**A switch above a workspace's own look.** Whether a workspace may show its own name and logo is
+the sign-in area's `own_branding`: on by default, switched off and locked by the installation or a
+plan, never set for every workspace at once - there is no installation-wide logo
+([ADR-0112](../adr/ADR-0112-a-workspace-shows-its-own-name-and-logo.md),
+[identity.md](./identity.md) §18).
+
 **How it is reached.** One API with three doors: a file (`seed` or `enforce`), `hubctl admin`, and
 the web app's `/instance` area. The areas are the sign-in rule, the legal links, localisation
 defaults, quota ceilings and `ai` — which AI sources a workspace may use and the least its own model

@@ -840,6 +840,13 @@ product bounds (§5.2)  →  the installation's default and lock  →  the plan'
   count of a mandated provider includes every live workspace on such a plan; the installation's own
   list names only its own lock (`installation_lock`), so a removal the count refuses is explained by
   the count, not by that column.
+* *The workspace may show its own name and logo* is the switch `own_branding`, on by default, off
+  the stricter value, with the installation's and the plan's default and lock
+  ([ADR-0112](../adr/ADR-0112-a-workspace-shows-its-own-name-and-logo.md)). Off refuses every
+  change to the workspace's three pictures and its header's choice with `workspace.branding_off`
+  (403), its parameter `origin` the level that switched it off, and a client shows the product's
+  name; what is stored stays. The pictures and the choice themselves are the workspace's, set
+  under STRUCTURE (`PUT /tenant/branding`, `PUT`/`DELETE /tenant/branding/{picture}`).
 * **Never a switch:** exporting, deleting or asking about one's own data, language, time zone,
   accessibility. Rate limits, the lockout curve, the key ring, and a workspace's name, colour and
   start page have no installation level; language and time zone may be defaulted there, never locked.
