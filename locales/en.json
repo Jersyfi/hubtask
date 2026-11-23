@@ -5274,6 +5274,7 @@
   "app.branding.remove": "Remove",
   "app.branding.removing": "Removing…",
   "app.branding.uploading": "Wait until the upload is done.",
+  "app.branding.finishing": "Uploaded; setting the picture. This can no longer be cancelled.",
   "app.branding.light_applies": "The logo for light surfaces applies.",
   "app.branding.reads_light": "Easy to make out on a light surface.",
   "app.branding.reads_dark": "Easy to make out on a dark surface.",

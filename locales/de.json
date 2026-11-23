@@ -4464,6 +4464,7 @@
   "app.branding.remove": "Entfernen",
   "app.branding.removing": "Wird entfernt…",
   "app.branding.uploading": "Warte, bis das Hochladen fertig ist.",
+  "app.branding.finishing": "Hochgeladen; das Bild wird gesetzt. Das lässt sich nicht mehr abbrechen.",
   "app.branding.light_applies": "Es gilt das Logo für hell.",
   "app.branding.reads_light": "Auf hellem Grund gut zu erkennen.",
   "app.branding.reads_dark": "Auf dunklem Grund gut zu erkennen.",

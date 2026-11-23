@@ -83,7 +83,7 @@ const OPEN = { value: true, installation: true, lock: null, source: 'DEFAULT', i
 async function open(browser, {
   width = 1280, height = 900, held = NONE, own = OPEN, permissions = PERMISSIONS.OWNER, refuse = {}, locale,
   path: at = '/administration/workspace/name', colorScheme = 'light', name = WORKSPACE.display_name, bytes = {}, broken = [],
-  blocked = [], slow = [],
+  blocked = [], slow = [], slowConfirm = false,
 } = {}) {
   const context = await browser.newContext({ viewport: { width, height }, colorScheme });
   const state = { branding: { ...held }, bytes: { ...bytes }, next: 0, contents: [] };
@@ -131,6 +131,7 @@ async function open(browser, {
     const confirm = /^\/media\/([^/:]+):confirm$/.exec(path);
     if (confirm) {
       sent.push(['confirm']);
+      if (slowConfirm) await gate;
       return route.fulfill({ json: { ...record(confirm[1], state.bytes[confirm[1]]?.length ?? 0), status: 'READY' } });
     }
     const one = /^\/media\/([^/:]+)$/.exec(path);
@@ -356,6 +357,24 @@ test('chromium: 1280 px — a stored picture being read keeps its box, Replace a
   await symbol.locator('img').first().waitFor({ timeout: 10_000 });
   assert.equal(await symbol.getByText('Loading the stored picture…').count(), 0);
   assert.equal(await page.locator('[data-branding-fallback]').count(), 0, 'a picture that arrived is called unreadable');
+  assert.deepEqual(failures, []);
+});
+
+// UC-INS-22 check 1: once the bytes are sent, only the confirmation and the setting remain, which
+// an abort no longer reaches; *Cancel* is no longer offered then, and the row says why.
+test('chromium: 1280 px — once the bytes are sent, Cancel gives way to what is still happening', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, sent, failures, release, close } = await open(browser, { slowConfirm: true });
+  t.after(close);
+  await group(page).getByText('Logo and header').waitFor({ timeout: 15_000 });
+  await upload(page, 'SYMBOL', { name: 'mark.png', mimeType: 'image/png', buffer: TEAL });
+  await row(page, 'SYMBOL').getByText('Uploaded; setting the picture. This can no longer be cancelled.').waitFor({ timeout: 10_000 });
+  assert.deepEqual(sent, [['POST /media', 'WORKSPACE_LOGO'], ['PUT bytes'], ['confirm']]);
+  assert.equal(await row(page, 'SYMBOL').getByRole('button', { name: 'Cancel' }).count(), 0, 'Cancel is offered after the bytes are sent');
+
+  release();
+  await page.getByText('The symbol is set.').first().waitFor({ timeout: 10_000 });
+  assert.deepEqual(sent.at(-1), ['PUT /tenant/branding/SYMBOL', { media_id: IDS[0] }]);
   assert.deepEqual(failures, []);
 });
 

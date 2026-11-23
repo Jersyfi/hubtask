@@ -67,6 +67,13 @@
 
   const isUploading = $derived(controller !== undefined);
   const percent = $derived(chosen && chosen.size > 0 ? Math.floor((sent / chosen.size) * 100) : 0);
+  // Every byte sent: only the confirmation and the setting remain, and an abort reaches neither, so
+  // *Cancel* is no longer offered and the progress says why.
+  const isFinishing = $derived(isUploading && chosen !== undefined && sent >= chosen.size);
+  const cancelLabel = $derived(isFinishing ? undefined : t('app.media.cancel'));
+  const progressLabel = $derived(
+    !isUploading ? undefined : isFinishing ? t('app.branding.finishing') : t('app.media.uploading', { percent: String(percent) }),
+  );
   const sizeLabel = $derived(
     chosen === undefined ? undefined : t('app.media.size_of_limit', { size: formatBytes(chosen.size, messages.locale), limit: formatBytes(limit, messages.locale) }),
   );
@@ -157,8 +164,8 @@
           accept={PICTURE_TYPES.join(',')}
           error={failure}
           progress={isUploading ? percent : undefined}
-          progressLabel={isUploading ? t('app.media.uploading', { percent: String(percent) }) : undefined}
-          cancelLabel={t('app.media.cancel')}
+          {progressLabel}
+          {cancelLabel}
           {disabledReason}
           onChoose={(file) => void choose(file)}
           onCancel={() => controller?.abort()}
@@ -186,8 +193,8 @@
         {sizeLabel}
         error={failure}
         progress={isUploading ? percent : undefined}
-        progressLabel={isUploading ? t('app.media.uploading', { percent: String(percent) }) : undefined}
-        cancelLabel={t('app.media.cancel')}
+        {progressLabel}
+        {cancelLabel}
         {disabledReason}
         onChoose={(file) => void choose(file)}
         onCancel={() => controller?.abort()}
