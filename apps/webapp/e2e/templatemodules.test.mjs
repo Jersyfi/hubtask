@@ -6,7 +6,8 @@
 // shows neither a message code nor a key path. A template taken for an existing hub - or for a
 // collection, in its hub - switches its products on in that hub (UC-INS-21 check 13): the
 // workspace's part names the hub with its switch, a product the hub still lacks is switched on
-// there, not at the workspace again, and the banner says which of the two the press does.
+// there, not at the workspace again, and the banner says which of the two the press does. A
+// hub's owner who may not shape the workspace may press the hub's own switch, and only that one.
 //
 // Chromium only; what the server decides is its own tests' (config/ModuleSwitch_test.go names
 // the hub in the apply's switch).
@@ -220,14 +221,20 @@ function hubTemplate({ workspaceOn, hubOff, workspaceTook }) {
   return { on, answer, hubHas };
 }
 
-/** Opens the template's dialog on a hub's settings - or a collection's, `isCollection` - in `locale`. */
-async function openForHub(browser, t, state, { isCollection = false, locale = 'en' } = {}) {
+/**
+ * Opens the template's dialog on a hub's settings - or a collection's, `isCollection` - in
+ * `locale`; `isHubOnly` is a reader who shapes the hub (its owner) but not the workspace (a member).
+ */
+async function openForHub(browser, t, state, { isCollection = false, locale = 'en', isHubOnly = false } = {}) {
   const shared = hubTemplate(state);
   const answer = (method, path, query, body) => {
     if (path === '/accounts/me' && method === 'GET') return { json: { ...ACCOUNT, locale } };
+    if (isHubOnly && path === '/memberships' && query.get('scope_type') === 'TENANT') {
+      return { json: { ...PAGE, data: [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role: 'MEMBER' }], grantable_roles: [] } };
+    }
     return shared.answer(method, path, query, body);
   };
-  const walk = await productWalk(browser, { modules: shared.on, answer });
+  const walk = await productWalk(browser, { modules: shared.on, answer, manifest: isHubOnly ? { workspace_permissions: PERMISSIONS.MEMBER } : {} });
   t.after(walk.close);
   const name = locale === 'de' ? 'Klassisches Projekt' : 'Classic project';
   if (isCollection) {
@@ -308,6 +315,38 @@ for (const [workspaceOn, said] of [
     assert.deepEqual(errors(), []);
   });
 }
+
+// A hub's owner who may not shape the workspace may press the switch where only the hub's switch
+// is needed: the server asks STRUCTURE on the hub's path for it (UC-INS-21 check 13).
+test('chromium: a hub owner who may not shape the workspace switches the product on in the hub and takes the template', async (t) => {
+  const browser = await sharedChromium(t);
+  const { dialog, hubHas, switches, errors } = await openForHub(browser, t, { workspaceOn: true, hubOff: true, workspaceTook: true }, { isHubOnly: true });
+
+  const banner = dialog.locator('[data-template-needs-modules]');
+  await banner.waitFor({ timeout: 10_000 });
+  assert.match(await banner.textContent(), /turns it on in this hub; no other hub changes/u);
+  await dialog.getByRole('button', { name: 'Switch on Plans and use this template' }).click();
+  await dialog.getByText('Adds the workflow “scrum”').waitFor({ timeout: 10_000 });
+  assert.deepEqual(switches(), [{ path: '/tenant/modules/PLANNING', body: { switch: 'ON', hub_id: HUB.id } }]);
+  assert.equal(hubHas(HUB.id), true);
+  await dialog.getByRole('button', { name: 'Take template' }).click();
+  await dialog.waitFor({ state: 'hidden', timeout: 10_000 });
+  assert.deepEqual(errors(), []);
+});
+
+// Where the workspace has the product off the press would switch the workspace: such a reader is
+// sent to an administrator instead, and offered no press.
+test('chromium: a hub owner who may not shape the workspace is not offered the workspace\'s switch', async (t) => {
+  const browser = await sharedChromium(t);
+  const { dialog, switches, errors } = await openForHub(browser, t, { workspaceOn: false, hubOff: false, workspaceTook: true }, { isHubOnly: true });
+
+  const banner = dialog.locator('[data-template-needs-modules]');
+  await banner.waitFor({ timeout: 10_000 });
+  assert.match(await banner.textContent(), /Ask an administrator of this workspace to switch it on/u);
+  assert.equal(await dialog.getByRole('button', { name: 'Switch on Plans and use this template' }).count(), 0, 'the reader is offered a switch the server refuses');
+  assert.deepEqual(switches(), []);
+  assert.deepEqual(errors(), []);
+});
 
 // A template taken for a collection: its products are needed in the collection's hub, so the
 // workspace part's apply and the switch name that hub, as for a hub (UC-INS-21 check 13).
