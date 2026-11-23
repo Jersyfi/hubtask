@@ -49,7 +49,7 @@ const keptComment = (id, body, device = 'another-device') => ({
 /**
  * The entry as the backend holds it, its history, the requests the reader's client sent, and the
  * change log. `refusePatches` makes it refuse that many writes, `refuseRead` the entry's read; a
- * write is answered only once `patchHeld` settles. A write against an older version than the one
+ * write is answered only once `patchHeld` settles, a read of the entry once `readHeld` settles. A write against an older version than the one
  * held is refused as the server refuses it (`version_conflict`, `ensureExpectedVersion`).
  */
 async function openEntry(browser, width, address = `/items/${ENTRY.id}`) {
@@ -59,7 +59,7 @@ async function openEntry(browser, width, address = `/items/${ENTRY.id}`) {
   const isNamed = new Promise((resolve) => (named = resolve));
   const state = {
     entry: ENTRY, sent: [], log: [], history: [], comments: [], pushed: [], isOffline: false, theirsAway: undefined, isNamed,
-    refusePatches: 0, stalePatches: 0, refuseRead: false, patchHeld: undefined, olderRefused: false, commentsRefused: false,
+    refusePatches: 0, stalePatches: 0, refuseRead: false, patchHeld: undefined, readHeld: undefined, olderRefused: false, commentsRefused: false,
     quiet: false, quieted: undefined,
   };
   let delivered = 0;
@@ -105,6 +105,7 @@ async function openEntry(browser, width, address = `/items/${ENTRY.id}`) {
     const record = method !== 'GET' ? { method, path, body: request.postDataJSON(), ifMatch: request.headers()['if-match'], status: 200 } : undefined;
     if (record) state.sent.push(record);
     if (path === `/items/${ENTRY.id}` && method === 'GET') {
+      if (state.readHeld) await state.readHeld;
       if (state.refuseRead) return route.fulfill(problem(429, 'rate_limited'));
       return route.fulfill({ json: state.entry, headers: { ETag: `"${state.entry.version}"` } });
     }
@@ -536,6 +537,40 @@ test('chromium: 1280 px — a description edited again while its save is on its 
   await notes.filter({ hasText: 'Measure the wall twice.' }).waitFor({ timeout: 5_000 })
     .catch(async () => assert.fail(`the editor shows ${await notes.textContent()}`));
   assert.equal((await notes.textContent())?.trim(), 'Measure the wall twice.');
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: 1280 px — a saved description is not drawn back to the text before it while the entry is read again (UC-SYN-02 check 10)', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, context, failures, state } = await openEntry(browser, 1280);
+  t.after(() => context.close());
+
+  const notes = page.getByRole('textbox', { name: 'Notes' });
+  await notes.filter({ hasText: ENTRY.notes }).waitFor({ timeout: 10_000 });
+  // Every text the editor draws, in order: a frame of the older text is one the reader saw.
+  await notes.evaluate((element) => {
+    window.notesDrawn = [];
+    new MutationObserver(() => {
+      const text = element.textContent.trim();
+      if (window.notesDrawn.at(-1) !== text) window.notesDrawn.push(text);
+    }).observe(element, { subtree: true, childList: true, characterData: true });
+  });
+  let release;
+  state.readHeld = new Promise((resolve) => (release = resolve));
+  const isEntryRead = (request) => request.method() === 'GET' && new URL(request.url()).pathname.endsWith(`/items/${ENTRY.id}`);
+  const reread = page.waitForRequest(isEntryRead, { timeout: 10_000 });
+  await notes.fill('Measure the wall.');
+  await page.locator('[data-tour="entry"]').getByRole('button', { name: 'Edit title' }).focus();
+  await reread;
+  await page.getByRole('status').filter({ hasText: 'Saved.' }).first().waitFor({ timeout: 10_000 });
+  const whileRead = (await notes.textContent())?.trim();
+  const landed = page.waitForResponse((response) => isEntryRead(response.request()), { timeout: 10_000 });
+  release();
+  await landed;
+  await notes.filter({ hasText: 'Measure the wall.' }).waitFor({ timeout: 5_000 });
+  assert.deepEqual(writes(state).map((each) => each.body), [{ notes: 'Measure the wall.' }]);
+  assert.equal(whileRead, 'Measure the wall.', 'the read before the save was drawn while the entry was read again');
+  assert.deepEqual(await page.evaluate(() => window.notesDrawn), ['Measure the wall.']);
   assert.deepEqual(failures, []);
 });
 

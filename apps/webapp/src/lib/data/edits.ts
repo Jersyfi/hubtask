@@ -74,3 +74,13 @@ export function inlineWriteOf(base: EntryDraft, mine: EntryDraft, theirs: EntryD
   if ('content_language' in own) edit.content_language = own.content_language;
   return { edit, conflicts };
 }
+
+/**
+ * The entry as an edit in place shows it: the latest read, unless the reader's own write answered
+ * a newer version - then that answer, until a read of that version or a later one lands. Let go
+ * after the write, the editor otherwise drew the read from before it until the read the write set
+ * off arrived. A queued write answers its prediction at the version it read, so it never wins here.
+ */
+export function entryShown<T extends { readonly id: string; readonly version: number }>(read: T | undefined, written: T | undefined): T | undefined {
+  return read && written && written.id === read.id && written.version > read.version ? written : read;
+}
