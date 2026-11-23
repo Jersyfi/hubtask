@@ -95,7 +95,8 @@ async function openEntry(browser, width, address = `/items/${ENTRY.id}`) {
       const frames = news.map((each, i) => `id: c-${delivered - news.length + i + 1}\ndata: ${JSON.stringify(each)}\n\n`).join('');
       return route.fulfill({ status: 200, contentType: 'text/event-stream', body: `retry: 250\n\n${frames}` });
     }
-    if (method !== 'GET') state.sent.push({ method, path, body: request.postDataJSON(), ifMatch: request.headers()['if-match'] });
+    const record = method !== 'GET' ? { method, path, body: request.postDataJSON(), ifMatch: request.headers()['if-match'], status: 200 } : undefined;
+    if (record) state.sent.push(record);
     if (path === `/items/${ENTRY.id}` && method === 'GET') {
       if (state.refuseRead) return route.fulfill(problem(429, 'rate_limited'));
       return route.fulfill({ json: state.entry, headers: { ETag: `"${state.entry.version}"` } });
@@ -109,6 +110,7 @@ async function openEntry(browser, width, address = `/items/${ENTRY.id}`) {
         state.entry = { ...state.entry, version: state.entry.version + 1 };
       }
       if (ifMatch && ifMatch !== `"${state.entry.version}"`) {
+        record.status = 409;
         return route.fulfill({
           status: 409, contentType: 'application/problem+json',
           json: {
@@ -120,6 +122,7 @@ async function openEntry(browser, width, address = `/items/${ENTRY.id}`) {
       }
       if (state.refusePatches > 0) {
         state.refusePatches -= 1;
+        record.status = 403;
         return route.fulfill(problem(403, 'forbidden'));
       }
       state.entry = { ...state.entry, ...request.postDataJSON(), version: state.entry.version + 1 };
@@ -168,6 +171,18 @@ async function openEntry(browser, width, address = `/items/${ENTRY.id}`) {
 const writes = (state) => state.sent
   .filter((each) => (each.method === 'PATCH' && each.path === `/items/${ENTRY.id}`) || (each.method === 'POST' && each.path.startsWith(`/items/${ENTRY.id}/comments`)))
   .map(({ method, path, body }) => ({ method, path, body }));
+
+/**
+ * The writes of the entry the stub took. A rename made before the app has read Mara's change goes
+ * out against the version it held and is refused as stale (`409`), which writes nothing; whether
+ * the stream's record or the keystroke comes first is the browser's timing, not the walk's.
+ */
+const accepted = (state) => state.sent
+  .filter((each) => each.method === 'PATCH' && each.path === `/items/${ENTRY.id}` && each.status < 400)
+  .map(({ method, path, body, ifMatch }) => ({ method, path, body, ifMatch }));
+
+/** Every write the stub refused was refused as stale, nothing else. */
+const refusedOnlyAsStale = (state) => state.sent.filter((each) => each.status >= 400).every((each) => each.status === 409);
 
 /** Types into the description, lets Mara change it to `theirs`, and leaves the field as a person tabs on. */
 async function typeWhileChanged(page, changeElsewhere, mine = MINE, theirs = THEIRS) {
@@ -317,7 +332,8 @@ for (const width of [1280, 390]) {
     await page.keyboard.press('Enter');
 
     await warningAbout(page, 'title', 'Order the tiles, bathroom first', 'Order the tiles, kitchen only');
-    assert.deepEqual(writes(state), [], 'the rename wrote over the other title');
+    assert.deepEqual(accepted(state), [], 'the rename wrote over the other title');
+    assert.ok(refusedOnlyAsStale(state), 'a write was refused for another reason');
     await page.waitForFunction(() => document.activeElement?.textContent?.trim() === 'Keep the saved version', null, { timeout: 5_000 })
       .catch(async () => assert.fail(`the focus starts on ${await focused(page)}`));
     await page.keyboard.press('Tab');
@@ -325,8 +341,7 @@ for (const width of [1280, 390]) {
     await page.keyboard.press('Enter');
 
     await page.getByRole('heading', { level: 1 }).getByText('Order the tiles, kitchen only').waitFor({ timeout: 10_000 });
-    assert.deepEqual(writes(state), [{ method: 'PATCH', path: `/items/${ENTRY.id}`, body: { title: 'Order the tiles, kitchen only' } }]);
-    assert.equal(state.sent.find((each) => each.method === 'PATCH').ifMatch, `"${ENTRY.version + 1}"`);
+    assert.deepEqual(accepted(state), [{ method: 'PATCH', path: `/items/${ENTRY.id}`, body: { title: 'Order the tiles, kitchen only' }, ifMatch: `"${ENTRY.version + 1}"` }]);
     assert.deepEqual(failures, []);
   });
 
@@ -371,7 +386,8 @@ for (const width of [1280, 390]) {
     assert.equal(await field.inputValue(), 'Order the tiles, kitchen only', 'the reader’s unsaved title is not in the field');
     await field.press('Enter');
     await warningAbout(page, 'title', 'Order the tiles, bathroom first', 'Order the tiles, kitchen only');
-    assert.deepEqual(writes(state), [], 'a title was written unasked');
+    assert.deepEqual(accepted(state), [], 'a title was written unasked');
+    assert.ok(refusedOnlyAsStale(state), 'a write was refused for another reason');
     assert.deepEqual(failures, []);
   });
 
@@ -396,10 +412,11 @@ for (const width of [1280, 390]) {
     await warningAbout(page, 'notes', THEIRS, MINE);
     await page.waitForFunction(() => document.activeElement?.textContent?.trim() === 'Keep the saved version', null, { timeout: 5_000 })
       .catch(async () => assert.fail(`the second question starts on ${await focused(page)}`));
-    assert.deepEqual(writes(state), [], 'something was written before the second answer');
+    assert.deepEqual(accepted(state), [], 'something was written before the second answer');
     await page.keyboard.press('Enter');
     await page.getByRole('alertdialog').waitFor({ state: 'hidden', timeout: 10_000 });
-    assert.deepEqual(writes(state), [{ method: 'PATCH', path: `/items/${ENTRY.id}`, body: { title: 'Order the tiles, kitchen only' } }]);
+    assert.deepEqual(accepted(state).map(({ body }) => body), [{ title: 'Order the tiles, kitchen only' }]);
+    assert.ok(refusedOnlyAsStale(state), 'a write was refused for another reason');
     assert.deepEqual(failures, []);
   });
 
@@ -546,10 +563,28 @@ for (const width of [1280, 390]) {
     assert.equal(await field.inputValue(), 'Order the tiles, bathroom first', 'the field reopened with the title the reader let go');
     await field.press('Escape');
     assert.equal(await page.getByRole('alertdialog').count(), 0, 'the saved title was asked about');
-    assert.deepEqual(writes(state), [], 'something was written');
+    assert.deepEqual(accepted(state), [], 'something was written');
+    assert.ok(refusedOnlyAsStale(state), 'a write was refused for another reason');
     assert.deepEqual(failures, []);
   });
 }
+
+test('chromium: 1280 px — a title renamed elsewhere that the stream has not brought yet: the rename is refused as stale and asked about (UC-SYN-02 check 10)', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, context, failures, state, changeSilently } = await openEntry(browser, 1280);
+  t.after(() => context.close());
+
+  await page.locator('[data-tour="entry"]').getByRole('button', { name: 'Edit title' }).click();
+  const field = page.getByRole('textbox', { name: 'Title', exact: true });
+  await field.fill('Order the tiles, kitchen only');
+  changeSilently({ title: 'Order the tiles, bathroom first' });
+  await field.press('Enter');
+  await warningAbout(page, 'title', 'Order the tiles, bathroom first', 'Order the tiles, kitchen only');
+  assert.deepEqual(state.sent.filter((each) => each.method === 'PATCH').map(({ body, status }) => ({ body, status })),
+    [{ body: { title: 'Order the tiles, kitchen only' }, status: 409 }], 'the rename was not one write refused as stale');
+  assert.equal(state.entry.title, 'Order the tiles, bathroom first');
+  assert.deepEqual(failures, []);
+});
 
 /**
  * The kept version at its address: marked, holding the focus, headed as a kept version that names
