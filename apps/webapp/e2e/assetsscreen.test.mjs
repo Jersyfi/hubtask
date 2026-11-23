@@ -395,7 +395,7 @@ for (const locale of ['en', 'de']) {
       if (route.request().method() !== 'PUT') return route.fallback();
       const body = route.request().postDataJSON();
       puts.push({ key: decodeURIComponent(new URL(route.request().url()).pathname.split('/').pop()), body });
-      return route.fulfill({ json: { key: puts.at(-1).key, ...body, owners: [], version: 1, created_at: '2026-11-23T09:00:00Z', updated_at: '2026-11-23T09:00:00Z' } });
+      return route.fulfill({ json: { id: '01a0e2e0-0000-7000-8000-0000000029c1', hub_id: HUB.id, key: puts.at(-1).key, name: body.name, filter: body.filter ?? {}, service_id: body.service_id ?? null, version: 1, updated_at: '2026-11-23T09:00:00Z' } });
     });
     const words = locale === 'de'
       ? { more: 'Weitere Wege ins Inventar', new: 'Neue Gruppe', key: 'Schlüssel', name: 'Name', stages: 'Phasen', types: 'Objekttypen', empty: 'Nichts gewählt', planned: 'Geplant', ordered: 'Bestellt', inUse: 'In Betrieb', save: 'Speichern', saved: 'Die Gruppe ist gespeichert.' }
