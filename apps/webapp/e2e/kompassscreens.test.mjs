@@ -221,6 +221,7 @@ test('All contents offers a new page where pages are on and a new whiteboard whe
   await both.head.getByRole('button', { name: 'New page' }).click();
   // The pages' own way in: the page is made at once and opened.
   await at(both.page, `/pages/${id(5000)}`);
+  await both.page.getByLabel('Title', { exact: true }).waitFor({ timeout: 15_000 });
   assert.equal(both.written.pages.length, 1, 'New page made no page');
   assert.equal(both.written.pages[0].hub_id, PD.id);
   assert.deepEqual(both.failures, []);

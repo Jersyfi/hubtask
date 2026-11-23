@@ -180,6 +180,7 @@ test('on a phone All contents offers a new page beside a new whiteboard where bo
   await bar(page).getByRole('button', { name: 'New page', exact: true }).click();
   await page.getByRole('menuitem', { name: 'New page' }).click();
   await at(page, `/pages/${id(5000)}`);
+  await page.getByLabel('Title', { exact: true }).waitFor({ timeout: 15_000 });
   assert.equal(written.pages.length, 1, 'New page made no page');
   assert.equal(written.pages[0].hub_id, PD.id);
   assert.deepEqual(failures, []);
