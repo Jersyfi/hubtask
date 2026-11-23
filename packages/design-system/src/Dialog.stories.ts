@@ -64,6 +64,13 @@ export const sizeL: Story = {
   args: { size: 'l' },
 };
 
+export const step: Story = {
+  name: 'A step of the page — choose a template',
+  about:
+    '`isStep` (L): a choice made in it is the page’s at once, so choosing a tile keeps it open and its way out is ‹ back to the page, named in words, not ✕. Below `medium` it is the whole screen: ‹ at the start of its bar, the title, *Done* at the end. Opening puts the focus in the search; closing gives it back to the button.',
+  args: { size: 'step' },
+};
+
 export const discard: Story = {
   name: 'Discard changes?',
   about:

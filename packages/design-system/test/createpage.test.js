@@ -37,3 +37,9 @@ test('the foot of a filled create page rides above the on-screen keyboard', () =
   assert.match(source, /window\.innerHeight - seen\.height - seen\.offsetTop/, 'the keyboard is measured from the visual viewport');
   assert.match(source, /style:inset-block-end=\{keyboardInset > 0 \? `\$\{keyboardInset\}px` : undefined\}/, 'the foot stands on it');
 });
+
+test('a dialog that is a step goes back with ‹ and its own name; every other keeps ✕ and the one name', () => {
+  const { markup } = parts(read('Dialog.svelte'));
+  assert.match(markup, /\{#if isStep\}[\s\S]*?<IconButton icon="chevron-left" label=\{dismissLabel\}/, 'a step’s way out is ‹, named in words');
+  assert.match(markup, /\{:else\}\s*<span class="dismiss"><IconButton icon="x" label=\{closeName\(\) \?\? dismissLabel\}/, 'every other dialog keeps ✕');
+});

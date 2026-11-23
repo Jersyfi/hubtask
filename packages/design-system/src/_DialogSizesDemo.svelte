@@ -5,6 +5,7 @@
   // confirmation over a changed one.
   import Button from './Button.svelte';
   import Checkbox from './Checkbox.svelte';
+  import ChoiceCards from './ChoiceCards.svelte';
   import Dialog from './Dialog.svelte';
   import Input from './Input.svelte';
   import Inline from './Inline.svelte';
@@ -13,7 +14,7 @@
   import Stack from './Stack.svelte';
   import Textarea from './Textarea.svelte';
 
-  const { size = 'm' }: { size?: 's' | 'm' | 'l' | 'discard' } = $props();
+  const { size = 'm' }: { size?: 's' | 'm' | 'l' | 'discard' | 'step' } = $props();
 
   let isOpen = $state(false);
   let isAsking = $state(false);
@@ -21,6 +22,13 @@
   const saved = 'Change Advisory Board';
 
   const people = ['Amelia Hughes', 'Mehmet Yılmaz', 'Sofia Rossi', 'Jonas Weber', 'Clara Neumann', 'Thomas Becker', 'Priya Natarajan', 'Lukas Brandt'];
+  const starts = [
+    { value: 'empty', label: 'Empty hub', summary: 'No template.', icon: 'plus' as const, isBlank: true },
+    { value: 'list', label: 'List', summary: 'A title and an amount, nothing else.', icon: 'list' as const },
+    { value: 'kanban', label: 'Kanban team', summary: 'Cards move across a board from To do to Done.', icon: 'columns-3' as const },
+    { value: 'scrum', label: 'Scrum team', summary: 'Stories and bugs from the backlog into sprints.', icon: 'columns-3' as const },
+  ];
+  let start = $state('empty');
   const roles = [
     { value: 'member', label: 'Member' },
     { value: 'admin', label: 'Administrator' },
@@ -30,7 +38,7 @@
 
 <Stack gap="200" align="start">
   <Button tone={size === 's' ? 'danger' : 'primary'} onclick={() => (isOpen = true)}>
-    {size === 's' ? 'Delete group…' : size === 'l' ? 'Add people to the group' : size === 'discard' ? 'Edit group' : 'Add people'}
+    {size === 's' ? 'Delete group…' : size === 'l' ? 'Add people to the group' : size === 'discard' ? 'Edit group' : size === 'step' ? `Choose a template (${starts.find((each) => each.value === start)?.label})` : 'Add people'}
   </Button>
 </Stack>
 
@@ -48,6 +56,11 @@
       {/each}
     </Stack>
     {#snippet actions()}<Button tone="subtle" onclick={() => (isOpen = false)}>Cancel</Button>{/snippet}
+  </Dialog>
+{:else if size === 'step'}
+  <Dialog bind:isOpen size="l" isStep title="Choose a template" dismissLabel="Back to the details" primary={{ label: 'Done', onclick: () => (isOpen = false) }}>
+    <SearchField label="Search templates" isLabelHidden clearLabel="Clear the search" />
+    <ChoiceCards label="Templates" isLabelHidden options={starts} mark="tick" layout="grid" bind:value={start} />
   </Dialog>
 {:else if size === 'discard'}
   <Dialog

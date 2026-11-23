@@ -84,6 +84,11 @@
     primary?: DialogAction;
     /** Asked before the person closes it without answering; `false` keeps it open. */
     onDismiss?: () => boolean;
+    /**
+     * Whether it is a step of the page under it rather than a question: a choice made in it is the
+     * page's at once, so its way out is *‹* back to the page, named by `dismissLabel` itself, not ✕.
+     */
+    isStep?: boolean;
     /** The control it hangs from instead of standing in the middle; it then draws no head. */
     hangsFrom?: HTMLElement;
     /**
@@ -105,6 +110,7 @@
     size,
     primary,
     onDismiss,
+    isStep = false,
     hangsFrom,
     isAlert = false,
     actions,
@@ -277,7 +283,12 @@
         </span>
       {/if}
       {#if dismissLabel}
-        <span class="dismiss"><IconButton icon="x" label={closeName() ?? dismissLabel} size="sm" onclick={() => dismiss()} /></span>
+        {#if isStep}
+          <!-- Not ✕ and not the overlays' one name: leaving a step abandons nothing. -->
+          <span class="dismiss"><IconButton icon="chevron-left" label={dismissLabel} size="sm" onclick={() => dismiss()} /></span>
+        {:else}
+          <span class="dismiss"><IconButton icon="x" label={closeName() ?? dismissLabel} size="sm" onclick={() => dismiss()} /></span>
+        {/if}
       {/if}
     </header>
     <div class="body" id={bodyId} bind:this={body}>{@render children()}</div>
