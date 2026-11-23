@@ -281,9 +281,10 @@
   .drop { color: var(--text-subtle); font-size: var(--fs-075); }
 
   /* A finger drops nothing: where the pointer is coarse the drop is not offered, and the button -
-     the way that always exists - stands alone. */
+     the way that always exists - stands alone. Unseen and out of the flow rather than `display:
+     none`, which has no box: the words keep their place in the row, so nothing reads as moved. */
   @media (pointer: coarse) {
-    .drop { display: none; }
+    .drop { position: absolute; visibility: hidden; inline-size: 0; overflow: hidden; }
   }
 
   .chosen { display: flex; flex-wrap: wrap; gap: var(--sp-100); margin: 0; min-width: 0; }
