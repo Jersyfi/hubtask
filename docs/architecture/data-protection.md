@@ -336,7 +336,9 @@ job coming back daily, and leaves that state through the operator's *Cancel dele
 
 1. **Recount and mark**, in one transaction: every live reference is recounted (the counter can
    drift) and what nothing points at is marked. Every read path refuses a marked object, so marking
-   cannot be undone.
+   cannot be undone. An object one of the workspace's pictures names is held by the database
+   itself: whatever an update writes, it keeps a count of at least its pictures, no stamp and no
+   mark (migration 0449), so a release that does not count those pictures cannot take one.
 2. **Remove the bytes**, outside any transaction
    ([observability-reliability.md](./observability-reliability.md) §8); an object whose bytes will
    not go keeps its row for the next pass.

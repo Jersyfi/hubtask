@@ -14,6 +14,14 @@
 -- neither reads nor writes, and a usage check that only widens - an older process never stages the
 -- new usage. The widened check is added NOT VALID and validated in 0450, outside a transaction;
 -- every existing row satisfies it, so the validation cannot fail.
+--
+-- The previous release's media reconciliation does not count a picture: its recount writes zero and
+-- a stamp, its pass then marks, its purge removes the row, and the cascade above takes the picture.
+-- That process runs during a rolling update and after a rollback, so the database holds the line
+-- itself: an object a picture names keeps a count of at least its pictures, no stamp and no mark,
+-- whichever release writes it (`media_object_keeps_workspace_picture`). The set clears a stamp from
+-- before with it. An object no picture names is untouched, so a replaced picture is reclaimed as
+-- before; a delete - a replace-restore, a tenant's removal - is not an update and is not held.
 
 -- +goose Up
 CREATE TABLE IF NOT EXISTS workspace_picture (
@@ -42,6 +50,32 @@ END $policy$;
 -- +goose StatementEnd
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON workspace_picture TO hubtask_app;
+
+-- +goose StatementBegin
+CREATE OR REPLACE FUNCTION media_object_keeps_workspace_picture() RETURNS trigger LANGUAGE plpgsql AS
+$$
+DECLARE
+  pictures int;
+BEGIN
+  SELECT count(*) INTO pictures FROM workspace_picture w WHERE w.tenant_id = NEW.tenant_id AND w.media_id = NEW.id;
+  IF pictures > 0 THEN
+    NEW.ref_count := GREATEST(NEW.ref_count, pictures);
+    NEW.unreferenced_since := NULL;
+    IF OLD.deleted_at IS NULL THEN
+      NEW.deleted_at := NULL;
+    END IF;
+  END IF;
+  RETURN NEW;
+END
+$$;
+-- +goose StatementEnd
+DROP TRIGGER IF EXISTS media_object_keeps_workspace_picture ON media_object;
+-- Only where a write would leave an object unreferenced, stamped or marked: the recount rewrites
+-- every live row, and a lookup for each would be a second scan.
+CREATE TRIGGER media_object_keeps_workspace_picture BEFORE UPDATE ON media_object
+  FOR EACH ROW
+  WHEN (NEW.ref_count < 1 OR NEW.unreferenced_since IS NOT NULL OR (NEW.deleted_at IS NOT NULL AND OLD.deleted_at IS NULL))
+  EXECUTE FUNCTION media_object_keeps_workspace_picture();
 
 ALTER TABLE media_object DROP CONSTRAINT IF EXISTS media_object_usage_check;
 ALTER TABLE media_object ADD CONSTRAINT media_object_usage_check

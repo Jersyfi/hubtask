@@ -2983,6 +2983,29 @@ CREATE TABLE workspace_picture (
 );
 CREATE INDEX workspace_picture_media_idx ON workspace_picture (tenant_id, media_id);
 
+-- An object a picture names keeps a count of at least its pictures, no stamp and no mark, whichever
+-- release's reconciliation writes it (migration 0449): the previous one does not count a picture.
+CREATE OR REPLACE FUNCTION media_object_keeps_workspace_picture() RETURNS trigger LANGUAGE plpgsql AS
+$$
+DECLARE
+  pictures int;
+BEGIN
+  SELECT count(*) INTO pictures FROM workspace_picture w WHERE w.tenant_id = NEW.tenant_id AND w.media_id = NEW.id;
+  IF pictures > 0 THEN
+    NEW.ref_count := GREATEST(NEW.ref_count, pictures);
+    NEW.unreferenced_since := NULL;
+    IF OLD.deleted_at IS NULL THEN
+      NEW.deleted_at := NULL;
+    END IF;
+  END IF;
+  RETURN NEW;
+END
+$$;
+CREATE TRIGGER media_object_keeps_workspace_picture BEFORE UPDATE ON media_object
+  FOR EACH ROW
+  WHEN (NEW.ref_count < 1 OR NEW.unreferenced_since IS NOT NULL OR (NEW.deleted_at IS NOT NULL AND OLD.deleted_at IS NULL))
+  EXECUTE FUNCTION media_object_keeps_workspace_picture();
+
 -- A member's confirmation that they read the notice of an access (migration 0448, UC-ID-16 check 10):
 -- one row per member per access, identifiers and a moment; gone with the access and with the account.
 CREATE TABLE private_hub_access_acknowledgement (
