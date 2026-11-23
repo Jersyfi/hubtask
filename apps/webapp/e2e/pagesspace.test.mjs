@@ -50,7 +50,8 @@ async function opened(browser, rows, width = 1280, { body = BODY, unpublished = 
     if (path === `/hubs/${HUB.id}/pages` && request.method() === 'POST') {
       return route.fulfill({ status: 201, json: { ...row(50, request.postDataJSON().title), body: request.postDataJSON().body, ancestors: [], writable: true, shared: false } });
     }
-    if (path === `/hubs/${HUB.id}/page-labels` || path === `/hubs/${HUB.id}/trashed-pages`) return route.fulfill({ json: empty });
+    if (path === `/hubs/${HUB.id}/page-labels`) return route.fulfill({ json: { data: [] } });
+    if (path === `/hubs/${HUB.id}/trashed-pages`) return route.fulfill({ json: empty });
     if (path === `/hubs/${HUB.id}/page-drafts`) return route.fulfill({ json: { hub_id: HUB.id, drafts: unpublished } });
     const one = rows.find((each) => path === `/pages/${each.id}`) ?? (path === `/pages/${id(50)}` ? row(50, 'Knowledge base') : undefined);
     if (one && request.method() === 'PATCH') {

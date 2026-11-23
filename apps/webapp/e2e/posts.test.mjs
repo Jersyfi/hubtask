@@ -177,7 +177,8 @@ async function opened(browser, { width = 1280, isPhone = false, modulesOn = ['KN
       } });
     }
     if (path === `/hubs/${HUB.id}/pages`) return route.fulfill({ json: empty });
-    if (path === `/hubs/${HUB.id}/page-labels` || path === `/hubs/${HUB.id}/trashed-pages`) return route.fulfill({ json: empty });
+    if (path === `/hubs/${HUB.id}/page-labels`) return route.fulfill({ json: { data: [] } });
+    if (path === `/hubs/${HUB.id}/trashed-pages`) return route.fulfill({ json: empty });
     if (path === `/hubs/${HUB.id}/page-drafts`) return route.fulfill({ json: { hub_id: HUB.id, drafts: false } });
     if (/^\/pages\/[^/]+\/(comments|versions|backlinks)$/.test(path)) return route.fulfill({ json: empty });
     if (/^\/pages\/[^/]+\/cover-images$/.test(path)) return route.fulfill({ json: { offered: false, pictures: [] } });
