@@ -7,7 +7,9 @@
   // dialog. Closed without confirming, they wait for the next opening of the app; confirmed, the
   // bar's mark and the hub's row carry them. No view draws a banner for them.
   //
-  // A notice that arrives while the app is open waits for the same kind of moment and is shown then.
+  // The list is read when the app opens and again after a confirmation; no change record is
+  // written for an emergency access, so one opened while the app is open is told at the next
+  // opening, at the same kind of moment.
 
   import { untrack } from 'svelte';
 
