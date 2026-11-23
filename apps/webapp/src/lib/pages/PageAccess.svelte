@@ -8,7 +8,7 @@
   // only its hash is kept.
 
   import { untrack } from 'svelte';
-  import { Badge, Button, Checkbox, CheckboxGroup, Dialog, Inline, Input, Select, Stack } from '@hubtask/design-system/components';
+  import { Badge, Button, Checkbox, Dialog, Inline, Input, MultiSelect, Select, Stack } from '@hubtask/design-system/components';
   import type { PageAccess, PageLanguageVariants, PageList, PageRead } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
@@ -18,6 +18,7 @@
   import { people } from '../data/people.svelte.ts';
   import { resource } from '../data/resource.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
+  import { chooseSeveral } from '../forms/chooseSeveral.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -184,7 +185,7 @@
 
       {#if page.writable}
         {#if isChoosing}
-          <CheckboxGroup label={t('app.pages.access_who')} options={readerOptions} selected={chosen} onChange={(next) => (chosen = next)} />
+          <MultiSelect label={t('app.pages.access_who')} options={readerOptions} selected={chosen} onChange={(next) => (chosen = next)} {...chooseSeveral()} />
           <Inline gap="100">
             <Button size="sm" tone="primary" onclick={restrict}>{t('app.pages.access_restrict_save')}</Button>
             <Button size="sm" tone="subtle" onclick={() => (isChoosing = false)}>{t('app.pages.cancel')}</Button>
