@@ -204,7 +204,7 @@ test('chromium: with several people and no private hub the page stays, with *Pri
   // The chip beside the switch says whose value it is (UC-WRK-32 check 5), and that it is this
   // workspace's own once it was switched here; the save confirms as a passing message. The chip's
   // words are the quiet *Default* (lib/data/source.ts).
-  await page.locator('[data-private-hubs-allowed]').getByRole('button', { name: 'Default', exact: true }).waitFor({ timeout: 10_000 });
+  await page.locator('[data-policy-switch="private_hubs"]').getByRole('button', { name: 'Default', exact: true }).waitFor({ timeout: 10_000 });
   await toggle.uncheck();
   await page.getByRole('button', { name: 'Set here' }).waitFor({ timeout: 10_000 });
   await page.getByText('Saved: who may make private hubs.').first().waitFor();
@@ -223,8 +223,8 @@ test('chromium: an installation lock shows the switch with who set it, and offer
   await toggle.waitFor({ timeout: 10_000 });
   assert.equal(await toggle.isChecked(), false);
   assert.equal(await toggle.isDisabled(), true);
-  assert.ok((await page.textContent('[data-private-hubs-allowed]')).includes('Set by the installation for every workspace.'));
-  assert.equal(await page.locator('[data-private-hubs-allowed] [data-source]').getAttribute('data-source'), 'INSTANCE-locked');
+  assert.ok((await page.textContent('[data-policy-switch="private_hubs"]')).includes('Set by the installation for every workspace.'));
+  assert.equal(await page.locator('[data-policy-switch="private_hubs"] [data-source]').getAttribute('data-source'), 'INSTANCE-locked');
   assert.deepEqual(failures, []);
 });
 
@@ -240,10 +240,10 @@ test('chromium: a plan lock shows the switch with your plan as who set it', asyn
   await toggle.waitFor({ timeout: 10_000 });
   assert.equal(await toggle.isChecked(), false);
   assert.equal(await toggle.isDisabled(), true);
-  const said = await page.textContent('[data-private-hubs-allowed]');
+  const said = await page.textContent('[data-policy-switch="private_hubs"]');
   assert.ok(said.includes('Set by your plan.'), said);
   assert.ok(!said.includes('installation'), said);
-  assert.equal(await page.locator('[data-private-hubs-allowed] [data-source]').getAttribute('data-source'), 'PLAN-locked');
+  assert.equal(await page.locator('[data-policy-switch="private_hubs"] [data-source]').getAttribute('data-source'), 'PLAN-locked');
   assert.deepEqual(failures, []);
 });
 
