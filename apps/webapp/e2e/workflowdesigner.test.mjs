@@ -100,8 +100,8 @@ for (const locale of ['en', 'de']) {
     });
     const page = await context.newPage();
     const words = locale === 'de'
-      ? { from: 'Geht aus von', who: 'Wer ihn gehen darf', roles: 'Rollen', groups: 'Gruppen', member: 'Mitglied', owner: 'Eigentümer', done: 'Fertig' }
-      : { from: 'Leaves from', who: 'Who may take it', roles: 'Roles', groups: 'Groups', member: 'Member', owner: 'Owner', done: 'Done' };
+      ? { from: 'Geht aus von', who: 'Wer ihn gehen darf', roles: 'Rollen', groups: 'Gruppen', member: 'Mitglied', owner: 'Eigentümer', done: 'Fertig', anyone: 'Alle, die den Eintrag ändern dürfen' }
+      : { from: 'Leaves from', who: 'Who may take it', roles: 'Roles', groups: 'Groups', member: 'Member', owner: 'Owner', done: 'Done', anyone: 'Anyone who may change the entry' };
 
     await page.goto(`${served.origin}/administration/workflows/${FROM_TEMPLATE.key}`);
     await page.getByText('In progress').first().waitFor({ timeout: 15_000 });
@@ -118,6 +118,8 @@ for (const locale of ['en', 'de']) {
     // Who may take it: one field, its list in two named groups.
     const who = dialog.getByRole('button', { name: new RegExp(`^${words.who}`, 'u') });
     assert.equal(await who.getAttribute('aria-haspopup'), 'listbox', 'who may take it is not one field');
+    // Nothing chosen limits nobody: the empty field says so, not "Nothing chosen".
+    assert.equal((await who.locator('.value').textContent()).trim(), words.anyone, 'the empty field does not say what it means');
     await who.focus();
     await page.keyboard.press('Enter');
     const list = page.getByRole('listbox', { name: words.who });

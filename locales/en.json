@@ -3154,6 +3154,8 @@
   "app.workflow_designer.who": "Who may take it",
   "app.workflow_designer.who_roles": "Roles",
   "app.workflow_designer.who_groups": "Groups",
+  "app.workflow_designer.who_anyone": "Anyone who may change the entry",
+  "app.workflow_designer.who_fields_only": "Only the person in the fields under Advanced",
   "app.workflow_designer.person_fields": "Or the person in these fields",
   "app.workflow_designer.person_fields_hint": "assignee, created_by or custom_fields.<key>, separated by commas.",
   "app.workflow_designer.who_condition": "Or when this holds",

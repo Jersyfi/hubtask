@@ -225,6 +225,7 @@
           selected={[...(step.who?.roles ?? []), ...(step.who?.groups ?? [])]}
           onChange={(next) => chooseWho(step, next)}
           {...chooseSeveral()}
+          emptyLabel={(step.who?.person_fields?.length ?? 0) > 0 ? t('app.workflow_designer.who_fields_only') : t('app.workflow_designer.who_anyone')}
         />
         <div data-step-approval={step.key}>
           <Switch

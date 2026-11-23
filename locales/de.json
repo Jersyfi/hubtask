@@ -3152,6 +3152,8 @@
   "app.workflow_designer.who": "Wer ihn gehen darf",
   "app.workflow_designer.who_roles": "Rollen",
   "app.workflow_designer.who_groups": "Gruppen",
+  "app.workflow_designer.who_anyone": "Alle, die den Eintrag ändern dürfen",
+  "app.workflow_designer.who_fields_only": "Nur die Person in den Feldern unter Erweitert",
   "app.workflow_designer.person_fields": "Oder die Person in diesen Feldern",
   "app.workflow_designer.person_fields_hint": "assignee, created_by oder custom_fields.<key>, durch Kommas getrennt.",
   "app.workflow_designer.who_condition": "Oder wenn das gilt",
