@@ -22,7 +22,6 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { live } from '../data/live.svelte.ts';
   import { pictureLimitOf } from '../data/media.ts';
-  import { chipCodes } from '../data/source.ts';
   import type { Setting } from '../data/signinpolicy.svelte.ts';
   import { formatBytes } from '../i18n/bytes.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -136,22 +135,15 @@
   const isLocked = $derived(!branding.allowed);
   /** Who switched it off: the lock's level, else the level whose value holds. */
   const origin = $derived(allowedBy ? (allowedBy.lock ?? allowedBy.source) : undefined);
-  const whomToAsk = $derived.by(() => {
-    if (!allowedBy) return undefined;
-    const chip = chipCodes({ source: origin, lock: origin === 'INSTANCE' || origin === 'PLAN' ? origin : null }, { operates: manifest.isInstanceReachable });
-    return chip?.whomToAsk ? t(chip.whomToAsk) : undefined;
-  });
 </script>
 
 <div class="branding" data-branding>
   <div class="group-label">{t('app.branding.group')}</div>
   {#if isLocked}
+    <!-- Who decided is said once, by the chip, as *Private hubs allowed* says it; its details say
+         whom to ask. -->
     <div class="locked" data-branding-locked={origin}>
-      <SettingRow
-        label={t('app.branding.locked_label')}
-        help={[t('app.branding.locked_hint'), whomToAsk].filter(Boolean).join(' ')}
-        lockReason={origin === 'INSTANCE' || origin === 'PLAN' || origin === 'WORKSPACE' ? t(`app.branding.locked_by_${origin}`) : undefined}
-      >
+      <SettingRow label={t('app.branding.own')} help={t('app.branding.locked_hint')}>
         {#snippet source()}
           {#if allowedBy}<ValueSource source={allowedBy.source} lock={allowedBy.lock} value={t('app.branding.locked_value')} />{/if}
         {/snippet}

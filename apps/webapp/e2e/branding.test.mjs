@@ -378,9 +378,10 @@ test('chromium: 1280 px — once the bytes are sent, Cancel gives way to what is
   assert.deepEqual(failures, []);
 });
 
-// UC-INS-22 checks 10 and 11: a lock from above leaves no control and names who set it.
-for (const [lock, words] of [['INSTANCE', 'Set by the installation for every workspace.'], ['PLAN', 'Set by your plan.']]) {
-  test(`chromium: 1280 px — switched off by the ${lock === 'INSTANCE' ? 'installation' : 'plan'}, the group names it and offers nothing`, async (t) => {
+// UC-INS-22 checks 10 and 11: a lock from above leaves no control and names who set it - once, by
+// the chip, as *Private hubs allowed* says it.
+for (const [lock, words, level] of [['INSTANCE', 'Locked by the installation', 'installation'], ['PLAN', 'Locked by your plan', 'plan']]) {
+  test(`chromium: 1280 px — switched off by the ${level}, the group names it once and offers nothing`, async (t) => {
     const browser = await sharedChromium(t);
     const { page, failures, close } = await open(browser, {
       held: { ...NONE, allowed: false },
@@ -392,6 +393,7 @@ for (const [lock, words] of [['INSTANCE', 'Set by the installation for every wor
     const said = await locked.innerText();
     assert.match(said, /Own logo and name/);
     assert.ok(said.includes(words), said);
+    assert.equal(said.split(level).length - 1, 1, `the level is said more than once: ${said}`);
     assert.match(said, /Not allowed/);
     assert.equal(await locked.locator('[data-source]').getAttribute('data-source'), `${lock}-locked`);
     assert.equal(await group(page).locator('input').count(), 0, 'a control is offered under a lock');
