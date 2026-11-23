@@ -336,8 +336,11 @@ export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, ad
 
 export const served = await serve(DIST);
 
-/** `ready` says when the page is up: the avatar by default; a phone's deeper step has the bar's ‹ instead. */
-export async function open(browser, { width = 1440, height = 900, path = '/', storage = {}, hasTouch = false, ready, ...options }) {
+/**
+ * `ready` says when the page is up: the avatar by default; a phone's deeper step has the bar's ‹ instead.
+ * `clock` installs Playwright's clock before the page loads, so every timer the page sets is one the walk can hold.
+ */
+export async function open(browser, { width = 1440, height = 900, path = '/', storage = {}, hasTouch = false, ready, clock = false, ...options }) {
   const context = await browser.newContext({ viewport: { width, height }, hasTouch });
   const { handler, written } = stubFor(options);
   await context.route('**/api/v1/**', handler);
@@ -349,6 +352,7 @@ export async function open(browser, { width = 1440, height = 900, path = '/', st
   const page = await context.newPage();
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
+  if (clock) await page.clock.install();
   await page.goto(`${served.origin}${path}`);
   await (ready ? ready(page) : page.getByRole('button', { name: ACCOUNT.display_name })).waitFor({ timeout: 15_000 });
   return { page, failures, written, close: () => context.close() };

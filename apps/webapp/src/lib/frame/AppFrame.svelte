@@ -23,7 +23,7 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { AppBar, Banner, BottomBar, Button, Icon, IconButton, Logo, Menu, NavDrawer, ResizeHandle, VisuallyHidden, createPeek, providePageBar, type PageBack } from '@hubtask/design-system/components';
+  import { AppBar, Banner, BottomBar, Button, Icon, IconButton, Logo, Menu, NavDrawer, ResizeHandle, VisuallyHidden, createPeek, peekDelayOf, providePageBar, type PageBack } from '@hubtask/design-system/components';
 
   import AccountMenu from './AccountMenu.svelte';
   import AppWorkspaces from './AppWorkspaces.svelte';
@@ -599,13 +599,14 @@
 
   /**
    * The rail's peek (§2.1): hovering the rail for `--dur-intent` opens the whole sidebar over the
-   * content, leaving it closes the peek. The delay is the token's, read from the document.
+   * content, leaving it closes the peek. The delay is the token's, read from the document. The
+   * aside's removal leaves too: a removed element gets no pointerleave, and a press held across a
+   * layout flip would otherwise keep the next peek from starting.
    */
   let isPeeking = $state(false);
   let peek: ReturnType<typeof createPeek> | undefined;
   $effect(() => {
-    const delay = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dur-intent')) || 0;
-    const made = createPeek(delay, (open) => (isPeeking = open));
+    const made = createPeek(peekDelayOf(getComputedStyle(document.documentElement)), (open) => (isPeeking = open));
     peek = made;
     return () => made.leave();
   });
@@ -895,8 +896,10 @@
           data-peek={isRail && isPeeking ? '' : undefined}
           data-tour={section ? undefined : 'hubs'}
           onpointerenter={() => isRail && !section && peek?.enter()}
+          onpointerdown={() => peek?.press()}
           onpointerleave={() => peek?.leave()}
           style:--nav-width={navWidth && !isRail ? `${navWidth}px` : undefined}
+          {@attach () => () => peek?.leave()}
         >
           {#if section}
             <!-- The section's own list, in place of the tree (ADR-0063 decision 7). The tour's

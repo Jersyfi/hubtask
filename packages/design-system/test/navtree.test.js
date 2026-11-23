@@ -19,6 +19,7 @@ import {
   indentOf,
   levelAtInline,
   moveIntent,
+  peekDelayOf,
   positionOf,
   rowsOf,
   zoneAt,
@@ -171,6 +172,39 @@ test('the peek opens after its delay and closes when the pointer leaves', () => 
   peek.leave();
   for (const fn of queue) fn?.();
   assert.deepEqual(seen, [true, false]);
+});
+
+test('a press on the rail cancels the pending peek, so it ends on the mark it began on', () => {
+  const queue = [];
+  const timers = { set: (fn) => (queue.push(fn), queue.length), clear: (handle) => (queue[handle - 1] = null) };
+  const seen = [];
+  const peek = createPeek(300, (open) => seen.push(open), timers);
+  peek.enter();
+  peek.press();
+  for (const fn of queue) fn?.();
+  assert.equal(peek.isOpen, false);
+  // Until the pointer leaves, nothing starts one: the button may still be down.
+  peek.enter();
+  for (const fn of queue) fn?.();
+  assert.deepEqual(seen, []);
+  // Leaving and coming back peeks as before.
+  peek.leave();
+  peek.enter();
+  queue.at(-1)?.();
+  assert.equal(peek.isOpen, true);
+  // A press inside the open peek leaves it open: its rows are what the press is for.
+  peek.press();
+  assert.equal(peek.isOpen, true);
+});
+
+test('the peek waits --dur-intent in milliseconds, in whichever unit the stylesheet writes it', () => {
+  const style = (value) => ({ getPropertyValue: (name) => (name === '--dur-intent' ? value : '') });
+  // The built stylesheet's minifier writes the token in seconds, as below.
+  assert.equal(peekDelayOf(style('.3s')), 300);
+  assert.equal(peekDelayOf(style(' 300ms')), 300);
+  // A missing token is read as no delay, as parseDuration reads every motion token. That is not a
+  // wanted delay: the walks of UC-WRK-36 check 8 fail on it.
+  assert.equal(peekDelayOf(style('')), 0);
 });
 
 test('the filter shows a match with its ancestors, and narrows by kind', () => {

@@ -115,6 +115,7 @@ export {
   indentOf,
   levelAtInline,
   moveIntent,
+  peekDelayOf,
   positionOf,
   rowsOf,
   zoneAt,

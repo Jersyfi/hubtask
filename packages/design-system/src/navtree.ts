@@ -13,6 +13,7 @@
 // as it is.
 
 import { flattenTree, type NavNode, type NavRow } from './structure.ts';
+import { parseDuration, type StyleSource } from './motion.ts';
 
 /** Travel before a press becomes a drag; below it a click stays a click (concept §5.4). */
 export const TREE_DRAG_THRESHOLD_PX = 4;
@@ -316,8 +317,18 @@ export function ancestorsOf(nodes: readonly TreeNode[], id: string): string[] {
 }
 
 /**
+ * How long the pointer rests on the rail before the peek opens: `--dur-intent`, in milliseconds.
+ * A missing token reads as no delay, as parseDuration reads every motion token; the peek's walk fails on it.
+ */
+export function peekDelayOf(style: StyleSource): number {
+  return parseDuration(style.getPropertyValue('--dur-intent'));
+}
+
+/**
  * The rail's peek: open after the pointer rests `delay` on the rail, close when it leaves both the
- * rail and the peek. Timers are injected, so the test runs it without a clock.
+ * rail and the peek. A press on the rail cancels a pending peek and none starts until the pointer
+ * leaves: the peek would draw the tree in place of the mark between press and release, and a press
+ * that ends on another element is no click. Timers are injected, so the test runs it without a clock.
  */
 export function createPeek(
   delay: number,
@@ -329,6 +340,7 @@ export function createPeek(
 ) {
   let pending: unknown = null;
   let isOpen = false;
+  let isPressed = false;
   const set = (open: boolean) => {
     if (open !== isOpen) {
       isOpen = open;
@@ -337,15 +349,21 @@ export function createPeek(
   };
   return {
     enter() {
-      if (isOpen || pending !== null) return;
+      if (isOpen || isPressed || pending !== null) return;
       pending = timers.set(() => {
         pending = null;
         set(true);
       }, delay);
     },
+    press() {
+      isPressed = true;
+      if (pending !== null) timers.clear(pending);
+      pending = null;
+    },
     leave() {
       if (pending !== null) timers.clear(pending);
       pending = null;
+      isPressed = false;
       set(false);
     },
     get isOpen() {
