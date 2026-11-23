@@ -30,7 +30,7 @@
   import { groupableFields, queryFields } from '../data/query.ts';
   import { lineOf, readQuery, type Names } from '../data/viewquery.ts';
   import QueryStrip from '../entries/QueryStrip.svelte';
-  import { chooseSeveral } from '../forms/chooseSeveral.ts';
+  import { FROM_DATA, chooseSeveral } from '../forms/chooseSeveral.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
@@ -311,7 +311,7 @@
     <Select label={t('app.dashboards.view')} hint={t('app.dashboards.view_hint')} bind:value={draft.viewId} placeholder={t('app.goals.kr_view_pick')}
       options={summaryViews.map((each) => ({ value: each.id, label: each.name }))} />
   {:else if draft.source === 'GOALS'}
-    <MultiSelect label={t('app.dashboards.goals')} hint={t('app.dashboards.goals_hint')} selected={draft.goalIds}
+    <MultiSelect label={t('app.dashboards.goals')} presentation={FROM_DATA} hint={t('app.dashboards.goals_hint')} selected={draft.goalIds}
       options={goals.map((each) => ({ value: each.id, label: each.title }))} onChange={(next) => (draft.goalIds = [...next])} {...chooseSeveral()} />
   {:else}
     <Select label={t('app.dashboards.summary_source')} bind:value={draft.summarySource}

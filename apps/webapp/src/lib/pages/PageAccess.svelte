@@ -18,7 +18,7 @@
   import { people } from '../data/people.svelte.ts';
   import { resource } from '../data/resource.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
-  import { chooseSeveral } from '../forms/chooseSeveral.ts';
+  import { FROM_DATA, chooseSeveral } from '../forms/chooseSeveral.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { Addresses } from '../people/addresses.svelte.ts';
   import { personOptions } from '../people/personOptions.ts';
@@ -196,7 +196,7 @@
 
       {#if page.writable}
         {#if isChoosing}
-          <MultiSelect label={t('app.pages.access_who')} options={readerOptions} selected={chosen} onChange={(next) => (chosen = next)} {...chooseSeveral()} />
+          <MultiSelect label={t('app.pages.access_who')} presentation={FROM_DATA} options={readerOptions} selected={chosen} onChange={(next) => (chosen = next)} {...chooseSeveral()} />
           <Inline gap="100">
             <Button size="sm" tone="primary" onclick={restrict}>{t('app.pages.access_restrict_save')}</Button>
             <Button size="sm" tone="subtle" onclick={() => (isChoosing = false)}>{t('app.pages.cancel')}</Button>

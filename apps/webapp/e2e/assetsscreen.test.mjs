@@ -412,7 +412,8 @@ for (const locale of ['en', 'de']) {
     assert.equal(await stages.count(), 1, 'the seven stages are not one field');
     assert.equal(await stages.getAttribute('aria-haspopup'), 'listbox');
     assert.equal(await valueOf(stages), words.empty);
-    assert.equal(await dialog.getByRole('group', { name: words.types }).getByRole('checkbox').count(), 1, 'one object type is not a tick');
+    // The object types come from the inventory's data: one field even for one (design-system.md §4).
+    assert.equal(await dialog.getByRole('button', { name: new RegExp(`^${words.types}`, 'u') }).getAttribute('aria-haspopup'), 'listbox', 'one object type is not one field');
 
     await stages.focus();
     await page.keyboard.press('Enter');

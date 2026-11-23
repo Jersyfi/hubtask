@@ -28,6 +28,7 @@ export { default as CheckboxGroup, type CheckboxOption } from './CheckboxGroup.s
 export { default as CodeField } from './CodeField.svelte';
 export { default as MultiSelect } from './MultiSelect.svelte';
 export type { ChoiceGroup, ChoiceOption, Presentation as MultiSelectPresentation, Summary as MultiSelectSummary } from './multiselect.ts';
+export { presentationOf as multiSelectPresentationOf } from './multiselect.ts';
 export { default as Dialog, type DialogAction } from './Dialog.svelte';
 export { default as Icon } from './Icon.svelte';
 export { default as Kbd } from './Kbd.svelte';

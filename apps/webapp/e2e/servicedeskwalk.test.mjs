@@ -139,7 +139,8 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
   const policyForm = page.getByRole('dialog').locator('form');
   await policyForm.getByLabel('Name').fill('Standard');
   // Types, the priority field and its targets are picked, never typed as keys (§5.4).
-  await policyForm.getByRole('checkbox', { name: 'Request' }).check();
+  // The workspace's types come from data: one field even for one (design-system.md §4).
+  await pick(page, policyForm.getByRole('button', { name: /^Entry types/u }), ['Request']);
   await policyForm.getByLabel('Priority field').selectOption('priority');
   await policyForm.getByLabel('First response at P1').fill('15');
   await policyForm.getByLabel('Calendar').selectOption({ label: 'Office hours' });

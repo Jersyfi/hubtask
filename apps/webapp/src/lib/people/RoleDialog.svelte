@@ -15,7 +15,7 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Button, Dialog, Disclosure, Input, MultiSelect, Stack } from '@hubtask/design-system/components';
+  import { Button, Dialog, Disclosure, Input, MultiSelect, Stack, type MultiSelectPresentation } from '@hubtask/design-system/components';
   import type { AccessExplanation, CustomRole } from '@hubtask/sync-engine';
 
   import FailureNote from '../frame/FailureNote.svelte';
@@ -27,7 +27,7 @@
   import { customFields } from '../data/customfields.svelte.ts';
   import { chosen, keyFrom, offers, ROLE_KEY, roles, type Offer } from '../data/roles.svelte.ts';
   import { workflows } from '../data/workflows.svelte.ts';
-  import { chooseSeveral } from '../forms/chooseSeveral.ts';
+  import { FROM_DATA, byCatalogue, chooseSeveral } from '../forms/chooseSeveral.ts';
   import { check, focusFirst, isComplete, type Missing } from '../forms/missing.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { permissionLabel } from './rolewords.ts';
@@ -117,6 +117,16 @@
     return out;
   });
 
+  /**
+   * One look per area, the same for every reader (design-system.md §4): the restricted fields and
+   * the steps grow with the workspace's data and are the field; any other area goes by its size
+   * in the catalogue, not by how many of it this reader holds.
+   */
+  function areaPresentation(group: string): MultiSelectPresentation {
+    if (group === 'fields' || group === 'workflows' || group === 'other') return FROM_DATA;
+    return byCatalogue((catalogue?.catalogue ?? []).filter((entry) => entry.kind === 'BASE' && entry.group === group).length);
+  }
+
   function areaLabel(group: string): string {
     const known = ['content', 'how_we_work', 'people', 'evidence', 'portal', 'fields', 'workflows'];
     return known.includes(group) ? t(`app.roles.area.${group}`) : group;
@@ -187,6 +197,7 @@
       {#each areas as area (area.group)}
         <MultiSelect
           label={areaLabel(area.group)}
+          presentation={areaPresentation(area.group)}
           options={area.offers.map((offer) => ({
             value: offer.permission,
             label: permissionLabel(offer.permission),

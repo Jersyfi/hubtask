@@ -14,7 +14,7 @@
   import { Button, Dialog, Disclosure, IconButton, Inline, Input, MultiSelect, Select, Stack, Switch } from '@hubtask/design-system/components';
   import type { WorkflowShape, WorkflowStep } from '@hubtask/sync-engine';
 
-  import { chooseSeveral } from '../forms/chooseSeveral.ts';
+  import { FROM_DATA, byCatalogue, chooseSeveral } from '../forms/chooseSeveral.ts';
   import {
     APPROVAL_RULES, CHECK_MESSAGE_CODES, addApprovalLevel, addStep, changeApproval, changeApprovalLevel, changeStep, notOffered, removeApprovalLevel,
     statusLabel, stepLabel, toggleApproval, whoWhenEmpty, type ApprovalLevel,
@@ -227,6 +227,7 @@
         </div>
         <MultiSelect
           label={t('app.workflow_designer.step_from')}
+          presentation={FROM_DATA}
           hint={t('app.workflow_designer.step_from_hint')}
           options={shapeNow.statuses.filter((status) => status.key !== step.to).map((status) => ({ value: status.key, label: statusLabel(status, t) }))}
           selected={step.from ?? []}
@@ -239,6 +240,7 @@
         <h3 class="heading" id={`step-who-${step.key}`}>{t('app.workflow_designer.who')}</h3>
         <MultiSelect
           label={t('app.workflow_designer.who')}
+          presentation={FROM_DATA}
           aria-labelledby={`step-who-${step.key}`}
           groups={[
             { label: t('app.workflow_designer.who_roles'), options: whoRoleOptions },
@@ -290,6 +292,7 @@
               {#if groups.all.length > 0}
                 <MultiSelect
                   label={t('app.approvals.groups')}
+                  presentation={FROM_DATA}
                   options={groupOptions}
                   selected={level.groups ?? []}
                   onChange={(next) => edit(changeApprovalLevel(shapeNow, step.key, index, { groups: [...next] }))}
@@ -299,6 +302,7 @@
               {#if level.rule === 'ANY' || level.rule === 'N_OF'}
                 <MultiSelect
                   label={t('app.approvals.roles')}
+                  presentation={byCatalogue(ROLES.length)}
                   options={roleOptions}
                   selected={level.roles ?? []}
                   onChange={(next) => edit(changeApprovalLevel(shapeNow, step.key, index, { roles: [...next] }))}

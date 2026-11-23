@@ -508,6 +508,37 @@ for (const [width, locale] of [[1280, 'en'], [390, 'de']]) {
   });
 }
 
+// The readers come from the hub's people: one field even for two (design-system.md §4), so the
+// panel does not change its look as the hub grows.
+test('the two readers a page may be restricted to are one field, not ticks, at 1280 (en)', async () => {
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, close } = await opened(browser, FULL, 1280);
+    await page.context().route('**/api/v1/**', async (route) => {
+      const url = new URL(route.request().url());
+      const path = url.pathname.replace('/api/v1', '');
+      if (path === '/memberships') {
+        const scope = url.searchParams.get('scope_type') ?? 'TENANT';
+        const rows = scope === 'TENANT' ? [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role: 'OWNER' }, { id: 'm1', scope_type: 'TENANT', account_id: READERS[0].id, role: 'MEMBER' }] : [];
+        return route.fulfill({ json: { data: rows, page: { next_cursor: null, has_more: false }, grantable_roles: [] } });
+      }
+      if (path === `/accounts/${READERS[0].id}`) return route.fulfill({ json: { ...ACCOUNT, ...READERS[0] } });
+      return route.fallback();
+    });
+    await page.goto(`${served.origin}/pages/${HOME.id}`);
+    await page.locator('[data-page-share]').click({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Restrict to fewer people' }).click({ timeout: 10_000 });
+    const field = page.getByRole('button', { name: /^Who may read this page/u });
+    await field.waitFor({ timeout: 5_000 });
+    assert.equal(await field.getAttribute('aria-haspopup'), 'listbox');
+    assert.equal(await page.getByRole('group', { name: 'Who may read this page' }).count(), 0, 'the readers are ticks');
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
 // Many readers (design-system.md §4): the reader stays first and locked, the others go by name,
 // each with the address the people list shows beside it, so two of one name are told apart; the
 // filter finds an address, and the one chosen by it is the one the page is restricted to.

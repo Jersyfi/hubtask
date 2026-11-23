@@ -233,7 +233,7 @@ two look and behave alike.
 ([ADR-0110](../adr/ADR-0110-one-multi-select-two-presentations.md)). `inline` is visible ticks that
 wrap, for up to five options; `field` is one closed button that says what is chosen and opens a
 checklist, for six or more; `presentation="auto"` decides by the count, and a screen forces one
-only where the other would hide what is read at a glance. The closed field shows the chosen as
+where the rules at the end of this paragraph say so. The closed field shows the chosen as
 chips - a summary, not buttons, cut after two lines with the count of the rest - or the caller's
 sentence ("All except Amount"), or its empty text. The open list is a multi-selectable listbox:
 groups by their heading, a line under an option that describes it and is never part of its name,
@@ -248,7 +248,11 @@ stays `CheckboxGroup`; a setting or a list of answers whose length the data deci
 `MultiSelect`. The people an entry is assigned to keep `AssigneeControl`, and its labels
 `LabelPicker`; choosing members or readers from a list of people is `MultiSelect`, by name, each
 person's address as the line where the reader may read it. A choice inside a panel that is itself
-a sheet on a phone is drawn inline: a field there would open a second sheet over it. One press emits one
+a sheet on a phone is drawn inline: a field there would open a second sheet over it. No place
+changes its look as data grows or by who opens it: a list that comes from data - people, groups,
+roles, statuses, entry types, hubs, restricted fields, workflow steps - is always the field, also
+for two options; a fixed catalogue follows `auto` by its full size, never by how many of it the
+reader is offered. One press emits one
 change; *All*, *None* and Ctrl+A emit one change with the whole list.
 
 `ChoiceCards` is `Radio` for a choice whose answers each need a sentence: native radios of one name

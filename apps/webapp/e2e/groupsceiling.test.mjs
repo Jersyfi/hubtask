@@ -251,6 +251,22 @@ test('chromium: 1280×720 - the list of thirty people stands beside its field, i
   assert.deepEqual(await openBeside(page), { coversField: false, insideViewport: true, endFocusesVisibleOption: true, behindScrolled: 0 });
 });
 
+// The people to add come from data: one field even for one person (design-system.md §4), so the
+// dialog does not change its look as the workspace grows.
+test('chromium: the one person to add is one field, not a tick', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, close } = await open(browser);
+  t.after(close);
+  await page.goto(`${served.origin}/administration/groups/${HELPERS.id}`);
+  await page.getByRole('button', { name: 'Add people' }).first().click({ timeout: 15_000 });
+  const dialog = page.getByRole('dialog', { name: 'Add people to Helpers' });
+  await dialog.waitFor({ timeout: 5_000 });
+  const field = dialog.getByRole('button', { name: /^Add somebody/u });
+  await field.waitFor({ timeout: 5_000 });
+  assert.equal(await field.getAttribute('aria-haspopup'), 'listbox');
+  assert.equal(await dialog.getByRole('checkbox').count(), 0, 'the people to add are ticks');
+});
+
 // Many people (design-system.md §4): the people to add are offered by name, each with the address
 // the people list shows beside it, so two of one name are told apart; the filter finds an address.
 // The address is read for an administrator who manages members, and the person chosen by it is

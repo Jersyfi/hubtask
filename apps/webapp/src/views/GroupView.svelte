@@ -49,7 +49,7 @@
   import { roles } from '../lib/data/roles.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
-  import { chooseSeveral } from '../lib/forms/chooseSeveral.ts';
+  import { FROM_DATA, chooseSeveral } from '../lib/forms/chooseSeveral.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -284,6 +284,7 @@
         <!-- The people this workspace already holds; the field's own filter narrows them. -->
         <MultiSelect
           label={t('app.groups.add_member')}
+          presentation={FROM_DATA}
           options={candidates}
           selected={picked}
           onChange={(next) => { picked = next; pickMissing = false; }}

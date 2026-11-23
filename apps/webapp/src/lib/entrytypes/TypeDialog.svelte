@@ -18,7 +18,7 @@
   import { type TranslationRow, languagesLeft, sameTranslations, translationRowsOf, translationsOf } from '../data/entrytypes.ts';
   import FailureNote from '../frame/FailureNote.svelte';
   import { toast } from '../frame/toasts.svelte.ts';
-  import { chooseSeveral } from '../forms/chooseSeveral.ts';
+  import { FROM_DATA, chooseSeveral } from '../forms/chooseSeveral.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { DiscardGuard } from '../page/discard.svelte.ts';
   import DiscardDialog from '../page/DiscardDialog.svelte';
@@ -182,6 +182,7 @@
         {#if childOptions.length > 0}
           <MultiSelect
             label={t('app.entry_types.allowed_children')}
+            presentation={FROM_DATA}
             hint={t('app.entry_types.allowed_children_hint')}
             options={childOptions}
             selected={draft.allowed}

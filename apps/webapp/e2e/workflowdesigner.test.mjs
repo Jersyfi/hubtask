@@ -14,7 +14,7 @@ import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, MANIFEST, PAGE, PERMISSIONS, forgetUnstubbed, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
-import { chipsOf, describedBy, focused, valueOf } from './several.mjs';
+import { chipsOf, describedBy, focused, pick, valueOf } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -67,7 +67,7 @@ const GROUPS = [
   { id: '01a0e2e0-0000-7000-8000-0000000012b2', name: 'Night shift', description: null, version: 1 },
 ];
 
-// A step's several-of-many (design-system.md §4): where it leaves from is ticks named by their
+// A step's several-of-many (design-system.md §4): where it leaves from is one field named by its
 // question; who may take it - five roles and the workspace's groups - is one field that opens a
 // grouped list. Escape closes the list and the dialog stays with what was chosen; the save sends
 // the roles in their order and the group, and leaves `from` as the ticks say.
@@ -113,10 +113,11 @@ for (const locale of ['en', 'de']) {
     const dialog = page.locator('dialog[open]');
     await dialog.locator('[data-step-dialog="start"]').waitFor({ timeout: 5_000 });
 
-    // Where it leaves from: two statuses, the design system's ticks, named by their question.
-    const from = dialog.getByRole('group', { name: words.from, exact: true });
-    assert.equal(await from.getByRole('checkbox').count(), 2, 'the statuses are not ticks of their own group');
-    await from.getByRole('checkbox', { name: 'Resolved' }).check();
+    // Where it leaves from: the workflow's statuses come from data, so they are one field even for
+    // two (design-system.md §4), named by their question.
+    const from = dialog.getByRole('button', { name: new RegExp(`^${words.from}`, 'u') });
+    assert.equal(await from.getAttribute('aria-haspopup'), 'listbox', 'the statuses are not one field');
+    assert.deepEqual(await pick(page, from, ['Resolved']), ['New', 'Resolved']);
 
     // Who may take it: one field, its list in two named groups.
     const who = dialog.getByRole('button', { name: new RegExp(`^${words.who}`, 'u') });
@@ -156,9 +157,47 @@ for (const locale of ['en', 'de']) {
     const whoAgain = dialog.getByRole('button', { name: new RegExp(`^${words.who}`, 'u') });
     await whoAgain.locator('.chips:not(.measure) .chip').nth(2).waitFor({ timeout: 5_000 });
     assert.deepEqual(await chipsOf(whoAgain), [words.owner, words.member, 'Night shift'], 'the saved draft does not carry who may take the step');
-    assert.equal(await dialog.getByRole('group', { name: words.from, exact: true }).getByRole('checkbox', { name: 'Resolved' }).isChecked(), true, 'the saved draft does not carry where it leaves from');
+    assert.deepEqual(await chipsOf(dialog.getByRole('button', { name: new RegExp(`^${words.from}`, 'u') })), ['New', 'Resolved'], 'the saved draft does not carry where it leaves from');
   });
 }
+
+// No place changes its look as data grows (design-system.md §4): with no group in the workspace
+// and three statuses, where a step leaves from and who may take it are still one field each; a
+// level's five roles, a fixed catalogue, are ticks.
+test('chromium: 1280 px - a step\'s lists from data are fields with few, a level\'s roles ticks', async (t) => {
+  const browser = await sharedChromium(t);
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  forgetUnstubbed();
+  const flow = { ...FROM_TEMPLATE, published: { ...shape, steps: [{ ...shape.steps[0], approval: { levels: [{ rule: 'ANY', roles: [], groups: [], people: [] }] } }, shape.steps[1]] } };
+  await context.route('**/api/v1/**', async (route) => {
+    const url = new URL(route.request().url());
+    const path = url.pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: PERMISSIONS.OWNER } });
+    if (path === '/memberships') {
+      const rows = url.searchParams.get('scope_type') === 'TENANT' ? [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role: 'OWNER' }] : [];
+      return route.fulfill({ json: { ...PAGE, data: rows, grantable_roles: [] } });
+    }
+    if (path === '/groups') return route.fulfill({ json: { ...PAGE, data: [] } });
+    if (path === '/workflows') return route.fulfill({ json: { data: [SHIPPED, flow], scheme: [] } });
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/workflows/${flow.key}`);
+  await page.getByText('In progress').first().waitFor({ timeout: 15_000 });
+  await page.locator('button.press').filter({ hasText: 'In progress' }).last().click();
+  const dialog = page.locator('dialog[open]');
+  await dialog.locator('[data-step-dialog="start"]').waitFor({ timeout: 5_000 });
+  assert.equal(await dialog.getByRole('button', { name: /^Leaves from/u }).getAttribute('aria-haspopup'), 'listbox', 'two statuses to leave from are not one field');
+  const who = dialog.getByRole('button', { name: /^Who may take it/u });
+  assert.equal(await who.getAttribute('aria-haspopup'), 'listbox', 'without groups, who may take it is not one field');
+  assert.equal(await valueOf(who), 'Anyone who may change the entry');
+  assert.equal(await dialog.getByRole('group', { name: 'Roles along the entry\'s path', exact: true }).getByRole('checkbox').count(), 5, 'a level\'s five roles are not ticks');
+});
 
 // An empty *Who may take it* is true of the step (`StepWho.IsOpen`): "anyone" only where roles,
 // person fields, groups and condition are all empty. A role key or a group the list does not

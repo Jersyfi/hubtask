@@ -257,3 +257,43 @@ for (const locale of ['en', 'de']) {
     assert.equal(created[0].name, 'Planner');
   });
 }
+
+/** The role dialog opened by a reader who holds `role` on the workspace. */
+async function roleDialog(browser, role) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/u, '');
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: PERMISSIONS[role] } });
+    if (path === '/roles' && request.method() === 'GET') {
+      return route.fulfill({ json: { ...ROLE_CATALOGUE, catalogue: ROLE_CATALOGUE.catalogue.map((entry) => ({ ...entry, group: AREAS[entry.permission] ?? 'content' })) } });
+    }
+    if (path === '/access/explain') {
+      return route.fulfill({ json: { account_id: ACCOUNT.id, scope_type: 'TENANT', roles: [role], permissions: PERMISSIONS[role], sources: [] } });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/people?tab=roles`);
+  await page.getByRole('button', { name: 'New role', exact: true }).first().click({ timeout: 15_000 });
+  const dialog = page.getByRole('dialog', { name: 'New role' });
+  await dialog.waitFor({ timeout: 5_000 });
+  await dialog.getByRole('button', { name: /^Content/u }).or(dialog.getByRole('group', { name: 'Content', exact: true })).first().waitFor({ timeout: 5_000 });
+  return { page, dialog, close: () => context.close() };
+}
+
+// One look per area, the same for every reader (design-system.md §4): *Content* goes by its six
+// in the catalogue, so an administrator, who holds five of them, sees the field an owner sees.
+for (const role of ['OWNER', 'ADMIN']) {
+  test(`chromium: a role's areas look the same for an ${role === 'OWNER' ? 'owner' : 'administrator'}`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { dialog, close } = await roleDialog(browser, role);
+    t.after(close);
+    assert.equal(await dialog.getByRole('button', { name: /^Content/u }).getAttribute('aria-haspopup'), 'listbox', 'Content is not one field');
+    assert.equal(await dialog.getByRole('group', { name: 'People', exact: true }).getByRole('checkbox').count(), 2, 'People are not ticks');
+  });
+}

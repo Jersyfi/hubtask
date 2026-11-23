@@ -9,7 +9,7 @@
   import { untrack } from 'svelte';
 
   import { groups } from '../data/groups.svelte.ts';
-  import { chooseSeveral } from '../forms/chooseSeveral.ts';
+  import { FROM_DATA, chooseSeveral } from '../forms/chooseSeveral.ts';
   import { t } from '../i18n/i18n.svelte.ts';
 
   export type Sharing = 'PRIVATE' | 'SCOPE' | 'GROUPS';
@@ -30,7 +30,7 @@
   <Select label={t('app.dashboards.col_sharing')} hint={t('app.dashboards.sharing_hint')} bind:value={sharing}
     options={(['PRIVATE', 'SCOPE', 'GROUPS'] as const).map((value) => ({ value, label: t(`app.dashboards.sharing_${value}`) }))} />
   {#if sharing === 'GROUPS'}
-    <MultiSelect label={t('app.dashboards.groups')} hint={groups.all.length === 0 ? t('app.dashboards.groups_none') : undefined}
+    <MultiSelect label={t('app.dashboards.groups')} presentation={FROM_DATA} hint={groups.all.length === 0 ? t('app.dashboards.groups_none') : undefined}
       error={groupIds.length === 0 ? t('app.dashboards.groups_needed') : undefined}
       options={groups.all.map((group) => ({ value: group.id, label: group.name }))}
       selected={groupIds} onChange={(next) => { groupIds = [...next]; }} {...chooseSeveral()} />

@@ -16,7 +16,7 @@
   import { SHIPPED_ROLES, agents, draftOf, scopeChoices, scopeWordCode, scopesFrom, scopesTicked, type AgentDraft } from '../data/agents.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { people } from '../data/people.svelte.ts';
-  import { chooseSeveral } from '../forms/chooseSeveral.ts';
+  import { byCatalogue, chooseSeveral } from '../forms/chooseSeveral.ts';
   import FailureNote from '../frame/FailureNote.svelte';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -145,6 +145,7 @@
             <MultiSelect
               label={t('app.agents.scopes')}
               hint={t('app.agents.scopes_pick_hint')}
+              presentation={byCatalogue(scopeChoices(manifest.value?.token_scopes ?? [], []).length)}
               options={scopeOptions}
               selected={scopesFrom(draft.scopes)}
               onChange={(next) => { if (draft) draft.scopes = scopesTicked(draft.scopes, scopeOffered, next); }}
