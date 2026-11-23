@@ -29,7 +29,10 @@ too. One mechanism serves all three.
 * **Contents:** every catalogue setting and every building block (the building blocks of `domain-model.md`) — never content
   (entries, comments, pages' text; templates' sample entries and the titles of templates' pages
   excepted and marked), never a secret
-  (a sealed secret is referenced by name).
+  (a sealed secret is referenced by name). Of a workspace's own name and logo the document carries
+  the switch `sign_in.own_branding`, as `private_hubs`; neither the pictures nor what the header
+  shows - they name media objects no second workspace holds, and the workspace's name is not in the
+  document either.
 * **Stable keys, not identifiers.** Blocks are named by keys (`types.incident`,
   `workflows.service_standard.steps.resolve`); the server maps keys to identifiers, so a document
   applies to a second workspace unchanged. A rule's `entries`, its *for which entries* line
