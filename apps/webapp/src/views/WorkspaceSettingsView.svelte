@@ -33,7 +33,7 @@
   // a test of the connection before the choice is saved. A server inside a private network is
   // refused by the installation's outbound guard; the test says so with its reason.
   //
-  // **Logo and header** (UC-INS-22, decision G5): a group under the name, not a page of its own. A
+  // **Logo and app bar** (UC-INS-22, decision G5): a group under the name, not a page of its own. A
   // picture is set by choosing it; what the header shows travels with the section's save bar, as
   // the name does, and is a second write beside the name's.
   //

@@ -1579,8 +1579,8 @@ opening the same dialog. In the toolbar is the one *Views* menu: the saved views
 on screen, renaming, sharing or deleting a view, exporting the list as it is filtered, and the
 calendar subscriptions; the page menu carries none of them.
 
-**A workspace's own logo** (UC-INS-22). Its group under the name, *Logo and header*, draws the
-header twice, each bar inside its own `data-theme` so a light and a dark surface stand side by side
+**A workspace's own logo** (UC-INS-22). Its group under the name, *Logo and app bar*, draws the
+app bar twice, each inside its own `data-theme` so a light and a dark surface stand side by side
 whatever the reader's theme; then the choice as `Radio` - *Logo only* unavailable with its reason
 until a logo or the symbol exists -; then one row per picture: an `UploadField` target while there
 is none, otherwise the picture on its surface beside *Replace* (`UploadField` `button`) and

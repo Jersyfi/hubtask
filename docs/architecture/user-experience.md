@@ -614,8 +614,8 @@ nobody pays a press for the gallery. Every door to it - the navigation, the pale
   The desk's, the time's and the assets' settings, each its home's last tab, stand on it too - one
   section at a time, never a second row of tabs - and the home's head keeps its create act there.
   The inventory's object type tree shows its families, each deeper branch folded until opened.
-* **A workspace's own logo** (UC-INS-22, ADR-0112) is the group *Logo and header* inside *Workspace →
-  Name and look*, not a page of its own: a preview of the header on a light and a dark surface,
+* **A workspace's own logo** (UC-INS-22, ADR-0112) is the group *Logo and app bar* inside *Workspace →
+  Name and look*, not a page of its own: a preview of the app bar on a light and a dark surface,
   the choice of what it shows (saved with the section), then the logo for light, the logo for dark
   and the square symbol, each set by choosing a file. Where the installation or a plan switched it
   off, the group is one row with no control that names who did. Every member then meets the choice

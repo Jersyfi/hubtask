@@ -192,11 +192,11 @@ test('chromium: 1280 px — the three pictures are uploaded, previewed on both s
   const { page, sent, failures, close } = await open(browser);
   t.after(close);
 
-  await group(page).getByText('Logo and header').waitFor({ timeout: 15_000 });
+  await group(page).getByText('Logo and app bar').waitFor({ timeout: 15_000 });
   // Nothing uploaded: both bars show the product, and the logo alone is not offered, with why.
   assert.equal(await preview(page, 'light').getAttribute('aria-label'), 'Hubtask');
   assert.equal(await preview(page, 'dark').getAttribute('aria-label'), 'Hubtask');
-  const choice = page.getByRole('group', { name: 'What the header shows' });
+  const choice = page.getByRole('group', { name: 'What the app bar shows' });
   assert.equal(await choice.getByRole('radio', { name: 'Logo only' }).isDisabled(), true);
   assert.match(await choice.innerText(), /Upload a logo or a symbol first\./);
   assert.match(await row(page, 'LOGO_LIGHT').innerText(), /PNG, JPEG, GIF or WebP, at most 5 MB/);
@@ -258,7 +258,7 @@ test('chromium: 1280 px — a refused file is said at its picture, and the pictu
   const browser = await sharedChromium(t);
   const { page, sent, failures, close } = await open(browser, { refuse: { SYMBOL: 'media.workspace_logo_not_an_image' } });
   t.after(close);
-  await group(page).getByText('Logo and header').waitFor({ timeout: 15_000 });
+  await group(page).getByText('Logo and app bar').waitFor({ timeout: 15_000 });
 
   await upload(page, 'LOGO_LIGHT', { name: 'nordlicht.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>') });
   await row(page, 'LOGO_LIGHT').getByText('This is not a PNG, JPEG, GIF or WebP picture. Hubtask does not take SVG files; save the logo as a PNG.').waitFor({ timeout: 5_000 });
@@ -286,8 +286,8 @@ test('chromium: 1280 px — removing the last picture returns the header to the 
   const browser = await sharedChromium(t);
   const { page, sent, failures, close } = await open(browser, { held: { ...NONE, header: 'LOGO', symbol_media_id: IDS[3] }, bytes: { [IDS[3]]: TEAL } });
   t.after(close);
-  await group(page).getByText('Logo and header').waitFor({ timeout: 15_000 });
-  const choice = page.getByRole('group', { name: 'What the header shows' });
+  await group(page).getByText('Logo and app bar').waitFor({ timeout: 15_000 });
+  const choice = page.getByRole('group', { name: 'What the app bar shows' });
   assert.equal(await choice.getByRole('radio', { name: 'Logo only' }).isChecked(), true);
   // The symbol alone stands in for the logo on both bars, and in the header itself, named by the workspace.
   await page.locator('[data-preview="dark"] img').waitFor({ timeout: 10_000 });
@@ -295,7 +295,7 @@ test('chromium: 1280 px — removing the last picture returns the header to the 
   await homeLink(page, WORKSPACE.display_name).waitFor();
 
   await row(page, 'SYMBOL').getByRole('button', { name: 'Remove' }).click();
-  await page.getByText('Removed. Without a picture, the header shows the product\'s name again.').first().waitFor({ timeout: 10_000 });
+  await page.getByText('Removed. Without a picture, the app bar shows the product\'s name again.').first().waitFor({ timeout: 10_000 });
   assert.deepEqual(sent, [['DELETE /tenant/branding/SYMBOL', undefined]]);
   await choice.getByRole('radio', { name: 'Product name' }).and(page.locator(':checked')).waitFor({ timeout: 10_000 });
   assert.equal(await choice.getByRole('radio', { name: 'Logo only' }).isDisabled(), true);
@@ -326,7 +326,7 @@ test('chromium: 1280 px — a stored picture that cannot be read keeps Replace a
     assert.equal(await row(page, picture).getByRole('button', { name: 'Remove' }).count(), 1, `${picture} offers no Remove`);
     assert.doesNotMatch(said, /Choose logo|drop it here/, `${picture} reads as empty`);
   }
-  const choice = page.getByRole('group', { name: 'What the header shows' });
+  const choice = page.getByRole('group', { name: 'What the app bar shows' });
   assert.equal(await choice.getByRole('radio', { name: 'Logo only' }).isChecked(), true);
   // Both bars fall back past the two logos to the symbol, the one that can be drawn, and say so.
   for (const surface of ['light', 'dark']) {
@@ -366,7 +366,7 @@ test('chromium: 1280 px — once the bytes are sent, Cancel gives way to what is
   const browser = await sharedChromium(t);
   const { page, sent, failures, release, close } = await open(browser, { slowConfirm: true });
   t.after(close);
-  await group(page).getByText('Logo and header').waitFor({ timeout: 15_000 });
+  await group(page).getByText('Logo and app bar').waitFor({ timeout: 15_000 });
   await upload(page, 'SYMBOL', { name: 'mark.png', mimeType: 'image/png', buffer: TEAL });
   await row(page, 'SYMBOL').getByText('Uploaded; setting the picture. This can no longer be cancelled.').waitFor({ timeout: 10_000 });
   assert.deepEqual(sent, [['POST /media', 'WORKSPACE_LOGO'], ['PUT bytes'], ['confirm']]);
@@ -416,7 +416,7 @@ test('chromium: 390 px — the preview stacks its two surfaces, and every pictur
   const { page, failures, close, state } = await open(browser, { width: 390, height: 844, held: { ...NONE, logo_light_media_id: IDS[3] } });
   state.bytes[IDS[3]] = NAVY;
   t.after(close);
-  await group(page).getByText('Logo and header').waitFor({ timeout: 15_000 });
+  await group(page).getByText('Logo and app bar').waitFor({ timeout: 15_000 });
   const light = await page.locator('[data-preview="light"]').boundingBox();
   const dark = await page.locator('[data-preview="dark"]').boundingBox();
   assert.ok(light && dark && dark.y >= light.y + light.height, 'the surfaces stand side by side');
@@ -432,7 +432,7 @@ test('chromium: 1280 px — Tab reaches the choice and each picture in reading o
   const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser);
   t.after(close);
-  await group(page).getByText('Logo and header').waitFor({ timeout: 15_000 });
+  await group(page).getByText('Logo and app bar').waitFor({ timeout: 15_000 });
   await page.getByRole('textbox', { name: 'Name' }).focus();
   const reached = [];
   for (let step = 0; step < 8; step += 1) {
@@ -451,9 +451,9 @@ test('chromium: 1280 px — in German, the group speaks du and names its limits'
   const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { locale: 'de' });
   t.after(close);
-  await group(page).getByText('Logo und Kopfzeile').waitFor({ timeout: 15_000 });
+  await group(page).getByText('Logo und Anwendungsleiste').waitFor({ timeout: 15_000 });
   const said = await group(page).innerText();
-  for (const words of ['Vorschau der Kopfzeile', 'Was die Kopfzeile zeigt', 'Nur das Logo', 'Lade zuerst ein Logo oder ein Symbol hoch.', 'Logo für helle Oberflächen', 'PNG, JPEG, GIF oder WebP, höchstens 5 MB', 'Logo wählen', 'Quadratisches Symbol', 'Symbol wählen']) {
+  for (const words of ['Vorschau der Anwendungsleiste', 'Was die Anwendungsleiste zeigt', 'Nur das Logo', 'Lade zuerst ein Logo oder ein Symbol hoch.', 'Logo für helle Oberflächen', 'PNG, JPEG, GIF oder WebP, höchstens 5 MB', 'Logo wählen', 'Quadratisches Symbol', 'Symbol wählen']) {
     assert.ok(said.includes(words), `${words} is missing`);
   }
   assert.deepEqual(failures, []);

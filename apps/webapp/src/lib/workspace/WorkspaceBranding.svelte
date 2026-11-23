@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // *Logo and header*, the group under the workspace's name (UC-INS-22 checks 1 to 4, 10 and 11;
+  // *Logo and app bar*, the group under the workspace's name (UC-INS-22 checks 1 to 4, 10 and 11;
   // the approved draft's scene 1, decision G5): a preview of the header on a light and on a dark
   // surface side by side, the choice of what it shows, then the three pictures. The choice is saved
   // with the section's save bar; a picture is set by choosing it.

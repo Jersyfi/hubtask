@@ -206,7 +206,7 @@ test('chromium: the header\'s choice saved on one client reaches the other\'s he
   other.page.on('load', () => (reloads += 1));
 
   await admin.page.goto(`${served.origin}/administration/workspace/name`);
-  await admin.page.getByRole('group', { name: 'What the header shows' }).getByRole('radio', { name: 'Workspace name' }).check({ timeout: 15_000 });
+  await admin.page.getByRole('group', { name: 'What the app bar shows' }).getByRole('radio', { name: 'Workspace name' }).check({ timeout: 15_000 });
   await admin.page.getByRole('button', { name: 'Save', exact: true }).click();
 
   // The other device read the workspace again on its record: its own name, two letters beside it.
@@ -232,7 +232,7 @@ test("chromium: a guest of one hub sees the workspace's name, and the choice sav
   await guest.page.waitForFunction((name) => document.title.endsWith(`– ${name}`), WORKSPACE.display_name, { timeout: 15_000 });
 
   await admin.page.goto(`${served.origin}/administration/workspace/name`);
-  await admin.page.getByRole('group', { name: 'What the header shows' }).getByRole('radio', { name: 'Product name' }).check({ timeout: 15_000 });
+  await admin.page.getByRole('group', { name: 'What the app bar shows' }).getByRole('radio', { name: 'Product name' }).check({ timeout: 15_000 });
   await admin.page.getByRole('button', { name: 'Save', exact: true }).click();
 
   // The guest's client read the look again on the workspace's record, and never the set-up.
