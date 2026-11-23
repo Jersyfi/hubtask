@@ -37,6 +37,17 @@ for that party, not a loophole.
 * **Whoever may change the workspace's name** sets the pictures and the choice (STRUCTURE at the
   workspace). Every change is in the workspace's trail with the media object's identifier, never
   its file name or content.
+* **Before sign-in, at the workspace's own address only.** The sign-in rules carry the choice and
+  the pictures it draws, and one public read serves exactly those pictures, streamed by the
+  application as the image they were stored as, under an address that changes with the picture.
+  Only where the address itself names the workspace: the installation's own address, a header
+  naming a workspace included, shows the product's mark, so the read tells nobody more than the
+  rules at that address already do (`security.md` T-34).
+* **Other devices learn of it through the workspace's `setting` record** (decided 2026-11-23, O3).
+  A change of the name, a picture, the choice or the switch writes the record the module switches
+  write, with the same content and the same receivers
+  ([ADR-0108](./ADR-0108-a-module-switch-and-a-board-comment-are-change-records.md)), and a
+  client reads the workspace again on it. Not a record kind of its own: more protocol for one read.
 * **Not in this cut:** an installation-wide branding, colours and fonts, a favicon, a mail head,
   the installed apps' names and icons. The product's name and version stay readable on the about
   page.
@@ -54,5 +65,7 @@ for that party, not a loophole.
 
 The workspace's answer carries `branding`; the media usage `WORKSPACE_LOGO` exists; every member
 reads the pictures the workspace shows. The archive carries the pictures after the media
-(`workspace_pictures`) and the choice with the workspace's settings. Showing the pictures before
-sign-in and on other devices is a separate step.
+(`workspace_pictures`) and the choice with the workspace's settings. `SignInRules` carries
+`workspace_header` and `workspace_pictures`, `GET /auth/workspace-pictures/{mediaId}` serves them,
+and the workspace's `setting` record is written at every such change. The configuration document
+carries the switch and not the choice, which names pictures no second workspace holds.

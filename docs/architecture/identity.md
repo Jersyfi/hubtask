@@ -178,6 +178,12 @@ reaches a hash only when the password is next set.
 * `GET /auth/sign-in-rules` is public like sign-in (workspace as in §3): the methods, the providers,
   what a password must meet and the legal links — nothing a guesser could use (no expiry, history
   depth, timeouts or lists).
+* At an address that names a workspace the rules also carry what the card shows of the workspace's
+  own name and logo (`workspace_header`, `workspace_pictures`, §18), and
+  `GET /auth/workspace-pictures/{mediaId}` serves those pictures and no other, streamed as the image
+  they were stored as and cacheable by their identifier. The installation's own address - with a
+  header naming a workspace too - and a workspace that shows the product's name carry neither;
+  every other picture is one `404` ([security.md](./security.md) T-34).
 * Each rule is a message code with parameters (`auth.password_rule.*`); a refused password carries
   one per violated rule in `field_errors[]`.
 * `POST /auth/password:check` answers, as rule ids, what only the server knows — lists, breach
