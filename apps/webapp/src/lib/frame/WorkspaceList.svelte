@@ -12,6 +12,8 @@
   import { Badge, Button, IconButton, Menu } from '@hubtask/design-system/components';
 
   import { t } from '../i18n/i18n.svelte.ts';
+  // Two letters, a mark and not a picture, so no two workspaces look alike by colour.
+  import { initialsOf } from '../workspace/branding.ts';
 
   /** A row: the browser's entry and whether it answers, or an installed app's workspace. */
   interface Row {
@@ -39,21 +41,13 @@
   }
 
   const { rows, here, isHome = false, onopen, onforget, onsignin, forgetLabel }: Props = $props();
-
-  /** First and last word's first letter: a mark, not a picture, so no two workspaces look alike by colour. */
-  function initials(name: string): string {
-    const words = name.trim().split(/\s+/).filter(Boolean);
-    const first = [...(words[0] ?? '')][0] ?? '';
-    const last = words.length > 1 ? ([...(words[words.length - 1] ?? '')][0] ?? '') : '';
-    return `${first}${last}`.toUpperCase();
-  }
 </script>
 
 <ul class="list">
   {#each rows as row (row.entry)}
     {@const isGone = row.answers === false}
     <li class:gone={isGone}>
-      <span class="mark" aria-hidden="true">{initials(row.name)}</span>
+      <span class="mark" aria-hidden="true">{initialsOf(row.name)}</span>
       <div class="grow">
         <span class="name">{row.name}</span>
         <span class="address">{row.host}</span>
