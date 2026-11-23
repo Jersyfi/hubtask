@@ -13,7 +13,7 @@
   // members, the members' heading says why. The roles listed are what the workspace's memberships
   // and its own roles' grants say the group holds - read, not changed, here.
 
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
 
   import {
     Button,
@@ -38,6 +38,7 @@
   import { tabPath } from '../lib/people/peoplepage.ts';
   import { roleLabel } from '../lib/people/rolewords.ts';
   import { Addresses } from '../lib/people/addresses.svelte.ts';
+  import { focusFirst } from '../lib/forms/missing.ts';
   import { personOptions } from '../lib/people/personOptions.ts';
   import { DiscardGuard } from '../lib/page/discard.svelte.ts';
   import DiscardDialog from '../lib/page/DiscardDialog.svelte';
@@ -149,6 +150,9 @@
   async function addPicked(): Promise<void> {
     if (picked.length === 0) {
       pickMissing = true;
+      // The field the error stands on takes focus, as a form's missing answer does.
+      await tick();
+      focusFirst(document.querySelector('dialog[open]'));
       return;
     }
     const count = picked.length;

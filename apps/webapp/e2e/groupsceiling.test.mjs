@@ -15,7 +15,7 @@ import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, OTHER, PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
-import { chipsOf, focused, openBeside, pick, valueOf } from './several.mjs';
+import { chipsOf, describedBy, focused, openBeside, pick, valueOf } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const ADMIN_GRANTS = ['ADMIN', 'MEMBER', 'CONTRIBUTOR', 'VIEWER', 'GUEST', 'AUDITOR'];
@@ -265,6 +265,13 @@ test('chromium: the one person to add is one field, not a tick', async (t) => {
   await field.waitFor({ timeout: 5_000 });
   assert.equal(await field.getAttribute('aria-haspopup'), 'listbox');
   assert.equal(await dialog.getByRole('checkbox').count(), 0, 'the people to add are ticks');
+
+  // *Add* with nobody chosen: the field is marked and described by the error, and takes focus.
+  await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('dialog[open] .multiselect[data-invalid]') !== null, null, { timeout: 5_000 }).catch(() => {});
+  assert.equal(await field.evaluate((node) => node.closest('.multiselect')?.hasAttribute('data-invalid')), true, 'the field is not marked');
+  assert.match(await describedBy(field), /Choose at least one person\./u);
+  assert.match(await focused(page), /^button "Add somebody /u, 'focus did not move to the field');
 });
 
 // Many people (design-system.md §4): the people to add are offered by name, each with the address

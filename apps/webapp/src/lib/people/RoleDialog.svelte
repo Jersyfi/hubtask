@@ -194,10 +194,13 @@
         </Disclosure>
       {/if}
       <p class="quiet small">{t('app.roles.offered_hint')}</p>
-      {#each areas as area (area.group)}
+      <!-- A role without a permission is wrong as a whole: the error is said once, on the first
+           area, where the save moves focus (design-system.md §4, case 3). -->
+      {#each areas as area, index (area.group)}
         <MultiSelect
           label={areaLabel(area.group)}
           presentation={areaPresentation(area.group)}
+          error={index === 0 && missing.permissions && chosen(offered, new Set(checked), carried).length === 0 ? t(missing.permissions) : undefined}
           options={area.offers.map((offer) => ({
             value: offer.permission,
             label: permissionLabel(offer.permission),
@@ -211,9 +214,6 @@
           {...chooseSeveral()}
         />
       {/each}
-      {#if missing.permissions && chosen(offered, new Set(checked), carried).length === 0}
-        <p class="error small">{t(missing.permissions)}</p>
-      {/if}
       {#if changing}
         {#key changing.key}
           <DraftPublish section="roles" key={changing.key}
@@ -239,5 +239,4 @@
   form { margin: 0; }
   .quiet { margin: 0; color: var(--text-secondary); }
   .small { font-size: var(--fs-075); }
-  .error { margin: 0; color: var(--text-danger); }
 </style>

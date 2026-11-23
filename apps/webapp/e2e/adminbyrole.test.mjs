@@ -22,7 +22,7 @@ import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, MANIFEST, PERMISSIONS, ROLE_CATALOGUE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
-import { chipsOf, focused, pick, valueOf } from './several.mjs';
+import { chipsOf, describedBy, focused, pick, valueOf } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -297,3 +297,18 @@ for (const role of ['OWNER', 'ADMIN']) {
     assert.equal(await dialog.getByRole('group', { name: 'People', exact: true }).getByRole('checkbox').count(), 2, 'People are not ticks');
   });
 }
+
+// A role defined without a permission (design-system.md §4, case 3): the error stands on the first
+// area's control, which is marked and described by it, and focus moves there, as in a token's form.
+test('chromium: a role without a permission marks the first area and takes focus there', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, dialog, close } = await roleDialog(browser, 'OWNER');
+  t.after(close);
+  await dialog.getByLabel(/^Name/u).first().fill('Planner');
+  await dialog.getByRole('button', { name: 'Define the role' }).click();
+  const content = dialog.getByRole('button', { name: /^Content/u });
+  await page.waitForFunction(() => document.querySelector('dialog[open] .multiselect[data-invalid]') !== null, null, { timeout: 5_000 }).catch(() => {});
+  assert.equal(await content.evaluate((node) => node.closest('.multiselect')?.hasAttribute('data-invalid')), true, 'the area is not marked');
+  assert.match(await describedBy(content), /Choose at least one permission\./u);
+  assert.match(await focused(page), /^button "Content /u, 'focus did not move to the area');
+});
