@@ -507,3 +507,64 @@ for (const [width, locale] of [[1280, 'en'], [390, 'de']]) {
     }
   });
 }
+
+// Many readers (design-system.md §4): the reader stays first and locked, the others go by name,
+// each with the address the people list shows beside it, so two of one name are told apart; the
+// filter finds an address, and the one chosen by it is the one the page is restricted to.
+const NAMESAKES = [['Zoe Lind', 'zoe@example.com'], ['Ada Kern', 'ada@north.example'], ['Ben Ott', null], ['Ada Kern', 'ada.kern@south.example'], ['Emil Haas', null], ['Frida Lang', null], ['Greta Sommer', null]]
+  .map(([name, email], at) => ({ id: `01a0e2e0-0000-7000-8000-0000000004${String(at).padStart(2, '0')}`, display_name: name, email }));
+test('the readers go by name, two of one name told apart by their address, at 1280 (en)', async () => {
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, written, close } = await opened(browser, FULL, 1280);
+    await page.context().route('**/api/v1/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      const path = url.pathname.replace('/api/v1', '');
+      if (path === '/memberships') {
+        const scope = url.searchParams.get('scope_type') ?? 'TENANT';
+        const rows = scope === 'TENANT' ? [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role: 'OWNER' }, ...NAMESAKES.map((each) => ({ id: `m-${each.id}`, scope_type: 'TENANT', account_id: each.id, role: 'MEMBER' }))] : [];
+        return route.fulfill({ json: { data: rows, page: { next_cursor: null, has_more: false }, grantable_roles: [] } });
+      }
+      if (path === '/accounts:sign-in-details') {
+        const ids = request.postDataJSON().ids;
+        return route.fulfill({ json: { data: NAMESAKES.filter((each) => ids.includes(each.id)).map((each) => ({ account_id: each.id, email: each.email, authenticator_app: false })) } });
+      }
+      const reader = NAMESAKES.find((each) => path === `/accounts/${each.id}`);
+      if (reader) return route.fulfill({ json: { id: reader.id, kind: 'USER', display_name: reader.display_name, status: 'ACTIVE' } });
+      if (path === `/pages/${HOME.id}:restrict`) {
+        written.push({ method: 'POST', path, body: request.postDataJSON() });
+        return route.fulfill({ json: { ...HOME, restricted: true, ancestors: [], writable: true, shared: false } });
+      }
+      return route.fallback();
+    });
+    await page.goto(`${served.origin}/pages/${HOME.id}`);
+    await page.locator('[data-page-share]').click({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Restrict to fewer people' }).click({ timeout: 10_000 });
+    const field = page.getByRole('button', { name: /^Who may read this page/u });
+    await field.click();
+    const list = page.getByRole('listbox', { name: 'Who may read this page' });
+    await list.waitFor({ timeout: 5_000 });
+    const lines = () => list.getByRole('option').evaluateAll((options) => options.map((option) => [
+      document.getElementById(option.getAttribute('aria-labelledby'))?.textContent?.trim(),
+      (option.getAttribute('aria-describedby') ?? '').split(' ').filter(Boolean).map((id) => document.getElementById(id)?.textContent?.trim()).filter((line) => line.includes('@')).join(' '),
+    ]));
+    await page.waitForFunction(() => [...document.querySelectorAll('[role="listbox"] [role="option"]')].filter((option) => option.textContent.includes('@')).length >= 3, null, { timeout: 5_000 });
+    assert.deepEqual(await lines(), [
+      [`${ACCOUNT.display_name} (you)`, ''], ['Ada Kern', 'ada.kern@south.example'], ['Ada Kern', 'ada@north.example'], ['Ben Ott', ''], ['Emil Haas', ''],
+      ['Frida Lang', ''], ['Greta Sommer', ''], ['Zoe Lind', 'zoe@example.com'],
+    ], 'the readers are not the reader first and then by name, or two of one name cannot be told apart');
+    await page.getByRole('searchbox', { name: 'Filter the list' }).fill('south');
+    await list.getByRole('option', { name: 'Ada Kern', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await list.waitFor({ state: 'detached', timeout: 5_000 });
+    await page.getByRole('button', { name: 'Restrict', exact: true }).click();
+    await page.getByText('The page is restricted.').first().waitFor({ timeout: 5_000 });
+    const sent = written.find((write) => write.path === `/pages/${HOME.id}:restrict`);
+    assert.deepEqual(sent?.body, { account_ids: [ACCOUNT.id, NAMESAKES[3].id] }, 'the Ada of the address chosen is not the one sent');
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});

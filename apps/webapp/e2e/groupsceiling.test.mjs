@@ -251,3 +251,78 @@ test('chromium: 1280×720 - the list of thirty people stands beside its field, i
   assert.deepEqual(await openBeside(page), { coversField: false, insideViewport: true, endFocusesVisibleOption: true, behindScrolled: 0 });
 });
 
+// Many people (design-system.md §4): the people to add are offered by name, each with the address
+// the people list shows beside it, so two of one name are told apart; the filter finds an address.
+// The address is read for an administrator who manages members, and the person chosen by it is
+// the one added - in the request and on the page.
+test('chromium: 1280 px - the people to add go by name, two of one name told apart by their address', async (t) => {
+  const browser = await sharedChromium(t);
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  const people = [['Zoe Lind', 'zoe@example.com'], ['Ada Kern', 'ada@north.example'], ['Ben Ott', null], ['Ada Kern', 'ada.kern@south.example'], ['Emil Haas', null], ['Frida Lang', null], ['Greta Sommer', null]]
+    .map(([name, email], at) => ({ ...OTHER, id: `01a0e2e0-0000-7000-8000-0000000003${String(at).padStart(2, '0')}`, display_name: name, email }));
+  const patches = [];
+  const asked = [];
+  let members = [OTHER.id];
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const path = url.pathname.replace(/^.*\/api\/v1/u, '');
+    if (path === '/memberships' && url.searchParams.get('scope_type') === 'TENANT') {
+      return route.fulfill({ json: { ...PAGE, data: [
+        { id: 'm-owner', scope_type: 'TENANT', account_id: OTHER.id, role: 'OWNER' },
+        { id: 'm-me', scope_type: 'TENANT', account_id: ACCOUNT.id, role: 'ADMIN' },
+        ...people.map((person) => ({ id: `m-${person.id}`, scope_type: 'TENANT', account_id: person.id, role: 'MEMBER' })),
+      ], grantable_roles: ADMIN_GRANTS } });
+    }
+    if (path === '/accounts:sign-in-details') {
+      const ids = request.postDataJSON().ids;
+      asked.push(...ids);
+      return route.fulfill({ json: { data: people.filter((each) => ids.includes(each.id)).map((each) => ({ account_id: each.id, email: each.email, authenticator_app: false })) } });
+    }
+    const person = people.find((each) => path === `/accounts/${each.id}`);
+    if (person) return route.fulfill({ json: { id: person.id, kind: 'USER', display_name: person.display_name, status: 'ACTIVE' } });
+    if (path === `/accounts/${OTHER.id}`) return route.fulfill({ json: OTHER });
+    if (path === '/groups') return route.fulfill({ json: { ...PAGE, data: [HELPERS] } });
+    if (path === `/groups/${HELPERS.id}` && request.method() === 'PATCH') {
+      patches.push(request.postDataJSON());
+      members = request.postDataJSON().members;
+      return route.fulfill({ json: { ...HELPERS, members, members_changeable: true, version: 2 } });
+    }
+    if (path === `/groups/${HELPERS.id}`) return route.fulfill({ json: { ...HELPERS, members, members_changeable: true } });
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/groups/${HELPERS.id}`);
+  await page.getByRole('button', { name: 'Add people' }).first().click({ timeout: 15_000 });
+  const dialog = page.getByRole('dialog', { name: 'Add people to Helpers' });
+  await dialog.waitFor({ timeout: 5_000 });
+  const field = dialog.getByRole('button', { name: /^Add somebody/u });
+  await field.click();
+  const list = page.getByRole('listbox', { name: 'Add somebody' });
+  await list.waitFor({ timeout: 5_000 });
+  const lines = () => list.getByRole('option').evaluateAll((options) => options.map((option) => [
+    document.getElementById(option.getAttribute('aria-labelledby'))?.textContent?.trim(),
+    (option.getAttribute('aria-describedby') ?? '').split(' ').filter(Boolean).map((id) => document.getElementById(id)?.textContent?.trim()).join(' '),
+  ]));
+  await page.waitForFunction(() => document.querySelectorAll('[role="listbox"] [role="option"][aria-describedby]').length >= 3, null, { timeout: 5_000 });
+  assert.deepEqual(await lines(), [
+    ['Ada Kern', 'ada.kern@south.example'], ['Ada Kern', 'ada@north.example'], ['Ben Ott', ''], ['Emil Haas', ''], ['Frida Lang', ''],
+    ['Greta Sommer', ''], [ACCOUNT.display_name, ''], ['Zoe Lind', 'zoe@example.com'],
+  ],'the people are not by name, or two of one name cannot be told apart');
+  assert.ok(people.every((each) => asked.includes(each.id)), 'the addresses were not asked for');
+  await page.getByRole('searchbox', { name: 'Filter the list' }).fill('north');
+  await list.getByRole('option').first().waitFor({ timeout: 5_000 });
+  assert.deepEqual(await lines(), [['Ada Kern', 'ada@north.example']], 'the filter does not find an address');
+  await list.getByRole('option', { name: 'Ada Kern', exact: true }).click();
+  await page.keyboard.press('Escape');
+  await list.waitFor({ state: 'detached', timeout: 5_000 });
+  await dialog.getByRole('button', { name: 'Add 1 person' }).click();
+  await dialog.waitFor({ state: 'detached', timeout: 5_000 });
+  assert.deepEqual(patches, [{ members: [OTHER.id, people[1].id] }], 'the Ada of the address chosen is not the one added');
+  await page.getByRole('main').getByRole('link', { name: 'Ada Kern', exact: true }).waitFor({ timeout: 5_000 });
+});

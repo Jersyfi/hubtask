@@ -37,6 +37,8 @@
   import EditGroupDialog from '../lib/people/EditGroupDialog.svelte';
   import { tabPath } from '../lib/people/peoplepage.ts';
   import { roleLabel } from '../lib/people/rolewords.ts';
+  import { Addresses } from '../lib/people/addresses.svelte.ts';
+  import { personOptions } from '../lib/people/personOptions.ts';
   import { DiscardGuard } from '../lib/page/discard.svelte.ts';
   import DiscardDialog from '../lib/page/DiscardDialog.svelte';
   import { accounts } from '../lib/data/accounts.svelte.ts';
@@ -126,11 +128,15 @@
   let isAdding = $state(false);
   let picked = $state<readonly string[]>([]);
   let pickMissing = $state(false);
+  // By name, each with the address the people list shows beside it: a workspace of many has two of
+  // one name, and the list's filter finds an address as well.
+  const addresses = new Addresses();
+  const candidateIds = $derived(people.candidates({}).filter((accountId) => !members.includes(accountId)));
+  $effect(() => {
+    if (isAdding) addresses.read(candidateIds);
+  });
   const candidates = $derived(
-    people
-      .candidates({})
-      .filter((accountId) => !members.includes(accountId))
-      .map((accountId) => ({ value: accountId, label: nameFor(accountId) })),
+    personOptions(candidateIds, { nameOf: nameFor, addressOf: (id) => addresses.of(id), locale: messages.locale }),
   );
   const addGuard = new DiscardGuard(() => picked.length > 0, () => closeAdding());
 

@@ -43,6 +43,8 @@ but nothing for a list whose length the data decides.
 ## Consequences
 
 Every hand-made tick row and checkbox loop moves to `MultiSelect` or stays `CheckboxGroup`, screen
-by screen. People and labels keep `AssigneeControl` and `LabelPicker`. What a screen reader
+by screen. The people an entry is assigned to keep `AssigneeControl`, and its labels
+`LabelPicker`; members or readers chosen from a list of people are `MultiSelect` (a page's readers
+need a lock on one person, which `AssigneeControl` has not). What a screen reader
 announces for a locked, selected option (`aria-disabled` with `aria-selected`) is not tested with
 one.

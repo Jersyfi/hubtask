@@ -20,6 +20,8 @@
   import { toast } from '../frame/toasts.svelte.ts';
   import { chooseSeveral } from '../forms/chooseSeveral.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { Addresses } from '../people/addresses.svelte.ts';
+  import { personOptions } from '../people/personOptions.ts';
   import { renderProblem } from '../problem.ts';
 
   interface Props {
@@ -54,12 +56,21 @@
   let chosen = $state<readonly string[]>([]);
   const self = $derived(actor.account?.id ?? '');
   const hubReaders = $derived(people.candidates({ hubId }));
+  // The reader first and locked; the others by name, each with the address the people list shows
+  // beside it, so that two of one name are told apart and the filter finds an address.
+  const addresses = new Addresses();
+  $effect(() => {
+    if (isChoosing) addresses.read(hubReaders);
+  });
   const readerOptions = $derived(
-    [...new Set([self, ...hubReaders])].filter(Boolean).map((id) => ({
-      value: id,
-      label: id === self ? t('app.pages.access_you', { name: nameOf(id) }) : nameOf(id),
-      ...(id === self ? { disabledReason: t('app.pages.access_you_stay') } : {}),
-    })),
+    personOptions(
+      [self, ...hubReaders].filter(Boolean),
+      { nameOf, addressOf: (id) => addresses.of(id), locale: messages.locale },
+      {
+        first: self,
+        extra: (id) => (id === self ? { label: t('app.pages.access_you', { name: nameOf(id) }), disabledReason: t('app.pages.access_you_stay') } : {}),
+      },
+    ),
   );
 
   function startRestrict() {

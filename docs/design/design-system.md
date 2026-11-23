@@ -245,7 +245,9 @@ the `Popover`'s bottom sheet, rows a thumb's height, with *Done*. `size="md"` dr
 `CheckboxGroup` does, `size="sm"` as a setting row's denser ones. **Which of the two a screen
 uses:** a form's question with a few fixed answers whose fieldset and legend a reader should hear
 stays `CheckboxGroup`; a setting or a list of answers whose length the data decides is
-`MultiSelect`, and people and labels keep `AssigneeControl` and `LabelPicker`. One press emits one
+`MultiSelect`. The people an entry is assigned to keep `AssigneeControl`, and its labels
+`LabelPicker`; choosing members or readers from a list of people is `MultiSelect`, by name, each
+person's address as the line where the reader may read it. One press emits one
 change; *All*, *None* and Ctrl+A emit one change with the whole list.
 
 `ChoiceCards` is `Radio` for a choice whose answers each need a sentence: native radios of one name
