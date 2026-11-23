@@ -15,6 +15,7 @@ import { sharedChromium } from './browser.mjs';
 import { serve } from './serve.mjs';
 import { ACCOUNT, COLLECTION, HUB, OTHER } from './fixture.mjs';
 import { ids, productWalk } from './productwalk.mjs';
+import { chipsOf, describedBy, focused, pick } from './several.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -846,3 +847,64 @@ test('chromium: a widget counting the workspace opens the search with its line, 
   assert.ok(walk.written.some((each) => each.path === '/search' && JSON.stringify(each.body).includes('milk')), 'the search asks for the widget\'s line');
   assert.deepEqual(walk.errors(), []);
 });
+
+// A dashboard shared with groups (design-system.md §4): the workspace's six groups are one field
+// named "Groups", described by what is wrong while none is chosen. Opened by the keyboard, Space
+// ticks, Escape closes the list and leaves the dialog open with focus on the field, the error goes,
+// and the dashboard is created for the groups chosen. In English and in German.
+const SIX_GROUPS = ['Board', 'Design', 'Finance', 'Platform', 'Sales', 'Support'].map((name, at) => ({
+  id: `01a0e2e0-0000-7000-8000-00000000b0${String(at).padStart(2, '0')}`, name, description: null, members: [], version: 1,
+}));
+for (const locale of ['en', 'de']) {
+  test(`chromium: a dashboard's six groups are one field, chosen by the keyboard (${locale})`, async (t) => {
+    const browser = await sharedChromium(t);
+    const backend = goalsBackend();
+    const answer = (method, path, query, body) => {
+      if (path === '/accounts/me' && method === 'GET') return { json: { ...ACCOUNT, locale } };
+      if (path === '/groups' && method === 'GET') return { json: { data: SIX_GROUPS, page: { next_cursor: null, has_more: false } } };
+      return backend(method, path, query, body);
+    };
+    const walk = await productWalk(browser, { modules: ['GOALS'], answer });
+    t.after(walk.close);
+    const { page } = walk;
+    const words = locale === 'de'
+      ? { tab: 'Dashboards', new: 'Neues Dashboard', name: 'Name', who: 'Wer es sieht', groups: 'Gruppen', needed: 'Wähle mindestens eine Gruppe.', create: 'Anlegen' }
+      : { tab: 'Dashboards', new: 'New dashboard', name: 'Name', who: 'Who sees it', groups: 'Groups', needed: 'Choose at least one group.', create: 'Create' };
+
+    await page.goto(`${served.origin}/goals?tab=dashboards`);
+    if (locale === 'de') await page.waitForFunction(() => document.documentElement.lang === 'de', null, { timeout: 15_000 });
+    await page.getByRole('button', { name: words.new }).first().click({ timeout: 15_000 });
+    const dialog = page.getByRole('dialog', { name: words.new });
+    await dialog.getByLabel(words.name).fill('Leadership');
+    await dialog.getByLabel(words.who).selectOption('GROUPS');
+
+    const field = dialog.getByRole('button', { name: new RegExp(`^${words.groups}`, 'u') });
+    await field.waitFor({ timeout: 5_000 }).catch(() => {});
+    assert.equal(await field.count(), 1, 'six groups are not one field');
+    assert.equal(await field.getAttribute('aria-haspopup'), 'listbox');
+    assert.equal(await describedBy(field), words.needed, 'the field is not described by what is wrong');
+
+    await field.focus();
+    await page.keyboard.press('Enter');
+    const list = page.getByRole('listbox', { name: words.groups });
+    await list.waitFor({ timeout: 5_000 });
+    assert.equal(await focused(page), 'option "Board"', 'Enter did not land on the first group');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Space');
+    await page.keyboard.press('Escape');
+    await list.waitFor({ state: 'detached', timeout: 5_000 });
+    assert.equal(await dialog.isVisible(), true, 'Escape closed the dialog, not only the list');
+    assert.match(await focused(page), new RegExp(`^button "${words.groups} `, 'u'), 'closing the list left focus elsewhere');
+    assert.equal(await describedBy(field), '', 'the error stays after a group is chosen');
+    assert.deepEqual(await pick(page, field, ['Support']), ['Design', 'Support']);
+    assert.deepEqual(await chipsOf(field), ['Design', 'Support']);
+
+    await dialog.getByRole('button', { name: words.create }).click();
+    await dialog.waitFor({ state: 'detached', timeout: 5_000 });
+    await page.waitForURL(/\/dashboards\/[0-9a-f-]+$/u, { timeout: 5_000 });
+    const made = walk.written.find((each) => each.method === 'POST' && each.path === '/dashboards');
+    assert.equal(made?.body.sharing, 'GROUPS');
+    assert.deepEqual(made?.body.group_ids, [SIX_GROUPS[1].id, SIX_GROUPS[5].id]);
+    await page.getByRole('heading', { name: 'Leadership' }).first().waitFor({ timeout: 5_000 });
+  });
+}
