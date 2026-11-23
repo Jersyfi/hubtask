@@ -185,10 +185,13 @@ type SignInRules struct {
 	WorkspaceHost string
 	// WorkspaceName is the display name of the workspace the host answers; empty where none does.
 	WorkspaceName string
-	Methods       []string
-	Providers     []ProviderSummary
-	Password      PasswordRulesView
-	Legal         domain.LegalLinks
+	// Card is what the card draws of the workspace's own name and logo: the product's name and no
+	// picture unless the address names a workspace that shows its own (UC-INS-22 check 8).
+	Card      domain.Branding
+	Methods   []string
+	Providers []ProviderSummary
+	Password  PasswordRulesView
+	Legal     domain.LegalLinks
 	// PasswordFallback is true while the password is among the methods only because no other way
 	// into the workspace works, whatever the cause (ADR-0076 §4; E2), or because an operator
 	// opened it here (ADR-0078 §3). The public card does not say which.
@@ -341,6 +344,7 @@ func (h GetSignInRules) Execute(
 	return SignInRules{
 		WorkspaceHost:    strings.TrimSpace(cmd.Host),
 		WorkspaceName:    resolved.Workspace.DisplayName,
+		Card:             h.signInCard(cmd.Host, tenantID, resolved),
 		Methods:          methods,
 		Providers:        providers,
 		Password:         passwordRulesView(resolved, cmd.HasAccount),
@@ -348,6 +352,26 @@ func (h GetSignInRules) Execute(
 		PasswordFallback: fallback.Opens(),
 		SignInNames:      names,
 	}, nil
+}
+
+// signInCard is what the card draws of the workspace's own name and logo. Only where the address
+// itself names the workspace - in single mode the one there is: the installation's own address keeps
+// the product's mark, header or not, and a picture is served only at the address that names its
+// workspace (T-34).
+func (h GetSignInRules) signInCard(host string, tenantID shared.ID, resolved ResolvedPolicy) domain.Branding {
+	if tenantID.IsZero() || !h.addressedByHost(host) {
+		return domain.Branding{Header: domain.HeaderProduct}
+	}
+	return resolved.Workspace.Branding.SignInCard(resolved.Effective.Policy.OwnBranding)
+}
+
+// addressedByHost reports whether the host, rather than the header, names the workspace.
+func (h GetSignInRules) addressedByHost(host string) bool {
+	if !h.Multi {
+		return true
+	}
+	at := domain.RequestHost(host)
+	return at != "" && at != domain.RequestHost(h.InstallationHost)
 }
 
 // hasSignInNames asks the workspace's own rows, under its own scope. A host without a workspace
@@ -469,6 +493,16 @@ func rulesOutput(rules SignInRules) usecase.Output {
 	if rules.WorkspaceName != "" {
 		out["workspace_name"] = rules.WorkspaceName
 	}
+	if rules.Card.Header != "" && rules.Card.Header != domain.HeaderProduct {
+		out["workspace_header"] = string(rules.Card.Header)
+		pictures := usecase.Output{}
+		for _, picture := range domain.Pictures() {
+			if id := rules.Card.Of(picture); !id.IsZero() {
+				pictures[picture.Field()] = id.String()
+			}
+		}
+		out["workspace_pictures"] = pictures
+	}
 	return out
 }
 
@@ -512,7 +546,8 @@ func (h GetSignInRules) Descriptor() usecase.Descriptor {
 		Name: GetSignInRulesName,
 		Summary: "What a sign-in screen may know before anybody has signed in: which methods " +
 			"this workspace signs in with, which providers it offers, what a password has to " +
-			"meet, and the links its operator is obliged to show. The workspace is resolved " +
+			"meet, the links its operator is obliged to show, and - at the workspace's own " +
+			"address - what the card shows of its own name and logo. The workspace is resolved " +
 			"from the host, exactly as sign-in resolves it, and a host no workspace answers at " +
 			"gets the installation's own level - which is byte for byte what a workspace that " +
 			"has decided nothing answers.",

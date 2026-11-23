@@ -40,13 +40,15 @@ func signInRulesResponse(out usecase.Output) openapi.SignInRules {
 	fallback := boolValue(out["password_fallback"])
 	names := boolValue(out["sign_in_names"])
 	return openapi.SignInRules{
-		WorkspaceName:    optionalTextField(out["workspace_name"]),
-		PasswordFallback: &fallback,
-		SignInNames:      &names,
-		WorkspaceHost:    out.String("workspace_host"),
-		Methods:          methods,
-		Providers:        providers,
-		Password:         passwordRulesResponse(out["password"]),
+		WorkspaceName:     optionalTextField(out["workspace_name"]),
+		WorkspaceHeader:   signInHeaderField(out["workspace_header"]),
+		WorkspacePictures: signInPicturesField(out["workspace_pictures"]),
+		PasswordFallback:  &fallback,
+		SignInNames:       &names,
+		WorkspaceHost:     out.String("workspace_host"),
+		Methods:           methods,
+		Providers:         providers,
+		Password:          passwordRulesResponse(out["password"]),
 		Legal: openapi.LegalLinks{
 			ImprintUrl:       optionalTextField(legal["imprint_url"]),
 			PrivacyUrl:       optionalTextField(legal["privacy_url"]),
@@ -57,6 +59,30 @@ func signInRulesResponse(out usecase.Output) openapi.SignInRules {
 			TermsVersion:     optionalTextField(legal["terms_version"]),
 			TermsSetBy:       termsSetByField(legal["terms_set_by"]),
 		},
+	}
+}
+
+// signInHeaderField answers what the card shows in the product's mark's place, absent where it
+// shows the product's name.
+func signInHeaderField(value any) *openapi.WorkspaceHeader {
+	text, _ := value.(string)
+	if text == "" {
+		return nil
+	}
+	header := openapi.WorkspaceHeader(text)
+	return &header
+}
+
+// signInPicturesField answers the pictures the card draws, absent with the product's name.
+func signInPicturesField(value any) *openapi.SignInPictures {
+	pictures, held := value.(usecase.Output)
+	if !held {
+		return nil
+	}
+	return &openapi.SignInPictures{
+		LogoLightMediaId: optionalUUID(pictures.String("logo_light_media_id")),
+		LogoDarkMediaId:  optionalUUID(pictures.String("logo_dark_media_id")),
+		SymbolMediaId:    optionalUUID(pictures.String("symbol_media_id")),
 	}
 }
 
