@@ -10,8 +10,9 @@
   import Input from './Input.svelte';
   import { setCloseLabel } from './media.ts';
   import type { MenuItem } from './overlay.ts';
+  import { scrollEdges } from './scrollEdges.ts';
 
-  const { mode = 'actions' }: { mode?: 'actions' | 'long' | 'outside' | 'foot' | 'dialog' } = $props();
+  const { mode = 'actions' }: { mode?: 'actions' | 'long' | 'outside' | 'foot' | 'dialog' | 'edges' } = $props();
 
   // What the application sets once in its language; a menu becomes a sheet on a phone only with it.
   $effect(() => {
@@ -61,9 +62,40 @@
     'Export as CSV', 'Follow', 'Move to another collection', 'Mute notifications', 'Open in a new tab',
     'Pin to the top', 'Print', 'Rename', 'Share', 'Unfollow',
   ].map((label) => ({ id: label.toLowerCase().replace(/\s+/g, '-'), label }));
+
+  // Where each list of the shades' story stands: the share of its room it is scrolled to.
+  const edgeCases = [
+    { name: 'Nothing to scroll', at: 'short', items: actions.slice(0, 3) },
+    { name: 'More below', at: 'start', items: many },
+    { name: 'More on both sides', at: 'middle', items: many },
+    { name: 'More above', at: 'end', items: many },
+  ] as const;
+
+  const SHARE = { short: 0, start: 0, middle: 0.5, end: 1 } as const;
+
+  function scrolledTo(at: keyof typeof SHARE) {
+    return (node: HTMLElement) => {
+      node.scrollTop = (node.scrollHeight - node.clientHeight) * SHARE[at];
+    };
+  }
 </script>
 
-{#if mode === 'outside'}
+{#if mode === 'edges'}
+  <!-- The four states of the scroll shades, each list held where it is scrolled to: a shade only at
+       an edge with more beyond it. Scroll any of them and the shades follow. -->
+  <div class="edges">
+    {#each edgeCases as edge (edge.name)}
+      <section class="edge-case" aria-label={edge.name}>
+        <h3 class="edge-name">{edge.name}</h3>
+        <div class="edge-frame">
+          <ul class="edge-list" data-edge-case={edge.at} {@attach scrolledTo(edge.at)} {@attach scrollEdges}>
+            {#each edge.items as item (item.id)}<li class="edge-item">{item.label}</li>{/each}
+          </ul>
+        </div>
+      </section>
+    {/each}
+  </div>
+{:else if mode === 'outside'}
   <Stack gap="200">
     <Inline gap="150" align="center">
       <button type="button" class="row" oncontextmenu={fromRow} onkeydown={fromRow}>Buy milk</button>
@@ -137,6 +169,45 @@
 {/if}
 
 <style>
+  .edges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-300);
+  }
+
+  .edge-case { display: flex; flex-direction: column; gap: var(--sp-100); }
+
+  .edge-name { margin: 0; font-size: var(--fs-090); font-weight: var(--fw-semibold); }
+
+  /* A surface as a menu's: the frame that does not scroll, its corners the shades keep inside. */
+  .edge-frame {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    inline-size: var(--layout-sidenav-width);
+    max-block-size: var(--sp-1600);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-overlay);
+  }
+
+  .edge-list {
+    min-block-size: 0;
+    margin: 0;
+    padding: var(--sp-050);
+    overflow: auto;
+    list-style: none;
+  }
+
+  .edge-item {
+    padding: var(--sp-050) var(--sp-100);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-090);
+  }
+
+  .edge-item:hover { background: var(--bg-surface-hover); }
+
   .foot {
     display: flex;
     flex-direction: column;

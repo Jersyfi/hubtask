@@ -44,3 +44,10 @@ export const inDialog: Story = {
     'Set the window to a phone and open the step: the dialog fills the screen, and its ⋯ menu opens as a bottom sheet over it. Escape closes the sheet only; the dialog stays with what was typed, and a second Escape closes it.',
   args: { mode: 'dialog' },
 };
+
+export const edges: Story = {
+  name: 'Scroll shades: none, the end, both, the start',
+  about:
+    'Four lists held where they are scrolled to. A shade shows only at an edge with more beyond it: none on the list that does not scroll, the end at the top, both in the middle, the start at the end. It lies over the rows, so a row under the pointer does not cover it, and inside the surface’s rounded corners. Scroll any of them and the shades follow.',
+  args: { mode: 'edges' },
+};

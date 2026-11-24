@@ -21,6 +21,7 @@
   import { isCompactWidth, closeName } from './media.ts';
   import { focusReturn, rovingIndex, typeAheadIndex } from './focus.ts';
   import { openOverlay, type MenuItem } from './overlay.ts';
+  import { scrollEdges } from './scrollEdges.ts';
   import type { Placement } from './anchor.ts';
 
   interface Props {
@@ -181,6 +182,8 @@
 {:else if isOpen}
   <div class="surface" bind:this={surface}>
     {#if head}<div class="head">{@render head()}</div>{/if}
+    <!-- The frame the list scrolls in, and where its shades are drawn. -->
+    <div class="frame">
   <!-- The keydown listener is on the list rather than on each item: the arrows are a property of
        the menu, and one handler cannot disagree with itself. -->
   <div
@@ -191,6 +194,7 @@
     tabindex="-1"
     bind:this={list}
     onkeydown={onKeydown}
+    {@attach scrollEdges}
   >
     {#each items as item, index (item.id)}
       {#if item.hasSeparatorBefore && index > 0}
@@ -214,6 +218,7 @@
         {/if}
       </button>
     {/each}
+    </div>
     </div>
   </div>
 {/if}
@@ -251,20 +256,23 @@
   /* A list taller than its room scrolls inside the surface, never the surface itself: Chromium
      lays an anchored overlay in the top layer out again on its own scroll, and the surface's scroll
      springs back by the difference between its tried sizes - the item scrolled to slides away
-     under the pointer. It says so where the scrollbar does not: a shade at the edge with more to
-     come, covered by the surface's own colour once it is reached. */
+     under the pointer. The frame around it does not scroll and carries the shades at an edge with
+     more to come (scrollEdges.css); its corners follow the surface's, less the surface's border and
+     padding, so a shade stays inside the surface's rounding. */
+  .frame {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-block-size: 0;
+    border-radius: calc(var(--r-lg) - var(--bw-hairline) - var(--sp-050));
+  }
+
   .menu {
     display: flex;
     flex-direction: column;
     min-block-size: 0;
     overflow: auto;
     overscroll-behavior: contain;
-    background:
-      linear-gradient(var(--bg-raised), transparent) top / 100% var(--sp-300) no-repeat local,
-      linear-gradient(transparent, var(--bg-raised)) bottom / 100% var(--sp-300) no-repeat local,
-      radial-gradient(farthest-side at 50% 0, var(--border-default), transparent) top / 100% var(--sp-150) no-repeat scroll,
-      radial-gradient(farthest-side at 50% 100%, var(--border-default), transparent) bottom / 100% var(--sp-150) no-repeat scroll,
-      var(--bg-raised);
   }
 
   /* Above the items and not among them: a hairline under it, and it takes no focus. */
