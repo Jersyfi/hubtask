@@ -6,7 +6,8 @@
 // layer at a time - the sheet first, the dialog with what was typed in it only on a second press
 // (layers.ts) - as MultiSelect's walk holds it for a popover's sheet. And its scroll shades
 // (scrollEdges): a shade only at an edge with more beyond it, painted over the rows and never past
-// the surface's rounded corners, in the story's four states. Walked in the built workbench under
+// the surface's rounded corners, in the story's four states, darkening the surface in both themes.
+// Walked in the built workbench under
 // the product's `style-src 'self'`.
 
 import { test } from 'node:test';
@@ -18,7 +19,7 @@ import { join, dirname } from 'node:path';
 import { chromium, firefox, webkit } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { assertShades, frameBox, readEdges, scrollToShare, shadeChanges } from './scrolledges.mjs';
+import { assertShades, frameBox, readEdges, scrollToShare, shadeChanges, shadeLightness } from './scrolledges.mjs';
 
 const WORKBENCH = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'packages', 'design-system', 'dist', 'workbench');
 const ENGINES = { chromium, firefox, webkit };
@@ -100,6 +101,18 @@ for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
       assert.equal(await shadeChanges(page, both, 'start', corner), false, 'the shade at the top darkens the surface\'s corner past its rounding');
       const foot = { x: frame.x + frame.width - 3, y: frame.y + frame.height - 3, width: 3, height: 3 };
       assert.equal(await shadeChanges(page, both, 'end', foot), false, 'the shade at the bottom darkens the surface\'s corner past its rounding');
+
+      // A shade darkens the surface in either theme - a lighter band on a dark surface reads as a
+      // bar, not as more to come.
+      for (const theme of ['light', 'dark']) {
+        await page.goto(`${server.origin}/?story=wave-1-overlays-menu--edges&theme=${theme}`);
+        await list('More on both sides').waitFor();
+        const box = await frameBox(list('More on both sides'));
+        for (const [edge, y] of [['start', box.y + 1], ['end', box.y + box.height - 5]]) {
+          const { shown, hidden } = await shadeLightness(page, list('More on both sides'), edge, { x: box.x + box.width / 4, y, width: box.width / 2, height: 4 });
+          assert.ok(shown < hidden, `${theme}: the shade at the ${edge} lightens the surface (${shown.toFixed(3)} with it, ${hidden.toFixed(3)} without)`);
+        }
+      }
     } finally {
       await browser.close();
       await server.close();

@@ -116,6 +116,37 @@ export async function shadeChanges(page, scroller, edge, clip) {
   return !shown.equals(hidden);
 }
 
+/**
+ * The mean lightness of a rectangle of the page with a shade shown and with it taken away, 0 black
+ * and 1 white: a shade that darkens the surface leaves `shown` below `hidden`, in either theme.
+ * The pixels are read in a blank page of the same browser, so no page's own policy refuses the
+ * image they are decoded from.
+ */
+export async function shadeLightness(page, scroller, edge, clip) {
+  const attribute = edge === 'start' ? 'data-more-start' : 'data-more-end';
+  const shown = await page.screenshot({ clip });
+  await scroller.evaluate((node, name) => node.parentElement.removeAttribute(name), attribute);
+  const hidden = await page.screenshot({ clip });
+  await scroller.evaluate((node, name) => node.parentElement.setAttribute(name, ''), attribute);
+  const blank = await page.context().browser().newPage();
+  try {
+    const [lit, unlit] = await blank.evaluate(async (images) => Promise.all(images.map(async (base64) => {
+      const bytes = Uint8Array.from(atob(base64), (each) => each.charCodeAt(0));
+      const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
+      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+      const context = canvas.getContext('2d');
+      context.drawImage(bitmap, 0, 0);
+      const { data } = context.getImageData(0, 0, bitmap.width, bitmap.height);
+      let sum = 0;
+      for (let at = 0; at < data.length; at += 4) sum += (0.2126 * data[at] + 0.7152 * data[at + 1] + 0.0722 * data[at + 2]) / 255;
+      return sum / (data.length / 4);
+    })), [shown.toString('base64'), hidden.toString('base64')]);
+    return { shown: lit, hidden: unlit };
+  } finally {
+    await blank.close();
+  }
+}
+
 /** The frame's outer box: where its corners and its edges are, for a clip. */
 export function frameBox(scroller) {
   return scroller.evaluate((node) => {

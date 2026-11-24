@@ -9,8 +9,9 @@
    a shade never stands past the rounded corners of the surface behind it. The frame is isolated, so
    the layer's rank counts inside it and never against the page.
 
-   The colour is the table's edge fade (Table.svelte), a tint of the text colour, so a list and a
-   table say "more" alike in either theme. */
+   The colour is the scrim's, the one colour that darkens a surface in both themes: a tint of the
+   text colour would lighten a dark surface into a bar. It is faint at the edge and eases out over
+   the strip, so it reads as the rows passing under the edge rather than as a stripe. */
 
 [data-scroll-edges] {
   isolation: isolate;
@@ -25,17 +26,25 @@
   border-radius: inherit;
   pointer-events: none;
   background-repeat: no-repeat;
-  background-size: 100% var(--sp-200);
+  background-size: 100% var(--sp-300);
   opacity: 0;
 }
 
 [data-scroll-edges]::before {
-  background-image: linear-gradient(color-mix(in oklab, var(--text-primary) 16%, transparent), transparent);
+  background-image: linear-gradient(
+    color-mix(in oklab, var(--bg-scrim) 24%, transparent),
+    color-mix(in oklab, var(--bg-scrim) 8%, transparent) 45%,
+    transparent
+  );
   background-position: top;
 }
 
 [data-scroll-edges]::after {
-  background-image: linear-gradient(transparent, color-mix(in oklab, var(--text-primary) 16%, transparent));
+  background-image: linear-gradient(
+    transparent,
+    color-mix(in oklab, var(--bg-scrim) 8%, transparent) 55%,
+    color-mix(in oklab, var(--bg-scrim) 24%, transparent)
+  );
   background-position: bottom;
 }
 

@@ -6,7 +6,8 @@
 // run out of its box, and a menu taller than its room scrolls inside it instead of squeezing its
 // items. Its scroll shades (scrollEdges) show only at an edge with more beyond it - at its top, in
 // its middle, at its end, and none where the window holds the whole menu - painted over the items
-// and inside the surface's rounded corners. Chromium only.
+// and inside the surface's rounded corners, darkening the surface in the light and the dark theme.
+// Chromium only.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -16,7 +17,7 @@ import { join, dirname } from 'node:path';
 import { sharedChromium } from './browser.mjs';
 import { serve } from './serve.mjs';
 import { ITEMS, signedIn } from './fixture.mjs';
-import { assertShades, frameBox, readEdges, scrollToShare, shadeChanges } from './scrolledges.mjs';
+import { assertShades, frameBox, readEdges, scrollToShare, shadeChanges, shadeLightness } from './scrolledges.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -26,8 +27,9 @@ test.after(() => served.close());
 const DATED = ITEMS.find((each) => each.due_at);
 
 /** The entry's page at a size, with its ⋯ menu open; the menu's list of items. */
-async function openMenu(browser, width, height) {
+async function openMenu(browser, width, height, scheme = 'light') {
   const { page, failures } = await signedIn(browser, width, height, width < 600 ? { hasTouch: true, isMobile: true } : {});
+  await page.emulateMedia({ colorScheme: scheme });
   await page.goto(`${served.origin}/items/${DATED.id}`);
   await page.getByRole('heading', { name: DATED.title }).first().waitFor({ timeout: 15_000 });
   const opener = page.locator('[data-opener="entry-menu"]').filter({ visible: true }).first();
@@ -95,6 +97,24 @@ test('chromium: 1280 × 800 — the ⋯ menu shades only the edge with more beyo
   assertShades(assert, await readEdges(menu), { start: true, end: false }, 'at its end');
   assert.deepEqual(failures, []);
 });
+
+for (const scheme of ['light', 'dark']) {
+  test(`chromium: 1280 × 800, ${scheme} — the ⋯ menu's shades darken the surface at both edges and leave its corners alone`, async (t) => {
+    const browser = await sharedChromium(t);
+    const { page, menu, failures } = await openMenu(browser, 1280, 800, scheme);
+    await scrollToShare(menu, 0.5);
+    const frame = await frameBox(menu);
+    const strip = (y) => ({ x: frame.x + frame.width / 4, y, width: frame.width / 2, height: 4 });
+    for (const [edge, clip] of [['start', strip(frame.y + 1)], ['end', strip(frame.y + frame.height - 5)]]) {
+      const { shown, hidden } = await shadeLightness(page, menu, edge, clip);
+      assert.ok(shown < hidden, `${scheme}: the shade at the ${edge} lightens the surface (${shown.toFixed(3)} with it, ${hidden.toFixed(3)} without)`);
+    }
+    // Inside the corners: the surface's corner outside its rounding is the same with the shade and without.
+    assert.equal(await shadeChanges(page, menu, 'start', { x: frame.x, y: frame.y, width: 2, height: 2 }), false, `${scheme}: the shade at the top darkens the corner past its rounding`);
+    assert.equal(await shadeChanges(page, menu, 'end', { x: frame.x + frame.width - 2, y: frame.y + frame.height - 2, width: 2, height: 2 }), false, `${scheme}: the shade at the bottom darkens the corner past its rounding`);
+    assert.deepEqual(failures, []);
+  });
+}
 
 test('chromium: 1280 × 1600 — a ⋯ menu the window holds whole scrolls nowhere and shows no shade', async (t) => {
   const browser = await sharedChromium(t);
