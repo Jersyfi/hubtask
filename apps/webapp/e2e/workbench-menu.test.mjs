@@ -6,9 +6,8 @@
 // layer at a time - the sheet first, the dialog with what was typed in it only on a second press
 // (layers.ts) - as MultiSelect's walk holds it for a popover's sheet. And its scroll shades
 // (scrollEdges): a shade only at an edge with more beyond it, painted over the rows and never past
-// the surface's rounded corners, in the story's four states, darkening the surface in both themes.
-// Walked in the built workbench under
-// the product's `style-src 'self'`.
+// the surface's rounded corners, in the story's four states, darkening the surface in both themes
+// by about as much. Walked in the built workbench under the product's `style-src 'self'`.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -19,7 +18,7 @@ import { join, dirname } from 'node:path';
 import { chromium, firefox, webkit } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { assertShades, frameBox, readEdges, scrollToShare, shadeChanges, shadeLightness } from './scrolledges.mjs';
+import { SHADE_DEPTH, assertShades, frameBox, readEdges, scrollToShare, shadeChanges, shadeLightness } from './scrolledges.mjs';
 
 const WORKBENCH = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'packages', 'design-system', 'dist', 'workbench');
 const ENGINES = { chromium, firefox, webkit };
@@ -110,7 +109,7 @@ for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
         const box = await frameBox(list('More on both sides'));
         for (const [edge, y] of [['start', box.y + 1], ['end', box.y + box.height - 5]]) {
           const { shown, hidden } = await shadeLightness(page, list('More on both sides'), edge, { x: box.x + box.width / 4, y, width: box.width / 2, height: 4 });
-          assert.ok(shown < hidden, `${theme}: the shade at the ${edge} lightens the surface (${shown.toFixed(3)} with it, ${hidden.toFixed(3)} without)`);
+          assert.ok(hidden - shown >= SHADE_DEPTH, `${theme}: the shade at the ${edge} does not darken the surface by ${SHADE_DEPTH} (${shown.toFixed(3)} with it, ${hidden.toFixed(3)} without)`);
         }
       }
     } finally {

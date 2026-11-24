@@ -17,7 +17,7 @@ import { join, dirname } from 'node:path';
 import { sharedChromium } from './browser.mjs';
 import { serve } from './serve.mjs';
 import { ITEMS, signedIn } from './fixture.mjs';
-import { assertShades, frameBox, readEdges, scrollToShare, shadeChanges, shadeLightness } from './scrolledges.mjs';
+import { SHADE_DEPTH, assertShades, frameBox, readEdges, scrollToShare, shadeChanges, shadeLightness } from './scrolledges.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -107,7 +107,7 @@ for (const scheme of ['light', 'dark']) {
     const strip = (y) => ({ x: frame.x + frame.width / 4, y, width: frame.width / 2, height: 4 });
     for (const [edge, clip] of [['start', strip(frame.y + 1)], ['end', strip(frame.y + frame.height - 5)]]) {
       const { shown, hidden } = await shadeLightness(page, menu, edge, clip);
-      assert.ok(shown < hidden, `${scheme}: the shade at the ${edge} lightens the surface (${shown.toFixed(3)} with it, ${hidden.toFixed(3)} without)`);
+      assert.ok(hidden - shown >= SHADE_DEPTH, `${scheme}: the shade at the ${edge} does not darken the surface by ${SHADE_DEPTH} (${shown.toFixed(3)} with it, ${hidden.toFixed(3)} without)`);
     }
     // Inside the corners: the surface's corner outside its rounding is the same with the shade and without.
     assert.equal(await shadeChanges(page, menu, 'start', { x: frame.x, y: frame.y, width: 2, height: 2 }), false, `${scheme}: the shade at the top darkens the corner past its rounding`);

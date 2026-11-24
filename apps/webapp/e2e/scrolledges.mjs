@@ -117,6 +117,12 @@ export async function shadeChanges(page, scroller, edge, clip) {
 }
 
 /**
+ * How much a shade must darken the strip at its edge, in either theme: about what a light surface
+ * shows, so that the shade is seen on a dark one too and is not only measurable there.
+ */
+export const SHADE_DEPTH = 0.04;
+
+/**
  * The mean lightness of a rectangle of the page with a shade shown and with it taken away, 0 black
  * and 1 white: a shade that darkens the surface leaves `shown` below `hidden`, in either theme.
  * The pixels are read in a blank page of the same browser, so no page's own policy refuses the
