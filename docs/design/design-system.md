@@ -221,7 +221,7 @@ attributes selected by a stylesheet, never as an inline `style`:
 
 ### Wave 1 — nothing works without these (≈ 25)
 Icon · Button · IconButton · Input · CodeField · Textarea · Select · Checkbox · CheckboxGroup · MultiSelect · Radio · ChoiceCards · Switch ·
-Tooltip · Menu · Popover · Dialog · Toast · Banner · Avatar · AvatarGroup · Badge · Spinner ·
+Tooltip · HelpTip · Menu · Popover · Dialog · Toast · Banner · Avatar · AvatarGroup · Badge · Spinner ·
 ProgressBar · Kbd
 
 `CheckboxGroup` is the fieldset `Radio` is, for several answers: a question that needs at least one

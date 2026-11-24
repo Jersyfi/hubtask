@@ -26,6 +26,8 @@
      */
     marks?: readonly TextMark[];
     hint?: string;
+    /** More about it on demand, behind an ⓘ beside the label (`HelpTip`): the why, not the how. */
+    more?: string;
     error?: string;
     isRequired?: boolean;
     /** Lines shown before it grows. It never shrinks below this and never stops at it. */
@@ -38,6 +40,7 @@
     isLabelHidden = false,
     marks = [],
     hint,
+    more,
     error,
     disabledReason,
     isRequired = false,
@@ -66,7 +69,7 @@
 
 <!-- Unavailable, it stays editable to the platform and the guard refuses the press and every edit
      (reason.ts), as `Input` does: a read-only field turns `Backspace` into "back" in some engines. -->
-<Field {label} {isLabelHidden} {hint} {error} {disabledReason} guardOptions={{ isPressRefused: true, isEditRefused: true }} {isRequired}>
+<Field {label} {isLabelHidden} {hint} {more} {error} {disabledReason} guardOptions={{ isPressRefused: true, isEditRefused: true }} {isRequired}>
   {#snippet children({ id, describedBy, invalid })}
     <div class="host" data-marked={marks.length > 0 ? '' : undefined}>
     {#if marks.length > 0}

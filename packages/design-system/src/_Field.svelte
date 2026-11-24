@@ -11,6 +11,7 @@
 
   import type { Snippet } from 'svelte';
 
+  import HelpTip from './HelpTip.svelte';
   import Icon from './Icon.svelte';
   import Reason from './_Reason.svelte';
   import Stack from './Stack.svelte';
@@ -24,8 +25,14 @@
      * field of a dialog titled by it. The label stays the field's name for a screen reader.
      */
     isLabelHidden?: boolean;
-    /** Standing help, shown before anything goes wrong. */
+    /** Standing help, shown before anything goes wrong: what is needed to fill it in now. */
     hint?: string;
+    /**
+     * More about the field, on demand: the why, the background, an example - up to three
+     * sentences behind an ⓘ beside the label (`HelpTip`). Never what is needed to fill it in, which
+     * is the `hint`.
+     */
+    more?: string;
     /** What is wrong now. Names the fix, not only the fault (voice-and-tone.md §3.1). */
     error?: string;
     /**
@@ -64,6 +71,7 @@
     label,
     isLabelHidden = false,
     hint,
+    more,
     error,
     disabledReason,
     guardOptions,
@@ -94,9 +102,19 @@
 </script>
 
 <Stack as="div" gap="050" class="field">
-  <label class="label" class:is-hidden={isLabelHidden} for={uid}>
-    {label}{#if isRequired}<span class="required" aria-hidden="true">*</span>{/if}
-  </label>
+  {#if more && !isLabelHidden}
+    <!-- The ⓘ beside the label, not in it: inside, its name would join the field's. -->
+    <div class="label-line">
+      <label class="label" for={uid}>
+        {label}{#if isRequired}<span class="required" aria-hidden="true">*</span>{/if}
+      </label>
+      <HelpTip subject={label} text={more} />
+    </div>
+  {:else}
+    <label class="label" class:is-hidden={isLabelHidden} for={uid}>
+      {label}{#if isRequired}<span class="required" aria-hidden="true">*</span>{/if}
+    </label>
+  {/if}
 
   {@render children({ id: uid, describedBy, invalid: error !== undefined || isInvalid })}
 
@@ -121,6 +139,8 @@
     /* `start`, never left: RTL is a requirement and not a later port (§3). */
     text-align: start;
   }
+
+  .label-line { display: flex; align-items: center; gap: var(--sp-050); min-width: 0; }
 
   /* Announced but not drawn - never `display: none`, which would take the name away. */
   .label.is-hidden {

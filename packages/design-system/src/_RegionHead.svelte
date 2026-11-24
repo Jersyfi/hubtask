@@ -6,6 +6,8 @@
   // compositions, never a box of its own.
   import type { Snippet } from 'svelte';
 
+  import HelpTip from './HelpTip.svelte';
+
   interface Props {
     title: string;
     /** The heading's level; a region of a page is a second level. */
@@ -14,15 +16,18 @@
     /** A count or a state after the name: *2*, *2 set here*. */
     note?: string;
     description?: string;
+    /** More about it on demand, behind an ⓘ beside the heading (`HelpTip`): the why, not the how. */
+    more?: string;
     acts?: Snippet;
   }
 
-  const { title, level = 2, id, note, description, acts }: Props = $props();
+  const { title, level = 2, id, note, description, more, acts }: Props = $props();
 </script>
 
 <div class="region-head">
   <div class="line">
     <svelte:element this={`h${level}`} class="name" {id}>{title}</svelte:element>
+    {#if more}<HelpTip subject={title} text={more} />{/if}
     {#if note}<span class="note">{note}</span>{/if}
     {#if acts}<span class="acts">{@render acts()}</span>{/if}
   </div>

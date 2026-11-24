@@ -16,6 +16,8 @@
     /** Kept for assistive technology and hidden from sight, where a column head already names it. */
     isLabelHidden?: boolean;
     hint?: string;
+    /** More about it on demand, behind an ⓘ beside the label (`HelpTip`): the why, not the how. */
+    more?: string;
     error?: string;
     isRequired?: boolean;
     size?: ControlSize;
@@ -53,6 +55,7 @@
     label,
     isLabelHidden = false,
     hint,
+    more,
     error,
     disabledReason,
     isRequired = false,
@@ -85,7 +88,7 @@
   const guardOptions = $derived({ isPressRefused: true, isEditRefused: true, isEveryKeyRefused: hasKeysOfItsOwn });
 </script>
 
-<Field {label} {isLabelHidden} {hint} {error} {disabledReason} {guardOptions} {isRequired} {describedBy} {isInvalid}>
+<Field {label} {isLabelHidden} {hint} {more} {error} {disabledReason} {guardOptions} {isRequired} {describedBy} {isInvalid}>
   {#snippet children({ id, describedBy, invalid })}
     <div class="shell" data-size={size} data-invalid={invalid ? '' : undefined}>
       {#if icon}

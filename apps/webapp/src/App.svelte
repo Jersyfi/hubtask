@@ -11,7 +11,7 @@
   // No sentence is written in this file. `Hubtask` is a name rather than a message, and everything
   // else is a code rendered from `locales/en.json` (ADR-0011).
   import { tick, untrack } from 'svelte';
-  import { Spinner, setCloseLabel } from '@hubtask/design-system/components';
+  import { Spinner, setCloseLabel, setHelpName } from '@hubtask/design-system/components';
   import type { ConnectorLocated } from '@hubtask/sync-engine';
 
   import LazyFrame from './lib/frame/LazyFrame.svelte';
@@ -159,6 +159,9 @@
   // Every menu opens as a sheet on a phone (work-surface concept §7); the sheet's close is named here
   // once, in the reader's language, and follows it when the language changes.
   $effect(() => setCloseLabel(t('app.sheet_close')));
+  // Every ⓘ that holds more about a label is named the same way, in the reader's language; the words
+  // are read where the name is, so they follow a change of language there.
+  setHelpName((subject) => t('app.help_more_about', { label: subject }));
   let route = $state<Resolution>(router.current);
 
   /**

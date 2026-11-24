@@ -37,6 +37,8 @@
     /** Kept for assistive technology and hidden from sight, where a column head already names it. */
     isLabelHidden?: boolean;
     hint?: string;
+    /** More about it on demand, behind an ⓘ beside the label (`HelpTip`): the why, not the how. */
+    more?: string;
     error?: string;
     isRequired?: boolean;
     size?: ControlSize;
@@ -57,6 +59,7 @@
     isLabelHidden = false,
     options,
     hint,
+    more,
     error,
     disabledReason,
     isRequired = false,
@@ -92,7 +95,7 @@
 
 <!-- An unavailable select refuses the press as well: the platform opens its picker on the press,
      and a picker opened over a reason is a list with nothing to choose. -->
-<Field {label} {isLabelHidden} {hint} {error} {disabledReason} guardOptions={{ isPressRefused: true, isEveryKeyRefused: true }} {isRequired}>
+<Field {label} {isLabelHidden} {hint} {more} {error} {disabledReason} guardOptions={{ isPressRefused: true, isEveryKeyRefused: true }} {isRequired}>
   {#snippet children({ id, describedBy, invalid })}
     <div class="shell" data-size={size} data-invalid={invalid ? '' : undefined}>
       <select

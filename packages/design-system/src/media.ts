@@ -47,3 +47,19 @@ export function closeName(): string | undefined {
   follow();
   return closeLabelName;
 }
+
+// The name of every `HelpTip`'s ⓘ - "More about Expires" - given once by the application in its
+// language, as the close's name is, so no caller writes the words and no ⓘ is left without a name.
+// A function of the subject, called where the name is read: its words follow the language there.
+let helpNameOf: ((subject: string) => string) | undefined;
+
+export function setHelpName(name: ((subject: string) => string) | undefined): void {
+  if (name === helpNameOf) return;
+  helpNameOf = name;
+  notify?.();
+}
+
+export function helpName(subject: string): string | undefined {
+  follow();
+  return helpNameOf?.(subject);
+}

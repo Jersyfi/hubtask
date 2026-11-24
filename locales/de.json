@@ -2645,6 +2645,7 @@
   "app.nav.view_tools": "Werkzeuge",
   "app.nav.workspace_group": "Arbeitsbereich",
   "app.sheet_close": "Schließen",
+  "app.help_more_about": "Mehr zu {label}",
   "app.choose_several.empty": "Nichts gewählt",
   "app.choose_several.filter": "Liste filtern",
   "app.choose_several.clear": "Filter leeren",
