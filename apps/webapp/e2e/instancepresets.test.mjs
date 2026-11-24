@@ -195,7 +195,10 @@ test('chromium: an operator creates, renames, starts again, makes default, locks
   assert.equal(await withdrawDefault.getAttribute('aria-disabled'), 'true', "the default's withdrawal is offered");
   await withdrawDefault.click({ force: true });
   const reason = await withdrawDefault.evaluate((item) => document.getElementById(item.getAttribute('aria-describedby') ?? '')?.textContent ?? '');
+  // The try showed the reason's bubble: the first Escape closes it, the second the menu.
   await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await page.getByRole('menu').waitFor({ state: 'hidden' });
   assert.ok(reason.includes('New workspaces start from this preset'), `the reason reads ${JSON.stringify(reason)}`);
   assert.ok(!written.some((write) => write.method === 'DELETE' && write.path === `/admin/presets/${CRAFT.id}`), "the default's withdrawal was sent");
   await chooseInRow(practice, 'Withdraw');
