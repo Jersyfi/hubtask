@@ -25,7 +25,7 @@ const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
  * wave need these and no others. Adding a name here is the only way an icon enters the product.
  *
  * Each entry is our name, then the source's: code, templates and stored entry types name only
- * ours, so a rename upstream changes the right-hand side here and nothing else (ADR-0041).
+ * ours, so a rename upstream changes the right-hand side here and nothing else (ADR-0114).
  */
 export const DECLARED = {
   'Actions — wave 1': {
@@ -186,23 +186,6 @@ export const DECLARED = {
     'utensils': 'utensils',
     'gift': 'gift',
   },
-  'The whiteboard': {
-    // The canvas's own tools and side sheets (user-experience.md §7.2): a tool bar of icon buttons
-    // reads only where each tool has a glyph of its own, so no two tools share one.
-    'mouse-pointer-2': 'mouse-pointer-2',
-    'sticky-note': 'sticky-note',
-    'shapes': 'shapes',
-    'type': 'type',
-    'move-up-right': 'move-up-right', // a connector: an arrow from one object to another
-    'frame': 'frame',
-    'eraser': 'eraser',
-    'undo-2': 'undo-2',
-    'redo-2': 'redo-2',
-    'map': 'map',
-    'timer': 'timer',
-    'vote': 'vote',
-    'rotate-ccw-clock': 'rotate-ccw-clock', // the board's history: back to an earlier time
-  },
   'Staying current': {
     // The installed apps' offer of a newer release: its download, on Android and for the `.deb`
     // (UC-SYN-07 checks 5 and 6).
@@ -239,7 +222,8 @@ export const DECLARED = {
     'table': 'table',
   },
   'The whiteboard': {
-    // The dock's tools and the selection bar (work surface W-2, W-4).
+    // The dock's tools and the selection bar (work surface W-2, W-4): a tool bar of icon buttons
+    // reads only where each tool has a glyph of its own, so no two tools share one.
     'eraser': 'eraser',
     'frame': 'frame',
     'map': 'map',
@@ -324,7 +308,7 @@ export function render() {
 
   for (const [group, names] of Object.entries(DECLARED)) {
     lines.push(`\n  // ${group}`);
-    for (const [name, source] of Object.entries(names).sort(([a], [b]) => a.localeCompare(b))) {
+    for (const [name, source] of Object.entries(names).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
       const icon = nodes[source];
       // Loudly, not silently: a name Lucide dropped in an upgrade has to stop the build, or the
       // glyph quietly disappears from a control that had one yesterday.
@@ -334,7 +318,7 @@ export function render() {
         const kept = Object.entries(attributes).filter(([key]) => !WRAPPER_ATTRIBUTES.has(key));
         for (const [key, value] of kept) {
           if (COLOUR.test(String(value))) {
-            throw new Error(`lucide's "${name}" carries a colour in ${key}="${value}" - see rule 15`);
+            throw new Error(`lucide's "${source}" (ours: "${name}") carries a colour in ${key}="${value}" - see rule 15`);
           }
         }
         return [tag, Object.fromEntries(kept)];
