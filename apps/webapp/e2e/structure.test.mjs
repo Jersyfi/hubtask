@@ -459,6 +459,9 @@ test('chromium: an administrator - a lock shows its value and who set it, and ca
   assert.equal(await dates.getAttribute('aria-disabled'), 'true');
   assert.equal(await dates.getAttribute('aria-selected'), 'true');
   assert.match(await describedBy(dates), new RegExp(`Locked by ${OTHER.display_name}`, 'u'));
+  // The focused locked option shows its reason as a bubble: the first Escape closes the bubble, the
+  // second the list (design-system.md §4, case 2).
+  await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   await list.waitFor({ state: 'detached', timeout: 5_000 });
   // The chip names who set the lock.
