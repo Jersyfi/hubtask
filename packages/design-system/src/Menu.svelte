@@ -304,6 +304,10 @@
     cursor: pointer;
     /* Under a thumb the row grows to the target (the spacious density's small control). */
     min-block-size: var(--density-control-sm-min);
+    /* The minimum above replaces the content's own as a flex item's floor: an item that could
+       shrink is squeezed to it once the list is taller than its room, and its second line runs over
+       the next item. The list scrolls instead. */
+    flex-shrink: 0;
   }
 
   .item:hover { background: var(--bg-surface-hover); }
