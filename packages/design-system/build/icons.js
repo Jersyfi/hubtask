@@ -23,54 +23,57 @@ const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 /**
  * The declared subset, grouped by what asks for it. A group is a claim: the components of that
  * wave need these and no others. Adding a name here is the only way an icon enters the product.
+ *
+ * Each entry is our name, then the source's: code, templates and stored entry types name only
+ * ours, so a rename upstream changes the right-hand side here and nothing else (ADR-0114).
  */
 export const DECLARED = {
-  'Actions — wave 1': [
-    'check',
-    'plus',
-    'minus', // the third state of a checkbox: some, not all
-    'x',
-    'pencil',
-    'trash', // lucide 1.45 renamed `trash` to `trash`; the glyph is the same
-    'archive',
-    'copy',
-    'link',
-    'search',
-    'settings',
+  'Actions — wave 1': {
+    'check': 'check',
+    'plus': 'plus',
+    'minus': 'minus', // the third state of a checkbox: some, not all
+    'x': 'x',
+    'pencil': 'pencil',
+    'trash': 'trash',
+    'archive': 'archive',
+    'copy': 'copy',
+    'link': 'link',
+    'search': 'search',
+    'settings': 'settings',
     // A tour is a way through rather than a notice. With the outlined `info` the installation
     // carries, two rows of one menu would say the same thing with one mark (ADR-0063 decision 6).
-    'compass',
-    'log-out',
-    'ellipsis',
-    'grip-vertical',
-    'funnel', // a filter; lucide renamed `filter` to `funnel`
-    'star', // the saved views, beside the switcher that draws them
-  ],
-  'Navigation — wave 2': [
-    'chevron-up',
-    'chevron-down',
-    'chevron-left',
-    'chevron-right',
-    'chevrons-up-down',
-    'arrow-left',
-    'arrow-right',
-    'external-link',
-    'menu',
-    'panel-left',
-    'panel-right',
-    'maximize-2',
-  ],
-  'State and feedback': [
-    'circle-check',
-    'circle-alert',
-    'triangle-alert',
-    'info',
-    'loader-circle',
-    'ban',
-    'eye',
-    'eye-off',
-    'sun',
-    'moon',
+    'compass': 'compass',
+    'log-out': 'log-out',
+    'ellipsis': 'ellipsis',
+    'grip-vertical': 'grip-vertical',
+    'funnel': 'funnel', // a filter; lucide renamed `filter` to `funnel`
+    'star': 'star', // the saved views, beside the switcher that draws them
+  },
+  'Navigation — wave 2': {
+    'chevron-up': 'chevron-up',
+    'chevron-down': 'chevron-down',
+    'chevron-left': 'chevron-left',
+    'chevron-right': 'chevron-right',
+    'chevrons-up-down': 'chevrons-up-down',
+    'arrow-left': 'arrow-left',
+    'arrow-right': 'arrow-right',
+    'external-link': 'external-link',
+    'menu': 'menu',
+    'panel-left': 'panel-left',
+    'panel-right': 'panel-right',
+    'maximize-2': 'maximize-2',
+  },
+  'State and feedback': {
+    'circle-check': 'circle-check',
+    'circle-alert': 'circle-exclamation-point',
+    'triangle-alert': 'triangle-exclamation-point',
+    'info': 'info',
+    'loader-circle': 'loader-circle',
+    'ban': 'ban',
+    'eye': 'eye',
+    'eye-off': 'eye-off',
+    'sun': 'sun',
+    'moon': 'moon',
     // The three faces of the website's colour-mode control, which is one glyph showing the mode it
     // is in. `sun-moon` is the third state rather than a screen: "follow the device" is neither
     // light nor dark, and a control that reused one of the other two would lie in half its states
@@ -81,181 +84,165 @@ export const DECLARED = {
     // both are chosen for their parts. The website animates the rays and the star individually on
     // a change of mode, which a single-path glyph cannot do. `moon` stays declared because
     // `moon-star` is not its replacement anywhere else.
-    'sun-moon',
-    'moon-star',
-  ],
-  'Domain nouns Lucide already says well': [
-    'calendar', // a due date
-    'clock', // a time, and the history
-    'bell', // a reminder
-    'user', // an assignee
-    'users', // members
-    'user-check', // an assignment
-    'paperclip', // an attachment
-    'message-square', // a comment
-    'tag', // a label
-    'image', // a cover
-    'file-text', // a note
-    'repeat', // a recurrence rule
-  ],
-  'Offline operation': [
+    'sun-moon': 'sun-moon',
+    'moon-star': 'moon-star',
+  },
+  'Domain nouns Lucide already says well': {
+    'calendar': 'calendar', // a due date
+    'clock': 'clock', // a time, and the history
+    'bell': 'bell', // a reminder
+    'user': 'user', // an assignee
+    'users': 'users', // members
+    'user-check': 'user-check', // an assignment
+    'paperclip': 'paperclip', // an attachment
+    'message-square': 'message-square', // a comment
+    'tag': 'tag', // a label
+    'image': 'image', // a cover
+    'file-text': 'file-text', // a note
+    'repeat': 'repeat', // a recurrence rule
+  },
+  'Offline operation': {
     // What SyncStatus says in a shape beside its word (rule 3): the copy is in step with the
     // server, the server cannot be reached, a change waits to be sent, a change was refused.
-    'cloud-check', // synchronised
-    'cloud-off', // offline - the server cannot be reached
-    'cloud-upload', // changes waiting to be pushed
-  ],
-  'The rule flow': [
+    'cloud-check': 'cloud-check', // synchronised
+    'cloud-off': 'cloud-off', // offline - the server cannot be reached
+    'cloud-upload': 'cloud-upload', // changes waiting to be pushed
+  },
+  'The rule flow': {
     // The cards of the rule editor, each with a shape beside its word (rule 3): what starts a
     // rule, the six ways; and the three flow kinds the engine owns.
-    'zap', // an event
-    'hand', // somebody starts it
-    'inbox', // an arrival in the jumble
-    'mic', // a voice assistant: the place it is set up
-    'globe', // a webhook, an outbound call
-    'mail', // an e-mail
-    'play', // the probe, and starting a manual rule
-    'pause', // WAIT
-    'git-branch', // BRANCH
-    'square', // STOP - a terminus
-    'shield', // the account a rule runs as
-    'fold-vertical', // a branch folded to one line, and unfolded
-  ],
-  'The rule flow, its building blocks': [
+    'zap': 'zap', // an event
+    'hand': 'hand', // somebody starts it
+    'inbox': 'inbox', // an arrival in the jumble
+    'mic': 'mic', // a voice assistant: the place it is set up
+    'globe': 'globe', // a webhook, an outbound call
+    'mail': 'mail', // an e-mail
+    'play': 'play', // the probe, and starting a manual rule
+    'pause': 'pause', // WAIT
+    'git-branch': 'git-branch', // BRANCH
+    'square': 'square', // STOP - a terminus
+    'shield': 'shield', // the account a rule runs as
+    'fold-vertical': 'arrows-to-axis-dashed-horizontal', // a branch folded to one line, and unfolded
+  },
+  'The rule flow, its building blocks': {
     // A building block carries its icon (design-system.md §12): one per action kind the palette and the
     // + menu know, chosen in apps/webapp's words.ts; the group's icon stands in for the rest.
-    'calendar-x', // clear the due date
-    'rotate-ccw', // reopen
-    'arrow-right-left', // move
-    'user-plus', // add a member, assign
-    'user-minus', // remove a member, unassign
-    'columns-3', // a bucket
-    'folder-plus', // a hub or collection
-    'folder', // a folder in a file store
-    'layout-template', // a template
-    'skip-forward', // skip an occurrence
-    'sliders-horizontal', // a custom field
-    'circle-x', // dismiss an inbox entry
-    'square-check', // complete
-    'send', // deliver to a webhook
-  ],
-  'The administration section': [
+    'calendar-x': 'calendar-x', // clear the due date
+    'rotate-ccw': 'rotate-ccw', // reopen
+    'arrow-right-left': 'arrow-right-left', // move
+    'user-plus': 'user-plus', // add a member, assign
+    'user-minus': 'user-minus', // remove a member, unassign
+    'columns-3': 'columns-3', // a bucket
+    'folder-plus': 'folder-plus', // a hub or collection
+    'folder': 'folder', // a folder in a file store
+    'layout-template': 'layout-template', // a template
+    'skip-forward': 'skip-forward', // skip an occurrence
+    'sliders-horizontal': 'sliders-horizontal', // a custom field
+    'circle-x': 'circle-x', // dismiss an inbox entry
+    'square-check': 'square-check', // complete
+    'send': 'send', // deliver to a webhook
+  },
+  'The administration section': {
     // Three marks the section's five groups asked for and the set did not have. The
     // rest of its rows took marks that were already here; these three name concepts the product
     // repeats, which is what earns a place in this list.
-    'key', // a credential: a service account, its tokens, a person's own tokens
-    'gauge', // a load against a limit: the quotas screen, and what the health report reads
-    'file-user', // a person's request about their own data: access, erasure, objection, export
-  ],
-  'The installation section': [
+    'key': 'key', // a credential: a service account, its tokens, a person's own tokens
+    'gauge': 'gauge', // a load against a limit: the quotas screen, and what the health report reads
+    'file-user': 'file-user', // a person's request about their own data: access, erasure, objection, export
+  },
+  'The installation section': {
     // One mark the level above the workspaces asked for and the set did not have. The keyring is
     // the concept a lock names, and it is the one screen of that section that reads without
     // turning anything: `shield` was taken by the operator register, and two sections' rows must
     // not share a glyph where they sit in one column.
-    'lock',
-  ],
-  'A hub or collection of its own': [
+    'lock': 'lock',
+  },
+  'A hub or collection of its own': {
     // The symbols a person chooses for a hub or a collection (UC-WRK-33): areas of a life and of
     // work, each a noun a person would name the place by. A level never takes one of these - the
     // marks of the two container types stay the default for a place nobody chose for.
-    'house',
-    'briefcase',
-    'heart',
-    'book-open',
-    'graduation-cap',
-    'dumbbell',
-    'stethoscope',
-    'plane',
-    'bike',
-    'shopping-cart',
-    'wallet',
-    'wrench',
-    'hammer',
-    'code',
-    'lightbulb',
-    'rocket',
-    'flag',
-    'music',
-    'camera',
-    'palette',
-    'leaf',
-    'paw-print',
-    'utensils',
-    'gift',
-  ],
-  'The whiteboard': [
-    // The canvas's own tools and side sheets (user-experience.md §7.2): a tool bar of icon buttons
-    // reads only where each tool has a glyph of its own, so no two tools share one.
-    'mouse-pointer-2',
-    'sticky-note',
-    'shapes',
-    'type',
-    'move-up-right', // a connector: an arrow from one object to another
-    'frame',
-    'eraser',
-    'undo-2',
-    'redo-2',
-    'map',
-    'timer',
-    'vote',
-    'rotate-ccw-clock', // the board's history: back to an earlier time
-  ],
-  'Staying current': [
+    'house': 'house',
+    'briefcase': 'briefcase',
+    'heart': 'heart',
+    'book-open': 'book-open',
+    'graduation-cap': 'graduation-cap',
+    'dumbbell': 'dumbbell',
+    'stethoscope': 'stethoscope',
+    'plane': 'plane',
+    'bike': 'bike',
+    'shopping-cart': 'shopping-cart',
+    'wallet': 'wallet',
+    'wrench': 'wrench',
+    'hammer': 'hammer',
+    'code': 'code',
+    'lightbulb': 'lightbulb',
+    'rocket': 'rocket',
+    'flag': 'flag',
+    'music': 'eighth-notes',
+    'camera': 'camera',
+    'palette': 'palette',
+    'leaf': 'leaf',
+    'paw-print': 'paw-print',
+    'utensils': 'utensils',
+    'gift': 'gift',
+  },
+  'Staying current': {
     // The installed apps' offer of a newer release: its download, on Android and for the `.deb`
     // (UC-SYN-07 checks 5 and 6).
-    'download',
-  ],
-  'The AI treatment': [
+    'download': 'download',
+  },
+  'The AI treatment': {
     // The one mark a proposal carries beside its heading. Rule 3: the surface and the border say
     // "not the reader's own" by colour, and this says it in a shape. Not a logo, not a badge -
     // voice-and-tone.md §7.2 - and it takes the text's colour like every other glyph.
-    'sparkles',
-  ],
-  'The sidebar': [
+    'sparkles': 'sparkles',
+  },
+  'The sidebar': {
     // *Change position…*: a place moved up or down among its siblings. The hub quick switch keeps
     // `chevrons-up-down`, and no two actions of the sidebar share a mark (the navigation concept).
-    'arrow-up-down',
-  ],
-  'The work surface': [
+    'arrow-up-down': 'arrow-up-down',
+  },
+  'The work surface': {
     // A priority's glyph beside its word (the queue's mockup): up for high and critical, down for
     // low; the middle takes `minus`.
-    'arrow-up',
-    'arrow-down',
+    'arrow-up': 'arrow-up',
+    'arrow-down': 'arrow-down',
     // The composer's formatting bar (ET-5) and its mention.
-    'bold',
-    'italic',
-    'strikethrough',
-    'quote',
-    'list-checks',
-    'layout-grid',
-    'file-spreadsheet',
-    'file-archive',
-    'list',
-    'at-sign',
+    'bold': 'letter-b',
+    'italic': 'italic',
+    'strikethrough': 'strikethrough',
+    'quote': 'quote',
+    'list-checks': 'list-checks',
+    'layout-grid': 'layout-grid',
+    'file-spreadsheet': 'file-spreadsheet',
+    'file-archive': 'file-archive',
+    'list': 'list',
+    'at-sign': 'at-sign',
     // *All deadlines as a table* (ET-6).
-    'table',
-  ],
-  'The whiteboard': [
-    // The dock's tools and the selection bar (work surface W-2, W-4).
-    'eraser',
-    'frame',
-    'map',
-    'mouse-pointer-2',
-    'move-up-right',
-    'redo-2',
-    'rotate-ccw-clock',
-    'shapes',
-    'sticky-note',
-    'timer',
-    'type',
-    'undo-2',
-    'vote',
-    'highlighter', // the marker
-    'message-circle', // a comment at a place
-    'align-start-vertical', // align the chosen notes
-    'group', // group the chosen
-    'layers', // bring to the front
-  ],
+    'table': 'table',
+  },
+  'The whiteboard': {
+    // The dock's tools and the selection bar (work surface W-2, W-4): a tool bar of icon buttons
+    // reads only where each tool has a glyph of its own, so no two tools share one.
+    'eraser': 'eraser',
+    'frame': 'frame',
+    'map': 'map',
+    'mouse-pointer-2': 'mouse-pointer-2',
+    'move-up-right': 'move-up-right',
+    'redo-2': 'redo-2',
+    'rotate-ccw-clock': 'rotate-ccw-clock',
+    'shapes': 'shapes',
+    'sticky-note': 'sticky-note',
+    'timer': 'timer',
+    'type': 'type',
+    'undo-2': 'undo-2',
+    'vote': 'vote',
+    'highlighter': 'highlighter', // the marker
+    'message-circle': 'message-circle', // a comment at a place
+    'align-start-vertical': 'align-start-vertical', // align the chosen notes
+    'group': 'group', // group the chosen
+    'layers': 'layers', // bring to the front
+  },
 };
 
 /**
@@ -275,18 +262,6 @@ export const MIRRORED = [
   'panel-left', // the panel sits at the start of the line, which is the end in Arabic
   'panel-right', // and this one at the end, which is the start in Arabic
 ];
-
-/**
- * Names this product keeps although Lucide renamed the glyph: stored entry types and shipped
- * configurations name icons, so a rename upstream must not reach them. Ours -> Lucide's.
- */
-const LUCIDE_NAME = {
-  'circle-alert': 'circle-exclamation-point',
-  'triangle-alert': 'triangle-exclamation-point',
-  'fold-vertical': 'arrows-to-axis-dashed-horizontal',
-  music: 'eighth-notes',
-  bold: 'letter-b',
-};
 
 const SOURCE = path.join(packageRoot, 'node_modules', 'lucide-static', 'icon-nodes.json');
 const DESTINATION = path.join(packageRoot, 'src', 'icons', 'base.ts');
@@ -322,7 +297,7 @@ export function render() {
   }
   const nodes = JSON.parse(fs.readFileSync(SOURCE, 'utf8'));
 
-  const declared = new Set(Object.values(DECLARED).flat());
+  const declared = new Set(Object.values(DECLARED).flatMap((names) => Object.keys(names)));
   for (const name of MIRRORED) {
     if (!declared.has(name)) throw new Error(`"${name}" is in MIRRORED but not in DECLARED - build/icons.js`);
   }
@@ -333,17 +308,17 @@ export function render() {
 
   for (const [group, names] of Object.entries(DECLARED)) {
     lines.push(`\n  // ${group}`);
-    for (const name of [...names].sort()) {
-      const icon = nodes[LUCIDE_NAME[name] ?? name];
+    for (const [name, source] of Object.entries(names).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+      const icon = nodes[source];
       // Loudly, not silently: a name Lucide dropped in an upgrade has to stop the build, or the
       // glyph quietly disappears from a control that had one yesterday.
-      if (!icon) throw new Error(`lucide has no icon called "${name}" - check the name in build/icons.js`);
+      if (!icon) throw new Error(`lucide has no icon called "${source}" (ours: "${name}") - check its source name in build/icons.js`);
 
       const cleaned = icon.map(([tag, attributes]) => {
         const kept = Object.entries(attributes).filter(([key]) => !WRAPPER_ATTRIBUTES.has(key));
         for (const [key, value] of kept) {
           if (COLOUR.test(String(value))) {
-            throw new Error(`lucide's "${name}" carries a colour in ${key}="${value}" - see rule 15`);
+            throw new Error(`lucide's "${source}" (ours: "${name}") carries a colour in ${key}="${value}" - see rule 15`);
           }
         }
         return [tag, Object.fromEntries(kept)];

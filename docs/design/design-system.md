@@ -1850,6 +1850,9 @@ another device ([`backlog/navigation/README.md`](../backlog/navigation/README.md
 * `build/icons.js` holds the declared list and generates the committed `src/icons/base.ts`; an
   undeclared icon is not in `src/`. `lucide-static` is a devDependency of the design system alone;
   `icons.test.js` compares the committed file with a fresh render; `make icons` regenerates it.
+* **Our own names, the source's beside them** ([ADR-0114](../adr/ADR-0114-icons-carry-our-own-names.md)).
+  Each declared icon is our name, then Lucide's. Code, templates and stored entry types name only
+  ours; an upstream rename changes the source name in that one line.
 * **One `Icon` taking a name**, over one merged set of base icons and our own marks
   (`src/icons/custom.ts`). Icons are nodes — `[tag, attributes]` rendered as elements — never markup
   through `{@html}`.
