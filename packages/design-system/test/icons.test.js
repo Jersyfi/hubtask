@@ -24,12 +24,20 @@ const read = (...p) => fs.readFileSync(path.join(packageRoot, ...p), 'utf8');
 const COLOUR = /#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\(/;
 
 test('the generated set is exactly what build/icons.js declares', () => {
-  const declared = Object.values(DECLARED).flat().sort();
+  const declared = Object.values(DECLARED).flatMap((names) => Object.keys(names)).sort();
   assert.deepEqual(
     Object.keys(BASE_ICONS).sort(),
     declared,
     'src/icons/base.ts is out of step with the declared list - run `make icons` and commit it',
   );
+});
+
+test('every declared icon names its source glyph', () => {
+  for (const [group, names] of Object.entries(DECLARED)) {
+    for (const [name, source] of Object.entries(names)) {
+      assert.match(source, /^[a-z0-9]+(?:-[a-z0-9]+)*$/, `${group}: "${name}" names no source glyph`);
+    }
+  }
 });
 
 test('the generated file is marked as generated', () => {
