@@ -70,7 +70,7 @@
         <Stack gap="150">
           <Select
             label={t('app.audit.anchoring_target')}
-            hint={t('app.audit.anchoring_target_hint')}
+            hint={t('app.audit.anchoring_target_hint')} more={t('app.audit.anchoring_target_hint_more')}
             bind:value={anchorChoice}
             placeholder={t('app.audit.choose_target')}
             options={backup.all.map((target) => ({ value: target.id, label: target.name }))}

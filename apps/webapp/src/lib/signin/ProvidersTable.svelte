@@ -11,7 +11,7 @@
   // stays (multi-tenancy.md §4.2, P-05).
   import { untrack } from 'svelte';
 
-  import { Badge, Button, DataTable, EmptyState, ReadOnlyNotice, Spinner, type DataColumn } from '@hubtask/design-system/components';
+  import { Badge, Button, DataTable, EmptyState, HelpTip, ReadOnlyNotice, Spinner, type DataColumn } from '@hubtask/design-system/components';
   import type { IdentityProvider } from '@hubtask/sync-engine';
 
   import ProviderDialog from './ProviderDialog.svelte';
@@ -81,6 +81,7 @@
 <section class="providers" aria-labelledby="providers">
   <div class="head">
     <h3 id="providers">{t('app.identity_provider.title')}</h3>
+    <HelpTip subject={t('app.identity_provider.title')} text={t('app.identity_provider.intro_more')} />
     {#if reading.status === 'ready'}<span class="count">{rows.length}</span>{/if}
     {#if mayManage && !resting && !unavailable}
       <span class="acts"><Button icon="plus" onclick={() => (isAdding = true)}>{t('app.identity_provider.add')}</Button></span>

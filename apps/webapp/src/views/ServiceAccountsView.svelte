@@ -165,7 +165,7 @@
 
 {#snippet figure()}<MachinesFigure />{/snippet}
 
-<ListPage head={machinesHead(primary, figure)}>
+<ListPage head={{ ...machinesHead(primary, figure), more: t('app.service_accounts.intro_more') }}>
   {#snippet strip()}<MachinesStrip current="service-accounts" {onnavigate} />{/snippet}
   {#snippet intro()}<p class="quiet">{t('app.service_accounts.intro')}</p>{/snippet}
   {#snippet filters()}

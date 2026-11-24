@@ -335,7 +335,7 @@
             {/if}
           </div>
         {:else}
-          <SettingRow label={t('app.mfa.app_row')} help={t('app.mfa.intro')}>
+          <SettingRow label={t('app.mfa.app_row')} help={t('app.mfa.intro')} more={t('app.mfa.intro_more')}>
             {#snippet control()}
               <Button tone="secondary" onclick={() => onnavigate?.(`${BASE}/second-factor/new`)}>{t('app.mfa.set_up')}</Button>
             {/snippet}

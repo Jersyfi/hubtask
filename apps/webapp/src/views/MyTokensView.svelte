@@ -95,9 +95,12 @@
 </script>
 
 <ListPage
-  head={profileHead('tokens', {
-    primary: { label: t('app.tokens.new'), icon: 'plus', opener: 'new-token', onclick: () => onnavigate?.('/profile/tokens/new') },
-  })}
+  head={{
+    ...profileHead('tokens', {
+      primary: { label: t('app.tokens.new'), icon: 'plus', opener: 'new-token', onclick: () => onnavigate?.('/profile/tokens/new') },
+    }),
+    more: t('app.tokens.intro_more'),
+  }}
 >
   {#snippet intro()}<p class="quiet">{t('app.tokens.intro')}</p>{/snippet}
   {#snippet filters()}

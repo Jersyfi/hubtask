@@ -110,7 +110,7 @@
 {#if !account}
   <EmptyState kind="filtered" title={t('app.profile.signed_out')} />
 {:else}
-  <ListPage head={profileHead('devices')}>
+  <ListPage head={{ ...profileHead('devices'), more: t('app.devices.intro_more') }}>
     {#snippet intro()}<p class="quiet">{t('app.devices.intro')}</p>{/snippet}
     {#snippet filters()}
       <FilterBar
