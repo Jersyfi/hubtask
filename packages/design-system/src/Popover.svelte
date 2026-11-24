@@ -19,6 +19,7 @@
   import { isCompactWidth, closeName } from './media.ts';
   import { openOverlay } from './overlay.ts';
   import type { Placement } from './anchor.ts';
+  import { scrollEdges } from './scrollEdges.ts';
 
   interface Props {
     /** What the surface is called, for the reader who arrives on it without seeing the trigger. */
@@ -127,7 +128,8 @@
   </Sheet>
 {:else if isOpen}
   <div {id} class="surface" role="dialog" aria-label={label} bind:this={surface}>
-    {@render children()}
+    <!-- The surface is the frame that does not scroll and carries the shades; this scrolls. -->
+    <div class="scroll" {@attach scrollEdges}>{@render children()}</div>
   </div>
 {/if}
 
@@ -142,14 +144,17 @@
     /* Rule 4: it is as wide as its content up to a limit, and never a fixed width. */
     max-width: 40ch;
     max-height: 80vh;
-    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     margin: var(--sp-050);
-    padding: var(--sp-200);
+    /* The padding is the inner box's, which scrolls; none from the popover's own default. */
+    padding: 0;
     border: var(--bw-hairline) solid var(--border-subtle);
     /* anchor.ts's slack for its shrunk fallback, grown by what comes on top of the content box it
-       sizes - padding and border on both sides. Without it a list near the middle of the screen
-       fits on neither side. */
-    --hbt-fit-slack: calc(var(--sp-200) * 3 + var(--bw-hairline) * 2);
+       sizes - the border on both sides; the padding is inside it, on the part that scrolls. Without
+       it a list near the middle of the screen fits on neither side. */
+    --hbt-fit-slack: calc(var(--sp-200) + var(--bw-hairline) * 2);
     border-radius: var(--r-lg);
     background: var(--bg-raised);
     /* Rule 1: a temporary overlay is raised off the page it covers. */
@@ -158,6 +163,14 @@
     font-size: var(--fs-100);
     text-align: start;
     animation: open var(--motion-attach-duration) var(--motion-attach-easing) both;
+  }
+
+  /* The content scrolls inside the surface, so the surface can carry the shades at its edges. */
+  .scroll {
+    flex: 1 1 auto;
+    min-block-size: 0;
+    overflow: auto;
+    padding: var(--sp-200);
   }
 
   /* Opacity alone, because a `transform` here is a trap. `animation-fill-mode:

@@ -32,6 +32,7 @@
   import IconButton from './IconButton.svelte';
   import { escapeHandler, focusReturn } from './focus.ts';
   import { layers } from './layers.ts';
+  import { scrollEdges } from './scrollEdges.ts';
 
   interface Props {
     /** What the panel is, as a heading. Resolved text (ADR-0011). */
@@ -191,7 +192,9 @@
     if (event.target === node) close();
   }}
 >
-  <div class="panel">
+  <!-- A drawer at a side scrolls whole, in the panel; a sheet only its body, in its frame. The
+       drawer and the frame do not scroll and carry the shades (scrollEdges.css). -->
+  <div class="panel" {@attach scrollEdges}>
     {#if sized}
       <!-- The handle: dragged with a pointer, moved with the arrow keys, and let go below the
            floor to close. A focusable separator with a value is ARIA's window splitter, which is
@@ -223,7 +226,7 @@
         <IconButton icon="x" label={dismissLabel} size="sm" onclick={() => close()} />
       </div>
     </header>
-    <div class="body">{@render children()}</div>
+    <div class="frame"><div class="body" {@attach scrollEdges}>{@render children()}</div></div>
   </div>
 </dialog>
 
@@ -246,8 +249,10 @@
     inline-size: var(--drawer-inline-size, min(42ch, 100%));
     max-inline-size: 100%;
     margin-block: 0;
-    overflow: auto;
+    overflow: hidden;
   }
+
+  .drawer[open] { display: flex; flex-direction: column; }
 
   /* One animation, and the direction it slides from is a custom property rather than a second
      keyframe set. `translate` is physical - it knows nothing about `inline-start` - so the sign is
@@ -284,8 +289,8 @@
   }
 
   /* Its head stays and only its body scrolls, as a sheet's (design-system.md §4). */
-  .drawer[data-edge='block-end'][open] { display: flex; flex-direction: column; overflow: hidden; }
   .drawer[data-edge='block-end'] .panel { flex: 1 1 auto; box-sizing: border-box; min-block-size: 0; }
+  .drawer[data-edge='block-end'] .frame { flex: 1 1 auto; }
   .drawer[data-edge='block-end'] .body { flex: 1 1 auto; min-block-size: 0; overflow: auto; }
 
   /* In RTL the same logical edge is the other physical side, so the sign flips. Without this a
@@ -311,6 +316,7 @@
      `overflow: hidden` cut off the padding and the lower half of the last control with it. */
   .drawer.sized .panel { box-sizing: border-box; block-size: 100%; min-block-size: 0; }
 
+  .drawer.sized .frame { flex: 1 1 auto; }
   .drawer.sized .body { flex: 1 1 auto; min-block-size: 0; overflow: auto; }
 
   .grip { margin-block: calc(-1 * var(--sp-150)) 0; padding-block: var(--sp-100); display: grid; place-items: center; cursor: ns-resize; touch-action: none; }
@@ -322,12 +328,17 @@
   .drawer::backdrop { background: var(--bg-scrim); }
 
   .panel {
+    flex: 1 1 auto;
+    min-block-size: 0;
+    overflow: auto;
     display: flex;
     flex-direction: column;
     gap: var(--sp-200);
     padding: var(--sp-300);
     text-align: start;
   }
+
+  .frame { position: relative; display: flex; flex-direction: column; min-block-size: 0; }
 
   /* The head stays, whatever the body does under it. */
   .drawer.sized .head { position: sticky; inset-block-start: 0; }

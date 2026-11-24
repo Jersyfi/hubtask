@@ -115,7 +115,11 @@ test('chromium: 1280 px — the sync mark opens on a band naming the state, the 
   const geometry = await page.evaluate(() => {
     const state = document.querySelector('p.band[data-tone]');
     const line = document.querySelector('p.band[data-tone] ~ .body .detail')?.getBoundingClientRect();
-    const surface = state.closest('[popover], .surface') ?? state.parentElement;
+    // The box whose padding holds the surface's content: the surface, or the box inside it that
+    // scrolls the content while the surface carries the scroll shades.
+    const outer = state.closest('[popover], .surface') ?? state.parentElement;
+    let surface = state.parentElement;
+    while (surface !== outer && Number.parseFloat(getComputedStyle(surface).paddingInlineStart) === 0) surface = surface.parentElement;
     const box = state.getBoundingClientRect();
     const style = getComputedStyle(state);
     const padding = Number.parseFloat(style.paddingInlineStart);

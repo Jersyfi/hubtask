@@ -21,6 +21,7 @@
   import { layers, type DismissibleLayer } from './layers.ts';
   import { closeName } from './media.ts';
   import type { MenuItem } from './overlay.ts';
+  import { scrollEdges } from './scrollEdges.ts';
 
   interface Props {
     /** The heading and the dialog's name: "Views", "Create under Team". */
@@ -178,11 +179,14 @@
       <!-- A thumb's target (§9: 44 px): the regular size, not the small one. -->
       <IconButton icon="x" label={closeName() ?? closeLabel} tone="subtle" onclick={() => close()} />
     </header>
-    <div class="body">
+    <!-- The frames the body and a list of actions scroll in, and where their shades are drawn. -->
+    <div class="frame">
+    <div class="body" {@attach scrollEdges}>
       {#if items}
         <!-- A list of actions is the menu it stands for on a phone: its rows are menu items, the
              arrows move between them as in the anchored menu (WAI-ARIA menu pattern). -->
-        <ul class="items" role="menu" aria-labelledby={titleId} onkeydown={moveAmongItems}>
+        <div class="frame items-frame">
+        <ul class="items" role="menu" aria-labelledby={titleId} onkeydown={moveAmongItems} {@attach scrollEdges}>
           {#each items as item (item.id)}
             <li role="none">
               <button
@@ -207,8 +211,10 @@
             </li>
           {/each}
         </ul>
+        </div>
       {/if}
       {@render children?.()}
+    </div>
     </div>
     {#if actions}<footer class="actions">{@render actions()}</footer>{/if}
   </div>
@@ -244,10 +250,13 @@
      stands among its children and pushed it to the top. */
   .sheet[open] { display: flex; flex-direction: column; margin: auto 0 0; }
   .panel { flex: 1 1 auto; min-block-size: 0; box-sizing: border-box; }
+  .frame { position: relative; display: flex; flex-direction: column; min-block-size: 0; }
+  .panel > .frame { flex: 1 1 auto; }
   .body { flex: 1 1 auto; min-block-size: 0; overflow: auto; }
   /* A list of actions is the scroller itself, so the menu stands inside the screen, not only its body. */
-  .body:has(> .items) { display: flex; flex-direction: column; }
-  .body > .items { flex: 0 1 auto; min-block-size: 0; overflow: auto; }
+  .body:has(> .items-frame) { display: flex; flex-direction: column; }
+  .items-frame { flex: 0 1 auto; }
+  .items { flex: 0 1 auto; min-block-size: 0; overflow: auto; }
 
   .sheet::backdrop { background: var(--bg-scrim); }
 
