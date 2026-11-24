@@ -34,4 +34,6 @@ menu showed at both edges whatever was left to scroll, and lightened a dark surf
 * A reader on touch learns of a reason or of more help by the ⓘ, not by hovering.
 * What is no longer visible at a glance is read less; that is why the hint keeps everything a
   person needs to act, and the description never moves.
-* The existing texts are rewritten into the tiers in a pass of their own (design-system.md §9).
+* The existing texts were rewritten into the tiers in a pass of their own; a test holds a visible
+  hint to two lines from then on, with a list of the texts left longer that only shrinks
+  (design-system.md §4, "Help text").

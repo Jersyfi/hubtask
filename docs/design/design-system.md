@@ -366,7 +366,11 @@ never inside it, so its name does not join theirs. `Input`, `Select`, `Textarea`
 `Checkbox`, `MultiSelect`, `SettingRow`, `SettingsSection`, `FormSection` and `PageHeader` take its
 words as `more`. A page's or a section's introduction is one sentence, with the rest behind the ⓘ
 beside its heading - beside the page's title, or at the end of that sentence where the app's bar
-carries the title. An empty state keeps its one or two
+carries the title. A text behind an ⓘ is the visible one's code with `_more` appended, in every
+locale. `apps/webapp/build/hints.test.js` fails on a visible hint, help, introduction or description
+over about 120 characters in English unless `build/hints.json` lists it with a one-word reason -
+a description, what is needed now, a dialog's or an empty state's words - and that list only
+shrinks. An empty state keeps its one or two
 sentences — there they are the content — and `Callout` and `Banner` are status, not help.
 
 ### Wave 2 — structure (≈ 14)
@@ -1031,10 +1035,6 @@ screenshots.
   [ADR-0032](../adr/ADR-0032-client-capability-matrix.md)'s affordance in a build that excludes the
   routes. All other platform adaptation is the web app's layout by width (§6, §11), which the shells
   render as it is.
-- **The help texts' pass** — the texts written before the tiers (§4, "Help text"): a hint longer
-  than two lines keeps the part that is needed now and moves its why behind a `HelpTip`, and an
-  introduction of more than a sentence moves the rest beside its heading. It is the last step of
-  [ADR-0115](../adr/ADR-0115-help-text-in-five-tiers.md).
 
 The first two are tracked in [roadmap.md](../roadmap.md).
 
