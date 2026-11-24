@@ -10,6 +10,7 @@ import '../dist/fonts.css';
 import '../dist/fonts-scripts.css';
 import '../dist/tokens.css';
 import '../src/scrollbar.css';
+import '../src/scrollEdges.css';
 import './chrome/chrome.css';
 
 import Workbench from './Workbench.svelte';

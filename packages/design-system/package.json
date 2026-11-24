@@ -14,6 +14,7 @@
     "./icons": "./src/icons/index.ts",
     "./tokens.css": "./dist/tokens.css",
     "./scrollbar.css": "./src/scrollbar.css",
+    "./scrollEdges.css": "./src/scrollEdges.css",
     "./fonts.css": "./dist/fonts.css",
     "./fonts-scripts.css": "./dist/fonts-scripts.css",
     "./fonts/*": "./dist/fonts/*",
