@@ -42,6 +42,11 @@
     { id: 'edit', label: 'Rename', icon: 'pencil' },
     { id: 'copy', label: 'Duplicate', icon: 'copy' },
     { id: 'link', label: 'Copy link', icon: 'link' },
+    {
+      id: 'macro',
+      label: 'Run “Close the week”',
+      description: 'Marks every open task of this week as done and moves what is left over to Monday, in one step.',
+    },
     { id: 'archive', label: 'Archive', icon: 'archive', hasSeparatorBefore: true },
     {
       id: 'delete',

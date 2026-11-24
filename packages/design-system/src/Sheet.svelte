@@ -16,6 +16,7 @@
 
   import Icon from './Icon.svelte';
   import IconButton from './IconButton.svelte';
+  import Reason from './_Reason.svelte';
   import type { IconName } from './icons/index.ts';
   import { escapeHandler, focusReturn } from './focus.ts';
   import { layers, type DismissibleLayer } from './layers.ts';
@@ -63,6 +64,8 @@
   const instanceId = $props.id();
   const titleId = `sheet-${instanceId}`;
   let node = $state<HTMLDialogElement | null>(null);
+  /** Each action row by its item's id: what a locked row's reason bubble hangs from. */
+  const rows = $state<Record<string, HTMLElement | null>>({});
   let opener: Element | null = null;
 
   /** Where a pull began and how far it has gone; a quarter of the sheet decides. */
@@ -188,6 +191,7 @@
         <div class="frame items-frame">
         <ul class="items" role="menu" aria-labelledby={titleId} onkeydown={moveAmongItems} {@attach scrollEdges}>
           {#each items as item (item.id)}
+            {@const locked = item.disabledReason !== undefined}
             <li role="none">
               <button
                 type="button"
@@ -195,22 +199,29 @@
                 class="item"
                 data-destructive={item.isDestructive ? '' : undefined}
                 data-separated={item.hasSeparatorBefore ? '' : undefined}
-                aria-disabled={item.disabledReason !== undefined ? 'true' : undefined}
-                aria-describedby={item.disabledReason !== undefined ? `${titleId}-${item.id}` : undefined}
+                aria-disabled={locked ? 'true' : undefined}
+                aria-describedby={[locked ? `${titleId}-${item.id}` : undefined, item.description ? `${titleId}-${item.id}-description` : undefined].filter(Boolean).join(' ') || undefined}
                 onclick={() => choose(item)}
+                bind:this={rows[item.id]}
               >
                 {#if item.icon}<Icon name={item.icon} size="sm" />{/if}
                 <span class="item-text">
-                  <span>{item.label}</span>
-                  {#if item.description}<span class="reason">{item.description}</span>{/if}
-                  {#if item.disabledReason !== undefined}
-                    <span class="reason" id={`${titleId}-${item.id}`}>{item.disabledReason}</span>
-                  {/if}
+                  <span class="label">{item.label}</span>
+                  {#if item.description}<span class="description" id={`${titleId}-${item.id}-description`}>{item.description}</span>{/if}
                 </span>
+                {#if locked}<span class="mark" data-reason-mark="" aria-hidden="true"><Icon name="info" size="sm" /></span>{/if}
               </button>
             </li>
           {/each}
         </ul>
+        <!-- A locked row's reason is a bubble above it on a tap or on focus (design-system.md §4,
+             case 2), as in the anchored menu: beside the list, so its words never join the row's
+             name, and inside the sheet, so a tap on it does not reach the scrim. -->
+        {#each items as item (item.id)}
+          {#if item.disabledReason !== undefined}
+            <Reason id={`${titleId}-${item.id}`} text={item.disabledReason} control={rows[item.id] ?? null} />
+          {/if}
+        {/each}
         </div>
       {/if}
       {@render children?.()}
@@ -359,8 +370,11 @@
   .item[data-separated] { border-block-start-color: var(--border-default); }
   .item[data-destructive] { color: var(--text-danger); }
   .item[aria-disabled='true'] { color: var(--text-subtle); cursor: not-allowed; }
-  .item-text { display: flex; flex-direction: column; gap: var(--sp-025); }
-  .reason { font-size: var(--fs-075); color: var(--text-secondary); }
+  .item-text { display: flex; flex: 1 1 auto; flex-direction: column; gap: var(--sp-025); min-inline-size: 0; overflow-wrap: anywhere; }
+  /* Whole and wrapped, never cut. */
+  .description { font-size: var(--fs-075); color: var(--text-secondary); }
+  /* The ⓘ at the row's end: there is a reason, and a tap says it. */
+  .mark { display: inline-flex; flex: none; color: var(--text-subtle); }
 
   .actions { display: flex; gap: var(--sp-150); margin-block-start: var(--sp-150); }
   .actions :global(> :last-child) { flex: 1; }

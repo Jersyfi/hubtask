@@ -125,7 +125,10 @@ test('chromium: 1280 px — the page menu of a collection under an archived hub 
   await page.locator('[data-opener="container-menu"]').click();
   const menu = page.getByRole('menu');
   await menu.waitFor();
-  const reasons = await menu.locator('[role="menuitem"][aria-disabled="true"]').allInnerTexts();
+  // Each unavailable item's reason is its description, the words of its bubble.
+  const reasons = await menu.locator('[role="menuitem"][aria-disabled="true"]').evaluateAll((items) => items.map((node) =>
+    (node.getAttribute('aria-describedby') ?? '').split(/\s+/).map((id) => document.getElementById(id)?.textContent ?? '').join(' ').trim()));
+  assert.ok(reasons.every((text) => text.length > 0), 'an unavailable item has no reason');
   assert.ok(reasons.length > 0, 'nothing in the menu is unavailable under an archived hub');
   for (const text of reasons) {
     assert.doesNotMatch(text, /Unarchive it to work in it again/, `an item tells the reader to unarchive what has no Unarchive: ${text}`);

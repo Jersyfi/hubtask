@@ -14,7 +14,7 @@ export default {
 export const actions: Story = {
   name: 'Operable without a pointer',
   about:
-    'Tab to the button and press Down: the menu opens on the first item. Arrows walk it and wrap, Home and End jump, Escape closes it and gives focus back to the trigger, and Tab closes it and moves on rather than trapping you in a list of actions you had decided against. The unavailable item keeps its reason and is still reachable — a disabled control the arrows skip is one nobody can ask about.',
+    'Tab to the button and press Down: the menu opens on the first item. Arrows walk it and wrap, Home and End jump, Escape closes it and gives focus back to the trigger, and Tab closes it and moves on rather than trapping you in a list of actions you had decided against. The unavailable item is still reachable — a disabled control the arrows skip is one nobody can ask about — and keeps its one line: the ⓘ at its end says there is a reason, and the reason is a bubble on hover, focus, a click or a tap, its description for a screen reader. Escape closes the bubble before the menu. The macro’s description stays whole and wraps.',
 };
 
 export const long: Story = {

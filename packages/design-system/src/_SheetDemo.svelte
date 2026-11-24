@@ -18,7 +18,8 @@
   const items: MenuItem[] = [
     { id: 'open', label: 'Open' },
     { id: 'role', label: 'Change role…' },
-    { id: 'view', label: 'View as' },
+    { id: 'view', label: 'View as', description: 'See the workspace with Lukas’s rights, read-only, until you leave the view.' },
+    { id: 'owner', label: 'Make an owner', disabledReason: 'Only an owner of the workspace makes another owner.' },
     { id: 'revoke', label: 'Revoke access…', isDestructive: true, hasSeparatorBefore: true },
   ];
 </script>
