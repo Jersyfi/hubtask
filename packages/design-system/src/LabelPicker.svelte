@@ -169,11 +169,10 @@
 
   .tick { display: inline-flex; flex: none; inline-size: var(--sp-200); justify-content: center; }
 
+  /* Whole and wrapped, never cut: the description is what makes a colour mean something. */
   .description {
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
     color: var(--text-subtle);
     font-size: var(--fs-075);
   }
