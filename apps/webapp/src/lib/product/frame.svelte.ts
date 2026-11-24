@@ -44,7 +44,7 @@ export function productName(module: string): string {
 /** The home's head without its create act: a setup tab offers none (§5.4). */
 export function productHead(module: string): PageHead {
   const title = productName(module);
-  if (module === 'AGENTS') return { title, subtitle: t('app.agents.intro'), more: t('app.agents.intro_more'), breadcrumb: agentsTrail(AGENTS_HOME) };
+  if (module === 'AGENTS') return { title, subtitle: t('app.agents.intro'), breadcrumb: agentsTrail(AGENTS_HOME) };
   return {
     title,
     subtitle: t(`app.modules.hint_${module.toLowerCase()}`),

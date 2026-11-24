@@ -102,7 +102,6 @@
   {#snippet children(door)}
     <ListPage
       head={{
-        more: t('app.instance.targets_intro_more'),
         title: t('app.instance.targets'),
         breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.targets') }),
         primary: { label: t('app.instance.targets_add'), icon: 'plus', onclick: () => (isAdding = true) },

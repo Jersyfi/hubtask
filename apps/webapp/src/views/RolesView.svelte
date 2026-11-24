@@ -125,7 +125,7 @@
   }
 </script>
 
-<ListPage head={{ ...peopleHead(primary, viewAsFileAction(() => (isFileOpen = true))), more: t('app.roles.intro_more') }}>
+<ListPage head={peopleHead(primary, viewAsFileAction(() => (isFileOpen = true)))}>
   {#snippet strip()}<PeopleStrip current="roles" {onnavigate} />{/snippet}
   {#snippet intro()}<p class="quiet">{t('app.roles.intro')}</p>{/snippet}
   {#snippet filters()}

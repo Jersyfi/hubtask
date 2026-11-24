@@ -655,9 +655,9 @@
   {/if}
 {/snippet}
 
-{#snippet wayRow(id: string, label: string, help: string | undefined, isInert: boolean, control: Snippet<[string]>, source?: Snippet, reach?: string, more?: string)}
+{#snippet wayRow(id: string, label: string, help: string | undefined, isInert: boolean, control: Snippet<[string]>, source?: Snippet, reach?: string)}
   <li class="rule way" data-rule inert={isInert}>
-    <SettingRow {label} {help} {more} fieldWidth="sm" {control} {source} />
+    <SettingRow {label} {help} fieldWidth="sm" {control} {source} />
     {#if reach}<p class="reach" data-reach>{reach}</p>{/if}
     {#if wayFailure && wayFailure.id === id}<p class="refusal way-refusal" role="alert">{wayFailure.problem.message}</p>{/if}
   </li>
@@ -965,7 +965,7 @@
         {#snippet passkeySource()}
           {@render origin(policy.methods, passkeyWord(policy.methods.value), originOf(policy.methods, passkeyWord))}
         {/snippet}
-        {@render wayRow('passkey', t('app.signin_settings.way_passkey'), t('app.signin_settings.way_passkey_hint'), !mayRule, passkeySwitch, passkeySource, undefined, t('app.signin_settings.way_passkey_hint_more'))}
+        {@render wayRow('passkey', t('app.signin_settings.way_passkey'), t('app.signin_settings.way_passkey_hint'), !mayRule, passkeySwitch, passkeySource)}
         {#each providers as one (one.id)}
           {@const mandated = one.installation_lock === 'TURNS_ON'}
           {@const mandatedByPlan = mandated && policy.methods.lock === 'PLAN'}

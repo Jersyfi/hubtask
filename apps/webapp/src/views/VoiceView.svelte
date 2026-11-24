@@ -344,7 +344,7 @@
 {/snippet}
 
 <SettingsLayout
-  head={{ title, subtitle: t('app.voice.intro'), more: t('app.voice.intro_more'), breadcrumb: adminTrail({ id: 'voice', label: title }), figure }}
+  head={{ title, subtitle: t('app.voice.intro'), breadcrumb: adminTrail({ id: 'voice', label: title }), figure }}
   nav={{ label: t('app.settings_page.sections', { name: title }), sections: links, current: shown, onselect: (next) => onreplace?.(`${BASE}/${next}`) }}
   {view}
   back={{ label: title, onback: () => onreplace?.(BASE) }}

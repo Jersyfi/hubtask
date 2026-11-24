@@ -67,7 +67,7 @@
 
 <InstanceGate onleave={() => onnavigate('/')}>
   {#snippet children(door)}
-    <ListPage head={{ title: t('app.instance.encryption'), more: t('app.instance.encryption_intro_more'), breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.encryption') }) }} refused={door ?? (unreadable ? failed : undefined)}>
+    <ListPage head={{ title: t('app.instance.encryption'), breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.encryption') }) }} refused={door ?? (unreadable ? failed : undefined)}>
       {#snippet intro()}
         <Stack gap="100">
           <p class="quiet">{t('app.instance.encryption_intro')}</p>

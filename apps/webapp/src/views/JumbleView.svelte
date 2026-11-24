@@ -295,7 +295,6 @@
         menu={pageMenu}
         isMenuInBar={viewport.isCompact}
         onmenu={(offered) => page.offer(offered)}
-        more={t('app.jumble.intro_more')}
       />
       <p class="quiet">{t('app.jumble.intro')}</p>
       <!-- The workspace's intake address, where people look for it (ADR-0094). -->
