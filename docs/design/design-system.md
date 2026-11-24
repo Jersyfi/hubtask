@@ -318,7 +318,9 @@ no reason moves a box. The eight cases, and the pattern each takes:
 1. *The role forbids it* — not shown (P-05); where a page needs it for orientation, a gate with a
    lock and the reason as in 2 (`CapabilityGate` with `isInline`).
 2. *Not possible right now* — focusable, `aria-disabled`, the reason a bubble at the control on
-   hover, focus and tap; no space in the layout.
+   hover, focus and tap; no space in the layout. A `Menu`'s item and a `Sheet`'s row keep their one
+   line with an ⓘ at the end, the reason the same bubble on hover, focus, a click and a tap, and
+   `Escape` closes the bubble before the menu.
 3. *Something must be filled in* — the submit is never unavailable for it: pressing marks the
    missing fields and moves focus to the first. Every field marks itself one way: an `error` that
    is its description, on the control `aria-invalid` where the role takes it, and `data-invalid` on
@@ -335,6 +337,35 @@ no reason moves a box. The eight cases, and the pattern each takes:
    `Switch`), its size kept; afterwards a short confirmation with *Undo*, the caller's `Toast`.
 8. *Not in this plan or installation* — absent where it concerns nobody; otherwise one card or
    notice instead of the form, never a gated form.
+
+**Help text** comes in five tiers, and each text belongs to exactly one
+([ADR-0115](../adr/ADR-0115-help-text-in-five-tiers.md)):
+
+| Tier | What goes in | Drawn | On a phone | For a screen reader |
+|---|---|---|---|---|
+| A Name | what it is; for an act, the verb | visible | visible | the accessible name |
+| B Hint | what is needed **now** to fill it in or decide: a format, a unit, a limit, a consequence; a field's or a setting's description | visible, one line where it can be, two at most | the same | `aria-describedby` |
+| C More about | the why, the background, an example; three sentences at most | `HelpTip`: an ⓘ beside the label or the heading, a popover on a click | the same popover on a tap | a button named *More about ‹label›*, `aria-expanded`, `Escape` closes it and focus goes back |
+| D Reason | why it cannot be done now, whom to ask | the `_Reason` bubble (case 2 above) | the bubble on a tap | focusable, `aria-disabled`, the reason its `aria-describedby`, read without the bubble |
+| E Tooltip | an icon button's name, a shortcut, a cut title — never help, never the only place of anything | on hover and focus | on a tap | a description |
+
+**Which tier, in one sentence:** what is needed to do it right *now* is B; what explains *why* is
+C; what says why it *cannot* be done now is D; and where the name already says it all, there is no
+help text. The owner's three conditions (2026-11-24) hold for every tier:
+
+1. **A description stays visible.** A field's or a setting's description — what it is, what it does
+   — is never moved behind the ⓘ; only a hint's why, background and examples are.
+2. **No help text is cut.** A hint, a description and a reason are never shortened with an
+   ellipsis: they are shown whole and wrap, a menu item's description included.
+3. **A scroll shade stays inside its surface's corners** (§6, the overlays).
+
+`HelpTip` opens on a click, a tap, `Enter` or `Space` and never on a hover: touch has no hover, and
+text that opens under a passing pointer covers what the reader aimed at. It stays a popover on a
+phone, its words take focus so they are read at once, and it stands beside its label or heading,
+never inside it, so its name does not join theirs. `Input`, `Select`, `Textarea`, `CodeField`,
+`SettingRow`, `SettingsSection` and `FormSection` take its words as `more`. A page's or a section's
+introduction is one sentence, with the rest behind the ⓘ beside its heading. An empty state keeps its one or two
+sentences — there they are the content — and `Callout` and `Banner` are status, not help.
 
 ### Wave 2 — structure (≈ 14)
 Breadcrumb *(five levels, collapsed to `Hub / … / Parent / Current` from `medium` down)* ·
@@ -836,6 +867,14 @@ viewport. Where the browser has it, an anchored overlay is raised into the **top
 transformed, filtered or `contain` ancestor clips it; the scale still decides for everything in the
 flow.
 
+**A scroll shade** says that a scrolling surface goes on: a menu, a sheet, a popover, a dialog's
+body, a drawer, a pick list. `scrollEdges` (`src/scrollEdges.ts` and `.css`) marks the frame
+around the scroller, and a shade shows only at an edge with more beyond it — the start, the end,
+both or none, never on a list that does not scroll. It lies over the rows, so a hovered row does not
+cover it, and takes the frame's corners, so it never stands past the surface's rounding. Its colour
+is `bg.scrim`'s, faint at the edge and eased out, so it darkens the surface in both themes; a tint
+of the text colour would lighten a dark surface into a bar. `Table` keeps its own fade.
+
 What paints over what and what `Escape` reaches are **different lists**. A tooltip paints above a
 dialog and is not in the register: it closes on the `Escape` pressed while it shows (WCAG 1.4.13)
 and leaves every other one to the dialog; a popover opened from inside a dialog closes first,
@@ -990,8 +1029,13 @@ screenshots.
   [ADR-0032](../adr/ADR-0032-client-capability-matrix.md)'s affordance in a build that excludes the
   routes. All other platform adaptation is the web app's layout by width (§6, §11), which the shells
   render as it is.
+- **The help texts' pass** — the texts written before the tiers (§4, "Help text"): a hint longer
+  than two lines keeps the part that is needed now and moves its why behind a `HelpTip`, and an
+  introduction of more than a sentence moves the rest beside its heading. `MultiSelect` still draws
+  an option's reason as a line in its list. Both are the last step of
+  [ADR-0115](../adr/ADR-0115-help-text-in-five-tiers.md).
 
-Both are tracked in [roadmap.md](../roadmap.md).
+The first two are tracked in [roadmap.md](../roadmap.md).
 
 ---
 

@@ -161,3 +161,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0112](./ADR-0112-a-workspace-shows-its-own-name-and-logo.md) | A workspace shows its own name and logo | accepted | Identity, media, API |
 | [0113](./ADR-0113-an-emergency-notice-is-told-once-and-confirmed.md) | An emergency notice is told once and confirmed, not drawn as a banner | accepted | Identity, design system, clients |
 | [0114](./ADR-0114-icons-carry-our-own-names.md) | Icons carry our own names, with the source's name beside them | accepted | Design system, supply chain |
+| [0115](./ADR-0115-help-text-in-five-tiers.md) | Help text in five tiers, the why on demand | accepted | Design system, clients |
