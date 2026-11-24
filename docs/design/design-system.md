@@ -242,8 +242,8 @@ It is as tall as its rows up to one height, `layout.rail`, in the popover and th
 past it the filter stays at the top and *All*, *None* and the count at the foot, and only the
 options scroll.
 An option with a `disabledReason` cannot change: ticked it is locked on, drawn with a lock and
-first among the chips; unticked it is refused; either way it stays focusable and its reason is a
-line in the list. The whole control locked still opens, read-only. At a phone's width the list is
+first among the chips; unticked it is refused; either way it stays focusable, an ⓘ at its end,
+and its reason is a bubble beside it (case 2 below). The whole control locked still opens, read-only. At a phone's width the list is
 the `Popover`'s bottom sheet, rows a thumb's height, with *Done*. `size="md"` draws the ticks as
 `CheckboxGroup` does, `size="sm"` as a setting row's denser ones. **Which of the two a screen
 uses:** a form's question with a few fixed answers whose fieldset and legend a reader should hear
@@ -318,9 +318,9 @@ no reason moves a box. The eight cases, and the pattern each takes:
 1. *The role forbids it* — not shown (P-05); where a page needs it for orientation, a gate with a
    lock and the reason as in 2 (`CapabilityGate` with `isInline`).
 2. *Not possible right now* — focusable, `aria-disabled`, the reason a bubble at the control on
-   hover, focus and tap; no space in the layout. A `Menu`'s item and a `Sheet`'s row keep their one
-   line with an ⓘ at the end, the reason the same bubble on hover, focus, a click and a tap, and
-   `Escape` closes the bubble before the menu.
+   hover, focus and tap; no space in the layout. A `Menu`'s item, a `Sheet`'s row and a
+   `MultiSelect`'s option keep their one line with an ⓘ at the end, the reason the same bubble on
+   hover, focus, a click and a tap, and `Escape` closes the bubble before the menu or the list.
 3. *Something must be filled in* — the submit is never unavailable for it: pressing marks the
    missing fields and moves focus to the first. Every field marks itself one way: an `error` that
    is its description, on the control `aria-invalid` where the role takes it, and `data-invalid` on
@@ -1031,8 +1031,7 @@ screenshots.
   render as it is.
 - **The help texts' pass** — the texts written before the tiers (§4, "Help text"): a hint longer
   than two lines keeps the part that is needed now and moves its why behind a `HelpTip`, and an
-  introduction of more than a sentence moves the rest beside its heading. `MultiSelect` still draws
-  an option's reason as a line in its list. Both are the last step of
+  introduction of more than a sentence moves the rest beside its heading. It is the last step of
   [ADR-0115](../adr/ADR-0115-help-text-in-five-tiers.md).
 
 The first two are tracked in [roadmap.md](../roadmap.md).

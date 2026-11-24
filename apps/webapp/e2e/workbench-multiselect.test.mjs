@@ -7,7 +7,9 @@
 // that is locked on and cannot be cleared, the refused option and the read-only control, the
 // filter, focus never under the list's filter and foot, the visible ticks, the bottom sheet at a
 // phone's width with *Done*, and `Escape` closing one layer at a time inside a dialog - at both
-// widths. And the open list's one maximum height: the filter and the foot stand still while only
+// widths. And a locked option's reason as the menu's bubble (design-system.md §4, case 2): one line
+// with an ⓘ at its end, none of the reason's words in it, the reason its `aria-describedby`, the
+// bubble on focus, a click and a tap, inside the window, closed by `Escape` before the list. And the open list's one maximum height: the filter and the foot stand still while only
 // the options scroll, and a short list is as short as its rows. The call sites' checks (UC-WRK-32,
 // UC-WRK-23) are walked where a screen uses it.
 
@@ -212,6 +214,84 @@ for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
         await field(page).click();
         await list(page).waitFor();
         await shortList(page, `Three at ${width}×${height}`);
+        await page.close();
+      }
+    } finally {
+      await browser.close();
+      await server.close();
+    }
+  });
+
+  test(`MultiSelect draws a locked option's reason as a bubble at 1280 and 390, in ${engine}`, { timeout: 2 * 60_000 }, async () => {
+    assert.ok(existsSync(join(WORKBENCH, 'index.html')), 'no built workbench: run `make workbench-build` first');
+    const server = await serve(WORKBENCH, { headers: { 'content-security-policy': "style-src 'self'" } });
+    const browser = await ENGINES[engine].launch().catch(async (error) => { await server.close(); throw error; });
+    const REASON = /^Offer the board first: a column belongs to a board\.$/;
+    /** The refused option: its own words, its height against a plain one's, its mark and its bubble. */
+    const shape = (page) => option(page, 'Board column').evaluate((node) => {
+      const ids = (node.getAttribute('aria-describedby') ?? '').split(/\s+/).filter(Boolean);
+      const bubble = ids.map((id) => document.getElementById(id)).find((each) => each?.getAttribute('role') === 'tooltip');
+      const plain = [...node.parentElement.querySelectorAll('[role="option"]')].find((each) => !each.hasAttribute('aria-disabled') && !each.querySelector('.line'));
+      const mark = node.querySelector('[data-reason-mark]');
+      return {
+        text: node.textContent.trim(),
+        height: node.getBoundingClientRect().height,
+        plain: plain?.getBoundingClientRect().height ?? 0,
+        hasMark: mark !== null && mark.getBoundingClientRect().width > 0,
+        bubbleId: bubble?.id,
+        bubbleText: bubble?.textContent.trim(),
+      };
+    });
+    const bubbleBox = (page, id) => page.evaluate((bubbleId) => {
+      const node = document.getElementById(bubbleId);
+      if (!node || node.hidden) return { isShowing: false };
+      const box = node.getBoundingClientRect();
+      return { isShowing: box.width > 0, isInside: box.left >= 0 && box.top >= 0 && box.right <= innerWidth && box.bottom <= innerHeight };
+    }, id);
+    const until = (page, id, isShowing) => page.waitForFunction(([bubbleId, want]) => {
+      const node = document.getElementById(bubbleId);
+      const shows = node !== null && !node.hidden && node.getBoundingClientRect().width > 0;
+      return shows === want;
+    }, [id, isShowing], { timeout: 5_000 });
+    try {
+      for (const [width, height] of [[1280, 800], [390, 844]]) {
+        const isPhone = width < 600;
+        const where = `${width}×${height}`;
+        const page = await browser.newPage({ viewport: { width, height }, ...(isPhone && engine !== 'firefox' ? { hasTouch: true, isMobile: true } : {}) });
+        await story(page, server.origin, 'refused');
+        await field(page).click();
+        await list(page).waitFor();
+        const refused = option(page, 'Board column');
+        await refused.scrollIntoViewIfNeeded();
+        const drawn = await shape(page);
+        assert.equal(drawn.text, 'Board column', `${where}: the refused option draws its reason as a line: ${drawn.text}`);
+        assert.ok(drawn.height <= drawn.plain + 1, `${where}: the refused option is ${drawn.height} px tall, a plain one ${drawn.plain}`);
+        assert.ok(drawn.hasMark, `${where}: the refused option has no ⓘ at its end`);
+        assert.ok(drawn.bubbleId, `${where}: the refused option is not described by a reason bubble`);
+        assert.match(drawn.bubbleText ?? '', REASON, `${where}: the bubble does not say the reason`);
+        assert.equal(await refused.getAttribute('aria-disabled'), 'true');
+        assert.equal(await list(page).getByText(REASON).count(), 0, `${where}: the reason is drawn in the list`);
+        assert.equal((await bubbleBox(page, drawn.bubbleId)).isShowing, false, `${where}: the reason shows before anybody reached for its option`);
+
+        if (isPhone) {
+          // A tap: the bubble shows inside the screen, and the option stays unticked.
+          await refused.tap({ force: true }); // Playwright refuses an aria-disabled target, the one under test.
+        } else {
+          // Focus by the arrows shows it; Escape closes the bubble and leaves the list open.
+          await page.keyboard.press('End');
+          for (let step = 0; step < 15 && (await focused(page)).name !== 'Board column'; step += 1) await page.keyboard.press('ArrowUp');
+          assert.equal((await focused(page)).name, 'Board column', `${where}: the arrows do not reach the refused option`);
+          await until(page, drawn.bubbleId, true);
+          await page.keyboard.press('Escape');
+          await until(page, drawn.bubbleId, false);
+          assert.equal(await list(page).isVisible(), true, `${where}: the first Escape closed the list, not the bubble`);
+          // Space tries it: the bubble again, and nothing ticked.
+          await page.keyboard.press('Space');
+        }
+        await until(page, drawn.bubbleId, true);
+        const shown = await bubbleBox(page, drawn.bubbleId);
+        assert.ok(shown.isInside, `${where}: the bubble stands outside the window`);
+        assert.equal(await refused.getAttribute('aria-selected'), 'false', `${where}: trying the refused option ticked it`);
         await page.close();
       }
     } finally {
