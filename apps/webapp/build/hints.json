@@ -30,7 +30,7 @@
   "app.chatbots.post_hook_hint": "short",
   "app.chatbots.room_hint": "needed",
   "app.chatbots.widget_hint": "description",
-  "app.cmdb_admin.aliases_hint": "unused",
+  "app.cmdb_admin.aliases_hint": "description",
   "app.cmdb_admin.rules_hint": "short",
   "app.code.hooks_intro": "description",
   "app.confirm_address.intro": "description",
