@@ -186,7 +186,7 @@
   <Stack gap="200">
     {#if failure ?? oauthFailure}<div data-mailbox-oauth-failure><FailureNote problem={failure ?? oauthFailure ?? ''} /></div>{/if}
     {#if step === 'provider'}
-      <p class="quiet">{t('app.mail.mailboxes_hint')}</p>
+      <p class="quiet">{t('app.mail.mailboxes_hint')} {t('app.mail.mailboxes_hint_more')}</p>
       {#if oauthWays.length > 0}
         <div data-mailbox-oauth>
           <Radio label={t('app.mail.oauth_lead')} options={oauthWays} bind:value={() => way, (next) => (chosenWay = next)} />

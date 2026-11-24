@@ -152,7 +152,7 @@
 {#if !account}
   <EmptyState kind="filtered" title={t('app.profile.signed_out')} />
 {:else}
-  <ListPage head={profileHead('files', { primary: { label: t('app.filestores.connect'), icon: 'plus', opener: 'connect-file-store', onclick: openConnect } })}>
+  <ListPage head={{ ...profileHead('files', { primary: { label: t('app.filestores.connect'), icon: 'plus', opener: 'connect-file-store', onclick: openConnect } }), more: t('app.filestores.intro_more') }}>
     {#snippet intro()}<p class="quiet">{t('app.filestores.intro')}</p>{/snippet}
     {#snippet filters()}
       <FilterBar
