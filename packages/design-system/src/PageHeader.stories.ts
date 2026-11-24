@@ -51,3 +51,17 @@ export const figurePhone: Story = {
     'Switch the width axis to Compact. With the title in the bar the figure still has its row here — the head does not hand its line to the actions, because the figure is what a person looks at the head for.',
   args: { mode: 'figurePhone' },
 };
+
+export const more: Story = {
+  name: 'More about the page, beside its title',
+  about:
+    'A page’s introduction is one sentence — what the page is — under the title; the rest stands behind the ⓘ beside the title (`more`, design-system.md §4, "Help text"). A click or `Enter` opens it, `Escape` closes it and focus goes back to the ⓘ. The ⓘ is beside the heading, not inside it, so the heading’s name stays the title alone.',
+  args: { mode: 'more' },
+};
+
+export const morePhone: Story = {
+  name: 'More about the page, folded',
+  about:
+    'Switch the width axis to Compact. With the title in the bar, the ⓘ stands at the end of the sentence that says what the page is; a tap opens the same popover, never a sheet.',
+  args: { mode: 'morePhone' },
+};

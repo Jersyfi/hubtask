@@ -40,6 +40,7 @@
     <PageHeader
       title={head.title}
       subtitle={head.subtitle}
+      more={head.more}
       breadcrumb={head.breadcrumb}
       primary={head.primary}
       secondary={head.secondary}
