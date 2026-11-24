@@ -175,7 +175,7 @@
 
 <ListPage head={{ ...machinesHead(primary, figure), more: t('app.apps.intro_more') }}>
   {#snippet strip()}<MachinesStrip current="apps" {onnavigate} />{/snippet}
-  {#snippet intro()}<p class="quiet">{t('app.apps.intro')}</p>{/snippet}
+  {#snippet intro(tip)}<p class="quiet">{t('app.apps.intro')} {@render tip?.()}</p>{/snippet}
   {#snippet filters()}
     <FilterBar
       searchLabel={t('app.apps.search')}

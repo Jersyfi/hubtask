@@ -6,8 +6,10 @@
 // list of one's tokens and the AI settings keep what is needed now - a field's or a page's
 // one sentence - visible, and say the rest behind an ⓘ named *More about …*: closed at first, its
 // words nowhere on the screen, opened by a click or a tap as a popover inside the window, closed by
-// `Escape` with focus back on the ⓘ. The create-hub page's *Private* keeps its description whole
-// and visible, with no ⓘ: a description never moves (the owner's condition 1). Chromium only.
+// `Escape` with focus back on the ⓘ; where the bar carries a list page's title, the ⓘ ends its
+// introduction's sentence and opens under it. The create-hub page's *Private* keeps its
+// description whole and visible, with no ⓘ: a description never moves (the owner's condition 1).
+// Chromium only.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -53,6 +55,42 @@ async function assertMore(page, { where, name, visible, more, isPhone }) {
   assert.equal(await tip.evaluate((node) => node === document.activeElement), true, `${where}: focus did not go back to the ⓘ`);
 }
 
+/**
+ * Asserts where a list page's ⓘ stands: beside the title where the page draws it, and at the end of
+ * the introduction's sentence where the bar carries the title - never alone on a line above it - so
+ * that its words open under the sentence instead of over it.
+ */
+async function assertPlace(page, { where, name, visible, more, isPhone }) {
+  const tip = page.getByRole('button', { name, exact: true }).filter({ visible: true });
+  const sentence = page.locator('p').filter({ hasText: visible }).filter({ visible: true }).first();
+  await sentence.waitFor({ timeout: 15_000 });
+  const isInSentence = await sentence.evaluate((node, label) => [...node.querySelectorAll('button')].some((button) => button.getAttribute('aria-label') === label || button.textContent.trim() === label), name);
+  if (!isPhone) {
+    assert.equal(isInSentence, false, `${where}: the ⓘ stands in the introduction, not beside the title`);
+    const [title, button] = await Promise.all([page.getByRole('heading', { level: 1 }).filter({ visible: true }).boundingBox(), tip.boundingBox()]);
+    const middle = button.y + button.height / 2;
+    assert.ok(middle >= title.y && middle <= title.y + title.height, `${where}: the ⓘ is not on the title's line: ${JSON.stringify({ title, button })}`);
+    return;
+  }
+  assert.equal(isInSentence, true, `${where}: the ⓘ is not at the end of the introduction's sentence`);
+  const [box, button, lineHeight] = await Promise.all([
+    sentence.boundingBox(),
+    tip.boundingBox(),
+    sentence.evaluate((node) => parseFloat(getComputedStyle(node).lineHeight)),
+  ]);
+  const middle = button.y + button.height / 2;
+  assert.ok(middle >= box.y + box.height - lineHeight - 0.5 && middle <= box.y + box.height + 0.5,
+    `${where}: the ⓘ is not on the sentence's last line: ${JSON.stringify({ box, button, lineHeight })}`);
+  await tip.tap();
+  const words = page.getByText(more, { exact: true }).filter({ visible: true });
+  await words.waitFor({ timeout: 5_000 });
+  const opened = await words.boundingBox();
+  const overlap = Math.min(opened.y + opened.height, box.y + box.height) - Math.max(opened.y, box.y);
+  assert.ok(overlap <= 0.5, `${where}: the ⓘ's words cover its sentence: ${JSON.stringify({ box, opened })}`);
+  await page.keyboard.press('Escape');
+  await words.waitFor({ state: 'hidden', timeout: 5_000 });
+}
+
 for (const [width, height] of SIZES) {
   const isPhone = width < 600;
   const touch = isPhone ? { hasTouch: true, isMobile: true } : {};
@@ -72,11 +110,18 @@ for (const [width, height] of SIZES) {
     assert.deepEqual(failures, []);
   });
 
-  test(`chromium: ${width} × ${height} — the list of one's tokens keeps its first sentence and says the rest behind an ⓘ beside its title`, async (t) => {
+  test(`chromium: ${width} × ${height} — the list of one's tokens keeps its first sentence and says the rest behind an ⓘ beside its title, or at the sentence's end on a phone`, async (t) => {
     const browser = await sharedChromium(t);
     const { page, failures, context } = await signedIn(browser, width, height, touch);
     t.after(() => context.close());
     await page.goto(`${served.origin}/profile/tokens`);
+    await assertPlace(page, {
+      where: `tokens at ${width}`,
+      name: 'More about Access tokens',
+      visible: 'A token lets a script or a tool act as you, bounded by what you may do and by the scopes you give it.',
+      more: 'Nobody else can see this list, not even an administrator.',
+      isPhone,
+    });
     await assertMore(page, {
       where: `tokens at ${width}`,
       name: 'More about Access tokens',

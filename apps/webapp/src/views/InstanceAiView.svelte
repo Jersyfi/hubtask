@@ -130,9 +130,9 @@
       }}
       refused={door ?? (unreadable ? failed : undefined)}
     >
-      {#snippet intro()}
+      {#snippet intro(tip)}
         <Stack gap="100">
-          <p class="quiet">{t('app.instance.ai_intro')}</p>
+          <p class="quiet">{t('app.instance.ai_intro')} {@render tip?.()}</p>
           {#if models.length > 0 && isReachable === false}
             <Banner tone="warning" title={t('app.instance.ai_unreachable_title')}>
               {t('app.instance.ai_unreachable_body', { setting: t('app.instance.setting.ai.sources') })}

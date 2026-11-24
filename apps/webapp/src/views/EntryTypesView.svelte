@@ -139,7 +139,7 @@
 </script>
 
 <ListPage {head}>
-  {#snippet intro()}<p class="quiet">{t('app.entry_types.intro')}</p>{/snippet}
+  {#snippet intro(tip)}<p class="quiet">{t('app.entry_types.intro')} {@render tip?.()}</p>{/snippet}
   {#snippet filters()}
     <FilterBar
       searchLabel={t('app.entry_types.search')}

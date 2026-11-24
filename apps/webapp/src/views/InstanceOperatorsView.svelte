@@ -177,7 +177,7 @@
       }}
       refused={door ?? (unreadable ? failed : undefined)}
     >
-      {#snippet intro()}<p class="quiet">{t('app.instance.operators_intro')}</p>{/snippet}
+      {#snippet intro(tip)}<p class="quiet">{t('app.instance.operators_intro')} {@render tip?.()}</p>{/snippet}
       {#snippet filters()}
         <FilterBar
           searchLabel={t('app.instance.operators_search')}

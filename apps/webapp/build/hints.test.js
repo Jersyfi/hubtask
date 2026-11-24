@@ -9,7 +9,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -50,4 +50,15 @@ test('every text behind an ⓘ belongs to a visible one and is three sentences a
     const sentences = catalogue[code].split(/[.!?]["”]?(?:\s+|$)/).filter((part) => part.trim() !== '');
     assert.ok(sentences.length <= 3, `${code} is ${sentences.length} sentences: three at most`);
   }
+});
+
+test('a list or a log page with more about its head lets its introduction end with the ⓘ', () => {
+  // Where the bar carries the title, the page hands the ⓘ to the introduction: an introduction that
+  // does not render it loses the ⓘ on a phone.
+  const src = join(here, '..', 'src');
+  const pages = readdirSync(src, { recursive: true }).filter((file) => file.endsWith('.svelte')).map((file) => [file, readFileSync(join(src, file), 'utf8')])
+    .filter(([, text]) => /<(ListPage|LogPage)\b/.test(text) && /^[^/]*\bmore: /m.test(text) && /\{#snippet intro\(/.test(text));
+  assert.ok(pages.length > 0);
+  const silent = pages.filter(([, text]) => !/\{#snippet intro\(tip\)\}/.test(text) || !/\{@render tip\?\.\(\)\}/.test(text)).map(([file]) => file);
+  assert.deepEqual(silent, [], 'take the ⓘ as `{#snippet intro(tip)}` and end the sentence with `{@render tip?.()}`');
 });
