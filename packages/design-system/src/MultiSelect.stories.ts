@@ -121,3 +121,10 @@ export const inTableRow: Story = {
   about: 'The same in a table row: the row keeps its height whether the option is refused or not.',
   args: { mode: 'table' },
 };
+
+export const more: Story = {
+  name: 'More about it, beside the label',
+  about:
+    'What to choose stays the hint under the label; the why stands behind the ⓘ beside it (`more`, design-system.md §4, "Help text"). The ⓘ is not part of the field’s name: the closed field is still named by the label and the chosen.',
+  args: { mode: 'more' },
+};

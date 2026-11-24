@@ -363,8 +363,10 @@ help text. The owner's three conditions (2026-11-24) hold for every tier:
 text that opens under a passing pointer covers what the reader aimed at. It stays a popover on a
 phone, its words take focus so they are read at once, and it stands beside its label or heading,
 never inside it, so its name does not join theirs. `Input`, `Select`, `Textarea`, `CodeField`,
-`SettingRow`, `SettingsSection` and `FormSection` take its words as `more`. A page's or a section's
-introduction is one sentence, with the rest behind the ⓘ beside its heading. An empty state keeps its one or two
+`Checkbox`, `MultiSelect`, `SettingRow`, `SettingsSection`, `FormSection` and `PageHeader` take its
+words as `more`. A page's or a section's introduction is one sentence, with the rest behind the ⓘ
+beside its heading - beside the page's title, or at the end of that sentence where the app's bar
+carries the title. An empty state keeps its one or two
 sentences — there they are the content — and `Callout` and `Banner` are status, not help.
 
 ### Wave 2 — structure (≈ 14)

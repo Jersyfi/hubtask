@@ -16,6 +16,7 @@
     | 'all'
     | 'locked'
     | 'refused'
+    | 'more'
     | 'readonly'
     | 'invalid'
     | 'grouped'
@@ -142,6 +143,7 @@
     all: flatValues,
     locked: ['COMPLETION', 'DUE_DATE', 'ASSIGNMENT', 'NOTES', 'LABELS', 'COMMENTS', 'ATTACHMENTS', 'HISTORY', 'BUCKET'],
     refused: ['DUE_DATE', 'NOTES', 'COMMENTS'],
+    more: ['DUE_DATE', 'NOTES'],
     readonly: ['DUE_DATE', 'NOTES', 'COMMENTS', 'LABELS'],
     invalid: [],
     grouped: ['COMPLETION', 'DUE_DATE', 'REMINDER', 'ASSIGNMENT', 'NOTES', 'COMMENTS'],
@@ -201,9 +203,11 @@
   const englishAll = english.flatMap((group) => group.options);
 </script>
 
-{#snippet fields(extra: { groups?: readonly ChoiceGroup[]; options?: readonly ChoiceOption[]; error?: string; disabledReason?: string; summary?: (chosen: readonly ChoiceOption[], total: number) => string | undefined })}
+{#snippet fields(extra: { groups?: readonly ChoiceGroup[]; options?: readonly ChoiceOption[]; error?: string; disabledReason?: string; hint?: string; more?: string; summary?: (chosen: readonly ChoiceOption[], total: number) => string | undefined })}
   <MultiSelect
     label={texts.label}
+    hint={extra.hint}
+    more={extra.more}
     groups={extra.groups}
     options={extra.options}
     {selected}
@@ -243,6 +247,8 @@
     </Stack>
   {:else if mode === 'refused'}
     {@render fields({ options: withRefused })}
+  {:else if mode === 'more'}
+    {@render fields({ options: flat, hint: 'Tick only what a task of this type needs.', more: 'Each one is a part of the entry’s page. An unticked part is not offered, and nothing already filled in is lost.' })}
   {:else if mode === 'dense'}
     <MultiSelect
       label="Levels"

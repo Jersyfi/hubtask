@@ -23,6 +23,7 @@
   import { tick } from 'svelte';
 
   import Button from './Button.svelte';
+  import HelpTip from './HelpTip.svelte';
   import Icon from './Icon.svelte';
   import Popover from './Popover.svelte';
   import Reason from './_Reason.svelte';
@@ -63,6 +64,8 @@
     /** `auto` draws up to five options as ticks and more as a field. */
     presentation?: Presentation;
     hint?: string;
+    /** More about it on demand, behind an ⓘ beside the label (`HelpTip`): the why, never what to choose. */
+    more?: string;
     /** What is wrong now - nothing chosen where at least one is needed. Names the fix. */
     error?: string;
     isRequired?: boolean;
@@ -103,6 +106,7 @@
     onChange,
     presentation = 'auto',
     hint,
+    more,
     error,
     isRequired = false,
     requiredLabel,
@@ -344,7 +348,15 @@
 
 {#snippet name()}
   {#if isRequiredSaid}<span class="said" id={requiredId}>{requiredLabel}</span>{/if}
-  {#if labelledBy === undefined}
+  {#if labelledBy === undefined && more && !isLabelHidden}
+    <!-- The ⓘ beside the label, not in it: inside, its name would join the field's. -->
+    <span class="label-line">
+      <span class="label" id={nameId}>
+        {label}{#if isRequired}<span class="required" aria-hidden="true">*</span>{#if requiredLabel}<span class="said">{` ${requiredLabel}`}</span>{/if}{/if}
+      </span>
+      <HelpTip subject={label} text={more} />
+    </span>
+  {:else if labelledBy === undefined}
     <span class="label" class:is-hidden={isLabelHidden} id={nameId}>
       {label}{#if isRequired}<span class="required" aria-hidden="true">*</span>{#if requiredLabel}<span class="said">{` ${requiredLabel}`}</span>{/if}{/if}
     </span>
@@ -788,6 +800,8 @@
   /* A locked option keeps its line: the ⓘ at its end says there is a reason, and the reason is the
      bubble's. */
   .reason-mark { display: inline-flex; flex: none; margin-inline-start: auto; color: var(--text-subtle); }
+
+  .label-line { display: flex; align-items: center; gap: var(--sp-050); min-width: 0; }
 
   .empty { margin: 0; padding: var(--sp-150); color: var(--text-subtle); font-size: var(--fs-075); }
 
