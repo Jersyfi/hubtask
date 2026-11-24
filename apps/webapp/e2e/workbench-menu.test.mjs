@@ -7,7 +7,8 @@
 // (layers.ts) - as MultiSelect's walk holds it for a popover's sheet. And its scroll shades
 // (scrollEdges): a shade only at an edge with more beyond it, painted over the rows and never past
 // the surface's rounded corners, in the story's four states, darkening the surface in both themes
-// by about as much. Walked in the built workbench under the product's `style-src 'self'`.
+// by about as much; and a sheet's body, whose shades run across the sheet's whole width. Walked in
+// the built workbench under the product's `style-src 'self'`.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -111,6 +112,57 @@ for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
           const { shown, hidden } = await shadeLightness(page, list('More on both sides'), edge, { x: box.x + box.width / 4, y, width: box.width / 2, height: 4 });
           assert.ok(hidden - shown >= SHADE_DEPTH, `${theme}: the shade at the ${edge} does not darken the surface by ${SHADE_DEPTH} (${shown.toFixed(3)} with it, ${hidden.toFixed(3)} without)`);
         }
+      }
+    } finally {
+      await browser.close();
+      await server.close();
+    }
+  });
+}
+
+// A sheet's body: its shades run across the sheet's whole width, and to its foot where nothing
+// stands below - a shade that stops at the padding line ends hard on both sides.
+const SHEETS = [
+  { where: 'the sized drawer', story: 'wave-2-structure-drawer--sized', viewport: { width: 1280, height: 800 }, open: 'Open the details', title: 'Entry details', isFoot: true },
+  { where: 'the context sheet', story: 'wave-5-shell-sheet--context', viewport: { width: 390, height: 320 }, open: 'Hold “Team”', title: 'Team', isFoot: true },
+  { where: 'the menu sheet', story: 'wave-5-shell-sheet--menu', viewport: { width: 390, height: 420 }, open: 'More for Lukas Brandt', title: 'Lukas Brandt', isFoot: false },
+];
+
+for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
+  test(`a sheet's body shades span the sheet's width, in ${engine}`, { timeout: 2 * 60_000 }, async () => {
+    assert.ok(existsSync(join(WORKBENCH, 'index.html')), 'no built workbench: run `make workbench-build` first');
+    const server = await serve(WORKBENCH, { headers: { 'content-security-policy': "style-src 'self'" } });
+    const browser = await ENGINES[engine].launch().catch(async (error) => { await server.close(); throw error; });
+    try {
+      for (const { where, story, viewport, open, title, isFoot } of SHEETS) {
+        const page = await browser.newPage({ viewport, deviceScaleFactor: 2 });
+        await page.goto(`${server.origin}/?story=${story}`);
+        await page.getByRole('button', { name: open, exact: true }).click();
+        const sheet = page.getByRole('dialog', { name: title });
+        await sheet.waitFor();
+        // Measured where it rests, not while it rises.
+        await sheet.evaluate((node) => Promise.all(node.getAnimations({ subtree: true }).filter((each) => each.effect?.getComputedTiming().iterations !== Infinity).map((each) => each.finished)));
+        // The box that scrolls: the menu's list, or the body under the head - the frame's child.
+        const scroller = title === 'Lukas Brandt' ? sheet.getByRole('menu') : sheet.locator('[data-scroll-edges]:not(dialog) > *').first();
+        await scroller.waitFor();
+        assert.equal((await readEdges(scroller)).scrolls, true, `${where}: the story's body does not scroll`);
+        await scrollToShare(scroller, 0.5);
+        assertShades(assert, await readEdges(scroller), { start: true, end: true }, where);
+        const inner = await sheet.evaluate((node) => {
+          const rect = node.getBoundingClientRect();
+          return { x0: rect.left + node.clientLeft, x1: rect.left + node.clientLeft + node.clientWidth, y1: rect.top + node.clientTop + node.clientHeight };
+        });
+        const { shades } = await readEdges(scroller);
+        for (const edge of ['start', 'end']) {
+          const { box } = shades[edge];
+          assert.ok(box.x0 <= inner.x0 + 0.5 && box.x1 >= inner.x1 - 0.5, `${where}: the ${edge} shade stops short of the sheet's sides: ${JSON.stringify({ box, inner })}`);
+        }
+        if (isFoot) assert.ok(shades.end.box.y1 >= inner.y1 - 0.5, `${where}: the end shade stops short of the sheet's foot: ${JSON.stringify({ box: shades.end.box, inner })}`);
+        // Painted, not only laid out: the shade changes the pixels at the sheet's very side.
+        const frame = await frameBox(scroller);
+        const side = { x: inner.x0, y: frame.y + frame.height - 4, width: 2, height: 3 };
+        assert.ok(await shadeChanges(page, scroller, 'end', side), `${where}: the end shade does not reach the sheet's side`);
+        await page.close();
       }
     } finally {
       await browser.close();

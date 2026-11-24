@@ -319,6 +319,11 @@
   .drawer.sized .frame { flex: 1 1 auto; }
   .drawer.sized .body { flex: 1 1 auto; min-block-size: 0; overflow: auto; }
 
+  /* A sheet's body frame reaches the sheet's sides and its foot, and the panel's padding moves
+     inside the body: its shades run edge to edge instead of stopping hard at the padding line. */
+  .drawer:is([data-edge='block-end'], .sized) .frame { margin: 0 calc(-1 * var(--sp-300)) calc(-1 * var(--sp-300)); }
+  .drawer:is([data-edge='block-end'], .sized) .body { padding: 0 var(--sp-300) var(--sp-300); }
+
   .grip { margin-block: calc(-1 * var(--sp-150)) 0; padding-block: var(--sp-100); display: grid; place-items: center; cursor: ns-resize; touch-action: none; }
 
   .grip .bar { display: block; inline-size: var(--sp-600); block-size: var(--sp-050); border-radius: var(--r-full); background: var(--border-strong); }

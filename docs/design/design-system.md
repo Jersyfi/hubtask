@@ -877,7 +877,9 @@ flow.
 body, a drawer, a pick list. `scrollEdges` (`src/scrollEdges.ts` and `.css`) marks the frame
 around the scroller, and a shade shows only at an edge with more beyond it — the start, the end,
 both or none, never on a list that does not scroll. It lies over the rows, so a hovered row does not
-cover it, and takes the frame's corners, so it never stands past the surface's rounding. Its colour
+cover it, and takes the frame's corners, so it never stands past the surface's rounding. A sheet's
+body frame reaches the sheet's sides, so its shade runs edge to edge instead of ending at the
+padding. Its colour
 is `bg.scrim`'s, faint at the edge and eased out, so it darkens the surface in both themes; a tint
 of the text colour would lighten a dark surface into a bar. The dark theme takes a larger share of
 it, so the shade darkens a dark surface's edge by about as much as a light one's. `Table` keeps its own

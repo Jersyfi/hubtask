@@ -268,6 +268,15 @@
   .body:has(> .items-frame) { display: flex; flex-direction: column; }
   .items-frame { flex: 0 1 auto; }
   .items { flex: 0 1 auto; min-block-size: 0; overflow: auto; }
+  /* The frames reach the sheet's sides, and its foot where nothing stands below, and the panel's
+     padding moves inside the scroller: a shade runs edge to edge instead of stopping hard at the
+     padding line. */
+  .panel > .frame { margin-inline: calc(-1 * var(--sp-150)); }
+  .panel > .frame > .body { padding-inline: var(--sp-150); }
+  .panel > .frame:last-child { margin-block-end: calc(-1 * (var(--sp-250) + env(safe-area-inset-bottom, 0))); }
+  .panel > .frame:last-child > .body { padding-block-end: calc(var(--sp-250) + env(safe-area-inset-bottom, 0)); }
+  .body > .items-frame { margin-inline: calc(-1 * var(--sp-150)); }
+  .items-frame > .items { padding-inline: var(--sp-150); }
 
   .sheet::backdrop { background: var(--bg-scrim); }
 
