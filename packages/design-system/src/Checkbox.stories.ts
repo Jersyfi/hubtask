@@ -55,3 +55,10 @@ export const invalid: Story = {
     'The form was pressed before the box was ticked (design-system.md §4, case 3): the box is `aria-invalid` and described by the sentence under its label, so focus moved there hears what to do. Tick it and the sentence goes.',
   args: { mode: 'invalid' },
 };
+
+export const more: Story = {
+  name: 'More about it, beside the label',
+  about:
+    'What ticking it does stays the hint under the label; the why stands behind the ⓘ beside it (`more`, design-system.md §4, "Help text"). A press on the ⓘ opens it and never ticks the box.',
+  args: { mode: 'more' },
+};
