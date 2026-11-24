@@ -29,6 +29,7 @@
   import Ticks from './_Ticks.svelte';
   import type { ControlSize, Disableable } from './control.ts';
   import { rovingIndex, typeAheadIndex } from './focus.ts';
+  import { scrollEdges } from './scrollEdges.ts';
   import {
     closedOf,
     cutChips,
@@ -493,7 +494,9 @@
             {/if}
           </div>
         {/if}
-        <div class="body">
+        <!-- The frame the options scroll in, and where their shades are drawn. -->
+        <div class="frame">
+        <div class="body" {@attach scrollEdges}>
           {#if isFilterable}
             <!-- Stands while the list is open, so that the sentence is heard when a filter empties it. -->
             <div role="status">{#if flat.length === 0}<p class="empty">{noMatchLabel}</p>{/if}</div>
@@ -521,6 +524,7 @@
               {/each}
             </div>
           {/if}
+        </div>
         </div>
         {#if isFilterable && !isReadOnly}
           <div class="foot">
@@ -675,15 +679,24 @@
   }
 
   /* The status and the list, with no gap for a status that says nothing: the one region that
-     scrolls. Room for a focus ring on every side, which its overflow would clip; sideways without
-     moving the rows out of line with the head and the foot. */
-  .body {
+     scrolls, in a frame that carries its shades. Room for a focus ring on every side, which its
+     overflow would clip; sideways without moving the rows out of line with the head and the foot. */
+  .frame {
+    position: relative;
     display: flex;
     flex: 0 1 auto;
     flex-direction: column;
     min-inline-size: 0;
     min-block-size: 0;
     margin-inline: calc((var(--sp-025) + var(--bw-ring)) * -1);
+  }
+
+  .body {
+    display: flex;
+    flex: 0 1 auto;
+    flex-direction: column;
+    min-inline-size: 0;
+    min-block-size: 0;
     padding: calc(var(--sp-025) + var(--bw-ring));
     overflow-y: auto;
   }

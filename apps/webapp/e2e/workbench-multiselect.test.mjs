@@ -139,7 +139,9 @@ async function linesCovered(page, locator) {
 async function openFrame(page) {
   return list(page).evaluate((listbox) => {
     const region = listbox.parentElement;
-    const panel = region.parentElement;
+    // The panel is the box that holds the one maximum; the options' region stands in a frame in it.
+    let panel = region.parentElement;
+    while (panel && getComputedStyle(panel).maxHeight === 'none') panel = panel.parentElement;
     const surface = listbox.closest('[role="dialog"], dialog');
     const filter = panel.querySelector('input');
     const all = [...panel.querySelectorAll('button')].find((each) => each.textContent.trim() === 'All');
