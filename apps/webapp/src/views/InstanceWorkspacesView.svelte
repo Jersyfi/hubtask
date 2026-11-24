@@ -139,6 +139,7 @@
   {#snippet children(door)}
     <ListPage
       head={{
+        more: t('app.instance.workspaces_intro_more'),
         title: t('app.instance.workspaces'),
         breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.workspaces') }),
         primary: isMulti

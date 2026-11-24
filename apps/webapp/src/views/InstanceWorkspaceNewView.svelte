@@ -146,6 +146,7 @@
       head={{
         title,
         subtitle: t('app.instance.workspace_new_intro'),
+        more: t('app.instance.workspace_new_intro_more'),
         breadcrumb: installationTrail({ id: 'workspaces', label: t('app.instance.workspaces'), href: LIST }, { id: 'screen', label: title }),
         primary: !manifest.isMultiTenant
           ? undefined

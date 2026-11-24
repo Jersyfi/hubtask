@@ -168,7 +168,7 @@
 
 <InstanceGate onleave={() => onnavigate('/')}>
   {#snippet children(door)}
-    <LogPage head={{ title: t('app.instance.journal'), breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.journal') }) }} refused={door}>
+    <LogPage head={{ title: t('app.instance.journal'), more: t(manifest.isSingleTenant ? 'app.instance.journal_intro_single_more' : 'app.instance.journal_intro_more'), breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.journal') }) }} refused={door}>
       {#snippet intro()}<p class="quiet">{t(manifest.isSingleTenant ? 'app.instance.journal_intro_single' : 'app.instance.journal_intro')}</p>{/snippet}
       {#snippet filters()}
         <FilterBar

@@ -229,6 +229,7 @@
   {#snippet children(door)}
     <ListPage
       head={{
+        more: t('app.instance.providers_intro_more'),
         title: t('app.instance.providers'),
         breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.providers') }),
         primary: { label: t('app.instance.provider_add'), icon: 'plus', onclick: () => open('add') },

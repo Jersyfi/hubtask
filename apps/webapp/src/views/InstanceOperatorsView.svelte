@@ -169,6 +169,7 @@
   {#snippet children(door)}
     <ListPage
       head={{
+        more: t('app.instance.operators_intro_more'),
         title: t('app.instance.operators'),
         breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.operators') }),
         primary: { label: t('app.instance.operator_add_title'), icon: 'plus', onclick: () => openAdd(false) },
@@ -285,7 +286,7 @@
       />
       <Input
         label={t('app.instance.operator_email_label')}
-        hint={t('app.instance.operator_email_hint')}
+        hint={t('app.instance.operator_email_hint')} more={t('app.instance.operator_email_hint_more')}
         bind:value={email}
         type="email"
         autocomplete="off"

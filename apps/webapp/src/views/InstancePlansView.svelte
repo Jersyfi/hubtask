@@ -122,7 +122,7 @@
 
 <InstanceGate onleave={() => onnavigate('/')}>
   {#snippet children(door)}
-    <ListPage head={{ title: t('app.instance.plans'), breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.plans') }), primary: headPrimary }} refused={door ?? (unreadable ? failed : undefined)}>
+    <ListPage head={{ title: t('app.instance.plans'), more: manifest.isMultiTenant ? t('app.instance.plans_intro_more') : undefined, breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.plans') }), primary: headPrimary }} refused={door ?? (unreadable ? failed : undefined)}>
       {#snippet intro()}
         <Stack gap="100">
           <p class="quiet">{t(manifest.isMultiTenant ? 'app.instance.plans_intro' : 'app.instance.plans_single')}</p>

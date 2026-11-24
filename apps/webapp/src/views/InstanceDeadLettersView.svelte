@@ -126,7 +126,7 @@
 
 <InstanceGate onleave={() => onnavigate('/')}>
   {#snippet children(door)}
-    <LogPage head={{ title: t('app.instance.dead_letters'), breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.dead_letters') }) }} refused={door}>
+    <LogPage head={{ title: t('app.instance.dead_letters'), more: t('app.instance.dead_letters_intro_more'), breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.dead_letters') }) }} refused={door}>
       {#snippet intro()}<p class="quiet">{t('app.instance.dead_letters_intro')}</p>{/snippet}
       {#snippet filters()}
         <FilterBar

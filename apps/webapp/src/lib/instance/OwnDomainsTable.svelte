@@ -105,7 +105,7 @@
 {#if tenantId !== undefined}
   {@render domains()}
 {:else if rows.length > 0}
-  <TableSection title={t('app.instance.own_domains')} note={String(rows.length)} description={t('app.instance.own_domains_intro')}>
+  <TableSection title={t('app.instance.own_domains')} note={String(rows.length)} description={t('app.instance.own_domains_intro')} more={t('app.instance.own_domains_intro_more')}>
     {@render domains()}
   </TableSection>
 {/if}

@@ -123,6 +123,7 @@
   {#snippet children(door)}
     <ListPage
       head={{
+        more: t('app.instance.ai_intro_more'),
         title: t('app.instance.ai'),
         breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.ai') }),
         primary: { label: t('app.instance.ai_add'), icon: 'plus', onclick: () => open('add') },
