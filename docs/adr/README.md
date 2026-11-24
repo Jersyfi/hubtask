@@ -87,7 +87,7 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0038](./ADR-0038-workbench-published.md) | The workbench is published at workbench.hubtask.eu | accepted | Design system, deployment |
 | [0039](./ADR-0039-overlay-positioning.md) | Overlays are positioned by CSS, with one fallback we own | accepted | Design system, clients, supply chain |
 | [0040](./ADR-0040-no-imap-intake.md) | No IMAP intake: the webhook door is the mail door | superseded | Automation, mail, supply chain |
-| [0041](./ADR-0041-icon-set.md) | Lucide, cut down to a declared subset, behind one `Icon` | accepted | Design system, supply chain |
+| [0041](./ADR-0041-icon-set.md) | Lucide, cut down to a declared subset, behind one `Icon` | accepted (amended by 0114) | Design system, supply chain |
 | [0042](./ADR-0042-nats-client.md) | The NATS client library: nats.go, confined to one adapter | accepted | Events, integration, supply chain |
 | [0043](./ADR-0043-theme-per-device.md) | The theme is a property of the device, not of the account | accepted | Clients, design system, contract |
 | [0044](./ADR-0044-browser-support-row.md) | Which browsers a Hubtask client is required to work in | accepted | Clients, design system, support scope |
@@ -160,3 +160,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0111](./ADR-0111-creating-a-hub-is-a-page.md) | Creating a hub is a page | accepted | Clients, design system |
 | [0112](./ADR-0112-a-workspace-shows-its-own-name-and-logo.md) | A workspace shows its own name and logo | accepted | Identity, media, API |
 | [0113](./ADR-0113-an-emergency-notice-is-told-once-and-confirmed.md) | An emergency notice is told once and confirmed, not drawn as a banner | accepted | Identity, design system, clients |
+| [0114](./ADR-0114-icons-carry-our-own-names.md) | Icons carry our own names, with the source's name beside them | accepted | Design system, supply chain |
