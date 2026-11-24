@@ -46,7 +46,7 @@
   back={{ label: t('app.admin.title'), onback: () => onnavigate?.('/administration') }}
 >
   <!-- Switches that act at once, so no save bar (PS-10). -->
-  <SettingsSection {title} description={t('app.modules.intro')}>
+  <SettingsSection {title} description={t('app.modules.intro')} more={t('app.modules.intro_more')}>
     <ModuleSwitches {onnavigate} bind:isFileOpen isTriggerHidden={fileAction !== undefined} />
     {#if isModuleOn('PLANNING', manifest.value?.modules_on)}<WorkspaceTolerance />{/if}
   </SettingsSection>

@@ -347,6 +347,7 @@
   const fileAction = $derived(viewAsFileAction(() => (isFileOpen = true)));
   const mayRemove = $derived(Boolean(provider) && allowsOwn && holdsHere('STRUCTURE') === true);
   const head = $derived({
+    more: t('app.ai.intro_more'),
     title,
     subtitle: t('app.ai.intro'),
     breadcrumb: adminTrail({ id: 'ai', label: title }),

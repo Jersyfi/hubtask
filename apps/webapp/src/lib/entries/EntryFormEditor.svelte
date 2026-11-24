@@ -215,7 +215,7 @@
               <IconButton icon="trash" size="sm" tone="subtle" label={t('app.entry_forms.remove_validation', { key: validation.key })}
                 onclick={() => (draft.validations = draft.validations.filter((_, at) => at !== index))} />
             </Inline>
-            <Input label={t('app.entry_forms.validation_holds')} hint={t('app.entry_forms.condition_hint')} size="sm" bind:value={validation.holds} error={refusalAt(`validations.${index}.holds`)} />
+            <Input label={t('app.entry_forms.validation_holds')} hint={t('app.entry_forms.condition_hint')} more={t('app.entry_forms.condition_hint_more')} size="sm" bind:value={validation.holds} error={refusalAt(`validations.${index}.holds`)} />
             <Input label={t('app.entry_forms.validation_message')} size="sm" bind:value={validation.message} />
           </Stack>
         </div>

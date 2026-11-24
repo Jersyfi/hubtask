@@ -73,7 +73,7 @@
 
 {#snippet strip()}<ProductTabs module="ASSETS" current="classes" {onnavigate} />{/snippet}
 
-<ListPage head={{ ...productHead('ASSETS'), primary }} {strip} refused={reachesAdministrationArea() === false ? notYours : undefined}>
+<ListPage head={{ ...productHead('ASSETS'), primary, more: t('app.cmdb_admin.classes_hint_more') }} {strip} refused={reachesAdministrationArea() === false ? notYours : undefined}>
   {#snippet intro()}<p class="meta">{t('app.cmdb_admin.classes_hint')}</p>{/snippet}
   {#snippet filters()}
     <FilterBar searchLabel={t('app.cmdb_admin.search_classes')} clearSearchLabel={t('app.page.clear_search')} bind:search

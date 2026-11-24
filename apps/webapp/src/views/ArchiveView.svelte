@@ -104,7 +104,7 @@
   const ARCHIVED_ENTRIES = `/search?${new URLSearchParams({ f: 'is:archived' }).toString()}`;
 </script>
 
-<ListPage head={{ title: t('app.archive.title') }}>
+<ListPage head={{ title: t('app.archive.title'), more: t('app.archive.intro_more') }}>
   {#snippet intro()}<p class="quiet">{t('app.archive.intro')}</p>{/snippet}
   {#snippet filters()}
     <FilterBar

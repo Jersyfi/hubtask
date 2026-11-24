@@ -218,7 +218,7 @@
   ]);
 </script>
 
-<ListPage head={peopleHead()}>
+<ListPage head={{ ...peopleHead(), more: t(view === 'settings' ? 'app.access.settings_intro_more' : 'app.access.intro_more') }}>
   {#snippet strip()}<PeopleStrip current={view === 'settings' ? 'settings' : 'permissions'} {onnavigate} />{/snippet}
   {#snippet intro()}<p class="quiet">{t(view === 'settings' ? 'app.access.settings_intro' : 'app.access.intro')}</p>{/snippet}
   {#snippet filters()}

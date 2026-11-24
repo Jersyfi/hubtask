@@ -253,6 +253,7 @@
   const isProductHome = $derived(base === AGENTS_HOME);
 
   const head = $derived({
+    more: t('app.agents.intro_more'),
     title,
     subtitle: t('app.agents.intro'),
     breadcrumb: agentsTrail(base),

@@ -802,6 +802,7 @@
       <SettingsSection
         title={t(GROUP_CODES[group])}
         description={group === 'template' ? t(isHub ? 'app.structure.intro_hub' : 'app.structure.intro') : undefined}
+        more={group === 'template' && !isHub ? t('app.structure.intro_more') : undefined}
         status={groupStatus(group).status}
         save={saveBar}
         advanced={group === 'types' && offeredTypes.length > 0 ? { label: t('app.settings.types_advanced'), description: t('app.settings.types_advanced_hint'), rows: typesAdvanced } : undefined}
@@ -1015,7 +1016,7 @@
 
     {#if group === 'types' && shownSettings.includes('entry_types')}
       <div class="setting" data-setting="entry_types">
-        <TableSection title={titleOf('entry_types')} note={String(typeRows.length)} description={t(isHub ? 'app.structure.hub_types_hint' : 'app.structure.entry_types_hint')}>
+        <TableSection title={titleOf('entry_types')} note={String(typeRows.length)} description={t(isHub ? 'app.structure.hub_types_hint' : 'app.structure.entry_types_hint')} more={isHub ? t('app.structure.hub_types_hint_more') : undefined}>
           {#snippet acts()}
             {@render chipFor('entry_types')}
           {/snippet}
@@ -1054,7 +1055,7 @@
       </div>
       {#if fieldRows.length > 0}
         <div data-hub-fields>
-          <TableSection title={t('app.structure.setting.fields')} note={String(fieldRows.length)} description={t('app.structure.hub_fields_hint')}>
+          <TableSection title={t('app.structure.setting.fields')} note={String(fieldRows.length)} description={t('app.structure.hub_fields_hint')} more={t('app.structure.hub_fields_hint_more')}>
             <DataTable
               label={t('app.structure.setting.fields')}
               columns={sourceColumns}
@@ -1082,7 +1083,7 @@
       {@const flowsHere = workflowsAtHub(workflows.list.data, container.id)}
       {@const flowRows = [...flowsHere.shared.map((workflow) => ({ workflow, isShared: true })), ...flowsHere.own.map((workflow) => ({ workflow, isShared: false }))]}
       <div data-hub-workflows>
-        <TableSection title={t('app.settings.workflows_here')} note={String(flowRows.length)} description={t('app.structure.hub_workflows_hint')}>
+        <TableSection title={t('app.settings.workflows_here')} note={String(flowRows.length)} description={t('app.structure.hub_workflows_hint')} more={t('app.structure.hub_workflows_hint_more')}>
           <DataTable
             label={t('app.settings.workflows_here')}
             columns={sourceColumns}

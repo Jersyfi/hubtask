@@ -287,7 +287,7 @@
         {/if}
       </TableSection>
     {:else}
-      <TableSection title={t('app.retention.holds_title')} note={String(placed.filter((hold) => !hold.released_at).length)} description={t('app.retention.holds_intro')}>
+      <TableSection title={t('app.retention.holds_title')} note={String(placed.filter((hold) => !hold.released_at).length)} description={t('app.retention.holds_intro')} more={t('app.retention.holds_intro_more')}>
         {#snippet acts()}
           <Button tone="subtle" size="sm" onclick={() => (showReleased = !showReleased)}>
             {showReleased ? t('app.retention.hide_released') : t('app.retention.show_released')}

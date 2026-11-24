@@ -336,7 +336,7 @@
   back={{ label: t('app.product_home.tab_settings'), onback: () => onreplace?.(BASE) }}
 >
   <!-- Every change here is a dialog's own save or a row's act, so nothing waits for a save bar. -->
-  <TableSection title={t(`app.desk.tab.${current}`)} description={current === 'organisations' ? t('app.desk.organisations_intro') : undefined}>
+  <TableSection title={t(`app.desk.tab.${current}`)} description={current === 'organisations' ? t('app.desk.organisations_intro') : undefined} more={current === 'organisations' ? t('app.desk.organisations_intro_more') : undefined}>
     {#snippet acts()}
       {#if mayShape}
         {#if current === 'calendars'}<Button data-list-add icon="plus" onclick={addCalendar}>{t('app.desk.add_calendar')}</Button>
