@@ -54,6 +54,28 @@ async function openMenu(page) {
   return menu;
 }
 
+/**
+ * Runs `measure` while `target` (an element handle, or `PAGE`) goes on scrolling: a scroll event
+ * each frame keeps its `data-scrolling` from settling until the measurement is done.
+ */
+async function whileScrolling(page, target, measure) {
+  const surface = target === PAGE ? await page.evaluateHandle(() => document) : target;
+  await surface.evaluate((node) => {
+    window.hbtScrolling = true;
+    const tick = () => {
+      if (!window.hbtScrolling) return;
+      node.dispatchEvent(new Event('scroll'));
+      requestAnimationFrame(tick);
+    };
+    tick();
+  });
+  try {
+    return await measure();
+  } finally {
+    await page.evaluate(() => { window.hbtScrolling = false; });
+  }
+}
+
 /** The hit zone the bar takes, from the token. */
 const hitZone = (page) => page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--layout-nav-scrollbar')));
 
@@ -125,7 +147,7 @@ for (const scheme of ['light', 'dark']) {
     // While it scrolls the thumb is drawn in full, and fades back once the scroll has settled.
     await body.evaluate((node) => { node.scrollTop = 40; });
     assert.equal(await body.evaluate((node) => new Promise((resolve) => requestAnimationFrame(() => resolve(node.hasAttribute('data-scrolling'))))), true, 'the scroll did not mark its box');
-    const scrolling = await measureBar(browser, page, body);
+    const scrolling = await whileScrolling(page, body, () => measureBar(browser, page, body));
     assert.ok(distance(scrolling.thumb, strong) <= 2, `while it scrolls the thumb is ${scrolling.thumb}, not border.default ${strong}`);
     await body.evaluate((node) => new Promise((resolve) => {
       const done = () => (node.hasAttribute('data-scrolling') ? requestAnimationFrame(done) : resolve());
