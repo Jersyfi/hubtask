@@ -9,22 +9,9 @@
    a shade never stands past the rounded corners of the surface behind it. The frame is isolated, so
    the layer's rank counts inside it and never against the page.
 
-   The colour is the scrim's, the one colour that darkens a surface in both themes: a tint of the
-   text colour would lighten a dark surface into a bar. It is faint at the edge and eases out over
-   the strip, so it reads as the rows passing under the edge rather than as a stripe. A dark
-   surface is already close to the scrim, so the same share of it would barely show there: the
-   dark theme takes a larger share, which darkens its edge by about as much as the light one. */
-
-/* Set where the theme is, so a light surface inside a dark page takes its own theme's share. */
-[data-theme='light'] {
-  --scroll-shade-edge: color-mix(in oklab, var(--bg-scrim) 24%, transparent);
-  --scroll-shade-ease: color-mix(in oklab, var(--bg-scrim) 8%, transparent);
-}
-
-[data-theme='dark'] {
-  --scroll-shade-edge: color-mix(in oklab, var(--bg-scrim) 64%, transparent);
-  --scroll-shade-ease: color-mix(in oklab, var(--bg-scrim) 20%, transparent);
-}
+   The colours are `bg.scroll-shade-edge` and `bg.scroll-shade-ease`: the scrim's, faint at the edge
+   and easing out over the strip, so it reads as the rows passing under the edge rather than as a
+   stripe. */
 
 [data-scroll-edges] {
   isolation: isolate;
@@ -45,8 +32,8 @@
 
 [data-scroll-edges]::before {
   background-image: linear-gradient(
-    var(--scroll-shade-edge),
-    var(--scroll-shade-ease) 45%,
+    var(--bg-scroll-shade-edge),
+    var(--bg-scroll-shade-ease) 45%,
     transparent
   );
   background-position: top;
@@ -55,8 +42,8 @@
 [data-scroll-edges]::after {
   background-image: linear-gradient(
     transparent,
-    var(--scroll-shade-ease) 55%,
-    var(--scroll-shade-edge)
+    var(--bg-scroll-shade-ease) 55%,
+    var(--bg-scroll-shade-edge)
   );
   background-position: bottom;
 }

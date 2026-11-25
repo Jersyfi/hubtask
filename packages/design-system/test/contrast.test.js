@@ -49,6 +49,8 @@ const ROLES = {
   'bg.glass': 'surface',
   'bg.emphasis': 'fill',
   'bg.scrim': ['decorative', 'a dimmer laid over content that is deliberately no longer readable'],
+  'bg.scroll-shade-edge': ['decorative', 'a faint shade over rows that scroll on, laid on a surface whose own pairs are checked'],
+  'bg.scroll-shade-ease': ['decorative', 'a faint shade over rows that scroll on, laid on a surface whose own pairs are checked'],
 
   // Text.
   'text.primary': 'body-text',

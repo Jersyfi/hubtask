@@ -909,11 +909,11 @@ around the scroller, and a shade shows only at an edge with more beyond it — t
 both or none, never on a list that does not scroll. It lies over the rows, so a hovered row does not
 cover it, and takes the frame's corners, so it never stands past the surface's rounding. A sheet's
 body frame reaches the sheet's sides, so its shade runs edge to edge instead of ending at the
-padding. Its colour
-is `bg.scrim`'s, faint at the edge and eased out, so it darkens the surface in both themes; a tint
-of the text colour would lighten a dark surface into a bar. The dark theme takes a larger share of
-it, so the shade darkens a dark surface's edge by about as much as a light one's. `Table` keeps its own
-fade.
+padding. Its colours
+are `bg.scroll-shade-edge` and `bg.scroll-shade-ease`, `bg.scrim`'s faint at the edge and eased
+out, so it darkens the surface in both themes; a tint of the text colour would lighten a dark
+surface into a bar. The dark theme takes a larger share of the scrim, so the shade darkens a dark
+surface's edge by about as much as a light one's. `Table` keeps its own fade.
 
 What paints over what and what `Escape` reaches are **different lists**. A tooltip paints above a
 dialog and is not in the register: it closes on the `Escape` pressed while it shows (WCAG 1.4.13)
