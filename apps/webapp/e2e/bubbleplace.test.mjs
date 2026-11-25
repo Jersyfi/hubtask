@@ -34,6 +34,9 @@ const WORDS = {
   de: { up: 'Nach oben', out: 'Eine Ebene nach außen verschieben' },
 };
 
+/** The ⋯ opener's name, `app.workspace.actions`. */
+const ACTIONS = { en: (name) => `Actions for ${name}`, de: (name) => `Aktionen für ${name}` };
+
 /** The entry's page in a tab with scrollbars, in a language and a theme, its ⋯ menu open. */
 async function openMenu(t, { width, height, language, scheme }) {
   const browser = await sharedChromium(t, { hasScrollbars: true });
@@ -55,7 +58,7 @@ async function openMenu(t, { width, height, language, scheme }) {
   await page.goto(`${served.origin}/items/${FIRST.id}`);
   await page.waitForFunction((lang) => document.documentElement.lang === lang, language, { timeout: 15_000 });
   await page.getByRole('heading', { name: FIRST.title }).first().waitFor({ timeout: 15_000 });
-  const opener = page.locator('[data-opener="entry-menu"]').filter({ visible: true }).first();
+  const opener = page.getByRole('button', { name: ACTIONS[language](FIRST.title), exact: true }).filter({ visible: true }).first();
   await opener.waitFor({ timeout: 15_000 });
   if (isPhone) await opener.tap();
   else await opener.click();
