@@ -10,6 +10,9 @@
 // file once carried beside it went with that job: unreachable by any engine the client promises
 // to run in, and proven so rather than assumed.
 //
+// A surface with a tip - a reason bubble, a tooltip, a help tip - is the one exception: its tip
+// must know the side it took, which CSS does not tell, so it is measured (`placeWithTip`).
+//
 // One constraint shapes the lines below. **No inline style.** ADR-0028's policy is
 // `style-src 'self'` with no `'unsafe-inline'`, so `element.style.…` is exactly what may not be
 // written - and neither may the `anchor-name` the CSS path needs, which is a per-instance value.
@@ -124,7 +127,152 @@ export interface AnchorOptions {
   readonly standalone?: boolean;
   /** An overlay already in the top layer - a modal dialog - is tied, not raised a second time. */
   readonly isInTopLayer?: boolean;
+  /** A surface with a tip pointing at its anchor: placed by `placeWithTip`, not by the engine. */
+  readonly tip?: TipOptions;
 }
+
+export interface TipOptions {
+  /** What the tip points at, where that is not the anchor: the ⓘ of a sheet's row. */
+  readonly aim?: HTMLElement | null;
+  /**
+   * The surface the anchor stands in - a menu around its row. Beside it, the overlay stands clear
+   * of that surface's edge rather than of the row's.
+   */
+  readonly within?: HTMLElement | null;
+}
+
+/** A physical side, as the viewport and a rotated tip see it. */
+export type PhysicalSide = 'top' | 'bottom' | 'left' | 'right';
+
+/**
+ * The sides a surface with a tip tries, in order (design-system.md §4, "Where a bubble stands").
+ * Beside the anchor (a reason in a menu): that side, the other, below, above. Above or below (a
+ * field's reason, a tooltip, a help tip): that side, then the other.
+ */
+export function tipSides({ side }: Placement, dir: 'ltr' | 'rtl'): PhysicalSide[] {
+  const start: PhysicalSide = dir === 'rtl' ? 'right' : 'left';
+  const end: PhysicalSide = dir === 'rtl' ? 'left' : 'right';
+  switch (side) {
+    case 'inline-end': return [end, start, 'bottom', 'top'];
+    case 'inline-start': return [start, end, 'bottom', 'top'];
+    case 'block-end': return ['bottom', 'top'];
+    default: return ['top', 'bottom'];
+  }
+}
+
+/** A box in the viewport by its edges. */
+export interface Edges {
+  readonly top: number;
+  readonly left: number;
+  readonly right: number;
+  readonly bottom: number;
+}
+
+export interface TipInput {
+  /** What the surface stands beside. */
+  readonly anchor: Edges;
+  /** What the surface clears on the left and right sides, where that is wider: the anchor's menu. */
+  readonly beside?: Edges;
+  /** What the tip points at. */
+  readonly aim: Edges;
+  readonly width: number;
+  readonly height: number;
+  readonly viewport: { readonly width: number; readonly height: number };
+  readonly sides: readonly PhysicalSide[];
+  /** Above or below: where along the anchor's inline axis the surface starts. */
+  readonly dir: 'ltr' | 'rtl';
+  /** From the anchor to the surface's edge: the tip and the air before its point. */
+  readonly gap: number;
+  /** From the viewport's edge to the surface's, as far as the surface can. */
+  readonly edge: number;
+  /** The least of that, given up only so that the tip reaches its aim on a straight edge. */
+  readonly nearEdge: number;
+  /** The surface's corner radius. The tip's outer extent never enters it. */
+  readonly radius: number;
+  /** How far the tip stands out; a square turned by 45°, so as far along the edge each way. */
+  readonly tip: number;
+  /** Where the tip points into an aim wider than the surface: this far past its start. */
+  readonly wideAim: number;
+}
+
+export interface TipPlacement {
+  /** The side of the anchor the surface stands on. */
+  readonly side: PhysicalSide;
+  /** The surface's border box, in the viewport. */
+  readonly top: number;
+  readonly left: number;
+  /** The tip's centre along the edge that faces the anchor, from that edge's top or left end. */
+  readonly at: number;
+}
+
+const clamp = (value: number, low: number, high: number) => Math.max(low, Math.min(high, value));
+
+/**
+ * Where a surface with a tip stands: pure, so its rules are tested without a browser.
+ *
+ * The first side in `sides` that holds the surface at its own size; where none does, the one with
+ * the most room. Across that side it starts where the anchor starts - above or below, at the
+ * anchor's inline start; beside it, at its top, or at its bottom where the top runs past the foot -
+ * and is shifted into the viewport, `edge` from its border. The tip then points at the aim and
+ * never enters a rounded corner: its outer extent stays `radius` from each end of its edge. Where
+ * that is not enough to reach the aim, the surface comes nearer the viewport's edge, down to
+ * `nearEdge`; only past that does the tip stop at the end of the straight edge.
+ */
+export function placeWithTip(input: TipInput): TipPlacement {
+  const { anchor, aim, width, height, viewport, gap, edge, nearEdge, radius, tip } = input;
+  const beside = input.beside ?? anchor;
+  const room: Record<PhysicalSide, number> = {
+    top: anchor.top - edge - gap - height,
+    bottom: viewport.height - edge - anchor.bottom - gap - height,
+    left: beside.left - edge - gap - width,
+    right: viewport.width - edge - beside.right - gap - width,
+  };
+  const side = input.sides.find((each) => room[each] >= 0)
+    ?? [...input.sides].sort((one, other) => room[other] - room[one])[0]
+    ?? 'top';
+
+  const isBeside = side === 'left' || side === 'right';
+  const size = isBeside ? height : width;
+  const span = isBeside ? viewport.height : viewport.width;
+
+  // Along the side: off the anchor by the gap, and back inside the viewport where nothing fit.
+  let main: number;
+  if (side === 'top') main = anchor.top - gap - height;
+  else if (side === 'bottom') main = anchor.bottom + gap;
+  else if (side === 'left') main = beside.left - gap - width;
+  else main = beside.right + gap;
+  const mainSize = isBeside ? width : height;
+  const mainSpan = isBeside ? viewport.width : viewport.height;
+  main = Math.max(edge, Math.min(main, mainSpan - edge - mainSize));
+
+  // Across it: lined up with the anchor's start, then shifted into the viewport.
+  let cross: number;
+  if (isBeside) {
+    cross = anchor.top + height > span - edge ? anchor.bottom - height : anchor.top;
+  } else {
+    cross = input.dir === 'rtl' ? anchor.right - width : anchor.left;
+  }
+  cross = Math.max(edge, Math.min(cross, span - edge - size));
+
+  // The point the tip aims at, across the side.
+  const aimSize = isBeside ? aim.bottom - aim.top : aim.right - aim.left;
+  let target: number;
+  if (isBeside) target = (aim.top + aim.bottom) / 2;
+  else if (aimSize > width) target = input.dir === 'rtl' ? aim.right - input.wideAim : aim.left + input.wideAim;
+  else target = (aim.left + aim.right) / 2;
+
+  // The straight part of the edge the tip may take, and the surface moved for it where needed.
+  const low = radius + tip;
+  const high = size - radius - tip;
+  if (high < low) return { side, ...corner(side, main, cross), at: size / 2 };
+  if (target - cross < low) cross = Math.max(Math.min(nearEdge, cross), target - low);
+  else if (target - cross > high) cross = Math.min(Math.max(span - nearEdge - size, cross), target - high);
+  const at = clamp(target - cross, low, high);
+  return { side, ...corner(side, main, cross), at };
+}
+
+const corner = (side: PhysicalSide, main: number, cross: number) =>
+  side === 'left' || side === 'right' ? { top: cross, left: main } : { top: main, left: cross };
 
 /**
  * Puts the overlay in the top layer, and returns the function that takes it out again.
@@ -171,7 +319,8 @@ export function raiseToTopLayer(overlay: HTMLElement): () => void {
  * Ties an overlay to its trigger and returns the function that unties it: two declarations and no
  * listeners, the flip done by the engine during layout rather than a frame after it.
  */
-export function anchorTo(trigger: HTMLElement, overlay: HTMLElement, { placement, standalone = false, isInTopLayer = false }: AnchorOptions): () => void {
+export function anchorTo(trigger: HTMLElement, overlay: HTMLElement, { placement, standalone = false, isInTopLayer = false, tip }: AnchorOptions): () => void {
+  if (tip) return tipTo(trigger, overlay, placement, tip, isInTopLayer);
   const id = `hbt-anchor-${++sequence}`;
   trigger.dataset.hbtAnchor = id;
   overlay.dataset.hbtAnchored = id;
@@ -196,6 +345,89 @@ export function anchorTo(trigger: HTMLElement, overlay: HTMLElement, { placement
     drop(target, overlayRule);
     delete trigger.dataset.hbtAnchor;
     delete overlay.dataset.hbtAnchored;
+  };
+}
+
+/** A length a custom property or a property resolves to, in pixels; 0 where it is none. */
+const pixels = (style: CSSStyleDeclaration, name: string) => Number.parseFloat(style.getPropertyValue(name)) || 0;
+
+const edgesOf = (element: Element): Edges => {
+  const box = element.getBoundingClientRect();
+  return { top: box.top, left: box.left, right: box.right, bottom: box.bottom };
+};
+
+/**
+ * A surface with a tip, tied to its anchor. CSS anchoring cannot tell a surface which fallback it
+ * took, and a tip has to know; nor can it let the surface nearer the viewport's edge only so far as
+ * the tip needs. So this one is measured: `placeWithTip` decides, and the answer is written into the
+ * surface's rule in the constructed stylesheet - its corner, and where its tip stands as
+ * `--hbt-tip-inline` and `--hbt-tip-block` from its inline-start and block-start border edges -
+ * with the side the tip points to as `data-hbt-tip`. Placed again on a scroll anywhere, a resize, and
+ * a change of the anchor's or the surface's size, for as long as it is open.
+ *
+ * The surface declares its tip's reach as `--hbt-tip`, and sizes itself to its content (its width
+ * never depends on where it stands, or the measurement would chase itself).
+ */
+function tipTo(anchor: HTMLElement, overlay: HTMLElement, placement: Placement, { aim, within }: TipOptions, isInTopLayer: boolean): () => void {
+  const id = `hbt-anchor-${++sequence}`;
+  overlay.dataset.hbtAnchored = id;
+  const target = stylesheet();
+  const rule = ruleFor(target, `[data-hbt-anchored='${id}']`);
+  const lower = isInTopLayer ? () => {} : raiseToTopLayer(overlay);
+  rule.style.setProperty('inset', 'auto');
+  rule.style.setProperty('margin', '0', 'important');
+
+  const place = () => {
+    if (!overlay.isConnected || !anchor.isConnected) return;
+    const style = getComputedStyle(overlay);
+    const dir = getComputedStyle(anchor).direction === 'rtl' ? 'rtl' : 'ltr';
+    const box = overlay.getBoundingClientRect();
+    const reach = pixels(style, '--hbt-tip');
+    const root = document.documentElement;
+    const placed = placeWithTip({
+      anchor: edgesOf(anchor),
+      beside: within ? edgesOf(within) : undefined,
+      aim: edgesOf(aim ?? anchor),
+      width: box.width,
+      height: box.height,
+      viewport: { width: root.clientWidth, height: root.clientHeight },
+      sides: tipSides(placement, dir),
+      dir,
+      gap: reach + pixels(style, '--sp-050'),
+      edge: pixels(style, '--sp-200'),
+      nearEdge: pixels(style, '--sp-100'),
+      radius: Number.parseFloat(style.borderTopLeftRadius) || 0,
+      tip: reach,
+      wideAim: pixels(style, '--sp-300'),
+    });
+    // The tip's centre on the edge that faces the anchor, from the surface's top left corner.
+    const isBeside = placed.side === 'left' || placed.side === 'right';
+    const x = isBeside ? (placed.side === 'right' ? 0 : box.width) : placed.at;
+    const y = isBeside ? placed.at : placed.side === 'bottom' ? 0 : box.height;
+    const isRtl = style.direction === 'rtl';
+    rule.style.setProperty('top', `${placed.top}px`);
+    rule.style.setProperty('left', `${placed.left}px`);
+    rule.style.setProperty('--hbt-tip-inline', `${isRtl ? box.width - x : x}px`);
+    rule.style.setProperty('--hbt-tip-block', `${y}px`);
+    overlay.dataset.hbtTip = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' }[placed.side];
+  };
+
+  place();
+  const options = { capture: true, passive: true } as const;
+  document.addEventListener('scroll', place, options);
+  window.addEventListener('resize', place);
+  const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(place) : undefined;
+  observer?.observe(overlay);
+  observer?.observe(anchor);
+
+  return () => {
+    document.removeEventListener('scroll', place, options);
+    window.removeEventListener('resize', place);
+    observer?.disconnect();
+    lower();
+    drop(target, rule);
+    delete overlay.dataset.hbtAnchored;
+    delete overlay.dataset.hbtTip;
   };
 }
 

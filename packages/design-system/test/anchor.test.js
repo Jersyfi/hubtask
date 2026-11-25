@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { boxWithin, positionArea, raiseToTopLayer } from '../src/anchor.ts';
+import { boxWithin, placeWithTip, positionArea, raiseToTopLayer, tipSides } from '../src/anchor.ts';
 
 test('a placement reads as the position-area the engine expects', () => {
   // `span-inline-end` runs from the anchor's inline start towards its end, which is what
@@ -101,4 +101,115 @@ test('a scrolled container moves the phantom with its content', () => {
 test('right to left, the inline start is measured from the right edge', () => {
   const placed = boxWithin({ top: 141, left: 81, width: 120, height: 20 }, frame, 'rtl');
   assert.equal(placed.inlineStart, 398 - 30 - 120);
+});
+
+// ---------------------------------------------------------------------------------------------
+// A surface with a tip: which side, how far it is shifted, and where its tip stands.
+// ---------------------------------------------------------------------------------------------
+
+/** A reason bubble's measures: tip 6, the air before it 4, edge 16, near edge 8, radius 6. */
+const BUBBLE = { gap: 10, edge: 16, nearEdge: 8, radius: 6, tip: 6, wideAim: 24, dir: 'ltr' };
+/** A help tip's: tip 7, radius 12. */
+const HELP = { ...BUBBLE, gap: 11, radius: 12, tip: 7 };
+const edges = (left, top, width, height) => ({ left, top, right: left + width, bottom: top + height });
+
+test('the sides a tip tries follow the placement and the writing direction', () => {
+  assert.deepEqual(tipSides({ side: 'inline-end', align: 'start' }, 'ltr'), ['right', 'left', 'bottom', 'top']);
+  assert.deepEqual(tipSides({ side: 'inline-end', align: 'start' }, 'rtl'), ['left', 'right', 'bottom', 'top']);
+  assert.deepEqual(tipSides({ side: 'block-start', align: 'start' }, 'ltr'), ['top', 'bottom']);
+  assert.deepEqual(tipSides({ side: 'block-end', align: 'start' }, 'rtl'), ['bottom', 'top']);
+});
+
+test('a reason beside a menu at the right edge turns left, clear of the menu, its tip on the row', () => {
+  const menu = edges(1000, 280, 240, 300);
+  const row = edges(1005, 300, 230, 32);
+  const placed = placeWithTip({
+    ...BUBBLE, anchor: row, beside: menu, aim: row, width: 200, height: 40,
+    viewport: { width: 1265, height: 800 }, sides: ['right', 'left', 'bottom', 'top'],
+  });
+  assert.equal(placed.side, 'left');
+  assert.equal(placed.left, 1000 - 10 - 200, 'the gap is measured from the menu, not from the row inside it');
+  assert.equal(placed.top, 300, 'lined up with the row\'s top');
+  assert.equal(placed.at, 16, 'the tip at the row\'s middle');
+});
+
+test('with room on the right, the reason stays there', () => {
+  const row = edges(400, 300, 230, 32);
+  const placed = placeWithTip({ ...BUBBLE, anchor: row, aim: row, width: 200, height: 40, viewport: { width: 1265, height: 800 }, sides: ['right', 'left', 'bottom', 'top'] });
+  assert.equal(placed.side, 'right');
+  assert.equal(placed.left, 640);
+});
+
+test('at the foot of the window a reason lines up with the row\'s bottom, and comes nearer the edge so its tip reaches the row', () => {
+  const row = edges(400, 760, 230, 32);
+  const placed = placeWithTip({ ...BUBBLE, anchor: row, aim: row, width: 200, height: 60, viewport: { width: 1265, height: 800 }, sides: ['right', 'left'] });
+  assert.equal(placed.side, 'right');
+  // Bottom-aligned it would end at 792, past the edge of 16; shifted in it ends at 784, and the
+  // row's middle (776) is then beyond the straight edge (top + 60 - 6 - 6 = 772). It moves down
+  // again, no nearer than 8 to the edge, until the tip reaches the middle.
+  assert.equal(placed.top, 728);
+  assert.equal(placed.at, 48);
+  assert.ok(placed.top + 60 <= 800 - BUBBLE.nearEdge);
+});
+
+test('where no side holds it, the side with the most room', () => {
+  const row = edges(20, 20, 100, 30);
+  const placed = placeWithTip({ ...BUBBLE, anchor: row, aim: row, width: 200, height: 400, viewport: { width: 300, height: 500 }, sides: ['top', 'bottom'] });
+  assert.equal(placed.side, 'bottom');
+});
+
+test('a field\'s reason goes above, and below where there is no room above', () => {
+  const field = edges(300, 200, 320, 36);
+  const above = placeWithTip({ ...BUBBLE, anchor: field, aim: field, width: 200, height: 40, viewport: { width: 1280, height: 800 }, sides: ['top', 'bottom'] });
+  assert.equal(above.side, 'top');
+  assert.equal(above.top, 200 - 10 - 40);
+  assert.equal(above.left, 300, 'lined up with the field\'s start');
+  assert.equal(above.at, 24, 'into a field wider than the bubble, the tip points sp-300 past its start');
+  const high = edges(300, 30, 320, 36);
+  assert.equal(placeWithTip({ ...BUBBLE, anchor: high, aim: high, width: 200, height: 40, viewport: { width: 1280, height: 800 }, sides: ['top', 'bottom'] }).side, 'bottom');
+});
+
+test('right to left, a field\'s reason lines up with the field\'s right edge', () => {
+  const field = edges(300, 200, 320, 36);
+  const placed = placeWithTip({ ...BUBBLE, dir: 'rtl', anchor: field, aim: field, width: 200, height: 40, viewport: { width: 1280, height: 800 }, sides: ['top', 'bottom'] });
+  assert.equal(placed.left, 620 - 200);
+  assert.equal(placed.at, 200 - 24);
+});
+
+test('a help tip at the right edge of a phone comes nearer the edge so its tip reaches the ⓘ outside the corner', () => {
+  const mark = edges(342, 100, 24, 24);
+  const placed = placeWithTip({ ...HELP, anchor: mark, aim: mark, width: 300, height: 120, viewport: { width: 390, height: 844 }, sides: ['bottom', 'top'] });
+  assert.equal(placed.side, 'bottom');
+  const centre = 342 + 12;
+  // 16 from the edge the surface starts at 74, and its straight edge ends at 74 + 281 = 355: the
+  // ⓘ's middle (354) is on it, and nothing moves.
+  assert.equal(placed.left + placed.at, centre, 'the tip is not on the ⓘ');
+  assert.ok(placed.at <= 300 - HELP.radius - HELP.tip && placed.at >= HELP.radius + HELP.tip, 'the tip runs into a rounded corner');
+
+  const nearer = edges(348, 100, 24, 24);
+  const shifted = placeWithTip({ ...HELP, anchor: nearer, aim: nearer, width: 300, height: 120, viewport: { width: 390, height: 844 }, sides: ['bottom', 'top'] });
+  assert.equal(shifted.left + shifted.at, 360, 'the tip does not reach the ⓘ');
+  assert.equal(shifted.at, 300 - 12 - 7, 'the tip is at the end of the straight edge');
+  assert.equal(shifted.left, 360 - 281, 'the surface came nearer the edge, only as far as the tip needs');
+  assert.ok(390 - (shifted.left + 300) >= HELP.nearEdge, 'nearer the edge than the least');
+
+  const atEdge = edges(366, 100, 24, 24);
+  const stopped = placeWithTip({ ...HELP, anchor: atEdge, aim: atEdge, width: 300, height: 120, viewport: { width: 390, height: 844 }, sides: ['bottom', 'top'] });
+  assert.equal(stopped.left, 390 - 8 - 300, 'no nearer the edge than the least');
+  assert.equal(stopped.at, 300 - 12 - 7, 'the tip stops at the end of the straight edge, outside the corner');
+});
+
+test('a tip on a surface too small for a straight edge stands in its middle', () => {
+  const mark = edges(100, 100, 24, 24);
+  const placed = placeWithTip({ ...HELP, anchor: mark, aim: mark, width: 30, height: 20, viewport: { width: 390, height: 844 }, sides: ['bottom'] });
+  assert.equal(placed.at, 15);
+});
+
+test('the tip points at its aim, not at the anchor: a sheet row\'s ⓘ', () => {
+  const row = edges(0, 400, 390, 44);
+  const mark = edges(350, 414, 16, 16);
+  const placed = placeWithTip({ ...BUBBLE, anchor: row, aim: mark, width: 358, height: 40, viewport: { width: 390, height: 844 }, sides: ['top', 'bottom'] });
+  assert.equal(placed.side, 'top');
+  assert.equal(placed.left, 16);
+  assert.equal(placed.left + placed.at, 358);
 });
