@@ -340,15 +340,17 @@ no reason moves a box. The eight cases, and the pattern each takes:
    notice instead of the form, never a gated form.
 
 **Where a bubble stands.** The reason bubble, `Tooltip` and `HelpTip` share one placement,
-`placeWithTip` in `anchor.ts`, and each has a tip that points at what it describes. The bubble is as
-wide as its words up to `layout.tooltip.max`, never wider than the window less `sp-200` on each
-side, and breaks only between words; a side too narrow for it is therefore left, never squeezed
-into. The sides, in order: a reason in a menu right, left, below, above (mirrored right to left),
-clear of the menu's edge; a reason at a field and a tooltip above, then below; a help tip below,
-then above; a reason at a sheet's row on a phone above the row, across the window less `sp-200` on
-each side, its tip on the row's ⓘ. Across its side the surface starts where the anchor starts — a
-row's top, or its bottom at the window's foot — and is shifted into the window, `sp-200` from its
-edge. The tip (`layout.tooltip.tip`, `layout.tooltip.helptip`) points at the middle of its element,
+`placeWithTip` in `anchor.ts`, and each has a tip that points at what it describes. The reason
+bubble and `Tooltip` are as wide as their words up to `layout.tooltip.max`; a help tip holds up to
+three sentences and is as wide as its words up to 40 characters. Neither is wider than the window
+less `sp-200` on each side, and both break only between words; a side too narrow for them is
+therefore left, never squeezed into. The sides, in order: a reason in a menu right, left, below,
+above (mirrored right to left), clear of the menu's edge; a reason at a field and a tooltip above,
+below, the line's end, its start; a help tip below, above, the line's end, its start; a reason at a
+sheet's row on a phone above the row, across the window less `sp-200` on each side, its tip on the
+row's ⓘ. Across its side the surface lines up as its placement's `align` says, by default where
+the anchor starts — a row's top, or its bottom at the window's foot — and is shifted into the
+window, `sp-200` from its edge. The tip (`layout.tooltip.tip`, `layout.tooltip.helptip`) points at the middle of its element,
 or `sp-300` past the start of one wider than the surface, after any flip or shift, and its outer
 extent never enters a rounded corner. Where the element is so near the window's edge that the tip
 could not reach it on the straight part of the edge, the surface comes nearer that edge, down to
