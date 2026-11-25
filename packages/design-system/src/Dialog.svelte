@@ -448,7 +448,9 @@
     text-align: start;
   }
 
-  .frame { position: relative; display: flex; flex-direction: column; min-block-size: 0; }
+  /* Unsized, the panel scrolls and the frame keeps its body's height: shrunk, the body would spill
+     over the foot. A sized dialog lets it shrink, and its body scrolls instead. */
+  .frame { position: relative; display: flex; flex-direction: column; flex-shrink: 0; min-block-size: 0; }
 
   .head {
     display: flex;
