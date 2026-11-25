@@ -8,9 +8,9 @@
 // on the row's middle and outside its rounded corners, with no border wider than a hairline - in
 // English and German, light and dark. At the window's foot it lines up with the row's bottom. On a
 // phone a locked row's reason stands above the row across the screen, its tip on the row's ⓘ.
-// A resting mouse shows a reason after `--dur-intent`, and the next locked row's at once while one
-// shows, one at a time. Scrolling the list closes a reason the mouse opened and keeps one whose row
-// has the keyboard's focus. Chromium only.
+// A resting mouse shows a reason after `--dur-intent`, also after it left the row and came back, and
+// the next locked row's at once while one shows, one at a time. Scrolling the list closes a reason
+// the mouse opened and keeps one whose row has the keyboard's focus. Chromium only.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -202,6 +202,18 @@ test('chromium: 1280 × 800 — a resting mouse shows a reason after dur-intent;
   assert.ok(second.shown - second.entered < intent, `moving on from one reason, the next waited ${second.shown - second.entered} ms`);
   const upId = (await up.getAttribute('aria-describedby')).split(/\s+/)[0];
   assert.equal(await isShown(page, upId), false, 'two reasons show at once');
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: 1280 × 800 — a mouse that leaves a locked row before its reason shows and comes back still shows it', async (t) => {
+  const { page, failures, menu, up } = await openMenu(t, { width: 1280, height: 800, language: 'en', scheme: 'light' });
+  const row = await middleOf(up);
+  const other = await middleOf(menu.getByRole('menuitem', { name: 'Mark as done', exact: true }));
+  // On, off and on again within the bubble's grace: the leave's pending hide must not cancel the rest.
+  await page.mouse.move(row.x, row.y);
+  await page.mouse.move(other.x, other.y);
+  await page.mouse.move(row.x, row.y);
+  await bubbleOf(page, up);
   assert.deepEqual(failures, []);
 });
 

@@ -118,6 +118,8 @@
       show();
       return;
     }
+    // Back before the grace ran out: the leave's pending hide would cancel this rest.
+    clearTimeout(leaving);
     clearTimeout(resting);
     resting = setTimeout(show, intentOf(control));
   };
