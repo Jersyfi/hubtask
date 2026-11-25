@@ -257,7 +257,9 @@ for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
       for (const [width, height] of [[1280, 800], [390, 844]]) {
         const isPhone = width < 600;
         const where = `${width}×${height}`;
-        const page = await browser.newPage({ viewport: { width, height }, ...(isPhone && engine !== 'firefox' ? { hasTouch: true, isMobile: true } : {}) });
+        // A phone has touch in every engine, so the tap below is a tap; Firefox takes no `isMobile`.
+        const phone = isPhone ? { hasTouch: true, ...(engine === 'firefox' ? {} : { isMobile: true }) } : {};
+        const page = await browser.newPage({ viewport: { width, height }, ...phone });
         await story(page, server.origin, 'refused');
         await field(page).click();
         await list(page).waitFor();
