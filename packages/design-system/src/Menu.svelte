@@ -301,6 +301,7 @@
     min-block-size: 0;
     padding: var(--sp-050);
     overflow: auto;
+    scrollbar-gutter: var(--scrollbar-gutter);
     overscroll-behavior: contain;
   }
 

@@ -131,11 +131,11 @@ test('a start page names itself once where the bar carries its name', () => {
 test('on a phone a sheet and a drawer from the foot keep their head and scroll inside the screen', () => {
   const sheet = source('Sheet.svelte');
   assert.match(sheet, /\.body:has\(> \.items-frame\) \{ display: flex; flex-direction: column; \}/u);
-  assert.match(sheet, /\.items \{ flex: 0 1 auto; min-block-size: 0; overflow: auto; \}/u);
+  assert.match(sheet, /\.items \{ flex: 0 1 auto; min-block-size: 0; overflow: auto;[^}]*\}/u);
   const drawer = source('Drawer.svelte');
   assert.match(drawer, /\.drawer\[open\] \{ display: flex; flex-direction: column; \}/u);
   assert.match(rulesFor(drawer, 'drawer').join(' '), /overflow: hidden/u);
-  assert.match(drawer, /\.drawer\[data-edge='block-end'\] \.body \{ flex: 1 1 auto; min-block-size: 0; overflow: auto; \}/u);
+  assert.match(drawer, /\.drawer\[data-edge='block-end'\] \.body \{ flex: 1 1 auto; min-block-size: 0; overflow: auto;[^}]*\}/u);
 });
 
 test('an overview has one surface: a widget stands on Card, and Card is a region of §4 - surface, hairline, r-lg, no shadow', () => {

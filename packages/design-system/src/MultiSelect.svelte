@@ -730,6 +730,7 @@
     min-block-size: 0;
     padding: calc(var(--sp-025) + var(--bw-ring));
     overflow-y: auto;
+    scrollbar-gutter: var(--scrollbar-gutter);
   }
 
   .list { display: flex; flex-direction: column; gap: var(--sp-025); outline: none; }

@@ -253,6 +253,7 @@
     list-style: none;
     max-block-size: 40vh;
     overflow-y: auto;
+    scrollbar-gutter: var(--scrollbar-gutter);
   }
 
   .option {

@@ -73,6 +73,7 @@
     flex: 1 1 auto;
     min-block-size: 0;
     overflow: auto;
+    scrollbar-gutter: var(--scrollbar-gutter);
     padding: var(--sp-100);
   }
 </style>

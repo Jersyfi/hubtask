@@ -372,6 +372,7 @@
     flex: 1 1 auto;
     min-block-size: 0;
     overflow: auto;
+    scrollbar-gutter: var(--scrollbar-gutter);
     display: flex;
     flex-direction: column;
     gap: var(--sp-250);
@@ -441,6 +442,7 @@
     flex: 1 1 auto;
     min-block-size: 0;
     overflow: auto;
+    scrollbar-gutter: var(--scrollbar-gutter);
     display: flex;
     flex-direction: column;
     gap: var(--sp-200);
