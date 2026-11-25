@@ -53,7 +53,7 @@
 </script>
 
 <div data-mail-mailboxes>
-  <TableSection title={t('app.mail.section_mailboxes')} note={list.isReading ? undefined : String(list.mailboxes.length)} description={t('app.mail.mailboxes_hint')} more={t('app.mail.mailboxes_hint_more')}>
+  <TableSection title={t('app.mail.section_mailboxes')} note={list.isReading ? undefined : String(list.mailboxes.length)} description={t('app.mail.mailboxes_hint')}>
     {#if list.isReading}
       <p class="quiet"><Spinner label={t('app.mail.reading')} /> {t('app.mail.reading')}</p>
     {:else if list.readFailure}

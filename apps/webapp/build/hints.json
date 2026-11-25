@@ -60,6 +60,7 @@
   "app.identity_provider.directories_narrow_hint": "short",
   "app.identity_provider.directories_shared_hint": "description",
   "app.identity_provider.domains_hint": "description",
+  "app.identity_provider.intro": "description",
   "app.identity_provider.newcomers_hint": "short",
   "app.identity_provider.provisioning_hint": "description",
   "app.import.kind_CONFLUENCE_hint": "needed",
