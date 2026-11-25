@@ -382,7 +382,12 @@ function tipTo(anchor: HTMLElement, overlay: HTMLElement, placement: Placement, 
     const style = getComputedStyle(overlay);
     const dir = getComputedStyle(anchor).direction === 'rtl' ? 'rtl' : 'ltr';
     const box = overlay.getBoundingClientRect();
-    const reach = pixels(style, '--hbt-tip');
+    // Inside an ancestor with CSS `zoom` (the workbench's zoom axis), a box is measured zoomed and
+    // a length the surface declares is not: both are taken in the window's pixels here, and what
+    // is written back is divided again, because the surface's own lengths are zoomed when drawn.
+    const zoom = (overlay as HTMLElement & { currentCSSZoom?: number }).currentCSSZoom ?? 1;
+    const length = (name: string) => pixels(style, name) * zoom;
+    const reach = length('--hbt-tip');
     const root = document.documentElement;
     const placed = placeWithTip({
       anchor: edgesOf(anchor),
@@ -393,22 +398,22 @@ function tipTo(anchor: HTMLElement, overlay: HTMLElement, placement: Placement, 
       viewport: { width: root.clientWidth, height: root.clientHeight },
       sides: tipSides(placement, dir),
       dir,
-      gap: reach + pixels(style, '--sp-050'),
-      edge: pixels(style, '--sp-200'),
-      nearEdge: pixels(style, '--sp-100'),
-      radius: Number.parseFloat(style.borderTopLeftRadius) || 0,
+      gap: reach + length('--sp-050'),
+      edge: length('--sp-200'),
+      nearEdge: length('--sp-100'),
+      radius: (Number.parseFloat(style.borderTopLeftRadius) || 0) * zoom,
       tip: reach,
-      wideAim: pixels(style, '--sp-300'),
+      wideAim: length('--sp-300'),
     });
     // The tip's centre on the edge that faces the anchor, from the surface's top left corner.
     const isBeside = placed.side === 'left' || placed.side === 'right';
     const x = isBeside ? (placed.side === 'right' ? 0 : box.width) : placed.at;
     const y = isBeside ? placed.at : placed.side === 'bottom' ? 0 : box.height;
     const isRtl = style.direction === 'rtl';
-    rule.style.setProperty('top', `${placed.top}px`);
-    rule.style.setProperty('left', `${placed.left}px`);
-    rule.style.setProperty('--hbt-tip-inline', `${isRtl ? box.width - x : x}px`);
-    rule.style.setProperty('--hbt-tip-block', `${y}px`);
+    rule.style.setProperty('top', `${placed.top / zoom}px`);
+    rule.style.setProperty('left', `${placed.left / zoom}px`);
+    rule.style.setProperty('--hbt-tip-inline', `${(isRtl ? box.width - x : x) / zoom}px`);
+    rule.style.setProperty('--hbt-tip-block', `${y / zoom}px`);
     overlay.dataset.hbtTip = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' }[placed.side];
   };
 
