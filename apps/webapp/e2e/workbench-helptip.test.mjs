@@ -5,9 +5,10 @@
 // beside a label or a heading that holds *more about* it. Named "More about ‹label›" and never part
 // of the label's or the heading's name; `aria-expanded` says whether it is open. Enter, Space, a
 // click and a tap open it, a hover alone never does; its words take focus; `Escape`, a press
-// elsewhere and a second press close it, focus back on the ⓘ. On a phone it stays a popover at the
-// ⓘ, not a sheet, inside the screen, and in a right-to-left box too. Walked in the built workbench
-// under the product's `style-src 'self'`.
+// elsewhere and a second press close it, focus back on the ⓘ - also after a press that did not
+// focus it, as Safari's does not. On a phone it stays a popover at the ⓘ, not a sheet, inside the
+// screen, and in a right-to-left box too. Walked in the built workbench under the product's
+// `style-src 'self'`.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -107,6 +108,23 @@ for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
       await page.getByRole('textbox', { name: 'Expires', exact: true }).click();
       await popover(page, 'Expires').waitFor({ state: 'detached' });
       assert.equal(await tip.getAttribute('aria-expanded'), 'false');
+    } finally {
+      await close();
+    }
+  });
+
+  test(`a press that leaves focus where it was - Safari's - still returns focus to the ⓘ, in ${engine}`, { timeout: 2 * 60_000 }, async () => {
+    const { page, close } = await story(engine, 'label');
+    try {
+      const tip = page.getByRole('button', { name: 'More about Expires', exact: true });
+      await tip.waitFor();
+      // A click event alone, as Safari's press on a button gives one: nothing focuses the ⓘ.
+      await tip.dispatchEvent('click');
+      await popover(page, 'Expires').waitFor();
+      assert.ok(await wordsHaveFocus(page), 'the words did not take focus');
+      await page.keyboard.press('Escape');
+      await popover(page, 'Expires').waitFor({ state: 'detached' });
+      assert.ok(await focusIsOn(tip), 'Escape did not give focus back to the ⓘ');
     } finally {
       await close();
     }

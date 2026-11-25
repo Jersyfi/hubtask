@@ -45,12 +45,24 @@
   $effect(() => {
     if (isOpen) words?.focus();
   });
+
+  /**
+   * The ⓘ takes focus before it opens: the popover returns focus to what had it, and Safari's press
+   * does not focus a button, so `Escape` would leave focus on the page.
+   */
+  const focusing = (props: Record<string, unknown>) => ({
+    ...props,
+    onclick: (event: MouseEvent) => {
+      (event.currentTarget as HTMLElement).focus();
+      (props.onclick as () => void)();
+    },
+  });
 </script>
 
 <span class="help-tip">
   <Popover label={subject} bind:isOpen {placement} isAnchored hasTip>
     {#snippet trigger(props)}
-      <IconButton icon="info" label={name} size="sm" tone="subtle" {...props} />
+      <IconButton icon="info" label={name} size="sm" tone="subtle" {...focusing(props)} />
     {/snippet}
     <p class="words" tabindex="-1" bind:this={words}>{text}</p>
   </Popover>
