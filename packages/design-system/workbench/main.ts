@@ -14,6 +14,7 @@ import '../src/scrollEdges.css';
 import './chrome/chrome.css';
 
 import Workbench from './Workbench.svelte';
+import { watchScrollbars } from '../src/scrollbars.ts';
 
 // The chrome follows the system preference; the stage sets its own data-theme per pane, which is
 // the theme axis. There is no :root fallback in the stylesheet on purpose (ADR-0029), so this
@@ -24,6 +25,9 @@ const applyChromeTheme = () => {
 };
 applyChromeTheme();
 dark.addEventListener('change', applyChromeTheme);
+
+// The product's scrollbar where the system draws classic ones, the system's own where it overlays.
+watchScrollbars();
 
 const target = document.getElementById('workbench');
 if (!target) throw new Error('#workbench is missing from index.html');

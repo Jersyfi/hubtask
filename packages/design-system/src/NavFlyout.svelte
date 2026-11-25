@@ -97,7 +97,7 @@
 {#if isOpen}
   <div class="flyout" role="dialog" aria-label={label} {id} bind:this={surface}>
     <!-- The flyout is the frame that does not scroll and carries the shades; this scrolls. -->
-    <div class="scroll" data-scrollbar="thin" {@attach scrollEdges}>
+    <div class="scroll" {@attach scrollEdges}>
     <h2 class="heading">{label}</h2>
     {#if searchLabel !== undefined}
       <label class="search">
@@ -205,6 +205,7 @@
     flex: 1 1 auto;
     min-block-size: 0;
     overflow: auto;
+    scrollbar-gutter: var(--scrollbar-gutter);
     padding: var(--sp-050) calc(var(--sp-050) + var(--sp-025));
   }
 

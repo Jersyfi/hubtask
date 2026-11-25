@@ -28,8 +28,8 @@
   // navigation concept's §2.1, §2.4, §6.1): the workspace level, or a hub level with its head -
   // *‹ All hubs*, the hub's tile and name with the quick switch, ☆ and ⋯ - and its tools above
   // the parts. A new level slides in for `motion.reveal`, none under reduced motion, and focus
-  // lands on *‹ All hubs*. Its scrollbar is the shared thin one: shown while hovered, its track
-  // then drawn, its room reserved, so nothing shifts when it appears (`scrollbar.css`).
+  // lands on *‹ All hubs*. Its scrollbar is the product's (`scrollbar.css`), its room reserved, so
+  // nothing shifts when the level starts to scroll.
   import { tick, type Snippet } from 'svelte';
 
   import Icon from './Icon.svelte';
@@ -69,7 +69,7 @@
   });
 </script>
 
-<div class="level" role="region" aria-label={label} data-nav-scroll data-scrollbar="thin">
+<div class="level" role="region" aria-label={label} data-nav-scroll>
   {#key levelKey}
     <div class="slide">
       {#if out}
@@ -131,11 +131,11 @@
 </div>
 
 <style>
-  /* Its scrollbar is the shared thin one (`scrollbar.css`). */
   .level {
     flex: 1;
     min-block-size: 0;
     overflow: auto;
+    scrollbar-gutter: var(--scrollbar-gutter);
     padding: calc(var(--sp-050) + var(--sp-025)) var(--sp-100) calc(var(--sp-100) + var(--sp-025));
   }
 
