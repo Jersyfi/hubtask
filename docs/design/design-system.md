@@ -308,9 +308,10 @@ is a value, not a state:** §5's boolean rule covers the booleans we invent, not
 what the native attribute used to - a click, `Enter`, `Space`, a form's implicit submission, an
 edit - in the capture phase, before any handler of the caller's or of a row around it, and lets a
 press start a drag as before. Its reason is a bubble at the control (`_Reason.svelte`), out of the
-flow at every moment and always its `aria-describedby`: it shows on hover of the control or of the
-bubble (it stays while the pointer is over either, WCAG 1.4.13), on focus, and on a click or a tap,
-and goes on blur, `Escape` and a press elsewhere. A composite says one reason for all of its parts,
+flow at every moment and always its `aria-describedby`: it shows on hover of the control (after
+`dur-intent`) or of the bubble (it stays while the pointer is over either, WCAG 1.4.13), on focus,
+and on a click or a tap, and goes on blur, `Escape`, a press elsewhere and a scroll of what the
+control stands in. A composite says one reason for all of its parts,
 from a mark at its heading. `test/conventions.test.js` fails a native `disabled` anywhere but on an
 option and in `Radio` and `ChoiceCards`; `apps/webapp/e2e/workbench-layout.test.mjs` measures in three engines that
 no reason moves a box. The eight cases, and the pattern each takes:
@@ -337,6 +338,26 @@ no reason moves a box. The eight cases, and the pattern each takes:
    `Switch`), its size kept; afterwards a short confirmation with *Undo*, the caller's `Toast`.
 8. *Not in this plan or installation* — absent where it concerns nobody; otherwise one card or
    notice instead of the form, never a gated form.
+
+**Where a bubble stands.** The reason bubble, `Tooltip` and `HelpTip` share one placement,
+`placeWithTip` in `anchor.ts`, and each has a tip that points at what it describes. The bubble is as
+wide as its words up to `layout.tooltip.max`, never wider than the window less `sp-200` on each
+side, and breaks only between words; a side too narrow for it is therefore left, never squeezed
+into. The sides, in order: a reason in a menu right, left, below, above (mirrored right to left),
+clear of the menu's edge; a reason at a field and a tooltip above, then below; a help tip below,
+then above; a reason at a sheet's row on a phone above the row, across the window less `sp-200` on
+each side, its tip on the row's ⓘ. Across its side the surface starts where the anchor starts — a
+row's top, or its bottom at the window's foot — and is shifted into the window, `sp-200` from its
+edge. The tip (`layout.tooltip.tip`, `layout.tooltip.helptip`) points at the middle of its element,
+or `sp-300` past the start of one wider than the surface, after any flip or shift, and its outer
+extent never enters a rounded corner. Where the element is so near the window's edge that the tip
+could not reach it on the straight part of the edge, the surface comes nearer that edge, down to
+`sp-100`; only past that does the tip stop at the end of its straight edge. The bubble is the
+inverse surface with `r-sm`, `shadow.bubble` and a transparent hairline that forced colours draw;
+the help tip the raised surface with its hairline, the tip drawn with it. A mouse resting on a
+control for `dur-intent` shows its bubble, focus and a tap at once; scrolling what the control stands
+in closes it, unless focus is on the control. `apps/webapp/e2e/bubbleplace.test.mjs` and
+`workbench-bubble.test.mjs` walk it with classic scrollbars shown.
 
 **Help text** comes in five tiers, and each text belongs to exactly one
 ([ADR-0115](../adr/ADR-0115-help-text-in-five-tiers.md)):
