@@ -109,7 +109,8 @@
     if (!isOpen) return;
     const inside = surface?.contains(document.activeElement) ?? false;
     isOpen = false;
-    const back = (opener ?? anchor?.firstElementChild) as HTMLElement | null | undefined;
+    // As `close`: an opener the content removed gives way to the trigger drawn now.
+    const back = (opener?.isConnected ? opener : anchor?.firstElementChild) as HTMLElement | null | undefined;
     if (inside && back?.isConnected) back.focus({ preventScroll: true });
   }
 
