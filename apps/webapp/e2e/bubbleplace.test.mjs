@@ -9,7 +9,8 @@
 // English and German, light and dark. At the window's foot it lines up with the row's bottom. On a
 // phone a locked row's reason stands above the row across the screen, its tip on the row's ⓘ.
 // A resting mouse shows a reason after `--dur-intent`, and the next locked row's at once while one
-// shows, one at a time. Chromium only.
+// shows, one at a time. Scrolling the list closes a reason the mouse opened and keeps one whose row
+// has the keyboard's focus. Chromium only.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -65,6 +66,17 @@ async function openMenu(t, { width, height, language, scheme }) {
   return { page, failures, menu, up };
 }
 
+/** Waits until the menu's list has stopped scrolling: the same offset over three frames. */
+async function settled(page, menu) {
+  await page.waitForFunction((list) => {
+    const seen = (list.seenOffsets ??= []);
+    seen.push(list.scrollTop);
+    if (seen.length > 3) seen.shift();
+    return seen.length === 3 && seen.every((each) => each === seen[0]);
+  }, await menu.elementHandle(), { polling: 'raf' });
+  await menu.evaluate((list) => { delete list.seenOffsets; });
+}
+
 /** Whether the bubble with this id shows. */
 const isShown = (page, id) => page.evaluate((bubbleId) => {
   const node = document.getElementById(bubbleId);
@@ -116,6 +128,7 @@ test('chromium: 1280 × 300, scrollbars — at the window\'s foot a reason lines
     const box = row.getBoundingClientRect();
     return box.bottom <= row.closest('[role="menu"]').getBoundingClientRect().bottom + 1 && box.bottom > innerHeight - 80;
   });
+  await settled(page, menu);
   const row = await middleOf(item);
   await item.hover();
   const bubble = await bubbleOf(page, item);
@@ -189,3 +202,36 @@ test('chromium: 1280 × 800 — a resting mouse shows a reason after dur-intent;
   assert.deepEqual(failures, []);
 });
 
+test('chromium: 1280 × 800 — scrolling the list keeps a reason whose row has the keyboard\'s focus, and closes one the mouse opened', async (t) => {
+  const { page, failures, menu, up } = await openMenu(t, { width: 1280, height: 800, language: 'en', scheme: 'light' });
+  const id = (await up.getAttribute('aria-describedby')).split(/\s+/)[0];
+  const scrolls = await menu.evaluate((list) => list.scrollHeight > list.clientHeight);
+  assert.ok(scrolls, 'the menu does not scroll at this size: this walk does not reach its case');
+
+  // The keyboard: the arrows walk down the list onto the locked row, and its reason shows.
+  for (let step = 0; step < 12 && !(await up.evaluate((node) => node === document.activeElement)); step += 1) {
+    await page.keyboard.press('ArrowDown');
+  }
+  assert.equal(await up.evaluate((node) => node === document.activeElement), true, 'the arrow did not reach the locked row');
+  await bubbleOf(page, up);
+  // The wheel over the first row, which is not locked, scrolls the list a little.
+  const first = await middleOf(menu.getByRole('menuitem').first());
+  await page.mouse.move(first.x, first.y);
+  await page.mouse.wheel(0, 30);
+  await page.waitForFunction((list) => list.scrollTop > 0, await menu.elementHandle());
+  await settled(page, menu);
+  assert.equal(await isShown(page, id), true, 'a scroll closed the reason of the row the keyboard is on');
+  assertTip(await measureTip(page.locator(`[id="${id}"]`)), await middleOf(up), 'after the scroll, with focus');
+
+  // The mouse: Escape puts it away, the pointer rests on the row and shows it, the wheel closes it.
+  await page.keyboard.press('Escape');
+  await page.waitForFunction((bubbleId) => document.getElementById(bubbleId).hidden, id);
+  await menu.getByRole('menuitem', { name: 'Mark as done', exact: true }).evaluate((node) => node.focus());
+  await settled(page, menu);
+  const row = await middleOf(up);
+  await page.mouse.move(row.x, row.y);
+  await bubbleOf(page, up);
+  await page.mouse.wheel(0, 30);
+  await page.waitForFunction((bubbleId) => document.getElementById(bubbleId).hidden, id);
+  assert.deepEqual(failures, []);
+});
