@@ -215,7 +215,7 @@ test('R-15 on desktop: a row of the sidebar opens its screen at the top, and the
   const { page, failures, close } = await go(browser, { path: `/collections/${WEB.id}?layout=list`, width: 1440, height: 520 });
   t.after(close);
   await page.locator('main').getByRole('heading', { level: 1, name: WEB.name }).waitFor();
-  const middle = side(page).locator('[data-nav-scroll]').first();
+  const middle = side(page).getByRole('region', { name: PD.name, exact: true });
   await middle.evaluate((node) => { node.scrollTop = 30; });
   await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
   assert.ok((await page.evaluate(() => scrollY)) > 0, 'the collection is taller than the window');
