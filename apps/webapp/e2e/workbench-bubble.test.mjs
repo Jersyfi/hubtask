@@ -59,7 +59,7 @@ for (const theme of ['light', 'dark']) {
     const { box } = await middleOf(field);
     assert.ok(measured.box.bottom <= box.y, 'the reason does not stand above the field');
     // Into a field wider than the bubble, the tip points sp-300 past the field's start.
-    assertTip(measured, { x: box.x + 24 }, `field ${theme}`, { side: 'bottom' });
+    assertTip(measured, { x: box.x + 24, y: box.y + box.height / 2 }, `field ${theme}`, { side: 'bottom' });
     assert.ok(measured.box.width <= 240.5, `the reason is ${measured.box.width} px wide, more than tooltip.max`);
   });
 
@@ -145,7 +145,7 @@ test('chromium: at the stage\'s 200 % zoom a field\'s reason and a help tip stil
   assert.equal(measured.zoom, 2, 'the stage is not zoomed: this walk does not reach its case');
   const { box } = await middleOf(field);
   assert.ok(measured.box.bottom <= box.y, 'the reason does not stand above the field');
-  assertTip(measured, { x: box.x + 24 * measured.zoom }, 'field at 200 %', { side: 'bottom' });
+  assertTip(measured, { x: box.x + 24 * measured.zoom, y: box.y + box.height / 2 }, 'field at 200 %', { side: 'bottom' });
 
   await page.goto(page.url().replace('wave-1-forms-input--unavailable', 'wave-1-overlays-help-tip--label'));
   const tip = page.getByRole('button', { name: 'More about Expires', exact: true });

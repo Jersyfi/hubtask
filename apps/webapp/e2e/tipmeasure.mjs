@@ -60,8 +60,9 @@ export async function middleOf(locator) {
 
 /**
  * Holds a measured surface to the rules: inside the window, a border no wider than a hairline,
- * its tip on the edge that faces `aim` and within a pixel of `at` (where it points), and the tip's
- * outer extent outside the rounded corners of that edge.
+ * its tip on the edge that faces `at` (where it points: the element lies beyond that edge) and
+ * within a pixel of it along the edge, and the tip's outer extent outside the rounded corners of
+ * that edge.
  *
  * With `mayStop`, an element nearer the window's edge than the tip can reach is allowed for, as
  * the rule says: then the surface stands `nearEdge` from the window's edge on that side and the tip
@@ -76,6 +77,11 @@ export function assertTip(measured, at, where, { side, mayStop = false, nearEdge
   const edge = { top: box.top, bottom: box.bottom, left: box.left, right: box.right }[measured.side];
   assert.ok(edge !== undefined, `${where}: no tip`);
   assert.ok(Math.abs((isAcross ? centre.y : centre.x) - edge) <= 1, `${where}: the tip is not on the ${measured.side} edge`);
+  // The tip faces its element: the element lies beyond the edge the tip stands on, not behind it.
+  const beyond = isAcross ? at.y : at.x;
+  assert.equal(typeof beyond, 'number', `${where}: say where the element is ${isAcross ? 'down the page' : 'across it'}, to check the tip faces it`);
+  const faces = { top: beyond <= edge + 0.5, bottom: beyond >= edge - 0.5, left: beyond <= edge + 0.5, right: beyond >= edge - 0.5 }[measured.side];
+  assert.ok(faces, `${where}: the tip on the ${measured.side} edge (${edge.toFixed(1)}) points away from its element (${beyond.toFixed(1)})`);
   const along = isAcross ? centre.x : centre.y;
   const aimed = isAcross ? at.x : at.y;
   const start = isAcross ? box.left : box.top;
