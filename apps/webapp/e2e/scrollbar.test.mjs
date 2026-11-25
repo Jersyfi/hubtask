@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// No use case check: the product's one scrollbar (design-system.md §6, "Scrollbars"), walked with
-// the classic scrollbars a mouse's system draws. The page, the entry's ⋯ menu at 1280 and the
+// No use case check: the product's one scrollbar (design-system.md §6, "One scrollbar"), walked
+// with the classic scrollbars a mouse's system draws. The page, the entry's ⋯ menu at 1280 and the
 // *Help and shortcuts* dialog draw it alike, light and dark: a thumb narrower than the hit zone of
 // `layout.nav.scrollbar`, round, inset from both edges, on a track that shows the surface behind
-// it; faint at rest, `border.default` while its surface is hovered, holds focus or scrolls, wider
-// under the pointer. The page and a menu keep their bar's room before they scroll. A system that
-// overlays its scrollbars keeps its own (the probe), and so do forced colours. Chromium only.
+// it; faint at rest, `border.default` while its surface is hovered, holds focus or scrolls - the
+// page's only while it scrolls - and wider under the pointer. The page and a menu keep their bar's
+// room before they scroll. A system that overlays its scrollbars keeps its own (the probe, asked
+// again on a resize or focus), and so do forced colours. Chromium only.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -187,10 +188,13 @@ test('chromium: scrollbars — the page and a menu keep their bar\'s room before
   assert.equal(widths[2400].menuOuter, widths[800].menuOuter, 'the menu is wider once it scrolls');
 });
 
-test('chromium: the probe — overlay scrollbars set data-scrollbars="overlay" and keep the system\'s bar; classic ones take the product\'s', async (t) => {
+test('chromium: the probe — overlay scrollbars set data-scrollbars="overlay" and keep the system\'s bar; classic ones take the product\'s; a focus or a resize asks again', async (t) => {
   const overlay = await openEntry(t, { hasScrollbars: false });
   assert.equal(await overlay.page.evaluate(() => document.documentElement.dataset.scrollbars), 'overlay', 'a system that overlays its scrollbars was taken for a classic one');
   assert.equal(await overlay.page.evaluate(() => innerWidth - document.documentElement.clientWidth), 0, 'an overlay bar took room from the page');
+  // Told the bars were classic, the window asks again when it takes the focus.
+  await overlay.page.evaluate(() => { delete document.documentElement.dataset.scrollbars; dispatchEvent(new Event('focus')); });
+  assert.equal(await overlay.page.evaluate(() => document.documentElement.dataset.scrollbars), 'overlay', 'the focus did not ask the system again');
   assert.deepEqual(overlay.failures, []);
 
   const classic = await openEntry(t);
@@ -201,6 +205,10 @@ test('chromium: the probe — overlay scrollbars set data-scrollbars="overlay" a
   const system = await measureBar(classic.browser, classic.page, PAGE);
   assert.ok(system.gutter > zone, `with the rule gone the bar is ${system.gutter} px, the product's width`);
   assert.ok(system.drawn >= zone, `with the rule gone the thumb paints ${system.drawn} columns, the product's thin one`);
+  // The system's answer is asked again: a resize finds the classic bars, and the rule is back.
+  await classic.page.evaluate(() => dispatchEvent(new Event('resize')));
+  assert.equal(await classic.page.evaluate(() => document.documentElement.dataset.scrollbars), undefined, 'a resize did not ask the system again');
+  assert.equal(await classic.page.evaluate(() => innerWidth - document.documentElement.clientWidth), zone);
   assert.deepEqual(classic.failures, []);
 });
 
