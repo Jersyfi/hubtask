@@ -216,10 +216,11 @@
     z-index: var(--z-tooltip);
     /* As wide as its words, never as narrow as the room beside its anchor: a bubble squeezed into
        that room never overflows, and only an overflowing one is turned to the side with room. It
-       breaks between words, and inside one only where the word alone is wider than it. */
+       breaks between words, and inside one only where the word alone is wider than it. The window
+       is its containing block, as a percentage: a viewport unit counts a classic scrollbar too. */
     box-sizing: border-box;
     inline-size: max-content;
-    max-inline-size: min(var(--layout-tooltip-max), calc(100vw - 2 * var(--sp-200)));
+    max-inline-size: min(var(--layout-tooltip-max), calc(100% - 2 * var(--sp-200)));
     margin: 0;
     padding: var(--sp-050) var(--sp-100);
     /* The top layer's own frame is a thick border in the text's colour; this one is not seen, and
@@ -244,7 +245,7 @@
   }
 
   .bubble[data-full-width] {
-    inline-size: calc(100vw - 2 * var(--sp-200));
+    inline-size: calc(100% - 2 * var(--sp-200));
     max-inline-size: none;
   }
 

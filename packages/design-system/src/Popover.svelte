@@ -189,7 +189,7 @@
      rounded corners instead. */
   .surface[data-tip] {
     inline-size: max-content;
-    max-inline-size: min(40ch, calc(100vw - 2 * var(--sp-200)));
+    max-inline-size: min(40ch, calc(100% - 2 * var(--sp-200)));
     overflow: visible;
     --hbt-tip: var(--layout-tooltip-helptip);
   }
