@@ -27,10 +27,16 @@ async function story(engine, name, { width = 1280, height = 800, touch = false }
   assert.ok(existsSync(join(WORKBENCH, 'index.html')), 'no built workbench: run `make workbench-build` first');
   const server = await serve(WORKBENCH, { headers: { 'content-security-policy': "style-src 'self'" } });
   const browser = await ENGINES[engine].launch().catch(async (error) => { await server.close(); throw error; });
-  const context = await browser.newContext({ viewport: { width, height }, ...(touch ? { hasTouch: true, isMobile: true } : {}) });
-  const page = await context.newPage();
-  await page.goto(`${server.origin}/?story=wave-1-overlays-help-tip--${name}`);
-  return { page, close: async () => { await browser.close(); await server.close(); } };
+  const close = async () => { await browser.close(); await server.close(); };
+  try {
+    const context = await browser.newContext({ viewport: { width, height }, ...(touch ? { hasTouch: true, isMobile: true } : {}) });
+    const page = await context.newPage();
+    await page.goto(`${server.origin}/?story=wave-1-overlays-help-tip--${name}`);
+    return { page, close };
+  } catch (error) {
+    await close();
+    throw error;
+  }
 }
 
 /** The popover the ⓘ opens: a surface at the ⓘ, never the sheet a popover becomes on a phone. */
