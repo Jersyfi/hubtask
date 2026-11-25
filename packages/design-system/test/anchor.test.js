@@ -186,7 +186,8 @@ test('at the foot of the window a reason lines up with the row\'s bottom, and co
 
 test('where no side holds it, the side with the most room', () => {
   const row = edges(20, 20, 100, 30);
-  const placed = placeWithTip({ ...BUBBLE, anchor: row, aim: row, width: 200, height: 400, viewport: { width: 300, height: 500 }, sides: ['top', 'bottom'] });
+  // Neither fits: above, 20 - 16 - 10 - 460 = -466; below, 500 - 16 - 50 - 10 - 460 = -36.
+  const placed = placeWithTip({ ...BUBBLE, anchor: row, aim: row, width: 200, height: 460, viewport: { width: 300, height: 500 }, sides: ['top', 'bottom'] });
   assert.equal(placed.side, 'bottom');
 });
 
