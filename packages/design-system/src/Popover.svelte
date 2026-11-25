@@ -101,6 +101,18 @@
     if (!focusReturn(opener)) focusReturn(anchor?.firstElementChild);
   }
 
+  /**
+   * Its trigger scrolled out of the window: a surface with a tip would stand at the edge pointing
+   * at nothing. It closes, and focus goes back to the trigger without scrolling the page back to it.
+   */
+  function lose() {
+    if (!isOpen) return;
+    const inside = surface?.contains(document.activeElement) ?? false;
+    isOpen = false;
+    const back = (opener ?? anchor?.firstElementChild) as HTMLElement | null | undefined;
+    if (inside && back?.isConnected) back.focus({ preventScroll: true });
+  }
+
   // The sheet returns focus to what had it when it opened. A press that does not focus a button -
   // Safari's, and Firefox's on macOS - left nothing, and focus is lost with the sheet: once it is
   // gone, focus goes to the control the popover hangs from.
@@ -115,7 +127,7 @@
     const from = at ?? anchor;
     if (!isOpen || sheetName !== undefined || !from || !surface) return;
     if (at && !opener) opener = at;
-    const release = openOverlay({ layer: 'popover', trigger: from, surface, placement, tip: hasTip ? {} : undefined, onDismiss: close });
+    const release = openOverlay({ layer: 'popover', trigger: from, surface, placement, tip: hasTip ? { onLost: lose } : undefined, onDismiss: close });
     // Focus moves into the surface: a popover that opened behind the reader's focus is one they
     // have to hunt for with the Tab key.
     focusables(surface)[0]?.focus();

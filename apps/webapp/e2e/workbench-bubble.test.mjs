@@ -8,7 +8,8 @@
 // room below. Each tip points at its element within a pixel and stays out of the surface's rounded
 // corners, no border is wider than a hairline, light and dark. On a phone, with the ⓘ at the
 // screen's right edge, the help tip comes nearer that edge - never nearer than sp-100 - so that
-// its tip reaches the ⓘ on the straight part of its edge. Chromium only.
+// its tip reaches the ⓘ on the straight part of its edge. A help tip whose ⓘ the page scrolls out
+// of the window closes. Chromium only.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -102,3 +103,17 @@ for (const theme of ['light', 'dark']) {
     assert.ok(measured.radius >= 12, 'the help tip lost its rounded corners');
   });
 }
+
+test('chromium: a help tip closes when the page scrolls its ⓘ out of the window', async (t) => {
+  const page = await story(t, 'wave-1-overlays-help-tip--label', 'light', { width: 1280, height: 420 });
+  const tip = page.getByRole('button', { name: 'More about Expires', exact: true });
+  await tip.click();
+  await helpOf(page, 'Expires');
+  // The wheel over the page, below the popover, until the ⓘ is above the window.
+  const { box } = await middleOf(tip);
+  await page.mouse.move(640, 400);
+  await page.mouse.wheel(0, box.y + box.height + 40);
+  await page.waitForFunction((button) => button.getBoundingClientRect().bottom <= 0, await tip.elementHandle());
+  await page.getByRole('dialog', { name: 'Expires' }).waitFor({ state: 'detached' });
+  assert.equal(await tip.getAttribute('aria-expanded'), 'false');
+});

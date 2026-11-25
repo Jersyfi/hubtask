@@ -358,7 +358,8 @@ could not reach it on the straight part of the edge, the surface comes nearer th
 inverse surface with `r-sm`, `shadow.bubble` and a transparent hairline that forced colours draw;
 the help tip the raised surface with its hairline, the tip drawn with it. A mouse resting on a
 control for `dur-intent` shows its bubble, focus and a tap at once; scrolling what the control stands
-in closes it, unless focus is on the control. `apps/webapp/e2e/bubbleplace.test.mjs` and
+in closes it, unless focus is on the control. A help tip whose ⓘ scrolls out of the window closes,
+rather than standing at the edge pointing at nothing. `apps/webapp/e2e/bubbleplace.test.mjs` and
 `workbench-bubble.test.mjs` walk it with classic scrollbars shown.
 
 **Help text** comes in five tiers, and each text belongs to exactly one

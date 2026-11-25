@@ -140,6 +140,11 @@ export interface TipOptions {
    * of that surface's edge rather than of the row's.
    */
   readonly within?: HTMLElement | null;
+  /**
+   * Called when the anchor has left the window - scrolled away - rather than leaving the surface
+   * at the window's edge pointing at nothing: a help tip closes.
+   */
+  readonly onLost?: () => void;
 }
 
 /** A physical side, as the viewport and a rotated tip see it. */
@@ -380,7 +385,7 @@ const edgesOf = (element: Element): Edges => {
  * The surface declares its tip's reach as `--hbt-tip`, and sizes itself to its content (its width
  * never depends on where it stands, or the measurement would chase itself).
  */
-function tipTo(anchor: HTMLElement, overlay: HTMLElement, placement: Placement, { aim, within }: TipOptions, isInTopLayer: boolean): () => void {
+function tipTo(anchor: HTMLElement, overlay: HTMLElement, placement: Placement, { aim, within, onLost }: TipOptions, isInTopLayer: boolean): () => void {
   const id = `hbt-anchor-${++sequence}`;
   overlay.dataset.hbtAnchored = id;
   const target = stylesheet();
@@ -402,6 +407,10 @@ function tipTo(anchor: HTMLElement, overlay: HTMLElement, placement: Placement, 
     const reach = length('--hbt-tip');
     const root = document.documentElement;
     const anchored = edgesOf(anchor);
+    if (onLost && (anchored.bottom <= 0 || anchored.top >= root.clientHeight || anchored.right <= 0 || anchored.left >= root.clientWidth)) {
+      onLost();
+      return;
+    }
     const placed = placeWithTip({
       anchor: anchored,
       beside: within ? edgesOf(within) : undefined,

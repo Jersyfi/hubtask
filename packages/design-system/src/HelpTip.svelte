@@ -11,7 +11,8 @@
   //
   // **A popover on every width**, never the sheet a popover becomes on a phone: three sentences do
   // not need a sheet, and a sheet would hide the field they explain. Its tip points at the ⓘ; it
-  // stands below it, above where there is no room (design-system.md §4, "Where a bubble stands").
+  // stands below it, above where there is no room (design-system.md §4, "Where a bubble stands"),
+  // and closes when the page scrolls the ⓘ out of the window.
   //
   // Focus moves onto the words when it opens, so a screen reader reads them at once; they are not a
   // control and take no place in the tab order.
