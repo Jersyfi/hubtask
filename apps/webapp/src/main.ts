@@ -31,6 +31,7 @@ import '@hubtask/design-system/scrollEdges.css';
 import './app.css';
 
 import { mount } from 'svelte';
+import { watchScrollbars } from '@hubtask/design-system/components';
 import App from './App.svelte';
 import { manifest } from './lib/data/capabilities.svelte.ts';
 import { messages, startLocale } from './lib/i18n/i18n.svelte.ts';
@@ -49,6 +50,10 @@ holdFragmentCredentials();
 // `data-theme` (ADR-0029), and this is the call that sets it - from what this device kept, else
 // the system's preference (ADR-0043) - and `data-motion` beside it.
 device.start();
+
+// …and whether this system draws overlay scrollbars, which it keeps, or classic ones, which take the
+// product's thin bar (`scrollbar.css`).
+watchScrollbars();
 
 // …and the document has to say what language it is in and which way it runs. At boot the browser's
 // own preference is all the client knows; the account's and the installation's supported
