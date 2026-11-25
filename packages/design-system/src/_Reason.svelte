@@ -16,14 +16,20 @@
   // shows, because a description added at the moment of focus is announced by nobody - focus was
   // announced before the attribute arrived. A reference to a hidden element still names its text.
   //
-  // **It shows** on a mouse over the control or over the bubble itself (SC 1.4.13, *hoverable*:
-  // the reader can move onto it), on focus, and on a click or a tap of the control - the guard's
-  // `onTried`. **It hides** when the pointer has left both for the `attach` role's duration, on
-  // blur, on `Escape`, and on a press anywhere else. A finger's `pointerleave` arrives the moment
-  // it lifts, so only a mouse's counts.
+  // **It shows** on a mouse resting on the control for `--dur-intent` - a pointer passing over a
+  // menu opens nothing - or over the bubble itself (SC 1.4.13, *hoverable*: the reader can move
+  // onto it), at once on focus, and on a click or a tap of the control - the guard's `onTried`.
+  // **It hides** when the pointer has left both for the `attach` role's duration, on blur, on
+  // `Escape`, on a press anywhere else, and when what the control stands in scrolls - unless focus
+  // is on it: focus moved there, and the list scrolled to show it. A finger's
+  // `pointerleave` arrives the moment it lifts, so only a mouse's counts.
+  //
+  // **Where it stands** is `anchor.ts`'s `placeWithTip` (design-system.md §4, "Where a bubble
+  // stands"): as wide as its words up to `layout.tooltip.max`, so on a side too narrow it overflows
+  // and turns rather than squeezing into a column of broken words, with a tip at what it describes.
 
   import { anchorTo, type Placement } from './anchor.ts';
-  import { graceOf, guard, type GuardOptions } from './reason.ts';
+  import { graceOf, guard, intentOf, type GuardOptions } from './reason.ts';
 
   interface Props {
     /** The id the control's `aria-describedby` names. */
@@ -46,6 +52,10 @@
     isGuarding?: boolean;
     guardOptions?: GuardOptions;
     placement?: Placement;
+    /** What the tip points at, where that is not the anchor: the ⓘ of a sheet's row. */
+    aim?: HTMLElement | null;
+    /** Whether it spans the window less its edges: a sheet's row on a phone. */
+    isFullWidth?: boolean;
   }
 
   const {
@@ -57,6 +67,8 @@
     isGuarding = true,
     guardOptions = {},
     placement = { side: 'block-start', align: 'start' },
+    aim,
+    isFullWidth = false,
   }: Props = $props();
 
   let bubble = $state<HTMLElement | null>(null);
@@ -64,32 +76,46 @@
   /** The control's writing direction, taken when the bubble shows (see the markup). */
   let direction = $state<'ltr' | 'rtl'>('ltr');
   let leaving: ReturnType<typeof setTimeout> | undefined;
+  let resting: ReturnType<typeof setTimeout> | undefined;
 
   function show() {
     clearTimeout(leaving);
+    clearTimeout(resting);
     direction = control && getComputedStyle(control).direction === 'rtl' ? 'rtl' : 'ltr';
     isShowing = true;
   }
 
   function hide() {
     clearTimeout(leaving);
+    clearTimeout(resting);
     isShowing = false;
   }
+
+  const isKeyboardOn = () => control?.matches(':focus-visible, :has(:focus-visible)') === true;
 
   /** A focused control keeps its bubble: the reader is still there, only the mouse moved on. */
   function hideAfterGrace() {
     clearTimeout(leaving);
     leaving = setTimeout(() => {
-      if (control?.matches(':focus-visible, :has(:focus-visible)')) return;
+      if (isKeyboardOn()) return;
       isShowing = false;
     }, graceOf(control));
   }
 
+  /** On the control, the pointer has to rest; back on a bubble that shows, it only stays. */
   const onEnter = (event: PointerEvent) => {
-    if (event.pointerType === 'mouse') show();
+    if (event.pointerType !== 'mouse') return;
+    if (isShowing) {
+      show();
+      return;
+    }
+    clearTimeout(resting);
+    resting = setTimeout(show, intentOf(control));
   };
   const onLeave = (event: PointerEvent) => {
-    if (event.pointerType === 'mouse') hideAfterGrace();
+    if (event.pointerType !== 'mouse') return;
+    clearTimeout(resting);
+    hideAfterGrace();
   };
 
   $effect(() => {
@@ -120,6 +146,7 @@
     const lift = isGuarding ? guard([node, ...forwarders], show, guardOptions) : () => {};
     return () => {
       clearTimeout(leaving);
+      clearTimeout(resting);
       lift();
       node.removeEventListener('pointerenter', onEnter);
       node.removeEventListener('pointerleave', onLeave);
@@ -153,19 +180,33 @@
     return () => document.removeEventListener('pointerdown', onPress, { capture: true });
   });
 
+  // What the control stands in scrolling - its menu's list, a sheet, the page - closes it: whoever
+  // scrolls has moved on, and it would cover what scrolls under it.
+  $effect(() => {
+    if (!isShowing) return;
+    const onScroll = (event: Event) => {
+      const scrolled = event.target;
+      const node = control;
+      if (!node || node.contains(document.activeElement)) return;
+      if (scrolled === document || (scrolled instanceof Node && scrolled.contains(node))) hide();
+    };
+    const options = { capture: true, passive: true } as const;
+    document.addEventListener('scroll', onScroll, options);
+    return () => document.removeEventListener('scroll', onScroll, options);
+  });
+
   $effect(() => {
     const from = anchor ?? control;
     if (!isShowing || !from || !bubble) return;
-    return anchorTo(from, bubble, { placement });
+    // Beside a menu, it stands clear of the menu rather than of its row.
+    const within = from.parentElement?.closest<HTMLElement>('[data-hbt-anchored]') ?? null;
+    return anchorTo(from, bubble, { placement, tip: { aim, within } });
   });
 </script>
 
-<!-- The bubble is left-to-right and only its text follows the control's direction, and it lines up
-     with the control's left edge in both directions. Firefox places an anchored element whose
-     area reaches the anchor's other edge - centred, or spanning towards the start in a
-     right-to-left box - a viewport's width away from its control, measured by the workbench
-     layout test; the left edge is the one it resolves in every engine. -->
-<span {id} class="bubble" role="tooltip" dir="ltr" hidden={!isShowing} bind:this={bubble}><span class="text" dir={direction}>{text}</span></span>
+<!-- The bubble is left-to-right and only its text follows the control's direction: where it stands,
+     and which edge it lines up with, is anchor.ts's, decided in the window's own terms. -->
+<span {id} class="bubble" role="tooltip" dir="ltr" data-full-width={isFullWidth ? '' : undefined} hidden={!isShowing} bind:this={bubble}><span class="text" dir={direction}>{text}</span></span>
 
 <style>
   .bubble {
@@ -173,24 +214,61 @@
     /* Above everything it can sit over, including a dialog: a control described inside a modal is
        still described. The scale answers that (tokens.json), not a number written here. */
     z-index: var(--z-tooltip);
-    max-width: 32ch;
-    margin: var(--sp-050);
+    /* As wide as its words, never as narrow as the room beside its anchor: a bubble squeezed into
+       that room never overflows, and only an overflowing one is turned to the side with room. It
+       breaks between words, and inside one only where the word alone is wider than it. */
+    box-sizing: border-box;
+    inline-size: max-content;
+    max-inline-size: min(var(--layout-tooltip-max), calc(100vw - 2 * var(--sp-200)));
+    margin: 0;
     padding: var(--sp-050) var(--sp-100);
+    /* The top layer's own frame is a thick border in the text's colour; this one is not seen, and
+       forced colours draw it as the bubble's outline. The surface is under it, to its outer edge. */
+    border: var(--bw-hairline) solid transparent;
     border-radius: var(--r-sm);
     /* Rule 1: a temporary overlay. The inverse surface rather than a glass one - glass is for a
        layer with content behind it that matters, and this covers a few pixels. */
     background: var(--text-primary);
+    box-shadow: var(--shadow-bubble);
     color: var(--bg-surface);
     font-size: var(--fs-075);
     font-weight: var(--fw-regular);
     line-height: var(--lh-snug);
     text-align: start;
     white-space: normal;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
+    /* The top layer scrolls a surface that overflows; the tip stands outside it. */
+    overflow: visible;
+    --hbt-tip: var(--layout-tooltip-tip);
     animation: appear var(--motion-attach-duration) var(--motion-attach-easing) both;
   }
 
+  .bubble[data-full-width] {
+    inline-size: calc(100vw - 2 * var(--sp-200));
+    max-inline-size: none;
+  }
+
   .bubble[hidden] { display: none; }
+
+  /* The tip: a square turned a quarter of the way, in the bubble's colour, its centre on the edge
+     where anchor.ts put it. Under the words, which it may reach. */
+  /* Where anchor.ts puts the tip, set by its rule; nothing until it has. */
+  :where(.bubble) {
+    --hbt-tip-inline: 0;
+    --hbt-tip-block: 0;
+  }
+
+  .bubble:global([data-hbt-tip])::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inline-size: calc(var(--hbt-tip) * 1.4142);
+    block-size: calc(var(--hbt-tip) * 1.4142);
+    inset-inline-start: calc(var(--hbt-tip-inline) - var(--bw-hairline) - var(--hbt-tip) * 0.7071);
+    inset-block-start: calc(var(--hbt-tip-block) - var(--bw-hairline) - var(--hbt-tip) * 0.7071);
+    background: inherit;
+    rotate: 45deg;
+  }
 
   .text { display: block; }
 

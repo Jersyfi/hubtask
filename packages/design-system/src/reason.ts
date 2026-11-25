@@ -107,8 +107,20 @@ export function guard(
  * motion role at run time, so the figure stays in `tokens.json` (rule 15).
  */
 export function graceOf(element: Element | null): number {
+  return durationOf(element, '--motion-attach-duration');
+}
+
+/**
+ * How long a mouse rests on a control before its bubble shows: `--dur-intent`, so a pointer that
+ * only passes over a menu opens nothing. Focus and a tap show it at once.
+ */
+export function intentOf(element: Element | null): number {
+  return durationOf(element, '--dur-intent');
+}
+
+function durationOf(element: Element | null, property: string): number {
   if (!element) return 0;
-  const value = getComputedStyle(element).getPropertyValue('--motion-attach-duration').trim();
+  const value = getComputedStyle(element).getPropertyValue(property).trim();
   const amount = Number.parseFloat(value);
   if (Number.isNaN(amount)) return 0;
   return value.endsWith('ms') ? amount : amount * 1000;

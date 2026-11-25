@@ -215,11 +215,18 @@
           {/each}
         </ul>
         <!-- A locked row's reason is a bubble above it on a tap or on focus (design-system.md §4,
-             case 2), as in the anchored menu: beside the list, so its words never join the row's
-             name, and inside the sheet, so a tap on it does not reach the scrim. -->
+             case 2), across the screen with its tip on the row's ⓘ, as in the anchored menu: beside
+             the list, so its words never join the row's name, and inside the sheet, so a tap on it
+             does not reach the scrim. -->
         {#each items as item (item.id)}
           {#if item.disabledReason !== undefined}
-            <Reason id={`${titleId}-${item.id}`} text={item.disabledReason} control={rows[item.id] ?? null} />
+            <Reason
+              id={`${titleId}-${item.id}`}
+              text={item.disabledReason}
+              control={rows[item.id] ?? null}
+              aim={rows[item.id]?.querySelector<HTMLElement>('[data-reason-mark]') ?? null}
+              isFullWidth
+            />
           {/if}
         {/each}
         </div>
