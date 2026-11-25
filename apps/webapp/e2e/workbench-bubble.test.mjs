@@ -9,7 +9,7 @@
 // corners, no border is wider than a hairline, light and dark. On a phone, with the ⓘ at the
 // screen's right edge, the help tip comes nearer that edge - never nearer than sp-100 - so that
 // its tip reaches the ⓘ on the straight part of its edge. A help tip whose ⓘ the page scrolls out
-// of the window closes. In forced colours no tip breaks the outline. Chromium only.
+// of the window closes. At the stage's 200 % zoom both stand as they do at 100 %. In forced colours no tip breaks the outline. Chromium only.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -31,11 +31,11 @@ test.before(async () => {
 test.after(() => server?.close());
 
 /** The workbench at a story and a theme, in a tab with scrollbars. */
-async function story(t, id, theme, { width = 1280, height = 800, touch = false } = {}) {
+async function story(t, id, theme, { width = 1280, height = 800, touch = false, zoom } = {}) {
   const browser = await sharedChromium(t, { hasScrollbars: true });
   const context = await browser.newContext({ viewport: { width, height }, ...(touch ? { hasTouch: true, isMobile: true } : {}) });
   const page = await context.newPage();
-  await page.goto(`${server.origin}/?story=${id}&theme=${theme}`);
+  await page.goto(`${server.origin}/?story=${id}&theme=${theme}${zoom ? `&zoom=${zoom}` : ''}`);
   return page;
 }
 
@@ -133,4 +133,23 @@ test('chromium: in forced colours the bubble and the help tip draw no tip over t
   const surface = await helpOf(page, 'Expires');
   const hidden = await surface.evaluate((node) => getComputedStyle(node.querySelector(':scope > [aria-hidden="true"]:empty')).display);
   assert.equal(hidden, 'none', 'the help tip\'s tip breaks its outline');
+});
+
+test('chromium: at the stage\'s 200 % zoom a field\'s reason and a help tip still point at their element, outside their corners', async (t) => {
+  const page = await story(t, 'wave-1-forms-input--unavailable', 'light', { zoom: '200' });
+  const field = page.getByRole('textbox', { name: 'Title', exact: true });
+  await field.focus();
+  const id = (await field.getAttribute('aria-describedby')).split(/\s+/)[0];
+  await page.waitForFunction((bubbleId) => document.getElementById(bubbleId)?.dataset.hbtTip !== undefined, id);
+  const measured = await measureTip(page.locator(`[id="${id}"]`));
+  assert.equal(measured.zoom, 2, 'the stage is not zoomed: this walk does not reach its case');
+  const { box } = await middleOf(field);
+  assert.ok(measured.box.bottom <= box.y, 'the reason does not stand above the field');
+  assertTip(measured, { x: box.x + 24 * measured.zoom }, 'field at 200 %', { side: 'bottom' });
+
+  await page.goto(page.url().replace('wave-1-forms-input--unavailable', 'wave-1-overlays-help-tip--label'));
+  const tip = page.getByRole('button', { name: 'More about Expires', exact: true });
+  await tip.click();
+  const help = await measureTip(await helpOf(page, 'Expires'));
+  assertTip(help, await middleOf(tip), 'help tip at 200 %', { side: 'top' });
 });

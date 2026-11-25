@@ -17,7 +17,10 @@ export function measureTip(locator) {
   return locator.evaluate((node) => {
     const box = node.getBoundingClientRect();
     const style = getComputedStyle(node);
-    const px = (value) => Number.parseFloat(value) || 0;
+    // Under CSS zoom (the workbench's zoom axis) a box is measured zoomed and a computed length is
+    // not: lengths are taken into the window's pixels.
+    const zoom = node.currentCSSZoom ?? 1;
+    const px = (value) => (Number.parseFloat(value) || 0) * zoom;
     let centre;
     let reach;
     const part = node.querySelector(':scope > [aria-hidden="true"]:empty');
@@ -30,16 +33,17 @@ export function measureTip(locator) {
       // The bubble's, its `::before`: resolved offsets from the padding box, turned by 45°.
       const before = getComputedStyle(node, '::before');
       const size = px(before.width);
-      centre = { x: box.left + node.clientLeft + px(before.left) + size / 2, y: box.top + node.clientTop + px(before.top) + size / 2 };
+      centre = { x: box.left + node.clientLeft * zoom + px(before.left) + size / 2, y: box.top + node.clientTop * zoom + px(before.top) + size / 2 };
       reach = (size * Math.SQRT2) / 2;
     }
     const words = node.querySelector('.text, .words') ?? node;
     const lineHeight = px(getComputedStyle(words).lineHeight);
     return {
       box: { left: box.left, top: box.top, right: box.right, bottom: box.bottom, width: box.width, height: box.height },
-      border: Math.max(px(style.borderTopWidth), px(style.borderRightWidth), px(style.borderBottomWidth), px(style.borderLeftWidth)),
+      border: Math.max(px(style.borderTopWidth), px(style.borderRightWidth), px(style.borderBottomWidth), px(style.borderLeftWidth)) / zoom,
       radius: px(style.borderTopLeftRadius),
       side: node.dataset.hbtTip,
+      zoom,
       centre,
       reach,
       lines: lineHeight > 0 ? Math.round(words.getBoundingClientRect().height / lineHeight) : 0,
@@ -63,7 +67,7 @@ export async function middleOf(locator) {
  * the rule says: then the surface stands `nearEdge` from the window's edge on that side and the tip
  * at the end of its straight edge, as near the element as it can come.
  */
-export function assertTip(measured, at, where, { side, mayStop = false, nearEdge = 8 } = {}) {
+export function assertTip(measured, at, where, { side, mayStop = false, nearEdge = 8 * (measured.zoom ?? 1) } = {}) {
   const { box, centre, reach, radius } = measured;
   assert.ok(box.left >= 0 && box.top >= 0 && box.right <= measured.window.width + 0.5 && box.bottom <= measured.window.height + 0.5, `${where}: it stands outside the window (${JSON.stringify(box)})`);
   assert.ok(measured.border <= 1, `${where}: its border is ${measured.border} px, wider than a hairline`);
