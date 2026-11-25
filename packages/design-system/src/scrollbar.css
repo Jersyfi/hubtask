@@ -30,8 +30,9 @@
 }
 
 @media not (forced-colors: active) {
-  /* Chromium keeps no gutter for the root before the page scrolls, whatever `scrollbar-gutter`
-     says; a page that always scrolls keeps it, and its empty track shows nothing. */
+  /* Measured in this app: Chromium keeps no gutter for the root before the page scrolls,
+     whatever `scrollbar-gutter` says, though a bare page keeps it - the cause is not found. A
+     page that always scrolls keeps it, and its empty track shows nothing. */
   :root:not([data-scrollbars='overlay']) {
     overflow-y: scroll;
   }

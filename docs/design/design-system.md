@@ -921,16 +921,20 @@ list, a table — written once in `scrollbar.css`, with no attribute at the plac
 `sp-100` from either end, so it stays inside a surface's rounded corners and runs under the scroll
 shade, which takes no pointer. The track is not drawn. The thumb is faint at rest — `border.default`
 at 45 % — and `border.default` itself while its surface is hovered, holds focus or scrolls
-(`data-scrolling`, for `dur-intent` after the last scroll); under the pointer it widens and takes
-`border.strong`. The page and every overlay's scroll box keep the bar's room before they scroll
-(`scrollbar-gutter: var(--scrollbar-gutter)`; the page scrolls always, because Chromium keeps no
-gutter for the root otherwise), so nothing shifts once they do. A surface that hides its bar — a
+(`data-scrolling`, for `dur-intent` after the last scroll). The page is hovered and holds the focus
+nearly always, so its thumb turns full only while it scrolls. Under the pointer the thumb widens and
+takes `border.strong`. The page and every overlay's scroll box keep the bar's room before they scroll
+(`scrollbar-gutter: var(--scrollbar-gutter)`), so nothing shifts once they do. The page scrolls
+always: measured in this app, Chromium kept no gutter for the root before the page scrolled,
+though a bare page keeps it; the cause is not found. A surface that hides its bar — a
 strip of tabs, `scrollbar-width: none` — still does. Chromium and WebKit draw the pseudo-elements;
 Firefox takes `scrollbar-width: thin` and `scrollbar-color`, which are written only where the
 pseudo-elements do not exist, because Chromium ignores them once either is set. A system that
 overlays its scrollbars — macOS with a trackpad, a phone — keeps its own: `watchScrollbars` in each
 client's entry asks a box that always scrolls whether its bar takes room, and sets
-`data-scrollbars="overlay"` on the root where it does not; then none of this applies. Forced colours
+`data-scrollbars="overlay"` on the root where it does not; then none of this applies. It asks
+again when the window is resized, shown or focused, so switching the system between overlay and
+classic bars applies without a reload. Forced colours
 keep the system's bar too. `apps/webapp/e2e/scrollbar.test.mjs` walks it with classic scrollbars
 shown.
 
