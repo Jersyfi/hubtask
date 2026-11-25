@@ -10,7 +10,8 @@
   // open (`aria-expanded`); `Escape` or a press elsewhere closes it, and focus goes back to the ⓘ.
   //
   // **A popover on every width**, never the sheet a popover becomes on a phone: three sentences do
-  // not need a sheet, and a sheet would hide the field they explain.
+  // not need a sheet, and a sheet would hide the field they explain. Its tip points at the ⓘ; it
+  // stands below it, above where there is no room (design-system.md §4, "Where a bubble stands").
   //
   // Focus moves onto the words when it opens, so a screen reader reads them at once; they are not a
   // control and take no place in the tab order.
@@ -46,7 +47,7 @@
 </script>
 
 <span class="help-tip">
-  <Popover label={subject} bind:isOpen {placement} isAnchored>
+  <Popover label={subject} bind:isOpen {placement} isAnchored hasTip>
     {#snippet trigger(props)}
       <IconButton icon="info" label={name} size="sm" tone="subtle" {...props} />
     {/snippet}
@@ -70,7 +71,7 @@
     font-weight: var(--fw-regular);
     line-height: var(--lh-snug);
     text-align: start;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
 
   /* Focus is placed on the words for a screen reader; they are not a control, so no ring. */

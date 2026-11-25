@@ -43,6 +43,11 @@
     isAnchored?: boolean;
     /** The buttons at the sheet's foot where it is drawn as one - a list's *Done*. */
     sheetActions?: Snippet;
+    /**
+     * Whether a tip points from the surface at its trigger: a help tip's ⓘ. The surface is then as
+     * wide as its content and placed by `anchor.ts`'s `placeWithTip`.
+     */
+    hasTip?: boolean;
   }
 
   let {
@@ -54,6 +59,7 @@
     isAnchored = false,
     at,
     sheetActions,
+    hasTip = false,
   }: Props = $props();
 
   // Svelte's own id, not a random one: unique per instance and the same on every render, so a
@@ -109,7 +115,7 @@
     const from = at ?? anchor;
     if (!isOpen || sheetName !== undefined || !from || !surface) return;
     if (at && !opener) opener = at;
-    const release = openOverlay({ layer: 'popover', trigger: from, surface, placement, onDismiss: close });
+    const release = openOverlay({ layer: 'popover', trigger: from, surface, placement, tip: hasTip ? {} : undefined, onDismiss: close });
     // Focus moves into the surface: a popover that opened behind the reader's focus is one they
     // have to hunt for with the Tab key.
     focusables(surface)[0]?.focus();
@@ -127,9 +133,10 @@
     {@render children()}
   </Sheet>
 {:else if isOpen}
-  <div {id} class="surface" role="dialog" aria-label={label} bind:this={surface}>
+  <div {id} class="surface" role="dialog" aria-label={label} data-tip={hasTip ? '' : undefined} bind:this={surface}>
     <!-- The surface is the frame that does not scroll and carries the shades; this scrolls. -->
     <div class="scroll" {@attach scrollEdges}>{@render children()}</div>
+    {#if hasTip}<span class="tip" aria-hidden="true"></span>{/if}
   </div>
 {/if}
 
@@ -164,6 +171,47 @@
     text-align: start;
     animation: open var(--motion-attach-duration) var(--motion-attach-easing) both;
   }
+
+  /* With a tip: as wide as its content whatever room is left beside the trigger, so placing it never
+     changes its width; and nothing clipped, so the tip can stand outside it. The scroller keeps the
+     rounded corners instead. */
+  .surface[data-tip] {
+    inline-size: max-content;
+    max-inline-size: min(40ch, calc(100vw - 2 * var(--sp-200)));
+    overflow: visible;
+    --hbt-tip: var(--layout-tooltip-helptip);
+  }
+
+  .surface[data-tip] .scroll { border-radius: inherit; }
+
+  /* The tip: a square turned a quarter of the way in the surface's colour, with its hairline. The
+     triangle that stands out is kept and the half inside cut away, all but a strip as wide as the
+     surface's border, which it covers where the tip joins it. */
+  .tip {
+    position: absolute;
+    z-index: -1;
+    box-sizing: border-box;
+    inline-size: calc(var(--hbt-tip) * 1.4142);
+    block-size: calc(var(--hbt-tip) * 1.4142);
+    inset-inline-start: calc(var(--hbt-tip-inline) - var(--bw-hairline) - var(--hbt-tip) * 0.7071);
+    inset-block-start: calc(var(--hbt-tip-block) - var(--bw-hairline) - var(--hbt-tip) * 0.7071);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    background: var(--bg-raised);
+    rotate: 45deg;
+  }
+
+  /* Where anchor.ts puts the tip, set by its rule; nothing until it has. */
+  :where(.surface) {
+    --hbt-tip-inline: 0;
+    --hbt-tip-block: 0;
+  }
+
+  .surface:not(:global([data-hbt-tip])) .tip { display: none; }
+  .tip { --strip: calc(2 * var(--bw-hairline)); }
+  .surface:global([data-hbt-tip='top']) .tip { clip-path: polygon(0 0, 100% 0, 100% var(--strip), var(--strip) 100%, 0 100%); }
+  .surface:global([data-hbt-tip='right']) .tip { clip-path: polygon(0 0, 100% 0, 100% 100%, calc(100% - var(--strip)) 100%, 0 var(--strip)); }
+  .surface:global([data-hbt-tip='bottom']) .tip { clip-path: polygon(100% 0, 100% 100%, 0 100%, 0 calc(100% - var(--strip)), calc(100% - var(--strip)) 0); }
+  .surface:global([data-hbt-tip='left']) .tip { clip-path: polygon(0 0, var(--strip) 0, 100% calc(100% - var(--strip)), 100% 100%, 0 100%); }
 
   /* The content scrolls inside the surface, so the surface can carry the shades at its edges. */
   .scroll {
