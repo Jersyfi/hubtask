@@ -8,7 +8,8 @@
 // on the row's middle and outside its rounded corners, with no border wider than a hairline - in
 // English and German, light and dark. At the window's foot it lines up with the row's bottom. On a
 // phone a locked row's reason stands above the row across the screen, its tip on the row's ⓘ.
-// Chromium only.
+// A resting mouse shows a reason after `--dur-intent`, and the next locked row's at once while one
+// shows, one at a time. Chromium only.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -63,6 +64,12 @@ async function openMenu(t, { width, height, language, scheme }) {
   await page.waitForFunction((name) => [...document.querySelectorAll('[role="menuitem"][aria-disabled="true"]')].some((each) => each.textContent?.trim() === name), WORDS[language].up, { timeout: 5_000 });
   return { page, failures, menu, up };
 }
+
+/** Whether the bubble with this id shows. */
+const isShown = (page, id) => page.evaluate((bubbleId) => {
+  const node = document.getElementById(bubbleId);
+  return node !== null && !node.hidden;
+}, id);
 
 /** The bubble that describes `item`, once it shows. */
 async function bubbleOf(page, item) {
@@ -140,3 +147,45 @@ for (const scheme of ['light', 'dark']) {
     assert.deepEqual(failures, []);
   });
 }
+
+test('chromium: 1280 × 800 — a resting mouse shows a reason after dur-intent; the next shows at once, and only one shows', async (t) => {
+  const { page, failures, menu, up } = await openMenu(t, { width: 1280, height: 800, language: 'en', scheme: 'light' });
+  const top = menu.getByRole('menuitem', { name: 'Move to the top', exact: true });
+  assert.equal(await top.getAttribute('aria-disabled'), 'true', 'the fixture\'s first task no longer has "Move to the top" locked');
+  // In the page: when the pointer entered each row, and when its bubble stopped being hidden.
+  const times = async (row) => row.evaluate((node) => {
+    const bubble = document.getElementById(node.getAttribute('aria-describedby').split(/\s+/)[0]);
+    const seen = { entered: undefined, shown: undefined };
+    node.addEventListener('pointerenter', (event) => { seen.entered ??= event.timeStamp; }, { once: true });
+    new MutationObserver((changes, observer) => {
+      if (bubble.hidden) return;
+      seen.shown = performance.now();
+      observer.disconnect();
+    }).observe(bubble, { attributes: true, attributeFilter: ['hidden'] });
+    window.bubbleTimes ??= {};
+    window.bubbleTimes[node.textContent.trim()] = seen;
+  });
+  const intent = await page.evaluate(() => {
+    const value = getComputedStyle(document.documentElement).getPropertyValue('--dur-intent').trim();
+    return value.endsWith('ms') ? Number.parseFloat(value) : Number.parseFloat(value) * 1000;
+  });
+  assert.ok(intent > 0, 'no --dur-intent');
+  await times(up);
+  await times(top);
+
+  const at = await middleOf(up);
+  await page.mouse.move(at.x, at.y);
+  await bubbleOf(page, up);
+  const first = await page.evaluate(() => window.bubbleTimes['Move up']);
+  assert.ok(first.shown - first.entered >= intent - 1, `the reason showed ${first.shown - first.entered} ms after the pointer arrived, before dur-intent (${intent} ms)`);
+
+  const next = await middleOf(top);
+  await page.mouse.move(next.x, next.y);
+  await bubbleOf(page, top);
+  const second = await page.evaluate(() => window.bubbleTimes['Move to the top']);
+  assert.ok(second.shown - second.entered < intent, `moving on from one reason, the next waited ${second.shown - second.entered} ms`);
+  const upId = (await up.getAttribute('aria-describedby')).split(/\s+/)[0];
+  assert.equal(await isShown(page, upId), false, 'two reasons show at once');
+  assert.deepEqual(failures, []);
+});
+

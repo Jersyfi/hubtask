@@ -118,6 +118,33 @@ export function intentOf(element: Element | null): number {
   return durationOf(element, '--dur-intent');
 }
 
+/**
+ * The bubble that shows now, by the function that hides it, and when the last one went. One shows
+ * at a time: a second hides the first. And a pointer moving on from one reason to the next is
+ * reading, not passing by: while one shows, or for `--dur-intent` after it went, the next shows at
+ * once.
+ */
+let showing: (() => void) | undefined;
+let lastGone = Number.NEGATIVE_INFINITY;
+
+/** Called by a bubble that shows: the one showing before it is hidden. */
+export function claimBubble(hide: () => void): void {
+  if (showing && showing !== hide) showing();
+  showing = hide;
+}
+
+/** Called by a bubble that hid: it no longer holds the place, and the moment is kept. */
+export function releaseBubble(hide: () => void): void {
+  if (showing !== hide) return;
+  showing = undefined;
+  lastGone = performance.now();
+}
+
+/** Whether the next bubble skips the pointer's rest: one shows, or went a moment ago. */
+export function isWarm(element: Element | null): boolean {
+  return showing !== undefined || performance.now() - lastGone < intentOf(element);
+}
+
 function durationOf(element: Element | null, property: string): number {
   if (!element) return 0;
   const value = getComputedStyle(element).getPropertyValue(property).trim();

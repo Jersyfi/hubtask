@@ -22,14 +22,15 @@
   // **It hides** when the pointer has left both for the `attach` role's duration, on blur, on
   // `Escape`, on a press anywhere else, and when what the control stands in scrolls - unless focus
   // is on it: focus moved there, and the list scrolled to show it. A finger's
-  // `pointerleave` arrives the moment it lifts, so only a mouse's counts.
+  // `pointerleave` arrives the moment it lifts, so only a mouse's counts. One bubble shows at a
+  // time, and the next a pointer reaches while one shows, or just after, shows at once.
   //
   // **Where it stands** is `anchor.ts`'s `placeWithTip` (design-system.md §4, "Where a bubble
   // stands"): as wide as its words up to `layout.tooltip.max`, so on a side too narrow it overflows
   // and turns rather than squeezing into a column of broken words, with a tip at what it describes.
 
   import { anchorTo, type Placement } from './anchor.ts';
-  import { graceOf, guard, intentOf, type GuardOptions } from './reason.ts';
+  import { claimBubble, graceOf, guard, intentOf, isWarm, releaseBubble, type GuardOptions } from './reason.ts';
 
   interface Props {
     /** The id the control's `aria-describedby` names. */
@@ -83,13 +84,18 @@
     clearTimeout(resting);
     direction = control && getComputedStyle(control).direction === 'rtl' ? 'rtl' : 'ltr';
     isShowing = true;
+    claimBubble(hide);
   }
 
   function hide() {
     clearTimeout(leaving);
     clearTimeout(resting);
     isShowing = false;
+    releaseBubble(hide);
   }
+
+  // A bubble removed while it shows gives up its place.
+  $effect(() => () => releaseBubble(hide));
 
   const isKeyboardOn = () => control?.matches(':focus-visible, :has(:focus-visible)') === true;
 
@@ -98,14 +104,17 @@
     clearTimeout(leaving);
     leaving = setTimeout(() => {
       if (isKeyboardOn()) return;
-      isShowing = false;
+      hide();
     }, graceOf(control));
   }
 
-  /** On the control, the pointer has to rest; back on a bubble that shows, it only stays. */
+  /**
+   * On the control, the pointer has to rest; back on a bubble that shows, it only stays, and moving
+   * on from one reason to the next it does not wait again (reason.ts, `isWarm`).
+   */
   const onEnter = (event: PointerEvent) => {
     if (event.pointerType !== 'mouse') return;
-    if (isShowing) {
+    if (isShowing || isWarm(control)) {
       show();
       return;
     }
