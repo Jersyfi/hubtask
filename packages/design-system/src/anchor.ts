@@ -11,7 +11,8 @@
 // to run in, and proven so rather than assumed.
 //
 // A surface with a tip - a reason bubble, a tooltip, a help tip - is the one exception: its tip
-// must know the side it took, which CSS does not tell, so it is measured (`placeWithTip`).
+// must know the side it took, which CSS does not tell, so it is measured (`placeWithTip`,
+// ADR-0116).
 //
 // One constraint shapes the lines below. **No inline style.** ADR-0028's policy is
 // `style-src 'self'` with no `'unsafe-inline'`, so `element.style.…` is exactly what may not be

@@ -889,7 +889,12 @@ one above its own layer. A number at a call site is the failure this prevents.
 positioning (`anchor-name`, `position-area`, `position-try-fallbacks`) through `src/anchor.ts`
 alone. No component measures anything, no positioning library, no offset as an inline style. Every
 engine on the support row ([`support-matrix.md`](../architecture/support-matrix.md) §5) has anchor
-positioning, which the `engines` job proves, so there is no JavaScript fallback. An overlay
+positioning, which the `engines` job proves, so there is no JavaScript fallback. **One exception:**
+a surface with a tip — the reason bubble, `Tooltip`, `HelpTip` — is placed by measurement in
+`anchor.ts` (`placeWithTip`, [ADR-0116](../adr/ADR-0116-a-surface-with-a-tip-is-placed-by-measurement.md)),
+because its tip must know the side it took and the surface may come nearer the window's edge only
+so far as the tip needs (§4, "Where a bubble stands"), which CSS cannot say. It too writes into the
+constructed stylesheet, never an inline style, and no component measures for it. An overlay
 flips to the side with room; where neither side holds it — a long menu at the foot of a phone's
 screen — it takes the larger side, shrinks to it and scrolls inside, and never runs past the
 viewport. Where the browser has it, an anchored overlay is raised into the **top layer**, so no
