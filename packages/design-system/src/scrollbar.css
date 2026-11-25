@@ -2,9 +2,10 @@
    Copyright (c) 2026 Jérôme Bastian Winkel */
 
 /* One scrollbar for every scrolling surface of the product - menus, popovers, dialogs, sheets,
-   lists, tables, the page (design-system.md §6, "Scrollbars"). It holds no attribute per place:
-   the rule reaches every element. A track nobody sees; a round thumb inset from the edge, faint at
-   rest and drawn in `border.default` while its surface is hovered, holds focus or scrolls.
+   lists, tables, the page (design-system.md §6, "One scrollbar"). It holds no attribute per
+   place: the rule reaches every element. A track nobody sees; a round thumb inset from the edge,
+   faint at rest and drawn in `border.default` while its surface is hovered, holds focus or
+   scrolls - the page's only while it scrolls.
 
    Where the system draws overlay scrollbars - macOS with a trackpad, a phone - those stay: the
    probe in scrollbars.ts sets `data-scrollbars='overlay'` on the root and none of this applies.
@@ -42,7 +43,12 @@
     --scrollbar-thumb: color-mix(in oklab, var(--border-default) 45%, transparent);
   }
 
-  :where(:root:not([data-scrollbars='overlay']), :root:not([data-scrollbars='overlay']) :not([data-scrollbar-probe])):where(:hover, :focus-within, [data-scrolling]) {
+  /* The page is hovered and holds the focus nearly always, so its own thumb turns full only
+     while it scrolls; under the pointer its thumb still takes the strong boundary below. The body
+     is left out as well: Chromium draws the page's bar in the body's state (measured). */
+  :where(:root:not([data-scrollbars='overlay']) :not([data-scrollbar-probe], body)):where(:hover, :focus-within),
+  :where(:root:not([data-scrollbars='overlay']), :root:not([data-scrollbars='overlay']) :not([data-scrollbar-probe]))[data-scrolling],
+  :where(:root:not([data-scrollbars='overlay'])[data-scrolling] > body) {
     --scrollbar-thumb: var(--border-default);
   }
 

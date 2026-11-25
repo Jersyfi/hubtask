@@ -89,29 +89,33 @@ function assertDrawn(bar, zone, where) {
 }
 
 for (const scheme of ['light', 'dark']) {
-  test(`chromium: 1280 × 800, scrollbars, ${scheme} — the page's bar is thin, round and faint at rest, border.default while hovered, wider under the pointer`, async (t) => {
+  test(`chromium: 1280 × 800, scrollbars, ${scheme} — the page's bar is thin, round and faint with the pointer in the window, border.default while it scrolls, wider under the pointer`, async (t) => {
     const { browser, page, failures } = await openEntry(t, { scheme });
     assert.equal(await page.evaluate(() => document.documentElement.dataset.scrollbars), undefined, 'the probe took classic scrollbars for overlay ones');
     assert.ok(await page.evaluate(() => document.documentElement.scrollHeight > innerHeight), 'the page does not scroll at this height');
     const zone = await hitZone(page);
     const strong = await tokenColour(page, PAGE, '--border-default');
 
+    // The page is hovered while the pointer is anywhere in the window: that is rest for its bar.
+    await page.mouse.move(600, 400);
     const rest = await measureBar(browser, page, PAGE);
     assertDrawn(rest, zone, 'the page at rest');
     assert.ok(rest.track, 'the thumb fills the track: no track to see');
     assert.ok(distance(rest.thumb, strong) > 20 && distance(rest.thumb, rest.track.beside) > 20, `at rest the thumb is ${rest.thumb}: not faint between ${rest.track.beside} and ${strong}`);
 
-    await page.mouse.move(600, 400);
-    const hovered = await measureBar(browser, page, PAGE);
-    assertDrawn(hovered, zone, 'the page hovered');
-    assert.ok(distance(hovered.thumb, strong) <= 2, `hovered the thumb is ${hovered.thumb}, not border.default ${strong}`);
+    await page.mouse.wheel(0, 40);
+    await page.waitForFunction(() => document.documentElement.hasAttribute('data-scrolling'));
+    const scrolling = await whileScrolling(page, PAGE, () => measureBar(browser, page, PAGE));
+    assertDrawn(scrolling, zone, 'the page scrolling');
+    assert.ok(distance(scrolling.thumb, strong) <= 2, `while it scrolls the thumb is ${scrolling.thumb}, not border.default ${strong}`);
+    await page.waitForFunction(() => !document.documentElement.hasAttribute('data-scrolling'));
 
     // The pointer on the thumb itself: it grows, still inside its zone.
     const right = await page.evaluate(() => document.documentElement.clientWidth);
     await page.mouse.move(right + zone / 2, 60);
     const grabbed = await measureBar(browser, page, PAGE);
-    assert.ok(grabbed.drawn > hovered.drawn && grabbed.drawn < zone, `under the pointer the thumb paints ${grabbed.drawn} columns, hovered ${hovered.drawn}`);
-    assert.ok(distance(grabbed.thumb, hovered.thumb) > 6, 'under the pointer the thumb keeps its colour');
+    assert.ok(grabbed.drawn > rest.drawn && grabbed.drawn < zone, `under the pointer the thumb paints ${grabbed.drawn} columns, at rest ${rest.drawn}`);
+    assert.ok(distance(grabbed.thumb, rest.thumb) > 20 && distance(grabbed.thumb, scrolling.thumb) > 6, `under the pointer the thumb is ${grabbed.thumb}: not the strong boundary`);
     assert.deepEqual(failures, []);
   });
 
