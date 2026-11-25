@@ -129,6 +129,13 @@ export const SHADE_DEPTH = 0.04;
  * image they are decoded from.
  */
 export async function shadeLightness(page, scroller, edge, clip) {
+  const [shown, hidden] = await rowLightness(page, scroller, edge, clip);
+  const mean = (rows) => rows.reduce((sum, each) => sum + each, 0) / rows.length;
+  return { shown: mean(shown), hidden: mean(hidden) };
+}
+
+/** The mean lightness of each row of pixels of a rectangle, with the shade shown and taken away. */
+async function rowLightness(page, scroller, edge, clip) {
   const attribute = edge === 'start' ? 'data-more-start' : 'data-more-end';
   const shown = await page.screenshot({ clip });
   await scroller.evaluate((node, name) => node.parentElement.removeAttribute(name), attribute);
@@ -136,21 +143,69 @@ export async function shadeLightness(page, scroller, edge, clip) {
   await scroller.evaluate((node, name) => node.parentElement.setAttribute(name, ''), attribute);
   const blank = await page.context().browser().newPage();
   try {
-    const [lit, unlit] = await blank.evaluate(async (images) => Promise.all(images.map(async (base64) => {
+    return await blank.evaluate(async (images) => Promise.all(images.map(async (base64) => {
       const bytes = Uint8Array.from(atob(base64), (each) => each.charCodeAt(0));
       const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
       const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
       const context = canvas.getContext('2d');
       context.drawImage(bitmap, 0, 0);
       const { data } = context.getImageData(0, 0, bitmap.width, bitmap.height);
-      let sum = 0;
-      for (let at = 0; at < data.length; at += 4) sum += (0.2126 * data[at] + 0.7152 * data[at + 1] + 0.0722 * data[at + 2]) / 255;
-      return sum / (data.length / 4);
+      const rows = [];
+      for (let y = 0; y < bitmap.height; y++) {
+        let sum = 0;
+        for (let x = 0; x < bitmap.width; x++) {
+          const at = (y * bitmap.width + x) * 4;
+          sum += (0.2126 * data[at] + 0.7152 * data[at + 1] + 0.0722 * data[at + 2]) / 255;
+        }
+        rows.push(sum / bitmap.width);
+      }
+      return rows;
     })), [shown.toString('base64'), hidden.toString('base64')]);
-    return { shown: lit, hidden: unlit };
   } finally {
     await blank.close();
   }
+}
+
+/**
+ * How much of each row of pixels a shade covers, from the surface's inner edge inward, the first row
+ * the one against the surface's border. A soft fade is darkest there and lightens row by row; a
+ * strip the shade leaves untouched between it and the border shows as a line where it begins.
+ */
+export async function shadeProfile(page, scroller, edge, rows = 12) {
+  const inner = await scroller.evaluate((node) => {
+    let surface = node.parentElement;
+    while (surface && getComputedStyle(surface).backgroundColor === 'rgba(0, 0, 0, 0)') surface = surface.parentElement;
+    const rect = surface.getBoundingClientRect();
+    const style = getComputedStyle(surface);
+    return {
+      x: rect.left + rect.width / 4,
+      width: rect.width / 2,
+      top: rect.top + Number.parseFloat(style.borderTopWidth),
+      bottom: rect.bottom - Number.parseFloat(style.borderBottomWidth),
+    };
+  });
+  const y = edge === 'start' ? Math.ceil(inner.top) : Math.floor(inner.bottom) - rows;
+  const [shown, hidden] = await rowLightness(page, scroller, edge, { x: inner.x, y, width: inner.width, height: rows });
+  // The share covered rather than the lightness lost: alike over bare surface, a lit row and text.
+  const depth = hidden.map((each, at) => 1 - shown[at] / each);
+  return edge === 'start' ? depth : depth.reverse();
+}
+
+/** The rows of a shade's profile darker than the row before them, nearer the border: an edge. */
+export function edgesInProfile(depth, slack = 0.03) {
+  const found = [];
+  for (let at = 1; at < depth.length; at++) {
+    if (depth[at] > depth[at - 1] + slack) found.push(`row ${at}: ${depth[at].toFixed(3)} after ${depth[at - 1].toFixed(3)}`);
+  }
+  return found;
+}
+
+/** Asserts a shade is a soft fade from the surface's border inward, with no edge of its own. */
+export async function assertSoftFade(assert, page, scroller, edge, where) {
+  const depth = await shadeProfile(page, scroller, edge);
+  const shown = depth.map((each) => each.toFixed(3)).join(' ');
+  assert.ok(depth[0] > 0, `${where}: the shade at the ${edge} leaves the row against the surface's border untouched (${shown})`);
+  assert.deepEqual(edgesInProfile(depth), [], `${where}: the shade at the ${edge} has an edge of its own (${shown})`);
 }
 
 /** The frame's outer box: where its corners and its edges are, for a clip. */

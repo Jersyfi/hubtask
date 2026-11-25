@@ -19,7 +19,7 @@ import { join, dirname } from 'node:path';
 import { chromium, firefox, webkit } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { SHADE_DEPTH, assertShades, frameBox, readEdges, scrollToShare, shadeChanges, shadeLightness } from './scrolledges.mjs';
+import { SHADE_DEPTH, assertShades, assertSoftFade, frameBox, readEdges, scrollToShare, shadeChanges, shadeLightness } from './scrolledges.mjs';
 
 const WORKBENCH = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'packages', 'design-system', 'dist', 'workbench');
 const ENGINES = { chromium, firefox, webkit };
@@ -112,6 +112,8 @@ for (const engine of (process.env.ENGINES ?? 'chromium').split(',')) {
           const { shown, hidden } = await shadeLightness(page, list('More on both sides'), edge, { x: box.x + box.width / 4, y, width: box.width / 2, height: 4 });
           assert.ok(hidden - shown >= SHADE_DEPTH, `${theme}: the shade at the ${edge} does not darken the surface by ${SHADE_DEPTH} (${shown.toFixed(3)} with it, ${hidden.toFixed(3)} without)`);
         }
+        // A soft fade with no edge of its own: darkest against the surface's border, lighter row by row.
+        for (const edge of ['start', 'end']) await assertSoftFade(assert, page, list('More on both sides'), edge, theme);
       }
     } finally {
       await browser.close();

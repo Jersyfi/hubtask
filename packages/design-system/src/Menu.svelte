@@ -275,20 +275,31 @@
      lays an anchored overlay in the top layer out again on its own scroll, and the surface's scroll
      springs back by the difference between its tried sizes - the item scrolled to slides away
      under the pointer. The frame around it does not scroll and carries the shades at an edge with
-     more to come (scrollEdges.css); its corners follow the surface's, less the surface's border and
-     padding, so a shade stays inside the surface's rounding. */
+     more to come (scrollEdges.css). It reaches over the surface's padding to its border, its corners
+     the border's inner ones, and clips the scrollbar to them: a shade that stopped at the padding
+     left a strip of bare surface between its darkest row and the border, which read as a line. */
   .frame {
     position: relative;
     display: flex;
     flex-direction: column;
     min-block-size: 0;
-    border-radius: calc(var(--r-lg) - var(--bw-hairline) - var(--sp-050));
+    margin: calc(-1 * var(--sp-050));
+    overflow: clip;
+    border-radius: calc(var(--r-lg) - var(--bw-hairline));
+  }
+
+  /* Below a head, the frame starts under the head's hairline, not over it. */
+  .head + .frame {
+    margin-block-start: 0;
+    border-start-start-radius: 0;
+    border-start-end-radius: 0;
   }
 
   .menu {
     display: flex;
     flex-direction: column;
     min-block-size: 0;
+    padding: var(--sp-050);
     overflow: auto;
     overscroll-behavior: contain;
   }
