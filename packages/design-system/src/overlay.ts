@@ -13,7 +13,7 @@
 // focus goes when an overlay closes depends on why it closed - back to the trigger after `Escape`,
 // onwards after a menu item that opened a dialog - and only the component knows.
 
-import { anchorTo, type Placement } from './anchor.ts';
+import { anchorTo, type Placement, type TipOptions } from './anchor.ts';
 import type { IconName } from './icons/index.ts';
 import { escapeHandler } from './focus.ts';
 import { layers, type DismissibleLayer } from './layers.ts';
@@ -26,13 +26,15 @@ export interface OverlayOptions {
   readonly anchor?: HTMLElement;
   readonly surface: HTMLElement;
   readonly placement: Placement;
+  /** A surface with a tip pointing at its anchor (`anchorTo`'s `tip`): a help tip. */
+  readonly tip?: TipOptions;
   /** Close this overlay. Called by `Escape`, and by a pointer that went elsewhere. */
   readonly onDismiss: () => void;
 }
 
-export function openOverlay({ layer, trigger, anchor = trigger, surface, placement, onDismiss }: OverlayOptions): () => void {
+export function openOverlay({ layer, trigger, anchor = trigger, surface, placement, tip, onDismiss }: OverlayOptions): () => void {
   const entry = layers.open(layer, onDismiss);
-  const unanchor = anchorTo(anchor, surface, { placement });
+  const unanchor = anchorTo(anchor, surface, { placement, tip });
   const onKeydown = escapeHandler();
 
   // Capture, and `pointerdown` rather than `click`: a menu that closed on click would still be

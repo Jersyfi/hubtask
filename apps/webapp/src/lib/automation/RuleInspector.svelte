@@ -177,7 +177,7 @@
     <h3>{t('app.flow.runs_as')}</h3>
     <Select
       label={t('app.rules.runs_as')}
-      hint={t('app.flow.run_as_hint')}
+      hint={t('app.flow.run_as_hint')} more={t('app.flow.run_as_hint_more')}
       error={errors.get('/run_as') ?? marks?.get('run_as')}
       placeholder={t('app.rules.choose_runner')}
       value={draft.runAs}

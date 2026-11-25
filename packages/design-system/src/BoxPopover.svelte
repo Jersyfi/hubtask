@@ -10,6 +10,7 @@
 
   import { rectAnchor, type Box } from './anchor.ts';
   import { openOverlay } from './overlay.ts';
+  import { scrollEdges } from './scrollEdges.ts';
 
   interface Props {
     /** What the panel is called. */
@@ -45,7 +46,8 @@
 
 {#if box}
   <div class="panel" role="group" aria-label={label} bind:this={surface} data-box-popover>
-    {@render children()}
+    <!-- The panel is the frame that does not scroll and carries the shades; this scrolls. -->
+    <div class="scroll" {@attach scrollEdges}>{@render children()}</div>
   </div>
 {/if}
 
@@ -55,12 +57,22 @@
     max-block-size: var(--layout-rail);
     margin: 0;
     margin-block: var(--sp-050);
-    padding: var(--sp-100);
-    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    /* The padding is the inner box's, which scrolls; none from the popover's own default. */
+    padding: 0;
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-md);
     background: var(--bg-surface);
     color: var(--text-primary);
     box-shadow: var(--shadow-overlay);
+  }
+
+  .scroll {
+    flex: 1 1 auto;
+    min-block-size: 0;
+    overflow: auto;
+    padding: var(--sp-100);
   }
 </style>

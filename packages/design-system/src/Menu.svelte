@@ -17,10 +17,12 @@
   import type { Snippet } from 'svelte';
 
   import Icon from './Icon.svelte';
+  import Reason from './_Reason.svelte';
   import Sheet from './Sheet.svelte';
   import { isCompactWidth, closeName } from './media.ts';
   import { focusReturn, rovingIndex, typeAheadIndex } from './focus.ts';
   import { openOverlay, type MenuItem } from './overlay.ts';
+  import { scrollEdges } from './scrollEdges.ts';
   import type { Placement } from './anchor.ts';
 
   interface Props {
@@ -73,6 +75,8 @@
   /** The `menu` element itself: what the keyboard walks and what takes focus when it opens. */
   let list = $state<HTMLElement | null>(null);
   let active = $state(-1);
+  /** Each item's button by the item's id: what a locked item's reason bubble hangs from. */
+  const rows = $state<Record<string, HTMLElement | null>>({});
   /** Opened as a sheet: decided at the moment it opens, as a status's steps are. */
   let isSheet = $state(false);
   let sheetName = $state<string | undefined>(undefined);
@@ -181,6 +185,8 @@
 {:else if isOpen}
   <div class="surface" bind:this={surface}>
     {#if head}<div class="head">{@render head()}</div>{/if}
+    <!-- The frame the list scrolls in, and where its shades are drawn. -->
+    <div class="frame">
   <!-- The keydown listener is on the list rather than on each item: the arrows are a property of
        the menu, and one handler cannot disagree with itself. -->
   <div
@@ -191,30 +197,47 @@
     tabindex="-1"
     bind:this={list}
     onkeydown={onKeydown}
+    {@attach scrollEdges}
   >
     {#each items as item, index (item.id)}
       {#if item.hasSeparatorBefore && index > 0}
         <hr class="separator" />
       {/if}
+      {@const locked = item.disabledReason !== undefined}
       <button
         type="button"
         class="item"
         role="menuitem"
         data-destructive={item.isDestructive ? 'true' : undefined}
         tabindex={index === active ? 0 : -1}
-        aria-disabled={item.disabledReason !== undefined ? 'true' : undefined}
-        aria-describedby={item.disabledReason !== undefined ? `${id}-${item.id}-reason` : undefined}
+        aria-disabled={locked ? 'true' : undefined}
+        aria-describedby={[locked ? `${id}-${item.id}-reason` : undefined, item.description ? `${id}-${item.id}-description` : undefined].filter(Boolean).join(' ') || undefined}
         onclick={() => select(item)}
+        bind:this={rows[item.id]}
       >
         {#if item.icon}<Icon name={item.icon} size="sm" />{/if}
         <span class="label">{item.label}</span>
-        {#if item.description}<span class="description">{item.description}</span>{/if}
-        {#if item.disabledReason !== undefined}
-          <span id={`${id}-${item.id}-reason`} class="reason">{item.disabledReason}</span>
+        {#if locked}
+          <span class="mark" data-reason-mark="" aria-hidden="true"><Icon name="info" size="sm" /></span>
         {/if}
+        {#if item.description}<span id={`${id}-${item.id}-description`} class="description">{item.description}</span>{/if}
       </button>
     {/each}
     </div>
+    </div>
+    <!-- The reasons are bubbles at their items (design-system.md §4, case 2), drawn beside the list
+         rather than in it: inside an item a bubble's words would join its name, and the children of
+         a menu are its items. Inside the surface, so a press on one is not a press outside it. -->
+    {#each items as item (item.id)}
+      {#if item.disabledReason !== undefined}
+        <Reason
+          id={`${id}-${item.id}-reason`}
+          text={item.disabledReason}
+          control={rows[item.id] ?? null}
+          placement={{ side: 'inline-end', align: 'start' }}
+        />
+      {/if}
+    {/each}
   </div>
 {/if}
 
@@ -251,20 +274,34 @@
   /* A list taller than its room scrolls inside the surface, never the surface itself: Chromium
      lays an anchored overlay in the top layer out again on its own scroll, and the surface's scroll
      springs back by the difference between its tried sizes - the item scrolled to slides away
-     under the pointer. It says so where the scrollbar does not: a shade at the edge with more to
-     come, covered by the surface's own colour once it is reached. */
+     under the pointer. The frame around it does not scroll and carries the shades at an edge with
+     more to come (scrollEdges.css). It reaches over the surface's padding to its border, its corners
+     the border's inner ones, and clips the scrollbar to them: a shade that stopped at the padding
+     left a strip of bare surface between its darkest row and the border, which read as a line. */
+  .frame {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-block-size: 0;
+    margin: calc(-1 * var(--sp-050));
+    overflow: clip;
+    border-radius: calc(var(--r-lg) - var(--bw-hairline));
+  }
+
+  /* Below a head, the frame starts under the head's hairline, not over it. */
+  .head + .frame {
+    margin-block-start: 0;
+    border-start-start-radius: 0;
+    border-start-end-radius: 0;
+  }
+
   .menu {
     display: flex;
     flex-direction: column;
     min-block-size: 0;
+    padding: var(--sp-050);
     overflow: auto;
     overscroll-behavior: contain;
-    background:
-      linear-gradient(var(--bg-raised), transparent) top / 100% var(--sp-300) no-repeat local,
-      linear-gradient(transparent, var(--bg-raised)) bottom / 100% var(--sp-300) no-repeat local,
-      radial-gradient(farthest-side at 50% 0, var(--border-default), transparent) top / 100% var(--sp-150) no-repeat scroll,
-      radial-gradient(farthest-side at 50% 100%, var(--border-default), transparent) bottom / 100% var(--sp-150) no-repeat scroll,
-      var(--bg-raised);
   }
 
   /* Above the items and not among them: a hairline under it, and it takes no focus. */
@@ -288,7 +325,7 @@
 
   .item {
     display: grid;
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
     gap: var(--density-row-gap);
     /* Set as the sidebar's rows are (design-system.md §11.3), a step under a field's text: a menu
@@ -304,6 +341,10 @@
     cursor: pointer;
     /* Under a thumb the row grows to the target (the spacious density's small control). */
     min-block-size: var(--density-control-sm-min);
+    /* The minimum above replaces the content's own as a flex item's floor: an item that could
+       shrink is squeezed to it once the list is taller than its room, and its second line runs over
+       the next item. The list scrolls instead. */
+    flex-shrink: 0;
   }
 
   .item:hover { background: var(--bg-surface-hover); }
@@ -322,18 +363,21 @@
 
   .label { grid-column: 2; overflow-wrap: anywhere; }
 
-  /* The reason sits under the label rather than replacing it: an item that cannot be used still
-     says what it would have done. */
-  .reason {
-    grid-column: 2;
+  /* A locked item keeps its one line: the ⓘ at its end says there is a reason, and the reason is
+     the bubble's, never a line under the label. */
+  .mark {
+    grid-column: 3;
+    grid-row: 1;
+    display: inline-flex;
     color: var(--text-subtle);
-    font-size: var(--fs-075);
   }
 
+  /* Whole and wrapped, never cut: the words are what tells two such items apart. */
   .description {
     grid-column: 2;
     color: var(--text-secondary);
     font-size: var(--fs-075);
+    overflow-wrap: anywhere;
   }
 
   .separator {

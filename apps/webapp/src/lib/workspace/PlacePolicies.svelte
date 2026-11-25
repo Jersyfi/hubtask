@@ -178,7 +178,7 @@
   pendingLabel={t('app.fields.deciding')}
 >
   <div data-place-policies>
-    <SettingsSection title={t('app.settings.section_policies')} description={t('app.policies.intro')} save={saveBar}>
+    <SettingsSection title={t('app.settings.section_policies')} description={t('app.policies.intro')} more={t('app.policies.intro_more')} save={saveBar}>
       {#if predicted ?? failure}<p class="failure" role="alert">{predicted ?? failure?.message}</p>{/if}
       <SettingRow label={t('app.policies.completion')} help={t('app.policies.completion_hint')} fieldWidth="md" isChanged={changed.completion}>
         {#snippet control(nameId)}

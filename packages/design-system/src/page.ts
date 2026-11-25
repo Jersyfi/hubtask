@@ -16,6 +16,8 @@ export type PageKind = 'list' | 'record' | 'settings' | 'editor' | 'overview' | 
 export interface PageHead {
   readonly title: string;
   readonly subtitle?: string;
+  /** The rest of the page's introduction, behind an ⓘ beside the title (`PageHeader`'s `more`). */
+  readonly more?: string;
   readonly breadcrumb?: { trail: readonly Crumb[]; label: string; expandLabel: string; onnavigate?: (id: string) => void };
   /** The one act that creates: the head's primary (PS-3). */
   readonly primary?: PageAction;

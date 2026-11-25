@@ -62,7 +62,7 @@
     <p class="quiet">{t('app.entry_forms.condition_written')}</p>
   {/if}
   <Disclosure tone="quiet" label={t('app.entry_forms.condition_advanced')} bind:isOpen={isWritten}>
-    <Input label={t('app.entry_forms.condition_expression', { label })} hint={t('app.entry_forms.condition_hint')} size="sm" bind:value {error} />
+    <Input label={t('app.entry_forms.condition_expression', { label })} hint={t('app.entry_forms.condition_hint')} more={t('app.entry_forms.condition_hint_more')} size="sm" bind:value {error} />
   </Disclosure>
 </fieldset>
 

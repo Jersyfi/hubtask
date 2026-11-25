@@ -229,13 +229,14 @@
   {#snippet children(door)}
     <ListPage
       head={{
+        more: t('app.instance.providers_intro_more'),
         title: t('app.instance.providers'),
         breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.providers') }),
         primary: { label: t('app.instance.provider_add'), icon: 'plus', onclick: () => open('add') },
       }}
       refused={door ?? (unreadable ? failed : undefined)}
     >
-      {#snippet intro()}<p class="quiet">{t('app.instance.providers_intro')}</p>{/snippet}
+      {#snippet intro(tip)}<p class="quiet">{t('app.instance.providers_intro')} {@render tip?.()}</p>{/snippet}
       {#snippet filters()}
         <FilterBar
           searchLabel={t('app.instance.providers_search')}

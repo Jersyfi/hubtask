@@ -8,11 +8,18 @@
   import { getContext, type Snippet } from 'svelte';
 
   import Disclosure from './Disclosure.svelte';
+  import HelpTip from './HelpTip.svelte';
   import RegionHead from './_RegionHead.svelte';
 
   interface Props {
     title: string;
     description?: string;
+    /**
+     * More about it on demand, behind an ⓘ beside the heading (`HelpTip`): the why, not the how.
+     * Not drawn on a folded section: its head is the button that opens it, and a button holds no
+     * button.
+     */
+    more?: string;
     /** *3 chosen*: a count beside the title, on a page. */
     note?: string;
     /** A section the person rarely needs, folded until opened. */
@@ -20,7 +27,10 @@
     children: Snippet;
   }
 
-  const { title, description, note, isFolded = false, children }: Props = $props();
+  const { title, description, more, note, isFolded = false, children }: Props = $props();
+
+  const uid = $props.id();
+  const legendId = `form-section-${uid}`;
 
   const place = getContext<(() => 'dialog' | 'page') | undefined>('form-layout-place')?.() ?? 'dialog';
 </script>
@@ -32,7 +42,7 @@
         <Disclosure label={title} {description} tone="quiet">{@render children()}</Disclosure>
       </div>
     {:else}
-      <RegionHead {title} {note} {description} />
+      <RegionHead {title} {note} {description} {more} />
       <div class="region">{@render children()}</div>
     {/if}
   </section>
@@ -41,8 +51,9 @@
     <div class="fields">{@render children()}</div>
   </Disclosure>
 {:else}
-  <fieldset class="dialog-section">
-    <legend class="legend">{title}</legend>
+  <!-- Named by the title alone: the ⓘ stands in the legend, and its name is not the group's. -->
+  <fieldset class="dialog-section" aria-labelledby={more ? legendId : undefined}>
+    <legend class="legend"><span id={legendId}>{title}</span>{#if more}<HelpTip subject={title} text={more} />{/if}</legend>
     {#if description}<p class="description">{description}</p>{/if}
     <div class="fields">{@render children()}</div>
   </fieldset>

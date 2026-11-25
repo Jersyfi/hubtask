@@ -28,7 +28,7 @@ export const create: Story = {
 export const menu: Story = {
   name: 'A row’s actions on a phone',
   about:
-    'What ⋯ opens on compact: the row’s name and its verbs, one row each, the destructive one last and red. Like every sheet it is as tall as what it holds, at most 85 % of the screen, its body scrolling under a head that stays; a pull down on the grabber, a press on it, ✕ or Escape puts it away.',
+    'What ⋯ opens on compact: the row’s name and its verbs, one row each, the destructive one last and red. A row that cannot be used now keeps its one line with an ⓘ at its end; a tap or focus shows its reason as a bubble, and Escape closes the bubble before the sheet. A row’s description stays whole and wraps. Like every sheet it is as tall as what it holds, at most 85 % of the screen, its body scrolling under a head that stays; a pull down on the grabber, a press on it, ✕ or Escape puts it away.',
   args: { mode: 'menu' },
 };
 

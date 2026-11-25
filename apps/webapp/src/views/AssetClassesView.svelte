@@ -73,8 +73,8 @@
 
 {#snippet strip()}<ProductTabs module="ASSETS" current="classes" {onnavigate} />{/snippet}
 
-<ListPage head={{ ...productHead('ASSETS'), primary }} {strip} refused={reachesAdministrationArea() === false ? notYours : undefined}>
-  {#snippet intro()}<p class="meta">{t('app.cmdb_admin.classes_hint')}</p>{/snippet}
+<ListPage head={{ ...productHead('ASSETS'), primary, more: t('app.cmdb_admin.classes_hint_more') }} {strip} refused={reachesAdministrationArea() === false ? notYours : undefined}>
+  {#snippet intro(tip)}<p class="meta">{t('app.cmdb_admin.classes_hint')} {@render tip?.()}</p>{/snippet}
   {#snippet filters()}
     <FilterBar searchLabel={t('app.cmdb_admin.search_classes')} clearSearchLabel={t('app.page.clear_search')} bind:search
       countLabel={classesRead.state.status === 'ready' ? t('app.page.found', { shown: String(shownTree.length), count: String(tree.length) }) : undefined} />

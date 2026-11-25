@@ -372,7 +372,7 @@
           </div>
         {:else if shown === 'names'}
           <div data-voice-names>
-            <SettingsSection title={t('app.voice.section_names')} description={t('app.voice.names_hint')} save={namesBar}>
+            <SettingsSection title={t('app.voice.section_names')} description={t('app.voice.names_hint')} more={t('app.voice.names_hint_more')} save={namesBar}>
               <div>
                 <!-- One name, one row (PS-11, PS-12): the phrase names the row, its list and category
                      are the row's control. -->
@@ -424,6 +424,7 @@
             <SettingsSection
               title={t('app.voice.section_alexa')}
               description={loaded.installation_skill ? undefined : t('app.voice.alexa_hint')}
+              more={loaded.installation_skill ? undefined : t('app.voice.alexa_hint_more')}
               save={loaded.installation_skill ? undefined : alexaBar}
             >
               {#if loaded.installation_skill}
@@ -434,7 +435,7 @@
                     <h3>{t('app.voice.step_skill')}</h3>
                     <p class="quiet small">{t('app.voice.step_skill_hint')}</p>
                     <div class="field">
-                      <Input label={t('app.voice.invocation')} hint={t('app.voice.invocation_hint')} placeholder={defaultInvocation} bind:value={invocation} />
+                      <Input label={t('app.voice.invocation')} hint={t('app.voice.invocation_hint')} more={t('app.voice.invocation_hint_more')} placeholder={defaultInvocation} bind:value={invocation} />
                     </div>
                     {@render value('invocation', t('app.voice.invocation_now'), spokenName)}
                   </li>

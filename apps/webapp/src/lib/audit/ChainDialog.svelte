@@ -77,7 +77,7 @@
     </div>
     {#if anchorTargetId}
       <!-- Asked for rather than always done: a read of somebody else's machine. -->
-      <Checkbox label={t('app.audit.verify_anchors')} hint={t('app.audit.verify_anchors_hint')} bind:checked={verifyAnchors} />
+      <Checkbox label={t('app.audit.verify_anchors')} hint={t('app.audit.verify_anchors_hint')} more={t('app.audit.verify_anchors_hint_more')} bind:checked={verifyAnchors} />
     {/if}
 
     {#if finding?.kind === 'holds'}

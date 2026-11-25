@@ -11,6 +11,7 @@
 
   import type { HTMLInputAttributes } from 'svelte/elements';
 
+  import HelpTip from './HelpTip.svelte';
   import Icon from './Icon.svelte';
   import Reason from './_Reason.svelte';
   import Spinner from './Spinner.svelte';
@@ -22,8 +23,10 @@
     label: string;
     /** What it is doing while busy, said to a reader: the present participle (voice-and-tone.md §2.4). */
     busyLabel?: string;
-    /** Standing help under the label. */
+    /** Standing help under the label: what ticking it does. */
     hint?: string;
+    /** More about it on demand, behind an ⓘ beside the label (`HelpTip`): the why or an example, never what ticking it does. */
+    more?: string;
     /**
      * What is wrong now - a box the form needs ticked and that is not. Said under the label, the
      * box `aria-invalid`, so a form finds the first thing to fix (design-system.md §4, case 3).
@@ -48,6 +51,7 @@
   let {
     label,
     hint,
+    more,
     error,
     disabledReason,
     isIndeterminate = false,
@@ -127,6 +131,8 @@
       {/if}
     </span>
     <label class="label" class:is-hidden={isLabelHidden} for={uid} bind:this={labelElement}>{label}</label>
+    <!-- Beside the label, not in it: inside, its name would join the box's and a press on it would tick the box. -->
+    {#if more && !isLabelHidden}<HelpTip subject={label} text={more} />{/if}
   </div>
   {#if disabledReason !== undefined && !groupReasonId}
     <Reason id={ownReasonId} text={disabledReason} control={native} forwarders={[labelElement]} />

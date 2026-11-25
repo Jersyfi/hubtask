@@ -8,13 +8,17 @@
   // on in bulk.
   import type { Snippet } from 'svelte';
 
+  import HelpTip from './HelpTip.svelte';
   import PageFrame from './_PageFrame.svelte';
   import type { PageHead } from './page.ts';
 
   interface Props {
     head: PageHead;
-    /** The page's one sentence of what it is for: under the head and the strip, above the `FilterBar`. */
-    intro?: Snippet;
+    /**
+     * What the page is for: under the head, above the `FilterBar`. Given an ⓘ where the bar carries
+     * the title, to render at the end of its sentence.
+     */
+    intro?: Snippet<[Snippet | undefined]>;
     /** The `FilterBar`, the time range first. */
     filters?: Snippet;
     refused?: Snippet;
@@ -22,11 +26,14 @@
     children: Snippet;
   }
 
-  const { head, intro, filters, refused, children }: Props = $props();
+  const { head, intro, filters, refused, children: content }: Props = $props();
 </script>
 
-<PageFrame kind="log" {head} {refused}>
-  {#if intro}{@render intro()}{/if}
-  {#if filters}{@render filters()}{/if}
-  {@render children()}
+<PageFrame kind="log" {head} {refused} hasIntro={intro !== undefined}>
+  {#snippet children(more)}
+    {#snippet tip()}<HelpTip subject={head.title} text={more ?? ''} />{/snippet}
+    {#if intro}{@render intro(more === undefined ? undefined : tip)}{/if}
+    {#if filters}{@render filters()}{/if}
+    {@render content()}
+  {/snippet}
 </PageFrame>

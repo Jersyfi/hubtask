@@ -35,6 +35,8 @@
   interface Props {
     label: string;
     hint?: string;
+    /** More about it on demand, behind an ⓘ beside the label (`HelpTip`): the why, not the how. */
+    more?: string;
     error?: string;
     isRequired?: boolean;
     /** Ids of anything else that describes the control, appended to the field's own. */
@@ -60,6 +62,7 @@
   let {
     label,
     hint,
+    more,
     error,
     isRequired = false,
     describedBy,
@@ -90,7 +93,7 @@
   const active = $derived(isFull ? length - 1 : cursor);
 </script>
 
-<Field {label} {hint} {error} {isRequired} {describedBy}>
+<Field {label} {hint} {more} {error} {isRequired} {describedBy}>
   {#snippet children({ id, describedBy: described, invalid })}
     <div class="code" data-invalid={invalid ? '' : undefined}>
       <input

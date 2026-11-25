@@ -199,7 +199,7 @@
             bind:value={draftScope}
             options={scopes}
           />
-          <Textarea label={t('app.webhooks.condition')} hint={t('app.webhooks.condition_hint')} error={failure?.fields.get('/filter')} bind:value={draftCondition} rows={2} spellcheck="false" />
+          <Textarea label={t('app.webhooks.condition')} hint={t('app.webhooks.condition_hint')} more={t('app.webhooks.condition_hint_more')} error={failure?.fields.get('/filter')} bind:value={draftCondition} rows={2} spellcheck="false" />
         </Stack>
       </Disclosure>
       <p class="quiet small">{t('app.webhooks.egress_note')}</p>

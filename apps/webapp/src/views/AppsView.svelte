@@ -173,9 +173,9 @@
 
 {#snippet figure()}<MachinesFigure />{/snippet}
 
-<ListPage head={machinesHead(primary, figure)}>
+<ListPage head={{ ...machinesHead(primary, figure), more: t('app.apps.intro_more') }}>
   {#snippet strip()}<MachinesStrip current="apps" {onnavigate} />{/snippet}
-  {#snippet intro()}<p class="quiet">{t('app.apps.intro')}</p>{/snippet}
+  {#snippet intro(tip)}<p class="quiet">{t('app.apps.intro')} {@render tip?.()}</p>{/snippet}
   {#snippet filters()}
     <FilterBar
       searchLabel={t('app.apps.search')}
@@ -280,7 +280,7 @@
         />
         <Checkbox
           label={t('app.apps.is_confidential')}
-          hint={t('app.apps.is_confidential_hint')}
+          hint={t('app.apps.is_confidential_hint')} more={t('app.apps.is_confidential_hint_more')}
           checked={confidential}
           onchange={(event: Event) => (confidential = (event.currentTarget as HTMLInputElement).checked)}
         />

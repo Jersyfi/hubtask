@@ -13,6 +13,7 @@
   import { focusReturn, focusables } from './focus.ts';
   import { openOverlay } from './overlay.ts';
   import type { Placement } from './anchor.ts';
+  import { scrollEdges } from './scrollEdges.ts';
 
   interface Props {
     /** The panel's heading and accessible name: *Recent*, *Switch hub*. */
@@ -94,7 +95,9 @@
 </span>
 
 {#if isOpen}
-  <div class="flyout" role="dialog" aria-label={label} {id} data-scrollbar="thin" bind:this={surface}>
+  <div class="flyout" role="dialog" aria-label={label} {id} bind:this={surface}>
+    <!-- The flyout is the frame that does not scroll and carries the shades; this scrolls. -->
+    <div class="scroll" data-scrollbar="thin" {@attach scrollEdges}>
     <h2 class="heading">{label}</h2>
     {#if searchLabel !== undefined}
       <label class="search">
@@ -103,6 +106,7 @@
       </label>
     {/if}
     {@render children()}
+    </div>
   </div>
 {/if}
 
@@ -183,15 +187,25 @@
   .flyout {
     --nav-plane: var(--bg-raised);
     inline-size: var(--layout-sidenav-width);
+    display: flex;
+    flex-direction: column;
     max-block-size: min(var(--layout-panel-width), 80vh);
-    overflow: auto;
-    padding: var(--sp-050) calc(var(--sp-050) + var(--sp-025));
+    overflow: hidden;
+    /* The padding is the inner box's, which scrolls; none from the popover's own default. */
+    padding: 0;
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
     background: var(--bg-raised);
     box-shadow: var(--shadow-overlay);
     color: var(--text-primary);
     animation: arrive var(--motion-entrance-duration) var(--motion-entrance-easing) both;
+  }
+
+  .scroll {
+    flex: 1 1 auto;
+    min-block-size: 0;
+    overflow: auto;
+    padding: var(--sp-050) calc(var(--sp-050) + var(--sp-025));
   }
 
   @keyframes arrive {

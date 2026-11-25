@@ -19,6 +19,7 @@
   import { isCompactWidth, closeName } from './media.ts';
   import { openOverlay } from './overlay.ts';
   import type { Placement } from './anchor.ts';
+  import { scrollEdges } from './scrollEdges.ts';
 
   interface Props {
     /** What the surface is called, for the reader who arrives on it without seeing the trigger. */
@@ -42,6 +43,11 @@
     isAnchored?: boolean;
     /** The buttons at the sheet's foot where it is drawn as one - a list's *Done*. */
     sheetActions?: Snippet;
+    /**
+     * Whether a tip points from the surface at its trigger: a help tip's ⓘ. The surface is then as
+     * wide as its content and placed by `anchor.ts`'s `placeWithTip`.
+     */
+    hasTip?: boolean;
   }
 
   let {
@@ -53,6 +59,7 @@
     isAnchored = false,
     at,
     sheetActions,
+    hasTip = false,
   }: Props = $props();
 
   // Svelte's own id, not a random one: unique per instance and the same on every render, so a
@@ -94,6 +101,19 @@
     if (!focusReturn(opener)) focusReturn(anchor?.firstElementChild);
   }
 
+  /**
+   * Its trigger scrolled out of the window: a surface with a tip would stand at the edge pointing
+   * at nothing. It closes, and focus goes back to the trigger without scrolling the page back to it.
+   */
+  function lose() {
+    if (!isOpen) return;
+    const inside = surface?.contains(document.activeElement) ?? false;
+    isOpen = false;
+    // As `close`: an opener the content removed gives way to the trigger drawn now.
+    const back = (opener?.isConnected ? opener : anchor?.firstElementChild) as HTMLElement | null | undefined;
+    if (inside && back?.isConnected) back.focus({ preventScroll: true });
+  }
+
   // The sheet returns focus to what had it when it opened. A press that does not focus a button -
   // Safari's, and Firefox's on macOS - left nothing, and focus is lost with the sheet: once it is
   // gone, focus goes to the control the popover hangs from.
@@ -108,7 +128,7 @@
     const from = at ?? anchor;
     if (!isOpen || sheetName !== undefined || !from || !surface) return;
     if (at && !opener) opener = at;
-    const release = openOverlay({ layer: 'popover', trigger: from, surface, placement, onDismiss: close });
+    const release = openOverlay({ layer: 'popover', trigger: from, surface, placement, tip: hasTip ? { onLost: lose } : undefined, onDismiss: close });
     // Focus moves into the surface: a popover that opened behind the reader's focus is one they
     // have to hunt for with the Tab key.
     focusables(surface)[0]?.focus();
@@ -126,8 +146,10 @@
     {@render children()}
   </Sheet>
 {:else if isOpen}
-  <div {id} class="surface" role="dialog" aria-label={label} bind:this={surface}>
-    {@render children()}
+  <div {id} class="surface" role="dialog" aria-label={label} data-tip={hasTip ? '' : undefined} bind:this={surface}>
+    <!-- The surface is the frame that does not scroll and carries the shades; this scrolls. -->
+    <div class="scroll" {@attach scrollEdges}>{@render children()}</div>
+    {#if hasTip}<span class="tip" aria-hidden="true"></span>{/if}
   </div>
 {/if}
 
@@ -142,14 +164,17 @@
     /* Rule 4: it is as wide as its content up to a limit, and never a fixed width. */
     max-width: 40ch;
     max-height: 80vh;
-    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     margin: var(--sp-050);
-    padding: var(--sp-200);
+    /* The padding is the inner box's, which scrolls; none from the popover's own default. */
+    padding: 0;
     border: var(--bw-hairline) solid var(--border-subtle);
     /* anchor.ts's slack for its shrunk fallback, grown by what comes on top of the content box it
-       sizes - padding and border on both sides. Without it a list near the middle of the screen
-       fits on neither side. */
-    --hbt-fit-slack: calc(var(--sp-200) * 3 + var(--bw-hairline) * 2);
+       sizes - the border on both sides; the padding is inside it, on the part that scrolls. Without
+       it a list near the middle of the screen fits on neither side. */
+    --hbt-fit-slack: calc(var(--sp-200) + var(--bw-hairline) * 2);
     border-radius: var(--r-lg);
     background: var(--bg-raised);
     /* Rule 1: a temporary overlay is raised off the page it covers. */
@@ -158,6 +183,61 @@
     font-size: var(--fs-100);
     text-align: start;
     animation: open var(--motion-attach-duration) var(--motion-attach-easing) both;
+  }
+
+  /* With a tip: as wide as its content whatever room is left beside the trigger, so placing it never
+     changes its width; and nothing clipped, so the tip can stand outside it. The scroller keeps the
+     rounded corners instead. */
+  .surface[data-tip] {
+    inline-size: max-content;
+    max-inline-size: min(40ch, calc(100% - 2 * var(--sp-200)));
+    overflow: visible;
+    --hbt-tip: var(--layout-tooltip-helptip);
+  }
+
+  .surface[data-tip] .scroll { border-radius: inherit; }
+
+  /* The tip: a square turned a quarter of the way in the surface's colour, with its hairline. The
+     triangle that stands out is kept and the half inside cut away, all but a strip as wide as the
+     surface's border, which it covers where the tip joins it. */
+  .tip {
+    position: absolute;
+    z-index: -1;
+    box-sizing: border-box;
+    inline-size: calc(var(--hbt-tip) * 1.4142);
+    block-size: calc(var(--hbt-tip) * 1.4142);
+    inset-inline-start: calc(var(--hbt-tip-inline) - var(--bw-hairline) - var(--hbt-tip) * 0.7071);
+    inset-block-start: calc(var(--hbt-tip-block) - var(--bw-hairline) - var(--hbt-tip) * 0.7071);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    background: var(--bg-raised);
+    rotate: 45deg;
+  }
+
+  /* Where anchor.ts puts the tip, set by its rule; nothing until it has. */
+  :where(.surface) {
+    --hbt-tip-inline: 0;
+    --hbt-tip-block: 0;
+  }
+
+  .surface:not(:global([data-hbt-tip])) .tip { display: none; }
+  .tip { --strip: calc(2 * var(--bw-hairline)); }
+  .surface:global([data-hbt-tip='top']) .tip { clip-path: polygon(0 0, 100% 0, 100% var(--strip), var(--strip) 100%, 0 100%); }
+  .surface:global([data-hbt-tip='right']) .tip { clip-path: polygon(0 0, 100% 0, 100% 100%, calc(100% - var(--strip)) 100%, 0 var(--strip)); }
+  .surface:global([data-hbt-tip='bottom']) .tip { clip-path: polygon(100% 0, 100% 100%, 0 100%, 0 calc(100% - var(--strip)), calc(100% - var(--strip)) 0); }
+  .surface:global([data-hbt-tip='left']) .tip { clip-path: polygon(0 0, var(--strip) 0, 100% calc(100% - var(--strip)), 100% 100%, 0 100%); }
+
+  /* Forced colours draw the surface's border as its outline; the tip covers that border where it
+     joins, and would break it. */
+  @media (forced-colors: active) {
+    .tip { display: none; }
+  }
+
+  /* The content scrolls inside the surface, so the surface can carry the shades at its edges. */
+  .scroll {
+    flex: 1 1 auto;
+    min-block-size: 0;
+    overflow: auto;
+    padding: var(--sp-200);
   }
 
   /* Opacity alone, because a `transform` here is a trap. `animation-fill-mode:

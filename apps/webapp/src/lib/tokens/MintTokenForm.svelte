@@ -67,7 +67,7 @@
          before the round trip is the same number said earlier rather than a second policy. -->
     <Input
       label={t('app.tokens.expires')}
-      hint={t('app.tokens.expires_hint')}
+      hint={t('app.tokens.expires_hint')} more={t('app.tokens.expires_hint_more')}
       bind:value={draft.expiresAt}
       oninput={() => (draft.missing = without(draft.missing, 'expires'))}
       error={draft.missing.expires ? t(draft.missing.expires) : undefined}
@@ -88,7 +88,7 @@
       <!-- Nothing said in advance when none is ticked: *Create token* says it if it is pressed so. -->
       <MultiSelect
         label={t('app.tokens.scopes')}
-        hint={t('app.tokens.scopes_hint')}
+        hint={t('app.tokens.scopes_hint')} more={t('app.tokens.scopes_hint_more')}
         options={draft.scopes.map((scope) => ({ value: scope, label: scopeWord(scope), hint: scopeWord(scope) === scope ? undefined : scope }))}
         selected={draft.chosen}
         error={draft.missing.scopes ? t(draft.missing.scopes) : undefined}

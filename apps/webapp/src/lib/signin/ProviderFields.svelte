@@ -71,7 +71,7 @@
 <Stack gap="200">
   <Select
     label={t('app.identity_provider.kind_label')}
-    hint={t('app.identity_provider.kind_hint')}
+    hint={t('app.identity_provider.kind_hint')} more={t('app.identity_provider.kind_hint_more')}
     options={presets
       .filter((each) => level === 'workspace' || each.installation_provisioning.length > 0)
       .map((each) => ({ value: each.kind, label: t(`app.identity_provider.kind.${each.kind.toLowerCase()}`) }))}
@@ -103,7 +103,7 @@
   {/if}
   <Input
     label={t('app.identity_provider.issuer_label')}
-    hint={t('app.identity_provider.issuer_hint')}
+    hint={t('app.identity_provider.issuer_hint')} more={t('app.identity_provider.issuer_hint_more')}
     bind:value={draft.issuer}
     type="url"
     autocomplete="off"
@@ -187,6 +187,7 @@
         : lists.required
           ? t(`app.identity_provider.directories_hint_${preset.directory_claim}`)
           : t('app.identity_provider.directories_narrow_hint')}
+      more={!shared && lists.required ? t(`app.identity_provider.directories_hint_${preset.directory_claim}_more`) : undefined}
       error={refusal}
       bind:value={draft.directories}
       rows={3}

@@ -221,7 +221,7 @@ attributes selected by a stylesheet, never as an inline `style`:
 
 ### Wave 1 — nothing works without these (≈ 25)
 Icon · Button · IconButton · Input · CodeField · Textarea · Select · Checkbox · CheckboxGroup · MultiSelect · Radio · ChoiceCards · Switch ·
-Tooltip · Menu · Popover · Dialog · Toast · Banner · Avatar · AvatarGroup · Badge · Spinner ·
+Tooltip · HelpTip · Menu · Popover · Dialog · Toast · Banner · Avatar · AvatarGroup · Badge · Spinner ·
 ProgressBar · Kbd
 
 `CheckboxGroup` is the fieldset `Radio` is, for several answers: a question that needs at least one
@@ -242,8 +242,8 @@ It is as tall as its rows up to one height, `layout.rail`, in the popover and th
 past it the filter stays at the top and *All*, *None* and the count at the foot, and only the
 options scroll.
 An option with a `disabledReason` cannot change: ticked it is locked on, drawn with a lock and
-first among the chips; unticked it is refused; either way it stays focusable and its reason is a
-line in the list. The whole control locked still opens, read-only. At a phone's width the list is
+first among the chips; unticked it is refused; either way it stays focusable, an ⓘ at its end,
+and its reason is a bubble beside it (case 2 below). The whole control locked still opens, read-only. At a phone's width the list is
 the `Popover`'s bottom sheet, rows a thumb's height, with *Done*. `size="md"` draws the ticks as
 `CheckboxGroup` does, `size="sm"` as a setting row's denser ones. **Which of the two a screen
 uses:** a form's question with a few fixed answers whose fieldset and legend a reader should hear
@@ -308,9 +308,10 @@ is a value, not a state:** §5's boolean rule covers the booleans we invent, not
 what the native attribute used to - a click, `Enter`, `Space`, a form's implicit submission, an
 edit - in the capture phase, before any handler of the caller's or of a row around it, and lets a
 press start a drag as before. Its reason is a bubble at the control (`_Reason.svelte`), out of the
-flow at every moment and always its `aria-describedby`: it shows on hover of the control or of the
-bubble (it stays while the pointer is over either, WCAG 1.4.13), on focus, and on a click or a tap,
-and goes on blur, `Escape` and a press elsewhere. A composite says one reason for all of its parts,
+flow at every moment and always its `aria-describedby`: it shows on hover of the control (after
+`dur-intent`) or of the bubble (it stays while the pointer is over either, WCAG 1.4.13), on focus,
+and on a click or a tap, and goes on blur, `Escape`, a press elsewhere and a scroll of what the
+control stands in. A composite says one reason for all of its parts,
 from a mark at its heading. `test/conventions.test.js` fails a native `disabled` anywhere but on an
 option and in `Radio` and `ChoiceCards`; `apps/webapp/e2e/workbench-layout.test.mjs` measures in three engines that
 no reason moves a box. The eight cases, and the pattern each takes:
@@ -318,7 +319,9 @@ no reason moves a box. The eight cases, and the pattern each takes:
 1. *The role forbids it* — not shown (P-05); where a page needs it for orientation, a gate with a
    lock and the reason as in 2 (`CapabilityGate` with `isInline`).
 2. *Not possible right now* — focusable, `aria-disabled`, the reason a bubble at the control on
-   hover, focus and tap; no space in the layout.
+   hover, focus and tap; no space in the layout. A `Menu`'s item, a `Sheet`'s row and a
+   `MultiSelect`'s option keep their one line with an ⓘ at the end, the reason the same bubble on
+   hover, focus, a click and a tap, and `Escape` closes the bubble before the menu or the list.
 3. *Something must be filled in* — the submit is never unavailable for it: pressing marks the
    missing fields and moves focus to the first. Every field marks itself one way: an `error` that
    is its description, on the control `aria-invalid` where the role takes it, and `data-invalid` on
@@ -335,6 +338,65 @@ no reason moves a box. The eight cases, and the pattern each takes:
    `Switch`), its size kept; afterwards a short confirmation with *Undo*, the caller's `Toast`.
 8. *Not in this plan or installation* — absent where it concerns nobody; otherwise one card or
    notice instead of the form, never a gated form.
+
+**Where a bubble stands.** The reason bubble, `Tooltip` and `HelpTip` share one placement,
+`placeWithTip` in `anchor.ts`, and each has a tip that points at what it describes. The reason
+bubble and `Tooltip` are as wide as their words up to `layout.tooltip.max`; a help tip holds up to
+three sentences and is as wide as its words up to 40 characters. Neither is wider than the window
+less `sp-200` on each side, and both break only between words; a side too narrow for them is
+therefore left, never squeezed into. The sides, in order: a reason in a menu right, left, below,
+above (mirrored right to left), clear of the menu's edge; a reason at a field and a tooltip above,
+below, the line's end, its start; a help tip below, above, the line's end, its start; a reason at a
+sheet's row on a phone above the row, across the window less `sp-200` on each side, its tip on the
+row's ⓘ. Across its side the surface lines up as its placement's `align` says, by default where
+the anchor starts — a row's top, or its bottom at the window's foot — and is shifted into the
+window, `sp-200` from its edge. The tip (`layout.tooltip.tip`, `layout.tooltip.helptip`) points at the middle of its element,
+or `sp-300` past the start of one wider than the surface, after any flip or shift, and its outer
+extent never enters a rounded corner. Where the element is so near the window's edge that the tip
+could not reach it on the straight part of the edge, the surface comes nearer that edge, down to
+`sp-100`; only past that does the tip stop at the end of its straight edge. The bubble is the
+inverse surface with `r-sm`, `shadow.bubble` and a transparent hairline that forced colours draw;
+the help tip the raised surface with its hairline, the tip drawn with it. A mouse resting on a
+control for `dur-intent` shows its bubble, focus and a tap at once; one shows at a time, and while
+one shows, or for `dur-intent` after it went, the next shows at once; scrolling what the control stands
+in closes it, unless focus is on the control. A help tip whose ⓘ scrolls out of the window closes,
+rather than standing at the edge pointing at nothing. `apps/webapp/e2e/bubbleplace.test.mjs` and
+`workbench-bubble.test.mjs` walk it with classic scrollbars shown.
+
+**Help text** comes in five tiers, and each text belongs to exactly one
+([ADR-0115](../adr/ADR-0115-help-text-in-five-tiers.md)):
+
+| Tier | What goes in | Drawn | On a phone | For a screen reader |
+|---|---|---|---|---|
+| A Name | what it is; for an act, the verb | visible | visible | the accessible name |
+| B Hint | what is needed **now** to fill it in or decide: a format, a unit, a limit, a consequence; a field's or a setting's description | visible, one line where it can be, two at most | the same | `aria-describedby` |
+| C More about | the why, the background, an example; three sentences at most | `HelpTip`: an ⓘ beside the label or the heading, a popover on a click | the same popover on a tap | a button named *More about ‹label›*, `aria-expanded`, `Escape` closes it and focus goes back |
+| D Reason | why it cannot be done now, whom to ask | the `_Reason` bubble (case 2 above) | the bubble on a tap | focusable, `aria-disabled`, the reason its `aria-describedby`, read without the bubble |
+| E Tooltip | an icon button's name, a shortcut, a cut title — never help, never the only place of anything | on hover and focus | on a tap | a description |
+
+**Which tier, in one sentence:** what is needed to do it right *now* is B; what explains *why* is
+C; what says why it *cannot* be done now is D; and where the name already says it all, there is no
+help text. The owner's three conditions (2026-11-24) hold for every tier:
+
+1. **A description stays visible.** A field's or a setting's description — what it is, what it does
+   — is never moved behind the ⓘ; only a hint's why, background and examples are.
+2. **No help text is cut.** A hint, a description and a reason are never shortened with an
+   ellipsis: they are shown whole and wrap, a menu item's description included.
+3. **A scroll shade stays inside its surface's corners** (§6, the overlays).
+
+`HelpTip` opens on a click, a tap, `Enter` or `Space` and never on a hover: touch has no hover, and
+text that opens under a passing pointer covers what the reader aimed at. It stays a popover on a
+phone, its words take focus so they are read at once, and it stands beside its label or heading,
+never inside it, so its name does not join theirs. `Input`, `Select`, `Textarea`, `CodeField`,
+`Checkbox`, `MultiSelect`, `SettingRow`, `SettingsSection`, `FormSection` and `PageHeader` take its
+words as `more`. A page's or a section's introduction keeps what the page is and what happens
+there visible, however long; only its why goes behind the ⓘ beside its heading - beside the page's
+title, or at the end of the introduction's sentence where the app's bar carries the title. A text behind an ⓘ is the visible one's code with `_more` appended, in every
+locale. `apps/webapp/build/hints.test.js` fails on a visible hint, help, introduction or description
+over about 120 characters in English unless `build/hints.json` lists it with a one-word reason -
+a description, what is needed now, a dialog's or an empty state's words - and that list only
+shrinks. An empty state keeps its one or two
+sentences — there they are the content — and `Callout` and `Banner` are status, not help.
 
 ### Wave 2 — structure (≈ 14)
 Breadcrumb *(five levels, collapsed to `Hub / … / Parent / Current` from `medium` down)* ·
@@ -829,12 +891,29 @@ one above its own layer. A number at a call site is the failure this prevents.
 positioning (`anchor-name`, `position-area`, `position-try-fallbacks`) through `src/anchor.ts`
 alone. No component measures anything, no positioning library, no offset as an inline style. Every
 engine on the support row ([`support-matrix.md`](../architecture/support-matrix.md) §5) has anchor
-positioning, which the `engines` job proves, so there is no JavaScript fallback. An overlay
+positioning, which the `engines` job proves, so there is no JavaScript fallback. **One exception:**
+a surface with a tip — the reason bubble, `Tooltip`, `HelpTip` — is placed by measurement in
+`anchor.ts` (`placeWithTip`, [ADR-0116](../adr/ADR-0116-a-surface-with-a-tip-is-placed-by-measurement.md)),
+because its tip must know the side it took and the surface may come nearer the window's edge only
+so far as the tip needs (§4, "Where a bubble stands"), which CSS cannot say. It too writes into the
+constructed stylesheet, never an inline style, and no component measures for it. An overlay
 flips to the side with room; where neither side holds it — a long menu at the foot of a phone's
 screen — it takes the larger side, shrinks to it and scrolls inside, and never runs past the
 viewport. Where the browser has it, an anchored overlay is raised into the **top layer**, so no
 transformed, filtered or `contain` ancestor clips it; the scale still decides for everything in the
 flow.
+
+**A scroll shade** says that a scrolling surface goes on: a menu, a sheet, a popover, a dialog's
+body, a drawer, a pick list. `scrollEdges` (`src/scrollEdges.ts` and `.css`) marks the frame
+around the scroller, and a shade shows only at an edge with more beyond it — the start, the end,
+both or none, never on a list that does not scroll. It lies over the rows, so a hovered row does not
+cover it, and takes the frame's corners, so it never stands past the surface's rounding. A sheet's
+body frame reaches the sheet's sides, so its shade runs edge to edge instead of ending at the
+padding. Its colours
+are `bg.scroll-shade-edge` and `bg.scroll-shade-ease`, `bg.scrim`'s faint at the edge and eased
+out, so it darkens the surface in both themes; a tint of the text colour would lighten a dark
+surface into a bar. The dark theme takes a larger share of the scrim, so the shade darkens a dark
+surface's edge by about as much as a light one's. `Table` keeps its own fade.
 
 What paints over what and what `Escape` reaches are **different lists**. A tooltip paints above a
 dialog and is not in the register: it closes on the `Escape` pressed while it shows (WCAG 1.4.13)
@@ -991,7 +1070,7 @@ screenshots.
   routes. All other platform adaptation is the web app's layout by width (§6, §11), which the shells
   render as it is.
 
-Both are tracked in [roadmap.md](../roadmap.md).
+The first two are tracked in [roadmap.md](../roadmap.md).
 
 ---
 

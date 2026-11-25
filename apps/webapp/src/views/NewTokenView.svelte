@@ -148,7 +148,7 @@
           </SettingRow>
           <!-- `max` as well as `required`: the server refuses more than a year, and being told
                before the round trip is the same number said earlier rather than a second policy. -->
-          <SettingRow label={t('app.tokens.expires')} help={t('app.tokens.expires_hint')} fieldWidth="sm" isRequired>
+          <SettingRow label={t('app.tokens.expires')} help={t('app.tokens.expires_hint')} more={t('app.tokens.expires_hint_more')} fieldWidth="sm" isRequired>
             {#snippet control(nameId)}
               <Input
                 label={t('app.tokens.expires')}
@@ -173,7 +173,7 @@
         {:else}
           <SettingsSection
             title={t('app.tokens.may_do_title')}
-            description={t('app.tokens.scopes_hint')}
+            description={t('app.tokens.scopes_hint')} more={t('app.tokens.scopes_hint_more')}
             status={t('app.tokens.chosen_count', { count: String(draft.requested.length) })}
             advanced={configuration || parts.length > 0
               ? { label: t('app.tokens.configuration_title'), description: t('app.tokens.configuration_hint', { count: String(parts.length + (configuration?.verbs.length ?? 0)) }), rows: configurationRows }

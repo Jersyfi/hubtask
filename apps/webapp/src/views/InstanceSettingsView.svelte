@@ -304,6 +304,7 @@
           <SettingsSection
             title={t(`app.instance.area_${group.area}`)}
             description={group.area === 'localisation' ? t('app.instance.locked_never_localisation') : t('app.instance.settings_intro')}
+            more={group.area === 'localisation' ? undefined : t('app.instance.settings_intro_more')}
             status={stateOf(group).status}
           >
             {#if enforced}

@@ -246,6 +246,7 @@
   const title = $derived(t('app.mail.title'));
   const links = $derived<SectionLink[]>(SECTIONS.map((each) => ({ id: each.id, label: t(each.code), href: `${BASE}/${each.id}`, ...statusOf(each.id) })));
   const head = $derived({
+    more: t('app.mail.intro_more'),
     title,
     subtitle: t('app.mail.intro'),
     breadcrumb: adminTrail({ id: 'mail', label: title }),

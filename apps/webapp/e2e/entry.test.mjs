@@ -265,7 +265,9 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   const ownActivity = CHILDREN[ENTRY.id][2];
   await reveal(page.getByRole('button', { name: `Actions for ${ownActivity.title}` }));
   const out = page.getByRole('menuitem', { name: /Move out one level/ });
-  assert.ok((await out.textContent()).includes('An activity has to sit inside another entry.'), 'moving the task\'s activity out is offered without its reason');
+  // The reason is the item's description, its bubble's words (design-system.md §4, case 2).
+  const reason = await out.evaluate((node) => (node.getAttribute('aria-describedby') ?? '').split(/\s+/).map((id) => document.getElementById(id)?.textContent ?? '').join(' '));
+  assert.ok(reason.includes('An activity has to sit inside another entry.'), 'moving the task\'s activity out is offered without its reason');
   assert.equal(await out.getAttribute('aria-disabled'), 'true');
   await page.keyboard.press('Escape');
   const packActivity = CHILDREN[CHILDREN[ENTRY.id][0].id][0];

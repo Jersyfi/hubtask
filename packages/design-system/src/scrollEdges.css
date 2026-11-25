@@ -1,0 +1,54 @@
+/* SPDX-License-Identifier: Apache-2.0
+   Copyright (c) 2026 Jérôme Bastian Winkel */
+
+/* The scroll shades, drawn on the frame `scrollEdges` (scrollEdges.ts) marks: a shade only at the
+   edge with more content beyond it - the start, the end, both or none.
+
+   Each shade is a layer over the whole frame, over the rows (a hovered row does not cover it), with
+   the frame's own corners: `border-radius: inherit` clips its background to the frame's shape, so
+   a shade never stands past the rounded corners of the surface behind it. The frame is isolated, so
+   the layer's rank counts inside it and never against the page.
+
+   The colours are `bg.scroll-shade-edge` and `bg.scroll-shade-ease`: the scrim's, faint at the edge
+   and easing out over the strip, so it reads as the rows passing under the edge rather than as a
+   stripe. */
+
+[data-scroll-edges] {
+  isolation: isolate;
+}
+
+[data-scroll-edges]::before,
+[data-scroll-edges]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-sticky);
+  border-radius: inherit;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-size: 100% var(--sp-300);
+  opacity: 0;
+}
+
+[data-scroll-edges]::before {
+  background-image: linear-gradient(
+    var(--bg-scroll-shade-edge),
+    var(--bg-scroll-shade-ease) 45%,
+    transparent
+  );
+  background-position: top;
+}
+
+[data-scroll-edges]::after {
+  background-image: linear-gradient(
+    transparent,
+    var(--bg-scroll-shade-ease) 55%,
+    var(--bg-scroll-shade-edge)
+  );
+  background-position: bottom;
+}
+
+[data-scroll-edges][data-more-start]::before,
+[data-scroll-edges][data-more-end]::after {
+  opacity: 1;
+}

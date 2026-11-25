@@ -26,6 +26,7 @@
 
   import Breadcrumb from './Breadcrumb.svelte';
   import Button from './Button.svelte';
+  import HelpTip from './HelpTip.svelte';
   import Icon from './Icon.svelte';
   import IconButton from './IconButton.svelte';
   import Menu from './Menu.svelte';
@@ -65,7 +66,10 @@
 
   interface Props {
     title: string;
+    /** What the page is, in one sentence (design-system.md §4, "Help text"). */
     subtitle?: string;
+    /** The rest of the page's introduction, behind an ⓘ beside the title (`HelpTip`): the why, not what the page is. */
+    more?: string;
     /** The trail above the title, with its own two names (see `Breadcrumb`). */
     breadcrumb?: { trail: readonly Crumb[]; label: string; expandLabel: string; onnavigate?: (id: string) => void; mark?: Snippet<[Crumb]> };
     /** The one thing one does here most. */
@@ -128,6 +132,7 @@
   const {
     title,
     subtitle,
+    more,
     breadcrumb,
     primary,
     secondary = [],
@@ -148,7 +153,7 @@
   const parent = $derived(breadcrumb && breadcrumb.trail.length > 1 ? breadcrumb.trail[breadcrumb.trail.length - 2] : undefined);
   // With the title drawn elsewhere and no subtitle, the actions have no title to stand beside
   // and take the trail's line; the title row then holds only the read-not-drawn heading.
-  const actionsOnTrail = $derived(isTitleInBar && !subtitle && !figure && breadcrumb !== undefined);
+  const actionsOnTrail = $derived(isTitleInBar && !subtitle && !more && !figure && breadcrumb !== undefined);
 
   // Below `medium` the secondary actions join the menu, so one control holds everything that is
   // not the primary. The ids are prefixed so a caller's own ids cannot collide with them.
@@ -311,19 +316,27 @@
     <div class="titles">
       {#if isTitleInBar}
         <VisuallyHidden as="h1">{title}</VisuallyHidden>
-      {:else if mark || titleEnd || figure}
+      {:else if mark || titleEnd || figure || more}
         <!-- The figure stands on the title's line, after the star, and wraps under it when the
-             line is full. -->
+             line is full. The ⓘ stands beside the title, never inside it: its name would join the
+             heading's. -->
         <div class="title-line">
           {#if mark}<span class="title-mark" aria-hidden="true">{@render mark()}</span>{/if}
           <h1 class="title">{title}</h1>
+          {#if more}<HelpTip subject={title} text={more} />{/if}
           {#if titleEnd}<span class="title-end">{@render titleEnd()}</span>{/if}
           {#if figure && !isFigureBelow}<div class="head-figure">{@render figure()}</div>{/if}
         </div>
       {:else}
         <h1 class="title">{title}</h1>
       {/if}
-      {#if subtitle}<p class="subtitle">{subtitle}</p>{/if}
+      {#if isTitleInBar && more}
+        <!-- The title is the bar's here, so the ⓘ stands at the end of the sentence that says what
+             the page is, or alone where there is none. -->
+        <p class="subtitle">{#if subtitle}{subtitle} {/if}<HelpTip subject={title} text={more} /></p>
+      {:else if subtitle}
+        <p class="subtitle">{subtitle}</p>
+      {/if}
       {#if figure && (isTitleInBar || isFigureBelow)}<div class="head-figure" data-below={isFigureBelow ? '' : undefined}>{@render figure()}</div>{/if}
     </div>
     {#if !actionsOnTrail}{@render actionBar()}{/if}

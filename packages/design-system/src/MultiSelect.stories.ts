@@ -42,7 +42,7 @@ export const locked: Story = {
 export const refused: Story = {
   name: 'One option refused, with its reason',
   about:
-    '*Board column* has a reason and is not ticked: the arrows reach it, its reason is a line under its label - in the list, so it moves nothing - and it cannot be ticked.',
+    '*Board column* has a reason and is not ticked: the arrows reach it, it keeps its one line with an ⓘ at its end, its reason a bubble beside it on hover, focus, a click and a tap - so the list never moves to say it - and it cannot be ticked. `Escape` closes the bubble before the list.',
   args: { mode: 'refused' },
 };
 
@@ -120,4 +120,11 @@ export const inTableRow: Story = {
   name: 'In a table row',
   about: 'The same in a table row: the row keeps its height whether the option is refused or not.',
   args: { mode: 'table' },
+};
+
+export const more: Story = {
+  name: 'More about it, beside the label',
+  about:
+    'What to choose stays the hint under the label; the why stands behind the ⓘ beside it (`more`, design-system.md §4, "Help text"). The ⓘ is not part of the field’s name: the closed field is still named by the label and the chosen.',
+  args: { mode: 'more' },
 };

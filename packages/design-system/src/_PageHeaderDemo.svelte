@@ -9,12 +9,13 @@
   import Stack from './Stack.svelte';
   import ViewSwitcher, { type View } from './ViewSwitcher.svelte';
 
-  const { mode = 'collection' }: { mode?: 'collection' | 'hub' | 'phone' | 'long' | 'figure' | 'figurePhone' } = $props();
+  const { mode = 'collection' }: { mode?: 'collection' | 'hub' | 'phone' | 'long' | 'figure' | 'figurePhone' | 'more' | 'morePhone' } = $props();
 
   let chosen = $state<string | undefined>(undefined);
   let layout = $state('LIST_COLLAPSED');
 
   const isLong = $derived(mode === 'long');
+  const hasMore = $derived(mode === 'more' || mode === 'morePhone');
 
   const trail = $derived([
     { id: 'home', label: isLong ? 'Arbeitsbereich' : 'Workspace', href: '/' },
@@ -62,7 +63,8 @@
   {:else}
     <PageHeader
       title={isLong ? 'Renovierung der Küche im Erdgeschoss' : 'Renovation'}
-      subtitle={isLong ? 'Alles, was vor dem Einzug im September fertig sein muss.' : undefined}
+      subtitle={isLong ? 'Alles, was vor dem Einzug im September fertig sein muss.' : hasMore ? 'Everything that has to be done before moving in.' : undefined}
+      more={hasMore ? 'The date is the day the lease starts. Entries left open then move to the collection after it, with their history.' : undefined}
       breadcrumb={{ trail, label: 'Where you are', expandLabel: 'Show every level' }}
       primary={{
         label: isLong ? 'Eintrag anlegen' : 'Create an entry',
@@ -75,7 +77,7 @@
       }}
       secondary={[{ label: isLong ? 'Filtern' : 'Filter', icon: 'funnel', onclick: () => (chosen = 'filter') }]}
       menu={{ label: isLong ? 'Mehr für diese Sammlung' : 'More for this collection', items: menu, onselect: (id) => (chosen = id) }}
-      isTitleInBar={mode === 'phone' || mode === 'figurePhone'}
+      isTitleInBar={mode === 'phone' || mode === 'figurePhone' || mode === 'morePhone'}
     >
       {#snippet figure()}
         {#if mode === 'figure' || mode === 'figurePhone'}

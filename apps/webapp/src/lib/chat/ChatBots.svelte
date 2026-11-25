@@ -234,7 +234,7 @@
       {/if}
       <Select label={t('app.chatbots.collection')} options={collectionOptions} bind:value={draft.collectionId} />
       <Checkbox label={t('app.chatbots.unfurl')} hint={t('app.chatbots.unfurl_hint')} bind:checked={draft.unfurl} />
-      <Checkbox label={t('app.chatbots.capture')} hint={t('app.chatbots.capture_hint')} bind:checked={draft.capture} />
+      <Checkbox label={t('app.chatbots.capture')} hint={t('app.chatbots.capture_hint')} more={t('app.chatbots.capture_hint_more')} bind:checked={draft.capture} />
       {#if seatFailure}<FailureNote problem={seatFailure} />{/if}
     </Stack>
   </Dialog>

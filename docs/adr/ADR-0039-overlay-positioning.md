@@ -1,6 +1,6 @@
 # ADR-0039 — Overlays are positioned by CSS, with one fallback we own
 
-**Status:** accepted · **Date:** 2026-09-02 · **The fallback:** removed 2026-09-17 (F6-02) — its lifetime ended when the `engines` job ([ADR-0048](./ADR-0048-browser-job-driver.md)) proved every engine on the support row has anchor positioning; `src/anchor.ts` is the CSS path alone
+**Status:** accepted (in part superseded by [ADR-0116](./ADR-0116-a-surface-with-a-tip-is-placed-by-measurement.md): a surface with a tip is placed by measurement) · **Date:** 2026-09-02 · **The fallback:** removed 2026-09-17 (F6-02) — its lifetime ended when the `engines` job ([ADR-0048](./ADR-0048-browser-job-driver.md)) proved every engine on the support row has anchor positioning; `src/anchor.ts` is the CSS path alone
 
 **Rule lives in:** [design-system.md](../design/design-system.md) §6
 

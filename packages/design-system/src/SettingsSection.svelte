@@ -14,6 +14,8 @@
   interface Props {
     title: string;
     description?: string;
+    /** More about it on demand, behind an ⓘ beside the heading (`HelpTip`): the why, not the how. */
+    more?: string;
     /** *2 set here*, *Default*, *Locked*. */
     status?: string;
     /** *View as file*: the section's values as the configuration reads them. */
@@ -26,11 +28,11 @@
     save?: Snippet;
   }
 
-  const { title, description, status, viewAsFile, children, advanced, save }: Props = $props();
+  const { title, description, more, status, viewAsFile, children, advanced, save }: Props = $props();
 </script>
 
 <section class="settings-section">
-  <RegionHead {title} note={status} {description}>
+  <RegionHead {title} note={status} {description} {more}>
     {#snippet acts()}
       {#if viewAsFile}<Button tone="subtle" size="sm" onclick={viewAsFile.onclick}>{viewAsFile.label}</Button>{/if}
     {/snippet}

@@ -25,6 +25,7 @@
   import ReasonMark from './_ReasonMark.svelte';
   import { provideReasonGroup } from './reason.ts';
   import { rovingIndex } from './focus.ts';
+  import { scrollEdges } from './scrollEdges.ts';
 
   /** One candidate, as the control needs it: who they are, and their picture if they have one. */
   export interface Candidate {
@@ -173,6 +174,8 @@
   {:else if shown.length === 0}
     <p class="empty">{noMatchLabel}</p>
   {:else}
+    <!-- The frame the options scroll in, and where their shades are drawn. -->
+    <div class="frame">
     <ul
       class="list"
       role="listbox"
@@ -181,6 +184,7 @@
       aria-invalid={error ? 'true' : undefined}
       aria-describedby={errorId}
       bind:this={list}
+      {@attach scrollEdges}
       onkeydown={onKeydown}
     >
       {#each shown as person, index (person.id)}
@@ -208,6 +212,7 @@
         </li>
       {/each}
     </ul>
+    </div>
   {/if}
 
   {#if error}
@@ -236,6 +241,8 @@
   }
 
   .person { display: inline-flex; align-items: center; gap: var(--sp-050); min-width: 0; }
+
+  .frame { position: relative; }
 
   .list {
     display: flex;

@@ -86,6 +86,13 @@ async function open(browser, answer = () => undefined) {
   return { page, sent, close: () => context.close() };
 }
 
+
+/**
+ * What a menu item says: its words and what describes it - an unavailable item's reason is its
+ * description, the words of its bubble (design-system.md §4, case 2), not a line of its text.
+ */
+const saidBy = (item) => item.evaluate((node) => [node.textContent ?? '', ...(node.getAttribute('aria-describedby') ?? '').split(/\s+/).map((id) => document.getElementById(id)?.textContent ?? '')].join(' '));
+
 test('chromium: a withdrawal shows the count, is announced for a day, and can be called off', async (t) => {
   const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser);
@@ -100,7 +107,7 @@ test('chromium: a withdrawal shows the count, is announced for a day, and can be
   // says so instead of acting.
   let remove = await removeItem(row);
   assert.equal(await remove.getAttribute('aria-disabled'), 'true', 'Remove acts on a provider still offered and used');
-  assert.match(await remove.textContent() ?? '', /Withdraw it first/);
+  assert.match(await saidBy(remove), /Withdraw it first/);
   await page.keyboard.press('Escape');
 
   await chooseInRow(row, 'Withdraw…');
@@ -126,8 +133,8 @@ test('chromium: a withdrawal shows the count, is announced for a day, and can be
   // Announced, Remove still waits - for the day, not for a withdrawal that has already been made.
   remove = await removeItem(row);
   assert.equal(await remove.getAttribute('aria-disabled'), 'true', 'Remove acts while the offer still runs');
-  assert.match(await remove.textContent() ?? '', /Its withdrawal is announced: it can be removed from /);
-  assert.doesNotMatch(await remove.textContent() ?? '', /Withdraw it first/);
+  assert.match(await saidBy(remove), /Its withdrawal is announced: it can be removed from /);
+  assert.doesNotMatch(await saidBy(remove), /Withdraw it first/);
   await page.keyboard.press('Escape');
   await chooseInRow(row, 'Keep offering it');
   await row.getByText('Offered', { exact: true }).waitFor();
@@ -163,7 +170,7 @@ test('chromium: withdraw now needs the number typed back, and a wrong one is ref
   assert.equal(await rowOffers(row, 'Keep offering it'), 1);
   // Withdrawn, it may be removed - and the dialog says what that costs, which a withdrawal did not.
   const remove = await removeItem(row);
-  assert.doesNotMatch(await remove.textContent() ?? '', /Withdraw it first|can be removed from/);
+  assert.doesNotMatch(await saidBy(remove), /Withdraw it first|can be removed from/);
   assert.equal(await remove.getAttribute('aria-disabled'), null, 'Remove waits for a provider whose offer has ended');
   await remove.click();
   const removal = page.getByRole('dialog', { name: 'Remove this provider' });

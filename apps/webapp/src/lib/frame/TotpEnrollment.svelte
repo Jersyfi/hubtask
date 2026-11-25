@@ -124,7 +124,7 @@
       onDismiss={proceed}
     />
   {:else if !enrollment}
-    <p class="quiet">{t('app.mfa.intro')}</p>
+    <p class="quiet">{t('app.mfa.intro')} {t('app.mfa.intro_more')}</p>
     <div>
       <Button
         tone="primary"

@@ -218,9 +218,9 @@
   ]);
 </script>
 
-<ListPage head={peopleHead()}>
+<ListPage head={{ ...peopleHead(), more: view === 'settings' ? t('app.access.settings_intro_more') : undefined }}>
   {#snippet strip()}<PeopleStrip current={view === 'settings' ? 'settings' : 'permissions'} {onnavigate} />{/snippet}
-  {#snippet intro()}<p class="quiet">{t(view === 'settings' ? 'app.access.settings_intro' : 'app.access.intro')}</p>{/snippet}
+  {#snippet intro(tip)}<p class="quiet">{t(view === 'settings' ? 'app.access.settings_intro' : 'app.access.intro')} {@render tip?.()}</p>{/snippet}
   {#snippet filters()}
     <FilterBar
       searchLabel={t(view === 'settings' ? 'app.access.search' : 'app.access.search_roles')}

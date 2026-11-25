@@ -22,7 +22,7 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Input, Radio, SaveBar, Select, Stack } from '@hubtask/design-system/components';
+  import { HelpTip, Input, Radio, SaveBar, Select, Stack } from '@hubtask/design-system/components';
   import type { AiOptOutBasis, AiPersonOptOut, AiSource } from '@hubtask/sync-engine';
 
   import { aiProvider } from '../data/aiprovider.svelte.ts';
@@ -132,7 +132,11 @@
 {#if isAsked}
 <section class="panel" aria-labelledby="person-opt-out-title" data-person-opt-out>
   <Stack gap="200">
-    <h2 class="section" id="person-opt-out-title">{t('app.ai.opt_out_title')}</h2>
+    <!-- The ⓘ beside the heading, not in it: inside, its name would join the section's. -->
+    <div class="title-line">
+      <h2 class="section" id="person-opt-out-title">{t('app.ai.opt_out_title')}</h2>
+      <HelpTip subject={t('app.ai.opt_out_title')} text={t('app.ai.opt_out_intro_more')} />
+    </div>
     <p class="quiet">{t('app.ai.opt_out_intro')}</p>
 
     {#if isLocked}
@@ -213,6 +217,7 @@
     box-shadow: var(--shadow-raised);
   }
 
+  .title-line { display: flex; align-items: center; gap: var(--sp-050); }
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
 
   p { margin: 0; }

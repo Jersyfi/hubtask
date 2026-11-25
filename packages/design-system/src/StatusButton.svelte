@@ -15,6 +15,7 @@
   import { openOverlay } from './overlay.ts';
   import { splitSteps, type StatusCategory, type StatusRef, type WorkflowStep } from './steps.ts';
   import type { LozengeLook } from './lozenge.ts';
+  import { scrollEdges } from './scrollEdges.ts';
 
   interface Props {
     current: StatusRef;
@@ -216,6 +217,8 @@
 
 {#if isOpen}
   <div class="surface" id={surfaceId} bind:this={surface}>
+    <!-- The surface is the frame that does not scroll and carries the shades; this scrolls. -->
+    <div class="scroll" {@attach scrollEdges}>
     <p class="title" id={`${surfaceId}-title`}>{menuTitle}</p>
     <div class="list" role="menu" aria-labelledby={`${surfaceId}-title`} tabindex="-1" bind:this={list} onkeydown={onKeydown}>
       {#each rows as item, index (item.id)}
@@ -233,6 +236,7 @@
         {#if workflow.scope}<span class="scope">{workflow.scope}</span>{/if}
       </div>
     {/if}
+    </div>
   </div>
 {/if}
 
@@ -326,15 +330,25 @@
     flex-direction: column;
     inline-size: min(var(--layout-dialog-s), calc(100vw - 2 * var(--sp-200)));
     max-block-size: 70vh;
-    overflow: auto;
+    overflow: hidden;
     margin: var(--sp-050);
-    padding: var(--sp-100);
+    /* The padding is the inner box's, which scrolls; none from the popover's own default. */
+    padding: 0;
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
     background: var(--bg-raised);
     box-shadow: var(--shadow-overlay);
     font-weight: var(--fw-regular);
     animation: open var(--motion-attach-duration) var(--motion-attach-easing) both;
+  }
+
+  .scroll {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-block-size: 0;
+    overflow: auto;
+    padding: var(--sp-100);
   }
 
   .title {

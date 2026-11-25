@@ -18,6 +18,7 @@
   import Inline from './Inline.svelte';
   import Stack from './Stack.svelte';
   import { focusables } from './focus.ts';
+  import { scrollEdges } from './scrollEdges.ts';
 
   interface Props {
     caption: string;
@@ -91,13 +92,16 @@
 </script>
 
 <div class="mark" role="dialog" aria-labelledby={`${id}-caption`} aria-describedby={`${id}-body`} bind:this={surface}>
-  <!-- The words scroll inside the mark where it is short of room; the buttons never do. -->
-  <div class="words">
-    <Stack gap="100">
-      <span class="count">{countLabel}</span>
-      <h2 class="caption" id={`${id}-caption`}>{caption}</h2>
-      <p class="body" id={`${id}-body`}>{body}</p>
-    </Stack>
+  <!-- The words scroll inside the mark where it is short of room; the buttons never do. The frame
+       around them carries the shades. -->
+  <div class="frame">
+    <div class="words" {@attach scrollEdges}>
+      <Stack gap="100">
+        <span class="count">{countLabel}</span>
+        <h2 class="caption" id={`${id}-caption`}>{caption}</h2>
+        <p class="body" id={`${id}-body`}>{body}</p>
+      </Stack>
+    </div>
   </div>
   <div class="actions">
     <Inline gap="100" align="center">
@@ -134,6 +138,7 @@
     box-shadow: var(--shadow-overlay);
   }
 
+  .frame { position: relative; display: flex; flex-direction: column; min-block-size: 0; }
   .words { min-block-size: 0; overflow-y: auto; }
   .actions { flex: none; }
 

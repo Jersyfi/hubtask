@@ -361,7 +361,7 @@
         {#if isCalculated(editing?.kind ?? kind)}
           <Textarea
             label={t('app.fields.formula')}
-            hint={t('app.fields.formula_hint')}
+            hint={t('app.fields.formula_hint')} more={t('app.fields.formula_hint_more')}
             bind:value={formula}
             rows={2}
             oninput={() => (missing = without(missing, 'formula'))}

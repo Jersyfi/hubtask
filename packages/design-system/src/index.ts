@@ -30,6 +30,7 @@ export { default as MultiSelect } from './MultiSelect.svelte';
 export type { ChoiceGroup, ChoiceOption, Presentation as MultiSelectPresentation, Summary as MultiSelectSummary } from './multiselect.ts';
 export { presentationOf as multiSelectPresentationOf } from './multiselect.ts';
 export { default as Dialog, type DialogAction } from './Dialog.svelte';
+export { default as HelpTip } from './HelpTip.svelte';
 export { default as Icon } from './Icon.svelte';
 export { default as Kbd } from './Kbd.svelte';
 export { default as IconButton } from './IconButton.svelte';
@@ -187,7 +188,7 @@ export type { Align, Justify, Space } from './space.ts';
 
 export { anchorTo, positionArea, raiseToTopLayer, type Alignment, type Placement, type Side } from './anchor.ts';
 
-export { isCompactWidth, setCloseLabel } from './media.ts';
+export { isCompactWidth, setCloseLabel, setHelpName } from './media.ts';
 export { escapeHandler, focusFirst, focusReturn, focusables, rovingIndex, typeAheadIndex } from './focus.ts';
 export { arrive, arrivals, enter, flip, isMotionReduced, leave, reveal } from './motion.ts';
 

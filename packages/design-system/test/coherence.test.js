@@ -104,7 +104,7 @@ test('a head\'s next step is the Button of its size, no local type of its own (B
 // D-1: a menu on a phone is a sheet; its actions stay menu items, moved by the arrows.
 test('a sheet\'s list of actions is a menu of menu items, the arrows moving among them', () => {
   const sheet = source('Sheet.svelte');
-  assert.match(sheet, /<ul class="items" role="menu" aria-labelledby=\{titleId\} onkeydown=\{moveAmongItems\}>/);
+  assert.match(sheet, /<ul class="items" role="menu" aria-labelledby=\{titleId\} onkeydown=\{moveAmongItems\}[ >]/);
   assert.match(sheet, /<li role="none">\s*<button\s*type="button"\s*role="menuitem"/);
   for (const key of ['ArrowDown', 'ArrowUp', 'Home', 'End']) assert.match(sheet, new RegExp(`event\\.key === '${key}'`));
 });
@@ -130,10 +130,11 @@ test('a start page names itself once where the bar carries its name', () => {
 
 test('on a phone a sheet and a drawer from the foot keep their head and scroll inside the screen', () => {
   const sheet = source('Sheet.svelte');
-  assert.match(sheet, /\.body:has\(> \.items\) \{ display: flex; flex-direction: column; \}/u);
-  assert.match(sheet, /\.body > \.items \{ flex: 0 1 auto; min-block-size: 0; overflow: auto; \}/u);
+  assert.match(sheet, /\.body:has\(> \.items-frame\) \{ display: flex; flex-direction: column; \}/u);
+  assert.match(sheet, /\.items \{ flex: 0 1 auto; min-block-size: 0; overflow: auto; \}/u);
   const drawer = source('Drawer.svelte');
-  assert.match(drawer, /\.drawer\[data-edge='block-end'\]\[open\] \{ display: flex; flex-direction: column; overflow: hidden; \}/u);
+  assert.match(drawer, /\.drawer\[open\] \{ display: flex; flex-direction: column; \}/u);
+  assert.match(rulesFor(drawer, 'drawer').join(' '), /overflow: hidden/u);
   assert.match(drawer, /\.drawer\[data-edge='block-end'\] \.body \{ flex: 1 1 auto; min-block-size: 0; overflow: auto; \}/u);
 });
 

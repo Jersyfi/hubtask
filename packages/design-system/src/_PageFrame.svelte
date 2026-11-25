@@ -21,16 +21,22 @@
     isTitleInBar?: boolean;
     /** What the person may not see, in the content's place. */
     refused?: Snippet;
-    children: Snippet;
+    /** Whether the page draws an introduction under the head (`ListPage`'s and `LogPage`'s `intro`). */
+    hasIntro?: boolean;
+    /** The content; given the head's *more about* where the introduction carries its ⓘ. */
+    children: Snippet<[string | undefined]>;
   }
 
-  const { kind, head, top, isHeadHidden = false, isTitleInBar = false, refused, children }: Props = $props();
+  const { kind, head, top, isHeadHidden = false, isTitleInBar = false, refused, hasIntro = false, children }: Props = $props();
 
   const bar = pageBar();
   // Where the application's bar carries the way up (a phone below a tab's root, the navigation
   // concept §9), it carries the title and the ⋯ too: one bar, never a second head under it. A
   // create or editor page keeps its head: its primary is the page's own act on its canvas.
   const isInBar = $derived(isTitleInBar || (bar?.hasBack === true && kind !== 'create' && kind !== 'editor'));
+  // Where the bar carries the title and the head has no sentence of its own, the ⓘ ends the
+  // introduction's sentence: alone on a line above it, its popover would cover the words it explains.
+  const introMore = $derived(isInBar && hasIntro && !head?.subtitle ? head?.more : undefined);
 </script>
 
 <div class="page" data-page-kind={kind}>
@@ -40,6 +46,7 @@
     <PageHeader
       title={head.title}
       subtitle={head.subtitle}
+      more={introMore === undefined ? head.more : undefined}
       breadcrumb={head.breadcrumb}
       primary={head.primary}
       secondary={head.secondary}
@@ -53,7 +60,7 @@
   {#if refused}
     <div class="refused">{@render refused()}</div>
   {:else}
-    {@render children()}
+    {@render children(introMore)}
   {/if}
 </div>
 

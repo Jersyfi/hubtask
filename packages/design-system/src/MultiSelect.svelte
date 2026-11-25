@@ -13,7 +13,8 @@
   // order, no small targets, and a locked option needs no special chip.
   //
   // **An option with a reason cannot change.** Ticked it is locked on, unticked it is refused; it
-  // stays focusable and its reason is a line under its label, so the list never moves to say it.
+  // stays focusable, an ⓘ at its end, and its reason is a bubble beside it, as a locked menu item's
+  // is (design-system.md §4, case 2): never a line under its label, so the list never moves to say it.
   // The whole control locked still opens, read-only, so that a locked value can be read.
   //
   // One press emits one change; *All*, *None* and Ctrl+A emit one change with the whole list. A
@@ -22,6 +23,7 @@
   import { tick } from 'svelte';
 
   import Button from './Button.svelte';
+  import HelpTip from './HelpTip.svelte';
   import Icon from './Icon.svelte';
   import Popover from './Popover.svelte';
   import Reason from './_Reason.svelte';
@@ -29,6 +31,7 @@
   import Ticks from './_Ticks.svelte';
   import type { ControlSize, Disableable } from './control.ts';
   import { rovingIndex, typeAheadIndex } from './focus.ts';
+  import { scrollEdges } from './scrollEdges.ts';
   import {
     closedOf,
     cutChips,
@@ -61,6 +64,8 @@
     /** `auto` draws up to five options as ticks and more as a field. */
     presentation?: Presentation;
     hint?: string;
+    /** More about it on demand, behind an ⓘ beside the label (`HelpTip`): the why, never what to choose. */
+    more?: string;
     /** What is wrong now - nothing chosen where at least one is needed. Names the fix. */
     error?: string;
     isRequired?: boolean;
@@ -101,6 +106,7 @@
     onChange,
     presentation = 'auto',
     hint,
+    more,
     error,
     isRequired = false,
     requiredLabel,
@@ -189,6 +195,8 @@
   let active = $state(0);
   let button = $state<HTMLButtonElement | null>(null);
   let list = $state<HTMLElement | null>(null);
+  /** Each option's row by its value: what a locked option's reason bubble hangs from. */
+  const rows = $state<Record<string, HTMLElement | null>>({});
 
   const shown = $derived(filterSections(sections, term, locale));
   const flat = $derived(shown.flatMap((section) => section.options));
@@ -340,7 +348,15 @@
 
 {#snippet name()}
   {#if isRequiredSaid}<span class="said" id={requiredId}>{requiredLabel}</span>{/if}
-  {#if labelledBy === undefined}
+  {#if labelledBy === undefined && more && !isLabelHidden}
+    <!-- The ⓘ beside the label, not in it: inside, its name would join the field's. -->
+    <span class="label-line">
+      <span class="label" id={nameId}>
+        {label}{#if isRequired}<span class="required" aria-hidden="true">*</span>{#if requiredLabel}<span class="said">{` ${requiredLabel}`}</span>{/if}{/if}
+      </span>
+      <HelpTip subject={label} text={more} />
+    </span>
+  {:else if labelledBy === undefined}
     <span class="label" class:is-hidden={isLabelHidden} id={nameId}>
       {label}{#if isRequired}<span class="required" aria-hidden="true">*</span>{#if requiredLabel}<span class="said">{` ${requiredLabel}`}</span>{/if}{/if}
     </span>
@@ -379,6 +395,7 @@
       press(option);
     }}
     onkeydown={onListKeydown}
+    bind:this={rows[option.value]}
   >
     <span class="box" aria-hidden="true">{#if isOn}<Icon name="check" size="sm" />{/if}</span>
     <span class="text">
@@ -386,9 +403,11 @@
         <span id={`${optionId}-label`}>{option.label}</span>
         {#if isOn && isStuck}<span class="lock" aria-hidden="true"><Icon name="lock" size="sm" /></span>{/if}
       </span>
-      {#if option.disabledReason !== undefined}<span class="line reason" id={`${optionId}-reason`}>{option.disabledReason}</span>{/if}
       {#if option.hint}<span class="line" id={`${optionId}-hint`}>{option.hint}</span>{/if}
     </span>
+    {#if option.disabledReason !== undefined}
+      <span class="reason-mark" data-reason-mark="" aria-hidden="true"><Icon name="info" size="sm" /></span>
+    {/if}
   </div>
 {/snippet}
 
@@ -493,7 +512,9 @@
             {/if}
           </div>
         {/if}
-        <div class="body">
+        <!-- The frame the options scroll in, and where their shades are drawn. -->
+        <div class="frame">
+        <div class="body" {@attach scrollEdges}>
           {#if isFilterable}
             <!-- Stands while the list is open, so that the sentence is heard when a filter empties it. -->
             <div role="status">{#if flat.length === 0}<p class="empty">{noMatchLabel}</p>{/if}</div>
@@ -522,6 +543,20 @@
             </div>
           {/if}
         </div>
+        </div>
+        <!-- The reasons are bubbles at their options, drawn beside the list rather than in it: inside
+             an option a bubble's words would join its name, and the children of a listbox are its
+             options. Inside the panel, so a press on one is not a press outside it. -->
+        {#each flat as option (option.value)}
+          {#if option.disabledReason !== undefined}
+            <Reason
+              id={`${uid}-option-${all.indexOf(option)}-reason`}
+              text={option.disabledReason}
+              control={rows[option.value] ?? null}
+              placement={{ side: 'inline-end', align: 'start' }}
+            />
+          {/if}
+        {/each}
         {#if isFilterable && !isReadOnly}
           <div class="foot">
             {#if flat.length > 0}
@@ -675,15 +710,24 @@
   }
 
   /* The status and the list, with no gap for a status that says nothing: the one region that
-     scrolls. Room for a focus ring on every side, which its overflow would clip; sideways without
-     moving the rows out of line with the head and the foot. */
-  .body {
+     scrolls, in a frame that carries its shades. Room for a focus ring on every side, which its
+     overflow would clip; sideways without moving the rows out of line with the head and the foot. */
+  .frame {
+    position: relative;
     display: flex;
     flex: 0 1 auto;
     flex-direction: column;
     min-inline-size: 0;
     min-block-size: 0;
     margin-inline: calc((var(--sp-025) + var(--bw-ring)) * -1);
+  }
+
+  .body {
+    display: flex;
+    flex: 0 1 auto;
+    flex-direction: column;
+    min-inline-size: 0;
+    min-block-size: 0;
     padding: calc(var(--sp-025) + var(--bw-ring));
     overflow-y: auto;
   }
@@ -752,7 +796,12 @@
   .name { display: inline-flex; align-items: center; gap: var(--sp-050); overflow-wrap: anywhere; }
   .lock { display: inline-flex; color: var(--text-subtle); }
   .line { color: var(--text-subtle); font-size: var(--fs-075); }
-  .line.reason { color: var(--text-secondary); }
+
+  /* A locked option keeps its line: the ⓘ at its end says there is a reason, and the reason is the
+     bubble's. */
+  .reason-mark { display: inline-flex; flex: none; margin-inline-start: auto; color: var(--text-subtle); }
+
+  .label-line { display: flex; align-items: center; gap: var(--sp-050); min-width: 0; }
 
   .empty { margin: 0; padding: var(--sp-150); color: var(--text-subtle); font-size: var(--fs-075); }
 

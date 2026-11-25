@@ -55,6 +55,7 @@
   import { escapeHandler, focusReturn, keptFocus, safeAnswer } from './focus.ts';
   import { layers } from './layers.ts';
   import { closeName } from './media.ts';
+  import { scrollEdges } from './scrollEdges.ts';
 
   /** The primary of a sized dialog: drawn last in the foot, and in the bar when it is full screen. */
   export interface DialogAction {
@@ -272,7 +273,9 @@
     if (dismissLabel !== undefined && !isAlert && event.target === node) dismiss();
   }}
 >
-  <div class="panel">
+  <!-- An unsized dialog scrolls whole, in the panel; a sized one only its body, in its frame. The
+       dialog and the frame do not scroll and carry the shades (scrollEdges.css). -->
+  <div class="panel" {@attach scrollEdges}>
     <header class="head" bind:this={head} data-dismissible={dismissLabel !== undefined ? '' : undefined}>
       <!-- Focusable by script alone: where the content changes and no answer is drawn, the focus
            rests on the dialog's own heading rather than falling out to the page. -->
@@ -293,7 +296,7 @@
         {/if}
       {/if}
     </header>
-    <div class="body" id={bodyId} bind:this={body}>{@render children()}</div>
+    <div class="frame"><div class="body" id={bodyId} bind:this={body} {@attach scrollEdges}>{@render children()}</div></div>
     {#if actions || primary}
       <footer class="actions" bind:this={foot}>
         {@render actions?.()}
@@ -320,7 +323,7 @@
     /* Rule 4: it grows with its content and with the text inside it, and never past the viewport. */
     width: min(60ch, 100% - var(--sp-400));
     max-height: 85vh;
-    overflow: auto;
+    overflow: hidden;
     /* Rule 1: raised off the page it covers. */
     box-shadow: var(--shadow-overlay);
     animation: open var(--motion-entrance-duration) var(--motion-entrance-easing) both;
@@ -344,7 +347,7 @@
   .dialog[data-size='m'] { --dialog-size: var(--layout-dialog-m); }
   .dialog[data-size='l'] { --dialog-size: var(--layout-dialog-l); }
 
-  .dialog[data-size][open] { display: flex; flex-direction: column; }
+  .dialog[open] { display: flex; flex-direction: column; }
 
   .dialog[data-size] .panel {
     flex: 1 1 auto;
@@ -357,6 +360,14 @@
   /* One title size on every rung of the ladder (the unsized one's): a dialog is told apart by its
      width, never by a heading that grows with it. */
   .dialog[data-size] .title { flex: 1; }
+  .dialog[data-size] .frame { flex: 1 1 auto; }
+
+  /* Where the body is the last of the column, its frame takes the dialog's lower corners. */
+  .dialog[data-size] .frame:last-child {
+    border-end-start-radius: calc(var(--r-xl) - var(--bw-hairline));
+    border-end-end-radius: calc(var(--r-xl) - var(--bw-hairline));
+  }
+
   .dialog[data-size] .body {
     flex: 1 1 auto;
     min-block-size: 0;
@@ -395,6 +406,9 @@
       border-radius: 0;
     }
 
+    .dialog[data-size='m'] .frame,
+    .dialog[data-size='l'] .frame { border-radius: 0; }
+
     .dialog[data-size='m'] .head,
     .dialog[data-size='l'] .head {
       padding: var(--sp-100) var(--sp-150);
@@ -424,12 +438,19 @@
   }
 
   .panel {
+    flex: 1 1 auto;
+    min-block-size: 0;
+    overflow: auto;
     display: flex;
     flex-direction: column;
     gap: var(--sp-200);
     padding: var(--sp-300);
     text-align: start;
   }
+
+  /* Unsized, the panel scrolls and the frame keeps its body's height: shrunk, the body would spill
+     over the foot. A sized dialog lets it shrink, and its body scrolls instead. */
+  .frame { position: relative; display: flex; flex-direction: column; flex-shrink: 0; min-block-size: 0; }
 
   .head {
     display: flex;

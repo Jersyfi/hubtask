@@ -18,6 +18,7 @@
   import LabelChip from './LabelChip.svelte';
   import SearchField from './SearchField.svelte';
   import { rovingIndex } from './focus.ts';
+  import { scrollEdges } from './scrollEdges.ts';
 
   /** One label, as the picker needs it. The shape `Label` has, narrowed to what is drawn. */
   export interface PickerLabel {
@@ -97,7 +98,9 @@
   {:else if shown.length === 0}
     <p class="empty">{noMatchLabel}</p>
   {:else}
-    <ul class="list" role="listbox" aria-label={label} aria-multiselectable="true" bind:this={list} onkeydown={onKeydown}>
+    <!-- The frame the options scroll in, and where their shades are drawn. -->
+    <div class="frame">
+    <ul class="list" role="listbox" aria-label={label} aria-multiselectable="true" bind:this={list} {@attach scrollEdges} onkeydown={onKeydown}>
       {#each shown as entry, index (entry.id)}
         <li>
           <button
@@ -121,11 +124,14 @@
         </li>
       {/each}
     </ul>
+    </div>
   {/if}
 </div>
 
 <style>
   .picker { display: flex; flex-direction: column; gap: var(--sp-100); min-width: 0; }
+
+  .frame { position: relative; }
 
   .list {
     display: flex;
@@ -163,11 +169,10 @@
 
   .tick { display: inline-flex; flex: none; inline-size: var(--sp-200); justify-content: center; }
 
+  /* Whole and wrapped, never cut: the description is what makes a colour mean something. */
   .description {
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
     color: var(--text-subtle);
     font-size: var(--fs-075);
   }

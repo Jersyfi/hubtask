@@ -6,17 +6,22 @@
   // `SettingsSection`, whose region would put the table's region inside a second one (PS-16).
   import type { Snippet } from 'svelte';
 
+  import { HelpTip } from '@hubtask/design-system/components';
+
   interface Props {
     title: string;
     /** A count or a state after the name. */
     note?: string;
+    /** What the section is, in one sentence. */
     description?: string;
+    /** The rest, behind an ⓘ beside the heading (design-system.md §4, "Help text"): the why, not what it is. */
+    more?: string;
     /** The section's own acts at the heading's end: its *Add*. */
     acts?: Snippet;
     children: Snippet;
   }
 
-  const { title, note, description, acts, children }: Props = $props();
+  const { title, note, description, more, acts, children }: Props = $props();
   const id = $props.id();
 </script>
 
@@ -24,6 +29,7 @@
   <div class="head">
     <div class="line">
       <h2 class="name" id={`table-section-${id}`}>{title}</h2>
+      {#if more}<span class="more"><HelpTip subject={title} text={more} /></span>{/if}
       {#if note}<span class="note">{note}</span>{/if}
       {#if acts}<span class="acts">{@render acts()}</span>{/if}
     </div>
@@ -43,6 +49,7 @@
     line-height: var(--lh-tight);
     overflow-wrap: anywhere;
   }
+  .more { display: inline-flex; align-self: center; }
   .note { color: var(--text-subtle); font-size: var(--fs-100); }
   .acts { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); margin-inline-start: auto; }
   .description { margin: 0; color: var(--text-secondary); font-size: var(--fs-100); max-inline-size: 72ch; }

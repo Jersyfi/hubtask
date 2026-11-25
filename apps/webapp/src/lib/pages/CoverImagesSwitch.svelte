@@ -31,7 +31,7 @@
 
 {#if administers && held}
   <div data-cover-images>
-    <SettingRow label={t('app.admin.cover_images')} help={t('app.admin.cover_images_hint')} fieldWidth="sm">
+    <SettingRow label={t('app.admin.cover_images')} help={t('app.admin.cover_images_hint')} more={t('app.admin.cover_images_hint_more')} fieldWidth="sm">
       {#snippet control(nameId)}
         <Select
           label={t('app.admin.cover_images')}

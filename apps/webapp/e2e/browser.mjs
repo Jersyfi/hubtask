@@ -12,19 +12,25 @@ import { chromium } from 'playwright';
 
 import './record.mjs';
 
-let launched;
+/** The suite's browsers, launched on first use: one as Playwright starts it, one with scrollbars. */
+const launched = new Map();
 
 test.after(async () => {
-  if (launched) await (await launched).close();
+  await Promise.all([...launched.values()].map(async (browser) => (await browser).close()));
 });
 
 /**
  * The suite's Chromium for walk `t`. The contexts the walk opens through it are closed when the
  * walk ends - its own only, so walks that run side by side keep theirs.
+ *
+ * `hasScrollbars` draws the classic scrollbars a mouse's system draws (Windows; macOS set to show
+ * them always), which Playwright hides by default: a classic bar takes room from the page, and a
+ * walk that never has it never sees what that room does to an overlay at the window's edge.
  */
-export async function sharedChromium(t) {
-  launched ??= chromium.launch();
-  const browser = await launched;
+export async function sharedChromium(t, { hasScrollbars = false } = {}) {
+  const key = hasScrollbars ? 'scrollbars' : 'default';
+  if (!launched.has(key)) launched.set(key, chromium.launch(hasScrollbars ? { ignoreDefaultArgs: ['--hide-scrollbars'] } : {}));
+  const browser = await launched.get(key);
   const opened = new Set();
   t.after(() => Promise.all([...opened].map((context) => context.close().catch(() => undefined))));
   return new Proxy(browser, {

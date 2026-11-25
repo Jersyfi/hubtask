@@ -12,13 +12,16 @@
   import type { Snippet } from 'svelte';
 
   import Button from './Button.svelte';
+  import HelpTip from './HelpTip.svelte';
   import Icon from './Icon.svelte';
 
   interface Props {
     /** The setting's name. */
     label: string;
-    /** One line of help. */
+    /** One line of help: what the setting does, always shown. */
     help?: string;
+    /** More about it on demand, behind an ⓘ beside the name (`HelpTip`): the why, not the how. Never what the setting does, which is `help`. */
+    more?: string;
     /** A quiet uppercase label above this row: the first row of a group carries its group's name. */
     groupLabel?: string;
     /** Whether the value is required where the row belongs to a form on a page. */
@@ -39,7 +42,7 @@
     isChanged?: boolean;
   }
 
-  const { label, help, groupLabel, isRequired = false, source, control, fieldWidth = 'md', unit, reset, lockReason, isChanged = false }: Props = $props();
+  const { label, help, more, groupLabel, isRequired = false, source, control, fieldWidth = 'md', unit, reset, lockReason, isChanged = false }: Props = $props();
 
   const uid = $props.id();
   const nameId = `setting-${uid}`;
@@ -52,6 +55,7 @@
       <div class="name">
         <span id={nameId}>{label}</span>
         {#if isRequired}<span class="required" aria-hidden="true">*</span>{/if}
+        {#if more}<HelpTip subject={label} text={more} />{/if}
         {#if source}{@render source()}{/if}
       </div>
       {#if help}<div class="help">{help}</div>{/if}

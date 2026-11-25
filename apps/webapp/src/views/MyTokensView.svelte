@@ -95,11 +95,14 @@
 </script>
 
 <ListPage
-  head={profileHead('tokens', {
-    primary: { label: t('app.tokens.new'), icon: 'plus', opener: 'new-token', onclick: () => onnavigate?.('/profile/tokens/new') },
-  })}
+  head={{
+    ...profileHead('tokens', {
+      primary: { label: t('app.tokens.new'), icon: 'plus', opener: 'new-token', onclick: () => onnavigate?.('/profile/tokens/new') },
+    }),
+    more: t('app.tokens.intro_more'),
+  }}
 >
-  {#snippet intro()}<p class="quiet">{t('app.tokens.intro')}</p>{/snippet}
+  {#snippet intro(tip)}<p class="quiet">{t('app.tokens.intro')} {@render tip?.()}</p>{/snippet}
   {#snippet filters()}
     <FilterBar
       searchLabel={t('app.tokens.search')}

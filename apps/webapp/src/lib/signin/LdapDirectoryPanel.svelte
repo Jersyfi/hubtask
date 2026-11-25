@@ -278,7 +278,7 @@
               error={failure?.fields.get('/bind_password')}
             />
             <Input label={t('app.ldap.user_base_label')} bind:value={draft.userBase} autocomplete="off" spellcheck={false} isRequired error={failure?.fields.get('/user_base')} />
-            <Input label={t('app.ldap.user_filter_label')} hint={t('app.ldap.user_filter_hint')} bind:value={draft.userFilter} autocomplete="off" spellcheck={false} error={failure?.fields.get('/user_filter')} />
+            <Input label={t('app.ldap.user_filter_label')} hint={t('app.ldap.user_filter_hint')} more={t('app.ldap.user_filter_hint_more')} bind:value={draft.userFilter} autocomplete="off" spellcheck={false} error={failure?.fields.get('/user_filter')} />
             <Input label={t('app.ldap.group_base_label')} hint={t('app.ldap.group_base_hint')} bind:value={draft.groupBase} autocomplete="off" spellcheck={false} error={failure?.fields.get('/group_base')} />
             <Input label={t('app.ldap.group_filter_label')} bind:value={draft.groupFilter} autocomplete="off" spellcheck={false} error={failure?.fields.get('/group_filter')} />
             <Input label={t('app.ldap.id_attribute_label')} hint={t('app.ldap.id_attribute_hint')} bind:value={draft.idAttribute} autocomplete="off" spellcheck={false} error={failure?.fields.get('/id_attribute')} />

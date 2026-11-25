@@ -130,6 +130,7 @@
   let isFileOpen = $state(false);
   const fileAction = $derived(viewAsFileAction(() => (isFileOpen = true)));
   const head = $derived({
+    more: t('app.link_types.intro_more'),
     title: t('app.link_types.title'),
     breadcrumb: adminTrail({ id: 'link-types', label: t('app.link_types.title') }),
     primary: mayShape && !readRefusal ? { label: t('app.link_types.new'), icon: 'plus' as const, opener: 'new-link-type', onclick: () => (editing = 'new') } : undefined,
@@ -138,7 +139,7 @@
 </script>
 
 <ListPage {head}>
-  {#snippet intro()}<p class="quiet">{t('app.link_types.intro')}</p>{/snippet}
+  {#snippet intro(tip)}<p class="quiet">{t('app.link_types.intro')} {@render tip?.()}</p>{/snippet}
   {#snippet filters()}
     <FilterBar
       searchLabel={t('app.link_types.search')}

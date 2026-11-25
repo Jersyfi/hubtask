@@ -122,10 +122,10 @@
 
 <InstanceGate onleave={() => onnavigate('/')}>
   {#snippet children(door)}
-    <ListPage head={{ title: t('app.instance.plans'), breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.plans') }), primary: headPrimary }} refused={door ?? (unreadable ? failed : undefined)}>
-      {#snippet intro()}
+    <ListPage head={{ title: t('app.instance.plans'), more: manifest.isMultiTenant ? t('app.instance.plans_intro_more') : undefined, breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.plans') }), primary: headPrimary }} refused={door ?? (unreadable ? failed : undefined)}>
+      {#snippet intro(tip)}
         <Stack gap="100">
-          <p class="quiet">{t(manifest.isMultiTenant ? 'app.instance.plans_intro' : 'app.instance.plans_single')}</p>
+          <p class="quiet">{t(manifest.isMultiTenant ? 'app.instance.plans_intro' : 'app.instance.plans_single')} {@render tip?.()}</p>
           {#if enforced}<Banner tone="info" title={t('app.instance.source_file_enforced')}>{settings?.source ?? ''}</Banner>{/if}
           {#if manifest.isMultiTenant && instance.workspacesState.status === 'ready'}
             <p class="quiet" data-testid="without-plan">{t('app.instance.plans_without', { count: withoutPlan })}</p>

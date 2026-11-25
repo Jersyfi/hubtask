@@ -40,8 +40,14 @@ async function journalOf(browser, tenancy) {
   });
   const page = await context.newPage();
   await page.goto(`${served.origin}/instance/journal`);
-  await page.getByText(/never anybody.s content/).waitFor({ timeout: 15_000 });
-  const text = (await page.locator('main').textContent()) ?? '';
+  await page.getByText(/^What (this installation recorded|was recorded here)/).waitFor({ timeout: 15_000 });
+  // What the journal never holds stands behind the ⓘ beside the title (design-system.md §4, "Help text").
+  const tip = page.getByRole('main').getByRole('button', { name: /^More about / }).filter({ visible: true });
+  await tip.click();
+  const more = page.getByText(/never anybody.s content/).filter({ visible: true });
+  await more.waitFor({ timeout: 5_000 });
+  const text = `${(await page.locator('main').textContent()) ?? ''} ${await more.textContent()}`;
+  await page.keyboard.press('Escape');
   await context.close();
   return text;
 }

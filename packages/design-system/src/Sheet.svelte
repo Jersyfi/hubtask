@@ -16,11 +16,13 @@
 
   import Icon from './Icon.svelte';
   import IconButton from './IconButton.svelte';
+  import Reason from './_Reason.svelte';
   import type { IconName } from './icons/index.ts';
   import { escapeHandler, focusReturn } from './focus.ts';
   import { layers, type DismissibleLayer } from './layers.ts';
   import { closeName } from './media.ts';
   import type { MenuItem } from './overlay.ts';
+  import { scrollEdges } from './scrollEdges.ts';
 
   interface Props {
     /** The heading and the dialog's name: "Views", "Create under Team". */
@@ -62,6 +64,8 @@
   const instanceId = $props.id();
   const titleId = `sheet-${instanceId}`;
   let node = $state<HTMLDialogElement | null>(null);
+  /** Each action row by its item's id: what a locked row's reason bubble hangs from. */
+  const rows = $state<Record<string, HTMLElement | null>>({});
   let opener: Element | null = null;
 
   /** Where a pull began and how far it has gone; a quarter of the sheet decides. */
@@ -178,12 +182,16 @@
       <!-- A thumb's target (§9: 44 px): the regular size, not the small one. -->
       <IconButton icon="x" label={closeName() ?? closeLabel} tone="subtle" onclick={() => close()} />
     </header>
-    <div class="body">
+    <!-- The frames the body and a list of actions scroll in, and where their shades are drawn. -->
+    <div class="frame">
+    <div class="body" {@attach scrollEdges}>
       {#if items}
         <!-- A list of actions is the menu it stands for on a phone: its rows are menu items, the
              arrows move between them as in the anchored menu (WAI-ARIA menu pattern). -->
-        <ul class="items" role="menu" aria-labelledby={titleId} onkeydown={moveAmongItems}>
+        <div class="frame items-frame">
+        <ul class="items" role="menu" aria-labelledby={titleId} onkeydown={moveAmongItems} {@attach scrollEdges}>
           {#each items as item (item.id)}
+            {@const locked = item.disabledReason !== undefined}
             <li role="none">
               <button
                 type="button"
@@ -191,24 +199,40 @@
                 class="item"
                 data-destructive={item.isDestructive ? '' : undefined}
                 data-separated={item.hasSeparatorBefore ? '' : undefined}
-                aria-disabled={item.disabledReason !== undefined ? 'true' : undefined}
-                aria-describedby={item.disabledReason !== undefined ? `${titleId}-${item.id}` : undefined}
+                aria-disabled={locked ? 'true' : undefined}
+                aria-describedby={[locked ? `${titleId}-${item.id}` : undefined, item.description ? `${titleId}-${item.id}-description` : undefined].filter(Boolean).join(' ') || undefined}
                 onclick={() => choose(item)}
+                bind:this={rows[item.id]}
               >
                 {#if item.icon}<Icon name={item.icon} size="sm" />{/if}
                 <span class="item-text">
-                  <span>{item.label}</span>
-                  {#if item.description}<span class="reason">{item.description}</span>{/if}
-                  {#if item.disabledReason !== undefined}
-                    <span class="reason" id={`${titleId}-${item.id}`}>{item.disabledReason}</span>
-                  {/if}
+                  <span class="label">{item.label}</span>
+                  {#if item.description}<span class="description" id={`${titleId}-${item.id}-description`}>{item.description}</span>{/if}
                 </span>
+                {#if locked}<span class="mark" data-reason-mark="" aria-hidden="true"><Icon name="info" size="sm" /></span>{/if}
               </button>
             </li>
           {/each}
         </ul>
+        <!-- A locked row's reason is a bubble above it on a tap or on focus (design-system.md §4,
+             case 2), across the screen with its tip on the row's ⓘ, as in the anchored menu: beside
+             the list, so its words never join the row's name, and inside the sheet, so a tap on it
+             does not reach the scrim. -->
+        {#each items as item (item.id)}
+          {#if item.disabledReason !== undefined}
+            <Reason
+              id={`${titleId}-${item.id}`}
+              text={item.disabledReason}
+              control={rows[item.id] ?? null}
+              aim={rows[item.id]?.querySelector<HTMLElement>('[data-reason-mark]') ?? null}
+              isFullWidth
+            />
+          {/if}
+        {/each}
+        </div>
       {/if}
       {@render children?.()}
+    </div>
     </div>
     {#if actions}<footer class="actions">{@render actions()}</footer>{/if}
   </div>
@@ -244,10 +268,22 @@
      stands among its children and pushed it to the top. */
   .sheet[open] { display: flex; flex-direction: column; margin: auto 0 0; }
   .panel { flex: 1 1 auto; min-block-size: 0; box-sizing: border-box; }
+  .frame { position: relative; display: flex; flex-direction: column; min-block-size: 0; }
+  .panel > .frame { flex: 1 1 auto; }
   .body { flex: 1 1 auto; min-block-size: 0; overflow: auto; }
   /* A list of actions is the scroller itself, so the menu stands inside the screen, not only its body. */
-  .body:has(> .items) { display: flex; flex-direction: column; }
-  .body > .items { flex: 0 1 auto; min-block-size: 0; overflow: auto; }
+  .body:has(> .items-frame) { display: flex; flex-direction: column; }
+  .items-frame { flex: 0 1 auto; }
+  .items { flex: 0 1 auto; min-block-size: 0; overflow: auto; }
+  /* The frames reach the sheet's sides, and its foot where nothing stands below, and the panel's
+     padding moves inside the scroller: a shade runs edge to edge instead of stopping hard at the
+     padding line. */
+  .panel > .frame { margin-inline: calc(-1 * var(--sp-150)); }
+  .panel > .frame > .body { padding-inline: var(--sp-150); }
+  .panel > .frame:last-child { margin-block-end: calc(-1 * (var(--sp-250) + env(safe-area-inset-bottom, 0))); }
+  .panel > .frame:last-child > .body { padding-block-end: calc(var(--sp-250) + env(safe-area-inset-bottom, 0)); }
+  .body > .items-frame { margin-inline: calc(-1 * var(--sp-150)); }
+  .items-frame > .items { padding-inline: var(--sp-150); }
 
   .sheet::backdrop { background: var(--bg-scrim); }
 
@@ -350,8 +386,11 @@
   .item[data-separated] { border-block-start-color: var(--border-default); }
   .item[data-destructive] { color: var(--text-danger); }
   .item[aria-disabled='true'] { color: var(--text-subtle); cursor: not-allowed; }
-  .item-text { display: flex; flex-direction: column; gap: var(--sp-025); }
-  .reason { font-size: var(--fs-075); color: var(--text-secondary); }
+  .item-text { display: flex; flex: 1 1 auto; flex-direction: column; gap: var(--sp-025); min-inline-size: 0; overflow-wrap: anywhere; }
+  /* Whole and wrapped, never cut. */
+  .description { font-size: var(--fs-075); color: var(--text-secondary); }
+  /* The ⓘ at the row's end: there is a reason, and a tap says it. */
+  .mark { display: inline-flex; flex: none; color: var(--text-subtle); }
 
   .actions { display: flex; gap: var(--sp-150); margin-block-start: var(--sp-150); }
   .actions :global(> :last-child) { flex: 1; }

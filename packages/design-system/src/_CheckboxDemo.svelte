@@ -6,7 +6,7 @@
   import Stack from './Stack.svelte';
 
   interface Props {
-    mode?: 'states' | 'unavailable' | 'row' | 'table' | 'busy' | 'invalid';
+    mode?: 'states' | 'unavailable' | 'row' | 'table' | 'busy' | 'invalid' | 'more';
     isLong?: boolean;
   }
 
@@ -53,6 +53,13 @@
       bind:checked={off}
       label="I have stored these codes somewhere safe"
       error={off ? undefined : 'Tick this once the codes are stored. They are not shown again.'}
+    />
+  {:else if mode === 'more'}
+    <Checkbox
+      bind:checked={off}
+      label="Compare with the anchor"
+      hint="Fetches the last anchor from the backup target and compares it with the chain here."
+      more="A read of another machine, so it is asked for rather than always done."
     />
   {:else}
     <Checkbox bind:checked={on} label={label} />
