@@ -216,6 +216,12 @@ async function pastGrace(page) {
   await page.waitForTimeout(ms + 150);
 }
 
+/** Whether the bubble shows once the pointer has rested (`--dur-intent`): a wait that ends when it does. */
+async function comesUp(page, bubble) {
+  return page.waitForFunction((node) => !node.hidden && node.checkVisibility(), await bubble.elementHandle(), { timeout: 2_000 })
+    .then(() => true, () => false);
+}
+
 /** Whether the bubble is put away within a second past the grace: a wait that ends when it is. */
 async function goesAway(page, bubble) {
   return page.waitForFunction((node) => node.hidden || !node.checkVisibility(), await bubble.elementHandle(), { timeout: 2_000 })
@@ -253,9 +259,10 @@ async function checkReason(page, what, engine, { isRoving = false, isGroup = fal
   assert.equal(await isShowing(bubble), false, `${what}: the bubble shows before anything happened`);
   const at = await centre(target);
 
-  // Hover: the bubble shows, and stays while the pointer crosses onto it (SC 1.4.13, hoverable).
+  // Hover: the bubble shows once the pointer rests, and stays while the pointer crosses onto it
+  // (SC 1.4.13, hoverable).
   await page.mouse.move(at.x, at.y);
-  assert.equal(await isShowing(bubble), true, `${what}: hover shows no reason`);
+  assert.equal(await comesUp(page, bubble), true, `${what}: hover shows no reason`);
   assertSame(before, await boxes(page), `${what}, hovered`);
   const onto = await centre(bubble);
   // One move, straight onto it: stepped moves on a loaded machine can spend the whole grace in
