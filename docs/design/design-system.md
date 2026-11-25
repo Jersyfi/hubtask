@@ -924,7 +924,9 @@ at 45 % — and `border.default` itself while its surface is hovered, holds focu
 (`data-scrolling`, for `dur-intent` after the last scroll). The page is hovered and holds the focus
 nearly always, so its thumb turns full only while it scrolls. Under the pointer the thumb widens and
 takes `border.strong`. The page and every overlay's scroll box keep the bar's room before they scroll
-(`scrollbar-gutter: var(--scrollbar-gutter)`), so nothing shifts once they do. The page scrolls
+(`scrollbar-gutter: var(--scrollbar-gutter)`), so nothing shifts once they do. Only the box that
+scrolls keeps it: a sized dialog, a sheet and a drawer from the bottom keep it on their body, not
+on their panel as well. The page scrolls
 always: measured in this app, Chromium kept no gutter for the root before the page scrolled,
 though a bare page keeps it; the cause is not found. A surface that hides its bar — a
 strip of tabs, `scrollbar-width: none` — still does. Chromium and WebKit draw the pseudo-elements;

@@ -349,9 +349,11 @@
 
   .dialog[open] { display: flex; flex-direction: column; }
 
+  /* Only the body scrolls here: a gutter on the panel would be a second one. */
   .dialog[data-size] .panel {
     flex: 1 1 auto;
     min-block-size: 0;
+    scrollbar-gutter: auto;
     gap: 0;
     padding: 0;
   }
