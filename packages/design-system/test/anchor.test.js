@@ -116,8 +116,40 @@ const edges = (left, top, width, height) => ({ left, top, right: left + width, b
 test('the sides a tip tries follow the placement and the writing direction', () => {
   assert.deepEqual(tipSides({ side: 'inline-end', align: 'start' }, 'ltr'), ['right', 'left', 'bottom', 'top']);
   assert.deepEqual(tipSides({ side: 'inline-end', align: 'start' }, 'rtl'), ['left', 'right', 'bottom', 'top']);
-  assert.deepEqual(tipSides({ side: 'block-start', align: 'start' }, 'ltr'), ['top', 'bottom']);
-  assert.deepEqual(tipSides({ side: 'block-end', align: 'start' }, 'rtl'), ['bottom', 'top']);
+  assert.deepEqual(tipSides({ side: 'block-start', align: 'start' }, 'ltr'), ['top', 'bottom', 'right', 'left']);
+  assert.deepEqual(tipSides({ side: 'block-start', align: 'start' }, 'rtl'), ['top', 'bottom', 'left', 'right']);
+  assert.deepEqual(tipSides({ side: 'block-end', align: 'start' }, 'ltr'), ['bottom', 'top', 'right', 'left']);
+  assert.deepEqual(tipSides({ side: 'block-end', align: 'start' }, 'rtl'), ['bottom', 'top', 'left', 'right']);
+});
+
+test('a field\'s reason with no room above or below stands at the line\'s end, then its start', () => {
+  // A window as short as the field and its bubble together: neither above nor below holds it.
+  const field = edges(300, 40, 200, 36);
+  const sides = ['top', 'bottom', 'right', 'left'];
+  const atEnd = placeWithTip({ ...BUBBLE, anchor: field, aim: field, width: 200, height: 40, viewport: { width: 1280, height: 110 }, sides });
+  assert.equal(atEnd.side, 'right');
+  assert.equal(atEnd.left, 500 + 10);
+  assert.equal(atEnd.top, 40, 'beside it, lined up with its top');
+  const wide = edges(900, 40, 200, 36);
+  assert.equal(placeWithTip({ ...BUBBLE, anchor: wide, aim: wide, width: 200, height: 40, viewport: { width: 1280, height: 110 }, sides }).side, 'left', 'no room at the end either: the start');
+});
+
+test('a help tip with no room below or above stands at the line\'s end', () => {
+  const mark = edges(100, 40, 24, 24);
+  const placed = placeWithTip({ ...HELP, anchor: mark, aim: mark, width: 300, height: 80, viewport: { width: 1280, height: 110 }, sides: ['bottom', 'top', 'right', 'left'] });
+  assert.equal(placed.side, 'right');
+  assert.equal(placed.left, 124 + 11);
+});
+
+test('a surface lines up with the middle or the end of its anchor where its placement asks', () => {
+  const button = edges(600, 300, 40, 40);
+  const base = { ...BUBBLE, anchor: button, aim: button, width: 120, height: 30, viewport: { width: 1280, height: 800 }, sides: ['top', 'bottom'] };
+  assert.equal(placeWithTip({ ...base, align: 'center' }).left, 620 - 60);
+  assert.equal(placeWithTip({ ...base, align: 'end' }).left, 640 - 120);
+  assert.equal(placeWithTip({ ...base, align: 'end', dir: 'rtl' }).left, 600, 'right to left, the end is the left edge');
+  assert.equal(placeWithTip({ ...base, align: 'center' }).at, 60, 'the tip at its middle');
+  const beside = placeWithTip({ ...base, sides: ['right'], align: 'center' });
+  assert.equal(beside.top, 320 - 15);
 });
 
 test('a reason beside a menu at the right edge turns left, clear of the menu, its tip on the row', () => {

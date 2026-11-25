@@ -147,7 +147,7 @@ export type PhysicalSide = 'top' | 'bottom' | 'left' | 'right';
 /**
  * The sides a surface with a tip tries, in order (design-system.md §4, "Where a bubble stands").
  * Beside the anchor (a reason in a menu): that side, the other, below, above. Above or below (a
- * field's reason, a tooltip, a help tip): that side, then the other.
+ * field's reason, a tooltip, a help tip): that side, the other, then the line's end and its start.
  */
 export function tipSides({ side }: Placement, dir: 'ltr' | 'rtl'): PhysicalSide[] {
   const start: PhysicalSide = dir === 'rtl' ? 'right' : 'left';
@@ -155,8 +155,8 @@ export function tipSides({ side }: Placement, dir: 'ltr' | 'rtl'): PhysicalSide[
   switch (side) {
     case 'inline-end': return [end, start, 'bottom', 'top'];
     case 'inline-start': return [start, end, 'bottom', 'top'];
-    case 'block-end': return ['bottom', 'top'];
-    default: return ['top', 'bottom'];
+    case 'block-end': return ['bottom', 'top', end, start];
+    default: return ['top', 'bottom', end, start];
   }
 }
 
@@ -179,8 +179,13 @@ export interface TipInput {
   readonly height: number;
   readonly viewport: { readonly width: number; readonly height: number };
   readonly sides: readonly PhysicalSide[];
-  /** Above or below: where along the anchor's inline axis the surface starts. */
+  /** Which way the anchor's line runs: where its start and its end are. */
   readonly dir: 'ltr' | 'rtl';
+  /**
+   * How the surface lines up with the anchor across its side: at the anchor's start (above or
+   * below, its inline start; beside it, its top), its middle or its end. Start where omitted.
+   */
+  readonly align?: Alignment;
   /** From the anchor to the surface's edge: the tip and the air before its point. */
   readonly gap: number;
   /** From the viewport's edge to the surface's, as far as the surface can. */
@@ -211,9 +216,10 @@ const clamp = (value: number, low: number, high: number) => Math.max(low, Math.m
  * Where a surface with a tip stands: pure, so its rules are tested without a browser.
  *
  * The first side in `sides` that holds the surface at its own size; where none does, the one with
- * the most room. Across that side it starts where the anchor starts - above or below, at the
- * anchor's inline start; beside it, at its top, or at its bottom where the top runs past the foot -
- * and is shifted into the viewport, `edge` from its border. The tip then points at the aim and
+ * the most room. Across that side it lines up with the anchor as the placement's `align` says - by
+ * default where the anchor starts: above or below, at its inline start; beside it, at its top, or
+ * at its bottom where the top runs past the foot - and is shifted into the viewport, `edge` from
+ * its border. The tip then points at the aim and
  * never enters a rounded corner: its outer extent stays `radius` from each end of its edge. Where
  * that is not enough to reach the aim, the surface comes nearer the viewport's edge, down to
  * `nearEdge`; only past that does the tip stop at the end of the straight edge.
@@ -245,13 +251,18 @@ export function placeWithTip(input: TipInput): TipPlacement {
   const mainSpan = isBeside ? viewport.width : viewport.height;
   main = Math.max(edge, Math.min(main, mainSpan - edge - mainSize));
 
-  // Across it: lined up with the anchor's start, then shifted into the viewport.
+  // Across it: lined up with the anchor as `align` says, then shifted into the viewport. Beside
+  // the anchor and at its start, a surface that would run past the foot lines up with its bottom.
+  const align = input.align ?? 'start';
+  const low0 = isBeside ? anchor.top : anchor.left;
+  const high0 = isBeside ? anchor.bottom : anchor.right;
+  const isMirrored = !isBeside && input.dir === 'rtl';
+  const atStart = isMirrored ? high0 - size : low0;
+  const atEnd = isMirrored ? low0 : high0 - size;
   let cross: number;
-  if (isBeside) {
-    cross = anchor.top + height > span - edge ? anchor.bottom - height : anchor.top;
-  } else {
-    cross = input.dir === 'rtl' ? anchor.right - width : anchor.left;
-  }
+  if (align === 'center') cross = (low0 + high0 - size) / 2;
+  else if (align === 'end') cross = atEnd;
+  else cross = isBeside && atStart + size > span - edge ? atEnd : atStart;
   cross = Math.max(edge, Math.min(cross, span - edge - size));
 
   // The point the tip aims at, across the side.
@@ -389,8 +400,9 @@ function tipTo(anchor: HTMLElement, overlay: HTMLElement, placement: Placement, 
     const length = (name: string) => pixels(style, name) * zoom;
     const reach = length('--hbt-tip');
     const root = document.documentElement;
+    const anchored = edgesOf(anchor);
     const placed = placeWithTip({
-      anchor: edgesOf(anchor),
+      anchor: anchored,
       beside: within ? edgesOf(within) : undefined,
       aim: edgesOf(aim ?? anchor),
       width: box.width,
@@ -398,6 +410,7 @@ function tipTo(anchor: HTMLElement, overlay: HTMLElement, placement: Placement, 
       viewport: { width: root.clientWidth, height: root.clientHeight },
       sides: tipSides(placement, dir),
       dir,
+      align: placement.align,
       gap: reach + length('--sp-050'),
       edge: length('--sp-200'),
       nearEdge: length('--sp-100'),
