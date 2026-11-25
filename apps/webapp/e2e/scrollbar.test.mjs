@@ -200,11 +200,13 @@ test('chromium: the probe — overlay scrollbars set data-scrollbars="overlay" a
   const classic = await openEntry(t);
   const zone = await hitZone(classic.page);
   assert.equal(await classic.page.evaluate(() => innerWidth - document.documentElement.clientWidth), zone);
+  const product = await measureBar(classic.browser, classic.page, PAGE);
   // The same window told its scrollbars overlay: the rule is gone, the system's own bar is back.
+  // How wide the system paints its thumb is the system's own (13 columns on macOS, 9 on Linux).
   await classic.page.evaluate(() => { document.documentElement.dataset.scrollbars = 'overlay'; });
   const system = await measureBar(classic.browser, classic.page, PAGE);
   assert.ok(system.gutter > zone, `with the rule gone the bar is ${system.gutter} px, the product's width`);
-  assert.ok(system.drawn >= zone, `with the rule gone the thumb paints ${system.drawn} columns, the product's thin one`);
+  assert.ok(system.drawn > product.drawn, `with the rule gone the thumb paints ${system.drawn} columns, as thin as the product's ${product.drawn}`);
   // The system's answer is asked again: a resize finds the classic bars, and the rule is back.
   await classic.page.evaluate(() => dispatchEvent(new Event('resize')));
   assert.equal(await classic.page.evaluate(() => document.documentElement.dataset.scrollbars), undefined, 'a resize did not ask the system again');
