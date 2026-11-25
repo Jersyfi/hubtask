@@ -154,6 +154,8 @@
     position: relative;
     display: inline-flex;
     align-items: center;
+    /* A thumb's target below widens the view past its content; the content stays in its middle. */
+    justify-content: center;
     gap: var(--sp-050);
     padding: var(--sp-050) var(--sp-150);
     border: var(--bw-hairline) solid transparent;
