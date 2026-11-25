@@ -88,16 +88,31 @@ export function readEdges(scroller) {
   });
 }
 
-/** Scrolls the box to a share of its room - 0 its top, 1 its end - and waits for the frame to say so. */
+/**
+ * Scrolls the box to a share of its room - 0 its top, 1 its end - and waits for the frame to say
+ * so, five seconds at most: a frame that never says so fails with what it says at each edge (rule 7).
+ */
 export async function scrollToShare(scroller, share) {
   await scroller.evaluate((node, at) => {
     node.scrollTop = Math.round((node.scrollHeight - node.clientHeight) * at);
   }, share);
-  await scroller.evaluate((node, at) => new Promise((done) => {
+  await scroller.evaluate((node, at) => new Promise((done, fail) => {
     const frame = node.parentElement;
-    const wanted = () => frame.hasAttribute('data-more-start') === at > 0 && frame.hasAttribute('data-more-end') === at < 1;
+    const want = { start: at > 0, end: at < 1 };
+    const says = () => ({ start: frame.hasAttribute('data-more-start'), end: frame.hasAttribute('data-more-end') });
+    const wanted = () => says().start === want.start && says().end === want.end;
     if (wanted()) return done();
-    const watch = new MutationObserver(() => { if (wanted()) { watch.disconnect(); done(); } });
+    const limit = AbortSignal.timeout(5_000);
+    const watch = new MutationObserver(() => {
+      if (!wanted()) return;
+      watch.disconnect();
+      done();
+    });
+    limit.addEventListener('abort', () => {
+      watch.disconnect();
+      const word = (more) => (more ? 'more' : 'nothing');
+      fail(new Error(`scrolled to ${at}: the frame says ${word(says().start)} at the start and ${word(says().end)} at the end, not ${word(want.start)} and ${word(want.end)}`));
+    }, { once: true });
     watch.observe(frame, { attributes: true });
   }), share);
 }
