@@ -46,9 +46,9 @@ async function openEntry(t, { width = 1280, height = 800, scheme = 'light', hasS
 /** Waits until nothing on the page moves: an overlay's entrance fades it in. */
 const still = (page) => page.waitForFunction(() => document.getAnimations().every((each) => each.playState !== 'running'));
 
-/** The entry's ⋯ menu, open and still. */
+/** The entry's ⋯ menu, open and still. Its opener's name is `app.workspace.actions`. */
 async function openMenu(page) {
-  await page.locator('[data-opener="entry-menu"]').filter({ visible: true }).first().click();
+  await page.getByRole('button', { name: `Actions for ${ENTRY.title}`, exact: true }).filter({ visible: true }).first().click();
   const menu = page.getByRole('menu').first();
   await menu.waitFor({ timeout: 5_000 });
   await still(page);
