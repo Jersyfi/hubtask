@@ -1,6 +1,6 @@
 # ADR-0116 — A surface with a tip is placed by measurement
 
-**Status:** proposed · **Date:** 2026-11-25 · **Supersedes in part:** [ADR-0039](./ADR-0039-overlay-positioning.md), for the reason bubble, `Tooltip` and `HelpTip` only
+**Status:** accepted · **Date:** 2026-11-25 · **Decided:** 2026-11-25, by the owner · **Supersedes in part:** [ADR-0039](./ADR-0039-overlay-positioning.md), for the reason bubble, `Tooltip` and `HelpTip` only
 
 **Rule lives in:** [design-system.md](../design/design-system.md) §6, "Overlays are positioned by CSS", and §4, "Where a bubble stands"
 
