@@ -9,7 +9,7 @@
 // corners, no border is wider than a hairline, light and dark. On a phone, with the ⓘ at the
 // screen's right edge, the help tip comes nearer that edge - never nearer than sp-100 - so that
 // its tip reaches the ⓘ on the straight part of its edge. A help tip whose ⓘ the page scrolls out
-// of the window closes. Chromium only.
+// of the window closes. In forced colours no tip breaks the outline. Chromium only.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -116,4 +116,21 @@ test('chromium: a help tip closes when the page scrolls its ⓘ out of the windo
   await page.waitForFunction((button) => button.getBoundingClientRect().bottom <= 0, await tip.elementHandle());
   await page.getByRole('dialog', { name: 'Expires' }).waitFor({ state: 'detached' });
   assert.equal(await tip.getAttribute('aria-expanded'), 'false');
+});
+
+test('chromium: in forced colours the bubble and the help tip draw no tip over their outline', async (t) => {
+  const page = await story(t, 'wave-1-forms-input--unavailable', 'light');
+  await page.emulateMedia({ forcedColors: 'active' });
+  const field = page.getByRole('textbox', { name: 'Title', exact: true });
+  await field.focus();
+  const id = (await field.getAttribute('aria-describedby')).split(/\s+/)[0];
+  await page.waitForFunction((bubbleId) => document.getElementById(bubbleId)?.dataset.hbtTip !== undefined, id);
+  const bubble = await page.locator(`[id="${id}"]`).evaluate((node) => ({ tip: getComputedStyle(node, '::before').display, border: getComputedStyle(node).borderTopStyle }));
+  assert.deepEqual(bubble, { tip: 'none', border: 'solid' }, 'the bubble\'s outline is broken by its tip, or it has none');
+
+  await page.goto(page.url().replace('wave-1-forms-input--unavailable', 'wave-1-overlays-help-tip--label'));
+  await page.getByRole('button', { name: 'More about Expires', exact: true }).click();
+  const surface = await helpOf(page, 'Expires');
+  const hidden = await surface.evaluate((node) => getComputedStyle(node.querySelector(':scope > [aria-hidden="true"]:empty')).display);
+  assert.equal(hidden, 'none', 'the help tip\'s tip breaks its outline');
 });

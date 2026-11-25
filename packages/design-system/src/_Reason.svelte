@@ -271,6 +271,12 @@
     rotate: 45deg;
   }
 
+  /* Forced colours draw the hairline as the bubble's outline; the tip would lie over it and break
+     it, and without its own outline it would not be seen. */
+  @media (forced-colors: active) {
+    .bubble::before { display: none; }
+  }
+
   .text { display: block; }
 
   /* Opacity alone, because a `transform` here is a trap. `animation-fill-mode:

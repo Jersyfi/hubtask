@@ -225,6 +225,12 @@
   .surface:global([data-hbt-tip='bottom']) .tip { clip-path: polygon(100% 0, 100% 100%, 0 100%, 0 calc(100% - var(--strip)), calc(100% - var(--strip)) 0); }
   .surface:global([data-hbt-tip='left']) .tip { clip-path: polygon(0 0, var(--strip) 0, 100% calc(100% - var(--strip)), 100% 100%, 0 100%); }
 
+  /* Forced colours draw the surface's border as its outline; the tip covers that border where it
+     joins, and would break it. */
+  @media (forced-colors: active) {
+    .tip { display: none; }
+  }
+
   /* The content scrolls inside the surface, so the surface can carry the shades at its edges. */
   .scroll {
     flex: 1 1 auto;
