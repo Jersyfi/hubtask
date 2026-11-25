@@ -288,10 +288,11 @@
     --slide-from-y: 100%;
   }
 
-  /* Its head stays and only its body scrolls, as a sheet's (design-system.md §4). */
-  .drawer[data-edge='block-end'] .panel { flex: 1 1 auto; box-sizing: border-box; min-block-size: 0; }
+  /* Its head stays and only its body scrolls, as a sheet's (design-system.md §4): the gutter is
+     the body's alone. */
+  .drawer[data-edge='block-end'] .panel { flex: 1 1 auto; box-sizing: border-box; min-block-size: 0; scrollbar-gutter: auto; }
   .drawer[data-edge='block-end'] .frame { flex: 1 1 auto; }
-  .drawer[data-edge='block-end'] .body { flex: 1 1 auto; min-block-size: 0; overflow: auto; }
+  .drawer[data-edge='block-end'] .body { flex: 1 1 auto; min-block-size: 0; overflow: auto; scrollbar-gutter: var(--scrollbar-gutter); }
 
   /* In RTL the same logical edge is the other physical side, so the sign flips. Without this a
      drawer at `inline-end` in Arabic sits on the left and slides in from the right, across the
@@ -314,10 +315,10 @@
   /* The border box is the sheet's height. The project has no global `box-sizing`, so a
      percentage height plus this panel's own padding stood past the sheet's bottom edge, where
      `overflow: hidden` cut off the padding and the lower half of the last control with it. */
-  .drawer.sized .panel { box-sizing: border-box; block-size: 100%; min-block-size: 0; }
+  .drawer.sized .panel { box-sizing: border-box; block-size: 100%; min-block-size: 0; scrollbar-gutter: auto; }
 
   .drawer.sized .frame { flex: 1 1 auto; }
-  .drawer.sized .body { flex: 1 1 auto; min-block-size: 0; overflow: auto; }
+  .drawer.sized .body { flex: 1 1 auto; min-block-size: 0; overflow: auto; scrollbar-gutter: var(--scrollbar-gutter); }
 
   /* A sheet's body frame reaches the sheet's sides and its foot, and the panel's padding moves
      inside the body: its shades run edge to edge instead of stopping hard at the padding line. */
@@ -336,6 +337,7 @@
     flex: 1 1 auto;
     min-block-size: 0;
     overflow: auto;
+    scrollbar-gutter: var(--scrollbar-gutter);
     display: flex;
     flex-direction: column;
     gap: var(--sp-200);

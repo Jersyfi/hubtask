@@ -270,11 +270,11 @@
   .panel { flex: 1 1 auto; min-block-size: 0; box-sizing: border-box; }
   .frame { position: relative; display: flex; flex-direction: column; min-block-size: 0; }
   .panel > .frame { flex: 1 1 auto; }
-  .body { flex: 1 1 auto; min-block-size: 0; overflow: auto; }
+  .body { flex: 1 1 auto; min-block-size: 0; overflow: auto; scrollbar-gutter: var(--scrollbar-gutter); }
   /* A list of actions is the scroller itself, so the menu stands inside the screen, not only its body. */
   .body:has(> .items-frame) { display: flex; flex-direction: column; }
   .items-frame { flex: 0 1 auto; }
-  .items { flex: 0 1 auto; min-block-size: 0; overflow: auto; }
+  .items { flex: 0 1 auto; min-block-size: 0; overflow: auto; scrollbar-gutter: var(--scrollbar-gutter); }
   /* The frames reach the sheet's sides, and its foot where nothing stands below, and the panel's
      padding moves inside the scroller: a shade runs edge to edge instead of stopping hard at the
      padding line. */

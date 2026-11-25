@@ -139,7 +139,7 @@
   }
 
   .frame { position: relative; display: flex; flex-direction: column; min-block-size: 0; }
-  .words { min-block-size: 0; overflow-y: auto; }
+  .words { min-block-size: 0; overflow-y: auto; scrollbar-gutter: var(--scrollbar-gutter); }
   .actions { flex: none; }
 
   .count { color: var(--text-subtle); font-size: var(--fs-075); }

@@ -349,9 +349,11 @@
 
   .dialog[open] { display: flex; flex-direction: column; }
 
+  /* Only the body scrolls here: a gutter on the panel would be a second one. */
   .dialog[data-size] .panel {
     flex: 1 1 auto;
     min-block-size: 0;
+    scrollbar-gutter: auto;
     gap: 0;
     padding: 0;
   }
@@ -372,6 +374,7 @@
     flex: 1 1 auto;
     min-block-size: 0;
     overflow: auto;
+    scrollbar-gutter: var(--scrollbar-gutter);
     display: flex;
     flex-direction: column;
     gap: var(--sp-250);
@@ -441,6 +444,7 @@
     flex: 1 1 auto;
     min-block-size: 0;
     overflow: auto;
+    scrollbar-gutter: var(--scrollbar-gutter);
     display: flex;
     flex-direction: column;
     gap: var(--sp-200);

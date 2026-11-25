@@ -915,6 +915,31 @@ out, so it darkens the surface in both themes; a tint of the text colour would l
 surface into a bar. The dark theme takes a larger share of the scrim, so the shade darkens a dark
 surface's edge by about as much as a light one's. `Table` keeps its own fade.
 
+**One scrollbar** serves every scrolling surface — the page, a menu, a popover, a dialog, a sheet, a
+list, a table — written once in `scrollbar.css`, with no attribute at the place. Its hit zone is
+`layout.nav.scrollbar`; the thumb inside it is round, inset by `sp-025` from either edge and by
+`sp-100` from either end, so it stays inside a surface's rounded corners and runs under the scroll
+shade, which takes no pointer. The track is not drawn. The thumb is faint at rest — `border.default`
+at 45 % — and `border.default` itself while its surface is hovered, holds focus or scrolls
+(`data-scrolling`, for `dur-intent` after the last scroll). The page is hovered and holds the focus
+nearly always, so its thumb turns full only while it scrolls. Under the pointer the thumb widens and
+takes `border.strong`. The page and every overlay's scroll box keep the bar's room before they scroll
+(`scrollbar-gutter: var(--scrollbar-gutter)`), so nothing shifts once they do. Only the box that
+scrolls keeps it: a sized dialog, a sheet and a drawer from the bottom keep it on their body, not
+on their panel as well. The page scrolls
+always: measured in this app, Chromium kept no gutter for the root before the page scrolled,
+though a bare page keeps it; the cause is not found. A surface that hides its bar — a
+strip of tabs, `scrollbar-width: none` — still does. Chromium and WebKit draw the pseudo-elements;
+Firefox takes `scrollbar-width: thin` and `scrollbar-color`, which are written only where the
+pseudo-elements do not exist, because Chromium ignores them once either is set. A system that
+overlays its scrollbars — macOS with a trackpad, a phone — keeps its own: `watchScrollbars` in each
+client's entry asks a box that always scrolls whether its bar takes room, and sets
+`data-scrollbars="overlay"` on the root where it does not; then none of this applies. It asks
+again when the window is resized, shown or focused, so switching the system between overlay and
+classic bars applies without a reload. Forced colours
+keep the system's bar too. `apps/webapp/e2e/scrollbar.test.mjs` walks it with classic scrollbars
+shown.
+
 What paints over what and what `Escape` reaches are **different lists**. A tooltip paints above a
 dialog and is not in the register: it closes on the `Escape` pressed while it shows (WCAG 1.4.13)
 and leaves every other one to the dialog; a popover opened from inside a dialog closes first,
@@ -1282,9 +1307,7 @@ outside a region, nothing in two.
 | The foot | *Administration*, only where the manifest's `workspace_permissions` carry `STRUCTURE` or the auditor's `READ_CONFIGURATION` - an address under `/administration` typed by anybody else answers as one that reaches nothing; *Archive*, *Trash* | Fixed at the foot on every width, after a hairline — where a reader looks when something is **missing** |
 
 A row is 30 px high with a 7 px radius; each level indents 12 px, growing to the sixth level and no
-further; the middle's scrollbar is thin, shown on hover with its track and a hairline at the track's
-inner edge, its room reserved - one style for every scroll area of the sidebar and its panels
-(`data-scrollbar="thin"`, `scrollbar.css`). A row's figure grows to `layout.nav.figure` at most and
+further; the middle's scrollbar is the product's (§6, "One scrollbar"), its room reserved. A row's figure grows to `layout.nav.figure` at most and
 is cut before the row's name, which keeps `layout.nav.name`. These lengths are tokens (rule 15).
 
 **A hub or collection wears its own symbol and colour** (UC-WRK-33), chosen when it is created and

@@ -1,59 +1,107 @@
 /* SPDX-License-Identifier: Apache-2.0
    Copyright (c) 2026 Jérôme Bastian Winkel */
 
-/* The thin scrollbar of the sidebar and its panels, written once for every scroll area that
-   carries `data-scrollbar='thin'` (the navigation concept §2.1; the owner's review R-9). Its room
-   is always reserved, so nothing shifts when it shows. Idle it is invisible; while the area is
-   hovered the thumb shows, and the track takes a background with a hairline at its inner edge -
-   the look the platform's own scrollbar had before the concept.
+/* One scrollbar for every scrolling surface of the product - menus, popovers, dialogs, sheets,
+   lists, tables, the page (design-system.md §6, "One scrollbar"). It holds no attribute per
+   place: the rule reaches every element. A track nobody sees; a round thumb inset from the edge,
+   faint at rest and drawn in `border.default` while its surface is hovered, holds focus or
+   scrolls - the page's only while it scrolls.
+
+   Where the system draws overlay scrollbars - macOS with a trackpad, a phone - those stay: the
+   probe in scrollbars.ts sets `data-scrollbars='overlay'` on the root and none of this applies.
+   In forced colours the system's bar stays too.
 
    Two mechanisms, because an engine honours only one: Chromium and WebKit draw the pseudo-elements
    below, and Chromium ignores them on an element that sets `scrollbar-width` or
-   `scrollbar-color` - so those two are written only where the pseudo-elements do not exist. */
+   `scrollbar-color` - so those two are written only where the pseudo-elements do not exist. Every
+   selector is wrapped in `:where`, so a surface that hides its bar with `scrollbar-width: none`
+   (a strip of tabs) still wins. */
 
-/* The colours travel as custom properties set on hover: Chromium restyles a scrollbar's
-   pseudo-elements when an inherited property changes, not when `:hover` on the area matches. */
-[data-scrollbar='thin'] {
-  --scrollbar-thumb: transparent;
-  --scrollbar-track: transparent;
-  --scrollbar-edge: transparent;
-  scrollbar-gutter: stable;
+/* Nothing jumps when content starts to scroll: the page and every overlay's scroll box reserve
+   the bar's room (`scrollbar-gutter: var(--scrollbar-gutter)` in the overlay). An overlay bar
+   takes no room, so there is none to keep. */
+:root {
+  --scrollbar-gutter: stable;
+  scrollbar-gutter: var(--scrollbar-gutter);
 }
 
-[data-scrollbar='thin']:hover {
-  --scrollbar-thumb: var(--border-strong);
-  --scrollbar-track: var(--bg-surface-hover);
-  --scrollbar-edge: var(--border-subtle);
+:root[data-scrollbars='overlay'] {
+  --scrollbar-gutter: auto;
 }
 
-@supports not selector(::-webkit-scrollbar) {
-  [data-scrollbar='thin'] {
-    scrollbar-width: thin;
-    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+@media not (forced-colors: active) {
+  /* Measured in this app: Chromium keeps no gutter for the root before the page scrolls,
+     whatever `scrollbar-gutter` says, though a bare page keeps it - the cause is not found. A
+     page that always scrolls keeps it, and its empty track shows nothing. */
+  :root:not([data-scrollbars='overlay']) {
+    overflow-y: scroll;
+  }
+
+  /* The colour travels as a custom property set on the surface itself: Chromium restyles a
+     scrollbar's pseudo-elements when an inherited property changes, not when `:hover` on the
+     surface matches. Set on every element, so a surface does not take its ancestor's state. */
+  :where(:root:not([data-scrollbars='overlay']), :root:not([data-scrollbars='overlay']) :not([data-scrollbar-probe])) {
+    --scrollbar-thumb: color-mix(in oklab, var(--border-default) 45%, transparent);
+  }
+
+  /* The page is hovered and holds the focus nearly always, so its own thumb turns full only
+     while it scrolls; under the pointer its thumb still takes the strong boundary below. The body
+     is left out as well: Chromium draws the page's bar in the body's state (measured). */
+  :where(:root:not([data-scrollbars='overlay']) :not([data-scrollbar-probe], body)):where(:hover, :focus-within),
+  :where(:root:not([data-scrollbars='overlay']), :root:not([data-scrollbars='overlay']) :not([data-scrollbar-probe]))[data-scrolling],
+  :where(:root:not([data-scrollbars='overlay'])[data-scrolling] > body) {
+    --scrollbar-thumb: var(--border-default);
+  }
+
+  @supports not selector(::-webkit-scrollbar) {
+    :where(:root:not([data-scrollbars='overlay']), :root:not([data-scrollbars='overlay']) :not([data-scrollbar-probe])) {
+      scrollbar-width: thin;
+      scrollbar-color: var(--scrollbar-thumb) transparent;
+    }
+  }
+
+  /* The hit zone, on either axis: a vertical bar's width, a horizontal one's height. */
+  :where(:root:not([data-scrollbars='overlay']), :root:not([data-scrollbars='overlay']) :not([data-scrollbar-probe]))::-webkit-scrollbar {
+    inline-size: var(--layout-nav-scrollbar);
+    block-size: var(--layout-nav-scrollbar);
+    background: transparent;
+  }
+
+  /* Inset from the ends, so the thumb stays inside a surface's rounded corners. */
+  :where(:root:not([data-scrollbars='overlay']), :root:not([data-scrollbars='overlay']) :not([data-scrollbar-probe]))::-webkit-scrollbar-track {
+    margin-block: var(--sp-100);
+    background: transparent;
+  }
+
+  /* The thumb's transparent border is the air between it and the edge of the hit zone. */
+  :where(:root:not([data-scrollbars='overlay']), :root:not([data-scrollbars='overlay']) :not([data-scrollbar-probe]))::-webkit-scrollbar-thumb {
+    min-block-size: var(--sp-400);
+    border: var(--sp-025) solid transparent;
+    border-radius: var(--r-full);
+    background-color: var(--scrollbar-thumb);
+    background-clip: padding-box;
+  }
+
+  /* Under the pointer the thumb grows and takes the strong boundary: it is what is grabbed. */
+  :where(:root:not([data-scrollbars='overlay']), :root:not([data-scrollbars='overlay']) :not([data-scrollbar-probe]))::-webkit-scrollbar-thumb:hover {
+    border-width: var(--bw-hairline);
+    background-color: var(--border-strong);
+  }
+
+  :where(:root:not([data-scrollbars='overlay']), :root:not([data-scrollbars='overlay']) :not([data-scrollbar-probe]))::-webkit-scrollbar-corner {
+    background: transparent;
   }
 }
 
-/* Its thickness on either axis: a vertical bar's width, a horizontal one's height. */
-[data-scrollbar='thin']::-webkit-scrollbar {
-  inline-size: var(--layout-nav-scrollbar);
-  block-size: var(--layout-nav-scrollbar);
-  background: transparent;
-}
-
-/* The track, and the hairline at its inner edge. */
-[data-scrollbar='thin']::-webkit-scrollbar-track {
-  border-inline-start: var(--bw-hairline) solid var(--scrollbar-edge);
-  background: var(--scrollbar-track);
-}
-
-/* The thumb sits inside the track: its transparent border is the air around it. */
-[data-scrollbar='thin']::-webkit-scrollbar-thumb {
-  border: calc(var(--sp-025) + var(--bw-hairline)) solid transparent;
-  border-radius: var(--layout-nav-scrollbar);
-  background-color: var(--scrollbar-thumb);
-  background-clip: padding-box;
-}
-
-[data-scrollbar='thin']::-webkit-scrollbar-corner {
-  background: transparent;
+/* The probe of scrollbars.ts: a box that always scrolls, out of sight. Its scrollbar takes room
+   only where the system draws classic ones. */
+[data-scrollbar-probe] {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inline-size: var(--sp-400);
+  block-size: var(--sp-400);
+  overflow: scroll;
+  visibility: hidden;
+  pointer-events: none;
 }

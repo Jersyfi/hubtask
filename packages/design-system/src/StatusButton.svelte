@@ -348,6 +348,7 @@
     flex-direction: column;
     min-block-size: 0;
     overflow: auto;
+    scrollbar-gutter: var(--scrollbar-gutter);
     padding: var(--sp-100);
   }
 
